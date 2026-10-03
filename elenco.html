@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passo A · Elenco gerado</title>
+<style>
+  :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --ok:#3fb27f; --bad:#e5646b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
+  .mut { color:var(--mut); } .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:12px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--mut); }
+  select, input, button { font:inherit; color:var(--tx); background:#0f1720; border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  button { cursor:pointer; background:var(--ac); color:#1a1300; border-color:var(--ac); font-weight:600; }
+  .rolagem { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  th, td { padding:4px 6px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:center; }
+  th { color:var(--mut); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--card); }
+  td.esq, th.esq { text-align:left; }
+  tr.clk { cursor:pointer; } tr.clk:hover td { background:#1e2b3a; } tr.sel td { background:#22344a; }
+  tr.sep td { border-top:2px solid var(--line); }
+  .pp { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; background:#22344a; font-weight:600; font-size:12px; }
+  .nota { font-weight:700; color:var(--ac); }
+  .a0 { color:#5d6b7c; } .a1 { color:#9fb0c3; } .a2 { color:#e6edf3; } .a3 { color:#7fd4a6; font-weight:600; } .a4 { color:#3fe08f; font-weight:700; }
+  .kv { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; }
+  .kv div { background:#0f1720; border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .kv b { float:right; }
+  .tag { font-size:11px; color:var(--mut); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Passo A · Elenco gerado</h1>
+  <div class="mut">Página de conferência do modelo de jogador: 22 atributos, 18 posições, familiaridade e nota por posição.</div>
+
+  <div class="card row">
+    <label>Nível (nota média dos titulares)<input id="nivel" type="number" min="15" max="42" value="30" style="width:110px"></label>
+    <label>Perfil do elenco<select id="perfil"></select></label>
+    <label>Semente<input id="semente" type="number" value="1" style="width:110px"></label>
+    <button id="gerar">Gerar outro elenco</button>
+  </div>
+
+  <div class="card"><h2>Resumo</h2><div id="resumo" class="kv"></div></div>
+  <div class="card"><h2>Elenco <span class="tag">clique num jogador para ver a nota dele em todas as posições</span></h2><div class="rolagem" id="tabela"></div></div>
+  <div class="card" id="ficha" hidden></div>
+  <div class="card"><h2>Equilíbrio entre elencos <span class="tag">40 elencos de cada perfil, mesmo nível</span></h2><div class="rolagem" id="equilibrio"></div></div>
+</main>
+
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, NOME_FAMILIARIDADE, notaBruta, notaNaPosicao, familiaridade } from "./src/modelo.js";
+import { gerarElenco, PERFIS } from "./src/gerador.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const media = l => l.reduce((a, b) => a + b, 0) / l.length;
+const f1 = v => v.toFixed(1).replace(".", ",");
+const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4);
+
+const nomes = await (await fetch("./dados/nomes.json")).json();
+$("perfil").innerHTML = Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("");
+
+let elenco = [], selecionado = null;
+
+function gerar() {
+  const rng = criarRng(+$("semente").value);
+  elenco = gerarElenco(rng, { nivel: +$("nivel").value, perfil: $("perfil").value, nomes });
+  selecionado = null;
+  mostrar();
+}
+
+function outras(j) {
+  return Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—";
+}
+
+function mostrar() {
+  const tit = elenco.filter(j => j.titular), res = elenco.filter(j => !j.titular);
+  const nota = j => notaNaPosicao(j, j.pos);
+  const mediaAtr = k => media(elenco.filter(j => j.pos !== "GK").map(j => j.at[IDX[k]]));
+  $("resumo").innerHTML = [
+    ["Jogadores", elenco.length], ["Nota média dos titulares", f1(media(tit.map(nota)))], ["Nota média dos reservas", f1(media(res.map(nota)))],
+    ["Idade média", f1(media(elenco.map(j => j.idade)))], ["Velocidade média", f1(mediaAtr("vel"))], ["Força média", f1(mediaAtr("for"))],
+    ["Domínio médio", f1(mediaAtr("dom"))], ["Posicionamento médio", f1(mediaAtr("pos"))],
+  ].map(([a, b]) => `<div>${a}<b>${b}</b></div>`).join("");
+
+  $("tabela").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>` +
+    elenco.map((j, i) => `<tr class="clk ${i === 11 ? "sep" : ""} ${selecionado === j.id ? "sel" : ""}" data-id="${j.id}">
+      <td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(nota(j))}</td><td class="esq">${outras(j)}</td>
+      ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`).join("") + `</table>`;
+  mostrarFicha();
+}
+
+function mostrarFicha() {
+  const j = elenco.find(x => x.id === selecionado);
+  $("ficha").hidden = !j;
+  if (!j) return;
+  const notas = LISTA_POSICOES.map(p => ({ p, n: notaNaPosicao(j, p), f: familiaridade(j, p) })).sort((a, b) => b.n - a.n);
+  $("ficha").innerHTML = `<h2>${esc(j.nome)} <span class="tag">${j.idade} anos · ${esc(j.pais)} · ${POSICOES[j.pos].nome} · talento oculto ${j.tal} (só nesta página de conferência)</span></h2>
+    <div class="kv">${notas.map(x => `<div><span class="pp">${x.p}</span> <span class="tag">${NOME_FAMILIARIDADE[x.f]}</span><b class="${x.f === "I" ? "mut" : "nota"}">${f1(x.n)}</b></div>`).join("")}</div>`;
+}
+
+function mostrarEquilibrio() {
+  const nivel = +$("nivel").value, linhas = [];
+  for (const [k, p] of Object.entries(PERFIS)) {
+    const tit = [], res = [], vel = [], forca = [], dom = [], pos = [], soma = [];
+    for (let s = 1; s <= 40; s++) {
+      const e = gerarElenco(criarRng(1000 + s), { nivel, perfil: k, nomes });
+      tit.push(media(e.filter(j => j.titular).map(j => notaBruta(j.at, j.pos))));
+      res.push(media(e.filter(j => !j.titular).map(j => notaBruta(j.at, j.pos))));
+      const linha = e.filter(j => j.pos !== "GK");
+      vel.push(media(linha.map(j => j.at[IDX.vel]))); forca.push(media(linha.map(j => j.at[IDX.for])));
+      dom.push(media(linha.map(j => j.at[IDX.dom]))); pos.push(media(linha.map(j => j.at[IDX.pos])));
+      soma.push(media(linha.map(j => j.at.reduce((a, b) => a + b, 0))));
+    }
+    const faixa = l => `${f1(Math.min(...l))} a ${f1(Math.max(...l))}`;
+    linhas.push(`<tr><td class="esq">${p.nome}</td><td>${faixa(tit)}</td><td>${faixa(res)}</td><td>${f1(media(vel))}</td><td>${f1(media(forca))}</td><td>${f1(media(dom))}</td><td>${f1(media(pos))}</td><td>${f1(media(soma))}</td></tr>`);
+  }
+  $("equilibrio").innerHTML = `<table><tr><th class="esq">Perfil</th><th>Nota dos titulares</th><th>Nota dos reservas</th><th>Velocidade</th><th>Força</th><th>Domínio</th><th>Posicionamento</th><th>Soma dos 22 atributos</th></tr>${linhas.join("")}</table>`;
+}
+
+$("gerar").onclick = () => { $("semente").value = +$("semente").value + 1; gerar(); };
+["nivel", "perfil", "semente"].forEach(id => $(id).onchange = () => { gerar(); mostrarEquilibrio(); });
+$("tabela").onclick = e => { const tr = e.target.closest("tr[data-id]"); if (!tr) return; selecionado = tr.dataset.id; mostrar(); $("ficha").scrollIntoView({ block: "nearest" }); };
+
+gerar();
+mostrarEquilibrio();
+window.__teste = { elenco: () => elenco, PESOS, gerarElenco, criarRng, nomes, notaBruta, notaNaPosicao };
+</script>
+</body>
+</html>
