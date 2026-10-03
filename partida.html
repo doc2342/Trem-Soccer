@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passo B · Partida simulada</title>
+<style>
+  :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --casa:#5aa9e6; --fora:#e58a5a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
+  .mut { color:var(--mut); } .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:12px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .duas { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
+  label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--mut); }
+  select, input, button { font:inherit; color:var(--tx); background:#0f1720; border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  button { cursor:pointer; background:var(--ac); color:#1a1300; border-color:var(--ac); font-weight:600; }
+  button.sec { background:#0f1720; color:var(--tx); border-color:var(--line); }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  th, td { padding:4px 6px; border-bottom:1px solid var(--line); text-align:center; }
+  th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-align:left; }
+  .placar { font-size:30px; font-weight:800; text-align:center; } .placar small { display:block; font-size:13px; font-weight:400; color:var(--mut); }
+  .casa { color:var(--casa); } .fora { color:var(--fora); }
+  .lance { padding:5px 0; border-bottom:1px solid var(--line); display:flex; gap:8px; }
+  .lance .min { width:34px; color:var(--mut); flex:none; } .lance .xg { margin-left:auto; color:var(--mut); flex:none; font-size:12px; }
+  .lance.gol { font-weight:700; }
+  .campo { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:340px; }
+  .campo div { border:1px solid var(--line); border-radius:6px; padding:6px; text-align:center; font-size:12px; }
+  .pp { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; background:#22344a; font-weight:600; font-size:12px; }
+  .rolagem { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Passo B · Partida simulada</h1>
+  <div class="mut">Núcleo do motor: 9 zonas, três duelos por ataque e chance com xG. Ainda sem instruções, energia, cartões e lesões.</div>
+
+  <div class="duas">
+    <div class="card" id="cfg0"></div>
+    <div class="card" id="cfg1"></div>
+  </div>
+  <div class="card row">
+    <label>Semente da partida<input id="semente" type="number" value="1" style="width:110px"></label>
+    <button id="jogar">Simular outra partida</button>
+    <button id="lote" class="sec">Simular 1.000 partidas</button>
+  </div>
+
+  <div class="card" id="resultado"></div>
+  <div class="card" id="loteSaida" hidden></div>
+  <div class="duas">
+    <div class="card"><h2>Lances</h2><div id="lances"></div></div>
+    <div>
+      <div class="card"><h2>Estatísticas</h2><div id="estat"></div></div>
+      <div class="card"><h2>Duelos de ataque vencidos por zona</h2><div class="duas" id="zonas"></div></div>
+    </div>
+  </div>
+  <div class="card"><h2>Jogadores</h2><div class="rolagem" id="jogadores"></div></div>
+</main>
+
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { notaNaPosicao } from "./src/modelo.js";
+import { gerarElenco, PERFIS } from "./src/gerador.js";
+import { FORMACOES, escalar } from "./src/escalacao.js";
+import { prepararTime, simularPartida, ZONAS, CONFIG } from "./src/motor.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ",");
+const nomes = await (await fetch("./dados/nomes.json")).json();
+const NOMES_TIME = ["Mandante", "Visitante"], COR = ["casa", "fora"];
+
+[0, 1].forEach(i => {
+  $("cfg" + i).innerHTML = `<h2 class="${COR[i]}">${NOMES_TIME[i]}</h2><div class="row">
+    <label>Nível<input id="nivel${i}" type="number" min="15" max="42" value="30" style="width:80px"></label>
+    <label>Perfil<select id="perfil${i}">${Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("")}</select></label>
+    <label>Formação<select id="form${i}">${Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("")}</select></label>
+    <label>Elenco (semente)<input id="elenco${i}" type="number" value="${i + 1}" style="width:80px"></label></div>
+    <div id="esc${i}" class="mut" style="margin-top:8px;font-size:12px"></div>`;
+});
+
+function montar(i) {
+  const elenco = gerarElenco(criarRng(1000 + +$("elenco" + i).value), { nivel: +$("nivel" + i).value, perfil: $("perfil" + i).value, nomes, prefixoId: "t" + i + "_" });
+  const escalacao = escalar(elenco, FORMACOES[$("form" + i).value]);
+  $("esc" + i).innerHTML = escalacao.map(x => `<span class="pp">${x.pos}</span> ${esc(x.j.nome)} <b>${f1(notaNaPosicao(x.j, x.pos))}</b>`).join(" · ");
+  return prepararTime({ nome: NOMES_TIME[i], escalacao, mandante: i === 0 });
+}
+
+function jogar() {
+  const times = [montar(0), montar(1)];
+  const p = simularPartida(criarRng(+$("semente").value), times[0], times[1]);
+  $("resultado").innerHTML = `<div class="placar"><span class="casa">Mandante ${p.placar[0]}</span> x <span class="fora">${p.placar[1]} Visitante</span>
+    <small>xG ${f2(p.xg[0])} x ${f2(p.xg[1])}</small></div>`;
+  $("lances").innerHTML = p.lances.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span><span class="xg">xG ${f2(l.xg)}</span></div>`).join("") || `<div class="mut">Nenhuma chance.</div>`;
+  const linha = (n, f) => `<tr><td class="casa">${f(p.estat[0])}</td><td class="mut">${n}</td><td class="fora">${f(p.estat[1])}</td></tr>`;
+  $("estat").innerHTML = `<table>${linha("Posse", e => e.posse + "%")}${linha("Ataques", e => e.ataques)}${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}
+    ${linha("Chances", e => e.chances)}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}${linha("Gols", e => e.gols)}</table>`;
+  $("zonas").innerHTML = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${NOMES_TIME[i]} <span class="mut">(ataca para cima)</span></div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const [g, pd] = p.estat[i].zonas[l + s]; return `<div>${g}/${g + pd}</div>`; }).join("")).join("")}</div></div>`).join("");
+  const js = Object.values(p.jogadores);
+  $("jogadores").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Gols</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos</th><th>Duelos perdidos</th></tr>${js.map(j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td>${j.gols || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.duelosGanhos}</td><td>${j.duelosPerdidos}</td></tr>`).join("")}</table>`;
+  return p;
+}
+
+function lote(n = 1000) {
+  const times = [montar(0), montar(1)], rng = criarRng(777);
+  const s = { v: 0, e: 0, d: 0, g: [0, 0], xg: [0, 0], ch: [0, 0], cor: [{ E: 0, C: 0, D: 0 }, { E: 0, C: 0, D: 0 }], tipos: {} };
+  for (let k = 0; k < n; k++) {
+    const p = simularPartida(rng, times[0], times[1]);
+    if (p.placar[0] > p.placar[1]) s.v++; else if (p.placar[0] === p.placar[1]) s.e++; else s.d++;
+    [0, 1].forEach(i => { s.g[i] += p.placar[i]; s.xg[i] += p.xg[i]; s.ch[i] += p.estat[i].chances; for (const l in s.cor[i]) s.cor[i][l] += p.estat[i].corredor[l]; });
+    p.lances.forEach(l => { const t = s.tipos[l.tipo] = s.tipos[l.tipo] || { n: 0, xg: 0, gols: 0 }; t.n++; t.xg += l.xg; if (l.resultado === "gol") t.gols++; });
+  }
+  return { n, vitoriasMandante: s.v / n, empates: s.e / n, vitoriasVisitante: s.d / n, golsPorJogo: (s.g[0] + s.g[1]) / n, gols: s.g.map(x => x / n), xg: s.xg.map(x => x / n), chances: s.ch.map(x => x / n), corredor: s.cor.map(c => Object.fromEntries(Object.entries(c).map(([l, v]) => [l, v / n]))), tipos: Object.fromEntries(Object.entries(s.tipos).map(([t, v]) => [t, { porJogo: v.n / n, xgMedio: v.xg / v.n, conversao: v.gols / v.n }])) };
+}
+
+function mostrarLote() {
+  const r = lote(), pc = v => Math.round(v * 100) + "%";
+  $("loteSaida").hidden = false;
+  $("loteSaida").innerHTML = `<h2>1.000 partidas com estes dois times</h2><table>
+    <tr><th>Mandante vence</th><th>Empate</th><th>Visitante vence</th><th>Gols por jogo</th><th>Gols (mandante · visitante)</th><th>xG (mandante · visitante)</th><th>Chances por jogo</th></tr>
+    <tr><td>${pc(r.vitoriasMandante)}</td><td>${pc(r.empates)}</td><td>${pc(r.vitoriasVisitante)}</td><td>${f2(r.golsPorJogo)}</td><td>${f2(r.gols[0])} · ${f2(r.gols[1])}</td><td>${f2(r.xg[0])} · ${f2(r.xg[1])}</td><td>${f1(r.chances[0])} · ${f1(r.chances[1])}</td></tr></table>
+    <table style="margin-top:8px"><tr><th class="esq">Tipo de chance</th><th>Por jogo</th><th>xG médio</th><th>Viram gol</th></tr>${Object.entries(r.tipos).map(([t, v]) => `<tr><td class="esq">${t}</td><td>${f1(v.porJogo)}</td><td>${f2(v.xgMedio)}</td><td>${pc(v.conversao)}</td></tr>`).join("")}</table>`;
+}
+
+$("jogar").onclick = () => { $("semente").value = +$("semente").value + 1; jogar(); };
+$("lote").onclick = mostrarLote;
+document.querySelectorAll("#cfg0 input, #cfg0 select, #cfg1 input, #cfg1 select, #semente").forEach(el => el.onchange = jogar);
+jogar();
+window.__teste = { jogar, lote, montar, CONFIG, simularPartida, criarRng, ZONAS };
+</script>
+</body>
+</html>

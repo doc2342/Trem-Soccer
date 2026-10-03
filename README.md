@@ -7,7 +7,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | Passo | Situação |
 | --- | --- |
 | A. Jogadores (22 atributos, 18 posições, gerador de elenco) | pronto |
-| B. Motor: núcleo (9 zonas, xG) | a fazer |
+| B. Motor: núcleo (9 zonas, xG) | pronto, sem calibragem |
 | C. Calibragem | a fazer |
 | D. Instruções e energia | a fazer |
 | E. Bot e relatório | a fazer |
@@ -22,7 +22,10 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 - `src/modelo.js`: atributos, posições, pesos da nota por posição, familiaridade.
 - `src/gerador.js`: gerador de jogador e de elenco inicial equilibrado.
 - `dados/nomes.json`: nomes e sobrenomes por país (gerado por `ferramentas/extrair_nomes.py`).
+- `src/escalacao.js`: formações de referência e escalação automática simples.
+- `src/motor.js`: motor da partida (zonas, duelos, chances com xG).
 - `elenco.html`: página de conferência do passo A.
+- `partida.html`: página de conferência do passo B (uma partida ou 1.000).
 
 ## Rodar localmente
 
@@ -30,4 +33,4 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 python -m http.server 8797
 ```
 
-Depois abrir `http://localhost:8797/elenco.html`.
+Depois abrir `http://localhost:8797/elenco.html` ou `http://localhost:8797/partida.html`.
