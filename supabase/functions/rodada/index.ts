@@ -340,6 +340,7 @@ const __motor = (() => {
     gastoGoleiro: 0.3,
     energiaPiso: 0.8, // eficácia de um jogador com energia zero
     limiarCansado: 55,
+    desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
     recalcularACada: 5, // minutos
     narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
@@ -719,6 +720,10 @@ const __motor = (() => {
       if (cond === "perdendo") return saldo < 0;
       if (cond === "cansado") return !!jog && jog.energia < CONFIG.limiarCansado;
       if (cond === "amarelo") return !!jog && jog.amarelos > 0;
+      if (cond === "mal" || cond === "naoBem") { // como o jogador que sai está indo na partida (goleiro não entra nessa conta: fica sempre no meio-termo)
+        const f = jog && jogadores[jog.j.id], d = f && jog.pos !== "GK" ? f.duelosGanhos - f.duelosEsperados + 2 * f.gols : 0;
+        return cond === "mal" ? d <= CONFIG.desempenhoRuim : d < CONFIG.desempenhoBom;
+      }
       return true;
     }
     function ordensESubstituicoes(i) {
@@ -1191,7 +1196,7 @@ const __rodada = (() => {
       const titular = id => emCampo.has(id) ? id : null;
       const lista = (l, n) => (Array.isArray(l) ? l : []).filter(id => emCampo.has(id)).slice(0, n);
       const conv = v => v === "true" ? true : v === "false" ? false : isNaN(+v) ? v : +v;
-      const condicoes = ["sempre", "ganhando", "empatando", "perdendo", "cansado", "amarelo"];
+      const condicoes = ["sempre", "ganhando", "empatando", "perdendo", "cansado", "amarelo", "mal", "naoBem"];
       const instrucoes = {
         mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
         passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"),
@@ -1199,7 +1204,7 @@ const __rodada = (() => {
         capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
         cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
         substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
-          .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre") })),
+          .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre"), ...(LISTA_POSICOES.includes(s.pos) && s.pos !== "GK" ? { pos: s.pos } : {}) })), // pos: onde o substituto entra (sem ela, na posição de quem sai)
         ordens: (dados.ordens || []).slice(0, 3).map(o => {
           const [k, v] = String(o.muda || "").split(":");
           if (!["mentalidade", "pressao", "contraAtaque", "passe"].includes(k)) return null;

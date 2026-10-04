@@ -68,6 +68,7 @@ export const CONFIG = {
   gastoGoleiro: 0.3,
   energiaPiso: 0.8, // eficácia de um jogador com energia zero
   limiarCansado: 55,
+  desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
   recalcularACada: 5, // minutos
   narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
@@ -447,6 +448,10 @@ export function simularPartida(rng, casa, fora) {
     if (cond === "perdendo") return saldo < 0;
     if (cond === "cansado") return !!jog && jog.energia < CONFIG.limiarCansado;
     if (cond === "amarelo") return !!jog && jog.amarelos > 0;
+    if (cond === "mal" || cond === "naoBem") { // como o jogador que sai está indo na partida (goleiro não entra nessa conta: fica sempre no meio-termo)
+      const f = jog && jogadores[jog.j.id], d = f && jog.pos !== "GK" ? f.duelosGanhos - f.duelosEsperados + 2 * f.gols : 0;
+      return cond === "mal" ? d <= CONFIG.desempenhoRuim : d < CONFIG.desempenhoBom;
+    }
     return true;
   }
   function ordensESubstituicoes(i) {

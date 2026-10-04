@@ -78,7 +78,7 @@ const OPCOES = {
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
 };
 const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"]];
-const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"]];
+const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"], ["mal", "só se ele estiver jogando mal"], ["naoBem", "a não ser que ele esteja jogando bem"]];
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
   ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"]];
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
@@ -243,9 +243,10 @@ function render() {
       <div><b>Pênaltis</b>${cobradores("penalti", 5)}</div></div>
     <div class="mut" style="font-size:12px;margin-top:6px">Em automático, o jogo escolhe o melhor em campo para a função. Nos cobradores, vale a ordem: se o 1º não estiver em campo, cobra o 2º.</div>`;
   // substituições e ordens
-  const reservas = E.banco.map(jogDe).filter(Boolean);
+  const reservas = E.banco.map(jogDe).filter(Boolean), posDe = id => E.vagas[E.jog.indexOf(id)] || null;
   const sele = (attr, ops, atual) => `<select ${attr}>${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(atual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
-  $("subs").innerHTML = E.subs.map((s, i) => `<div class="linhaSub">aos <input type="number" min="0" max="89" value="${s.min}" data-sub="${i}" data-campo="min"> min, sai ${sele(`data-sub="${i}" data-campo="sai"`, tit.map(j => [j.id, j.nome]), s.sai)} entra ${sele(`data-sub="${i}" data-campo="entra"`, reservas.map(j => [j.id, j.nome]), s.entra)} ${sele(`data-sub="${i}" data-campo="cond"`, CONDICOES_SUB, s.cond)} <button class="sec" data-tirasub="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma. Jogador lesionado é trocado sozinho pelo melhor do banco para a posição.</div>`;
+  $("subs").innerHTML = E.subs.map((s, i) => `<div class="linhaSub">aos <input type="number" min="0" max="89" value="${s.min}" data-sub="${i}" data-campo="min"> min, sai ${sele(`data-sub="${i}" data-campo="sai"`, tit.map(j => [j.id, j.nome]), s.sai)} entra ${sele(`data-sub="${i}" data-campo="entra"`, reservas.map(j => [j.id, j.nome]), s.entra)} de ${sele(`data-sub="${i}" data-campo="pos" title="Posição em que o substituto entra"`, [["", "mesma posição" + (posDe(s.sai) ? " (" + sg(posDe(s.sai)) + ")" : "")], ...LISTA_POSICOES.filter(p => p !== "GK").map(p => [p, sg(p) + (jogDe(s.entra) ? " · " + f1(notaNaPosicao(jogDe(s.entra), p)) : "")])], s.pos || "")} ${sele(`data-sub="${i}" data-campo="cond"`, CONDICOES_SUB, s.cond)} <button class="sec" data-tirasub="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma. Jogador lesionado é trocado sozinho pelo melhor do banco para a posição.</div>`;
+  if (E.subs.length) $("subs").insertAdjacentHTML("beforeend", `<div class="mut" style="font-size:12px;margin-bottom:6px">Em "de", escolha a posição em que o substituto entra (ao lado, a nota dele ali). "Jogando mal" e "jogando bem" olham os duelos que ele venceu além do esperado e os gols até aquele minuto.</div>`);
   $("maisSub").disabled = E.subs.length >= CONFIG.maxSubstituicoes || !reservas.length || !tit.length;
   $("ordens").innerHTML = E.ordens.map((o, i) => `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button class="sec" data-tiraordem="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
   $("maisOrdem").disabled = E.ordens.length >= 3;
