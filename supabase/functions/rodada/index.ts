@@ -44,7 +44,9 @@ const __modelo = (() => {
   // Modelo de jogador: 22 atributos (os 21 do Dugout + Resistência), 18 posições e nota por posição.
   // Os pesos e os fatores de familiaridade são ponto de partida; a calibragem do motor pode mexer neles.
 
-  const ATR_MIN = 1, ATR_MAX = 50;
+  // uma constante exportada por linha: o empacotador das funções do servidor só enxerga o primeiro nome de cada "export const"
+  const ATR_MIN = 1;
+  const ATR_MAX = 50;
 
   // grupo: gol (só goleiro), def, tec (técnicos de linha), fis, men
   const ATRIBUTOS = [
@@ -159,7 +161,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, notaNaPosicao, melhorPosicao };
 })();
 
 const __saude = (() => {

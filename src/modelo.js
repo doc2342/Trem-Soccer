@@ -1,7 +1,9 @@
 // Modelo de jogador: 22 atributos (os 21 do Dugout + Resistência), 18 posições e nota por posição.
 // Os pesos e os fatores de familiaridade são ponto de partida; a calibragem do motor pode mexer neles.
 
-export const ATR_MIN = 1, ATR_MAX = 50;
+// uma constante exportada por linha: o empacotador das funções do servidor só enxerga o primeiro nome de cada "export const"
+export const ATR_MIN = 1;
+export const ATR_MAX = 50;
 
 // grupo: gol (só goleiro), def, tec (técnicos de linha), fis, men
 export const ATRIBUTOS = [

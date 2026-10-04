@@ -15,10 +15,21 @@ RE_IMPORT = re.compile(r'^import\s*\{([^}]*)\}\s*from\s*"\./(\w+)\.js";\s*$', re
 RE_EXPORT = re.compile(r'^export\s+(?=(?:async\s+)?(?:const|let|function)\s+(\w+))', re.M)
 
 
+EXPORTADOS = {}  # módulo -> nomes que ele exporta, para conferir os imports dos módulos seguintes
+
+
 def modulo(nome):
     s = io.open(os.path.join(RAIZ, "src", nome + ".js"), encoding="utf-8").read()
-    s = RE_IMPORT.sub(lambda m: "const {%s} = __%s;" % (m.group(1), m.group(2)), s)
+
+    def importar(m):
+        # todo nome importado tem de existir no módulo de origem; sem esta conferência, um nome perdido vira "undefined" em silêncio
+        nomes = [x.strip().split(" as ")[0] for x in m.group(1).split(",") if x.strip()]
+        faltam = [x for x in nomes if x not in EXPORTADOS.get(m.group(2), [])]
+        assert not faltam, "%s importa de %s nomes que o empacotador não achou: %s (use um 'export const' por linha)" % (nome, m.group(2), ", ".join(faltam))
+        return "const {%s} = __%s;" % (m.group(1), m.group(2))
+    s = RE_IMPORT.sub(importar, s)
     exportados = RE_EXPORT.findall(s)
+    EXPORTADOS[nome] = exportados
     s = RE_EXPORT.sub("", s)
     assert "import " not in re.sub(r"//.*", "", s) and not re.search(r"^export\b", s, re.M), "sobrou import ou export em " + nome
     corpo = "\n".join(("  " + l if l else l) for l in s.rstrip().split("\n"))
