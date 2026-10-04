@@ -16,7 +16,7 @@ export function htmlLance(l) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   const finalizacao = l.resultado !== undefined, chave = finalizacao ? l.resultado : l.tipo;
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
-  return `<div class="lance ${classe}"><span class="min">${l.min}'</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined ? l.min + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["·", "perda de posse"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 

@@ -123,7 +123,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   });
   const p = simularPartida(criarRng(semente), times[0], times[1]);
   const r = montarRelatorio(p, [3, 3]);
-  const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.min, minutosTransmissao).toISOString(), dados: l }));
+  const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
   // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
   const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);
   lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {

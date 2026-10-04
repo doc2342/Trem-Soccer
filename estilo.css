@@ -22,12 +22,12 @@ th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-
 .barra { display:flex; height:22px; border-radius:6px; overflow:hidden; font-size:12px; font-weight:600; margin-top:6px; }
 .barra div { display:flex; align-items:center; justify-content:center; color:#0f1720; min-width:0; overflow:hidden; white-space:nowrap; }
 .lance { padding:5px 0; border-bottom:1px solid var(--line); display:flex; gap:8px; }
-.lance .min { width:34px; color:var(--mut); flex:none; } .lance .xg { margin-left:auto; color:var(--mut); flex:none; font-size:12px; }
+.lance .min { width:42px; font-variant-numeric:tabular-nums; color:var(--mut); flex:none; } .lance .xg { margin-left:auto; color:var(--mut); flex:none; font-size:12px; }
 .lance .ico { width:22px; flex:none; text-align:center; }
 .lance.gol { font-weight:700; background:rgba(242,193,78,.14); border-left:3px solid var(--ac); padding-left:6px; border-radius:4px; }
 .lance.amarelo, .lance.vermelho, .lance.lesao { background:rgba(229,100,107,.08); }
 .lance.substituicao, .lance.ordem, .lance.contra, .lance.impedimento { font-style:italic; }
-.lance.posse { font-size:12.5px; opacity:.72; padding:3px 0; }
+.lance.posse { font-size:13px; opacity:.8; padding:4px 0; }
 .legenda.lances { flex-wrap:wrap; gap:4px 12px; } .legenda.lances span { border-left:none; padding-left:0; }
 .campo { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:360px; }
 .campo div { border:1px solid var(--line); border-radius:6px; padding:8px 4px; text-align:center; font-size:12px; }
