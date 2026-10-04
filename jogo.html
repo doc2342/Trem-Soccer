@@ -53,7 +53,9 @@ async function carregar(s) {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
-    if (clube) { registrarAcesso().catch(() => {}); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {}); await telaClube(liga, clube); return; }
+    if (clube) { registrarAcesso().catch(() => {}); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
+      // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
+      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await telaClube(liga, clube); return; }
     const pedido = await meuPedido(usuario.id);
     if (minha !== versao) return;
     if (pedido && pedido.estado === "pendente") telaEspera(pedido);
@@ -216,13 +218,13 @@ async function telaClube(liga, clube) {
       ${classificacao(doGrupo, partidas, resultados).map((t, i) => `<tr><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${esc(t.clube.nome)}${t.clube.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp}</td><td>${t.gc}</td><td>${t.gp - t.gc}</td><td class="mut">${f1(t.esp)}</td></tr>`).join("")}</table>`;
     $("tituloJogos").textContent = `Jogos do grupo ${g}`;
     $("rodadas").className = "";
-    $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>Rodada ${r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
+    $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : "Rodada " + r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
     // temporadas anteriores deste grupo, guardadas na virada
     historicoDoGrupo(liga.id, g).then(h => {
       if (!h.length || !$("rodadas")) return;
       const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), temporadas = [...new Set(h.map(x => x.temporada))];
       $("rodadas").insertAdjacentHTML("beforeend", `<h2 style="margin-top:16px">Temporadas anteriores</h2>` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
-        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}</td></tr>`).join("")}</table></div></details>`).join(""));
+        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join(""));
     }).catch(() => {});
     const mostrar = () => { if ($("rodada")) $("jogos").innerHTML = partidas.filter(p => p.rodada === +$("rodada").value).map(p => jogo(p, res, agora)).join(""); };
     if ($("rodada")) $("rodada").onchange = mostrar;

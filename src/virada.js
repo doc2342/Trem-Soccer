@@ -21,10 +21,68 @@ const FISICOS = ATRIBUTOS.map((a, i) => a.grupo === "fis" ? i : -1).filter(i => 
 const DE_GOLEIRO = new Set(ATRIBUTOS.map((a, i) => a.grupo === "gol" ? i : -1).filter(i => i >= 0));
 const numero = id => +String(id).replace(/^j/, "");
 
+// ---------- playoffs de acesso: 2º x 5º e 3º x 4º, depois a final; jogo único na casa do mais bem colocado ----------
+export const RODADA_SEMI = 19, RODADA_FINAL = 20;
+const daLiga = p => !p.fase || p.fase === "liga";
+// Empate classifica o mandante, que é sempre o de melhor campanha.
+export const vencedorDoPlayoff = (p, r) => r.gols_casa >= r.gols_fora ? p.casa : p.fora;
+// Devolve os jogos da próxima fase a criar: { fase, jogos: [{ grupo, rodada, fase, casa, fora }] } ou { erro }.
+export function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
+  const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+  if (!partidas.length || partidas.some(p => daLiga(p) && !res[p.id])) return { erro: "A fase de liga ainda não terminou." };
+  const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].sort();
+  if (!grupos.length) return { erro: "Nenhum grupo disputa playoff (só as divisões abaixo da primeira)." };
+  const semis = partidas.filter(p => p.fase === "semi"), finais = partidas.filter(p => p.fase === "final");
+  if (finais.length) return { erro: "As finais dos playoffs já foram criadas." };
+  const jogos = [];
+  for (const g of grupos) {
+    const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);
+    if (!semis.length) {
+      if (t.length < 5) continue;
+      jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[1], fora: t[4] }, { grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
+    } else {
+      const doGrupo = semis.filter(p => p.grupo === g);
+      if (doGrupo.some(p => !res[p.id])) return { erro: "As semifinais ainda não terminaram." };
+      const v = doGrupo.map(p => vencedorDoPlayoff(p, res[p.id])).sort((a, b) => t.indexOf(a) - t.indexOf(b));
+      if (v.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: v[0], fora: v[1] });
+    }
+  }
+  return { fase: semis.length ? "final" : "semi", jogos };
+}
+
+// Acesso e descenso: na primeira caem os 4 últimos; nas outras sobem o campeão e o vencedor do playoff, e na segunda caem
+// os 2 últimos de cada grupo. Quem muda de nível é sorteado entre os grupos do destino, em partes iguais.
+export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
+  const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+  const divDoGrupo = g => (clubes.find(c => c.grupo === g) || {}).divisao, maxDiv = Math.max(...clubes.map(c => c.divisao));
+  const destino = {}, sobem = {}, caem = {}; // por divisão de origem
+  for (const [g, linhas] of Object.entries(grupos)) {
+    const d = divDoGrupo(g), n = linhas.length;
+    linhas.forEach(l => { destino[l.clube_id] = l.posicao === 1 && d === 1 ? "campeão" : "ficou"; });
+    if (d > 1) {
+      const final = partidas.find(p => p.grupo === g && p.fase === "final");
+      if (!final || !res[final.id]) throw new Error(`Falta a final do playoff do grupo ${g}. Gere os playoffs antes da virada.`);
+      const pelo = vencedorDoPlayoff(final, res[final.id]);
+      for (const id of [linhas[0].clube_id, pelo]) { destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g }); }
+    }
+    if (d < maxDiv) linhas.slice(n - (d === 1 ? 4 : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g }); });
+  }
+  const gruposDa = d => Object.keys(grupos).filter(g => divDoGrupo(g) === d).sort();
+  const lista = [];
+  // distribui por igual entre os grupos do destino; quem sai de cada grupo abre exatamente as vagas que os que chegam ocupam
+  const distribuir = (quem, d, caiu) => {
+    const alvos = gruposDa(d), vagas = Object.fromEntries(alvos.map(g => [g, 0]));
+    rng.embaralhar(quem).forEach((x, k) => { const g = alvos[k % alvos.length]; vagas[g]++; lista.push({ clube_id: x.id, grupo: g, divisao: d, caiu }); });
+  };
+  for (const d of Object.keys(sobem)) distribuir(sobem[d], +d - 1, false);
+  for (const d of Object.keys(caem)) distribuir(caem[d], +d + 1, true);
+  return { destino, lista };
+}
+
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
 export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes }) {
   const nova = liga.temporada + 1;
-  const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [] };
+  const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [] };
   const resumo = { grupos: {}, aposentados: [], novos: [], cresceram: 0, cairam: 0, renovados: 0 };
 
   for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
@@ -35,6 +93,15 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       plano.classificacao.push(linha);
       return { ...linha, nome: t.clube.nome, dono: !!t.clube.dono };
     });
+  }
+
+  // acesso e descenso (só quando há mais de uma divisão)
+  if (new Set(clubes.map(c => c.divisao)).size > 1) {
+    const m = movimentos({ rng, clubes, grupos: resumo.grupos, partidas, resultados });
+    plano.movimentos = m.lista;
+    const para = Object.fromEntries(m.lista.map(x => [x.clube_id, x.grupo]));
+    plano.classificacao.forEach(l => { l.destino = m.destino[l.clube_id]; });
+    Object.values(resumo.grupos).flat().forEach(l => { l.destino = m.destino[l.clube_id]; l.para = para[l.clube_id] || null; });
   }
 
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));

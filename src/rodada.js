@@ -148,7 +148,7 @@ export function classificacao(clubes, partidas, resultados) {
   const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
   for (const p of partidas) {
     const r = res[p.id], a = t[p.casa], b = t[p.fora];
-    if (!r || !a || !b) continue;
+    if (!r || !a || !b || (p.fase && p.fase !== "liga")) continue;
     a.j++; b.j++; a.gp += r.gols_casa; a.gc += r.gols_fora; b.gp += r.gols_fora; b.gc += r.gols_casa; a.esp += r.pts_esp_casa; b.esp += r.pts_esp_fora;
     if (r.gols_casa > r.gols_fora) { a.v++; b.d++; a.pts += 3; } else if (r.gols_casa < r.gols_fora) { b.v++; a.d++; b.pts += 3; } else { a.e++; b.e++; a.pts++; b.pts++; }
   }
