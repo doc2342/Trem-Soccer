@@ -10,6 +10,15 @@ create table if not exists public.financas (
   caixa int not null default 5000 -- caixa inicial de 5 mi
 );
 insert into public.financas (clube_id) select id from public.clubes on conflict do nothing;
+-- todo clube criado daqui para a frente já nasce com o caixa inicial
+create or replace function public.criar_financas() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into financas (clube_id) values (new.id) on conflict do nothing;
+  return new;
+end $$;
+drop trigger if exists clubes_financas on public.clubes;
+create trigger clubes_financas after insert on public.clubes for each row execute function public.criar_financas();
 alter table public.financas enable row level security;
 drop policy if exists financas_ler on public.financas;
 create policy financas_ler on public.financas for select to authenticated
