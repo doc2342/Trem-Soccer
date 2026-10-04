@@ -27,6 +27,15 @@
   .mural .ic { flex:none; width:20px; text-align:center; }
   .mini td, .mini th { padding:4px 6px; }
   .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
+  .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
+  .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
+  .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
+  @media (max-width:620px) {
+    .classif { font-size:13px; } .classif td, .classif th { padding:5px 3px; }
+    .classif .c-gols, .classif .c-pe { display:none; }
+    .classif .cl-nome { max-width:44vw; }
+    .mini .lk { text-decoration:none; }
+  }
   .lk { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; cursor:pointer; }
   .lk:hover { text-decoration-color:var(--ac); }
   .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
@@ -573,10 +582,13 @@ async function telaClube(liga, clube) {
     const res = Object.fromEntries(resultados.map(r => [r.partida_id, r])), agora = Date.now(), doGrupo = clubes.filter(c => c.grupo === g);
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
     const atual = rodadas.find(r => partidas.some(p => p.rodada === r && !res[p.id])) || rodadas[rodadas.length - 1]; // primeira rodada ainda sem todos os resultados
-    $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação <span class="tag">PE: pontos esperados pelas chances criadas</span>`;
-    $("tabela").className = "rolagem";
-    $("tabela").innerHTML = `<table><tr><th></th><th class="esq">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>PE</th></tr>
-      ${classificacao(doGrupo, partidas, resultados).map((t, i) => `<tr><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp}</td><td>${t.gc}</td><td>${t.gp - t.gc}</td><td class="mut">${f1(t.esp)}</td></tr>`).join("")}</table>`;
+    $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
+    $("tabela").className = "";
+    const serieG = g === "A" ? 1 : g === "B" || g === "C" ? 2 : 3, tabG = classificacao(doGrupo, partidas, resultados);
+    const faixaG = i => serieG === 1 ? (i >= tabG.length - 4 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : serieG === 2 && i >= tabG.length - 2 ? "cai" : "";
+    $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th></tr>
+      ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td></tr>`).join("")}</table>
+      <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${serieG === 1 ? `<span class="bad">▌</span> rebaixamento` : `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff${serieG === 2 ? ` · <span class="bad">▌</span> rebaixamento` : ""}`}</div>`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
     $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : "Rodada " + r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
