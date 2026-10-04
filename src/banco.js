@@ -15,7 +15,7 @@ export const sair = () => sb.auth.signOut();
 
 export const ehAdmin = () => sb.rpc("eh_admin").then(ok);
 export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok);
-export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
+export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
 export const meuClube = userId => sb.from("clubes").select("*").eq("dono", userId).maybeSingle().then(ok);
 export const assumirClube = (nome, sigla, escudo, uniforme) => sb.rpc("assumir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
@@ -39,6 +39,8 @@ export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados
 export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, ultimo_acesso").in("id", ids).then(ok);
 
 // ---------- administração ----------
+// e-mail de quem assumiu cada clube; só responde para administrador e só existe depois do 05_dirigentes.sql
+export const emailsDosDirigentes = () => sb.rpc("dirigentes").then(({ data, error }) => error ? [] : data);
 export const atualizarLiga = (id, campos) => sb.from("ligas").update(campos).eq("id", id).then(ok);
 // Traz uma rodada ainda não calculada para agora (para testes).
 export const anteciparRodada = (ligaId, rodada, minutos) => sb.from("partidas").update({ inicio: new Date().toISOString(), fim: new Date(Date.now() + minutos * 60000).toISOString() })
