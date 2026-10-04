@@ -20,5 +20,10 @@ export function contratoInicial(rng, j, temporada) {
   return { salario: mercado, mercado, contrato_ate: temporada + rng.int(0, 2), protegido_ate: temporada };
 }
 
+// Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
+export const PREMIO_MINIMO = { 1: 4000, 2: 2400, 3: 1200 };        // prêmio do lanterna: é o que dá para antecipar
+export const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
+export const LIMITE_DA_DIVIDA = 0.10, RODADAS_DE_PRAZO = 3;         // abaixo de 10% do teto no negativo, 3 rodadas para agir
+export const valorNoBanco = salario => 3 * (salario || 0);          // 60% da cláusula
 // 440 → "440 mil"; 1370 → "1,37 mi"
 export const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";

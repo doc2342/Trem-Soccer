@@ -126,6 +126,11 @@ export async function talentosDaLiga() { // só o administrador consegue ler
 }
 export const virarTemporada = (ligaId, plano) => sb.rpc("virar_temporada", { p_liga: ligaId, p_plano: plano }).then(ok);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
+// E5: carnê, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
+export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
+export const venderAoBanco = jogadorId => sb.rpc("vender_ao_banco", { p_jogador: numero(jogadorId) }).then(ok);
+export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);
+export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {

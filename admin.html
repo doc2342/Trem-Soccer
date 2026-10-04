@@ -18,10 +18,10 @@
 import { criarRng } from "./src/rng.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
-import { contratoInicial, dinheiro } from "./src/economia.js";
+import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -148,7 +148,7 @@ async function tela(aviso = "") {
          <div class="mut" style="margin-top:6px">Duração 105 = transmissão ao vivo em tempo real (lances minuto a minuto, relatório só no apito final). Um número menor acelera o jogo (15 = partida inteira em 15 minutos); 0 mostra o resultado e o relatório na hora, sem transmissão. A tática fechando 1 segundo antes é valor de teste; na liga de verdade serão 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
-      <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova por uma temporada os contratos vencidos, zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>
+      <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova por uma temporada os contratos vencidos, zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>
       <div class="row"><label>Playoffs de acesso: início dos jogos<input type="datetime-local" id="inicioPlayoff" value="${daqui}"></label><button class="sec" id="gerarPlayoffs" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Gerar a próxima fase dos playoffs</button>
         <button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
       <div class="mut" style="margin-top:6px">Ordem: 18 rodadas → semifinais (2º x 5º e 3º x 4º da segunda e da terceira) → finais → virada. Jogo único na casa do mais bem colocado; no empate, passa o mandante.</div>
@@ -200,13 +200,16 @@ async function tela(aviso = "") {
       const div = Object.fromEntries((await divisoesDosClubes(liga.id)).map(c => [c.id, c.divisao])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2 }));
       const elencos = {};
       for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
-      const [talentos, resultados] = await Promise.all([talentosDaLiga(), resultadosDe(partidas.map(p => p.id), true)]);
+      const [talentos, resultados, lucros] = await Promise.all([talentosDaLiga(), resultadosDe(partidas.map(p => p.id), true), lucrosDaTemporada(liga.id)]);
+      const lucroDe = Object.fromEntries(lucros.map(x => [x.clube_id, x]));
+      // imposto previsto: lucro da temporada já lançado, mais o prêmio, menos o prêmio antecipado
+      const impostoDe = x => { const l = lucroDe[x.clube_id]; return l ? impostoDoLucro(l.lucro + x.premio - l.antecipado, l.teto) : 0; };
       const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes });
       const seta = x => x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : "";
-      const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td class="esq">${seta(x)}</td></tr>`;
+      const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
       const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${x.pos}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";
-      $("previaVirada").innerHTML = `<div class="duas">${Object.entries(resumo.grupos).map(([g, l]) => `<div><b>${nomeDoGrupo(g)}</b><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>Prêmio</th><th class="esq">Destino</th></tr>${l.map(lugar).join("")}</table></div>`).join("")}</div>
-        <div style="margin-top:10px">Prêmios: ${dinheiro(plano.classificacao.reduce((s, x) => s + x.premio, 0))} no total · ${resumo.cresceram} jogadores crescem · ${resumo.cairam} perdem físico · ${resumo.renovados} contratos renovados sozinhos · ${plano.aposentados.length} se aposentam e ${plano.novos.length} jovens chegam.</div>
+      $("previaVirada").innerHTML = `<div class="duas">${Object.entries(resumo.grupos).map(([g, l]) => `<div><b>${nomeDoGrupo(g)}</b><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>Prêmio</th><th>Imposto</th><th class="esq">Destino</th></tr>${l.map(lugar).join("")}</table></div>`).join("")}</div>
+        <div style="margin-top:10px">Prêmios: ${dinheiro(plano.classificacao.reduce((s, x) => s + x.premio, 0))} no total · imposto previsto: ${dinheiro(plano.classificacao.reduce((s, x) => s + impostoDe(x), 0))} (metade vai, por igual, para a terceira divisão da temporada nova; metade fica guardada para a segunda taça) · ${resumo.cresceram} jogadores crescem · ${resumo.cairam} perdem físico · ${resumo.renovados} contratos renovados sozinhos · ${plano.aposentados.length} se aposentam e ${plano.novos.length} jovens chegam.</div>
         <div class="mut" style="margin-top:6px">Aposentam-se: ${gente(resumo.aposentados)}.</div><div class="mut" style="margin-top:4px">Chegam: ${gente(resumo.novos)}.</div>
         <div class="row" style="margin-top:10px"><button id="confirmarVirada">Confirmar a virada</button><span class="mut">Cada vez que a prévia é preparada, o sorteio de aposentadorias e jovens é refeito. Vale o que está nesta tela.</span></div>`;
       $("confirmarVirada").onclick = async () => {

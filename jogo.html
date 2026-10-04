@@ -26,9 +26,9 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
-import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
+import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
@@ -154,13 +154,39 @@ async function telaClube(liga, clube) {
     return `<div class="row" style="align-items:center"><div><div class="mut">Caixa</div><div style="font-size:24px;font-weight:800" class="${cor(caixa)}">${dinheiro(caixa)}</div></div>
       <div class="mut">A cada rodada: TV ${sinal(tv)} · patrocínio ${sinal(pat)}${temTorcida ? ` · bilheteria ${sinal(bil)} em média` : ""} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b>
         ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
-        <br>Prêmios, equipe técnica e obras entram nos próximos passos.</div></div>
+        <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>
+      ${vermelho()}${carne()}
       ${grupos.length ? `<div class="rolagem" style="margin-top:8px;max-height:260px;overflow:auto"><table><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq">Temporada ${g.temporada} · rodada ${g.rodada == null ? "—" : g.rodada}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`}`;
+  };
+  // clube no vermelho: caixa negativo bloqueia aumentos, renovações e obras; abaixo do limite, corre o prazo para escolher uma saída
+  const vermelho = () => {
+    if (caixa == null || caixa >= 0) return "";
+    const limite = -Math.round(teto * LIMITE_DA_DIVIDA), grave = caixa < limite, usadas = clube.vermelho_rodadas || 0;
+    const base = PREMIO_MINIMO[clube.divisao] || PREMIO_MINIMO[2], jaAntecipou = clube.antecipou_temporada != null && clube.antecipou_temporada === liga.temporada;
+    return `<div class="card" style="margin:10px 0 0;border-color:var(--bad, #e5484d)"><b class="bad">Clube no vermelho</b>
+      <div class="mut" style="margin:4px 0">Com o caixa negativo, aumentos de salário, renovações e obras ficam bloqueados.
+        ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende ao banco o maior salário fora dos 11 da sua tática, e repete até zerar.`
+          : `Se a dívida passar de ${dinheiro(-limite)} (10% do teto de folha), começa um prazo de ${RODADAS_DE_PRAZO} rodadas para resolver.`}</div>
+      <div class="mut" style="margin:4px 0">Saídas: vender jogadores ao banco do jogo por 60% da cláusula (aba Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
+      <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
+      <div id="vermelhoAviso" style="margin-top:6px"></div></div>`;
+  };
+  // carnê: antes da primeira rodada, até um terço da torcida compra os jogos em casa de uma vez, com 20% de desconto
+  const carne = () => {
+    if (caixa == null || clube.carne == null || clube.torcida == null) return "";
+    const vendido = clube.carne_temporada != null && clube.carne_temporada === liga.temporada;
+    const lugares = 5000 + 5000 * (clube.estadio_nivel || 1), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round((liga.rodadas_por_temporada || 18) / 2);
+    const valor = n => Math.round(n * (liga.preco_ingresso || 0) * 0.8 * jogos / 1000);
+    return `<div class="card" style="margin:10px 0 0"><b>Carnê de temporada</b>
+      ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} lugares vendidos em carnê nesta temporada. Esses torcedores já pagaram e vão a todos os jogos em casa.` : "Você não vendeu carnês nesta temporada."}</div>`
+        : `<div class="mut" style="margin:4px 0">Só antes da primeira rodada. Até um terço da torcida (${maximo.toLocaleString("pt-BR")} lugares) compra os ${jogos} jogos em casa de uma vez, com 20% de desconto. Você recebe tudo agora e garante esse público mesmo com a torcida de mau humor; em troca, esses lugares rendem 20% menos do que o ingresso avulso.</div>
+          <div class="row"><label>Lugares para carnê<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Vender os carnês</button></div>
+          <div id="carneAviso" style="margin-top:6px"></div>`}</div>`;
   };
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
-      <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div>
+      <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
     <div class="abas" id="abas">${[["inicio", "Início"], ["classificacao", "Classificação"], ["elenco", "Elenco"], ["financas", "Finanças"]].map(([k, n]) => `<button class="aba" data-aba="${k}">${n}</button>`).join("")}</div>
     <section data-secao="inicio">
@@ -195,6 +221,23 @@ async function telaClube(liga, clube) {
       <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th>Cláusula</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
       ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>
     </section>`;
+
+  // carnê e antecipação do prêmio
+  if ($("carneVender")) {
+    const lugares = () => Math.max(0, Math.round(+$("carneLugares").value || 0));
+    const mostra = () => { $("carneValor").textContent = `você recebe ${dinheiro(Math.round(Math.min(lugares(), +$("carneLugares").max) * (liga.preco_ingresso || 0) * 0.8 * Math.round((liga.rodadas_por_temporada || 18) / 2) / 1000))} agora`; };
+    $("carneLugares").oninput = mostra; mostra();
+    $("carneVender").onclick = async () => {
+      if (!confirm(`Vender ${lugares().toLocaleString("pt-BR")} lugares em carnê? Só dá para fazer uma vez por temporada.`)) return;
+      try { await definirCarne(lugares()); await carregar({ user: usuario }); }
+      catch (err) { $("carneAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
+  }
+  if ($("antecipar")) $("antecipar").onclick = async () => {
+    if (!confirm("Antecipar o prêmio desta temporada? O valor cheio será descontado do seu prêmio na virada.")) return;
+    try { await anteciparPremio(); await carregar({ user: usuario }); }
+    catch (err) { $("vermelhoAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+  };
 
   // abas: mostra uma seção por vez e lembra a última aberta
   const abrir = k => {
@@ -253,6 +296,7 @@ async function telaClube(liga, clube) {
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
     $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${j.pos} · ${j.idade} anos
       <div class="mut" style="margin:4px 0">Salário atual ${dinheiro(j.salario)} por temporada · mínimo que ele aceita na renovação ${dinheiro(j.mercado)} · cláusula ${dinheiro(clausula(j.salario))}${protegido ? " (protegido até o fim desta temporada)" : ""} · contrato até o fim da temporada ${j.contratoAte}.</div>
+      ${caixa != null && caixa < 0 ? `<div class="row" style="margin:6px 0"><button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button><span class="mut">Saída do clube no vermelho: 60% da cláusula, na hora. O elenco não pode ficar com menos de 16.</span></div>` : ""}
       <div class="mut" style="margin:4px 0">O salário só pode subir. A cláusula é 5 vezes o salário. Um jogador pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(sobra)} até o teto de folha.</div>
       <div class="row"><label>Novo salário (em milhares por temporada)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:150px"></label>
         <span class="mut" id="ctClausula"></span>
@@ -269,6 +313,11 @@ async function telaClube(liga, clube) {
     $("ctAumentar").onclick = () => enviar(0);
     $("ctRenovar").onclick = () => enviar(+$("ctTemporadas").value);
     $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+    if ($("ctBanco")) $("ctBanco").onclick = async () => {
+      if (!confirm(`Vender ${j.nome} ao banco do jogo por ${dinheiro(valorNoBanco(j.salario))}? Ele sai do clube e não volta.`)) return;
+      try { await venderAoBanco(j.id); await carregar({ user: usuario }); }
+      catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
     $("contratoPainel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
