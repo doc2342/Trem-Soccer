@@ -7,8 +7,8 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | Passo | Situação |
 | --- | --- |
 | A. Jogadores (22 atributos, 18 posições, gerador de elenco) | pronto |
-| B. Motor: núcleo (9 zonas, xG) | pronto, sem calibragem |
-| C. Calibragem | a fazer |
+| B. Motor: núcleo (9 zonas, xG) | pronto |
+| C. Calibragem | pronto |
 | D. Instruções e energia | a fazer |
 | E. Bot e relatório | a fazer |
 | F. Tela de escalação | a fazer |
@@ -26,6 +26,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 - `src/motor.js`: motor da partida (zonas, duelos, chances com xG).
 - `elenco.html`: página de conferência do passo A.
 - `partida.html`: página de conferência do passo B (uma partida ou 1.000).
+- `calibragem.html`: página do passo C; roda milhares de partidas e compara com as metas.
 
 ## Rodar localmente
 

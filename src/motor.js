@@ -1,24 +1,31 @@
 // Motor da partida — núcleo (passo B).
 // Campo em 9 zonas: 3 linhas (D defesa, M meio, A ataque) x 3 lados (E, C, D), sempre vistas pelo time que as ocupa.
 // Cada ataque passa por três duelos de zona (saída de bola, construção, criação) e, se vencer, vira uma chance com xG.
-// Ainda sem instruções, energia, cartões e lesões (passo D). As constantes são ponto de partida para a calibragem (passo C).
+// Ainda sem instruções, energia, cartões e lesões (passo D). As constantes abaixo saíram da calibragem do passo C (calibragem.html).
 import { limitar } from "./rng.js";
 import { IDX, FAMILIARIDADE, familiaridade } from "./modelo.js";
 
 export const CONFIG = {
-  ataquesPorMinuto: 1.2,
+  ataquesPorMinuto: 1.2, // ataques iniciados por minuto, somando os dois times
   mando: 1.03, // multiplicador da força do mandante
-  expoentePosse: 1.3,
+  expoentePosse: 1,
   expoenteCorredor: 1.5,
   pesoCentro: 1.15, // o jogo pelo centro é um pouco mais natural
   zonaVazia: 6, // força mínima de uma zona, para zona sem ninguém não virar divisão por zero
-  inclinacaoDuelo: 1.6,
-  baseDuelo: { D: 1.5, M: 0.45, A: 0 }, // logit do sucesso com forças iguais: cerca de 82%, 61% e 50%
-  trocaDeLado: { M: 0.2, A: 0.15 },
-  xgBase: { cruzamento: 0.11, corte: 0.07, profundidade: 0.22, area: 0.13, longe: 0.04 },
+  inclinacaoDuelo: 1.2, // quanto a diferença de força pesa no duelo; mais alto, o melhor time vence mais
+  baseDuelo: { D: 1.5, M: 0.45, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 82%, 61% e 52%
+  ajudaAoCentro: 0.5, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
+  continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
+  pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
+  vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
+  xgBase: { cruzamento: 0.11, corte: 0.09, profundidade: 0.19, area: 0.13, longe: 0.05 },
   inclinacaoXg: 1.2,
   inclinacaoFinalizacao: 1.5,
   fatorLibero: 0.8, // o líbero reduz o xG das bolas em profundidade
+  pesoTipo: { profundidade: 0.25, area: 0.4, longe: 0.3, cruzamento: 0.6, corte: 0.4 }, // mistura dos tipos de chance, pelo centro e pelos lados
+  chuteForcado: 0.12, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
+  fatorChuteForcado: 0.7,
+  semGol: { defesa: 0.33, fora: 0.47, trave: 0.04, bloqueado: 0.16 }, // destino das finalizações que não viram gol
 };
 
 const LADOS = ["E", "C", "D"];
@@ -38,7 +45,7 @@ const COBERTURA_BASE = {
   DMC: { MC: 0.45, DC: 0.35, ME: 0.1, MD: 0.1 },
   MC: { MC: 0.6, ME: 0.1, MD: 0.1, DC: 0.08, AC: 0.12 },
   AMC: { AC: 0.45, MC: 0.4, AE: 0.075, AD: 0.075 },
-  MR: { MD: 0.6, MC: 0.12, AD: 0.18, DD: 0.1 },
+  MR: { MD: 0.5, AD: 0.3, MC: 0.1, DD: 0.1 },
   AMR: { AD: 0.45, MD: 0.35, AC: 0.2 },
   RW: { AD: 0.7, AC: 0.2, MD: 0.1 },
   FC: { AC: 0.7, AE: 0.1, AD: 0.1, MC: 0.1 },
@@ -89,7 +96,7 @@ export function prepararTime({ nome, escalacao, mandante = false }) {
       time.zonas[z].push({ jog, w });
     }
   }
-  time.controle = LADOS.reduce((s, l) => s + time.atk["M" + l] + time.def["M" + l], 0);
+  time.controle = LADOS.reduce((s, l) => s + (time.atk["M" + l] + time.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0);
   return time;
 }
 
@@ -105,18 +112,35 @@ function sortearPeso(rng, lista, peso) {
 const mod = (a, b, k) => Math.exp(k * (a - b) / 50);
 const media = (...v) => v.reduce((a, b) => a + b, 0) / v.length;
 
-function escolherLado(rng, atk, def, linha) {
+// Em cada linha o time procura o lado em que é mais forte em relação à cobertura do adversário.
+function escolherLado(rng, atk, dz, linha, atual) {
   const lado = sortearPeso(rng, LADOS, l => {
     const z = linha + l;
-    const forca = (atk.atk[z] + CONFIG.zonaVazia) / (def.def[espelho(z)] + CONFIG.zonaVazia);
-    return Math.pow(forca, CONFIG.expoenteCorredor) * (l === "C" ? CONFIG.pesoCentro : 1) * (atk.zonas[z].length ? 1 : 0.15);
+    const forca = (atk.atk[z] + CONFIG.zonaVazia) / (dz[z] + CONFIG.zonaVazia);
+    return Math.pow(forca, CONFIG.expoenteCorredor) * (l === "C" ? CONFIG.pesoCentro : 1) * (atk.zonas[z].length ? 1 : 0.15) * (l === atual ? CONFIG.continuidade : 1);
   });
   return lado || "C";
 }
 
+// Defesa que o atacante enfrenta em cada zona (vista pelo atacante).
+// Time que não ameaça pelos lados deixa os defensores de lado livres para fechar o centro: jogo estreito encontra defesa compacta.
+function montarDefesa(atk, def) {
+  const dz = {};
+  for (const z of ZONAS) dz[z] = def.def[espelho(z)];
+  for (const linha of ["M", "A"]) {
+    let ajuda = 0;
+    for (const l of ["E", "D"]) {
+      const z = linha + l, ameaca = Math.min(1, (atk.atk[z] + CONFIG.zonaVazia) / (dz[z] + CONFIG.zonaVazia));
+      ajuda += CONFIG.ajudaAoCentro * dz[z] * (1 - ameaca);
+    }
+    dz[linha + "C"] += ajuda;
+  }
+  return dz;
+}
+
 // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
-function duelo(rng, atk, def, zona, estat) {
-  const a = atk.atk[zona] + CONFIG.zonaVazia, d = def.def[espelho(zona)] + CONFIG.zonaVazia;
+function duelo(rng, atk, def, dz, zona, estat) {
+  const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
   const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + CONFIG.inclinacaoDuelo * Math.log(a / d))));
   const venceu = rng.chance(p);
   const pivo = sortearPeso(rng, atk.zonas[zona], x => x.w);
@@ -128,15 +152,16 @@ function duelo(rng, atk, def, zona, estat) {
 }
 
 // Monta a chance depois de vencido o duelo na zona de ataque.
-function criarChance(rng, atk, def, lado, pivo) {
+function criarChance(rng, atk, def, lado, pivo, forcado = false) {
   const area = atk.zonas.AC, x = CONFIG.xgBase, k = CONFIG.inclinacaoXg;
   const alvoAereo = area.reduce((s, o) => s + o.w * media(o.jog.at[A.cab], o.jog.at[A.for]), 0) / 30;
   const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
   const presenca = Math.min(1, area.reduce((s, o) => s + o.w, 0));
+  const pt = CONFIG.pesoTipo;
   const opcoes = lado === "C"
-    ? [["profundidade", 0.35 * alvoVeloz], ["area", 0.4 * presenca], ["longe", 0.25]]
-    : [["cruzamento", 0.6 * alvoAereo], ["corte", 0.4]];
-  const tipo = sortearPeso(rng, opcoes, o => o[1])[0];
+    ? [["profundidade", pt.profundidade * alvoVeloz], ["area", pt.area * presenca], ["longe", pt.longe]]
+    : [["cruzamento", pt.cruzamento * alvoAereo], ["corte", pt.corte]];
+  const tipo = forcado ? "longe" : sortearPeso(rng, opcoes, o => o[1])[0];
   const zagueiro = (sortearPeso(rng, def.zonas.DC, o => o.w) || {}).jog;
   const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
   const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
@@ -163,11 +188,11 @@ function criarChance(rng, atk, def, lado, pivo) {
     c.xg = x.area * mod(media(f[A.dom], f[A.pos]), zag ? media(zag[A.mar], zag[A.pos]) : semZaga, k);
     c.chute = f[A.fin]; c.defesa = gk ? gk[A.ref] : semGoleiro;
   } else {
-    c.xg = x.longe * mod(pivo.at[A.lon], 25, k);
+    c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (forcado ? CONFIG.fatorChuteForcado : 1);
     c.chute = pivo.at[A.lon]; c.defesa = gk ? media(gk[A.ref], gk[A.pos]) : semGoleiro;
   }
   c.xg = limitar(c.xg, 0.01, 0.6);
-  c.pGol = limitar(c.xg * mod(c.chute, c.defesa, CONFIG.inclinacaoFinalizacao), 0.005, 0.85);
+  c.pGol = limitar(c.xg * mod(c.chute + CONFIG.vantagemFinalizador, c.defesa, CONFIG.inclinacaoFinalizacao), 0.005, 0.85);
   return c;
 }
 
@@ -209,26 +234,27 @@ export function simularPartida(rng, casa, fora) {
   const lances = [];
   const cc = Math.pow(casa.controle, CONFIG.expoentePosse), cf = Math.pow(fora.controle, CONFIG.expoentePosse);
   const posseCasa = limitar(cc / (cc + cf), 0.3, 0.7);
+  const defesas = [montarDefesa(casa, fora), montarDefesa(fora, casa)];
 
   for (let min = 1; min <= 90; min++) {
     const n = (rng.chance(Math.min(1, CONFIG.ataquesPorMinuto)) ? 1 : 0) + (rng.chance(Math.max(0, CONFIG.ataquesPorMinuto - 1)) ? 1 : 0);
     for (let k = 0; k < n; k++) {
-      const i = rng.chance(posseCasa) ? 0 : 1, atk = times[i], def = times[1 - i], e = estat[i];
+      const i = rng.chance(posseCasa) ? 0 : 1, atk = times[i], def = times[1 - i], e = estat[i], dz = defesas[i];
       e.ataques++;
-      let lado = escolherLado(rng, atk, def, "M");
-      if (!duelo(rng, atk, def, "D" + lado, e).venceu) continue;
-      if (rng.chance(CONFIG.trocaDeLado.M)) lado = escolherLado(rng, atk, def, "M");
-      if (!duelo(rng, atk, def, "M" + lado, e).venceu) continue;
-      if (rng.chance(CONFIG.trocaDeLado.A)) lado = escolherLado(rng, atk, def, "A");
+      let lado = escolherLado(rng, atk, dz, "D");
+      if (!duelo(rng, atk, def, dz, "D" + lado, e).venceu) continue;
+      lado = escolherLado(rng, atk, dz, "M", lado);
+      if (!duelo(rng, atk, def, dz, "M" + lado, e).venceu) continue;
+      lado = escolherLado(rng, atk, dz, "A", lado);
       e.corredor[lado]++;
-      const d = duelo(rng, atk, def, "A" + lado, e);
-      if (!d.venceu || !d.pivo) continue;
+      const d = duelo(rng, atk, def, dz, "A" + lado, e);
+      if (!d.pivo) continue;
+      const forcado = !d.venceu;
+      if (forcado && !rng.chance(CONFIG.chuteForcado)) continue;
 
-      const c = criarChance(rng, atk, def, lado, d.pivo);
-      const r = rng.n();
-      const resultado = r < c.pGol ? "gol" : (() => { const s = rng.n(); return s < 0.5 ? "defesa" : s < 0.85 ? "fora" : s < 0.9 ? "trave" : "bloqueado"; })();
-      e.chances++; e.xg += c.xg;
-      if (resultado !== "bloqueado") e.finalizacoes++;
+      const c = criarChance(rng, atk, def, lado, d.pivo, forcado);
+      const resultado = rng.chance(c.pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
+      e.chances++; e.xg += c.xg; e.finalizacoes++;
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
       if (resultado === "gol") e.gols++;
       const sf = jogadores[c.finalizador.j.id];

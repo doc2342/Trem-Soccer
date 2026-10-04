@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Passo C · Calibragem</title>
+<style>
+  :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --ok:#3fb27f; --bad:#e5646b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
+  .mut { color:var(--mut); } .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:12px; }
+  button { font:inherit; cursor:pointer; background:var(--ac); color:#1a1300; border:1px solid var(--ac); border-radius:8px; padding:7px 12px; font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
+  th, td { padding:4px 6px; border-bottom:1px solid var(--line); text-align:center; }
+  th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-align:left; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .rolagem { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Passo C · Calibragem do motor</h1>
+  <div class="mut">Milhares de partidas entre onzes montados sob medida para cada formação, todos do mesmo nível. Leva alguns segundos.</div>
+  <div class="card"><button id="rodar">Rodar a calibragem</button> <span id="estado" class="mut"></span></div>
+  <div id="saida"></div>
+</main>
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { gerarOnze, PERFIS } from "./src/gerador.js";
+import { FORMACOES } from "./src/escalacao.js";
+import { prepararTime, simularPartida, CONFIG } from "./src/motor.js";
+
+const $ = id => document.getElementById(id);
+const nomes = await (await fetch("./dados/nomes.json")).json();
+const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
+
+// Joga `pares` duplas de onzes diferentes, `jogos` partidas cada, com A de mandante. neutro: sem vantagem de mando.
+function confronto(a, b, { pares = 40, jogos = 25, semente = 1, neutro = false } = {}) {
+  const rng = criarRng(semente);
+  const s = { n: 0, v: 0, e: 0, d: 0, gols: [0, 0], xg: [0, 0], fin: [0, 0], noGol: [0, 0], chances: [0, 0], posse: 0, cor: { E: 0, C: 0, D: 0 }, tipos: {}, golsPos: {}, zero: 0, goleadas: 0 };
+  for (let p = 0; p < pares; p++) {
+    const ta = prepararTime({ nome: "A", mandante: !neutro, escalacao: gerarOnze(rng, FORMACOES[a.formacao || "4-4-2"], { nivel: a.nivel || 30, perfil: a.perfil, nomes, prefixoId: "a" }) });
+    const tb = prepararTime({ nome: "B", escalacao: gerarOnze(rng, FORMACOES[b.formacao || "4-4-2"], { nivel: b.nivel || 30, perfil: b.perfil, nomes, prefixoId: "b" }) });
+    for (let k = 0; k < jogos; k++) {
+      const r = simularPartida(rng, ta, tb), [ga, gb] = r.placar;
+      s.n++; if (ga > gb) s.v++; else if (ga === gb) s.e++; else s.d++;
+      if (ga + gb === 0) s.zero++; if (ga + gb >= 6) s.goleadas++;
+      s.posse += r.estat[0].posse;
+      [0, 1].forEach(i => { s.gols[i] += r.placar[i]; s.xg[i] += r.xg[i]; s.fin[i] += r.estat[i].finalizacoes; s.noGol[i] += r.estat[i].noGol; s.chances[i] += r.estat[i].chances; });
+      for (const l in s.cor) s.cor[l] += r.estat[0].corredor[l];
+      for (const l of r.lances) {
+        const t = s.tipos[l.tipo] = s.tipos[l.tipo] || { n: 0, xg: 0, gols: 0 }; t.n++; t.xg += l.xg;
+        if (l.resultado === "gol") { t.gols++; const pos = r.jogadores[l.finalizador].pos; s.golsPos[pos] = (s.golsPos[pos] || 0) + 1; }
+      }
+    }
+  }
+  const n = s.n, totalGols = s.gols[0] + s.gols[1];
+  return {
+    n, v: s.v / n, e: s.e / n, d: s.d / n, pontosA: (3 * s.v + s.e) / n, pontosB: (3 * s.d + s.e) / n,
+    golsPorJogo: totalGols / n, gols: s.gols.map(x => x / n), xg: s.xg.map(x => x / n), fin: s.fin.map(x => x / n), noGol: s.noGol.map(x => x / n), chances: s.chances.map(x => x / n),
+    posseA: s.posse / n, zero: s.zero / n, goleadas: s.goleadas / n, corredor: s.cor,
+    tipos: Object.fromEntries(Object.entries(s.tipos).map(([t, x]) => [t, { porJogo: x.n / n, xg: x.xg / x.n, conv: x.gols / x.n, fatiaGols: x.gols / totalGols }])),
+    golsPos: Object.fromEntries(Object.entries(s.golsPos).sort((x, y) => y[1] - x[1]).map(([p, g]) => [p, g / totalGols])),
+  };
+}
+
+// Todas as formações contra todas, em casa e fora. Devolve os pontos por jogo de cada uma.
+function matriz({ pares = 12, jogos = 25 } = {}) {
+  const fs = Object.keys(FORMACOES), ppj = {}, tabela = {};
+  fs.forEach(f => { ppj[f] = 0; tabela[f] = {}; });
+  let semente = 100;
+  for (const a of fs) for (const b of fs) {
+    if (a === b) continue;
+    const r = confronto({ formacao: a }, { formacao: b }, { pares, jogos, semente: semente++ });
+    ppj[a] += r.pontosA; ppj[b] += r.pontosB; tabela[a][b] = r.pontosA;
+  }
+  const jogosPorTime = 2 * (fs.length - 1);
+  fs.forEach(f => ppj[f] /= jogosPorTime);
+  return { ppj, tabela };
+}
+
+function niveis(dif) { return confronto({ nivel: 30 + dif }, { nivel: 30 }, { neutro: true, semente: 50 + dif }); }
+function perfis() {
+  const ks = Object.keys(PERFIS), ppj = Object.fromEntries(ks.map(k => [k, 0]));
+  let semente = 300;
+  for (const a of ks) for (const b of ks) { if (a === b) continue; const r = confronto({ perfil: a }, { perfil: b }, { pares: 12, semente: semente++, neutro: true }); ppj[a] += r.pontosA; ppj[b] += r.pontosB; }
+  ks.forEach(k => ppj[k] /= 2 * (ks.length - 1));
+  return ppj;
+}
+
+function tabela(cab, linhas) { return `<div class="rolagem"><table><tr>${cab.map((c, i) => `<th class="${i ? "" : "esq"}">${c}</th>`).join("")}</tr>${linhas.map(l => `<tr>${l.map((c, i) => `<td class="${i ? "" : "esq"}">${c}</td>`).join("")}</tr>`).join("")}</table></div>`; }
+const faixa = (v, min, max, txt) => `<span class="${v >= min && v <= max ? "ok" : "bad"}">${txt}</span>`;
+const pausa = () => new Promise(r => setTimeout(r, 30));
+
+async function rodar() {
+  $("estado").textContent = "rodando…"; await pausa();
+  const t0 = performance.now(), base = confronto({}, {}, { pares: 80 });
+  let h = `<div class="card"><h2>Jogo de referência: 4-4-2 contra 4-4-2, mesmo nível (${base.n} partidas)</h2>` + tabela(["Medida", "Resultado", "Meta"], [
+    ["Gols por jogo", faixa(base.golsPorJogo, 2.5, 2.9, f2(base.golsPorJogo)), "2,5 a 2,9"],
+    ["Vitória do mandante", faixa(base.v, 0.42, 0.48, pc(base.v)), "42% a 48%"],
+    ["Empate", faixa(base.e, 0.22, 0.28, pc(base.e)), "22% a 28%"],
+    ["Vitória do visitante", faixa(base.d, 0.26, 0.33, pc(base.d)), "26% a 33%"],
+    ["Finalizações por time", faixa((base.fin[0] + base.fin[1]) / 2, 10, 14, f1((base.fin[0] + base.fin[1]) / 2)), "10 a 14"],
+    ["Finalizações no gol por time", faixa((base.noGol[0] + base.noGol[1]) / 2, 3.5, 5.5, f1((base.noGol[0] + base.noGol[1]) / 2)), "3,5 a 5,5"],
+    ["xG por jogo (soma)", f2(base.xg[0] + base.xg[1]), "perto dos gols"],
+    ["Jogos 0 a 0", faixa(base.zero, 0.05, 0.1, pc(base.zero)), "5% a 10%"],
+    ["Jogos com 6 gols ou mais", faixa(base.goleadas, 0.02, 0.07, pc(base.goleadas)), "2% a 7%"],
+  ]) + `</div>`;
+  h += `<div class="card"><h2>De onde saem os gols</h2>` + tabela(["Tipo de chance", "Por jogo", "xG médio", "Viram gol", "Fatia dos gols"], Object.entries(base.tipos).map(([t, x]) => [t, f1(x.porJogo), f2(x.xg), pc(x.conv), pc(x.fatiaGols)])) +
+    `<div style="height:8px"></div>` + tabela(["Posição de quem marca", ...Object.keys(base.golsPos)], [["Fatia dos gols", ...Object.values(base.golsPos).map(pc)]]) + `</div>`;
+  $("saida").innerHTML = h; await pausa();
+
+  const ns = [1, 2, 4, 6, 8].map(d => [d, niveis(d)]);
+  h += `<div class="card"><h2>Quanto pesa a diferença de nível (campo neutro)</h2>` + tabela(["Diferença de nota", "Melhor vence", "Empate", "Pior vence", "Gols (melhor · pior)"], ns.map(([d, r]) => [`+${d}`, pc(r.v), pc(r.e), pc(r.d), `${f2(r.gols[0])} · ${f2(r.gols[1])}`])) + `</div>`;
+  $("saida").innerHTML = h; await pausa();
+
+  const m = matriz(), fs = Object.keys(FORMACOES);
+  h += `<div class="card"><h2>Formações: pontos por jogo, todas contra todas</h2>` + tabela(["Formação", "Pontos por jogo"], Object.entries(m.ppj).sort((a, b) => b[1] - a[1]).map(([f, p]) => [f, faixa(p, 1.2, 1.55, f2(p))])) +
+    `<div class="mut" style="margin:8px 0 4px">Pontos por jogo do mandante (linha) contra o visitante (coluna)</div>` + tabela(["", ...fs.map((_, i) => i + 1)], fs.map((a, i) => [`${i + 1}. ${a}`, ...fs.map(b => a === b ? "—" : f2(m.tabela[a][b]))])) + `</div>`;
+  $("saida").innerHTML = h; await pausa();
+  const pf = perfis();
+  h += `<div class="card"><h2>Perfis de elenco: pontos por jogo, todos contra todos (campo neutro)</h2>` + tabela(["Perfil", "Pontos por jogo"], Object.entries(pf).sort((a, b) => b[1] - a[1]).map(([k, p]) => [PERFIS[k].nome, faixa(p, 1.25, 1.5, f2(p))])) + `</div>`;
+  $("saida").innerHTML = h;
+  $("estado").textContent = `pronto em ${f1((performance.now() - t0) / 1000)} s`;
+}
+$("rodar").onclick = rodar;
+window.__cal = { confronto, matriz, niveis, perfis, CONFIG, rodar };
+</script>
+</body>
+</html>

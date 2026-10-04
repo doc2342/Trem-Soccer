@@ -13,7 +13,7 @@ const FOLGA_RESERVA = 5; // quanto a nota-alvo do reserva fica abaixo da do titu
 export const PERFIS = {
   equilibrado: { nome: "Equilibrado", bonus: {} },
   veloz: { nome: "Veloz", bonus: { vel: 6, res: 3 } },
-  tecnico: { nome: "Técnico", bonus: { dom: 4, dri: 4, pas: 3 } },
+  tecnico: { nome: "Técnico", bonus: { dom: 3, dri: 3, pas: 3 } },
   fisico: { nome: "Físico", bonus: { for: 6, cab: 3, res: 2 } },
   tatico: { nome: "Tático", bonus: { pos: 4, equ: 5, com: 4 } },
 };
@@ -115,4 +115,14 @@ export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "B
     titular: false,
   }));
   return elenco;
+}
+
+// Onze sob medida para uma formação: cada vaga recebe um jogador natural dela, todos em torno do mesmo nível.
+// Serve para comparar formações em condições iguais (calibragem) e para montar times da IA.
+export function gerarOnze(rng, vagas, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
+  const d = desvios(rng, vagas.length, 1.5), usados = new Set();
+  return vagas.map((pos, i) => ({
+    j: gerarJogador(rng, { id: prefixoId + i, pos, alvo: nivel + d[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
+    pos,
+  }));
 }
