@@ -26,7 +26,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, extratoDoClube, caixaDoClube } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -107,7 +107,8 @@ async function telaCriar(liga, recusado) {
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
-  const [elenco, clubes, tatica, admin] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false)]);
+  const [elenco, clubes, tatica, admin, extrato] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id)]);
+  const caixa = await caixaDoClube(clube.id);
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
   const grupos = [...new Set(clubes.map(c => c.grupo))].sort();
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -120,6 +121,16 @@ async function telaClube(liga, clube) {
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
+  // finanças: caixa, previsão por rodada e extrato agrupado por rodada
+  const financas = () => {
+    const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
+    const saldo = tv + pat - sal, cor = v => v < 0 ? "bad" : "ok", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
+    const grupos = [];
+    for (const l of extrato) { const k = l.temporada + "-" + l.rodada; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, temporada: l.temporada, rodada: l.rodada, itens: [], total: 0 }); g.itens.push(l); g.total += l.valor; }
+    return `<div class="row" style="align-items:center"><div><div class="mut">Caixa</div><div style="font-size:24px;font-weight:800" class="${cor(caixa)}">${dinheiro(caixa)}</div></div>
+      <div class="mut">A cada rodada: TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b><br>Bilheteria, prêmios e obras entram nos próximos passos.</div></div>
+      ${grupos.length ? `<div class="rolagem" style="margin-top:8px;max-height:260px;overflow:auto"><table><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq">Temporada ${g.temporada} · rodada ${g.rodada == null ? "—" : g.rodada}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`}`;
+  };
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
@@ -139,6 +150,7 @@ async function telaClube(liga, clube) {
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
+    ${caixa == null ? "" : `<div class="card"><h2>Finanças <span class="tag">valores por rodada de liga, enquanto o calendário é de teste</span></h2>${financas()}</div>`}
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
       <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th>Cláusula</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
       ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>`;

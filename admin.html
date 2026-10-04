@@ -20,7 +20,7 @@ import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro } from "./src/economia.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -242,6 +242,7 @@ async function processar(silencioso) {
       const { lances, resultado, situacao } = calcularPartida({ partida: p, casa: lado(p.casa), fora: lado(p.fora), minutosTransmissao: liga.minutos_transmissao, semente: Math.floor(Math.random() * 2147483647) });
       await gravarPartida(p.id, lances, resultado);
       await gravarSituacao(situacao); aplicarSituacao(elencos[p.casa], situacao); aplicarSituacao(elencos[p.fora], situacao);
+      await lancarRodada(p.id);
       diz(`Calculando: ${++n} de ${pendentes.length}…`);
     }
     ocupado = false; await tela(`Neste navegador (o servidor não respondeu): ${n} ${n === 1 ? "partida calculada" : "partidas calculadas"} às ${new Date().toLocaleTimeString("pt-BR")}.`);

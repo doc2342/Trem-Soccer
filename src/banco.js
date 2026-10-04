@@ -88,6 +88,15 @@ export async function definirContratos(lista) {
   return n;
 }
 
+// ---------- caixa e extrato (fase 2, passo E2) ----------
+// Últimos lançamentos do clube (o banco só devolve os do próprio clube, ou todos para o administrador).
+export const extratoDoClube = (clubeId, limite = 120) => sb.from("lancamentos").select("temporada, rodada, tipo, valor, descricao, criado_em").eq("clube_id", clubeId)
+  .order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
+// Caixa do clube, em milhares; null antes do 12_caixa.sql ou para quem não é o dono.
+export const caixaDoClube = clubeId => sb.from("financas").select("caixa").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error || !data ? null : data.caixa);
+// Lançamentos de uma partida (TV, patrocínio, salários) para os dois clubes; só roda uma vez por partida.
+export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: partidaId }).then(({ error }) => !error);
+
 // ---------- ferramentas do administrador (passo I) ----------
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.

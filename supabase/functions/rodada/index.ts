@@ -1162,6 +1162,7 @@ Deno.serve(async (req) => {
         // lesões, suspensões e amarelos para os próximos jogos
         for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
+        await sb.rpc("lancar_rodada", { p_partida: p.id }); // TV, patrocínio e salários da rodada; sem efeito antes do 12_caixa.sql
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada
         await sb.from("lances").delete().eq("partida_id", p.id);
