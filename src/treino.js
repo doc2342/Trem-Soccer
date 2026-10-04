@@ -1,6 +1,7 @@
-// Treino (etapa T1, ainda sem treinadores): cada sessão dá pontos aos atributos dos focos do jogador; a cada 100 pontos o atributo sobe 1.
+// Treino: cada sessão dá pontos aos atributos dos focos do jogador; a cada 100 pontos o atributo sobe 1.
 // O foco principal fica com 70% dos pontos e o complementar (3 atributos à escolha) com 30%.
-// O talento oculto define o teto da nota do jogador; a velocidade vem da idade, do centro de treinamento, do trabalho em equipe e de ter jogado.
+// O talento oculto define o teto da nota do jogador; a velocidade vem da idade, do centro de treinamento, do trabalho em equipe, de ter jogado
+// e dos treinadores (etapa T2): cada atributo pertence a uma área de treino, e a qualidade da área depende de quem trabalha nela.
 // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, notaBruta } from "./modelo.js";
 
@@ -12,7 +13,38 @@ export const CONFIG_TREINO = {
   equipe: [0.85, 1.15],       // do menor ao maior Trabalho em equipe
   bonusPorJogar: 0.2, minutosParaBonus: 45,
   teto: [24, 0.22],           // teto da nota = 24 + 0,22 × talento (1 a 100): de 24 a 46
+  // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
+  treinador: [0.8, 0.5],      // área sem treinador, 80%; qualidade 50, 130%
+  parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill em todas as áreas
+  maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0.1, // elenco maior que 7 por treinador: até 10% a menos
+  qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
 };
+
+// Áreas de treino e os atributos de cada uma.
+export const AREAS = {
+  gol: { nome: "Goleiros", at: ["ref", "um", "enc"] },
+  def: { nome: "Defesa", at: ["des", "mar", "cab"] },
+  mei: { nome: "Meio", at: ["pas", "cri", "dom", "cru"] },
+  ata: { nome: "Ataque", at: ["fin", "lon", "dri"] },
+  fis: { nome: "Físico", at: ["vel", "for", "res"] },
+  tat: { nome: "Tática", at: ["com", "pos", "equ", "agr", "inf", "exc"] },
+};
+export const AREA_DO_ATRIBUTO = ATRIBUTOS.map(a => Object.keys(AREAS).find(k => AREAS[k].at.includes(a.k)) || "tat");
+const multDaQualidade = q => CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1] * Math.min(50, Math.max(0, q)) / 50;
+// Multiplicador de cada área para um clube. treinadores: [{ area, skills }] (só os contratados); null = sem o sistema de treinadores (tudo 100%).
+export function qualidadeDoTreino(treinadores, jogadores, semDono = false) {
+  const C = CONFIG_TREINO, areas = {};
+  if (!treinadores) { for (const k in AREAS) areas[k] = 1; return areas; }
+  if (semDono) { for (const k in AREAS) areas[k] = multDaQualidade(C.qualidadeSemDono); return areas; }
+  const lista = treinadores.slice(0, C.maximoDeTreinadores), capacidade = lista.length * C.jogadoresPorTreinador;
+  const excesso = capacidade && jogadores > capacidade ? 1 - C.perdaPorExcesso * Math.min(1, (jogadores - capacidade) / capacidade) : 1;
+  for (const k in AREAS) {
+    const q = lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0);
+    areas[k] = multDaQualidade(q) * excesso;
+  }
+  return areas;
+}
+export const multDoAtributo = (areas, i) => areas ? (areas[AREA_DO_ATRIBUTO[i]] || 1) : 1;
 // ritmo por idade (a testar): cheio até os 21, caindo até parar depois dos 30
 export const ritmoDaIdade = idade => idade <= 21 ? 1 : idade <= 23 ? 0.85 : idade <= 25 ? 0.6 : idade <= 27 ? 0.35 : idade <= 30 ? 0.15 : 0;
 
@@ -69,14 +101,15 @@ export function partilha(j) {
 }
 
 // Uma sessão de treino. j: { idade, pos, at, treino, pts }. tal: talento oculto (só o servidor sabe).
+// areas: multiplicadores de qualidadeDoTreino (sem eles, tudo 100%).
 // Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
-export function treinar(j, { tal = null, ct = 0, jogou = false } = {}) {
+export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null } = {}) {
   const total = pontosDaSessao(j, { ct, jogou });
   if (total <= 0 || notaBruta(j.at, j.pos) >= tetoDaNota(tal)) return null;
   const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
     if (at[i] >= ATR_MAX) continue;
-    pts[i] += Math.round(total * parte);
+    pts[i] += Math.round(total * parte * multDoAtributo(areas, i));
     while (pts[i] >= C.pontosPorNivel && at[i] < ATR_MAX) { pts[i] -= C.pontosPorNivel; at[i]++; subiu.push(+i); }
     if (at[i] >= ATR_MAX) pts[i] = 0;
   }

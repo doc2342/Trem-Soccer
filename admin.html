@@ -22,7 +22,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -251,7 +251,7 @@ async function tela(aviso = "") {
   em("reiniciar", async () => {
     if (!confirm("Reiniciar o teste? Calendário, resultados, extratos, obras e histórico serão apagados, e os jogadores voltam ao estado inicial. Não dá para desfazer.")) return;
     $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
-    try { await tela(await reiniciarTeste(liga.id, $("sortear").checked) + " Agora gere o calendário."); }
+    try { const feito = await reiniciarTeste(liga.id, $("sortear").checked); await limparTreinadores(liga.id); await tela(feito + " Agora gere o calendário."); }
     catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; $("reiniciar").disabled = false; }
   });
   em("guardarEstado", async () => {

@@ -12,6 +12,8 @@
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
   /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
+  .ctab select { padding:3px 4px; max-width:110px; } .ctab .c-linha { display:none; }
+  @media (max-width:620px) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
   .ttab td { vertical-align:middle; } .ttab select { max-width:100%; padding:4px 6px; }
   .tdet { background:rgba(255,255,255,.03); } .tdet .row { gap:8px; }
   .tprog { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 16px; margin-top:8px; }
@@ -128,8 +130,8 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { FOCOS, CONFIG_TREINO, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel } from "./src/treino.js";
-import { sair, ligaAtual, definirTreino, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
+import { sair, ligaAtual, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -229,7 +231,8 @@ async function telaCriar(liga, recusado) {
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
-  const [elenco, clubes, tatica, admin, extrato] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id)]);
+  const [elenco, clubes, tatica, admin, extrato, comissao] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]);
+  const areasDoTreino = qualidadeDoTreino(comissao, elenco.length); // comissao nula: treinadores ainda não ligados (tudo 100%)
   const [caixa, obra] = await Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]);
   await resolverLeiloes(liga.id); // fecha leilões e ofertas que já venceram
   const [janela, transferencias, propostas, livres, ofertas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]);
@@ -295,7 +298,7 @@ async function telaClube(liga, clube) {
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
   const CATEGORIAS = [["Ingressos e Sócio-Torcedor", ["bilheteria", "carne"]], ["Patrocínio", ["patrocinio"]], ["Direitos de TV", ["tv", "paraquedas"]], ["Prêmios e fundo da liga", ["premio", "fundo", "antecipacao"]],
-    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao"]], ["Salários", ["salarios"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
+    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao"]], ["Salários", ["salarios"]], ["Treinadores", ["treinadores"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
@@ -543,6 +546,15 @@ async function telaClube(liga, clube) {
       <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
         O ritmo depende da idade (cheio até os 21 anos, parando depois dos 30), do centro de treinamento (o seu está no nível ${clube.ct_nivel || 0}: ${Math.round((CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * (clube.ct_nivel || 0)) * 100)}%), do Trabalho em equipe do jogador e de ele ter jogado pelo menos ${CONFIG_TREINO.minutosParaBonus} minutos na rodada (+${Math.round(CONFIG_TREINO.bonusPorJogar * 100)}%).
         Cada jogador tem um teto, definido pelo talento, que você não vê: quando chega nele, o treino para de render. Lesionado não treina.</div>
+      ${comissao == null ? "" : `<div class="card" style="margin:10px 0 0"><b>Treinadores</b> <span class="mut">${comissao.length} de ${CONFIG_TREINO.maximoDeTreinadores} · salários de ${dinheiro(comissao.reduce((t, x) => t + x.salario, 0))} por temporada, fora do teto de folha</span>
+        <div class="mut" style="margin:4px 0">Cada atributo pertence a uma área de treino. O treinador trabalha numa área (vale a skill inteira dele ali) ou como geral (40% de cada skill em todas). Área sem ninguém treina a 80%; com skill 50, a 130%. Cada treinador dá conta de ${CONFIG_TREINO.jogadoresPorTreinador} jogadores: com o elenco maior que isso, o treino perde até 10%.</div>
+        <div class="chips" style="margin:6px 0">${Object.entries(AREAS).map(([k, a]) => `<span class="tag" title="${a.at.map(x => ATRIBUTOS.find(y => y.k === x).nome).join(", ")}" style="border:1px solid var(--line);border-radius:6px;padding:2px 7px">${a.nome} <b class="${areasDoTreino[k] >= 1 ? "ok" : "aviso"}">${Math.round(areasDoTreino[k] * 100)}%</b></span>`).join("")}</div>
+        ${comissao.length ? `<table class="mini ctab" style="width:100%"><tr><th class="esq c-nome">Treinador</th>${Object.keys(AREAS).map(k => `<th title="${AREAS[k].nome}">${AREAS[k].nome.slice(0, 3)}</th>`).join("")}<th class="c-sal">Salário</th><th class="esq">Área</th><th></th></tr>
+          ${comissao.map(t => `<tr class="c-linha"><td colspan="10" class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade} anos · ${dinheiro(t.salario)} por temporada</span></td></tr><tr><td class="esq c-nome">${esc(t.nome)} <span class="mut">${t.idade}</span></td>${Object.keys(AREAS).map(k => `<td class="${t.area === k ? "nota" : t.area === "geral" ? "" : "mut"}">${t.skills[k] || 0}</td>`).join("")}<td class="c-sal">${dinheiro(t.salario)}</td>
+            <td class="esq"><select data-tarea="${t.id}"><option value="geral" ${t.area === "geral" ? "selected" : ""}>Geral</option>${Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${t.area === k ? "selected" : ""}>${a.nome}</option>`).join("")}</select></td>
+            <td><button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button></td></tr>`).join("")}</table>` : `<div class="aviso">Você não tem treinadores: todas as áreas treinam a 80%.</div>`}
+        <div class="row" style="margin-top:8px"><button class="sec" id="tCandidatos" ${comissao.length >= CONFIG_TREINO.maximoDeTreinadores ? "disabled" : ""}>Ver candidatos</button><span id="tcAviso" class="mut">${comissao.length >= CONFIG_TREINO.maximoDeTreinadores ? "Comissão completa: dispense alguém para contratar." : ""}</span></div>
+        <div id="tcLista" style="margin-top:8px"></div></div>`}
       <div class="row" style="margin-top:10px"><button id="tSalvar" disabled>Salvar o treino</button><button class="sec" id="tSugerir">Sugerir focos para todos</button><span id="tAviso" class="mut"></span></div>
       <div id="treinoCorpo" style="margin-top:10px"></div></div></div>` : ""}
 
@@ -787,10 +799,10 @@ async function telaClube(liga, clube) {
           const opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
           const detalhe = !abertos.has(j.id) ? "" : `<tr class="tdet"><td colspan="5" class="esq">
             <div class="row"><b>Complementar</b>${[0, 1, 2].map(k => `<select data-tcomp="${j.id}:${k}">${ATRIBUTOS.map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<option value="${i}" ${f.c[k] === i ? "selected" : ""}>${a.nome}</option>`).join("")}</select>`).join("")}</div>
-            <div class="tprog">${Object.entries(partes).map(([i, parte]) => { const pts = (j.pts && j.pts[i]) || 0, ganho = total * parte, falta = ganho > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / ganho) : null;
+            <div class="tprog">${Object.entries(partes).map(([i, parte]) => { const pts = (j.pts && j.pts[i]) || 0, ganho = total * parte * multDoAtributo(areasDoTreino, +i), falta = ganho > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / ganho) : null;
               return `<div><div><b>${ATRIBUTOS[i].nome}</b> ${j.at[i]} <span class="mut">· ${j.at[i] >= 50 ? "no máximo" : falta == null ? "parado" : `sobe em cerca de ${falta} ${falta === 1 ? "rodada" : "rodadas"}`}</span></div><div class="tb"><div style="width:${Math.min(100, pts)}%"></div></div></div>`; }).join("")}</div></td></tr>`;
           return `<tr class="${mudou.has(j.id) ? "e-tit" : ""}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)} <span class="mut">${j.idade}</span>${j.fora > 0 && j.motivo === "lesão" ? " 🩹" : ""}</td>
-            <td class="t-ritmo ${total > 0 ? "" : "mut"}">${total > 0 ? "+" + (total / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou"}</td>
+            <td class="t-ritmo ${total > 0 ? "" : "mut"}">${total > 0 ? "+" + (Object.entries(partes).reduce((t, [i, parte]) => t + total * parte * multDoAtributo(areasDoTreino, +i), 0) / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou"}</td>
             <td class="esq"><select data-tfoco="${j.id}">${opcoes.map(k => `<option value="${k}" ${k === f.p ? "selected" : ""}>${FOCOS[k].nome}</option>`).join("")}</select></td>
             <td><button class="sec" data-tabrir="${j.id}" style="padding:2px 9px" title="Foco complementar e progresso">${abertos.has(j.id) ? "▴" : "▾"}</button></td></tr>${detalhe}`; }).join("")}</table>`;
       $("tSalvar").disabled = !mudou.size;
@@ -814,6 +826,29 @@ async function telaClube(liga, clube) {
       catch (err) { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("tSalvar").disabled = false; }
     };
     desenharTreino();
+    // treinadores: área de cada um, dispensa e lista de candidatos
+    const secaoTreino = document.querySelector('[data-esecao="treino"]');
+    secaoTreino.addEventListener("change", async e => {
+      if (!e.target.dataset.tarea) return;
+      try { await designarTreinador(+e.target.dataset.tarea, e.target.value); await carregar({ user: usuario }); } catch (err) { $("tcAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    });
+    secaoTreino.addEventListener("click", async e => {
+      const d = e.target.closest("[data-tdispensar]"), c = e.target.closest("[data-tcontratar]");
+      try {
+        if (d) { const t = comissao.find(x => x.id === +d.dataset.tdispensar); if (!confirm(`Dispensar ${t.nome}? Ele não volta, e as luvas pagas não são devolvidas.`)) return; await dispensarTreinador(t.id); await carregar({ user: usuario }); }
+        else if (c) { c.disabled = true; await contratarTreinador(+c.dataset.tcontratar); await carregar({ user: usuario }); }
+      } catch (err) { $("tcAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if (c) c.disabled = false; }
+    });
+    if ($("tCandidatos")) $("tCandidatos").onclick = async () => {
+      $("tcLista").innerHTML = `<span class="mut">Carregando…</span>`;
+      try {
+        const l = await candidatosATreinador();
+        $("tcLista").innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube e se renova a cada ${(h => h >= 24 ? Math.round(h / 24) + " dias" : h + " horas")(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.</div>
+          <table class="mini ctab" style="width:100%"><tr><th class="esq c-nome">Candidato</th>${Object.keys(AREAS).map(k => `<th title="${AREAS[k].nome}">${AREAS[k].nome.slice(0, 3)}</th>`).join("")}<th>Salário</th><th></th></tr>
+          ${l.map(t => `<tr class="c-linha"><td colspan="10" class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade} anos</span></td></tr><tr><td class="esq c-nome">${esc(t.nome)} <span class="mut">${t.idade}</span></td>${Object.keys(AREAS).map(k => `<td class="${t.area === k ? "nota" : ""}">${t.skills[k] || 0}</td>`).join("")}<td>${dinheiro(t.salario)}</td>
+            <td><button data-tcontratar="${t.id}" style="padding:3px 8px" title="Luvas de ${dinheiro(Math.round(t.salario * 0.1))}">Contratar</button></td></tr>`).join("")}</table>` : `<span class="mut">Nenhum candidato agora. A lista se renova sozinha.</span>`;
+      } catch (err) { $("tcLista").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
   }
   // sub-abas do mercado: uma parte por vez, lembrando a última
   const abrirSub = k => {

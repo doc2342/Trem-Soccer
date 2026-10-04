@@ -42,7 +42,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
-const { treinar, CONFIG_TREINO } = __treino;
+const { treinar, CONFIG_TREINO, qualidadeDoTreino } = __treino;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
       for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null });
     }
+    // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
+    let comissoes = null;
+    try { const t = await sb.from("treinadores").select("clube_id, area, skills").eq("contratado", true).in("clube_id", ids); if (!t.error) { comissoes = {}; for (const x of t.data) (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x); } } catch (e) { /* segue sem treinadores */ }
     // talento oculto de cada jogador: define o teto do treino
     const talentos = {};
     const todos = Object.values(elencos).flat().map(j => +String(j.id).slice(1));
@@ -119,12 +122,13 @@ Deno.serve(async (req) => {
         // sessão de treino dos dois elencos, só em partida de liga; lesionado não treina (sem efeito antes do 27_treino.sql)
         if (!p.fase || p.fase === "liga") {
           const treinos = [];
-          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) {
+          for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
-            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus });
+            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus, areas });
             if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
-          }
+          } }
           if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
+          await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql
         }
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada

@@ -38,6 +38,13 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null }))); // treino indefinido: o 27_treino.sql ainda não foi executado
+// T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
+export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
+export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);
+export const contratarTreinador = id => sb.rpc("contratar_treinador", { p_id: id }).then(ok);
+export const dispensarTreinador = id => sb.rpc("dispensar_treinador", { p_id: id }).then(ok);
+export const designarTreinador = (id, area) => sb.rpc("designar_treinador", { p_id: id, p_area: area }).then(ok);
+export const limparTreinadores = ligaId => sb.rpc("limpar_treinadores", { p_liga: ligaId }).then(({ error }) => !error);
 // T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
 export const definirTreino = lista => sb.rpc("definir_treino", { p_lista: lista.map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
 
