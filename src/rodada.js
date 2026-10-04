@@ -140,6 +140,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
     situacao: [...situacaoDepois(casa.elenco, p), ...situacaoDepois(fora.elenco, p)],
+    minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
   };
 }
 

@@ -1194,6 +1194,7 @@ const __rodada = (() => {
         relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
       },
       situacao: [...situacaoDepois(casa.elenco, p), ...situacaoDepois(fora.elenco, p)],
+      minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
     };
   }
 
@@ -1211,8 +1212,96 @@ const __rodada = (() => {
   }
   return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, calcularPartida, classificacao };
 })();
+
+const __treino = (() => {
+  // Treino (etapa T1, ainda sem treinadores): cada sessão dá pontos aos atributos dos focos do jogador; a cada 100 pontos o atributo sobe 1.
+  // O foco principal fica com 70% dos pontos e o complementar (3 atributos à escolha) com 30%.
+  // O talento oculto define o teto da nota do jogador; a velocidade vem da idade, do centro de treinamento, do trabalho em equipe e de ter jogado.
+  // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
+  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, notaBruta } = __modelo;
+  const CONFIG_TREINO = {
+    pontosPorNivel: 100,
+    pontosPorSessao: 150,       // antes dos fatores; com tudo em 100%, 1,5 ponto de atributo por sessão (alvo: 25 a 30 por temporada para um jovem)
+    partePrincipal: 0.7,
+    ct: [0.8, 0.08],            // sem centro de treinamento, 80%; cada nível soma 8%
+    equipe: [0.85, 1.15],       // do menor ao maior Trabalho em equipe
+    bonusPorJogar: 0.2, minutosParaBonus: 45,
+    teto: [24, 0.22],           // teto da nota = 24 + 0,22 × talento (1 a 100): de 24 a 46
+  };
+  // ritmo por idade (a testar): cheio até os 21, caindo até parar depois dos 30
+  const ritmoDaIdade = idade => idade <= 21 ? 1 : idade <= 23 ? 0.85 : idade <= 25 ? 0.6 : idade <= 27 ? 0.35 : idade <= 30 ? 0.15 : 0;
+
+  // Focos principais: os atributos de cada função.
+  const FOCOS = {
+    goleiro: { nome: "Goleiro", at: ["ref", "um", "enc", "com", "pos"] },
+    zagueiro: { nome: "Zagueiro", at: ["des", "mar", "cab", "pos", "com"] },
+    lateral: { nome: "Lateral e ala", at: ["des", "mar", "pos", "com", "cru"] },
+    volante: { nome: "Volante", at: ["pas", "mar", "des", "pos", "cri"] },
+    meia: { nome: "Meia", at: ["pas", "cri", "pos", "dom", "lon"] },
+    ponta: { nome: "Ponta", at: ["fin", "cru", "dri", "pos", "dom"] },
+    atacante: { nome: "Atacante", at: ["fin", "cab", "dri", "pos", "dom"] },
+    fisico: { nome: "Físico", at: ["vel", "for", "res"] },
+  };
+  const FOCO_DA_LINHA = { gol: "goleiro", defesa: "zagueiro", ala: "lateral", volante: "volante", meio: "meia", meia: "meia", ataque: "atacante" };
+  function focoDaPosicao(pos) {
+    const p = POSICOES[pos]; if (!p) return "meia";
+    if (p.linha === "defesa" && p.lado !== "C") return "lateral";
+    if (p.lado !== "C" && (p.linha === "meio" || p.linha === "meia" || p.linha === "ataque")) return "ponta";
+    return FOCO_DA_LINHA[p.linha] || "meia";
+  }
+  // atributos que o jogador pode treinar: os de goleiro só para goleiro
+  const treinavel = (pos, i) => ATRIBUTOS[i].grupo !== "gol" || pos === "GK";
+  // Foco automático: a função da posição e, como complemento, os 3 atributos que mais pesam na posição e não estão no foco principal.
+  function focoAutomatico(pos) {
+    const p = focoDaPosicao(pos), doFoco = new Set(FOCOS[p].at), pesos = PESOS[(POSICOES[pos] || {}).papel] || {};
+    const c = Object.keys(pesos).filter(k => !doFoco.has(k) && treinavel(pos, IDX[k])).sort((a, b) => pesos[b] - pesos[a]).slice(0, 3).map(k => IDX[k]);
+    for (const k of ["vel", "for", "res", "equ"]) if (c.length < 3 && !doFoco.has(k) && !c.includes(IDX[k])) c.push(IDX[k]);
+    return { p, c };
+  }
+  // Foco em uso: o salvo pelo dirigente, se for válido; senão, o automático.
+  function focoDoJogador(j) {
+    const t = j.treino, auto = focoAutomatico(j.pos);
+    // goleiro só treina o foco de goleiro ou o físico; jogador de linha não treina o foco de goleiro
+    if (!t || !FOCOS[t.p] || ((t.p === "goleiro") !== (j.pos === "GK") && t.p !== "fisico")) return auto;
+    const c = Array.isArray(t.c) ? [...new Set(t.c.map(Number))].filter(i => i >= 0 && i < ATRIBUTOS.length && treinavel(j.pos, i)).slice(0, 3) : [];
+    return { p: t.p, c: c.length ? c : auto.c };
+  }
+
+  const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
+
+  // Pontos de uma sessão para o jogador, antes de dividir pelos focos.
+  function pontosDaSessao(j, { ct = 0, jogou = false } = {}) {
+    const C = CONFIG_TREINO, equ = (j.at[IDX.equ] - ATR_MIN) / (ATR_MAX - ATR_MIN);
+    return C.pontosPorSessao * ritmoDaIdade(j.idade) * (C.ct[0] + C.ct[1] * (ct || 0)) * (C.equipe[0] + (C.equipe[1] - C.equipe[0]) * equ) * (jogou ? 1 + C.bonusPorJogar : 1);
+  }
+  // Quanto de cada sessão vai para cada atributo: { índice: fração }.
+  function partilha(j) {
+    const f = focoDoJogador(j), C = CONFIG_TREINO, principal = FOCOS[f.p].at.map(k => IDX[k]), comp = f.c.filter(i => !principal.includes(i));
+    const partes = {}, pp = comp.length ? C.partePrincipal : 1;
+    principal.forEach(i => { partes[i] = pp / principal.length; });
+    comp.forEach(i => { partes[i] = (1 - pp) / comp.length; });
+    return partes;
+  }
+
+  // Uma sessão de treino. j: { idade, pos, at, treino, pts }. tal: talento oculto (só o servidor sabe).
+  // Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
+  function treinar(j, { tal = null, ct = 0, jogou = false } = {}) {
+    const total = pontosDaSessao(j, { ct, jogou });
+    if (total <= 0 || notaBruta(j.at, j.pos) >= tetoDaNota(tal)) return null;
+    const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
+    for (const [i, parte] of Object.entries(partilha(j))) {
+      if (at[i] >= ATR_MAX) continue;
+      pts[i] += Math.round(total * parte);
+      while (pts[i] >= C.pontosPorNivel && at[i] < ATR_MAX) { pts[i] -= C.pontosPorNivel; at[i]++; subiu.push(+i); }
+      if (at[i] >= ATR_MAX) pts[i] = 0;
+    }
+    return { at, pts, subiu };
+  }
+  return { CONFIG_TREINO, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, tetoDaNota, pontosDaSessao, partilha, treinar };
+})();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
+const { treinar, CONFIG_TREINO } = __treino;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -1256,13 +1345,17 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0 });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null });
     }
+    // talento oculto de cada jogador: define o teto do treino
+    const talentos = {};
+    const todos = Object.values(elencos).flat().map(j => +String(j.id).slice(1));
+    for (let i = 0; i < todos.length; i += 300) for (const t of ok(await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos.slice(i, i + 300)))) talentos["j" + t.jogador_id] = t.tal;
 
     let calculadas = 0;
     const erros = [];
@@ -1272,7 +1365,7 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null });
-        const { lances, resultado, situacao } = calcularPartida({
+        const { lances, resultado, situacao, minutos } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -1282,6 +1375,16 @@ Deno.serve(async (req) => {
         for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         await sb.rpc("lancar_rodada", { p_partida: p.id }); // TV, patrocínio e salários da rodada; sem efeito antes do 12_caixa.sql
+        // sessão de treino dos dois elencos, só em partida de liga; lesionado não treina (sem efeito antes do 27_treino.sql)
+        if (!p.fase || p.fase === "liga") {
+          const treinos = [];
+          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) {
+            if (j.fora > 0 && j.motivo === "lesão") continue;
+            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus });
+            if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
+          }
+          if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
+        }
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada
         await sb.from("lances").delete().eq("partida_id", p.id);

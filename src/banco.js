@@ -36,7 +36,10 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null })));
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
+    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null }))); // treino indefinido: o 27_treino.sql ainda não foi executado
+// T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
+export const definirTreino = lista => sb.rpc("definir_treino", { p_lista: lista.map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);

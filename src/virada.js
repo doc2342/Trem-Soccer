@@ -14,8 +14,9 @@ export const premioDaLiga = (divisao, posicao, clubes = 10) => {
 };
 export const chanceDeAposentar = idade => idade >= 38 ? 1 : idade < 34 ? 0 : (idade - 33) * 0.2; // 20% aos 34 … 80% aos 37
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
-// crescimento provisório (até o treino existir): até os 23 anos, 1 a 3 pontos por temporada conforme o talento oculto
-export const crescimento = (idade, talento) => idade > 23 ? 0 : talento >= 67 ? 3 : talento >= 34 ? 2 : 1;
+// Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
+// agora o jogador evolui rodada a rodada, pelos focos. A queda física por idade continua aqui.
+export const crescimento = () => 0;
 
 const FISICOS = ATRIBUTOS.map((a, i) => a.grupo === "fis" ? i : -1).filter(i => i >= 0);
 const DE_GOLEIRO = new Set(ATRIBUTOS.map((a, i) => a.grupo === "gol" ? i : -1).filter(i => i >= 0));

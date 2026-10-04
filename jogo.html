@@ -11,6 +11,14 @@
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
+  /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
+  .ttab td { vertical-align:middle; } .ttab select { max-width:100%; padding:4px 6px; }
+  .tdet { background:rgba(255,255,255,.03); } .tdet .row { gap:8px; }
+  .tprog { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 16px; margin-top:8px; }
+  .tprog .tb { height:6px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden; margin-top:2px; } .tprog .tb > div { height:100%; background:var(--ac); }
+  @media (max-width:620px) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { display:none; }
+    .ttab th:nth-child(1) { width:40px; } .ttab th:nth-child(4) { width:104px; } .ttab th:nth-child(5) { width:36px; } .ttab td:nth-child(2) { white-space:nowrap; }
+    .ttab select { width:100%; font-size:12.5px; padding:4px 2px; } .tdet td { white-space:normal; } .tdet .row { flex-direction:column; align-items:stretch; gap:4px; } }
   /* finanças: quadros da visão geral, barra da folha e tabela por categoria */
   .fgrade { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
   .fq { border:1px solid var(--line); border-radius:10px; padding:8px 10px; min-width:0; } .fv { font-size:20px; font-weight:800; } .fd { font-size:12.5px; }
@@ -120,7 +128,8 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { FOCOS, CONFIG_TREINO, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel } from "./src/treino.js";
+import { sair, ligaAtual, definirTreino, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -243,6 +252,7 @@ async function telaClube(liga, clube) {
     tatica.dados.jog.forEach((id, i) => { naTatica[id] = { titular: true, pos: (tatica.dados.vagas || [])[i] || "" }; });
     (tatica.dados.banco || []).forEach(id => { if (!naTatica[id]) naTatica[id] = { titular: false }; });
   }
+  const treinoLigado = elenco.some(j => j.treino !== undefined); // false antes do 27_treino.sql
   const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${sg(naTatica[j.id].pos)}">${sg(naTatica[j.id].pos)}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
   const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td>${pp(j.pos)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
@@ -521,11 +531,20 @@ async function telaClube(liga, clube) {
     </div>
     </section>
     <section data-secao="elenco">
+    ${treinoLigado ? `<div class="subabas" id="eSub" style="margin-bottom:12px"><button class="sub" data-esub="lista">👥 Jogadores</button><button class="sub" data-esub="treino">🏋️ Treino</button></div>` : ""}
+    <div data-esecao="lista">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
       <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
+    </div>
+    ${treinoLigado ? `<div data-esecao="treino"><div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
+      <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
+        O ritmo depende da idade (cheio até os 21 anos, parando depois dos 30), do centro de treinamento (o seu está no nível ${clube.ct_nivel || 0}: ${Math.round((CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * (clube.ct_nivel || 0)) * 100)}%), do Trabalho em equipe do jogador e de ele ter jogado pelo menos ${CONFIG_TREINO.minutosParaBonus} minutos na rodada (+${Math.round(CONFIG_TREINO.bonusPorJogar * 100)}%).
+        Cada jogador tem um teto, definido pelo talento, que você não vê: quando chega nele, o treino para de render. Lesionado não treina.</div>
+      <div class="row" style="margin-top:10px"><button id="tSalvar" disabled>Salvar o treino</button><button class="sec" id="tSugerir">Sugerir focos para todos</button><span id="tAviso" class="mut"></span></div>
+      <div id="treinoCorpo" style="margin-top:10px"></div></div></div>` : ""}
 
     </section>`;
 
@@ -750,6 +769,52 @@ async function telaClube(liga, clube) {
   let inicial = "inicio"; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
   const clubeAberto = verClube;
   abrir(document.querySelector(`[data-secao="${inicial}"]`) ? inicial : "inicio");
+  // sub-abas do elenco (jogadores e treino) e a tela do treino
+  if ($("eSub")) {
+    const abrirE = k => { document.querySelectorAll("[data-esecao]").forEach(x => { x.hidden = x.dataset.esecao !== k; }); document.querySelectorAll("#eSub .sub").forEach(b => b.classList.toggle("ativa", b.dataset.esub === k)); try { localStorage.setItem("mo_elenco", k); } catch (e) {} };
+    $("eSub").onclick = e => { const b = e.target.closest("[data-esub]"); if (b) abrirE(b.dataset.esub); };
+    let ini = "lista"; try { ini = localStorage.getItem("mo_elenco") || "lista"; } catch (e) {}
+    abrirE(ini === "treino" ? "treino" : "lista");
+
+    const focos = new Map(elenco.map(j => [j.id, focoDoJogador(j)])), mudou = new Set(), abertos = new Set();
+    const comFoco = j => ({ ...j, treino: focos.get(j.id) });
+    const ordemPos = j => LISTA_POSICOES.indexOf(j.pos);
+    const lista = elenco.slice().sort((a, b) => ordemPos(a) - ordemPos(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
+    const desenharTreino = () => {
+      $("treinoCorpo").innerHTML = `<table class="mini ttab" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th class="t-ritmo" title="Pontos de atributo por rodada, sem contar o bônus de quem joga">Por rodada</th><th class="esq">Foco principal</th><th></th></tr>
+        ${lista.map(j => {
+          const f = focos.get(j.id), jt = comFoco(j), total = pontosDaSessao(jt, { ct: clube.ct_nivel || 0 }), partes = partilha(jt), doFoco = FOCOS[f.p].at;
+          const opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
+          const detalhe = !abertos.has(j.id) ? "" : `<tr class="tdet"><td colspan="5" class="esq">
+            <div class="row"><b>Complementar</b>${[0, 1, 2].map(k => `<select data-tcomp="${j.id}:${k}">${ATRIBUTOS.map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<option value="${i}" ${f.c[k] === i ? "selected" : ""}>${a.nome}</option>`).join("")}</select>`).join("")}</div>
+            <div class="tprog">${Object.entries(partes).map(([i, parte]) => { const pts = (j.pts && j.pts[i]) || 0, ganho = total * parte, falta = ganho > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / ganho) : null;
+              return `<div><div><b>${ATRIBUTOS[i].nome}</b> ${j.at[i]} <span class="mut">· ${j.at[i] >= 50 ? "no máximo" : falta == null ? "parado" : `sobe em cerca de ${falta} ${falta === 1 ? "rodada" : "rodadas"}`}</span></div><div class="tb"><div style="width:${Math.min(100, pts)}%"></div></div></div>`; }).join("")}</div></td></tr>`;
+          return `<tr class="${mudou.has(j.id) ? "e-tit" : ""}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)} <span class="mut">${j.idade}</span>${j.fora > 0 && j.motivo === "lesão" ? " 🩹" : ""}</td>
+            <td class="t-ritmo ${total > 0 ? "" : "mut"}">${total > 0 ? "+" + (total / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou"}</td>
+            <td class="esq"><select data-tfoco="${j.id}">${opcoes.map(k => `<option value="${k}" ${k === f.p ? "selected" : ""}>${FOCOS[k].nome}</option>`).join("")}</select></td>
+            <td><button class="sec" data-tabrir="${j.id}" style="padding:2px 9px" title="Foco complementar e progresso">${abertos.has(j.id) ? "▴" : "▾"}</button></td></tr>${detalhe}`; }).join("")}</table>`;
+      $("tSalvar").disabled = !mudou.size;
+      if (mudou.size) $("tAviso").textContent = `${mudou.size} ${mudou.size === 1 ? "jogador com foco alterado" : "jogadores com foco alterado"}: falta salvar.`;
+    };
+    // troca o foco principal: os complementares que entraram no foco novo dão lugar aos automáticos
+    const ajustar = (j, p, c) => { const doFoco = FOCOS[p].at, livres = ATRIBUTOS.map((a, i) => i).filter(i => treinavel(j.pos, i) && !doFoco.includes(ATRIBUTOS[i].k));
+      const limpo = [...new Set(c)].filter(i => livres.includes(i)); for (const i of [...focoAutomatico(j.pos).c, ...livres]) if (limpo.length < 3 && livres.includes(i) && !limpo.includes(i)) limpo.push(i);
+      focos.set(j.id, { p, c: limpo.slice(0, 3) }); mudou.add(j.id); };
+    const porId = id => elenco.find(j => String(j.id) === id);
+    $("treinoCorpo").onchange = e => {
+      const t = e.target;
+      if (t.dataset.tfoco) { const j = porId(t.dataset.tfoco); ajustar(j, t.value, focos.get(j.id).c); desenharTreino(); }
+      else if (t.dataset.tcomp) { const [id, k] = t.dataset.tcomp.split(":"), j = porId(id), f = focos.get(j.id), c = f.c.slice(); const outro = c.indexOf(+t.value); if (outro >= 0) c[outro] = c[+k]; c[+k] = +t.value; ajustar(j, f.p, c); desenharTreino(); }
+    };
+    $("treinoCorpo").onclick = e => { const b = e.target.closest("[data-tabrir]"); if (!b) return; const id = porId(b.dataset.tabrir).id; if (abertos.has(id)) abertos.delete(id); else abertos.add(id); desenharTreino(); };
+    $("tSugerir").onclick = () => { elenco.forEach(j => { const a = focoAutomatico(j.pos), f = focos.get(j.id); if (a.p !== f.p || a.c.join() !== f.c.join()) { focos.set(j.id, a); mudou.add(j.id); } }); $("tAviso").textContent = mudou.size ? "" : "Todos já estão com o foco sugerido para a posição."; desenharTreino(); };
+    $("tSalvar").onclick = async () => {
+      $("tSalvar").disabled = true;
+      try { await definirTreino([...mudou].map(id => ({ id, ...focos.get(id) }))); elenco.forEach(j => { if (mudou.has(j.id)) j.treino = focos.get(j.id); }); mudou.clear(); desenharTreino(); $("tAviso").innerHTML = `<span class="ok">Treino salvo. Vale a partir da próxima rodada.</span>`; }
+      catch (err) { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("tSalvar").disabled = false; }
+    };
+    desenharTreino();
+  }
   // sub-abas do mercado: uma parte por vez, lembrando a última
   const abrirSub = k => {
     document.querySelectorAll("[data-msecao]").forEach(x => { x.hidden = x.dataset.msecao !== k; });
