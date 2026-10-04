@@ -11,6 +11,11 @@
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
+  /* aviso da janela de transferências, no topo do mercado */
+  .janela { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 0; padding:10px 14px; border-radius:10px; border:1px solid; font-size:13.5px; }
+  .janela .jl { font-weight:800; font-size:15px; white-space:nowrap; }
+  .janela.aberta { border-color:var(--ok); background:rgba(63,178,127,.12); } .janela.aberta .jl { color:var(--ok); }
+  .janela.fechada { border-color:var(--bad); background:rgba(229,100,107,.10); } .janela.fechada .jl { color:var(--bad); }
   /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
   .ctab select { padding:3px 4px; max-width:110px; } .ctab .c-linha { display:none; }
   @media (max-width:620px) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
@@ -504,10 +509,12 @@ async function telaClube(liga, clube) {
         ...(livres == null ? [] : [["livres", "✍️ Livres e ofertas", "Livres", livres.length + ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length]]),
         ["hist", "📜 Transferências", "Feitas", 0]]
       .map(([k, n, curto, q]) => `<button class="sub" data-msub="${k}"><span class="sl">${n}</span><span class="sc">${curto}</span>${q ? `<span class="qt">${q}</span>` : ""}</button>`).join("")}</div>
+    ${janela === undefined ? "" : `<div class="janela ${janela ? "aberta" : "fechada"}"><span class="jl">${janela ? "🟢 Janela aberta" : "🔴 Janela fechada"}</span>
+      <span>${janela === "inicio" ? "Janela de início: compras, vendas e propostas valem até o fim da rodada 2." : janela === "meio" ? "Janela do meio: compras, vendas e propostas valem até o fim da rodada 11." : "Compras pela multa e propostas só com a janela aberta: no início da temporada (até a rodada 2) e entre as rodadas 9 e 11. Jogadores livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo."}</span></div>`}
     <div id="mRecado"></div>
     <div data-msecao="busca">
     ${janela === undefined ? `<div class="card mut">O mercado aparece aqui quando o administrador ligar (SQL 19 e a função "mercado").</div>` : `
-    <div class="card"><h2>Mercado <span class="tag">${janela === "inicio" ? "janela de início aberta: vai até o fim da rodada 2" : janela === "meio" ? "janela do meio aberta: entre as rodadas 9 e 11" : "janela fechada: abre no início da temporada (até a rodada 2) e entre as rodadas 9 e 11"}</span></h2>
+    <div class="card"><h2>Mercado</h2>
       <div class="mut">Quem paga a multa rescisória (5 vezes o salário) leva o jogador na hora. Não têm multa: os protegidos de cada clube (até 5) e quem está na primeira temporada de contrato. O jogador não desce de divisão pela multa. Nesta temporada você fez <b>${transferencias.filter(t => t.para_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 4</b> compras e perdeu <b>${transferencias.filter(t => t.de_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 3</b> jogadores pela multa. Caixa: <b>${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.</div>
       <div class="row" style="margin-top:10px"><div class="chips" id="mLinhas" style="flex-basis:100%"><b>Posição</b>${(formatoDasSiglas() === "pt"
             ? [["gol", "GOL", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "MD", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "MA", "Meias-atacantes"], ["ataque", "A", "Atacantes e pontas"]]
