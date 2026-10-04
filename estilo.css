@@ -76,3 +76,11 @@ tr.clk { cursor:pointer; } tr.clk:hover td { background:#1e2b3a; }
 .aba { background:transparent; color:var(--mut); border:1px solid transparent; border-bottom:none; border-radius:10px 10px 0 0; padding:9px 16px; font-weight:600; }
 .aba:hover { color:var(--tx); }
 .aba.ativa { color:#1a1300; background:var(--ac); border-color:var(--ac); }
+
+/* abas dentro do relatório (sem script: botões de rádio) */
+.rabas > input { display:none; }
+.rbar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+.rbar label { flex-direction:row; cursor:pointer; padding:6px 14px; border:1px solid var(--line); border-radius:999px; font-size:13px; font-weight:600; color:var(--mut); }
+.rp1, .rp2 { display:none; }
+.rt1:checked ~ .rp1, .rt2:checked ~ .rp2 { display:block; }
+.rt1:checked ~ .rbar .l1, .rt2:checked ~ .rbar .l2 { background:var(--ac); border-color:var(--ac); color:#1a1300; }
