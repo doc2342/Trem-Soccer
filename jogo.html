@@ -37,9 +37,10 @@
   tr.sep td { border-top:2px solid var(--line); }
   /* elenco por zonas */
   .elenco2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
-  @media (max-width:1040px) { .elenco2 { grid-template-columns:1fr; } }
+  @media (max-width:1000px) { .elenco2 { grid-template-columns:1fr; } }
   .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; }
-  .zona table { width:100%; } .zona td, .zona th { padding:5px 6px; white-space:nowrap; } .zona td.esq { white-space:normal; min-width:130px; }
+  .zona table { width:100%; font-size:13px; } .zona td, .zona th { padding:5px 4px; white-space:nowrap; } .zona td.esq { white-space:normal; }
+  .zona .pp, .zona .act { min-width:34px; padding:1px 4px; }
   .act { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; font-size:11.5px; font-weight:700; text-align:center; }
   .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; }
   .info { width:22px; height:22px; padding:0; border-radius:50%; font-size:12px; font-weight:700; font-style:italic; line-height:1; background:#2a4a7a; color:#fff; border:0; cursor:pointer; }
@@ -169,16 +170,18 @@ async function telaClube(liga, clube) {
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${naTatica[j.id].pos}">${naTatica[j.id].pos}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
   const linha = j => `<tr class="clk" data-jog="${j.id}"><td>${selo(j)}</td><td><span class="pp">${j.pos}</span></td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
     <td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
-    <td>${j.idade}</td><td class="mut" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${contrato(j)}</tr>`;
+    <td>${j.idade}</td><td class="mut" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+    <td>${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
   const zonaDoElenco = ([titulo, linhas]) => {
     const l = elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => ordemNaTatica(a) - ordemNaTatica(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><div class="rolagem"><table><tr><th title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>País</th><th title="Nota na posição dele">Nota</th><th>Salário</th><th title="Multa rescisória: quem pagar leva o jogador">Multa</th><th>Contrato</th></tr>
-      ${l.map(linha).join("") || `<tr><td colspan="10" class="mut">Ninguém nesta zona.</td></tr>`}</table></div></div>`;
+    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th>País</th><th title="Nota na posição dele">Nota</th><th>Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
+      ${l.map(linha).join("") || `<tr><td colspan="9" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
   const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
   const quadroDeAtributos = j => { const conta = PESOS[POSICOES[j.pos].papel] || {};
     return `<div class="qa-topo"><b>${esc(j.nome)}</b> <span class="pp">${j.pos}</span> <span class="nota">${f1(notaNaPosicao(j, j.pos))}</span></div>
+      ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       <div class="qa-grade">${GRUPOS_DE_ATRIBUTOS.map(([nome, g]) => `<div><div class="qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="qa-linha ${conta[a.k] ? "qa-conta" : ""}"><span>${a.nome}</span><span class="${corAtr(j.at[k])}">${j.at[k]}</span></div>`).join("")}</div>`).join("")}</div>
       <div class="mut" style="margin-top:6px;font-size:12px">Em destaque, os atributos que contam para a posição dele.${Object.keys(j.fam).filter(p => p !== j.pos).length ? ` Também joga: ${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})`).join(", ")}.` : ""}</div>`; };
   const outros = clubes.filter(c => c.id !== clube.id);
@@ -353,10 +356,10 @@ async function telaClube(liga, clube) {
     </section>
     <section data-secao="elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
-      ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contrato). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
+      ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
-      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos.</div></div>
+      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada.</div></div>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     </section>`;
 
