@@ -168,7 +168,7 @@ async function tela(aviso = "") {
     const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre" };
     $("transfAdm").innerHTML = `<h2>Transferências <span class="tag">anular devolve o jogador ao clube de origem e o dinheiro a quem pagou</span></h2>
       ${l.length ? `<div class="rolagem" style="max-height:300px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Tipo</th><th>Valor</th><th>Taxa</th><th>Temporada</th><th></th></tr>
-        ${l.map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${esc(nome[t.de_clube] || "—")}</td><td class="esq">${esc(nome[t.para_clube] || "—")}</td><td>${TIPO[t.tipo] || esc(t.tipo)}</td><td>${dinheiro(t.valor)}</td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : "meio") : ""}</td>
+        ${l.map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${esc(nome[t.de_clube] || "—")}</td><td class="esq">${esc(nome[t.para_clube] || "—")}</td><td>${TIPO[t.tipo] || esc(t.tipo)}</td><td>${dinheiro(t.valor)}</td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : "meio") : ""}</td>
           <td>${t.de_clube && t.para_clube ? `<button class="sec" data-anular="${t.id}">Anular</button>` : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}
       <div class="mut" style="margin-top:6px">${esc(aviso)}</div>`;
     $("transfAdm").onclick = async e => {
