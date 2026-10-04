@@ -121,6 +121,7 @@ async function telaClube(liga, clube) {
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
+  const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: caixa, previsão por rodada e extrato agrupado por rodada
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
@@ -147,6 +148,11 @@ async function telaClube(liga, clube) {
     <section data-secao="inicio">
     <div class="card"><h2>Próximo jogo</h2><div id="proximo" class="mut">Carregando…</div>
       <div class="row" style="margin-top:10px"><a href="escalacao.html?online=1"><button>Escalação e tática</button></a><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
+    ${clube.torcida == null ? "" : `<div class="card"><h2>Torcida</h2><div class="row" style="gap:28px;align-items:center">
+      <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
+      <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
+      <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${(5000 + 5000 * clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
+      <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.</div></div>`}
     <div class="card"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
