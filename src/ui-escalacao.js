@@ -38,7 +38,7 @@ const HTML = `  <div id="cabecalho"></div>
     <div>
       <div class="card" id="escolha"></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
-      <details class="card dobra" open><summary><h2>Capitão, armador e cobradores</h2></summary><div class="row" id="papeis"></div></details>
+      <details class="card dobra" open><summary><h2>Capitão, armador e cobradores</h2></summary><div id="papeis"></div></details>
       <details class="card dobra" open><summary><h2>Substituições <span class="tag">até 5</span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
       <details class="card dobra" open><summary><h2>Ordens condicionais <span class="tag">até 3</span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
       <div class="card"><h2>Escalações salvas</h2><div class="row"><input id="nomeSalva" placeholder="Nome da escalação" style="flex:1;min-width:140px"><button class="sec" id="salvar">Salvar</button></div><div class="chips" id="salvas" style="margin-top:8px"></div></div>
@@ -230,8 +230,16 @@ function render() {
   // papéis
   const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
   const opJog = (lista, atual) => `<option value="">automático</option>${lista.map(j => `<option value="${j.id}" ${j.id === atual ? "selected" : ""}>${esc(j.nome)}</option>`).join("")}`;
-  $("papeis").innerHTML = [["capitao", "Capitão"], ["vice", "Vice-capitão"], ["armador", "Armador"], ["alvo", "Homem-alvo"]].map(([k, n]) => `<label>${n}<select data-papel="${k}">${opJog(k === "capitao" || k === "vice" ? tit : linha, E.instr[k])}</select></label>`).join("") +
-    [["escanteio", "Escanteio", 3], ["falta", "Falta", 3], ["penalti", "Pênalti", 5]].map(([k, n, q]) => Array.from({ length: q }, (_, i) => `<label>${n} ${i + 1}<select data-cob="${k}" data-i="${i}">${opJog(linha, E.instr.cobradores[k][i])}</select></label>`).join("")).join("");
+  // um grupo por linha: quem lidera, quem arma as jogadas e a ordem dos cobradores de cada bola parada
+  const papel = (k, n, lista) => `<label class="pl"><span>${n}</span><select data-papel="${k}">${opJog(lista, E.instr[k])}</select></label>`;
+  const cobradores = (k, q) => Array.from({ length: q }, (_, i) => `<label class="pl"><span>${i + 1}º</span><select data-cob="${k}" data-i="${i}">${opJog(linha, E.instr.cobradores[k][i])}</select></label>`).join("");
+  $("papeis").innerHTML = `<div class="papeis">
+    <b>Liderança</b><div>${papel("capitao", "Capitão", tit)}${papel("vice", "Vice", tit)}</div>
+    <b>Jogadas</b><div>${papel("armador", "Armador", linha)}${papel("alvo", "Homem-alvo", linha)}</div>
+    <b>Escanteios</b><div>${cobradores("escanteio", 3)}</div>
+    <b>Faltas</b><div>${cobradores("falta", 3)}</div>
+    <b>Pênaltis</b><div>${cobradores("penalti", 5)}</div></div>
+    <div class="mut" style="font-size:12px;margin-top:6px">Em automático, o jogo escolhe o melhor em campo para a função. Nos cobradores, vale a ordem: se o 1º não estiver em campo, cobra o 2º.</div>`;
   // substituições e ordens
   const reservas = E.banco.map(jogDe).filter(Boolean);
   const sele = (attr, ops, atual) => `<select ${attr}>${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(atual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;

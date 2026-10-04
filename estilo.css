@@ -66,6 +66,11 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .lista .item .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .lista .item .dir { margin-left:auto; display:flex; gap:8px; align-items:center; flex:none; }
 .lista .item .mo { width:24px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--mut); } .lista .item .mo.ok { color:var(--ok); } .lista .item .mo.bad { color:var(--bad, #e5484d); }
 .lista .item .info, .cabl .info { width:22px; height:22px; border-radius:50%; padding:0; font-size:12px; font-weight:700; background:transparent; color:var(--mut); border:1px solid var(--line); cursor:pointer; flex:none; }
+.lista { overflow-x:hidden; }
+.papeis { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:8px 12px; align-items:center; } .papeis > b { font-size:13px; color:var(--mut); font-weight:600; }
+.papeis > div { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
+.papeis .pl { flex-direction:row; align-items:center; gap:6px; font-size:12px; color:var(--mut); min-width:0; } .papeis .pl span { flex:none; min-width:18px; } .papeis .pl select { flex:1; min-width:0; padding:5px 6px; }
+@media (max-width:620px) { .papeis { grid-template-columns:1fr; gap:4px; } .papeis > b { margin-top:6px; } .papeis > div { grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); } }
 .cabl { display:flex; gap:8px; justify-content:flex-end; font-size:11px; color:var(--mut); padding:0 4px 2px; } .cabl span { width:24px; text-align:right; } .cabl span:nth-child(3) { width:34px; }
 .skills { columns:4; column-gap:14px; padding:6px 8px 8px 14px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.03); font-size:12.5px; }
 .skills .grupo { break-inside:avoid; margin-bottom:6px; } .skills h4 { margin:0 0 2px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); border-bottom:1px solid var(--line); }
