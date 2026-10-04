@@ -2,8 +2,11 @@
 // 1. A cada abertura, confere versao.txt; se mudou, baixa de novo todos os arquivos e recarrega a página.
 // 2. Se mesmo assim um módulo falhar ao carregar (arquivo antigo no cache), faz o mesmo uma vez.
 (function () {
+  // "Tela de computador" no celular: a página é desenhada com 1100 px de largura e o aparelho reduz o zoom para caber, como no Dugout.
+  try { if (localStorage.getItem("mo_tela") === "pc") { var mv = document.querySelector('meta[name="viewport"]'); if (mv) mv.setAttribute("content", "width=1100"); } } catch (e) {}
+  window.moTela = function (pc) { try { localStorage.setItem("mo_tela", pc ? "pc" : "cel"); } catch (e) {} location.reload(); };
   var ARQUIVOS = ["estilo.css", "jogo.html", "admin.html", "aovivo.html", "escalacao.html", "index.html",
-    "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js", "src/economia.js",
+    "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js", "src/economia.js", "src/virada.js",
     "src/banco.js", "src/escudo.js", "src/ui-login.js", "src/ui-relatorio.js"];
   var ja = sessionStorage.getItem("mo_recarregou");
   function renovar() {

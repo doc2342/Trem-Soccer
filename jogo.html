@@ -41,6 +41,15 @@
   .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; }
   .zona table { width:100%; font-size:13px; } .zona td, .zona th { padding:5px 4px; white-space:nowrap; } .zona td.esq { white-space:normal; }
   .zona .pp, .zona .act { min-width:34px; padding:1px 4px; }
+  /* celular: só o essencial (posição colorida pela tática, atributos, nome, idade, nota e contrato); o resto está no botão i */
+  @media (max-width:620px) {
+    .zona .c-tat, .zona .c-pais, .zona .c-sal { display:none; }
+    .zona table { font-size:12.5px; } .zona td, .zona th { padding:3px 3px; }
+    .zona td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46vw; }
+    .zona tr.e-tit .pp { background:#2c6b4a; color:#eafff3; } .zona tr.e-res .pp { background:#5a4a1e; color:#ffe9a8; }
+    .zona .info { width:20px; height:20px; }
+    .zona { margin-bottom:10px; }
+  }
   .act { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; font-size:11.5px; font-weight:700; text-align:center; }
   .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; }
   .info { width:22px; height:22px; padding:0; border-radius:50%; font-size:12px; font-weight:700; font-style:italic; line-height:1; background:#2a4a7a; color:#fff; border:0; cursor:pointer; }
@@ -156,7 +165,7 @@ async function telaClube(liga, clube) {
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const jogo = (p, res, agora) => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
     return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${esc(cPor[p.casa].nome)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${esc(cPor[p.fora].nome)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
-  const situacao = j => (j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} · ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
+  const situacao = j => (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
   const contrato = j => j.salario == null ? `<td>—</td><td>—</td><td>—</td>` : `<td>${dinheiro(j.salario)}</td><td title="${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? "Primeira temporada de contrato: a multa só vale a partir da próxima" : "Valor para outro clube levar o jogador"}">${j.protegido ? `<span title="Na lista de protegidos: sem multa rescisória">🛡️ sem multa</span>` : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? " 🔒" : "")}</td><td class="${j.contratoAte <= liga.temporada ? "aviso" : ""}">até a ${j.contratoAte}</td>`;
   // elenco por zonas, como no Dugout: situação na tática salva, posição, botão de atributos, nome, idade, país, nota e contrato
@@ -168,13 +177,13 @@ async function telaClube(liga, clube) {
   }
   const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${naTatica[j.id].pos}">${naTatica[j.id].pos}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
-  const linha = j => `<tr class="clk" data-jog="${j.id}"><td>${selo(j)}</td><td><span class="pp">${j.pos}</span></td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
+  const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td><span class="pp">${j.pos}</span></td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
     <td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
-    <td>${j.idade}</td><td class="mut" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
-    <td>${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
+    <td>${j.idade}</td><td class="mut c-pais" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+    <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
   const zonaDoElenco = ([titulo, linhas]) => {
     const l = elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => ordemNaTatica(a) - ordemNaTatica(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th>País</th><th title="Nota na posição dele">Nota</th><th>Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
+    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th class="c-tat" title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th class="c-pais">País</th><th title="Nota na posição dele">Nota</th><th class="c-sal">Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
       ${l.map(linha).join("") || `<tr><td colspan="9" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
@@ -245,6 +254,9 @@ async function telaClube(liga, clube) {
           <div class="row"><label>Vagas de sócio-torcedor<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Abrir o Sócio-Torcedor</button></div>
           <div id="carneAviso" style="margin-top:6px"></div>`}</div>`;
   };
+  // no celular dá para trocar entre o desenho de celular e a página inteira com zoom reduzido (como no Dugout)
+  let telaDePc = false; try { telaDePc = localStorage.getItem("mo_tela") === "pc"; } catch (e) {}
+  const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820;
   // murais da Central
   const item = (ic, texto, classe = "") => `<div><span class="ic">${ic}</span><span class="${classe}">${texto}</span></div>`;
   const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
@@ -282,7 +294,7 @@ async function telaClube(liga, clube) {
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">Dirigente sem nome</span>`} <button class="sec" id="nomeDirigente" style="padding:1px 8px;font-size:12px" title="Mudar o nome do dirigente">✏️</button></div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
-    <div class="abas" id="abas">${[["inicio", "Central"], ["elenco", "Elenco"], ["tatica", "Tática"], ["mercado", "Mercado"], ["classificacao", "Classificação"], ["financas", "Finanças"]].map(([k, n]) => `<button class="aba" data-aba="${k}">${n}</button>`).join("")}</div>
+    <div class="abas" id="abas">${[["inicio", "Central"], ["elenco", "Elenco"], ["tatica", "Tática"], ["mercado", "Mercado"], ["classificacao", "Classificação"], ["financas", "Finanças"]].map(([k, n]) => `<button class="aba" data-aba="${k}">${n}</button>`).join("")}${telaPequena ? `<button class="aba" id="modoTela" style="margin-left:auto" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div>
     <section data-secao="inicio">
     <div class="central">
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
@@ -359,7 +371,7 @@ async function telaClube(liga, clube) {
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
-      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada.</div></div>
+      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     </section>`;
 
@@ -541,6 +553,7 @@ async function telaClube(liga, clube) {
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
   };
   $("abas").onclick = e => { if (e.target.dataset.aba) abrir(e.target.dataset.aba); };
+  if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   // qualquer nome de clube com atalho abre a página dele (o próprio clube leva à aba Elenco)
   $("app").addEventListener("click", e => {
     const a = e.target.closest("[data-clube]"); if (!a) return;
