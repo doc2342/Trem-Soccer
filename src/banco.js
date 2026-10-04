@@ -164,6 +164,7 @@ export const darLanceLivre = (jogadorId, salario, temporadas) => sb.rpc("dar_lan
 export const oferecerALiga = jogadorId => sb.rpc("oferecer_a_liga", { p_jogador: numero(jogadorId) }).then(ok);
 export const comprarOfertaDaLiga = (jogadorId, salario, temporadas) => sb.rpc("comprar_oferta_da_liga", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
 export const liberarJogadores = (ligaId, lista) => sb.rpc("liberar_jogadores", { p_liga: ligaId, p_lista: lista }).then(ok);
+export const anularTransferencia = id => sb.rpc("anular_transferencia", { p_id: id }).then(ok);
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {

@@ -28,7 +28,7 @@ import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
 import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDaPosicao, transferenciasDaLiga, protegerJogador, comprarPelaMulta, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
-import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco } from "./src/economia.js";
+import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
@@ -314,8 +314,8 @@ async function telaClube(liga, clube) {
           <div class="row"><label>Salário (em milhares por temporada)<input id="mSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
             <label>Contrato de<select id="mTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
             <button id="mComprar" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pagar a multa e contratar</button><button class="sec" id="mFechar">Fechar</button></div>`}
-        ${propostas != null && cPor[j.clube_id].dono && j.salario != null ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>Proposta ao clube</b> <span class="mut">${j.a_venda ? `· está à venda por ${dinheiro(j.preco_pedido)}` : "· o dono pode aceitar, recusar ou pedir outro valor"}</span>
-          <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="1" value="${j.preco_pedido || multa}" style="width:140px"></label>
+        ${propostas != null && cPor[j.clube_id].dono && j.salario != null ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>Proposta ao clube</b> <span class="mut">${j.a_venda ? `· está à venda por ${dinheiro(j.preco_pedido)}` : "· o dono pode aceitar, recusar ou pedir outro valor"} · o valor tem de ficar entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa) · só um negócio por temporada entre os mesmos dois clubes</span>
+          <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="${faixaDaNegociacao(j.salario).minimo}" max="${faixaDaNegociacao(j.salario).maximo}" value="${Math.min(faixaDaNegociacao(j.salario).maximo, Math.max(faixaDaNegociacao(j.salario).minimo, j.preco_pedido || multa))}" style="width:140px"></label>
             <label>Salário do jogador<input id="pSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:120px"></label>
             <label>Contrato de<select id="pTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
             <button class="sec" id="pEnviar" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Enviar a proposta</button></div></div>` : ""}
@@ -376,7 +376,7 @@ async function telaClube(liga, clube) {
     try {
       if (acao === "aceitar") { if (!confirm(`Vender por ${dinheiro(p.valor)}? A taxa de venda sai desse valor. Não dá para desfazer.`)) return; await responderProposta(id, "aceitar"); }
       else if (acao === "recusar") await responderProposta(id, "recusar");
-      else if (acao === "contrapropor") { const v = Math.round(+prompt(`A oferta é de ${p.valor} mil. Quanto você quer (em milhares)?`, Math.round(p.valor * 1.2))); if (!v) return; await responderProposta(id, "contrapropor", v); }
+      else if (acao === "contrapropor") { const v = Math.round(+prompt(`A oferta é de ${p.valor} mil. Quanto você quer (em milhares)? O valor tem de ficar entre 60% e 150% da multa rescisória do jogador.`, Math.round(p.valor * 1.2))); if (!v) return; await responderProposta(id, "contrapropor", v); }
       else if (acao === "aceitarContra") { if (!confirm(`Fechar por ${dinheiro(p.contra_valor)}? Não dá para desfazer.`)) return; await decidirContraproposta(id, true); }
       else if (acao === "retirar") await decidirContraproposta(id, false);
       await carregar({ user: usuario });
@@ -456,6 +456,7 @@ async function telaClube(liga, clube) {
           <div class="mut" style="margin-top:6px">Protegido não tem multa rescisória: só sai se você vender. Para tirar alguém da lista, só com a janela fechada.</div>`)}
         ${propostas == null ? "" : bloco("Lista de transferência", `<div class="row"><label>Preço pedido (em milhares)<input id="ctPreco" type="number" step="50" min="0" value="${j.precoPedido || clausula(j.salario)}" style="width:120px"></label>
             <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
+          <div class="mut" style="margin-top:6px">A venda negociada só fecha entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa).</div>
           <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
         ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button>
           <div class="mut" style="margin-top:6px">60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</div>
