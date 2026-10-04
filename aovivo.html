@@ -34,6 +34,7 @@ const f2 = v => v.toFixed(2).replace(".", ",");
 const id = +new URLSearchParams(location.search).get("id");
 const COR = ["casa", "fora"];
 let partida, clubes, encerrada = false, relogio, tique, preco = null;
+const baixados = []; // lances já recebidos; cada consulta traz só os que vieram depois
 
 // Minuto de jogo a partir do relógio real, com 15 minutos de intervalo, na escala da transmissão.
 function momento() {
@@ -92,8 +93,11 @@ async function atualizar() {
   if (m.antes) { topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
   // o administrador lê tudo no banco; aqui a transmissão segue o relógio para ele também
   const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;
-  let [lances, res] = await Promise.all([lancesDaPartida(id), relatorioDaPartida(id)]);
-  lances = lances.filter(noAr); if (res && !noAr(res)) res = null;
+  const ultima = baixados.length ? baixados[baixados.length - 1].ordem : -100;
+  // o relatório só é pedido depois do apito final; até lá, apenas os lances novos
+  let [novos, res] = await Promise.all([lancesDaPartida(id, ultima), m.fim ? relatorioDaPartida(id) : null]);
+  baixados.push(...novos);
+  const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);

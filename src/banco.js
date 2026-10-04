@@ -49,7 +49,8 @@ export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).m
 // tudo = false: só o que o relógio já liberou, mesmo para o administrador (que lê tudo no banco)
 export const resultadosDe = (ids, tudo = false) => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, libera_em").in("partida_id", ids).then(ok).then(l => tudo ? l : l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
 export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("partida_id", id).maybeSingle().then(ok);
-export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados, libera_em").eq("partida_id", id).order("ordem").then(ok);
+// depoisDe: só os lances de ordem maior que esta (a página ao vivo pede apenas os novos a cada consulta, para poupar tráfego)
+export const lancesDaPartida = (id, depoisDe = -100) => sb.from("lances").select("ordem, min, dados, libera_em").eq("partida_id", id).gt("ordem", depoisDe).order("ordem").then(ok);
 export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").in("id", ids).then(ok);
 
 // ---------- administração ----------
