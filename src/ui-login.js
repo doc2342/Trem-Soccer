@@ -31,7 +31,14 @@ export async function montarLogin(el, aoMudar) {
     }
   };
   const traduzir = m => /rate limit|security purposes/i.test(m) ? "Muitos pedidos de e-mail em pouco tempo. Espere um pouco e tente de novo." : /expired|invalid/i.test(m) ? "Código inválido ou vencido." : m;
-  sb.auth.onAuthStateChange((_evento, s) => { el.hidden = !!s; if (!s) { etapa = "email"; desenhar(); } aoMudar(s); });
+  // O Supabase repete o aviso de login toda vez que a aba do navegador volta a ficar visível e quando renova a sessão;
+  // a página só é redesenhada quando muda quem está logado, para não perder o que o dirigente estava fazendo.
+  let quem;
+  sb.auth.onAuthStateChange((_evento, s) => {
+    const id = s && s.user ? s.user.id : null;
+    if (id === quem) return;
+    quem = id; el.hidden = !!s; if (!s) { etapa = "email"; desenhar(); } aoMudar(s);
+  });
   const s = await sessao();
   el.hidden = !!s;
   if (!s) desenhar();
