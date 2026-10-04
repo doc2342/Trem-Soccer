@@ -9,7 +9,7 @@ Uso: python ferramentas/empacotar_funcao.py   (rodar de novo sempre que o motor 
 import io, os, re
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODULOS = ["rng", "modelo", "escalacao", "motor", "bot", "relatorio", "rodada", "treino"]  # em ordem de dependência
+MODULOS = ["rng", "modelo", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "saude"]  # em ordem de dependência
 
 RE_IMPORT = re.compile(r'^import\s*\{([^}]*)\}\s*from\s*"\./(\w+)\.js";\s*$', re.M | re.S)
 RE_EXPORT = re.compile(r'^export\s+(?=(?:async\s+)?(?:const|let|function)\s+(\w+))', re.M)
@@ -43,6 +43,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino } = __treino;
+const { saudeDoClube } = __saude;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel, medico_nivel").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
@@ -94,8 +95,9 @@ Deno.serve(async (req) => {
       for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
-    let comissoes = null;
-    try { const t = await sb.from("treinadores").select("clube_id, area, skills").eq("contratado", true).in("clube_id", ids); if (!t.error) { comissoes = {}; for (const x of t.data) (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x); } } catch (e) { /* segue sem treinadores */ }
+    // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
+    let comissoes = null; const saude = {};
+    try { const t = await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids); if (!t.error) { comissoes = {}; for (const x of t.data) { const alvo = (x.funcao || "treinador") === "treinador" ? comissoes : saude; (alvo[x.clube_id] = alvo[x.clube_id] || []).push(x); } } } catch (e) { /* segue sem treinadores */ }
     // talento oculto de cada jogador: define o teto do treino
     const talentos = {};
     const todos = Object.values(elencos).flat().map(j => +String(j.id).slice(1));
@@ -108,7 +110,7 @@ Deno.serve(async (req) => {
       const reserva = ok(await sb.from("partidas").update({ processada: true }).eq("id", p.id).eq("processada", false).select("id"));
       if (!reserva.length) continue;
       try {
-        const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null });
+        const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
         const { lances, resultado, situacao, minutos } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),

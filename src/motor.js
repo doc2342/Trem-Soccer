@@ -151,9 +151,10 @@ function habilidadeDefesa(at, zona) {
 
 // escalacao: [{ j: jogador, pos }] com 11 nomes; banco: até 7 jogadores; instrucoes: ver INSTRUCOES_PADRAO.
 // O objeto devolvido não muda durante a partida e pode ser reutilizado em várias simulações.
-export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, mandante = false }) {
+// prevencao: fração a menos na chance de lesão dos jogadores deste time (preparador de prevenção), de 0 a 1
+export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, mandante = false, prevencao = 0 }) {
   return {
-    nome, mandante, escalacao, banco,
+    nome, mandante, escalacao, banco, prevencao,
     instrucoes: { ...INSTRUCOES_PADRAO, ...instrucoes, cobradores: { ...INSTRUCOES_PADRAO.cobradores, ...(instrucoes.cobradores || {}) } },
   };
 }
@@ -163,7 +164,7 @@ const novoJog = (j, pos) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)]
 // Estado do time durante a partida.
 function iniciar(time) {
   return {
-    nome: time.nome, mandante: time.mandante,
+    nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
     instr: { ...time.instrucoes },
     emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos)),
     banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
@@ -505,7 +506,7 @@ export function simularPartida(rng, casa, fora) {
       if (pivo) registrar(pivo, venceu, p);
       if (marcador) registrar(marcador, !venceu, 1 - p);
     }
-    if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade))) {
+    if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade) * (1 - (times[i].prevencao || 0)))) {
       const r = rng.n(), dias = r < 0.5 ? rng.int(1, 3) : r < 0.8 ? rng.int(4, 10) : rng.int(11, 30);
       jogadores[pivo.j.id].lesionado = true; lesoes.push({ id: pivo.j.id, time: i, dias });
       sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);

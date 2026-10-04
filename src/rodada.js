@@ -84,11 +84,14 @@ export function horaDoMinuto(inicio, min, minutosTransmissao) {
 
 // O que muda em cada jogador do elenco depois da partida: quem estava fora cumpre um jogo; vermelho suspende por um jogo;
 // o terceiro amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
-function situacaoDepois(elenco, p) {
+// medico: { chance, vagas } do clube, ou null. Quem já estava lesionado antes do jogo pode ser atendido: os de maior nota primeiro,
+// até o número de vagas; cada atendido tem a chance de voltar um jogo antes.
+function situacaoDepois(elenco, p, medico = null, rng = null) {
+  const atendidos = new Set(medico && rng ? elenco.filter(j => j.fora > 1 && j.motivo === "lesão").sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)).slice(0, medico.vagas).filter(() => rng.chance(medico.chance)).map(j => j.id) : []);
   const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), mudancas = [];
   for (const j of elenco) {
     let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelos || 0;
-    if (fora > 0) { fora--; if (!fora) motivo = null; }
+    if (fora > 0) { fora--; if (fora > 0 && atendidos.has(j.id)) fora--; if (!fora) motivo = null; }
     const s = p.jogadores[j.id];
     if (s) {
       if (s.vermelho) { fora = 1; motivo = "suspensão"; }
@@ -105,7 +108,7 @@ export function aplicarSituacao(elenco, mudancas) {
   for (const m of mudancas) if (porId[m.id]) Object.assign(porId[m.id], { fora: m.fora, motivo: m.motivo, amarelos: m.amarelos });
 }
 
-// lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null }
+// lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null, saude: saída de saudeDoClube (opcional) }
 // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
 // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
 const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
@@ -120,7 +123,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil }));
   const times = lados.map((l, i) => {
     const t = taticas[i];
-    return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 });
+    return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
   const p = simularPartida(criarRng(semente), times[0], times[1]);
   const r = montarRelatorio(p, [3, 3]);
@@ -139,7 +142,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
-    situacao: [...situacaoDepois(casa.elenco, p), ...situacaoDepois(fora.elenco, p)],
+    situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico, extra), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico, extra)],
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
   };
 }
