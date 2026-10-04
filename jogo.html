@@ -11,6 +11,12 @@
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
+  /* finanças: quadros da visão geral, barra da folha e tabela por categoria */
+  .fgrade { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
+  .fq { border:1px solid var(--line); border-radius:10px; padding:8px 10px; min-width:0; } .fv { font-size:20px; font-weight:800; } .fd { font-size:12.5px; }
+  .fbarra { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
+  .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
+  @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
   /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
   .chips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; } .chips b { margin-right:2px; }
   .chipf { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:6px; padding:3px 8px; font-weight:700; font-size:13px; min-width:30px; }
@@ -277,7 +283,9 @@ async function telaClube(liga, clube) {
       <div id="obraAviso" style="margin-top:6px"></div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
-  // finanças: caixa, previsão por rodada e extrato agrupado por rodada
+  // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
+  const CATEGORIAS = [["Ingressos e Sócio-Torcedor", ["bilheteria", "carne"]], ["Patrocínio", ["patrocinio"]], ["Direitos de TV", ["tv", "paraquedas"]], ["Prêmios e fundo da liga", ["premio", "fundo", "antecipacao"]],
+    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao"]], ["Salários", ["salarios"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
@@ -285,15 +293,55 @@ async function telaClube(liga, clube) {
     const publico = temTorcida ? Math.min(lugares, Math.round(clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida))) : 0;
     const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000), bil = Math.round(porJogo / 2);
     const humor = clube.humor < 3 ? "revoltada" : clube.humor < 6 ? "nervosa" : clube.humor < 10 ? "calma" : clube.humor < 13 ? "animada" : "eufórica";
-    const saldo = tv + pat + bil - sal, cor = v => v < 0 ? "bad" : "ok", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
-    const grupos = [];
+    const saldo = tv + pat + bil - sal, cor = v => v < 0 ? "bad" : v > 0 ? "ok" : "mut", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
+    const grupos = []; // do mais novo para o mais antigo
     for (const l of extrato) { const k = l.temporada + "-" + l.rodada; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, temporada: l.temporada, rodada: l.rodada, itens: [], total: 0 }); g.itens.push(l); g.total += l.valor; }
-    return `<div class="row" style="align-items:center"><div><div class="mut">Caixa</div><div style="font-size:24px;font-weight:800" class="${cor(caixa)}">${dinheiro(caixa)}</div></div>
-      <div class="mut">A cada rodada: TV ${sinal(tv)} · patrocínio ${sinal(pat)}${temTorcida ? ` · bilheteria ${sinal(bil)} em média` : ""} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b>
+    // períodos: última rodada calculada, esta temporada e a anterior
+    const ultima = grupos.find(g => g.rodada != null), daUltima = l => !!ultima && l.temporada === ultima.temporada && l.rodada === ultima.rodada;
+    const PERIODOS = [daUltima, l => l.temporada === liga.temporada, l => l.temporada === liga.temporada - 1];
+    const soma = (filtro, tipos) => extrato.filter(l => filtro(l) && (!tipos || tipos.includes(l.tipo))).reduce((t, l) => t + l.valor, 0);
+    const fluxo = filtro => { const l = extrato.filter(filtro); return { saldo: l.reduce((t, x) => t + x.valor, 0), entra: l.filter(x => x.valor > 0).reduce((t, x) => t + x.valor, 0), sai: l.filter(x => x.valor < 0).reduce((t, x) => t + x.valor, 0) }; };
+    const quadro = (titulo, f, vazio) => `<div class="fq"><div class="mut">${titulo}</div>${f ? `<div class="fv ${cor(f.saldo)}">${sinal(f.saldo)}</div><div class="fd"><span class="ok">${sinal(f.entra)}</span> receitas · <span class="bad">${sinal(f.sai)}</span> despesas</div>` : `<div class="fv mut">—</div><div class="fd mut">${vazio}</div>`}</div>`;
+    const temAnterior = extrato.some(PERIODOS[2]);
+    const geral = `<div class="fgrade"><div class="fq"><div class="mut">Caixa atual</div><div class="fv ${caixa < 0 ? "bad" : "ok"}">${dinheiro(caixa)}</div><div class="fd mut">${caixa < 0 ? "clube no vermelho" : "disponível para contratar e construir"}</div></div>
+      ${quadro(ultima ? `Última rodada (${ultima.rodada}ª${ultima.temporada !== liga.temporada ? " da temporada " + ultima.temporada : ""})` : "Última rodada", ultima ? fluxo(daUltima) : null, "nenhuma rodada calculada nesta temporada")}
+      ${quadro(`Temporada ${liga.temporada}`, extrato.some(PERIODOS[1]) ? fluxo(PERIODOS[1]) : null, "sem lançamentos ainda")}
+      ${quadro(`Temporada ${liga.temporada - 1}`, temAnterior ? fluxo(PERIODOS[2]) : null, "sem registro")}</div>`;
+    // folha e teto
+    const pct = teto ? folha / teto : 0, maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
+    const folhaHtml = !temContratos ? "" : `<div class="card" style="margin:10px 0 0"><b>Folha salarial</b>
+      <div class="row" style="align-items:baseline;gap:14px;margin-top:4px"><div><span class="fv">${dinheiro(folha)}</span> <span class="mut">de ${dinheiro(teto)} por temporada</span></div><div class="${teto - folha < 0 ? "bad" : "ok"}"><b>${teto - folha < 0 ? "acima do teto em " + dinheiro(folha - teto) : "sobram " + dinheiro(teto - folha)}</b></div></div>
+      <div class="fbarra"><div style="width:${Math.min(100, Math.round(pct * 100))}%;background:${pct > 1 ? "var(--bad, #e5484d)" : pct > 0.9 ? "var(--ac)" : "var(--ok)"}"></div></div>
+      <div class="mut" style="margin-top:4px">${Math.round(pct * 100)}% do teto de folha da sua divisão${liga.paraquedas ? " (com o paraquedas do rebaixamento, vale o teto da divisão de cima nesta temporada)" : ""} · ${elenco.length} jogadores · ${dinheiro(sal)} por rodada · um jogador pode ganhar no máximo ${dinheiro(maximo)} (15% do teto). Os salários de cada um estão na aba Elenco.</div></div>`;
+    // resumo por categoria
+    const linhas = CATEGORIAS.map(([nome, tipos]) => ({ nome, v: PERIODOS.map(f => soma(f, tipos)) })).filter(c => c.v.some(Boolean));
+    const outros = PERIODOS.map(f => soma(f) - CATEGORIAS.reduce((t, [, tipos]) => t + soma(f, tipos), 0));
+    if (outros.some(Boolean)) linhas.push({ nome: "Outros", v: outros });
+    const cel = v => `<td class="${cor(v)}">${v ? sinal(v) : "—"}</td>`;
+    const resumo = linhas.length ? `<div style="margin-top:12px"><b>Resumo por categoria</b><table class="mini ftab" style="width:100%;margin-top:4px"><tr><th class="esq">Categoria</th><th>Última rodada</th><th>Temp. ${liga.temporada}</th><th>Temp. ${liga.temporada - 1}</th></tr>
+      ${linhas.map(c => `<tr><td class="esq">${c.nome}</td>${c.v.map(cel).join("")}</tr>`).join("")}
+      <tr class="ftotal"><td class="esq"><b>Saldo</b></td>${PERIODOS.map(f => `<td class="${cor(soma(f))}"><b>${sinal(soma(f))}</b></td>`).join("")}</tr></table></div>` : "";
+    // evolução do caixa: do saldo de hoje para trás, descontando cada rodada
+    let grafico = "";
+    if (grupos.length >= 2) {
+      const pts = []; let c = caixa;
+      for (const g of grupos) { pts.unshift({ c, rot: `T${g.temporada}${g.rodada == null ? "" : " · " + g.rodada + "ª"}` }); c -= g.total; }
+      pts.unshift({ c, rot: "" });
+      const min = Math.min(0, ...pts.map(p => p.c)), max = Math.max(...pts.map(p => p.c)), L = 600, A = 130, x = k => 6 + k * (L - 12) / (pts.length - 1), y = v => 8 + (A - 16) * (1 - (v - min) / (max - min || 1));
+      grafico = `<div style="margin-top:12px"><b>Evolução do caixa</b> <span class="mut">de ${dinheiro(pts[0].c)} a ${dinheiro(caixa)} · menor ${dinheiro(Math.min(...pts.map(p => p.c)))} · maior ${dinheiro(max)}</span>
+        <svg viewBox="0 0 ${L} ${A}" style="width:100%;height:auto;display:block;margin-top:4px" role="img" aria-label="Evolução do caixa">
+          <line x1="0" x2="${L}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)" stroke-width="1"/>
+          <polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map((p, k) => `${x(k).toFixed(1)},${y(p.c).toFixed(1)}`).join(" ")}"/>
+          ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.c).toFixed(1)}" r="2.6" fill="var(--ac)"><title>${p.rot ? p.rot + ": " : ""}${dinheiro(p.c)}</title></circle>`).join("")}</svg></div>`;
+    }
+    const previsao = `<div style="margin-top:12px"><b>Previsão por rodada</b>
+      <div class="mut" style="margin-top:2px">TV ${sinal(tv)} · patrocínio ${sinal(pat)}${temTorcida ? ` · bilheteria ${sinal(bil)} em média` : ""} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b>
         ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
-        <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>
-      ${vermelho()}${carne()}
-      ${grupos.length ? `<div class="rolagem" style="margin-top:8px;max-height:260px;overflow:auto"><table><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq">Temporada ${g.temporada} · rodada ${g.rodada == null ? "—" : g.rodada}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`}`;
+        <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>`;
+    const detalhe = grupos.length ? `<details style="margin-top:12px"><summary style="cursor:pointer"><b>Extrato rodada a rodada</b> <span class="mut">(${extrato.length} lançamentos)</span></summary>
+      <div style="max-height:320px;overflow:auto;margin-top:6px"><table class="mini" style="width:100%"><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq" style="white-space:nowrap">T${g.temporada} · ${g.rodada == null ? "fora de rodada" : g.rodada + "ª"}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}" style="white-space:nowrap"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div></details>`
+      : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`;
+    return `${geral}${folhaHtml}${vermelho()}${carne()}${resumo}${grafico}${previsao}${detalhe}`;
   };
   // clube no vermelho: caixa negativo bloqueia aumentos, renovações e obras; abaixo do limite, corre o prazo para escolher uma saída
   const vermelho = () => {
@@ -393,7 +441,7 @@ async function telaClube(liga, clube) {
     </div>
     </section>
     <section data-secao="financas">
-    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores por rodada de liga, enquanto o calendário é de teste</span></h2>${financas()}</div>`}
+    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
     ${caixa == null || clube.ct_nivel == null ? "" : estruturas()}
     </section>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
