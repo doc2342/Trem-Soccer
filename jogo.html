@@ -124,11 +124,18 @@ async function telaClube(liga, clube) {
   // finanças: caixa, previsão por rodada e extrato agrupado por rodada
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
-    const saldo = tv + pat - sal, cor = v => v < 0 ? "bad" : "ok", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
+    // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
+    const temTorcida = clube.torcida != null, lugares = 5000 + 5000 * (clube.estadio_nivel || 1);
+    const publico = temTorcida ? Math.min(lugares, Math.round(clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida))) : 0;
+    const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000), bil = Math.round(porJogo / 2);
+    const humor = clube.humor < 3 ? "revoltada" : clube.humor < 6 ? "nervosa" : clube.humor < 10 ? "calma" : clube.humor < 13 ? "animada" : "eufórica";
+    const saldo = tv + pat + bil - sal, cor = v => v < 0 ? "bad" : "ok", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
     const grupos = [];
     for (const l of extrato) { const k = l.temporada + "-" + l.rodada; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, temporada: l.temporada, rodada: l.rodada, itens: [], total: 0 }); g.itens.push(l); g.total += l.valor; }
     return `<div class="row" style="align-items:center"><div><div class="mut">Caixa</div><div style="font-size:24px;font-weight:800" class="${cor(caixa)}">${dinheiro(caixa)}</div></div>
-      <div class="mut">A cada rodada: TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b><br>Bilheteria, prêmios e obras entram nos próximos passos.</div></div>
+      <div class="mut">A cada rodada: TV ${sinal(tv)} · patrocínio ${sinal(pat)}${temTorcida ? ` · bilheteria ${sinal(bil)} em média` : ""} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b>
+        ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
+        <br>Prêmios, equipe técnica e obras entram nos próximos passos.</div></div>
       ${grupos.length ? `<div class="rolagem" style="margin-top:8px;max-height:260px;overflow:auto"><table><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq">Temporada ${g.temporada} · rodada ${g.rodada == null ? "—" : g.rodada}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`}`;
   };
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
