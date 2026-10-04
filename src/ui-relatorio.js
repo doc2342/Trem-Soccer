@@ -26,9 +26,9 @@ export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["
 
 // r: saída de montarRelatorio. nomes: [mandante, visitante]. analistas: de quais times mostrar o comentário.
 // abertura: html opcional com cara ou coroa, clima e escalações, mostrado no começo da reprise.
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "" } = {}) {
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false } = {}) { // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
-  const resultado = `<div class="card"><div class="placar"><span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>
+  const resultado = `<div class="card"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
     <div class="mut" style="margin-top:8px;font-size:12px">Com as chances que cada time criou, o resultado seria:</div>
     <div class="barra"><div style="width:${E.vitoria * 100}%;background:var(--casa)">${pc(E.vitoria)}</div><div style="width:${E.empate * 100}%;background:#8b9bb0">empate ${pc(E.empate)}</div><div style="width:${E.derrota * 100}%;background:var(--fora)">${pc(E.derrota)}</div></div>

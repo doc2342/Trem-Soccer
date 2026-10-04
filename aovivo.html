@@ -7,9 +7,10 @@
 <link rel="stylesheet" href="estilo.css">
 <script src="atualiza.js"></script>
 <style>
-  .painel { display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; text-align:center; }
-  .painel .time { display:flex; flex-direction:column; align-items:center; gap:4px; width:120px; font-weight:600; }
-  .painel .gols { font-size:44px; font-weight:800; }
+  .painel { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:10px; text-align:center; max-width:560px; margin:6px auto 0; }
+  .painel .time { display:flex; flex-direction:column; align-items:center; gap:4px; font-weight:600; min-width:0; overflow-wrap:anywhere; }
+  .painel .gols { font-size:44px; font-weight:800; white-space:nowrap; }
+  @media (max-width:620px) { .painel .gols { font-size:34px; } .painel .time { font-size:13.5px; } .painel .time svg { width:46px; height:46px; } }
   .cronometro { text-align:center; color:var(--ac); font-weight:700; margin-top:6px; font-size:18px; font-variant-numeric:tabular-nums; }
   .aovivo { display:grid; grid-template-columns:minmax(0,2fr) minmax(240px,1fr); gap:12px; align-items:start; }
   @media (max-width:760px) { .aovivo { grid-template-columns:1fr; } }
@@ -104,8 +105,13 @@ async function atualizar() {
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" });
-    $("corpo").innerHTML = `<div class="card mut">Times comandados por: ${esc(clubes[partida.casa].nome)}, ${res.relatorio.comandados[0]} · ${esc(clubes[partida.fora].nome)}, ${res.relatorio.comandados[1]}.</div>` + htmlEstadio(pre) +
-      htmlRelatorio({ ...res.relatorio, narracao }, { nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true) });
+    // depois do jogo, estádio e comando cabem numa linha só; o placar grande já está no topo
+    const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
+    const resumo = [partida.publico != null ? `${milhar(partida.publico)} pagantes` : "", renda != null ? `renda de ${renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil"}` : "",
+      pre && pre.clima ? `${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C` : "",
+      `${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}`].filter(Boolean);
+    $("corpo").innerHTML = `<div class="card mut" style="font-size:13.5px">${resumo.join(" · ")}.</div>` +
+      htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true) });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
