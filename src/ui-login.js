@@ -1,4 +1,5 @@
-// Entrada por código enviado ao e-mail, compartilhada pelas telas.
+// Entrada sem senha, compartilhada pelas telas: a pessoa recebe um e-mail com um link (e, quando o modelo do e-mail
+// tiver o código, também um código para digitar).
 import { sb, sessao, enviarCodigo, confirmarCodigo } from "./banco.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -8,10 +9,10 @@ export async function montarLogin(el, aoMudar) {
   let email = "", etapa = "email", aviso = "";
   const desenhar = () => {
     el.innerHTML = etapa === "email"
-      ? `<h2>Entrar</h2><div class="mut" style="margin-bottom:8px">Sem senha: você recebe um código no e-mail.</div>
-         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar código</button></form>`
-      : `<h2>Digite o código</h2><div class="mut" style="margin-bottom:8px">Enviamos um código para ${esc(email)}. Ele vale por alguns minutos.</div>
-         <form class="row" id="fCodigo"><label>Código<input id="lCodigo" inputmode="numeric" autocomplete="one-time-code" required style="width:160px;letter-spacing:3px"></label><button>Entrar</button><button type="button" class="sec" id="lVoltar">Usar outro e-mail</button></form>`;
+      ? `<h2>Entrar</h2><div class="mut" style="margin-bottom:8px">Sem senha: você recebe um e-mail com um link para entrar.</div>
+         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar e-mail</button></form>`
+      : `<h2>Confira o seu e-mail</h2><div style="margin-bottom:8px">Enviamos um e-mail para <b>${esc(email)}</b>. Abra-o neste aparelho e clique no link para entrar. Ele vale por alguns minutos; olhe também a caixa de spam.</div>
+         <form class="row" id="fCodigo"><label>Se o e-mail trouxer um código, digite aqui<input id="lCodigo" inputmode="numeric" autocomplete="one-time-code" required style="width:160px;letter-spacing:3px"></label><button>Entrar com o código</button><button type="button" class="sec" id="lVoltar">Usar outro e-mail</button></form>`;
     if (aviso) el.insertAdjacentHTML("beforeend", `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>`);
     const fe = el.querySelector("#fEmail"), fc = el.querySelector("#fCodigo");
     if (fe) fe.onsubmit = async ev => {
@@ -29,7 +30,7 @@ export async function montarLogin(el, aoMudar) {
       el.querySelector("#lVoltar").onclick = () => { etapa = "email"; aviso = ""; desenhar(); };
     }
   };
-  const traduzir = m => /rate limit|security purposes/i.test(m) ? "Muitos pedidos de código em pouco tempo. Espere um pouco e tente de novo." : /expired|invalid/i.test(m) ? "Código inválido ou vencido." : m;
+  const traduzir = m => /rate limit|security purposes/i.test(m) ? "Muitos pedidos de e-mail em pouco tempo. Espere um pouco e tente de novo." : /expired|invalid/i.test(m) ? "Código inválido ou vencido." : m;
   sb.auth.onAuthStateChange((_evento, s) => { el.hidden = !!s; if (!s) { etapa = "email"; desenhar(); } aoMudar(s); });
   const s = await sessao();
   el.hidden = !!s;
