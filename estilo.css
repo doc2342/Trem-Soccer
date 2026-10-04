@@ -70,3 +70,9 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 body.arrastando { cursor:grabbing; } body.arrastando * { cursor:grabbing !important; }
 
 tr.clk { cursor:pointer; } tr.clk:hover td { background:#1e2b3a; }
+
+/* abas da tela do clube */
+.abas { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; border-bottom:1px solid var(--line); }
+.aba { background:transparent; color:var(--mut); border:1px solid transparent; border-bottom:none; border-radius:10px 10px 0 0; padding:9px 16px; font-weight:600; }
+.aba:hover { color:var(--tx); }
+.aba.ativa { color:#1a1300; background:var(--ac); border-color:var(--ac); }

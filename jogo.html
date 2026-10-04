@@ -136,6 +136,8 @@ async function telaClube(liga, clube) {
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div>
       ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
+    <div class="abas" id="abas">${[["inicio", "Início"], ["classificacao", "Classificação"], ["elenco", "Elenco"], ["financas", "Finanças"]].map(([k, n]) => `<button class="aba" data-aba="${k}">${n}</button>`).join("")}</div>
+    <section data-secao="inicio">
     <div class="card"><h2>Próximo jogo</h2><div id="proximo" class="mut">Carregando…</div>
       <div class="row" style="margin-top:10px"><a href="escalacao.html?online=1"><button>Escalação e tática</button></a><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
     <div class="card"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
@@ -144,16 +146,33 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
       <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
     <div id="amRel"></div>
+    </section>
+    <section data-secao="classificacao">
     <div class="card row"><label>Ver o grupo<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>Grupo ${esc(g)}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div>
     <div class="duas">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
-    ${caixa == null ? "" : `<div class="card"><h2>Finanças <span class="tag">valores por rodada de liga, enquanto o calendário é de teste</span></h2>${financas()}</div>`}
+    </section>
+    <section data-secao="financas">
+    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores por rodada de liga, enquanto o calendário é de teste</span></h2>${financas()}</div>`}
+    </section>
+    <section data-secao="elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
       <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th>Cláusula</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
-      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>`;
+      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>
+    </section>`;
+
+  // abas: mostra uma seção por vez e lembra a última aberta
+  const abrir = k => {
+    document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
+    document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
+    try { localStorage.setItem("mo_aba", k); } catch (e) {}
+  };
+  $("abas").onclick = e => { if (e.target.dataset.aba) abrir(e.target.dataset.aba); };
+  let inicial = "inicio"; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
+  abrir(document.querySelector(`[data-secao="${inicial}"]`) ? inicial : "inicio");
 
   // classificação e jogos do grupo escolhido
   async function grupo(g) {
