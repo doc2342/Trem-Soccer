@@ -165,6 +165,13 @@ export const oferecerALiga = jogadorId => sb.rpc("oferecer_a_liga", { p_jogador:
 export const comprarOfertaDaLiga = (jogadorId, salario, temporadas) => sb.rpc("comprar_oferta_da_liga", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
 export const liberarJogadores = (ligaId, lista) => sb.rpc("liberar_jogadores", { p_liga: ligaId, p_lista: lista }).then(ok);
 export const anularTransferencia = id => sb.rpc("anular_transferencia", { p_id: id }).then(ok);
+// Central: nome do dirigente (supabase/23_nome_do_dirigente.sql) e a página de outro clube
+export const definirDirigente = nome => sb.rpc("definir_dirigente", { p_nome: nome }).then(ok);
+export const clubePorId = id => sb.from("clubes").select("*").eq("id", id).maybeSingle().then(ok);
+export const jogadoresDoClube = async clubeId => { // mesmo formato da lista do mercado
+  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("clube_id", clubeId).order("id");
+  return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("clube_id", clubeId).order("id").then(ok) : r.data;
+};
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {
