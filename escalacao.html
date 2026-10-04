@@ -7,6 +7,17 @@
 <link rel="stylesheet" href="estilo.css">
 <script src="atualiza.js"></script>
 <style>
+  /* cabeçalho e abas iguais aos da página do clube (jogo.html): a tática aparece como mais uma aba */
+  .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .aba .ai, .aba .at-c { display:none; }
+  .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
+  #cabecalho .abas { margin-bottom:14px; }
+  @media (max-width:620px) {
+    .abas { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:2px; }
+    .aba { padding:6px 1px 5px; border-radius:8px 8px 0 0; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
+    .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; }
+    .aba .at-l { display:none; } .aba .at-c { display:block; font-size:10.5px; font-weight:600; white-space:nowrap; }
+  }
   .vaga .vpos, .fechaEscolha, .posDaVaga { display:none; }
   .vaga.fam-C { border-color:#8a7a2e; } .vaga.fam-I { border-color:#a8474d; }
   details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
@@ -38,11 +49,12 @@
 </head>
 <body>
 <main>
-  <h1>Escalação e tática</h1>
-  <div class="mut">Monte o time nas 18 posições, escolha as instruções e jogue contra um clube comandado pelo bot.</div>
+  <div id="cabecalho"></div>
+  <h1 class="soLocal">Escalação e tática</h1>
+  <div class="mut soLocal">Monte o time nas 18 posições, escolha as instruções e jogue contra um clube comandado pelo bot.</div>
 
   <div class="card" id="online" hidden>
-    <div class="row"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><b id="nomeOnline"></b><span class="relogio" title="Hora deste aparelho"></span><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
+    <div class="row"><b>Escalação e tática</b><b id="nomeOnline" hidden></b><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
     <div id="avisoOnline" class="mut" style="margin-top:6px"></div>
     <div class="mut" style="margin-top:4px">Para testar a tática, salve e jogue um amistoso na página do clube.</div>
   </div>
@@ -141,8 +153,8 @@ function novoElenco() {
   E = salvo && salvo.vagas ? salvo : daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" }));
   sel = null; render();
 }
-async function iniciarOnline() {
-  const B = await import("./src/banco.js"), s = await B.sessao();
+async function iniciarOnline(sessaoDeTeste) {
+  const B = await import("./src/banco.js"), s = sessaoDeTeste || await B.sessao();
   document.querySelectorAll(".soLocal").forEach(e => { e.hidden = true; });
   $("online").hidden = false;
   const parar = t => { $("avisoOnline").innerHTML = t; $("salvarOnline").hidden = true; };
@@ -150,6 +162,23 @@ async function iniciarOnline() {
   clubeOnline = await B.meuClube(s.user.id);
   if (!clubeOnline) return parar(`Você ainda não tem clube. <a href="jogo.html" style="color:var(--ac)">Criar o clube</a>`);
   $("nomeOnline").textContent = clubeOnline.nome;
+  // mesmo cabeçalho e mesmas abas da página do clube; as outras abas levam de volta a ela, já na aba escolhida
+  try {
+    const [V, ligaC, admin] = await Promise.all([import("./src/escudo.js"), B.ligaAtual(), B.ehAdmin().catch(() => false)]);
+    $("cabecalho").innerHTML = `<div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" style="margin-left:auto">${esc(s.user.email || "")}</span></div>
+      <div class="card topo">${V.svgEscudo(clubeOnline.escudo, clubeOnline.sigla, 72)}${V.svgUniforme(clubeOnline.uniforme, 52)}
+        <div><h2 style="margin:0;font-size:22px">${esc(clubeOnline.nome)}</h2>
+          ${clubeOnline.dirigente ? `<div style="font-size:15px">${esc(clubeOnline.dirigente)}</div>` : ""}
+          <div class="mut">${esc(ligaC.nome)} · temporada ${ligaC.temporada} · ${esc(B.nomeDoGrupo(clubeOnline.grupo))}</div></div>
+        ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
+      <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["mercado", "Mercado", "🛒"], ["classificacao", "Classificação", "🏆", "Tabela"], ["financas", "Finanças", "💰"], ["config", "Configurações", "⚙️", "Ajustes"]]
+        .map(([k, n, ic, curto]) => `<button class="aba ${k === "tatica" ? "ativa" : ""}" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`;
+    $("abas").onclick = e => {
+      const b = e.target.closest("[data-aba]"); if (!b || b.dataset.aba === "tatica") return;
+      try { localStorage.setItem("mo_aba", b.dataset.aba); } catch (err) {}
+      location.href = "jogo.html";
+    };
+  } catch (e) { $("cabecalho").innerHTML = `<div class="row" style="margin-bottom:10px"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>`; }
   elenco = await B.elencoDoClube(clubeOnline.id);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
@@ -372,7 +401,7 @@ $("jogar").onclick = jogar;
 $("perfil").innerHTML = Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("");
 $("formacao").innerHTML = `<option value="">escolher…</option>` + Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("");
 if (ONLINE) await iniciarOnline(); else novoElenco();
-window.__teste = { estado: () => E, elenco: () => elenco, jogar, validar, escolher, selecionar: s => { sel = s; render(); }, aplicarFormacao, render };
+window.__teste = { iniciarOnline, estado: () => E, elenco: () => elenco, jogar, validar, escolher, selecionar: s => { sel = s; render(); }, aplicarFormacao, render };
 </script>
 </body>
 </html>

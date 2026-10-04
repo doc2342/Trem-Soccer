@@ -11,6 +11,10 @@
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
+  /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
+  .chips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; } .chips b { margin-right:2px; }
+  .chipf { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:6px; padding:3px 8px; font-weight:700; font-size:13px; min-width:30px; }
+  .chipf.ligado { color:var(--ac); border-color:var(--ac); }
   .subabas { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 0; }
   .sub { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:600; }
   .sub.ativa { color:var(--ac); border-color:var(--ac); } .sub .sc { display:none; }
@@ -129,7 +133,7 @@ let usuario = null, versao = 0;
 // O que sobrevive quando a tela é redesenhada depois de uma ação (lance, proposta, compra): recado a mostrar, filtros da busca do mercado e clube aberto.
 let recado = "", verClube = null, carregadoEm = 0;
 const filtrosDoMercado = {};
-const IDS_DOS_FILTROS = ["mZona", "mPos", "mLado", "mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
+const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
 
 async function carregar(s) {
   const minha = ++versao; // evita desenhar duas vezes quando a sessão muda rápido
@@ -419,9 +423,12 @@ async function telaClube(liga, clube) {
     ${janela === undefined ? `<div class="card mut">O mercado aparece aqui quando o administrador ligar (SQL 19 e a função "mercado").</div>` : `
     <div class="card"><h2>Mercado <span class="tag">${janela === "inicio" ? "janela de início aberta: vai até o fim da rodada 2" : janela === "meio" ? "janela do meio aberta: entre as rodadas 9 e 11" : "janela fechada: abre no início da temporada (até a rodada 2) e entre as rodadas 9 e 11"}</span></h2>
       <div class="mut">Quem paga a multa rescisória (5 vezes o salário) leva o jogador na hora. Não têm multa: os protegidos de cada clube (até 5) e quem está na primeira temporada de contrato. O jogador não desce de divisão pela multa. Nesta temporada você fez <b>${transferencias.filter(t => t.para_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 4</b> compras e perdeu <b>${transferencias.filter(t => t.de_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 3</b> jogadores pela multa. Caixa: <b>${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.</div>
-      <div class="row" style="margin-top:10px"><label>Zona<select id="mZona"><option value="">todas</option>${ZONAS_DO_ELENCO.map(([t], k) => `<option value="${k}">${t}</option>`).join("")}</select></label>
-        <label>Posição<select id="mPos"><option value="">todas</option>${LISTA_POSICOES.map(p => `<option value="${p}">${sg(p)} · ${esc(POSICOES[p].nome)}</option>`).join("")}</select></label>
-        <label>Lado<select id="mLado"><option value="">todos</option><option value="E">esquerda</option><option value="C">centro</option><option value="D">direita</option></select></label>
+      <div class="row" style="margin-top:10px"><div class="chips" id="mLinhas" style="flex-basis:100%"><b>Posição</b>${(formatoDasSiglas() === "pt"
+            ? [["gol", "GOL", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "MD", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "MA", "Meias-atacantes"], ["ataque", "A", "Atacantes e pontas"]]
+            : [["gol", "GK", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "DM", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "AM", "Meias-atacantes"], ["ataque", "F", "Atacantes e pontas"]])
+            .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.linhas || []).includes(k) ? "ligado" : ""}" data-chip="linhas" data-v="${k}" title="${d}">${t}</button>`).join("")}
+          <b style="margin-left:10px">Lado</b>${(formatoDasSiglas() === "pt" ? [["E", "E", "Esquerda"], ["C", "C", "Centro"], ["D", "D", "Direita"]] : [["E", "L", "Esquerda"], ["C", "C", "Centro"], ["D", "R", "Direita"]])
+            .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.lados || []).includes(k) ? "ligado" : ""}" data-chip="lados" data-v="${k}" title="${d}">${t}</button>`).join("")}</div>
         <label>Campeonato<select id="mGrupo"><option value="">todos</option>${grupos.map(g => `<option value="${esc(g)}">${esc(nomeDoGrupo(g))}</option>`).join("")}</select></label>
         <label>Idade de<input id="mIdadeMin" type="number" min="15" max="45" value="15" style="width:70px"></label>
         <label>até<input id="mIdade" type="number" min="15" max="45" value="45" style="width:70px"></label>
@@ -493,7 +500,7 @@ async function telaClube(liga, clube) {
 
   let paginaDoClube = null; // definida abaixo, quando o mercado está ligado
   // mercado: lista por posição, filtros e compra pela multa rescisória
-  if ($("mPos")) {
+  if ($("mLinhas")) {
     const DIVISAO = g => g === "A" ? 1 : g === "B" || g === "C" ? 2 : 3;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
     let daPosicao = [];
@@ -501,10 +508,10 @@ async function telaClube(liga, clube) {
     const desenhar = () => {
       IDS_DOS_FILTROS.forEach(id => { if ($(id)) filtrosDoMercado[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value; });
       const g = $("mGrupo").value, idade = +$("mIdade").value || 99, idadeMin = +$("mIdadeMin").value || 0, soVenda = !!($("mSoVenda") && $("mSoVenda").checked), soMulta = $("mSoMulta").checked && !soVenda;
-      const zona = $("mZona").value === "" ? null : ZONAS_DO_ELENCO[+$("mZona").value][1], pos = $("mPos").value, lado = $("mLado").value, notaMin = +$("mNota").value || 0, multaMax = +$("mMulta").value || Infinity, nome = $("mNome").value.trim().toLowerCase();
+      const linhas = (filtrosDoMercado.linhas || []).join(",").split(",").filter(Boolean), lados = filtrosDoMercado.lados || [], notaMin = +$("mNota").value || 0, multaMax = +$("mMulta").value || Infinity, nome = $("mNome").value.trim().toLowerCase();
       // tudo menos o filtro "só quem pode ser comprado", para explicar por que a lista ficou vazia
       const antes = daPosicao.filter(j => j.clube_id !== clube.id && cPor[j.clube_id] && (!g || cPor[j.clube_id].grupo === g) && j.idade <= idade && j.idade >= idadeMin
-          && (!zona || zona.includes(POSICOES[j.pos].linha)) && (!pos || j.pos === pos) && (!lado || POSICOES[j.pos].lado === lado) && j.nota >= notaMin
+          && (!linhas.length || linhas.includes(POSICOES[j.pos].linha)) && (!lados.length || lados.includes(POSICOES[j.pos].lado)) && j.nota >= notaMin
           && (!nome || j.nome.toLowerCase().includes(nome)) && (multaMax === Infinity || clausula(j.salario || 0) <= multaMax) && (!soVenda || j.a_venda));
       const l = antes.filter(j => !soMulta || !situacao(j)).sort((a, b) => b.nota - a.nota);
       const escondidos = {}; if (soMulta) antes.forEach(j => { const m = situacao(j); if (m) escondidos[m] = (escondidos[m] || 0) + 1; });
@@ -523,7 +530,13 @@ async function telaClube(liga, clube) {
       catch (err) { $("mLista").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     IDS_DOS_FILTROS.forEach(id => { if ($(id) && id in filtrosDoMercado) { if ($(id).type === "checkbox") $(id).checked = filtrosDoMercado[id]; else $(id).value = filtrosDoMercado[id]; } });
-    ["mZona", "mPos", "mLado", "mGrupo", "mSoMulta", "mSoVenda"].forEach(id => { if ($(id)) $(id).onchange = desenhar; });
+    ["mGrupo", "mSoMulta", "mSoVenda"].forEach(id => { if ($(id)) $(id).onchange = desenhar; });
+    $("mLinhas").onclick = e => {
+      const b = e.target.closest("[data-chip]"); if (!b) return;
+      const lista = filtrosDoMercado[b.dataset.chip] || (filtrosDoMercado[b.dataset.chip] = []), k = lista.indexOf(b.dataset.v);
+      if (k >= 0) lista.splice(k, 1); else lista.push(b.dataset.v);
+      b.classList.toggle("ligado", k < 0); desenhar();
+    };
     ["mIdadeMin", "mIdade", "mNota", "mMulta", "mNome"].forEach(id => { $(id).oninput = desenhar; });
     $("mLista").onclick = e => {
       const tr = e.target.closest("tr[data-mjog]"); if (!tr || e.target.closest("[data-clube]") || e.target.closest("[data-info]")) return;
