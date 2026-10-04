@@ -48,3 +48,10 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .chip.vazio { border-style:dashed; color:var(--mut); }
 .linhaSub { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
 .linhaSub input { width:64px; }
+/* arrastar e soltar */
+[data-arrasta] { user-select:none; -webkit-user-select:none; }
+.vaga .nome, .vaga .det, .chip[data-arrasta], .pega { touch-action:none; }
+.pega { color:var(--mut); cursor:grab; padding:0 2px; }
+.fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:var(--ac); color:#1a1300; font-weight:600; font-size:12px; padding:4px 8px; border-radius:8px; white-space:nowrap; }
+.alvo { outline:2px solid var(--ac); outline-offset:1px; }
+body.arrastando { cursor:grabbing; } body.arrastando * { cursor:grabbing !important; }

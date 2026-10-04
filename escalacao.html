@@ -22,13 +22,13 @@
 
   <div class="duas">
     <div>
-      <div class="card"><h2>Time <span class="tag">clique numa vaga para escolher o jogador; troque a posição no seletor da vaga</span></h2><div class="gramado" id="gramado"></div>
+      <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; a posição da vaga muda no seletor</span></h2><div class="gramado" id="gramado"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <div class="card"><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2><div class="campo" id="zonas" style="max-width:none"></div></div>
     </div>
     <div>
-      <div class="card" id="escolha" hidden></div>
+      <div class="card" id="escolha"></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
       <div class="card"><h2>Capitão, armador e cobradores</h2><div class="row" id="papeis"></div></div>
       <div class="card"><h2>Substituições <span class="tag">até 5</span></h2><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></div>
@@ -141,12 +141,12 @@ function render() {
   E.vagas.forEach((pos, i) => filas[POSICOES[pos].linha].push(i));
   $("gramado").innerHTML = LINHAS.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => ORDEM_LADO[POSICOES[E.vagas[a]].lado] - ORDEM_LADO[POSICOES[E.vagas[b]].lado]).map(i => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
-    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "" : "vazia"}" data-vaga="${i}">
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "" : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}">
       <select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option ${p === pos ? "selected" : ""}>${p}</option>`).join("")}</select>
       <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}` : "&nbsp;"}</div></div>`;
   }).join("")}</div>`).join("");
   // banco
-  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${j.pos}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${j.pos}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
@@ -175,18 +175,17 @@ function render() {
 
 function renderEscolha() {
   const el = $("escolha");
-  el.hidden = !sel;
-  if (!sel) return;
-  const pos = sel.tipo === "vaga" ? E.vagas[sel.i] : null;
+  const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null;
   const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
-  const lista = elenco.filter(j => sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
+  const lista = elenco.filter(j => !sel || sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
   const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `titular (${E.vagas[i]})` : E.banco.includes(j.id) ? "banco" : ""; };
-  el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : "Quem vai para o banco"} <span class="tag">ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
-    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item" data-escolhe="${j.id}"><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
-    <div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div></div>`;
+  el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
+    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
+    ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 
 function escolher(id) {
+  if (!sel) return;
   if (sel.tipo === "vaga") {
     const antes = E.jog[sel.i], outra = id ? E.jog.indexOf(id) : -1;
     if (outra >= 0) E.jog[outra] = antes; // troca de vaga entre dois titulares
@@ -194,6 +193,8 @@ function escolher(id) {
     E.jog[sel.i] = id || null;
   } else {
     const b = E.banco.slice(); while (b.length < 7) b.push(null);
+    const vaga = id ? E.jog.indexOf(id) : -1;
+    if (vaga >= 0) E.jog[vaga] = b[sel.i]; // titular vai para o banco; o reserva daquela vaga do banco assume o lugar dele
     for (let i = 0; i < 7; i++) if (b[i] === id) b[i] = null;
     b[sel.i] = id || null; E.banco = b.filter(Boolean);
   }
@@ -221,10 +222,41 @@ function jogar() {
   return { r, partida };
 }
 
+// arrastar e soltar, com mouse ou dedo: de uma vaga, do banco ou da lista para uma vaga ou para o banco
+let arrasto = null, ignorarClique = false;
+const fimDoArrasto = () => { if (arrasto && arrasto.fantasma) arrasto.fantasma.remove(); document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrasto = null; };
+const alvoEm = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-vaga], [data-banco]"); };
+document.querySelector("main").addEventListener("pointerdown", e => {
+  const h = e.target.closest("[data-arrasta]");
+  if (!h || !h.dataset.arrasta || e.target.closest("select, input, button") || (e.pointerType === "mouse" && e.button !== 0)) return;
+  arrasto = { id: h.dataset.arrasta, x0: e.clientX, y0: e.clientY, fantasma: null };
+});
+window.addEventListener("pointermove", e => {
+  if (!arrasto) return;
+  if (!arrasto.fantasma) {
+    if (Math.hypot(e.clientX - arrasto.x0, e.clientY - arrasto.y0) < 8) return;
+    const f = arrasto.fantasma = document.createElement("div"), j = jogDe(arrasto.id);
+    f.className = "fantasma"; f.textContent = `${j.pos} ${j.nome}`; document.body.appendChild(f); document.body.classList.add("arrastando");
+  }
+  arrasto.fantasma.style.transform = `translate(${e.clientX + 10}px, ${e.clientY + 10}px)`;
+  document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo"));
+  const alvo = alvoEm(e.clientX, e.clientY); if (alvo) alvo.classList.add("alvo");
+});
+window.addEventListener("pointerup", e => {
+  if (!arrasto) return;
+  const { id, fantasma } = arrasto; fimDoArrasto();
+  if (!fantasma) return; // foi só um clique
+  ignorarClique = true; setTimeout(() => { ignorarClique = false; }, 0);
+  const alvo = alvoEm(e.clientX, e.clientY); if (!alvo) return;
+  sel = alvo.dataset.vaga !== undefined ? { tipo: "vaga", i: +alvo.dataset.vaga } : { tipo: "banco", i: Math.min(+alvo.dataset.banco, E.banco.length) };
+  escolher(id);
+});
+window.addEventListener("pointercancel", fimDoArrasto);
+
 // eventos
 document.querySelector("main").addEventListener("click", e => {
   const t = e.target;
-  if (t.closest("select, input")) return;
+  if (ignorarClique || t.closest("select, input")) return;
   const d = k => { const el = t.closest(`[data-${k}]`); return el ? el.dataset[k] : undefined; };
   if (d("apaga") !== undefined) { const s = ler("mo_salvas_" + chaveElenco()) || {}; delete s[d("apaga")]; guardar("mo_salvas_" + chaveElenco(), s); return render(); }
   if (d("carrega") !== undefined) { const s = (ler("mo_salvas_" + chaveElenco()) || {})[d("carrega")]; if (s) { E = JSON.parse(JSON.stringify(s)); sel = null; render(); } return; }
