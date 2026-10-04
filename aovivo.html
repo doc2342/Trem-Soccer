@@ -79,13 +79,15 @@ function htmlEstatisticas(narracao) {
   return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat">${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
 }
 // abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
-function htmlAbertura(pre) {
+// cronologico: na reprise, depois do jogo, a abertura vem primeiro e na ordem em que aconteceu
+function htmlAbertura(pre, cronologico = false) {
   if (!pre) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
   const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${esc(j.nome)} (${j.pos})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${esc(j.nome)} (${j.pos})`).join(", ")}.</span>` : ""}</span></div>`;
-  return time(pre.escalacoes[1], 1) + time(pre.escalacoes[0], 0)
-    + `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ao estádio. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`
-    + `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`;
+  const partes = [time(pre.escalacoes[1], 1), time(pre.escalacoes[0], 0),
+    `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ao estádio. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`,
+    `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`];
+  return (cronologico ? partes.reverse() : partes).join("");
 }
 
 async function atualizar() {
@@ -103,7 +105,7 @@ async function atualizar() {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" });
     $("corpo").innerHTML = `<div class="card mut">Times comandados por: ${esc(clubes[partida.casa].nome)}, ${res.relatorio.comandados[0]} · ${esc(clubes[partida.fora].nome)}, ${res.relatorio.comandados[1]}.</div>` + htmlEstadio(pre) +
-      htmlRelatorio({ ...res.relatorio, narracao }, { nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome] });
+      htmlRelatorio({ ...res.relatorio, narracao }, { nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true) });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
