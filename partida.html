@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Passo B · Partida simulada</title>
+<title>Partida simulada</title>
 <style>
   :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --casa:#5aa9e6; --fora:#e58a5a; }
   * { box-sizing:border-box; }
@@ -33,8 +33,8 @@
 </head>
 <body>
 <main>
-  <h1>Passo B · Partida simulada</h1>
-  <div class="mut">Núcleo do motor: 9 zonas, três duelos por ataque e chance com xG. Ainda sem instruções, energia, cartões e lesões.</div>
+  <h1>Partida simulada</h1>
+  <div class="mut">Motor completo: 9 zonas, chances com xG, instruções, energia, substituições, cartões, lesões e bola parada.</div>
 
   <div class="duas">
     <div class="card" id="cfg0"></div>
@@ -60,7 +60,7 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { notaNaPosicao } from "./src/modelo.js";
+import { notaNaPosicao, IDX } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { FORMACOES, escalar } from "./src/escalacao.js";
 import { prepararTime, simularPartida, ZONAS, CONFIG } from "./src/motor.js";
@@ -77,6 +77,15 @@ const NOMES_TIME = ["Mandante", "Visitante"], COR = ["casa", "fora"];
     <label>Perfil<select id="perfil${i}">${Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("")}</select></label>
     <label>Formação<select id="form${i}">${Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("")}</select></label>
     <label>Elenco (semente)<input id="elenco${i}" type="number" value="${i + 1}" style="width:80px"></label></div>
+    <div class="row" style="margin-top:8px">
+    <label>Mentalidade<select id="ment${i}"><option value="-2">Muito defensiva</option><option value="-1">Defensiva</option><option value="0" selected>Normal</option><option value="1">Ofensiva</option><option value="2">Muito ofensiva</option></select></label>
+    <label>Pressão<select id="press${i}"><option value="0">Sem pressão</option><option value="1">Média</option><option value="2">Alta</option></select></label>
+    <label>Agressividade<select id="agr${i}"><option value="-2">Muito baixa</option><option value="-1">Baixa</option><option value="0" selected>Normal</option><option value="1">Alta</option><option value="2">Muito alta</option></select></label>
+    <label>Passe<select id="passe${i}"><option value="misto">Misto</option><option value="curto">Curto</option><option value="longo">Bola longa</option></select></label>
+    <label>Lado do ataque<select id="lado${i}"><option value="misto">Livre</option><option value="E">Esquerda</option><option value="C">Centro</option><option value="D">Direita</option><option value="lados">Os dois lados</option></select></label>
+    <label>Contra-ataque<select id="contra${i}"><option value="">Não</option><option value="1">Sim</option></select></label>
+    <label>Linha de impedimento<select id="imp${i}"><option value="">Não</option><option value="1">Sim</option></select></label>
+    <label>Substituições<select id="subs${i}"><option value="">Nenhuma</option><option value="1" selected>Três, dos mais cansados</option></select></label></div>
     <div id="esc${i}" class="mut" style="margin-top:8px;font-size:12px"></div>`;
 });
 
@@ -84,7 +93,20 @@ function montar(i) {
   const elenco = gerarElenco(criarRng(1000 + +$("elenco" + i).value), { nivel: +$("nivel" + i).value, perfil: $("perfil" + i).value, nomes, prefixoId: "t" + i + "_" });
   const escalacao = escalar(elenco, FORMACOES[$("form" + i).value]);
   $("esc" + i).innerHTML = escalacao.map(x => `<span class="pp">${x.pos}</span> ${esc(x.j.nome)} <b>${f1(notaNaPosicao(x.j, x.pos))}</b>`).join(" · ");
-  return prepararTime({ nome: NOMES_TIME[i], escalacao, mandante: i === 0 });
+  // banco: um goleiro e os seis melhores que sobraram
+  const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
+  const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...fora.filter(j => j.pos !== "GK").slice(0, 6)];
+  const v = id => $(id + i).value;
+  const instrucoes = { mentalidade: +v("ment"), pressao: +v("press"), agressividade: +v("agr"), passe: v("passe"), lado: v("lado"), contraAtaque: !!v("contra"), impedimento: !!v("imp") };
+  // três trocas a partir dos 60, 70 e 80 minutos: sai quem estiver cansado, entra o reserva de melhor nota para a posição
+  if (v("subs")) {
+    const livres = banco.filter(j => j.pos !== "GK"), linha = escalacao.filter(x => x.pos !== "GK").sort((a, b) => a.j.at[IDX.res] - b.j.at[IDX.res]);
+    instrucoes.substituicoes = linha.slice(0, 3).map((x, k) => {
+      const entra = livres.sort((a, b) => notaNaPosicao(b, x.pos) - notaNaPosicao(a, x.pos)).shift();
+      return entra && { min: 60 + 10 * k, sai: x.j.id, entra: entra.id, cond: "cansado" };
+    }).filter(Boolean);
+  }
+  return prepararTime({ nome: NOMES_TIME[i], escalacao, banco, instrucoes, mandante: i === 0 });
 }
 
 function jogar() {
@@ -92,13 +114,14 @@ function jogar() {
   const p = simularPartida(criarRng(+$("semente").value), times[0], times[1]);
   $("resultado").innerHTML = `<div class="placar"><span class="casa">Mandante ${p.placar[0]}</span> x <span class="fora">${p.placar[1]} Visitante</span>
     <small>xG ${f2(p.xg[0])} x ${f2(p.xg[1])}</small></div>`;
-  $("lances").innerHTML = p.lances.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span><span class="xg">xG ${f2(l.xg)}</span></div>`).join("") || `<div class="mut">Nenhuma chance.</div>`;
+  $("lances").innerHTML = p.narracao.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`).join("") || `<div class="mut">Nenhum lance.</div>`;
   const linha = (n, f) => `<tr><td class="casa">${f(p.estat[0])}</td><td class="mut">${n}</td><td class="fora">${f(p.estat[1])}</td></tr>`;
   $("estat").innerHTML = `<table>${linha("Posse", e => e.posse + "%")}${linha("Ataques", e => e.ataques)}${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}
-    ${linha("Chances", e => e.chances)}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}${linha("Gols", e => e.gols)}</table>`;
+    ${linha("Chances", e => e.chances)}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}${linha("Gols", e => e.gols)}
+    ${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}${linha("Cartões amarelos · vermelhos", e => `${e.amarelos} · ${e.vermelhos}`)}${linha("Impedimentos", e => e.impedimentos)}${linha("Contra-ataques", e => e.contraAtaques)}${linha("Substituições", e => e.substituicoes)}</table>`;
   $("zonas").innerHTML = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${NOMES_TIME[i]} <span class="mut">(ataca para cima)</span></div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const [g, pd] = p.estat[i].zonas[l + s]; return `<div>${g}/${g + pd}</div>`; }).join("")).join("")}</div></div>`).join("");
   const js = Object.values(p.jogadores);
-  $("jogadores").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Gols</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos</th><th>Duelos perdidos</th></tr>${js.map(j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td>${j.gols || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.duelosGanhos}</td><td>${j.duelosPerdidos}</td></tr>`).join("")}</table>`;
+  $("jogadores").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Gols</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos</th><th>Duelos perdidos</th><th>Faltas</th><th>Cartões</th><th>Minutos</th><th>Energia no fim</th></tr>${js.map(j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td>${j.gols || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.duelosGanhos}</td><td>${j.duelosPerdidos}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${(j.saiu === null ? 90 : j.saiu) - j.entrou}</td><td>${j.energia}</td></tr>`).join("")}</table>`;
   return p;
 }
 

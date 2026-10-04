@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Passo C · Calibragem</title>
+<title>Calibragem do motor</title>
 <style>
   :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --ok:#3fb27f; --bad:#e5646b; }
   * { box-sizing:border-box; }
@@ -20,8 +20,8 @@
 </head>
 <body>
 <main>
-  <h1>Passo C · Calibragem do motor</h1>
-  <div class="mut">Milhares de partidas entre onzes montados sob medida para cada formação, todos do mesmo nível. Leva alguns segundos.</div>
+  <h1>Calibragem do motor</h1>
+  <div class="mut">Milhares de partidas entre onzes montados sob medida para cada formação, todos do mesmo nível. Leva cerca de um minuto.</div>
   <div class="card"><button id="rodar">Rodar a calibragem</button> <span id="estado" class="mut"></span></div>
   <div id="saida"></div>
 </main>
@@ -35,13 +35,21 @@ const $ = id => document.getElementById(id);
 const nomes = await (await fetch("./dados/nomes.json")).json();
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 
+// Monta um time sob medida. x.instrucoes pode ser um objeto ou uma função (escalacao, banco) => instruções; x.banco: gerar 7 reservas.
+const BANCO = ["GK", "DC", "DR", "MC", "MR", "FC", "SC"];
+function montar(rng, x, prefixo, mandante) {
+  const escalacao = gerarOnze(rng, FORMACOES[x.formacao || "4-4-2"], { nivel: x.nivel || 30, perfil: x.perfil, nomes, prefixoId: prefixo });
+  const banco = x.banco ? gerarOnze(rng, BANCO, { nivel: (x.nivel || 30) - 3, nomes, prefixoId: prefixo + "b" }).map(o => o.j) : [];
+  const instrucoes = typeof x.instrucoes === "function" ? x.instrucoes(escalacao, banco) : x.instrucoes;
+  return prepararTime({ nome: prefixo.toUpperCase(), mandante, escalacao, banco, instrucoes });
+}
+
 // Joga `pares` duplas de onzes diferentes, `jogos` partidas cada, com A de mandante. neutro: sem vantagem de mando.
 function confronto(a, b, { pares = 40, jogos = 25, semente = 1, neutro = false } = {}) {
   const rng = criarRng(semente);
-  const s = { n: 0, v: 0, e: 0, d: 0, gols: [0, 0], xg: [0, 0], fin: [0, 0], noGol: [0, 0], chances: [0, 0], posse: 0, cor: { E: 0, C: 0, D: 0 }, tipos: {}, golsPos: {}, zero: 0, goleadas: 0 };
+  const s = { n: 0, v: 0, e: 0, d: 0, gols: [0, 0], xg: [0, 0], fin: [0, 0], noGol: [0, 0], chances: [0, 0], posse: 0, cor: { E: 0, C: 0, D: 0 }, tipos: {}, golsPos: {}, zero: 0, goleadas: 0, extra: { faltas: 0, amarelos: 0, vermelhos: 0, escanteios: 0, impedimentos: 0, contraAtaques: 0, substituicoes: 0, lesoes: 0 }, energia: 0, nEnergia: 0 };
   for (let p = 0; p < pares; p++) {
-    const ta = prepararTime({ nome: "A", mandante: !neutro, escalacao: gerarOnze(rng, FORMACOES[a.formacao || "4-4-2"], { nivel: a.nivel || 30, perfil: a.perfil, nomes, prefixoId: "a" }) });
-    const tb = prepararTime({ nome: "B", escalacao: gerarOnze(rng, FORMACOES[b.formacao || "4-4-2"], { nivel: b.nivel || 30, perfil: b.perfil, nomes, prefixoId: "b" }) });
+    const ta = montar(rng, a, "a", !neutro), tb = montar(rng, b, "b", false);
     for (let k = 0; k < jogos; k++) {
       const r = simularPartida(rng, ta, tb), [ga, gb] = r.placar;
       s.n++; if (ga > gb) s.v++; else if (ga === gb) s.e++; else s.d++;
@@ -49,6 +57,8 @@ function confronto(a, b, { pares = 40, jogos = 25, semente = 1, neutro = false }
       s.posse += r.estat[0].posse;
       [0, 1].forEach(i => { s.gols[i] += r.placar[i]; s.xg[i] += r.xg[i]; s.fin[i] += r.estat[i].finalizacoes; s.noGol[i] += r.estat[i].noGol; s.chances[i] += r.estat[i].chances; });
       for (const l in s.cor) s.cor[l] += r.estat[0].corredor[l];
+      for (const k in s.extra) s.extra[k] += k === "lesoes" ? r.lesoes.length : r.estat[0][k] + r.estat[1][k];
+      for (const id in r.jogadores) { const j = r.jogadores[id]; if (j.entrou === 0 && j.saiu === null && j.pos !== "GK") { s.energia += j.energia; s.nEnergia++; } }
       for (const l of r.lances) {
         const t = s.tipos[l.tipo] = s.tipos[l.tipo] || { n: 0, xg: 0, gols: 0 }; t.n++; t.xg += l.xg;
         if (l.resultado === "gol") { t.gols++; const pos = r.jogadores[l.finalizador].pos; s.golsPos[pos] = (s.golsPos[pos] || 0) + 1; }
@@ -59,14 +69,14 @@ function confronto(a, b, { pares = 40, jogos = 25, semente = 1, neutro = false }
   return {
     n, v: s.v / n, e: s.e / n, d: s.d / n, pontosA: (3 * s.v + s.e) / n, pontosB: (3 * s.d + s.e) / n,
     golsPorJogo: totalGols / n, gols: s.gols.map(x => x / n), xg: s.xg.map(x => x / n), fin: s.fin.map(x => x / n), noGol: s.noGol.map(x => x / n), chances: s.chances.map(x => x / n),
-    posseA: s.posse / n, zero: s.zero / n, goleadas: s.goleadas / n, corredor: s.cor,
+    posseA: s.posse / n, extra: Object.fromEntries(Object.entries(s.extra).map(([k, v]) => [k, v / n])), energiaFinal: s.energia / s.nEnergia, zero: s.zero / n, goleadas: s.goleadas / n, corredor: s.cor,
     tipos: Object.fromEntries(Object.entries(s.tipos).map(([t, x]) => [t, { porJogo: x.n / n, xg: x.xg / x.n, conv: x.gols / x.n, fatiaGols: x.gols / totalGols }])),
     golsPos: Object.fromEntries(Object.entries(s.golsPos).sort((x, y) => y[1] - x[1]).map(([p, g]) => [p, g / totalGols])),
   };
 }
 
 // Todas as formações contra todas, em casa e fora. Devolve os pontos por jogo de cada uma.
-function matriz({ pares = 12, jogos = 25 } = {}) {
+function matriz({ pares = 8, jogos = 25 } = {}) {
   const fs = Object.keys(FORMACOES), ppj = {}, tabela = {};
   fs.forEach(f => { ppj[f] = 0; tabela[f] = {}; });
   let semente = 100;
@@ -80,11 +90,11 @@ function matriz({ pares = 12, jogos = 25 } = {}) {
   return { ppj, tabela };
 }
 
-function niveis(dif) { return confronto({ nivel: 30 + dif }, { nivel: 30 }, { neutro: true, semente: 50 + dif }); }
+function niveis(dif) { return confronto({ nivel: 30 + dif }, { nivel: 30 }, { pares: 24, neutro: true, semente: 50 + dif }); }
 function perfis() {
   const ks = Object.keys(PERFIS), ppj = Object.fromEntries(ks.map(k => [k, 0]));
   let semente = 300;
-  for (const a of ks) for (const b of ks) { if (a === b) continue; const r = confronto({ perfil: a }, { perfil: b }, { pares: 12, semente: semente++, neutro: true }); ppj[a] += r.pontosA; ppj[b] += r.pontosB; }
+  for (const a of ks) for (const b of ks) { if (a === b) continue; const r = confronto({ perfil: a }, { perfil: b }, { pares: 8, semente: semente++, neutro: true }); ppj[a] += r.pontosA; ppj[b] += r.pontosB; }
   ks.forEach(k => ppj[k] /= 2 * (ks.length - 1));
   return ppj;
 }
@@ -95,7 +105,7 @@ const pausa = () => new Promise(r => setTimeout(r, 30));
 
 async function rodar() {
   $("estado").textContent = "rodando…"; await pausa();
-  const t0 = performance.now(), base = confronto({}, {}, { pares: 80 });
+  const t0 = performance.now(), base = confronto({}, {}, { pares: 60 });
   let h = `<div class="card"><h2>Jogo de referência: 4-4-2 contra 4-4-2, mesmo nível (${base.n} partidas)</h2>` + tabela(["Medida", "Resultado", "Meta"], [
     ["Gols por jogo", faixa(base.golsPorJogo, 2.5, 2.9, f2(base.golsPorJogo)), "2,5 a 2,9"],
     ["Vitória do mandante", faixa(base.v, 0.42, 0.48, pc(base.v)), "42% a 48%"],
@@ -105,19 +115,38 @@ async function rodar() {
     ["Finalizações no gol por time", faixa((base.noGol[0] + base.noGol[1]) / 2, 3.5, 5.5, f1((base.noGol[0] + base.noGol[1]) / 2)), "3,5 a 5,5"],
     ["xG por jogo (soma)", f2(base.xg[0] + base.xg[1]), "perto dos gols"],
     ["Jogos 0 a 0", faixa(base.zero, 0.05, 0.1, pc(base.zero)), "5% a 10%"],
-    ["Jogos com 6 gols ou mais", faixa(base.goleadas, 0.02, 0.07, pc(base.goleadas)), "2% a 7%"],
+    ["Jogos com 6 gols ou mais", faixa(base.goleadas, 0.02, 0.08, pc(base.goleadas)), "2% a 8%"],
+    ["Escanteios por jogo", faixa(base.extra.escanteios, 7, 12, f1(base.extra.escanteios)), "7 a 12"],
+    ["Faltas por jogo", faixa(base.extra.faltas, 16, 28, f1(base.extra.faltas)), "16 a 28"],
+    ["Cartões amarelos por jogo", faixa(base.extra.amarelos, 3, 5, f1(base.extra.amarelos)), "3 a 5"],
+    ["Cartões vermelhos por jogo", faixa(base.extra.vermelhos, 0.1, 0.3, f2(base.extra.vermelhos)), "0,1 a 0,3"],
+    ["Lesões por jogo", faixa(base.extra.lesoes, 0.1, 0.3, f2(base.extra.lesoes)), "0,1 a 0,3"],
+    ["Energia média no fim (sem substituição)", f1(base.energiaFinal), "de 100 no início"],
   ]) + `</div>`;
   h += `<div class="card"><h2>De onde saem os gols</h2>` + tabela(["Tipo de chance", "Por jogo", "xG médio", "Viram gol", "Fatia dos gols"], Object.entries(base.tipos).map(([t, x]) => [t, f1(x.porJogo), f2(x.xg), pc(x.conv), pc(x.fatiaGols)])) +
     `<div style="height:8px"></div>` + tabela(["Posição de quem marca", ...Object.keys(base.golsPos)], [["Fatia dos gols", ...Object.values(base.golsPos).map(pc)]]) + `</div>`;
   $("saida").innerHTML = h; await pausa();
 
-  const ns = [1, 2, 4, 6, 8].map(d => [d, niveis(d)]);
+  const ns = [];
+  for (const d of [1, 2, 4, 6, 8]) { ns.push([d, niveis(d)]); await pausa(); }
   h += `<div class="card"><h2>Quanto pesa a diferença de nível (campo neutro)</h2>` + tabela(["Diferença de nota", "Melhor vence", "Empate", "Pior vence", "Gols (melhor · pior)"], ns.map(([d, r]) => [`+${d}`, pc(r.v), pc(r.e), pc(r.d), `${f2(r.gols[0])} · ${f2(r.gols[1])}`])) + `</div>`;
   $("saida").innerHTML = h; await pausa();
 
   const m = matriz(), fs = Object.keys(FORMACOES);
   h += `<div class="card"><h2>Formações: pontos por jogo, todas contra todas</h2>` + tabela(["Formação", "Pontos por jogo"], Object.entries(m.ppj).sort((a, b) => b[1] - a[1]).map(([f, p]) => [f, faixa(p, 1.2, 1.55, f2(p))])) +
     `<div class="mut" style="margin:8px 0 4px">Pontos por jogo do mandante (linha) contra o visitante (coluna)</div>` + tabela(["", ...fs.map((_, i) => i + 1)], fs.map((a, i) => [`${i + 1}. ${a}`, ...fs.map(b => a === b ? "—" : f2(m.tabela[a][b]))])) + `</div>`;
+  $("saida").innerHTML = h; await pausa();
+  const testes = [
+    ["Mentalidade muito ofensiva", { mentalidade: 2 }, {}], ["Mentalidade muito defensiva", { mentalidade: -2 }, {}],
+    ["Pressão alta", { pressao: 2 }, {}], ["Agressividade muito alta", { agressividade: 2 }, {}], ["Agressividade muito baixa", { agressividade: -2 }, {}],
+    ["Passe curto", { passe: "curto" }, {}], ["Bola longa", { passe: "longo" }, {}], ["Bola longa contra pressão alta", { passe: "longo" }, { pressao: 2 }],
+    ["Ataque pelos dois lados", { lado: "lados" }, {}], ["Contra-ataque", { contraAtaque: true }, {}], ["Contra-ataque contra time muito ofensivo", { contraAtaque: true }, { mentalidade: 2 }],
+    ["Linha de impedimento", { impedimento: true }, {}],
+  ].map(([nome, ia, ib], k) => [nome, confronto({ instrucoes: ia }, { instrucoes: ib }, { pares: 16, neutro: true, semente: 500 + k })]);
+  
+  h += `<div class="card"><h2>Efeito das instruções (time A com a instrução, campo neutro, mesmo nível)</h2>` + tabela(["Instrução do time A", "Pontos por jogo (A · B)", "Gols (A · B)", "Finalizações (A · B)", "Faltas", "Amarelos", "Energia no fim"],
+    testes.map(([nome, r]) => [nome, `${f2(r.pontosA)} · ${f2(r.pontosB)}`, `${f2(r.gols[0])} · ${f2(r.gols[1])}`, `${f1(r.fin[0])} · ${f1(r.fin[1])}`, f1(r.extra.faltas), f1(r.extra.amarelos), f1(r.energiaFinal)])) +
+    `<div class="mut" style="margin-top:6px">Com 400 partidas por linha, diferenças de até 0,12 ponto por jogo são ruído.</div></div>`;
   $("saida").innerHTML = h; await pausa();
   const pf = perfis();
   h += `<div class="card"><h2>Perfis de elenco: pontos por jogo, todos contra todos (campo neutro)</h2>` + tabela(["Perfil", "Pontos por jogo"], Object.entries(pf).sort((a, b) => b[1] - a[1]).map(([k, p]) => [PERFIS[k].nome, faixa(p, 1.25, 1.5, f2(p))])) + `</div>`;

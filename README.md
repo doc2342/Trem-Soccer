@@ -9,7 +9,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | A. Jogadores (22 atributos, 18 posições, gerador de elenco) | pronto |
 | B. Motor: núcleo (9 zonas, xG) | pronto |
 | C. Calibragem | pronto |
-| D. Instruções e energia | a fazer |
+| D. Instruções e energia | pronto |
 | E. Bot e relatório | a fazer |
 | F. Tela de escalação | a fazer |
 | G. Contas e clubes | a fazer |
@@ -25,8 +25,8 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 - `src/escalacao.js`: formações de referência e escalação automática simples.
 - `src/motor.js`: motor da partida (zonas, duelos, chances com xG).
 - `elenco.html`: página de conferência do passo A.
-- `partida.html`: página de conferência do passo B (uma partida ou 1.000).
-- `calibragem.html`: página do passo C; roda milhares de partidas e compara com as metas.
+- `partida.html`: uma partida (ou 1.000) entre dois times, com as instruções de cada um.
+- `calibragem.html`: roda milhares de partidas e compara com as metas; mostra também o efeito de cada instrução.
 
 ## Rodar localmente
 
