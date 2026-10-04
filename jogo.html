@@ -96,7 +96,7 @@
   @media (max-width:620px) {
     .zona .c-tat, .zona .c-pais, .zona .c-sal { display:none; }
     .zona table { font-size:12.5px; } .zona td, .zona th { padding:3px 3px; }
-    .zona td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46vw; }
+    .zona td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
     .zona tr.e-tit .pp { background:#2c6b4a; color:#eafff3; } .zona tr.e-res .pp { background:#5a4a1e; color:#ffe9a8; }
     .zona .info { width:20px; height:20px; }
     .zona { margin-bottom:10px; }
@@ -130,7 +130,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico } from "./src/saude.js";
+import { FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
 import { sair, ligaAtual, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
@@ -260,16 +260,18 @@ async function telaClube(liga, clube) {
     (tatica.dados.banco || []).forEach(id => { if (!naTatica[id]) naTatica[id] = { titular: false }; });
   }
   const treinoLigado = elenco.some(j => j.treino !== undefined); // false antes do 27_treino.sql
+  const temMomento = elenco.some(j => j.forma !== undefined); // forma e moral: false antes do 30_forma_e_moral.sql
+  const momento = v => { const n = v == null ? 50 : v; return `<td class="${n >= 65 ? "ok" : n <= 35 ? "bad" : ""}">${n}</td>`; };
   const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${sg(naTatica[j.id].pos)}">${sg(naTatica[j.id].pos)}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
   const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td>${pp(j.pos)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
     <td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
-    <td>${j.idade}</td><td class="mut c-pais" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+    <td>${j.idade}</td><td class="mut c-pais" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${temMomento ? momento(j.forma) + momento(j.moral) : ""}
     <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
   const zonaDoElenco = ([titulo, linhas]) => {
     const l = elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => ordemNaTatica(a) - ordemNaTatica(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th class="c-tat" title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th class="c-pais">País</th><th title="Nota na posição dele">Nota</th><th class="c-sal">Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
-      ${l.map(linha).join("") || `<tr><td colspan="9" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
+    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th class="c-tat" title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th class="c-pais">País</th><th title="Nota na posição dele">Nota</th>${temMomento ? `<th title="Forma, de 0 a 100: sobe para quem joga e joga bem, cai para quem joga mal ou fica parado. Pesa até 6% no desempenho.">For</th><th title="Moral, de 0 a 100: sobe com vitória e minutos em campo, cai com derrota e banco. Pesa até 3% no desempenho.">Mor</th>` : ""}<th class="c-sal">Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
+      ${l.map(linha).join("") || `<tr><td colspan="11" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
   const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
@@ -285,7 +287,7 @@ async function telaClube(liga, clube) {
   const outros = clubes.filter(c => c.id !== clube.id);
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico atende mais lesionados por rodada"],
-    ["fisio", "Fisioterapia", "fisio_nivel", "recupera a forma"], ["base", "Base", "base_nivel", "revela jogadores melhores"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
+    ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela jogadores melhores"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const estruturas = () => {
     const manut = Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, k) => s + ACUMULADO[clube[k] || 0], 0));
@@ -296,7 +298,7 @@ async function telaClube(liga, clube) {
         return `<tr><td class="esq">${nome}${k === "estadio" ? ` <span class="tag">${(5000 + 5000 * n).toLocaleString("pt-BR")} lugares</span>` : ""}</td><td><b>${n}</b> de 5</td><td class="esq mut">${serve}</td>
           <td>${custo == null ? "máximo" : dinheiro(custo)}</td><td>${custo == null ? "—" : PRAZO[prox] + (PRAZO[prox] === 1 ? " rodada" : " rodadas")}</td>
           <td>${custo == null ? "" : `<button class="sec" data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} title="${obra ? "Já há uma obra em andamento" : caixa < custo ? "Caixa insuficiente" : ""}">${n === 0 ? "Construir" : "Ampliar"}</button>`}</td></tr>`; }).join("")}</table></div>
-      <div class="mut" style="margin-top:6px">O centro de treinamento já acelera o treino e o departamento médico já aumenta quantos lesionados o médico atende (os dois na aba Elenco, em Treino). A fisioterapia e a base ainda esperam a forma dos jogadores e as revelações. O estádio rende na bilheteria.</div>
+      <div class="mut" style="margin-top:6px">O centro de treinamento já acelera o treino e o departamento médico já aumenta quantos lesionados o médico atende (os dois na aba Elenco, em Treino). A fisioterapia aumenta quantos jogadores o preparador de forma atende. A base ainda espera as revelações. O estádio rende na bilheteria.</div>
       <div id="obraAviso" style="margin-top:6px"></div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
@@ -544,7 +546,7 @@ async function telaClube(liga, clube) {
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
-      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
+      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
     </div>
     ${treinoLigado ? `<div data-esecao="treino"><div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
       <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
@@ -557,9 +559,11 @@ async function telaClube(liga, clube) {
           ${comissao.map(t => `<tr class="c-linha"><td colspan="10" class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade} anos · ${dinheiro(t.salario)} por temporada</span></td></tr><tr><td class="esq c-nome">${esc(t.nome)} <span class="mut">${t.idade}</span></td>${Object.keys(AREAS).map(k => `<td class="${t.area === k ? "nota" : t.area === "geral" ? "" : "mut"}">${t.skills[k] || 0}</td>`).join("")}<td class="c-sal">${dinheiro(t.salario)}</td>
             <td class="esq"><select data-tarea="${t.id}"><option value="geral" ${t.area === "geral" ? "selected" : ""}>Geral</option>${Object.entries(AREAS).map(([k, a]) => `<option value="${k}" ${t.area === k ? "selected" : ""}>${a.nome}</option>`).join("")}</select></td>
             <td><button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button></td></tr>`).join("")}</table>` : `<div class="aviso">Você não tem treinadores: todas as áreas treinam a 80%.</div>`}
-        <div style="margin-top:10px"><b>Saúde</b> <span class="mut">um médico e um preparador de prevenção</span>
+        <div style="margin-top:10px"><b>Saúde</b> <span class="mut">um profissional por função</span>
           ${Object.entries(FUNCOES_DE_SAUDE).map(([f, nome]) => { const t = equipeDeSaude.find(x => x.funcao === f);
-            const efeito = f === "medico" ? (t ? `atende ${atendidosPeloMedico(clube.medico_nivel)} ${atendidosPeloMedico(clube.medico_nivel) === 1 ? "lesionado" : "lesionados"} por rodada (departamento médico nível ${clube.medico_nivel || 0}); cada um tem ${Math.round(chanceDoMedico(t.skill) * 100)}% de chance de voltar um jogo antes` : "sem médico, as lesões duram o tempo todo; o departamento médico só aumenta quantos ele atende")
+            const efeito = f === "forma" ? (t ? `dá ${Math.round(ganhoDeForma(t.skill))} pontos de forma, a cada rodada, aos ${atendidosNaForma(clube.fisio_nivel)} jogadores de pior forma (fisioterapia nível ${clube.fisio_nivel || 0})` : "sem preparador, a forma depende só de jogar e jogar bem; a fisioterapia só aumenta quantos ele atende")
+              : f === "psicologo" ? (t ? `corta ${Math.round(corteDoPsicologo(t.skill) * 100)}% das quedas de moral do elenco` : "sem psicólogo, a moral cai inteira com derrota e banco")
+              : f === "medico" ? (t ? `atende ${atendidosPeloMedico(clube.medico_nivel)} ${atendidosPeloMedico(clube.medico_nivel) === 1 ? "lesionado" : "lesionados"} por rodada (departamento médico nível ${clube.medico_nivel || 0}); cada um tem ${Math.round(chanceDoMedico(t.skill) * 100)}% de chance de voltar um jogo antes` : "sem médico, as lesões duram o tempo todo; o departamento médico só aumenta quantos ele atende")
               : (t ? `reduz em ${Math.round(reducaoDeLesao(t.skill) * 100)}% a chance de lesão do elenco` : "sem preparador, a chance de lesão é a normal");
             return `<div style="margin-top:4px">${t ? `<b>${esc(t.nome)}</b> <span class="mut">${nome.toLowerCase()} · skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} · ${efeito}</span> <button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button>` : `<span class="aviso">${nome}: ninguém.</span> <span class="mut">${efeito[0].toUpperCase() + efeito.slice(1)}.</span>`}</div>`; }).join("")}</div>
         <div class="row" style="margin-top:8px"><button class="sec" id="tCandidatos">Ver candidatos</button><span id="tcAviso" class="mut"></span></div>
@@ -852,7 +856,7 @@ async function telaClube(liga, clube) {
       $("tcLista").innerHTML = `<span class="mut">Carregando…</span>`;
       try {
         const l = await candidatosATreinador();
-        $("tcLista").innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube (treinadores, médicos e preparadores de prevenção) e se renova a cada ${(h => h >= 24 ? Math.round(h / 24) + " dias" : h + " horas")(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.</div>
+        $("tcLista").innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube (treinadores e profissionais de saúde) e se renova a cada ${(h => h >= 24 ? Math.round(h / 24) + " dias" : h + " horas")(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.</div>
           <table class="mini ctab" style="width:100%"><tr><th class="esq c-nome">Candidato</th>${Object.keys(AREAS).map(k => `<th title="${AREAS[k].nome}">${AREAS[k].nome.slice(0, 3)}</th>`).join("")}<th>Salário</th><th></th></tr>
           ${l.map(t => `<tr class="c-linha"><td colspan="10" class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade} anos</span></td></tr><tr><td class="esq c-nome">${esc(t.nome)} <span class="mut">${t.idade}</span></td>${t.funcao && t.funcao !== "treinador" ? `<td colspan="6" class="esq">${FUNCOES_DE_SAUDE[t.funcao] || t.funcao} · skill <b class="nota">${t.skill}</b></td>` : Object.keys(AREAS).map(k => `<td class="${t.area === k ? "nota" : ""}">${t.skills[k] || 0}</td>`).join("")}<td>${dinheiro(t.salario)}</td>
             <td><button data-tcontratar="${t.id}" style="padding:3px 8px" title="Luvas de ${dinheiro(Math.round(t.salario * 0.1))}">Contratar</button></td></tr>`).join("")}</table>` : `<span class="mut">Nenhum candidato agora. A lista se renova sozinha.</span>`;

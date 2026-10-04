@@ -5,6 +5,7 @@
 // As constantes saíram da calibragem (calibragem.html).
 import { limitar } from "./rng.js";
 import { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } from "./modelo.js";
+import { fatorDeMomento } from "./saude.js";
 
 export const CONFIG = {
   ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
@@ -75,7 +76,7 @@ export const CONFIG = {
   faltaPorAgressividade: 0.3,
   amarelo: 0.19, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
   cuidadoComAmarelo: 0.3, // quem já tem amarelo se segura: multiplicador da chance do segundo
-  lesao: 0.0007, // por duelo, para quem tem a bola
+  lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
   maxSubstituicoes: 5,
   escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
   escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
@@ -193,7 +194,7 @@ function recalcular(t, saldo) {
   t.goleiro = null; t.temLibero = false;
   for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
   for (const jog of t.emCampo) {
-    const f = jog.fam * base * eficacia(jog);
+    const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j); // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;

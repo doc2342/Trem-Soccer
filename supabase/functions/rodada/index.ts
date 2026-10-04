@@ -162,6 +162,64 @@ const __modelo = (() => {
   return { ATR_MIN, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, notaNaPosicao, melhorPosicao };
 })();
 
+const __saude = (() => {
+  // Saúde (etapa T3): lesões, forma e moral.
+  // Lesões: o médico encurta a recuperação dos lesionados que atende e o preparador de prevenção reduz a chance de lesão do elenco.
+  // Forma (0 a 100, começa em 50): sobe para quem joga e joga bem, cai para quem joga mal ou fica parado. O preparador de forma atende alguns por rodada.
+  // Moral (0 a 100, começa em 50): sobe com vitória e com minutos em campo, cai com derrota e com banco. O psicólogo segura as quedas.
+  // As duas pesam no desempenho em campo: forma de -6% a +6%, moral de -3% a +3%.
+  // Módulo puro: usado pelo motor, pela função do servidor e pelas páginas.
+  const CONFIG_SAUDE = {
+    prevencao: [0.10, 0.30], // reduz a chance de lesão de 10% (skill 1) a 40% (skill 50)
+    medico: [0.15, 0.50],    // a cada rodada, cada lesionado atendido tem de 15% a 65% de chance de voltar um jogo antes
+    atendidos: [1, 1],       // o médico atende 1 lesionado por rodada, mais 1 por nível do departamento médico
+    efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
+    forma: { jogou: 3, porNota: 2.5, entrou: 1, parado: -2, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
+    moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
+    preparador: [2, 6],      // o preparador de forma dá de 2 a 8 pontos de forma a cada jogador atendido
+    atendidosNaForma: [2, 2],// atende 2 jogadores por rodada, mais 2 por nível da fisioterapia (os de pior forma)
+    psicologo: [0.2, 0.4],   // o psicólogo corta de 20% a 60% das quedas de moral
+    minutosDeJogo: 45,
+  };
+  const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção", forma: "Preparador de forma", psicologo: "Psicólogo" };
+  const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
+  const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
+  const chanceDoMedico = skill => escala(CONFIG_SAUDE.medico, skill);
+  const atendidosPeloMedico = nivel => CONFIG_SAUDE.atendidos[0] + CONFIG_SAUDE.atendidos[1] * (nivel || 0);
+  const ganhoDeForma = skill => escala(CONFIG_SAUDE.preparador, skill);
+  const atendidosNaForma = nivel => CONFIG_SAUDE.atendidosNaForma[0] + CONFIG_SAUDE.atendidosNaForma[1] * (nivel || 0);
+  const corteDoPsicologo = skill => escala(CONFIG_SAUDE.psicologo, skill);
+  // equipe: funcionários contratados do clube ([{ funcao, skill }]); clube: { medico_nivel, fisio_nivel }.
+  function saudeDoClube(equipe, clube) {
+    const de = f => (equipe || []).filter(x => x.funcao === f).reduce((m, x) => Math.max(m, x.skill || 0), 0);
+    const medico = de("medico"), forma = de("forma");
+    return {
+      prevencao: reducaoDeLesao(de("prevencao")),
+      medico: medico ? { chance: chanceDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
+      forma: forma ? { ganho: ganhoDeForma(forma), vagas: atendidosNaForma(clube && clube.fisio_nivel) } : null,
+      psicologo: corteDoPsicologo(de("psicologo")),
+    };
+  }
+
+  const valor = v => v == null ? 50 : v;
+  // Multiplicador do desempenho do jogador pela forma e pela moral (1 quando as duas estão em 50).
+  const fatorDeMomento = j => (1 + CONFIG_SAUDE.efeitoDaForma * (valor(j.forma) - 50) / 50) * (1 + CONFIG_SAUDE.efeitoDaMoral * (valor(j.moral) - 50) / 50);
+  const limite = v => Math.max(0, Math.min(100, Math.round(v)));
+  // Forma e moral depois de uma partida. nota e minutos: do relatório (minutos 0 para quem não entrou); resultado: 1 vitória, 0 empate, -1 derrota;
+  // fora: "lesão", "suspensão" ou null (como o jogador estava antes do jogo); ganho: pontos de forma do preparador; psicologo: corte nas quedas de moral.
+  function momentoDepois(j, { nota = null, minutos = 0, resultado = 0, fora = null, ganho = 0, psicologo = 0 } = {}) {
+    const C = CONFIG_SAUDE, F = C.forma, M = C.moral, forma = valor(j.forma), moral = valor(j.moral);
+    const jogou = minutos >= C.minutosDeJogo, entrou = minutos > 0 && !jogou;
+    let df = fora === "lesão" ? F.lesionado : jogou ? F.jogou + F.porNota * ((nota == null ? 6 : nota) - 6) : entrou ? F.entrou : F.parado;
+    df += ganho - F.volta * (forma - 50);
+    let dm = (resultado > 0 ? M.vitoria : resultado < 0 ? M.derrota : 0) + (jogou ? M.jogou : entrou ? M.entrou : fora ? 0 : M.banco);
+    dm -= M.volta * (moral - 50);
+    if (dm < 0) dm *= 1 - psicologo;
+    return { forma: limite(forma + df), moral: limite(moral + dm) };
+  }
+  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, fatorDeMomento, momentoDepois };
+})();
+
 const __escalacao = (() => {
   // Formações de referência e escalação automática simples (o melhor disponível para cada vaga).
   const { notaNaPosicao } = __modelo;
@@ -203,6 +261,7 @@ const __motor = (() => {
   // As constantes saíram da calibragem (calibragem.html).
   const { limitar } = __rng;
   const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } = __modelo;
+  const { fatorDeMomento } = __saude;
   const CONFIG = {
     ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
     mando: 1.04, // multiplicador da força do mandante
@@ -272,7 +331,7 @@ const __motor = (() => {
     faltaPorAgressividade: 0.3,
     amarelo: 0.19, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
     cuidadoComAmarelo: 0.3, // quem já tem amarelo se segura: multiplicador da chance do segundo
-    lesao: 0.0007, // por duelo, para quem tem a bola
+    lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
     maxSubstituicoes: 5,
     escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
     escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
@@ -390,7 +449,7 @@ const __motor = (() => {
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
     for (const jog of t.emCampo) {
-      const f = jog.fam * base * eficacia(jog);
+      const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j); // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
       if (jog.pos === "GK") { t.goleiro = jog; continue; }
       if (jog.pos === "SW") t.temLibero = true;
@@ -1061,6 +1120,7 @@ const __rodada = (() => {
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
   const { montarRelatorio } = __relatorio;
+  const { momentoDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
   const jogosFora = dias => dias <= 3 ? 1 : dias <= 10 ? 2 : dias <= 20 ? 3 : 4;
@@ -1190,6 +1250,16 @@ const __rodada = (() => {
       escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
     } });
     const { narracao, ...semNarracao } = r; // a narração já está nos lances
+    // forma e moral de todo mundo depois do jogo; o preparador de forma atende os de pior forma entre os que não estão fora
+    const doJogo = Object.fromEntries(r.jogadores.map(j => [j.id, j])), momento = [];
+    [casa, fora].forEach((l, i) => {
+      const S = l.saude || {}, resultado = Math.sign(p.placar[i] - p.placar[1 - i]);
+      const atendidos = new Set(S.forma ? l.elenco.filter(j => !(j.fora > 0)).sort((a, b) => (a.forma == null ? 50 : a.forma) - (b.forma == null ? 50 : b.forma)).slice(0, S.forma.vagas).map(j => j.id) : []);
+      for (const j of l.elenco) {
+        const x = doJogo[j.id], m = momentoDepois(j, { nota: x ? x.nota : null, minutos: x ? x.minutos : 0, resultado, fora: j.fora > 0 ? j.motivo : null, ganho: atendidos.has(j.id) ? S.forma.ganho : 0, psicologo: S.psicologo || 0 });
+        if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral)) momento.push({ id: j.id, ...m });
+      }
+    });
     return {
       lances,
       resultado: {
@@ -1198,6 +1268,7 @@ const __rodada = (() => {
         relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
       },
       situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico, extra), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico, extra)],
+      momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
     };
   }
@@ -1336,29 +1407,6 @@ const __treino = (() => {
   }
   return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, tetoDaNota, pontosDaSessao, partilha, treinar };
 })();
-
-const __saude = (() => {
-  // Saúde (etapa T3, primeira parte): lesões. O médico encurta a recuperação dos lesionados que atende e o preparador de prevenção
-  // reduz a chance de lesão do elenco inteiro. Forma e moral (preparador de forma e psicólogo) ficam para a segunda parte.
-  // Módulo puro: usado pela função do servidor e pelas páginas.
-  const CONFIG_SAUDE = {
-    prevencao: [0.10, 0.30], // reduz a chance de lesão de 10% (skill 1) a 40% (skill 50)
-    medico: [0.15, 0.50],    // a cada rodada, cada lesionado atendido tem de 15% a 65% de chance de voltar um jogo antes
-    atendidos: [1, 1],       // o médico atende 1 lesionado por rodada, mais 1 por nível do departamento médico
-  };
-  const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção" };
-  const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
-  const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
-  const chanceDoMedico = skill => escala(CONFIG_SAUDE.medico, skill);
-  const atendidosPeloMedico = nivel => CONFIG_SAUDE.atendidos[0] + CONFIG_SAUDE.atendidos[1] * (nivel || 0);
-  // equipe: funcionários contratados do clube ([{ funcao, skill }]); clube: { medico_nivel }.
-  function saudeDoClube(equipe, clube) {
-    const de = f => (equipe || []).filter(x => x.funcao === f).reduce((m, x) => Math.max(m, x.skill || 0), 0);
-    const medico = de("medico");
-    return { prevencao: reducaoDeLesao(de("prevencao")), medico: medico ? { chance: chanceDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null };
-  }
-  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, saudeDoClube };
-})();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino } = __treino;
@@ -1406,12 +1454,12 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel, medico_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -1430,7 +1478,7 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos } = calcularPartida({
+        const { lances, resultado, situacao, minutos, momento } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -1439,6 +1487,12 @@ Deno.serve(async (req) => {
         // lesões, suspensões e amarelos para os próximos jogos
         for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
+        // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
+        if (momento.length) {
+          await sb.rpc("aplicar_momento", { p_lista: momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral })) });
+          const novo = Object.fromEntries(momento.map(m => [m.id, m]));
+          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novo[j.id]) { j.forma = novo[j.id].forma; j.moral = novo[j.id].moral; }
+        }
         await sb.rpc("lancar_rodada", { p_partida: p.id }); // TV, patrocínio e salários da rodada; sem efeito antes do 12_caixa.sql
         // sessão de treino dos dois elencos, só em partida de liga; lesionado não treina (sem efeito antes do 27_treino.sql)
         if (!p.fase || p.fase === "liga") {

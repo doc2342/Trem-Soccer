@@ -5,6 +5,7 @@ import { notaNaPosicao, LISTA_POSICOES } from "./modelo.js";
 import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
+import { momentoDepois } from "./saude.js";
 
 export const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
 // A lesão sai do motor em dias; na liga ela vira jogos fora.
@@ -135,6 +136,16 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
   } });
   const { narracao, ...semNarracao } = r; // a narração já está nos lances
+  // forma e moral de todo mundo depois do jogo; o preparador de forma atende os de pior forma entre os que não estão fora
+  const doJogo = Object.fromEntries(r.jogadores.map(j => [j.id, j])), momento = [];
+  [casa, fora].forEach((l, i) => {
+    const S = l.saude || {}, resultado = Math.sign(p.placar[i] - p.placar[1 - i]);
+    const atendidos = new Set(S.forma ? l.elenco.filter(j => !(j.fora > 0)).sort((a, b) => (a.forma == null ? 50 : a.forma) - (b.forma == null ? 50 : b.forma)).slice(0, S.forma.vagas).map(j => j.id) : []);
+    for (const j of l.elenco) {
+      const x = doJogo[j.id], m = momentoDepois(j, { nota: x ? x.nota : null, minutos: x ? x.minutos : 0, resultado, fora: j.fora > 0 ? j.motivo : null, ganho: atendidos.has(j.id) ? S.forma.ganho : 0, psicologo: S.psicologo || 0 });
+      if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral)) momento.push({ id: j.id, ...m });
+    }
+  });
   return {
     lances,
     resultado: {
@@ -143,6 +154,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
     situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico, extra), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico, extra)],
+    momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
   };
 }
