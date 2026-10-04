@@ -14,7 +14,7 @@ export const CONFIG = {
   pesoCentro: 1.15, // o jogo pelo centro é um pouco mais natural
   zonaVazia: 6, // força mínima de uma zona, para zona sem ninguém não virar divisão por zero
   inclinacaoDuelo: 1.2, // quanto a diferença de força pesa no duelo; mais alto, o melhor time vence mais
-  baseDuelo: { D: 1.5, M: 0.45, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 82%, 61% e 52%
+  baseDuelo: { D: 1.6, M: 0.25, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 83%, 56% e 52%
   ajudaAoCentro: 0.5, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
   continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
   pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
@@ -32,7 +32,7 @@ export const CONFIG = {
   semGol: { defesa: 0.33, fora: 0.47, trave: 0.04, bloqueado: 0.16 }, // destino das finalizações que não viram gol
 
   // instruções
-  mentalidadeAtaque: 0.06, // por nível de mentalidade: força no meio e no ataque
+  mentalidadeAtaque: 0.075, // por nível de mentalidade: força no meio e no ataque
   mentalidadeDefesa: 0.065, // por nível de mentalidade ofensiva: força que a defesa perde
   mentalidadeRetranca: 0.065, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
   espacoPorMentalidade: 0.2, // por nível de mentalidade de quem defende: espaço para a bola em profundidade do adversário
@@ -353,7 +353,7 @@ export function simularPartida(rng, casa, fora) {
   // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
   // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
   // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
-  let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null; // saida: time que dá a saída depois de sofrer um gol
+  let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null; // bola: quem a recuperou e em que linha do seu ataque // saida: time que dá a saída depois de sofrer um gol
   // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
   const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
   const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
@@ -378,6 +378,8 @@ export function simularPartida(rng, casa, fora) {
     else trilha.push([`${mesmo ? "Segue" : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`deixa ${m.j.nome} para trás`] : [])]);
   }
   function perdaDePosse(i, zona, d) {
+    // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
+    bola = { time: 1 - i, zona: zona[0] === "D" ? "A" : zona[0] === "M" ? "M" : "D" };
     const onde = ONDE[zona[0]](zona[1]);
     if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${times[1 - i].nome} recupera a bola ${onde}.`)); return; }
     const p = d.pivo, m = d.marcador;
@@ -540,7 +542,7 @@ export function simularPartida(rng, casa, fora) {
     }
   }
 
-  function atacar(i, contra = false) {
+  function atacar(i, contra = false, inicio = "D") {
     const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
     const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
     // quem recupera a bola pode sair em contra-ataque, mais ainda contra time que joga para a frente
@@ -554,16 +556,19 @@ export function simularPartida(rng, casa, fora) {
       const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1);
       if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); atacar(1 - i, true); }
     };
-    e.ataques++; trilha = []; portador = null;
+    e.ataques++; trilha = []; portador = null; bola = null;
     if (!contra && ultimoAtaque === i) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](atk.nome)], { fechada: true }));
     ultimoAtaque = i;
-    let lado = escolherLado(rng, atk, dz, contra ? "M" : "D");
-    if (!contra) { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
-    lado = escolherLado(rng, atk, dz, "M", lado);
-    const d1 = duelo(i, "M" + lado, bonus, contra);
-    if (!d1.venceu) { perdaDePosse(i, "M" + lado, d1); return perdeu(); }
-    passo(i, "M" + lado, d1);
-    lado = escolherLado(rng, atk, dz, "A", lado);
+    if (contra) inicio = "M";
+    let lado = escolherLado(rng, atk, dz, inicio);
+    if (inicio === "D") { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
+    if (inicio !== "A") {
+      if (inicio === "D") lado = escolherLado(rng, atk, dz, "M", lado);
+      const d1 = duelo(i, "M" + lado, bonus, contra);
+      if (!d1.venceu) { perdaDePosse(i, "M" + lado, d1); return perdeu(); }
+      passo(i, "M" + lado, d1);
+      lado = escolherLado(rng, atk, dz, "A", lado);
+    }
     e.corredor[lado]++;
     const d = duelo(i, "A" + lado, bonus, contra);
     if (d.parada) { if (d.pivo && d.marcador) { recebe(d.pivo); trilha.push([`${d.marcador.j.nome} para ${d.pivo.j.nome} com falta ${ONDE.A(lado)}`]); } return bolaParada(i, "falta", lado); }
@@ -603,7 +608,7 @@ export function simularPartida(rng, casa, fora) {
           i = rng.chance((1 - p) / Math.max(p, 1 - p)) ? 1 - cadeia : cadeia;
         }
         cadeia = i; // o contra-ataque é um ataque a mais de quem recuperou a bola: não conta como a vez dele na cadeia
-        atacar(i);
+        atacar(i, false, bola && bola.time === i && min !== 46 ? bola.zona : "D");
       }
     }
     somaPosse += posseCasa;
