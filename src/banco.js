@@ -164,7 +164,13 @@ export async function comprarPelaMulta(jogadorId, salario, temporadas) {
 // M3: jogadores livres e oferta à liga (supabase/21_jogadores_livres.sql). As listas devolvem null enquanto o SQL 21 não foi executado.
 const CAMPOS_LIVRE = "id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, livre_ate, oferta_liga_ate";
 export const resolverLeiloes = ligaId => sb.rpc("resolver_leiloes", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
-export const livresDaLiga = ligaId => sb.from("jogadores").select(CAMPOS_LIVRE).eq("livre_liga", ligaId).order("id").then(({ data, error }) => error ? null : data);
+// livre_inicio e livre_abriu chegam com o SQL 25 (regras do leilão); sem ele, a lista vem sem esses campos
+export const livresDaLiga = async ligaId => {
+  const ler = campos => sb.from("jogadores").select(campos).eq("livre_liga", ligaId).order("id");
+  let r = await ler(CAMPOS_LIVRE + ", livre_inicio, livre_abriu");
+  if (r.error) r = await ler(CAMPOS_LIVRE);
+  return r.error ? null : r.data;
+};
 export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);
 export const darLanceLivre = (jogadorId, salario, temporadas) => sb.rpc("dar_lance_livre", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
