@@ -116,7 +116,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
   });
   const times = lados.map((l, i) => {
-    const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa });
+    const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil });
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 });
   });
   const p = simularPartida(criarRng(semente), times[0], times[1]);

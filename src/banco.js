@@ -47,7 +47,7 @@ export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).m
 export const resultadosDe = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora").in("partida_id", ids).then(ok) : Promise.resolve([]);
 export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("partida_id", id).maybeSingle().then(ok);
 export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados").eq("partida_id", id).order("ordem").then(ok);
-export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, ultimo_acesso").in("id", ids).then(ok);
+export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").in("id", ids).then(ok);
 
 // ---------- administração ----------
 // e-mail de quem assumiu cada clube; só responde para administrador e só existe depois do 05_dirigentes.sql

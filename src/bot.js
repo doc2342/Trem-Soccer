@@ -5,6 +5,14 @@ import { FORMACOES, escalar } from "./escalacao.js";
 import { avaliarZonas } from "./motor.js";
 
 export const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"];
+// Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
+export const ESTILO_DO_PERFIL = {
+  equilibrado: { nome: "sem estilo marcado", instrucoes: {} },
+  tecnico: { nome: "passe curto e posse de bola", instrucoes: { passe: "curto" } },
+  fisico: { nome: "pressão alta", instrucoes: { pressao: 2 } },
+  veloz: { nome: "contra-ataque", instrucoes: { contraAtaque: true } },
+  tatico: { nome: "linha de impedimento", instrucoes: { impedimento: true } },
+};
 const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
 const A = IDX;
 
@@ -12,7 +20,8 @@ const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.j
 const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
 
 // elenco: jogadores disponíveis (sem lesionados e suspensos). forcaAdversario: nota média do onze do adversário, se conhecida.
-export function taticaBot(elenco, { mandante = false, forcaAdversario = null } = {}) {
+export function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null } = {}) {
+  const estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
   // formação: a que dá a maior nota somada ao melhor onze disponível
   let melhor = null;
   for (const nome of FORMACOES_BOT) {
@@ -50,7 +59,7 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null } =
   const meias = linha.filter(x => ["MC", "AMC", "DMC", "AMR", "AML", "MR", "ML"].includes(x.pos));
   const atacantes = linha.filter(x => ["SC", "FC"].includes(x.pos));
   const instrucoes = {
-    mentalidade, agressividade: 0, pressao: 0, passe: "misto", lado, contraAtaque: false, impedimento: false,
+    mentalidade, agressividade: 0, pressao: 0, passe: "misto", lado, contraAtaque: false, impedimento: false, ...estilo,
     capitao: porInfluencia[0], vice: porInfluencia[1],
     armador: melhores(meias.length ? meias : linha, x => x.j.at[A.cri], 1)[0],
     alvo: melhores(atacantes.length ? atacantes : linha, x => x.j.at[A.cab] + x.j.at[A.for], 1)[0],

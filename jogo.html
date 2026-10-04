@@ -29,7 +29,7 @@ import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
 import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
-import { taticaBot } from "./src/bot.js";
+import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { montarLogin } from "./src/ui-login.js";
@@ -117,6 +117,7 @@ async function telaClube(liga, clube) {
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
+  const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div>
@@ -156,7 +157,8 @@ async function telaClube(liga, clube) {
     mostrar();
     if (g === clube.grupo) {
       const proximo = partidas.filter(p => p.casa === clube.id || p.fora === clube.id).find(p => !res[p.id]);
-      $("proximo").className = ""; $("proximo").innerHTML = proximo ? jogo(proximo, res, agora) : `<div class="mut">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</div>`;
+      const rival = proximo ? cPor[proximo.casa === clube.id ? proximo.fora : proximo.casa] : null;
+      $("proximo").className = ""; $("proximo").innerHTML = proximo ? jogo(proximo, res, agora) + `<div class="mut" style="margin-top:6px">${rival.dono ? `${esc(rival.nome)} tem dirigente: a tática dele é segredo.` : `${esc(rival.nome)} é comandado pelo bot e joga com ${estiloDe(rival)}.`}</div>` : `<div class="mut">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</div>`;
     }
   }
   $("verGrupo").onchange = () => grupo($("verGrupo").value).catch(e => { $("tabela").innerHTML = `<span class="bad">${esc(e.message)}</span>`; });
@@ -171,11 +173,11 @@ async function telaClube(liga, clube) {
       guardados[id] = guardados[id] || await elencoDoClube(id);
       const minha = taticaDoDirigente(tatica && tatica.dados, elenco) || taticaBot(elenco.filter(j => !(j.fora > 0)), { mandante: casa });
       const forca = minha.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / minha.escalacao.length;
-      const dele = taticaBot(guardados[id].filter(j => !(j.fora > 0)), { mandante: !casa, forcaAdversario: forca });
+      const dele = taticaBot(guardados[id].filter(j => !(j.fora > 0)), { mandante: !casa, forcaAdversario: forca, perfil: adv.perfil });
       const meu = prepararTime({ nome: clube.nome, escalacao: minha.escalacao, banco: minha.banco, instrucoes: minha.instrucoes, mandante: casa });
       const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
       const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);
-      $("amInfo").textContent = `${adv.nome} (tática de bot): ${dele.formacao}, nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
+      $("amInfo").textContent = `${adv.nome} (tática de bot, ${estiloDe(adv)}): ${dele.formacao}, nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
       $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1] });
       $("amRel").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { $("amInfo").innerHTML = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }

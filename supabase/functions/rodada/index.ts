@@ -235,10 +235,22 @@ const __motor = (() => {
     agressividadeDefesa: 0.035, // por nível: força nos duelos defensivos
     pressaoDefesa: 0.09, // por nível: força na marcação do meio para a frente
     pressaoGasto: 0.25, // por nível: energia gasta a mais
-    ladoPreferido: 1.6, ladosPreferidos: 1.35,
-    passeCurto: { M: 1.06, A: 0.97 }, passeLongo: { M: 0.94, logitM: 0.2, logitA: -0.1 },
-    contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, posse: 0.92, porMentalidade: 0.25 },
-    impedimento: { semLinha: 0.07, base: 0.3, porComunicacao: 0.01, libero: -0.15, furou: 1.25 },
+    ladoPreferido: 2.5, ladosPreferidos: 1.8, // quanto a instrução de lado concentra os ataques
+    ensaio: 0.05, // logit a favor de quem ataca pelo lado que treinou (a instrução de lado)
+    // Confrontos táticos: cada escolha forte tem uma resposta que a vence.
+    // Passe de quem ataca contra a pressão de quem defende (0, 1 ou 2): logit somado aos duelos de quem ataca, por linha.
+    //   passe curto vence time sem pressão e perde para pressão alta; bola longa vence pressão alta e perde para time recuado.
+    passeXpressao: {
+      curto: [{ D: 0, M: 0.22, A: 0.05 }, { D: 0, M: 0.05, A: 0 }, { D: -0.35, M: -0.35, A: 0 }],
+      misto: [{ D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }],
+      longo: [{ D: 0, M: 0.05, A: -0.3 }, { D: 0.1, M: 0.2, A: -0.05 }, { D: 0.25, M: 0.3, A: 0.15 }],
+    },
+    estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
+    estiloCurto: { area: 1.2, longe: 0.8 },
+    // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
+    contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.6, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5 },
+    // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
+    impedimento: { semLinha: 0.07, porPasse: { curto: 0.2, misto: 0.28, longo: 0.58 }, porComunicacao: 0.01, libero: -0.15, noContraAtaque: 0.3, furou: 1.35, furouNoContraAtaque: 1.6 },
     capitao: 0.002, // por ponto de Influência acima de 25, quando o time está perdendo
     pesoArmador: 2, pesoAlvo: 1.8,
     comunicacaoGoleiro: 0.002, // por ponto de Comunicação do goleiro acima de 25: defesa do centro
@@ -371,8 +383,6 @@ const __motor = (() => {
     const mAtk = { D: 1, M: 1 + CONFIG.mentalidadeAtaque * I.mentalidade, A: 1 + CONFIG.mentalidadeAtaque * I.mentalidade };
     const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = I.mentalidade > 0 ? 1 - CONFIG.mentalidadeDefesa * I.mentalidade : 1 - CONFIG.mentalidadeRetranca * I.mentalidade;
     const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
-    if (I.passe === "curto") { mAtk.M *= CONFIG.passeCurto.M; mAtk.A *= CONFIG.passeCurto.A; }
-    if (I.passe === "longo") mAtk.M *= CONFIG.passeLongo.M;
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
     for (const jog of t.emCampo) {
@@ -449,7 +459,8 @@ const __motor = (() => {
     const presenca = Math.min(1, area.reduce((s, o) => s + o.w, 0));
     const pt = CONFIG.pesoTipo;
     const espaco = Math.max(0.3, 1 + CONFIG.espacoPorMentalidade * def.instr.mentalidade); // linha recuada tira o espaço nas costas
-    const estilo = { profundidade: (I.passe === "longo" ? 1.2 : 1) * (contra ? 2 : 1) * espaco, area: I.passe === "curto" ? 1.2 : I.passe === "longo" ? 0.8 : 1, longe: I.passe === "curto" ? 0.8 : 1, cruzamento: I.passe === "longo" ? 1.2 : 1, corte: 1 };
+    const jeito = I.passe === "longo" ? CONFIG.estiloLongo : I.passe === "curto" ? CONFIG.estiloCurto : {};
+    const estilo = { profundidade: (jeito.profundidade || 1) * (contra ? 2 : 1) * espaco, area: jeito.area || 1, longe: jeito.longe || 1, cruzamento: jeito.cruzamento || 1, corte: 1 };
     const opcoes = lado === "C"
       ? [["profundidade", pt.profundidade * alvoVeloz * estilo.profundidade], ["area", pt.area * presenca * estilo.area], ["longe", pt.longe * estilo.longe]]
       : [["cruzamento", pt.cruzamento * alvoAereo * estilo.cruzamento], ["corte", pt.corte]];
@@ -457,7 +468,7 @@ const __motor = (() => {
     const zagueiro = (sortearPeso(rng, def.zonas.DC, o => o.w) || {}).jog;
     const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
     const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
-    const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro };
+    const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro, contra };
     // quem recebe o passe ou o cruzamento não é quem o fez, a não ser que esteja sozinho na área
     const outros = area.filter(o => o.jog !== pivo), alvos = outros.length ? outros : area;
     const ehAlvo = o => o.jog.j.id === I.alvo ? CONFIG.pesoAlvo : 1;
@@ -604,11 +615,14 @@ const __motor = (() => {
     }
 
     // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
-    function duelo(i, zona, logit = 0) {
+    function duelo(i, zona, logit = 0, contra = false) {
       const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
       const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
-      const longo = atk.instr.passe === "longo" ? (zona[0] === "M" ? CONFIG.passeLongo.logitM : zona[0] === "A" ? CONFIG.passeLongo.logitA : 0) : 0;
-      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + longo + CONFIG.inclinacaoDuelo * Math.log(a / d))));
+      // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
+      const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
+      const tatico = (contra ? 0 : CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
+        + (ensaiado && zona[0] !== "D" ? CONFIG.ensaio : 0);
+      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + tatico + CONFIG.inclinacaoDuelo * Math.log(a / d))));
       let venceu = rng.chance(p), parada = false;
       const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
       if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25))) {
@@ -632,9 +646,9 @@ const __motor = (() => {
       const atk = times[i], def = times[1 - i], e = estat[i];
       if (c.tipo === "profundidade") {
         const K = CONFIG.impedimento;
-        const p = def.instr.impedimento ? limitar(K.base + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0), 0.05, 0.5) : K.semLinha;
+        const p = def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (c.contra ? K.noContraAtaque : 1), 0.05, 0.65) : K.semLinha;
         if (rng.chance(p)) { e.impedimentos++; evento(i, "impedimento", `${c.finalizador.j.nome} é pego em impedimento.`); return; }
-        if (def.instr.impedimento) c.xg = limitar(c.xg * K.furou, 0.01, 0.6);
+        if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
       }
       const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
       const k = c.tipo === "penalti" ? 0.6 : CONFIG.inclinacaoFinalizacao;
@@ -686,22 +700,25 @@ const __motor = (() => {
 
     function atacar(i, contra = false) {
       const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
-      const bonus = contra ? CONFIG.contraAtaque.logit : 0;
+      const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
       // quem recupera a bola pode sair em contra-ataque, mais ainda contra time que joga para a frente
       const perdeu = () => {
         if (contra) return;
-        const K = CONFIG.contraAtaque, p = (def.instr.contraAtaque ? K.com : K.sem) * (1 + K.porMentalidade * Math.max(0, atk.instr.mentalidade));
+        const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
+        // quem perde a bola jogando para a frente ou com a linha alta fica mais exposto; time montado para o contra-ataque aproveita mais
+        const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
+        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * (atk.instr.impedimento ? K.linhaAlta : 1);
         if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); atacar(1 - i, true); }
       };
       e.ataques++;
       let lado = escolherLado(rng, atk, dz, contra ? "M" : "D");
       if (!contra) { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); }
       lado = escolherLado(rng, atk, dz, "M", lado);
-      const d1 = duelo(i, "M" + lado, bonus);
+      const d1 = duelo(i, "M" + lado, bonus, contra);
       if (!d1.venceu) { perdaDePosse(i, "M" + lado, d1); return perdeu(); }
       lado = escolherLado(rng, atk, dz, "A", lado);
       e.corredor[lado]++;
-      const d = duelo(i, "A" + lado, bonus);
+      const d = duelo(i, "A" + lado, bonus, contra);
       if (d.parada) return bolaParada(i, "falta", lado);
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) return;
       const forcado = !d.venceu;
@@ -747,6 +764,14 @@ const __bot = (() => {
   const { FORMACOES, escalar } = __escalacao;
   const { avaliarZonas } = __motor;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"];
+  // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
+  const ESTILO_DO_PERFIL = {
+    equilibrado: { nome: "sem estilo marcado", instrucoes: {} },
+    tecnico: { nome: "passe curto e posse de bola", instrucoes: { passe: "curto" } },
+    fisico: { nome: "pressão alta", instrucoes: { pressao: 2 } },
+    veloz: { nome: "contra-ataque", instrucoes: { contraAtaque: true } },
+    tatico: { nome: "linha de impedimento", instrucoes: { impedimento: true } },
+  };
   const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
   const A = IDX;
 
@@ -754,7 +779,8 @@ const __bot = (() => {
   const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
 
   // elenco: jogadores disponíveis (sem lesionados e suspensos). forcaAdversario: nota média do onze do adversário, se conhecida.
-  function taticaBot(elenco, { mandante = false, forcaAdversario = null } = {}) {
+  function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null } = {}) {
+    const estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
     // formação: a que dá a maior nota somada ao melhor onze disponível
     let melhor = null;
     for (const nome of FORMACOES_BOT) {
@@ -792,7 +818,7 @@ const __bot = (() => {
     const meias = linha.filter(x => ["MC", "AMC", "DMC", "AMR", "AML", "MR", "ML"].includes(x.pos));
     const atacantes = linha.filter(x => ["SC", "FC"].includes(x.pos));
     const instrucoes = {
-      mentalidade, agressividade: 0, pressao: 0, passe: "misto", lado, contraAtaque: false, impedimento: false,
+      mentalidade, agressividade: 0, pressao: 0, passe: "misto", lado, contraAtaque: false, impedimento: false, ...estilo,
       capitao: porInfluencia[0], vice: porInfluencia[1],
       armador: melhores(meias.length ? meias : linha, x => x.j.at[A.cri], 1)[0],
       alvo: melhores(atacantes.length ? atacantes : linha, x => x.j.at[A.cab] + x.j.at[A.for], 1)[0],
@@ -809,7 +835,7 @@ const __bot = (() => {
     };
     return { formacao, escalacao, banco, instrucoes, forca };
   }
-  return { FORMACOES_BOT, taticaBot };
+  return { FORMACOES_BOT, ESTILO_DO_PERFIL, taticaBot };
 })();
 
 const __relatorio = (() => {
@@ -1034,7 +1060,7 @@ const __rodada = (() => {
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
     const times = lados.map((l, i) => {
-      const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa });
+      const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil });
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 });
     });
     const p = simularPartida(criarRng(semente), times[0], times[1]);
@@ -1109,7 +1135,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, ultimo_acesso").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta

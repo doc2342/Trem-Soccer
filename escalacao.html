@@ -144,7 +144,7 @@ async function iniciarOnline() {
   $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
   const mesmoGrupo = outros.find(c => c.grupo === clubeOnline.grupo); if (mesmoGrupo) $("advOnline").value = mesmoGrupo.id;
   const guardados = {};
-  adversarioOnline = async () => { const id = +$("advOnline").value; guardados[id] = guardados[id] || await B.elencoDoClube(id); return { elenco: guardados[id], nome: outros.find(c => c.id === id).nome }; };
+  adversarioOnline = async () => { const id = +$("advOnline").value, c = outros.find(x => x.id === id); guardados[id] = guardados[id] || await B.elencoDoClube(id); return { elenco: guardados[id], nome: c.nome, perfil: c.perfil }; };
   sel = null; limparReferencias(); render();
 }
 function aplicarFormacao(nome) {
@@ -260,7 +260,7 @@ async function jogar() {
   const adv = online ? online.elenco : gerarElenco(criarRng(8000 + +$("sementeAdv").value), { nivel: +$("nivelAdv").value, nomes, prefixoId: "a" });
   const nomeMeu = clubeOnline ? clubeOnline.nome : "Meu time", nomeAdv = online ? online.nome : "Bot";
   const minhaForca = V.esc11.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11;
-  const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca });
+  const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca, perfil: online ? online.perfil : null });
   const meu = prepararTime({ nome: nomeMeu, escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
   const bot = prepararTime({ nome: nomeAdv, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
   const n = +(ler("mo_partidas") || 0) + 1; guardar("mo_partidas", n);

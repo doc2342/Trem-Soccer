@@ -136,18 +136,20 @@ async function rodar() {
   h += `<div class="card"><h2>Formações: pontos por jogo, todas contra todas</h2>` + tabela(["Formação", "Pontos por jogo"], Object.entries(m.ppj).sort((a, b) => b[1] - a[1]).map(([f, p]) => [f, faixa(p, 1.2, 1.55, f2(p))])) +
     `<div class="mut" style="margin:8px 0 4px">Pontos por jogo do mandante (linha) contra o visitante (coluna)</div>` + tabela(["", ...fs.map((_, i) => i + 1)], fs.map((a, i) => [`${i + 1}. ${a}`, ...fs.map(b => a === b ? "—" : f2(m.tabela[a][b]))])) + `</div>`;
   $("saida").innerHTML = h; await pausa();
+  // confrontos táticos: cada escolha forte tem uma resposta que a vence; a meta é a resposta certa render 0,3 ponto por jogo ou mais
+  const O = { curto: { passe: "curto" }, longo: { passe: "longo" }, pressao: { pressao: 2 }, contra: { contraAtaque: true }, linha: { impedimento: true }, ofensivo: { mentalidade: 2 }, retranca: { mentalidade: -2 } };
   const testes = [
-    ["Mentalidade muito ofensiva", { mentalidade: 2 }, {}], ["Mentalidade muito defensiva", { mentalidade: -2 }, {}],
-    ["Pressão alta", { pressao: 2 }, {}], ["Agressividade muito alta", { agressividade: 2 }, {}], ["Agressividade muito baixa", { agressividade: -2 }, {}],
-    ["Passe curto", { passe: "curto" }, {}], ["Bola longa", { passe: "longo" }, {}], ["Bola longa contra pressão alta", { passe: "longo" }, { pressao: 2 }],
-    ["Ataque pelos dois lados", { lado: "lados" }, {}], ["Contra-ataque", { contraAtaque: true }, {}], ["Contra-ataque contra time muito ofensivo", { contraAtaque: true }, { mentalidade: 2 }],
-    ["Linha de impedimento", { impedimento: true }, {}],
-    ["Azarão (3 pontos de nota abaixo) jogando normal", {}, {}, 27], ["Azarão na retranca (muito defensiva)", { mentalidade: -2 }, {}, 27],
-  ].map(([nome, ia, ib, na], k) => [nome, confronto({ instrucoes: ia, nivel: na }, { instrucoes: ib }, { pares: 16, neutro: true, semente: na ? 900 : 500 + k })]);
-  
-  h += `<div class="card"><h2>Efeito das instruções (time A com a instrução, campo neutro, mesmo nível salvo indicação)</h2>` + tabela(["Instrução do time A", "Pontos por jogo (A · B)", "Gols (A · B)", "Finalizações (A · B)", "Faltas", "Amarelos", "Energia no fim"],
-    testes.map(([nome, r]) => [nome, `${f2(r.pontosA)} · ${f2(r.pontosB)}`, `${f2(r.gols[0])} · ${f2(r.gols[1])}`, `${f1(r.fin[0])} · ${f1(r.fin[1])}`, f1(r.extra.faltas), f1(r.extra.amarelos), f1(r.energiaFinal)])) +
-    `<div class="mut" style="margin-top:6px">Com 400 partidas por linha, diferenças de até 0,12 ponto por jogo são ruído.</div></div>`;
+    ["Bola longa contra pressão alta", O.longo, O.pressao, "vence"], ["Passe curto contra pressão alta", O.curto, O.pressao, "perde"],
+    ["Passe curto contra time sem pressão", O.curto, {}, "vence"], ["Bola longa contra time sem pressão", O.longo, {}, "perde"],
+    ["Contra-ataque contra time muito ofensivo", O.contra, O.ofensivo, "vence"], ["Contra-ataque contra time neutro", O.contra, {}, "perde"],
+    ["Linha de impedimento contra bola longa", O.linha, O.longo, "vence"], ["Linha de impedimento contra passe curto", O.linha, O.curto, "perde"],
+    ["Linha de impedimento contra contra-ataque", O.linha, O.contra, "perde"], ["Passe curto contra retranca", O.curto, O.retranca, "vence"],
+    ["Muito ofensivo contra neutro", O.ofensivo, {}, "equilibra"], ["Retranca contra neutro", O.retranca, {}, "equilibra"],
+  ].map(([nome, ia, ib, meta], k) => [nome, confronto({ instrucoes: ia }, { instrucoes: ib }, { pares: 24, neutro: true, semente: 500 + k }), meta]);
+  const sinal = (r, meta) => { const d = r.pontosA - r.pontosB, ok = meta === "vence" ? d >= 0.15 : meta === "perde" ? d <= -0.1 : Math.abs(d) < 0.25; return `<span class="${ok ? "ok" : "bad"}">${d >= 0 ? "+" : ""}${f2(d)}</span>`; };
+  h += `<div class="card"><h2>Confrontos táticos (time A com a instrução, campo neutro, mesmo nível)</h2>` + tabela(["Time A contra time B", "Esperado para A", "Pontos por jogo (A · B)", "Diferença", "Gols (A · B)"],
+    testes.map(([nome, r, meta]) => [nome, meta, `${f2(r.pontosA)} · ${f2(r.pontosB)}`, sinal(r, meta), `${f2(r.gols[0])} · ${f2(r.gols[1])}`])) +
+    `<div class="mut" style="margin-top:6px">Com 600 partidas por linha, a diferença tem margem de cerca de 0,1 ponto por jogo para mais ou para menos.</div></div>`;
   $("saida").innerHTML = h; await pausa();
   const pf = perfis();
   h += `<div class="card"><h2>Perfis de elenco: pontos por jogo, todos contra todos (campo neutro)</h2>` + tabela(["Perfil", "Pontos por jogo"], Object.entries(pf).sort((a, b) => b[1] - a[1]).map(([k, p]) => [PERFIS[k].nome, faixa(p, 1.25, 1.5, f2(p))])) + `</div>`;
