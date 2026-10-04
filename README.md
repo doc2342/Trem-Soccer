@@ -14,7 +14,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | D. Instruções e energia | pronto |
 | E. Bot e relatório | pronto |
 | F. Tela de escalação | pronto |
-| G. Contas e clubes | código pronto; falta executar o SQL no Supabase e testar com contas reais |
+| G. Contas e clubes | pronto |
 | H. Rodada no servidor | a fazer |
 | I. Lançamento fechado | a fazer |
 
