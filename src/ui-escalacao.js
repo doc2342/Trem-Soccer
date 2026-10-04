@@ -235,10 +235,11 @@ function render() {
   const cobradores = (k, q) => Array.from({ length: q }, (_, i) => `<label class="pl"><span>${i + 1}º</span><select data-cob="${k}" data-i="${i}">${opJog(linha, E.instr.cobradores[k][i])}</select></label>`).join("");
   $("papeis").innerHTML = `<div class="papeis">
     <b>Liderança</b><div>${papel("capitao", "Capitão", tit)}${papel("vice", "Vice", tit)}</div>
-    <b>Jogadas</b><div>${papel("armador", "Armador", linha)}${papel("alvo", "Homem-alvo", linha)}</div>
-    <b>Escanteios</b><div>${cobradores("escanteio", 3)}</div>
-    <b>Faltas</b><div>${cobradores("falta", 3)}</div>
-    <b>Pênaltis</b><div>${cobradores("penalti", 5)}</div></div>
+    <b>Jogadas</b><div>${papel("armador", "Armador", linha)}${papel("alvo", "Homem-alvo", linha)}</div></div>
+    <div class="cobradores">
+      <div><b>Escanteios</b>${cobradores("escanteio", 3)}</div>
+      <div><b>Faltas</b>${cobradores("falta", 3)}</div>
+      <div><b>Pênaltis</b>${cobradores("penalti", 5)}</div></div>
     <div class="mut" style="font-size:12px;margin-top:6px">Em automático, o jogo escolhe o melhor em campo para a função. Nos cobradores, vale a ordem: se o 1º não estiver em campo, cobra o 2º.</div>`;
   // substituições e ordens
   const reservas = E.banco.map(jogDe).filter(Boolean);
