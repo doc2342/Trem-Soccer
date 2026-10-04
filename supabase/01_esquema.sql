@@ -114,7 +114,10 @@ begin
   if char_length(p_nome) < 3 or char_length(p_nome) > 30 then raise exception 'O nome do clube deve ter de 3 a 30 caracteres.'; end if;
   if p_sigla !~ '^[A-Z0-9]{3}$' then raise exception 'A sigla deve ter 3 letras ou números.'; end if;
   if octet_length(p_escudo::text) > 500 or octet_length(p_uniforme::text) > 500 then raise exception 'Escudo ou uniforme inválido.'; end if;
-  select id, liga_id into v_id, v_liga from clubes where dono is null order by random() limit 1 for update skip locked;
+  -- os grupos são preenchidos em ordem: primeiro o A, depois o B, e assim por diante
+  select id, liga_id into v_id, v_liga from clubes where dono is null
+    and liga_id = (select max(id) from ligas)
+    order by grupo, random() limit 1 for update skip locked;
   if v_id is null then raise exception 'Não há vagas na liga no momento.'; end if;
   if exists (select 1 from clubes where liga_id = v_liga and lower(nome) = lower(p_nome)) then raise exception 'Já existe um clube com esse nome.'; end if;
   update clubes set dono = auth.uid(), nome = p_nome, sigla = p_sigla, escudo = p_escudo, uniforme = p_uniforme,
