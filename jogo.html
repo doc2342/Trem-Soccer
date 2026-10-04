@@ -136,7 +136,7 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
+import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta } from "./src/modelo.js";
 import { experienciaDe, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
@@ -315,6 +315,7 @@ async function telaClube(liga, clube) {
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       ${(t => t ? `<div style="font-size:12.5px;margin-bottom:6px">🔭 Teto estimado pelo olheiro: nota entre <b>${t.minimo}</b> e <b>${t.maximo}</b></div>` : "")(tetoDe[j.id] || relatorioDe(j.id))}
       <div style="font-size:12.5px;margin-bottom:6px" title="Sobe 1 a cada partida oficial com pelo menos 45 minutos em campo. Não muda a nota: quanto mais experiência, menos o desempenho do jogador varia de um jogo para o outro, e ele rende até 3% a mais.">🎖️ Experiência <b>${Math.round(experienciaDe(j))}</b> de 100 <span class="mut">· ${experienciaDe(j) >= 70 ? "rende sempre perto do que sabe" : experienciaDe(j) >= 35 ? "ainda oscila um pouco de um jogo para o outro" : "oscila bastante de um jogo para o outro"}</span></div>
+      ${j.inicio && j.inicio.t === liga.temporada ? (d => `<div style="font-size:12.5px;margin-bottom:6px" title="Comparado com a foto tirada na virada da temporada">📈 Desde o início da temporada: nota <b class="${d.nota > 0 ? "ok" : d.nota < 0 ? "bad" : ""}">${d.nota > 0 ? "+" : ""}${f1(d.nota)}</b> <span class="mut">(era ${f1(j.inicio.nota)}) · ${d.soma >= 0 ? "+" : ""}${d.soma} ${Math.abs(d.soma) === 1 ? "ponto" : "pontos"} de atributo</span></div>`)({ nota: Math.round((notaBruta(j.at, j.pos) - j.inicio.nota) * 10) / 10, soma: j.at.reduce((s, v) => s + v, 0) - j.inicio.soma }) : ""}
       <div class="qa-grade">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS).map(([nome, g]) => `<div><div class="qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="qa-linha ${conta[a.k] ? "qa-conta" : ""}"><span>${a.nome}</span><span class="${corAtr(j.at[k])}">${j.at[k]}</span></div>`).join("")}</div>`).join("")}</div>
       <div class="mut" style="margin-top:6px;font-size:12px">Em destaque, os atributos que contam para a posição dele.${Object.keys(j.fam).filter(p => p !== j.pos).length ? ` Também joga: ${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${sg(p)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})`).join(", ")}.` : ""}</div>`; };
   const outros = clubes.filter(c => c.id !== clube.id);

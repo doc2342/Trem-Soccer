@@ -39,7 +39,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null,
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
-    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
+    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
 export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);
@@ -50,6 +50,17 @@ export const designarTreinador = (id, area) => sb.rpc("designar_treinador", { p_
 export const efeitosPendentes = () => sb.from("resultados").select("partida_id", { count: "exact", head: true }).not("efeitos", "is", null).then(({ count, error }) => error ? 0 : count || 0);
 // depois da virada: quem chegou entre a última rodada e a virada conta como reforço da temporada nova (38_janela_de_fim_de_temporada.sql)
 export const ajustarJanelaFinal = ligaId => sb.rpc("ajustar_janela_final", { p_liga: ligaId }).then(({ error }) => !error);
+// Foto do início da temporada (40_foto_do_inicio_da_temporada.sql): nota e soma dos atributos de cada jogador, gravadas pelo administrador
+// logo depois da virada (ou a qualquer momento, pelo botão do painel). Devolve quantos foram gravados, ou null sem o SQL 40.
+export async function marcarInicioDaTemporada(ligaId, notaDe) {
+  const todos = await jogadoresDoMercado(); let n = 0;
+  for (let i = 0; i < todos.length; i += 400) {
+    const { data, error } = await sb.rpc("marcar_inicio_da_temporada", { p_liga: ligaId, p_lista: todos.slice(i, i + 400).map(j => ({ id: j.id, nota: Math.round(notaDe(j) * 10) / 10, soma: j.at.reduce((s, v) => s + (v || 0), 0) })) });
+    if (error) return null;
+    n += data || 0;
+  }
+  return n;
+}
 export const limparTreinadores = ligaId => sb.rpc("limpar_treinadores", { p_liga: ligaId }).then(({ error }) => !error);
 // T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
 export const definirTreino = lista => sb.rpc("definir_treino", { p_lista: lista.map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
