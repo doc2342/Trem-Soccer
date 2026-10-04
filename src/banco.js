@@ -129,7 +129,16 @@ export async function precoDoIngresso(clubeId) {
 export const guardarEstadoInicial = ligaId => sb.rpc("guardar_estado_inicial", { p_liga: ligaId }).then(ok);
 export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p_liga: ligaId, p_sortear: sortear }).then(ok);
 // V2: virada de temporada (supabase/16_virada_de_temporada.sql)
-export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao").eq("liga_id", ligaId).then(ok);
+export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel").eq("liga_id", ligaId).then(ok);
+// Base e dispensa (supabase/35_base_e_dispensa.sql). A peneira passa pela função "mercado", que gera os jovens no servidor.
+export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jogador: numero(jogadorId) }).then(ok);
+export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
+export async function fazerPeneira() {
+  const { data, error } = await sb.functions.invoke("mercado", { body: { acao: "peneira" } });
+  if (error) throw new Error('A função "mercado" não respondeu (ela já foi publicada no Supabase?).');
+  if (!data || data.erro) throw new Error(data ? data.erro : "Sem resposta do servidor.");
+  return data.mensagem;
+}
 export async function talentosDaLiga() { // só o administrador consegue ler
   const t = {};
   for (let de = 0; ; de += 1000) {

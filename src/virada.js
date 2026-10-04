@@ -1,6 +1,7 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
 import { ATRIBUTOS, ATR_MIN, ATR_MAX } from "./modelo.js";
+import { jovensDaBase } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador } from "./gerador.js";
 import { salarioDeMercado } from "./economia.js";
@@ -110,18 +111,25 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
   for (const c of clubes) {
    const vencidos = []; let ficam = 0;
+   // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
+   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova })) {
+     ficam++;
+     plano.novos.push({ clube_id: c.id, ...jovem });
+     resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
+   }
    // clube com dirigente que entrou nos últimos 21 dias cuida dos próprios contratos; os demais renovam sozinhos
    const cuida = comLivres && !!c.dono && !!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000;
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
     if (rng.chance(chanceDeAposentar(idade))) {
-      ficam++;
       plano.aposentados.push(numero(j.id));
+      resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
+      if (c.dono) continue; // clube com dirigente: quem repõe é a base
+      ficam++;
       const jovem = gerarJogador(rng, { id: null, pos: j.pos, alvo: limitar(NOTA_DO_JOVEM + rng.normal(0, 1.5), 18, 26), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
       const mercado = salarioDeMercado(jovem);
       plano.novos.push({ clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
         salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: nova });
-      resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
       resumo.novos.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
       continue;
     }

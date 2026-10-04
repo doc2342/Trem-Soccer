@@ -328,8 +328,43 @@ const __economia = (() => {
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
   return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao, dinheiro };
 })();
+
+const __base = (() => {
+  // Base: os jovens que o clube revela. Chegam na virada da temporada (promoção) e numa peneira a partir da rodada 9.
+  // Quantos vêm depende do nível da base; a nota de chegada é baixa (14 a 20) e o talento médio sobe com o nível.
+  // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
+  const { limitar } = __rng;
+  const { gerarJogador } = __gerador;
+  const { salarioDeMercado } = __economia;
+  const CONFIG_BASE = {
+    promocao: [[1, 1], [1, 2], [2, 2], [2, 3], [3, 3], [3, 4]], // por nível da base (0 a 5): mínimo e máximo de jovens na virada
+    peneira: [[0, 0], [0, 1], [0, 1], [0, 2], [1, 2], [1, 3]],  // idem, na peneira do meio da temporada
+    rodadaDaPeneira: 9,
+    nota: [15, 0.6, 1.5, 13, 21], // nota de chegada: 15 + 0,6 por nível, com desvio de 1,5, entre 13 e 21
+    talentoPorNivel: 4,           // cada nível da base soma 4 ao talento sorteado (1 a 100)
+    idade: [16, 18], contrato: 3,
+  };
+  // posições sorteadas para os jovens: mais gente de linha do que goleiro
+  const POSICOES_DA_BASE = ["GK", "DC", "DC", "DR", "DL", "DMC", "MC", "MC", "MR", "ML", "AMC", "AMR", "AML", "FC", "SC", "RW", "LW"];
+  const faixaDeJovens = (nivel, momento) => CONFIG_BASE[momento === "peneira" ? "peneira" : "promocao"][limitar(nivel || 0, 0, 5)];
+
+  // Devolve os jovens prontos para gravar: { nome, pais, idade, pos, fam, at, tal, salario, salario_mercado, contrato_ate, protegido_ate }.
+  // temporada: a temporada em que eles começam a jogar. usados: nomes que não podem se repetir.
+  function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "equilibrado", nomes, usados, temporada }) {
+    const C = CONFIG_BASE, [min, max] = faixaDeJovens(nivel, momento), n = rng.int(min, max), lista = [];
+    for (let k = 0; k < n; k++) {
+      const j = gerarJogador(rng, { id: null, pos: rng.pick(POSICOES_DA_BASE), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
+        idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
+      const mercado = salarioDeMercado(j);
+      lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: limitar(j.tal + C.talentoPorNivel * (nivel || 0), 1, 100),
+        salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada });
+    }
+    return lista;
+  }
+  return { CONFIG_BASE, faixaDeJovens, jovensDaBase };
+})();
 // <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia;
+const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -349,6 +384,17 @@ Deno.serve(async (req) => {
     const { data: quem } = token ? await sb.auth.getUser(token) : { data: null };
     if (!quem || !quem.user) return json({ erro: "É preciso entrar na conta." });
     const pedido = await req.json().catch(() => ({}));
+    // peneira da base: os jovens são gerados aqui, conforme o nível da base do clube, e gravados pelo banco (35_base_e_dispensa.sql)
+    if (pedido.acao === "peneira") {
+      const { data: meu } = await sb.from("clubes").select("id, perfil, liga_id, base_nivel").eq("dono", quem.user.id).maybeSingle();
+      if (!meu) return json({ erro: "Você não tem clube." });
+      const { data: lg } = await sb.from("ligas").select("temporada").eq("id", meu.liga_id).maybeSingle();
+      if (!nomes) nomes = await (await fetch(NOMES)).json();
+      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0 });
+      const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });
+      if (r.error) return json({ erro: r.error.message });
+      return json({ ok: true, mensagem: r.data });
+    }
     const idJogador = +String(pedido.jogador || "").replace(/^j/, "");
     if (!idJogador) return json({ erro: "Jogador não informado." });
 

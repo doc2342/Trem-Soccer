@@ -205,7 +205,7 @@ async function tela(aviso = "") {
   em("processar", () => processar(false));
   em("gerarPlayoffs", async () => {
     try {
-      const div = Object.fromEntries((await divisoesDosClubes(liga.id)).map(c => [c.id, c.divisao])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2 }));
+      const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
       const r = proximaFaseDosPlayoffs({ clubes: lista, partidas, resultados: await resultadosDe(partidas.map(p => p.id), true) });
       if (r.erro) { $("previaVirada").innerHTML = `<span class="aviso">${esc(r.erro)}</span>`; return; }
       const ini = new Date($("inicioPlayoff").value).getTime(), fim = ini + (liga.minutos_transmissao || 0) * 60000, nome = Object.fromEntries(clubes.map(c => [c.id, c.nome]));
@@ -217,7 +217,7 @@ async function tela(aviso = "") {
   em("prepararVirada", async () => {
     $("prepararVirada").disabled = true; $("previaVirada").innerHTML = `<span class="mut">Lendo elencos e resultados…</span>`;
     try {
-      const div = Object.fromEntries((await divisoesDosClubes(liga.id)).map(c => [c.id, c.divisao])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2 }));
+      const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
       const elencos = {};
       for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
       const [talentos, resultados, lucros] = await Promise.all([talentosDaLiga(), resultadosDe(partidas.map(p => p.id), true), lucrosDaTemporada(liga.id)]);

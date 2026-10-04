@@ -193,7 +193,7 @@ print("gerado:", destino, "-", len(saida) // 1024, "KB,", saida.count("\n"), "li
 
 
 # ---------- função "mercado": compra pela multa rescisória, com reposição nos clubes sem dono ----------
-MODULOS_MERCADO = ["rng", "modelo", "gerador", "economia"]
+MODULOS_MERCADO = ["rng", "modelo", "gerador", "economia", "base"]
 CABECALHO_MERCADO = """// @ts-nocheck
 // ARQUIVO GERADO por ferramentas/empacotar_funcao.py. Não editar à mão: mudar os módulos de src/ e gerar de novo.
 //
@@ -208,7 +208,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // >>> módulos embutidos
 """
 RODAPE_MERCADO = r"""// <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia;
+const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -228,6 +228,17 @@ Deno.serve(async (req) => {
     const { data: quem } = token ? await sb.auth.getUser(token) : { data: null };
     if (!quem || !quem.user) return json({ erro: "É preciso entrar na conta." });
     const pedido = await req.json().catch(() => ({}));
+    // peneira da base: os jovens são gerados aqui, conforme o nível da base do clube, e gravados pelo banco (35_base_e_dispensa.sql)
+    if (pedido.acao === "peneira") {
+      const { data: meu } = await sb.from("clubes").select("id, perfil, liga_id, base_nivel").eq("dono", quem.user.id).maybeSingle();
+      if (!meu) return json({ erro: "Você não tem clube." });
+      const { data: lg } = await sb.from("ligas").select("temporada").eq("id", meu.liga_id).maybeSingle();
+      if (!nomes) nomes = await (await fetch(NOMES)).json();
+      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0 });
+      const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });
+      if (r.error) return json({ erro: r.error.message });
+      return json({ ok: true, mensagem: r.data });
+    }
     const idJogador = +String(pedido.jogador || "").replace(/^j/, "");
     if (!idJogador) return json({ erro: "Jogador não informado." });
 

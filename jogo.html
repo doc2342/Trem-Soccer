@@ -138,8 +138,9 @@
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
 import { FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
+import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
-import { sair, ligaAtual, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { sair, ligaAtual, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -263,6 +264,7 @@ async function telaClube(liga, clube) {
   const [caixa, obra] = await Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]);
   await resolverLeiloes(liga.id); // fecha leilões e ofertas que já venceram
   const [janela, transferencias, propostas, livres, ofertas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]);
+  const rodadasFeitas = clube.peneira_temporada === undefined ? null : await rodadasCompletas(liga.id); // base e peneira: só depois do 35_base_e_dispensa.sql
   const lancesLivres = livres ? await lancesDosLivres(livres.map(j => j.id)) : [];
   const duracaoDoLeilao = liga.horas_leilao == null ? "48 horas" : +liga.horas_leilao >= 1 ? +liga.horas_leilao + " horas" : Math.round(liga.horas_leilao * 60) + " minutos";
   const meusLeiloes = new Set(lancesLivres.filter(l => l.clube_id === clube.id).map(l => l.jogador_id)).size;
@@ -310,7 +312,7 @@ async function telaClube(liga, clube) {
   const outros = clubes.filter(c => c.id !== clube.id);
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico atende mais lesionados por rodada"],
-    ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela jogadores melhores"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
+    ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e com mais talento"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const estruturas = () => {
     const manut = Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, k) => s + ACUMULADO[clube[k] || 0], 0));
@@ -321,7 +323,7 @@ async function telaClube(liga, clube) {
         return `<tr><td class="esq">${nome}${k === "estadio" ? ` <span class="tag">${(5000 + 5000 * n).toLocaleString("pt-BR")} lugares</span>` : ""}</td><td><b>${n}</b> de 5</td><td class="esq mut">${serve}</td>
           <td>${custo == null ? "máximo" : dinheiro(custo)}</td><td>${custo == null ? "—" : PRAZO[prox] + (PRAZO[prox] === 1 ? " rodada" : " rodadas")}</td>
           <td>${custo == null ? "" : `<button class="sec" data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} title="${obra ? "Já há uma obra em andamento" : caixa < custo ? "Caixa insuficiente" : ""}">${n === 0 ? "Construir" : "Ampliar"}</button>`}</td></tr>`; }).join("")}</table></div>
-      <div class="mut" style="margin-top:6px">O centro de treinamento já acelera o treino e o departamento médico já aumenta quantos lesionados o médico atende (os dois na aba Elenco, em Treino). A fisioterapia aumenta quantos jogadores o preparador de forma atende. A base ainda espera as revelações. O estádio rende na bilheteria.</div>
+      <div class="mut" style="margin-top:6px">O centro de treinamento já acelera o treino e o departamento médico já aumenta quantos lesionados o médico atende (os dois na aba Elenco, em Treino). A fisioterapia aumenta quantos jogadores o preparador de forma atende, e a base define quantos jovens chegam (aba Elenco). O estádio rende na bilheteria.</div>
       <div id="obraAviso" style="margin-top:6px"></div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
@@ -568,6 +570,11 @@ async function telaClube(liga, clube) {
     <section data-secao="elenco">
     ${treinoLigado ? `<div class="subabas" id="eSub" style="margin-bottom:12px"><button class="sub" data-esub="lista">👥 Jogadores</button><button class="sub" data-esub="treino">🏋️ Treino</button></div>` : ""}
     <div data-esecao="lista">
+    ${rodadasFeitas == null ? "" : (() => { const n = clube.base_nivel || 0, pr = faixaDeJovens(n, "promocao"), pe = faixaDeJovens(n, "peneira"), feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
+      const quantos = ([a, b]) => a === b ? (a === 0 ? "nenhum jovem" : a === 1 ? "1 jovem" : a + " jovens") : `${a} a ${b} jovens`;
+      return `<div class="card"><h2>Base <span class="tag">nível ${n}</span></h2>
+        <div class="mut">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota entre 14 e 20; a base de nível mais alto traz mais gente e com mais talento. Quem tem até 21 anos não entra no limite de 35 do elenco.</div>
+        <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div></div>`; })()}
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · ${adultos} de 35 com mais de 21 anos${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
@@ -820,6 +827,11 @@ async function telaClube(liga, clube) {
   let inicial = "inicio"; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
   const clubeAberto = verClube;
   abrir(document.querySelector(`[data-secao="${inicial}"]`) ? inicial : "inicio");
+  if ($("peneira")) $("peneira").onclick = async () => {
+    $("peneira").disabled = true; $("peneiraAviso").textContent = "Olhando a garotada…";
+    try { const msg = await fazerPeneira(); alert(msg); await carregar({ user: usuario }); }
+    catch (err) { $("peneiraAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("peneira").disabled = false; }
+  };
   // sub-abas do elenco (jogadores e treino) e a tela do treino
   if ($("eSub")) {
     const abrirE = k => { document.querySelectorAll("[data-esecao]").forEach(x => { x.hidden = x.dataset.esecao !== k; }); document.querySelectorAll("#eSub .sub").forEach(b => b.classList.toggle("ativa", b.dataset.esub === k)); try { localStorage.setItem("mo_elenco", k); } catch (e) {} };
@@ -981,6 +993,8 @@ async function telaClube(liga, clube) {
             <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
           <div class="mut" style="margin-top:6px">A venda negociada só fecha entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa).</div>
           <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
+        ${clube.peneira_temporada === undefined || (j.idade > 21 && j.idade < 31) ? "" : bloco("Dispensar", `<button class="sec" id="ctDispensar" ${elenco.length <= 16 ? "disabled" : ""}>Dispensar sem custo</button>
+          <div class="mut" style="margin-top:6px">Vale para quem tem até 21 anos ou 31 ou mais. Ele fica livre e pode ser contratado por qualquer clube. O elenco não pode ficar com menos de 16.</div>`)}
         ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button>
           <div class="mut" style="margin-top:6px">60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</div>
           ${livres == null ? "" : j.ofertaLigaAte ? `<div class="aviso" style="margin-top:8px">Oferecido à liga por ${dinheiro(Math.round(3.75 * j.salario))} até ${ateQuando(j.ofertaLigaAte)}. Se ninguém levar, vai ao banco.</div>`
@@ -1010,6 +1024,11 @@ async function telaClube(liga, clube) {
     if ($("ctOferecer")) $("ctOferecer").onclick = async () => {
       if (!confirm(`Oferecer ${j.nome} à liga? Qualquer clube poderá levá-lo por ${dinheiro(Math.round(3.75 * j.salario))}; se ninguém levar no prazo, ele vai ao banco.`)) return;
       try { await oferecerALiga(j.id); await carregar({ user: usuario }); }
+      catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
+    if ($("ctDispensar")) $("ctDispensar").onclick = async () => {
+      if (!confirm(`Dispensar ${j.nome}? Ele sai do clube agora e fica livre para qualquer um contratar. Não dá para desfazer.`)) return;
+      try { await dispensarJogador(j.id); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     if ($("ctBanco")) $("ctBanco").onclick = async () => {
