@@ -91,7 +91,7 @@ import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { montarLogin } from "./src/ui-login.js";
-import { sg, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
+import { sg, pp, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
 import { svgEscudo, svgUniforme, visualAleatorio, FORMAS, PADROES, CORES } from "./src/escudo.js";
 
 const $ = id => document.getElementById(id);
@@ -190,7 +190,7 @@ async function telaClube(liga, clube) {
   }
   const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${sg(naTatica[j.id].pos)}">${sg(naTatica[j.id].pos)}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
-  const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td><span class="pp">${sg(j.pos)}</span></td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
+  const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td>${pp(j.pos)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
     <td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
     <td>${j.idade}</td><td class="mut c-pais" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
     <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
@@ -205,7 +205,7 @@ async function telaClube(liga, clube) {
   elenco.forEach(j => fichas.set(String(j.id), j));
   const botaoInfo = j => { fichas.set("m" + j.id, j); return `<button class="info" data-info="m${j.id}" title="Atributos">i</button>`; };
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
-    return `<div class="qa-topo"><b>${esc(j.nome)}</b> <span class="pp">${sg(j.pos)}</span> <span class="nota">${f1(notaNaPosicao(j, j.pos))}</span></div>
+    return `<div class="qa-topo"><b>${esc(j.nome)}</b> ${pp(j.pos)} <span class="nota">${f1(notaNaPosicao(j, j.pos))}</span></div>
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       <div class="qa-grade">${GRUPOS_DE_ATRIBUTOS.map(([nome, g]) => `<div><div class="qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="qa-linha ${conta[a.k] ? "qa-conta" : ""}"><span>${a.nome}</span><span class="${corAtr(j.at[k])}">${j.at[k]}</span></div>`).join("")}</div>`).join("")}</div>
       <div class="mut" style="margin-top:6px;font-size:12px">Em destaque, os atributos que contam para a posição dele.${Object.keys(j.fam).filter(p => p !== j.pos).length ? ` Também joga: ${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${sg(p)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})`).join(", ")}.` : ""}</div>`; };
@@ -307,7 +307,7 @@ async function telaClube(liga, clube) {
 
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
-        ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">Dirigente sem nome</span>`} <button class="sec" id="nomeDirigente" style="padding:1px 8px;font-size:12px" title="Mudar o nome do dirigente">✏️</button></div>`}
+        ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
     <div class="abas" id="abas">${[["inicio", "Central"], ["elenco", "Elenco"], ["tatica", "Tática"], ["mercado", "Mercado"], ["classificacao", "Classificação"], ["financas", "Finanças"], ["config", "⚙️"]].map(([k, n]) => `<button class="aba" data-aba="${k}" ${k === "config" ? `title="Configurações"` : ""}>${n}</button>`).join("")}${telaPequena ? `<button class="aba" id="modoTela" style="margin-left:auto" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div>
@@ -352,7 +352,7 @@ async function telaClube(liga, clube) {
           <div class="mut" style="margin:4px 0 8px">Vale para as suas telas, neste aparelho. Por dentro o jogo não muda: táticas salvas e o resto continuam iguais.</div>
           <label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:6px"><input type="radio" name="cfgSiglas" value="en" ${formatoDasSiglas() === "en" ? "checked" : ""}> Inglês, como no Dugout <span class="mut">(GK, DC, DMC, AMC, FC, SC…)</span></label>
           <label style="flex-direction:row;align-items:center;gap:8px"><input type="radio" name="cfgSiglas" value="pt" ${formatoDasSiglas() === "pt" ? "checked" : ""}> Português <span class="mut">(GOL, ZAG, VOL, MEI, ATA, CA…)</span></label>
-          <div class="mut" style="margin-top:8px;font-size:12.5px">${LISTA_POSICOES.map(p => `${p} → ${SIGLAS_PT[p]}`).join(" · ")}. A lista em português ainda é provisória.</div></div>
+          <div class="mut" style="margin-top:8px;font-size:12.5px">Passando o mouse sobre a sigla, aparece o nome completo da posição.</div></div>
         <div><b>Dirigente</b>
           <div style="margin:4px 0 8px">${clube.dirigente === undefined ? `<span class="mut">O nome do dirigente aparece aqui quando o administrador ligar essa opção.</span>` : `${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">sem nome</span>`} <button class="sec" id="cfgDirigente">Mudar o nome</button>`}</div>
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
@@ -372,7 +372,7 @@ async function telaClube(liga, clube) {
       <div id="mPainel" style="margin-top:10px"></div>
       <div id="mLista" class="mut" style="margin-top:10px">Escolha uma posição.</div></div>
     ${propostas == null ? "" : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
-      const nomeJ = p => p.jogadores ? `<span class="pp">${esc(sg(p.jogadores.pos))}</span> ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
+      const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
       const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada" };
       const recebidas = propostas.filter(p => p.vendedor === clube.id), enviadas = propostas.filter(p => p.comprador === clube.id);
       const linhaR = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.comprador)}</td><td><b>${dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `você pediu ${dinheiro(p.contra_valor)}` : ESTADO[p.estado] || p.estado}</td>
@@ -387,15 +387,15 @@ async function telaClube(liga, clube) {
       const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
       return `<div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
         ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id), aberto = new Date(j.livre_ate) > new Date();
-          return `<tr class="clk" data-livre="${j.id}"><td><span class="pp">${sg(j.pos)}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
+          return `<tr class="clk" data-livre="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
             <td class="esq ${m && m.clube_id === clube.id ? "nota" : ""}">${m ? `${dinheiro(m.salario)} · ${esc((cPor[m.clube_id] || {}).nome || "—")}` : "—"}</td><td class="${aberto ? "" : "aviso"}">${aberto ? "até " + ateQuando(j.livre_ate) : "encerrado: assina na hora"}</td></tr>`; }).join("")}</table></div>
         <div id="livrePainel" style="margin-top:10px"></div>`; })()}</div>`}
     ${livres == null || !ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length ? "" : `<div class="card"><h2>Ofertas de clubes no vermelho <span class="tag">75% da multa rescisória · vale mesmo com a janela fechada</span></h2>
       <div class="rolagem" id="ofertasLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th>Salário</th><th>Preço</th><th>Até</th></tr>
-      ${ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).map(j => `<tr class="clk" data-oferta="${j.id}"><td><span class="pp">${sg(j.pos)}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="esq">${esc(cPor[j.clube_id].nome)}</td><td>${dinheiro(j.salario)}</td><td><b>${dinheiro(Math.round(3.75 * j.salario))}</b></td><td>${ateQuando(j.oferta_liga_ate)}</td></tr>`).join("")}</table></div>
+      ${ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).map(j => `<tr class="clk" data-oferta="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="esq">${esc(cPor[j.clube_id].nome)}</td><td>${dinheiro(j.salario)}</td><td><b>${dinheiro(Math.round(3.75 * j.salario))}</b></td><td>${ateQuando(j.oferta_liga_ate)}</td></tr>`).join("")}</table></div>
       <div id="ofertaPainel" style="margin-top:10px"></div></div>`}
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
-      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq"><span class="pp">${esc(sg(t.pos || ""))}</span> ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
+      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </section>
     <section data-secao="elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
@@ -436,7 +436,7 @@ async function telaClube(liga, clube) {
         .map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota);
       $("mLista").className = "";
       $("mLista").innerHTML = l.length ? `<table class="mini" style="width:100%"><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th class="c-sal">Salário</th><th>Multa</th><th class="c-sal" title="Última temporada coberta pelo contrato">Contr.</th></tr>
-        ${l.slice(0, 60).map(j => `<tr class="clk" data-mjog="${j.id}"><td><span class="pp">${sg(j.pos)}</span></td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
+        ${l.slice(0, 60).map(j => `<tr class="clk" data-mjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
           <td class="esq cl-nome">${lk(j.clube_id)} <span class="tag c-sal">${esc(nomeDoGrupo(cPor[j.clube_id].grupo))}${cPor[j.clube_id].dono ? "" : " · sem dono"}</span></td>
           <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(clausula(j.salario))}</b>`}${j.a_venda ? `<br><span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td class="c-sal">${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("")}</table>${l.length > 60 ? `<div class="mut" style="margin-top:6px">Mostrando os 60 de maior nota entre ${l.length}.</div>` : ""}`
         : `<span class="mut">Ninguém com esses filtros.</span>`;
@@ -496,7 +496,7 @@ async function telaClube(liga, clube) {
             <div id="cvPainel"></div>
             <div class="elenco2" id="cvLista">${[ZONAS_DO_ELENCO.slice(0, 2), ZONAS_DO_ELENCO.slice(2)].map(metade => `<div>${metade.map(([titulo, linhas]) => { const z = l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota);
               return `<div class="zona"><h3>${titulo} <span class="tag">${z.length}</span></h3><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="c-sal">Salário</th><th>Multa</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
-                ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td><span class="pp">${sg(j.pos)}</span></td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
+                ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
                   <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(clausula(j.salario))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>`;
         $("cvVoltar").onclick = () => abrir(abaAnterior);
         $("cvLista").onclick = e => { const tr = e.target.closest("tr[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
@@ -585,7 +585,7 @@ async function telaClube(liga, clube) {
   $("abas").onclick = e => { if (e.target.dataset.aba) abrir(e.target.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
-  if ($("cfgDirigente")) $("cfgDirigente").onclick = () => $("nomeDirigente") && $("nomeDirigente").click();
+  document.querySelectorAll("[data-aba-ir]").forEach(a => { a.onclick = () => abrir(a.dataset.abaIr); });
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
   // qualquer nome de clube com atalho abre a página dele (o próprio clube leva à aba Elenco)
   $("app").addEventListener("click", e => {
@@ -593,7 +593,7 @@ async function telaClube(liga, clube) {
     e.preventDefault(); const id = +a.dataset.clube;
     if (id === clube.id) abrir("elenco"); else if (paginaDoClube) paginaDoClube(id);
   });
-  if ($("nomeDirigente")) $("nomeDirigente").onclick = async () => {
+  if ($("cfgDirigente")) $("cfgDirigente").onclick = async () => {
     const nome = prompt("Seu nome de dirigente (de 2 a 24 caracteres):", clube.dirigente || ""); if (nome == null) return;
     try { await definirDirigente(nome); await carregar({ user: usuario }); } catch (err) { alert(err.message); }
   };
