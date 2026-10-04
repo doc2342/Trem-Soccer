@@ -25,12 +25,31 @@ export function htmlLance(l) {
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
+// Resumo da partida: quem fez os gols (e quem deu o passe) e quem levou cartão, um time de cada lado, na ordem do jogo.
+// Serve à transmissão (recebe só os lances já liberados) e ao relatório. nomePorId cobre partidas gravadas antes de o lance trazer os nomes.
+export function htmlResumo(narracao, nomePorId = {}) {
+  const lados = [[], []];
+  for (const l of narracao) {
+    if (l.time !== 0 && l.time !== 1) continue;
+    if (l.resultado === "gol") {
+      const quem = l.quem || nomePorId[l.finalizador] || "", assist = l.assist !== undefined ? l.assist : (l.criador !== l.finalizador ? nomePorId[l.criador] : null);
+      lados[l.time].push(`⚽ ${l.min}' ${quem ? `<b>${esc(quem)}</b>` : "gol"}${l.tipo === "penalti" ? ` <span class="mut">(pênalti)</span>` : assist ? ` <span class="mut">(${esc(assist)})</span>` : ""}`);
+    } else if (l.tipo === "amarelo" || l.tipo === "vermelho") {
+      const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
+      lados[l.time].push(`${l.tipo === "amarelo" ? "🟨" : /^Segundo amarelo/.test(l.texto || "") ? "🟨🟥" : "🟥"} ${l.min}' ${m ? esc(m[1]) : ""}`);
+    }
+  }
+  if (!lados[0].length && !lados[1].length) return "";
+  return `<div class="resumoJogo"><div class="casa">${lados[0].map(x => `<div>${x}</div>`).join("")}</div><div class="fora">${lados[1].map(x => `<div>${x}</div>`).join("")}</div></div>`;
+}
+
 // r: saída de montarRelatorio. nomes: [mandante, visitante]. analistas: de quais times mostrar o comentário.
 // abertura: html opcional com cara ou coroa, clima e escalações, mostrado no começo da reprise.
 export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false } = {}) { // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
+    ${htmlResumo(r.narracao, Object.fromEntries(r.jogadores.map(j => [j.id, j.nome])))}
     <div class="mut" style="margin-top:8px;font-size:12px">Com as chances que cada time criou, o resultado seria:</div>
     <div class="barra"><div style="width:${E.vitoria * 100}%;background:var(--casa)">${pc(E.vitoria)}</div><div style="width:${E.empate * 100}%;background:#8b9bb0">empate ${pc(E.empate)}</div><div style="width:${E.derrota * 100}%;background:var(--fora)">${pc(E.derrota)}</div></div>
     ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${esc(r.melhor.nome)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}</div>`;

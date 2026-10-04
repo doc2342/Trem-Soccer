@@ -19,6 +19,10 @@
     .aba .at-l { display:none; } .aba .at-c { display:block; font-size:10.5px; font-weight:600; white-space:nowrap; }
   }
   .vaga .vpos, .fechaEscolha, .posDaVaga { display:none; }
+  /* ao arrastar um titular, cada faixa do campo ganha uma tira com as posições possíveis: soltar numa delas muda a posição da vaga */
+  .fila.fant { display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); gap:4px; min-height:0; }
+  .fant .gh { grid-column-end:span 2; border:1px dashed var(--ac); border-radius:6px; font-size:11.5px; font-weight:700; padding:4px 0; text-align:center; color:var(--ac); background:rgba(0,0,0,.28); }
+  .fant .gh.alvo { background:var(--ac); color:#1a1300; }
   .vaga.fam-C { border-color:#8a7a2e; } .vaga.fam-I { border-color:#a8474d; }
   details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
   details.card > summary h2 { display:inline; } details.card > summary::after { content:" ▾"; color:var(--mut); } details.card[open] > summary::after { content:" ▴"; }
@@ -69,7 +73,7 @@
 
   <div class="duas">
     <div>
-      <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; a posição da vaga muda no seletor</span></h2><div class="gramado" id="gramado"></div>
+      <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; arrastando um titular aparecem as outras posições: solte numa delas para mudar a posição dele</span></h2><div class="gramado" id="gramado"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <details class="card dobra" open><summary><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2></summary><div class="campo" id="zonas" style="max-width:none"></div></details>
@@ -238,16 +242,27 @@ function validar() {
   return { erros, avisos, cob, esc11 };
 }
 
-function render() {
-  guardar("mo_trabalho_" + chaveElenco(), E);
-  const V = validar();
-  // gramado
-  $("gramado").innerHTML = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
+// Faixas do campo e as posições de cada uma, para as tiras que aparecem ao arrastar um titular (coluna inicial numa grade de 10).
+const TIRAS = [[["LW", 1], ["FC", 4], ["SC", 6], ["RW", 9]], [["AML", 1], ["AMC", 5], ["AMR", 9]], [["ML", 1], ["MC", 5], ["MR", 9]], [["WBL", 1], ["DMC", 5], ["WBR", 9]], [["DL", 1], ["DC", 4], ["SW", 6], ["DR", 9]]];
+const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
+// mapa: índice da vaga que está sendo arrastada (mostra as tiras de posições), ou null
+function htmlGramado(mapa = null) {
+  const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos" title="${POSICOES[pos].nome}">${sg(pos)}</span><select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
       <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span><span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>` : "&nbsp;"}</div></div>`;
-  }).join("")}</div>`).join("");
+  }).join("")}</div>` }));
+  if (mapa === null) return filas.map(f => f.html).join("");
+  const j = jogDe(E.jog[mapa]);
+  const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
+  return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
+}
+function render() {
+  guardar("mo_trabalho_" + chaveElenco(), E);
+  const V = validar();
+  // gramado
+  $("gramado").innerHTML = htmlGramado();
   // banco
   $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
@@ -338,7 +353,7 @@ if (window.matchMedia && matchMedia("(max-width:620px)").matches) document.query
 // arrastar e soltar, com mouse ou dedo: de uma vaga, do banco ou da lista para uma vaga ou para o banco
 let arrasto = null, ignorarClique = false;
 const fimDoArrasto = () => { if (arrasto && arrasto.fantasma) arrasto.fantasma.remove(); document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrasto = null; };
-const alvoEm = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-vaga], [data-banco]"); };
+const alvoEm = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-vaga], [data-banco], [data-novapos]"); };
 document.querySelector("main").addEventListener("pointerdown", e => {
   const h = e.target.closest("[data-arrasta]");
   if (!h || !h.dataset.arrasta || e.target.closest("select, input, button") || (e.pointerType === "mouse" && e.button !== 0)) return;
@@ -350,6 +365,9 @@ window.addEventListener("pointermove", e => {
     if (Math.hypot(e.clientX - arrasto.x0, e.clientY - arrasto.y0) < 8) return;
     const f = arrasto.fantasma = document.createElement("div"), j = jogDe(arrasto.id);
     f.className = "fantasma"; f.textContent = `${sg(j.pos)} ${j.nome}`; document.body.appendChild(f); document.body.classList.add("arrastando");
+    // titular de linha: aparecem as posições para onde a vaga dele pode ir
+    const vaga = E.jog.indexOf(arrasto.id);
+    if (vaga >= 0 && E.vagas[vaga] !== "GK") { arrasto.mapa = vaga; $("gramado").innerHTML = htmlGramado(vaga); }
   }
   arrasto.fantasma.style.transform = `translate(${e.clientX + 10}px, ${e.clientY + 10}px)`;
   document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo"));
@@ -357,14 +375,17 @@ window.addEventListener("pointermove", e => {
 });
 window.addEventListener("pointerup", e => {
   if (!arrasto) return;
-  const { id, fantasma } = arrasto; fimDoArrasto();
+  const { id, fantasma, mapa } = arrasto;
+  const alvo = fantasma ? alvoEm(e.clientX, e.clientY) : null; // antes de desfazer as tiras, que saem do lugar ao redesenhar
+  fimDoArrasto();
   if (!fantasma) return; // foi só um clique
   ignorarClique = true; setTimeout(() => { ignorarClique = false; }, 0);
-  const alvo = alvoEm(e.clientX, e.clientY); if (!alvo) return;
+  if (!alvo) { if (mapa !== undefined) render(); return; }
+  if (alvo.dataset.novapos !== undefined) { E.vagas[mapa] = alvo.dataset.novapos; limparReferencias(); sel = null; return render(); }
   sel = alvo.dataset.vaga !== undefined ? { tipo: "vaga", i: +alvo.dataset.vaga } : { tipo: "banco", i: Math.min(+alvo.dataset.banco, E.banco.length) };
   escolher(id);
 });
-window.addEventListener("pointercancel", fimDoArrasto);
+window.addEventListener("pointercancel", () => { const tinhaMapa = arrasto && arrasto.mapa !== undefined; fimDoArrasto(); if (tinhaMapa) render(); });
 
 // eventos
 document.querySelector("main").addEventListener("click", e => {
