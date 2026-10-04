@@ -1,5 +1,6 @@
 // Desenho do relatório da partida, compartilhado pelas telas.
 import { POSICOES } from "./modelo.js";
+import { sg } from "./siglas.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 const COR = ["casa", "fora"];
@@ -46,16 +47,16 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🩹" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? "🔻" : ""}`;
   const corNota = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
   const doTime = i => { const l = r.jogadores.filter(j => j.time === i); return { tit: l.filter(j => j.entrou === 0).sort((a, b) => ordem(a.pos) - ordem(b.pos)), res: l.filter(j => j.entrou > 0).sort((a, b) => a.entrou - b.entrou) }; };
-  const ficha = j => `<div class="vaga" style="cursor:default"><span class="pp">${j.pos}</span><div class="nome" title="${esc(j.nome)}">${esc(j.nome)}</div><div class="det"><b class="${corNota(j.nota)}" style="font-size:14px">${f1(j.nota)}</b> ${marcas(j)}</div></div>`;
+  const ficha = j => `<div class="vaga" style="cursor:default"><span class="pp">${sg(j.pos)}</span><div class="nome" title="${esc(j.nome)}">${esc(j.nome)}</div><div class="det"><b class="${corNota(j.nota)}" style="font-size:14px">${f1(j.nota)}</b> ${marcas(j)}</div></div>`;
   const campinho = i => {
     const { tit, res } = doTime(i), filas = Object.fromEntries(LINHAS_CAMPO.map(l => [l, []]));
     tit.forEach(j => (filas[(POSICOES[j.pos] || {}).linha] || filas.meio).push(j));
     const lado = j => ({ E: 0, C: 1, D: 2 })[(POSICOES[j.pos] || {}).lado] ?? 1;
     return `<div><div class="${COR[i]}" style="margin-bottom:4px;font-weight:600">${n[i]}</div><div class="gramado">${LINHAS_CAMPO.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => lado(a) - lado(b)).map(ficha).join("")}</div>`).join("")}</div>
-      ${res.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Entraram: ${res.map(j => `${esc(j.nome)} (${j.pos}, aos ${j.entrou}') <b class="${corNota(j.nota)}">${f1(j.nota)}</b> ${marcas(j)}`).join(" · ")}</div>` : ""}</div>`;
+      ${res.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Entraram: ${res.map(j => `${esc(j.nome)} (${sg(j.pos)}, aos ${j.entrou}') <b class="${corNota(j.nota)}">${f1(j.nota)}</b> ${marcas(j)}`).join(" · ")}</div>` : ""}</div>`;
   };
   const cab = `<tr><th>Pos</th><th class="esq">Jogador</th><th>Nota</th><th>Min</th><th>Gols</th><th>Assist.</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos · perdidos</th><th>Defesas</th><th>Faltas</th><th>Cartões</th><th>Energia no fim</th></tr>`;
-  const linhaJ = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td class="nota">${f1(j.nota)}</td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + " · " + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${j.energia}</td></tr>`;
+  const linhaJ = j => `<tr><td><span class="pp">${sg(j.pos)}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td class="nota">${f1(j.nota)}</td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + " · " + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${j.energia}</td></tr>`;
   const titulo = t => `<tr><td colspan="13" class="esq mut" style="font-weight:600;padding-top:10px">${t}</td></tr>`;
   const estatisticas = `<table>${[0, 1].map(i => { const { tit, res } = doTime(i); return titulo(`<span class="${COR[i]}">${n[i]}</span> · titulares`) + cab + tit.map(linhaJ).join("") + (res.length ? titulo(`<span class="${COR[i]}">${n[i]}</span> · entraram no jogo`) + res.map(linhaJ).join("") : ""); }).join("")}</table>`;
   const id = "rj" + (++serieAbas);

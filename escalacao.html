@@ -64,6 +64,7 @@ import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } 
 import { taticaBot } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
+import { sg } from "./src/siglas.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -174,7 +175,7 @@ function validar() {
   if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
   esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): na liga ele será trocado pelo melhor disponível para a posição.`));
-  esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${x.pos} (rende 80%).`));
+  esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${sg(x.pos)} (rende 80%).`));
   if (E.banco.length && !E.banco.some(id => jogDe(id).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   return { erros, avisos, cob, esc11 };
 }
@@ -188,11 +189,11 @@ function render() {
   $("gramado").innerHTML = LINHAS.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => ORDEM_LADO[POSICOES[E.vagas[a]].lado] - ORDEM_LADO[POSICOES[E.vagas[b]].lado]).map(i => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "" : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}">
-      <select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option ${p === pos ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
       <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}` : "&nbsp;"}</div></div>`;
   }).join("")}</div>`).join("");
   // banco
-  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${j.pos}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
@@ -228,7 +229,7 @@ function renderEscolha() {
   const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
   el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
-    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} ${j.fora > 0 ? `<span class="bad">${j.motivo || "fora"} ${j.fora}j</span> ` : ""}<span class="tag">${j.idade} anos${j.amarelos ? " · " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
+    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${sg(j.pos)}</span><span>${esc(j.nome)} ${j.fora > 0 ? `<span class="bad">${j.motivo || "fora"} ${j.fora}j</span> ` : ""}<span class="tag">${j.idade} anos${j.amarelos ? " · " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 
@@ -287,7 +288,7 @@ window.addEventListener("pointermove", e => {
   if (!arrasto.fantasma) {
     if (Math.hypot(e.clientX - arrasto.x0, e.clientY - arrasto.y0) < 8) return;
     const f = arrasto.fantasma = document.createElement("div"), j = jogDe(arrasto.id);
-    f.className = "fantasma"; f.textContent = `${j.pos} ${j.nome}`; document.body.appendChild(f); document.body.classList.add("arrastando");
+    f.className = "fantasma"; f.textContent = `${sg(j.pos)} ${j.nome}`; document.body.appendChild(f); document.body.classList.add("arrastando");
   }
   arrasto.fantasma.style.transform = `translate(${e.clientX + 10}px, ${e.clientY + 10}px)`;
   document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo"));

@@ -20,6 +20,7 @@ import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
+import { sg } from "./src/siglas.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
@@ -167,7 +168,7 @@ async function tela(aviso = "") {
     const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre" };
     $("transfAdm").innerHTML = `<h2>Transferências <span class="tag">anular devolve o jogador ao clube de origem e o dinheiro a quem pagou</span></h2>
       ${l.length ? `<div class="rolagem" style="max-height:300px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Tipo</th><th>Valor</th><th>Taxa</th><th>Temporada</th><th></th></tr>
-        ${l.map(t => `<tr><td class="esq"><span class="pp">${esc(t.pos || "")}</span> ${esc(t.jogador)}</td><td class="esq">${esc(nome[t.de_clube] || "—")}</td><td class="esq">${esc(nome[t.para_clube] || "—")}</td><td>${TIPO[t.tipo] || esc(t.tipo)}</td><td>${dinheiro(t.valor)}</td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : "meio") : ""}</td>
+        ${l.map(t => `<tr><td class="esq"><span class="pp">${esc(sg(t.pos || ""))}</span> ${esc(t.jogador)}</td><td class="esq">${esc(nome[t.de_clube] || "—")}</td><td class="esq">${esc(nome[t.para_clube] || "—")}</td><td>${TIPO[t.tipo] || esc(t.tipo)}</td><td>${dinheiro(t.valor)}</td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : "meio") : ""}</td>
           <td>${t.de_clube && t.para_clube ? `<button class="sec" data-anular="${t.id}">Anular</button>` : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}
       <div class="mut" style="margin-top:6px">${esc(aviso)}</div>`;
     $("transfAdm").onclick = async e => {
@@ -227,7 +228,7 @@ async function tela(aviso = "") {
       const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres });
       const seta = x => x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : "";
       const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
-      const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${x.pos}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";
+      const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${sg(x.pos)}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";
       $("previaVirada").innerHTML = `<div class="duas">${Object.entries(resumo.grupos).map(([g, l]) => `<div><b>${nomeDoGrupo(g)}</b><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>Prêmio</th><th>Imposto</th><th class="esq">Destino</th></tr>${l.map(lugar).join("")}</table></div>`).join("")}</div>
         <div style="margin-top:10px">Prêmios: ${dinheiro(plano.classificacao.reduce((s, x) => s + x.premio, 0))} no total · imposto previsto: ${dinheiro(plano.classificacao.reduce((s, x) => s + impostoDe(x), 0))} (metade vai, por igual, para a terceira divisão da temporada nova; metade fica guardada para a segunda taça) · ${resumo.cresceram} jogadores crescem · ${resumo.cairam} perdem físico · ${resumo.renovados} contratos renovados sozinhos · ${plano.aposentados.length} se aposentam e ${plano.novos.length} jovens chegam.</div>
         <div class="mut" style="margin-top:6px">Aposentam-se: ${gente(resumo.aposentados)}.</div><div class="mut" style="margin-top:4px">Chegam: ${gente(resumo.novos)}.</div>
