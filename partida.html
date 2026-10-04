@@ -114,7 +114,7 @@ function jogar() {
   const p = simularPartida(criarRng(+$("semente").value), times[0], times[1]);
   $("resultado").innerHTML = `<div class="placar"><span class="casa">Mandante ${p.placar[0]}</span> x <span class="fora">${p.placar[1]} Visitante</span>
     <small>xG ${f2(p.xg[0])} x ${f2(p.xg[1])}</small></div>`;
-  $("lances").innerHTML = p.narracao.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`).join("") || `<div class="mut">Nenhum lance.</div>`;
+  $("lances").innerHTML = p.narracao.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto.replace(/\{[01?]:([^{}]+)\}/g, "$1"))}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`).join("") || `<div class="mut">Nenhum lance.</div>`;
   const linha = (n, f) => `<tr><td class="casa">${f(p.estat[0])}</td><td class="mut">${n}</td><td class="fora">${f(p.estat[1])}</td></tr>`;
   $("estat").innerHTML = `<table>${linha("Posse", e => e.posse + "%")}${linha("Ataques", e => e.ataques)}${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}
     ${linha("Chances", e => e.chances)}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}${linha("Gols", e => e.gols)}

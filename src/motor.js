@@ -308,24 +308,25 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   return c;
 }
 
-function narrar(c, resultado, goleiro) {
-  const f = c.finalizador.j.nome, cr = c.criador.j.nome, lado = NOME_LADO[c.lado];
+// nm: função que escreve o nome do jogador marcado com o time ("{0:Fulano}"), para a tela pintar cada um na cor do seu clube
+function narrar(c, resultado, goleiro, nm) {
+  const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
   const inicio = {
-    cruzamento: `${cr} cruza da ${lado} e ${f} sobe para cabecear`,
-    corte: `${f} corta da ${lado} para dentro e chuta`,
+    cruzamento: `${cr} cruza da ${lado} e ${f} cabeceia`,
+    corte: `${f} vem da ${lado} em diagonal e chuta`,
     profundidade: `${cr} lança em profundidade e ${f} sai na cara do gol`,
     area: c.criador === c.finalizador ? `${f} recebe na área e finaliza` : `${cr} acha ${f} na área, que finaliza`,
     longe: `${f} arrisca de fora da área`,
     escanteio: `${cr} cobra o escanteio e ${f} cabeceia`,
-    falta: c.criador === c.finalizador ? `${f} cobra a falta direto para o gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
+    falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
     penalti: `Pênalti! ${f} cobra`,
   }[c.tipo];
   const fim = {
     gol: "GOL!",
-    defesa: goleiro ? `${goleiro.j.nome} defende.` : "a bola para na defesa.",
-    fora: "para fora.",
+    defesa: goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
+    fora: "a bola sai pela linha de fundo.",
     trave: "na trave!",
-    bloqueado: c.zagueiro ? `${c.zagueiro.j.nome} bloqueia.` : "a zaga bloqueia.",
+    bloqueado: c.zagueiro ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.",
   }[resultado];
   return `${inicio}: ${fim}`;
 }
@@ -347,12 +348,19 @@ export function simularPartida(rng, casa, fora) {
   let seq = 0; // ordem de acontecimento, para a narração misturar finalizações e os outros lances na sequência certa
   // parcial para a transmissão ao vivo: [posse do mandante em %, faltas do mandante, do visitante, escanteios do mandante, do visitante]
   const parcial = () => [min > 1 ? Math.round(somaPosse / (min - 1) * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
-  const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto, p: parcial() });
+  const nm = jog => `{${jogadores[jog.j.id] ? jogadores[jog.j.id].time : "?"}:${jog.j.nome}}`, tm = i => `{${i}:${times[i].nome}}`;
+  // os cartões esperam o lance da falta ser narrado e saem logo depois dele, já dizendo o motivo
+  const pendentes = [];
+  const soltarCartoes = () => { while (pendentes.length) { const c = pendentes.shift(); eventos.push({ n: seq++, min, time: c.i, tipo: c.tipo, texto: c.texto, p: parcial() }); } };
+  const empurrar = (lista, o) => { lista.push(o); soltarCartoes(); };
+  const evento = (i, tipo, texto) => empurrar(eventos, { n: seq++, min, time: i, tipo, texto, p: parcial() });
+  const cartao = (i, tipo, texto) => pendentes.push({ i, tipo, texto });
   // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
   const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `pela ${NOME_LADO[l]} do meio-campo`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
   // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
   // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
   // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
+  let atacante = null, ultimoNarrado = null; // time do ataque em andamento e do último ataque que foi narrado
   let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
   const RODA = [
     (j, t, onde) => `${j} não acha espaço ${onde}, recua e o ${t} roda a bola.`,
@@ -363,27 +371,27 @@ export function simularPartida(rng, casa, fora) {
   // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
   const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
   const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
-  const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; portador = null; return t; };
+  const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; portador = null; ultimoNarrado = atacante; return t; };
   const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
   // a bola chega a "jog": se estava com outro, o passe entra na frase anterior; devolve true se o jogador já era o portador
   function recebe(jog) {
     const mesmo = !!jog && jog === portador;
     if (jog && portador && !mesmo && trilha.length) {
       const ultima = trilha[trilha.length - 1];
-      if (ultima.falta) trilha.push([`${portador.j.nome} cobra a falta para ${jog.j.nome}`]);
-      else if (ultima.fechada) trilha.push([`${portador.j.nome} toca para ${jog.j.nome}`]); else ultima.push(`toca para ${jog.j.nome}`);
+      if (ultima.falta) trilha.push([`${nm(portador)} cobra a falta e aciona ${nm(jog)}`]);
+      else if (ultima.fechada) trilha.push([`${nm(portador)} toca para ${nm(jog)}`]); else ultima.push(`toca para ${nm(jog)}`);
     }
     portador = jog || null;
     return mesmo;
   }
   function passo(i, zona, d) {
     const p = d.pivo, m = d.marcador, lado = zona[1];
-    if (!p) { portador = null; trilha.push([`${times[i].nome} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
-    const mesmo = recebe(p), nome = p.j.nome;
+    if (!p) { portador = null; trilha.push([`${tm(i)} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
+    const mesmo = recebe(p), nome = nm(p);
     // falta fora da zona de ataque: o time fica com a bola e recomeça dali, cobrando a falta (não é lei da vantagem)
-    if (d.falta && m) trilha.push(Object.assign([`${m.j.nome} para ${nome} com falta ${ONDE[zona[0]](lado)}`], { fechada: true, falta: true }));
-    else if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "levanta a cabeça para o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [`passa por ${m.j.nome}`] : [])]);
-    else trilha.push([`${mesmo ? (trilha.length && trilha[trilha.length - 1].falta ? nome + " cobra rápido e segue" : "Segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`deixa ${m.j.nome} para trás`] : [])]);
+    if (d.falta && m) trilha.push(Object.assign([`Falta de ${nm(m)} em ${nome} ${ONDE[zona[0]](lado)}`], { fechada: true, falta: true }));
+    else if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [`passa por ${nm(m)}`] : [])]);
+    else trilha.push([`${mesmo ? (trilha.length && trilha[trilha.length - 1].falta ? nome + " cobra rápido e segue" : "Segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`supera ${nm(m)}`] : [])]);
   }
   function perdaDePosse(i, zona, d) {
     // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
@@ -395,23 +403,23 @@ export function simularPartida(rng, casa, fora) {
       const p = i === 0 ? posseCasa : 1 - posseCasa;
       if (p > 0.5 && !rng.chance((1 - p) / p)) {
         recebe(d.pivo);
-        evento(i, "posse", comTrilha(RODA[seq % RODA.length](d.pivo.j.nome, times[i].nome, onde)));
+        evento(i, "roda", comTrilha(RODA[seq % RODA.length](nm(d.pivo), tm(i), onde)));
         proximo = { time: i, zona: "M" }; rodou = true; bola = null;
         return false;
       }
       proximo = { time: 1 - i, zona: bola.zona };
     }
-    if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${times[1 - i].nome} recupera a bola ${onde}.`)); return true; }
+    if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} recupera a bola ${onde}.`)); return true; }
     const p = d.pivo, m = d.marcador;
     recebe(p);
     const causas = [["dominio", 60 - p.at[A.dom]], ["passe", 60 - p.at[A.pas]]];
     if (m) causas.push(["desarme", 20 + m.at[A.des]], ["corte", 20 + m.at[A.pos]]);
     // os sorteios seguem a ordem antiga (quando só parte das perdas era narrada), para a mesma semente continuar dando o mesmo jogo
     const causa = rng.chance(CONFIG.narrarPerda[zona[0]]) ? sortearPeso(rng, causas, c => c[1])[0] : causas[seq % causas.length][0];
-    if (causa === "desarme") evento(1 - i, "posse", comTrilha(`${m.j.nome} desarma ${p.j.nome} ${onde}.`));
-    else if (causa === "corte") evento(1 - i, "posse", comTrilha(`${m.j.nome} intercepta o passe de ${p.j.nome} ${onde}.`));
-    else if (causa === "dominio") evento(i, "posse", comTrilha(`${p.j.nome} domina mal ${onde} e perde a posse.`));
-    else evento(i, "posse", comTrilha(`${p.j.nome} erra o passe ${onde}.`));
+    if (causa === "desarme") evento(1 - i, "posse", comTrilha(`${nm(m)} desarma ${nm(p)} ${onde}.`));
+    else if (causa === "corte") evento(1 - i, "posse", comTrilha(`${nm(m)} intercepta o passe de ${nm(p)} ${onde}.`));
+    else if (causa === "dominio") evento(i, "posse", comTrilha(`${nm(p)} domina mal ${onde} e perde a posse.`));
+    else evento(i, "posse", comTrilha(`${nm(p)} erra o passe ${onde}.`));
     return true;
   }
   // esperado: chance que o jogador tinha de vencer o duelo; a nota compara o que ele venceu com o que era esperado
@@ -443,7 +451,7 @@ export function simularPartida(rng, casa, fora) {
     t.instr.ordens.forEach((o, k) => {
       if (t.ordensFeitas.has(k) || min < (o.min || 0) || !condicao(i, o.cond)) return;
       t.ordensFeitas.add(k); Object.assign(t.instr, o.muda); sujo = true;
-      evento(i, "ordem", `${t.nome} muda a forma de jogar.`);
+      evento(i, "ordem", `${tm(i)} muda a forma de jogar.`);
     });
     t.instr.substituicoes.forEach((s, k) => {
       if (t.subsFeitas.has(k) || min < (s.min || 0) || t.subs >= CONFIG.maxSubstituicoes) return;
@@ -451,7 +459,7 @@ export function simularPartida(rng, casa, fora) {
       if (!sai || !entra) { if (!sai && min >= (s.min || 0)) t.subsFeitas.add(k); return; }
       if (!condicao(i, s.cond, sai)) return;
       t.subsFeitas.add(k); sair(i, sai); entrar(i, entra, s.pos || sai.pos);
-      evento(i, "substituicao", `Sai ${sai.j.nome}, entra ${entra.nome}.`);
+      evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
     });
   }
   // Quem sai machucado é trocado pelo melhor do banco para a posição, se ainda houver substituição.
@@ -462,20 +470,20 @@ export function simularPartida(rng, casa, fora) {
     if (!candidatos.length) return;
     const entra = candidatos.reduce((m, j) => notaNaPosicao(j, jog.pos) > notaNaPosicao(m, jog.pos) ? j : m);
     entrar(i, entra, jog.pos);
-    evento(i, "substituicao", `Entra ${entra.nome} no lugar de ${jog.j.nome}.`);
+    evento(i, "substituicao", `Entra {${i}:${entra.nome}} no lugar de ${nm(jog)}.`);
   }
-  function falta(i, marcador) { // i: time que cometeu
-    const t = times[i], s = jogadores[marcador.j.id];
+  function falta(i, marcador, vitima) { // i: time que cometeu
+    const t = times[i], s = jogadores[marcador.j.id], em = vitima ? ` em ${nm(vitima)}` : "";
     estat[i].faltas++; s.faltas++;
-    if (rng.chance(CONFIG.vermelhoDireto)) return expulsar(i, marcador, `${marcador.j.nome} é expulso por entrada violenta!`);
+    if (rng.chance(CONFIG.vermelhoDireto)) return expulsar(i, marcador, `Cartão vermelho direto para ${nm(marcador)} pela entrada violenta${em}!`);
     if (!rng.chance(CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * (marcador.amarelos ? CONFIG.cuidadoComAmarelo : 1))) return;
     marcador.amarelos++; s.amarelos++; estat[i].amarelos++;
-    if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo: ${marcador.j.nome} está expulso!`);
-    evento(i, "amarelo", `Cartão amarelo para ${marcador.j.nome}.`);
+    if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)} pela falta${em}: está expulso!`);
+    cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)} pela falta${em}.`);
   }
   function expulsar(i, jog, texto) {
     estat[i].vermelhos++; jogadores[jog.j.id].vermelho = true;
-    sair(i, jog); evento(i, "vermelho", texto);
+    sair(i, jog); cartao(i, "vermelho", texto);
   }
 
   // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
@@ -490,7 +498,7 @@ export function simularPartida(rng, casa, fora) {
     let venceu = rng.chance(p), parada = false, comFalta = false;
     const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
     if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25))) {
-      falta(1 - i, marcador); comFalta = true;
+      falta(1 - i, marcador, pivo); comFalta = true;
       if (zona[0] === "A") parada = true; else venceu = true; // falta no ataque vira bola parada; atrás, a jogada segue
     } else {
       e.zonas[zona][venceu ? 0 : 1]++;
@@ -500,7 +508,7 @@ export function simularPartida(rng, casa, fora) {
     if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade))) {
       const r = rng.n(), dias = r < 0.5 ? rng.int(1, 3) : r < 0.8 ? rng.int(4, 10) : rng.int(11, 30);
       jogadores[pivo.j.id].lesionado = true; lesoes.push({ id: pivo.j.id, time: i, dias });
-      sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${pivo.j.nome} se machuca e não continua.`)); reporLesionado(i, pivo);
+      sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
       return { venceu: false, pivo: null, marcador, parada: false };
     }
     return { venceu, pivo, marcador, parada, falta: comFalta };
@@ -511,20 +519,21 @@ export function simularPartida(rng, casa, fora) {
     if (c.tipo === "profundidade") {
       const K = CONFIG.impedimento;
       const p = def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (c.contra ? K.noContraAtaque : 1), 0.05, 0.65) : K.semLinha;
-      if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${c.criador.j.nome} lança e ${c.finalizador.j.nome} é pego em impedimento.`)); return; }
+      if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${nm(c.criador)} lança e ${nm(c.finalizador)} é pego em impedimento.`)); return; }
       if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
     }
     const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
     const k = c.tipo === "penalti" ? 0.6 : CONFIG.inclinacaoFinalizacao;
     const pGol = limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * mod(c.chute + CONFIG.vantagemFinalizador, c.defesa + ruido, k), 0.005, 0.92);
-    const resultado = rng.chance(pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
+    let resultado = rng.chance(pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
+    if (c.tipo === "penalti" && resultado === "bloqueado") resultado = "defesa"; // pênalti não tem zagueiro na frente
     e.chances++; e.xg += c.xg; e.finalizacoes++;
     if (resultado === "gol" || resultado === "defesa") e.noGol++;
     if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
     const sf = jogadores[c.finalizador.j.id];
     sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
     if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-    lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro)), p: parcial() });
+    empurrar(lances, { n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
     if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) bolaParada(i, "escanteio", "C");
   }
 
@@ -536,7 +545,7 @@ export function simularPartida(rng, casa, fora) {
   // Bola levantada na área em escanteio ou falta: os melhores no jogo aéreo sobem, zagueiros inclusive.
   function bolaAlcada(i, tipo, quem) {
     const atk = times[i], def = times[1 - i], k = CONFIG.inclinacaoXg;
-    if (!rng.chance(CONFIG.cabecadaEscanteio)) { portador = null; evento(i, "posse", comTrilha(`${quem.j.nome} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`)); return; }
+    if (!rng.chance(CONFIG.cabecadaEscanteio)) { portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`)); return; }
     const sobem = atk.emCampo.filter(x => x.pos !== "GK" && x !== quem), marcam = def.emCampo.filter(x => x.pos !== "GK");
     if (!sobem.length) return;
     const alvo = sortearPeso(rng, sobem, x => Math.pow(x.at[A.cab] + x.at[A.for], 2) * (x.j.id === atk.instr.alvo ? CONFIG.pesoAlvo : 1));
@@ -575,10 +584,12 @@ export function simularPartida(rng, casa, fora) {
       // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
       const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
       const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1);
-      if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+      if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
     };
     e.ataques++; trilha = []; portador = null; bola = null;
-    if (!contra && ultimoAtaque === i && !rodou) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](atk.nome)], { fechada: true }));
+    soltarCartoes();
+    if (!contra && ultimoNarrado === i && !rodou) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](tm(i))], { fechada: true }));
+    atacante = i;
     ultimoAtaque = i; if (!contra) rodou = false;
     if (contra) inicio = "M";
     let lado = escolherLado(rng, atk, dz, inicio);
@@ -592,10 +603,10 @@ export function simularPartida(rng, casa, fora) {
     }
     e.corredor[lado]++;
     const d = duelo(i, "A" + lado, bonus, contra);
-    if (d.parada) { if (d.pivo && d.marcador) { recebe(d.pivo); trilha.push([`${d.marcador.j.nome} para ${d.pivo.j.nome} com falta ${ONDE.A(lado)}`]); } return bolaParada(i, "falta", lado); }
-    if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${def.nome} fica com a bola ${ONDE.A(lado)}.`)); return; }
+    if (d.parada) { if (d.pivo && d.marcador) { recebe(d.pivo); trilha.push([`Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}`]); } return bolaParada(i, "falta", lado); }
+    if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
     const forcado = !d.venceu;
-    if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); trilha.push([`${d.marcador ? d.marcador.j.nome : def.nome} corta ${d.pivo.j.nome}`, "cede o escanteio"]); return bolaParada(i, "escanteio", lado); }
+    if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); trilha.push([`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)}`, "cede o escanteio"]); return bolaParada(i, "escanteio", lado); }
     if (forcado && !rng.chance(CONFIG.chuteForcado)) { if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
     finalizar(i, criarChance(rng, atk, def, lado, d.pivo, { forcado, contra }));
   }
@@ -641,6 +652,7 @@ export function simularPartida(rng, casa, fora) {
   min = 90;
   times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
   estat[0].posse = Math.round(somaPosse / 90 * 100); estat[1].posse = 100 - estat[0].posse;
+  soltarCartoes();
   const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);
   // segundo de cada lance dentro do seu minuto, para a transmissão soltar um por vez em vez de todos no minuto cheio
   const porMinuto = {};
