@@ -15,7 +15,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | E. Bot e relatório | pronto |
 | F. Tela de escalação | pronto |
 | G. Contas e clubes | pronto |
-| H. Rodada no servidor | parte 1 pronta (calendário, tática no banco, cálculo disparado pela página de administração, transmissão minuto a minuto, tabela); falta o cálculo automático no servidor |
+| H. Rodada no servidor | parte 1 pronta (calendário, tática no banco, cálculo disparado pela página de administração, transmissão minuto a minuto, tabela); cálculo automático: função `supabase/functions/rodada` e agendamento `supabase/06_agendamento.sql`, a publicar no painel |
 | I. Lançamento fechado | a fazer |
 
 ## Arquivos

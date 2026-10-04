@@ -57,6 +57,12 @@ export async function gravarPartida(partidaId, lances, resultado) {
   await sb.from("partidas").update({ processada: true }).eq("id", partidaId).then(ok);
 }
 
+// Pede ao servidor para calcular as partidas vencidas. Devolve null se a função "rodada" não estiver publicada ou falhar.
+export const calcularNoServidor = async () => {
+  try { const { data, error } = await sb.functions.invoke("rodada", { body: {} }); return error || !data || data.erro ? null : data; }
+  catch (e) { return null; }
+};
+
 export const criarLiga = nome => sb.from("ligas").insert({ nome }).select().single().then(ok);
 export async function criarClubeComElenco(ligaId, clube, elenco) {
   const c = await sb.from("clubes").insert({ liga_id: ligaId, ...clube }).select("id").single().then(ok);
