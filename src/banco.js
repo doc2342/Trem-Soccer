@@ -67,6 +67,41 @@ export async function gravarPartida(partidaId, lances, resultado) {
   await sb.from("partidas").update({ processada: true }).eq("id", partidaId).then(ok);
 }
 
+// ---------- ferramentas do administrador (passo I) ----------
+export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
+// Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
+export async function liberarClube(clubeId) {
+  const c = await sb.from("clubes").select("dono").eq("id", clubeId).single().then(ok);
+  await sb.from("taticas").delete().eq("clube_id", clubeId).then(ok);
+  if (c.dono) await sb.from("pedidos").delete().eq("user_id", c.dono);
+  await sb.from("clubes").update({ dono: null, assumido_em: null, ultimo_acesso: null }).eq("id", clubeId).then(ok);
+}
+// Apaga o resultado de uma partida, para ela ser calculada de novo.
+export async function refazerPartida(partidaId) {
+  await sb.from("lances").delete().eq("partida_id", partidaId).then(ok);
+  await sb.from("resultados").delete().eq("partida_id", partidaId).then(ok);
+  await sb.from("partidas").update({ processada: false }).eq("id", partidaId).then(ok);
+}
+// Troca o placar de uma partida já calculada (por exemplo, para aplicar um W.O.). O relatório da partida não muda.
+export const definirPlacar = (partidaId, golsCasa, golsFora) => sb.from("resultados").update({ gols_casa: golsCasa, gols_fora: golsFora }).eq("partida_id", partidaId).select("partida_id").then(ok);
+export const fazerBackupNoServidor = async () => { const { data, error } = await sb.functions.invoke("backup", { body: {} }); if (error) throw new Error(error.message); if (data && data.erro) throw new Error(data.erro); return data; };
+// Cópia de tudo o que o administrador consegue ler, para guardar fora do Supabase.
+export async function copiaCompleta() {
+  const tabelas = [["ligas", "id"], ["clubes", "id"], ["jogadores", "id"], ["jogadores_ocultos", "jogador_id"], ["taticas", "clube_id"], ["escalacoes", "id"], ["partidas", "id"], ["lances", "id"], ["resultados", "partida_id"], ["pedidos", "id"]];
+  const copia = { feito_em: new Date().toISOString(), tabelas: {}, dirigentes: await emailsDosDirigentes() };
+  for (const [t, ordem] of tabelas) {
+    const tudo = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from(t).select("*").order(ordem).range(de, de + 999);
+      if (error) break;
+      tudo.push(...data);
+      if (data.length < 1000) break;
+    }
+    copia.tabelas[t] = tudo;
+  }
+  return copia;
+}
+
 // Pede ao servidor para calcular as partidas vencidas. Devolve null se a função "rodada" não estiver publicada ou falhar.
 export const calcularNoServidor = async () => {
   try { const { data, error } = await sb.functions.invoke("rodada", { body: {} }); return error || !data || data.erro ? null : data; }

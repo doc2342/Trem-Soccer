@@ -16,7 +16,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | F. Tela de escalação | pronto |
 | G. Contas e clubes | pronto |
 | H. Rodada no servidor | pronto |
-| I. Lançamento fechado | a fazer |
+| I. Lançamento fechado | código pronto: pausa, liberar clube, refazer partida, trocar placar, backup diário (`supabase/08_administracao.sql`, função `backup`) |
 
 ## Arquivos
 

@@ -1032,9 +1032,13 @@ Deno.serve(async (req) => {
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));
     if (!pendentes.length) return json({ calculadas: 0, erros: [] });
+    const todasAsLigas = Object.fromEntries(ok(await sb.from("ligas").select("*")).map(l => [l.id, l]));
+    const jogaveis = pendentes.filter(p => !todasAsLigas[p.liga_id].pausada); // liga pausada não tem partida calculada
+    if (!jogaveis.length) return json({ calculadas: 0, erros: [], pausada: true });
+    pendentes.length = 0; pendentes.push(...jogaveis);
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
-    const ligas = Object.fromEntries(ok(await sb.from("ligas").select("id, minutos_transmissao").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
+    const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
     const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, ultimo_acesso").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};

@@ -19,7 +19,7 @@ import { criarRng } from "./src/rng.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida } from "./src/rodada.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -63,8 +63,43 @@ async function dirigentes() {
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
   nDirigentes = l.length; titulo();
   el.innerHTML = `<h2>Dirigentes: ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada 30 segundos · o número também aparece no título da aba</span></h2>
-    ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th></tr>
-      ${l.map(c => `<tr><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
+    ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
+      ${l.map(c => `<tr><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
+  el.onclick = async e => {
+    const id = e.target.dataset.libera; if (!id) return;
+    if (!confirm(`Liberar o clube "${e.target.dataset.nome}"? O dirigente perde o clube, que volta para o bot, e a tática dele é apagada. Não dá para desfazer.`)) return;
+    e.target.disabled = true;
+    try { await liberarClube(+id); await tela("Clube liberado."); } catch (err) { await tela("Não deu para liberar: " + err.message); }
+  };
+}
+
+// Partidas de uma rodada e de um grupo, com as ações de refazer e de trocar o placar.
+async function partidasAdmin() {
+  const el = $("partidasAdm"); if (!el) return;
+  const liga = await ligaAtual(), todas = await partidasDaLiga(liga.id), clubes = Object.fromEntries((await clubesDaLiga(liga.id)).map(c => [c.id, c]));
+  const g = $("admGrupo") ? $("admGrupo").value : "A", rodadas = [...new Set(todas.map(p => p.rodada))];
+  const ultimaFeita = Math.max(1, ...todas.filter(p => p.processada).map(p => p.rodada));
+  const r = $("admRodada") ? +$("admRodada").value : ultimaFeita;
+  const lista = todas.filter(p => p.grupo === g && p.rodada === r), res = Object.fromEntries((await resultadosDe(lista.map(p => p.id))).map(x => [x.partida_id, x]));
+  el.innerHTML = `<h2>Partidas <span class="tag">refazer apaga o resultado e calcula de novo · trocar o placar serve para W.O. e não mexe no relatório</span></h2>
+    <div class="row"><label>Grupo<select id="admGrupo">${GRUPOS.map(x => `<option ${x === g ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+      <label>Rodada<select id="admRodada">${rodadas.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>Rodada ${x}</option>`).join("")}</select></label></div>
+    <div style="margin-top:8px">${lista.map(p => { const x = res[p.id]; return `<div class="lance" style="align-items:center"><span>${esc(clubes[p.casa].nome)} <b>${x ? `${x.gols_casa} x ${x.gols_fora}` : "x"}</b> ${esc(clubes[p.fora].nome)}</span>
+      <span class="xg">${p.processada ? `<a href="aovivo.html?id=${p.id}" style="color:var(--ac)">ver</a> <button class="sec" data-refaz="${p.id}">Refazer</button> <button class="sec" data-placar="${p.id}">Trocar o placar</button>` : dataHora(p.inicio)}</span></div>`; }).join("") || `<div class="mut">Sem partidas.</div>`}</div>`;
+  $("admGrupo").onchange = $("admRodada").onchange = () => partidasAdmin();
+  el.onclick = async e => {
+    const refaz = e.target.dataset.refaz, placar = e.target.dataset.placar;
+    try {
+      if (refaz) {
+        if (!confirm("Refazer esta partida? O resultado atual é apagado e ela é calculada de novo, com as táticas de agora.")) return;
+        await refazerPartida(+refaz); await processar(false); await partidasAdmin();
+      } else if (placar) {
+        const t = prompt("Novo placar, mandante primeiro (exemplo: 3x0):"); if (t === null) return;
+        const m = t.trim().match(/^(\d{1,2})\s*[xX-]\s*(\d{1,2})$/); if (!m) return alert("Placar inválido. Use o formato 3x0.");
+        await definirPlacar(+placar, +m[1], +m[2]); await partidasAdmin();
+      }
+    } catch (err) { alert("Não deu: " + err.message); }
+  };
 }
 
 // Nome de clube sem dono: prefixo + sobrenome brasileiro, e sigla com as três primeiras letras do sobrenome.
@@ -95,7 +130,8 @@ async function tela(aviso = "") {
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
     ? `<div>${esc(liga.nome)} · temporada ${liga.temporada} · ${clubes.length} clubes, ${humanos} com dirigente e ${clubes.length - humanos} do bot.</div>
-       <div class="row" style="margin-top:10px"><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
+       ${liga.pausada ? `<div class="aviso" style="margin-top:6px">Liga pausada desde ${dataHora(liga.pausada_em)}: nenhuma partida é calculada. Ao retomar, as partidas que faltam são adiadas pelo tempo da pausa.</div>` : ""}
+       <div class="row" style="margin-top:10px"><button id="pausar">${liga.pausada ? "Retomar a liga" : "Pausar a liga"}</button><button class="sec" id="backupServidor">Fazer backup no servidor agora</button><button class="sec" id="baixarCopia">Baixar uma cópia para este computador</button><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
     : `<div class="mut" style="margin-bottom:10px">Nenhuma liga criada. A criação gera ${GRUPOS.length * POR_GRUPO} clubes sem dono, em ${GRUPOS.length} grupos de ${POR_GRUPO}, cada um com 22 jogadores de mesmo nível. Leva cerca de um minuto.</div>
        <div class="row"><label style="flex:1;min-width:180px">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button id="criar">Criar a liga</button></div>`}
     <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
@@ -108,8 +144,9 @@ async function tela(aviso = "") {
          <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre rodadas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="0" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Valores de teste: relatório instantâneo e tática fechando 1 segundo antes. Na liga de verdade serão 105 minutos e 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
+    ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>Grupo ${g}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
-  dirigentes().catch(() => {}); pedidos().catch(() => {});
+  dirigentes().catch(() => {}); pedidos().catch(() => {}); partidasAdmin().catch(() => {});
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
   em("apagar", async () => {
@@ -134,6 +171,24 @@ async function tela(aviso = "") {
     try { await apagarPartidas(liga.id); await tela("Calendário apagado."); } catch (e) { await tela("Erro ao apagar: " + e.message); }
   });
   em("processar", () => processar(false));
+  em("pausar", async () => {
+    try { await pausarLiga(!liga.pausada); await tela(liga.pausada ? "Liga retomada: as partidas que faltavam foram adiadas." : "Liga pausada."); }
+    catch (e) { await tela("Não deu: " + e.message + " (o 08_administracao.sql já foi executado?)"); }
+  });
+  em("backupServidor", async () => {
+    $("progresso").textContent = "Fazendo o backup no servidor…";
+    try { const b = await fazerBackupNoServidor(); $("progresso").textContent = `Backup guardado: ${b.arquivo}, ${b.kb} KB (${Object.entries(b.linhas).map(([t, n]) => `${t} ${n}`).join(", ")}). Backups guardados: ${b.guardados}.`; }
+    catch (e) { $("progresso").textContent = "Não deu para fazer o backup no servidor: " + e.message + " (a função backup já foi publicada?)"; }
+  });
+  em("baixarCopia", async () => {
+    $("progresso").textContent = "Montando a cópia…";
+    try {
+      const c = await copiaCompleta(), a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(c)], { type: "application/json" }));
+      a.download = `trem-soccer-${c.feito_em.slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+      $("progresso").textContent = `Cópia baixada: ${Object.entries(c.tabelas).map(([t, l]) => `${t} ${l.length}`).join(", ")}.`;
+    } catch (e) { $("progresso").textContent = "Não deu para montar a cópia: " + e.message; }
+  });
   em("antecipar", async () => {
     $("antecipar").disabled = true;
     try { await anteciparRodada(liga.id, proxima, liga.minutos_transmissao); await new Promise(r => setTimeout(r, 1500)); await processar(false); }
@@ -144,7 +199,10 @@ async function tela(aviso = "") {
 // Calcula as partidas cujo horário já chegou. As táticas dos dirigentes valem; clube sem dono ou inativo joga com o bot.
 // Primeiro pede ao servidor; se a função do servidor não estiver publicada, calcula aqui mesmo, no navegador.
 async function processar(silencioso) {
-  if (ocupado) return; ocupado = true;
+  if (ocupado) return;
+  const pausada = await ligaAtual().then(l => l && l.pausada).catch(() => false);
+  if (pausada) { if (!silencioso && $("progresso")) $("progresso").textContent = "A liga está pausada: retome antes de calcular partidas."; return; }
+  ocupado = true;
   const diz = t => { if ($("progresso")) $("progresso").textContent = t; };
   try {
     const servidor = await calcularNoServidor();
