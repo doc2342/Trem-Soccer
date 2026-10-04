@@ -1308,7 +1308,8 @@ const __treino = (() => {
     // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
     treinador: [0.8, 0.5],      // área sem treinador, 80%; qualidade 50, 130%
     parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill em todas as áreas
-    maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0.1, // elenco maior que 7 por treinador: até 10% a menos
+    maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0.1, // mais de 7 jogadores (acima de 21 anos) por treinador: o ganho dos treinadores cai até 10%
+    idadeSemContar: 21,         // jogador até esta idade não entra na conta dos 7 por treinador nem no limite de 35 do elenco
     qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
   };
 
@@ -1324,6 +1325,7 @@ const __treino = (() => {
   const AREA_DO_ATRIBUTO = ATRIBUTOS.map(a => Object.keys(AREAS).find(k => AREAS[k].at.includes(a.k)) || "tat");
   const multDaQualidade = q => CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1] * Math.min(50, Math.max(0, q)) / 50;
   // Multiplicador de cada área para um clube. treinadores: [{ area, skills }] (só os contratados); null = sem o sistema de treinadores (tudo 100%).
+  // jogadores: quantos do elenco têm mais de 21 anos. O excesso só reduz o que os treinadores acrescentam: nenhuma área fica abaixo da base de 80%.
   function qualidadeDoTreino(treinadores, jogadores, semDono = false) {
     const C = CONFIG_TREINO, areas = {};
     if (!treinadores) { for (const k in AREAS) areas[k] = 1; return areas; }
@@ -1332,7 +1334,7 @@ const __treino = (() => {
     const excesso = capacidade && jogadores > capacidade ? 1 - C.perdaPorExcesso * Math.min(1, (jogadores - capacidade) / capacidade) : 1;
     for (const k in AREAS) {
       const q = lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0);
-      areas[k] = multDaQualidade(q) * excesso;
+      areas[k] = C.treinador[0] + (multDaQualidade(q) - C.treinador[0]) * excesso;
     }
     return areas;
   }
@@ -1499,7 +1501,7 @@ Deno.serve(async (req) => {
         // sessão de treino dos dois elencos, só em partida de liga; lesionado não treina (sem efeito antes do 27_treino.sql)
         if (!p.fase || p.fase === "liga") {
           const treinos = [];
-          for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
+          for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
             const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus, areas });
             if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
