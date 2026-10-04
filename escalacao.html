@@ -6,6 +6,35 @@
 <title>Escalação</title>
 <link rel="stylesheet" href="estilo.css">
 <script src="atualiza.js"></script>
+<style>
+  .vaga .vpos, .fechaEscolha, .posDaVaga { display:none; }
+  .vaga.fam-C { border-color:#8a7a2e; } .vaga.fam-I { border-color:#a8474d; }
+  details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
+  details.card > summary h2 { display:inline; } details.card > summary::after { content:" ▾"; color:var(--mut); } details.card[open] > summary::after { content:" ▴"; }
+  details.card[open] > summary { margin-bottom:8px; }
+  @media (max-width:620px) {
+    /* campo compacto: sigla, nome e nota; a posição da vaga muda na folha de escolha */
+    .gramado { padding:8px 4px; gap:6px; } .fila { gap:4px; }
+    .vaga { flex:1 1 0; width:auto; max-width:112px; padding:4px 3px; }
+    .vaga select, .vaga .fam { display:none; } .vaga .vpos { display:inline-block; }
+    .vaga .nome { font-size:11.5px; margin-top:2px; } .vaga .det { font-size:11.5px; }
+    /* tocar numa vaga abre a lista de jogadores numa folha presa embaixo da tela */
+    #escolha { display:none; }
+    body.escolhendo #escolha { display:block; position:fixed; left:0; right:0; bottom:0; z-index:40; margin:0; border-radius:14px 14px 0 0; border-color:var(--ac);
+      box-shadow:0 -10px 30px rgba(0,0,0,.6); max-height:64vh; overflow-y:auto; overflow-x:hidden; padding:10px 12px; }
+    body.escolhendo #escolha .lista { max-height:none !important; }
+    body.escolhendo main { padding-bottom:66vh; }
+    #escolha h2 { font-size:15px; margin-right:40px; } #escolha h2 .tag, #escolha .legenda { display:none; }
+    .fechaEscolha { display:block; position:absolute; right:10px; top:8px; padding:2px 10px; }
+    .posDaVaga { display:flex; flex-direction:row; align-items:center; gap:8px; margin:4px 0 6px; font-size:13px; white-space:nowrap; }
+    .posDaVaga select { flex:1; min-width:0; }
+    .lista .item { padding:6px 2px; gap:6px; } .lista .item .pega { display:none; }
+    .lista .item > span:not(.pp):not(.n):not(.pega) { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    /* o cartão de salvar acompanha a rolagem */
+    #online { position:sticky; top:0; z-index:30; }
+    #banco .chip { padding:5px 10px; }
+  }
+</style>
 </head>
 <body>
 <main>
@@ -31,14 +60,14 @@
       <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; a posição da vaga muda no seletor</span></h2><div class="gramado" id="gramado"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
-      <div class="card"><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2><div class="campo" id="zonas" style="max-width:none"></div></div>
+      <details class="card dobra" open><summary><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2></summary><div class="campo" id="zonas" style="max-width:none"></div></details>
     </div>
     <div>
       <div class="card" id="escolha"></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
-      <div class="card"><h2>Capitão, armador e cobradores</h2><div class="row" id="papeis"></div></div>
-      <div class="card"><h2>Substituições <span class="tag">até 5</span></h2><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></div>
-      <div class="card"><h2>Ordens condicionais <span class="tag">até 3</span></h2><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></div>
+      <details class="card dobra" open><summary><h2>Capitão, armador e cobradores</h2></summary><div class="row" id="papeis"></div></details>
+      <details class="card dobra" open><summary><h2>Substituições <span class="tag">até 5</span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
+      <details class="card dobra" open><summary><h2>Ordens condicionais <span class="tag">até 3</span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
       <div class="card"><h2>Escalações salvas</h2><div class="row"><input id="nomeSalva" placeholder="Nome da escalação" style="flex:1;min-width:140px"><button class="sec" id="salvar">Salvar</button></div><div class="chips" id="salvas" style="margin-top:8px"></div></div>
     </div>
   </div>
@@ -188,9 +217,9 @@ function render() {
   E.vagas.forEach((pos, i) => filas[POSICOES[pos].linha].push(i));
   $("gramado").innerHTML = LINHAS.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => ORDEM_LADO[POSICOES[E.vagas[a]].lado] - ORDEM_LADO[POSICOES[E.vagas[b]].lado]).map(i => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
-    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "" : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}">
-      <select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
-      <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}` : "&nbsp;"}</div></div>`;
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}">
+      <span class="pp vpos" title="${POSICOES[pos].nome}">${sg(pos)}</span><select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
+      <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span><span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>` : "&nbsp;"}</div></div>`;
   }).join("")}</div>`).join("");
   // banco
   $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
@@ -225,9 +254,11 @@ function renderEscolha() {
   const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null;
   const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
   const lista = elenco.filter(j => !sel || sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
-  const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `titular (${E.vagas[i]})` : E.banco.includes(j.id) ? "banco" : ""; };
+  const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `titular (${sg(E.vagas[i])})` : E.banco.includes(j.id) ? "banco" : ""; };
   const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
-  el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
+  document.body.classList.toggle("escolhendo", !!sel);
+  el.innerHTML = `${sel ? `<button class="sec fechaEscolha" data-fechaescolha="1">✕</button>` : ""}<h2>${pos ? `Quem joga de ${sg(pos)} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
+    ${pos ? `<label class="posDaVaga">Posição <select data-pos="${sel.i}">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)} · ${POSICOES[p].nome}</option>`).join("")}</select></label>` : ""}
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
     <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span>${pp(j.pos)}<span>${esc(j.nome)} ${j.fora > 0 ? `<span class="bad">${j.motivo || "fora"} ${j.fora}j</span> ` : ""}<span class="tag">${j.idade} anos${j.amarelos ? " · " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
@@ -274,6 +305,9 @@ async function jogar() {
   return { r, partida };
 }
 
+// no celular, as seções secundárias começam fechadas para a página não ficar comprida
+if (window.matchMedia && matchMedia("(max-width:620px)").matches) document.querySelectorAll("details.dobra").forEach(d => d.removeAttribute("open"));
+
 // arrastar e soltar, com mouse ou dedo: de uma vaga, do banco ou da lista para uma vaga ou para o banco
 let arrasto = null, ignorarClique = false;
 const fimDoArrasto = () => { if (arrasto && arrasto.fantasma) arrasto.fantasma.remove(); document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrasto = null; };
@@ -312,6 +346,7 @@ document.querySelector("main").addEventListener("click", e => {
   const d = k => { const el = t.closest(`[data-${k}]`); return el ? el.dataset[k] : undefined; };
   if (d("apaga") !== undefined) { const s = ler("mo_salvas_" + chaveElenco()) || {}; delete s[d("apaga")]; guardar("mo_salvas_" + chaveElenco(), s); return render(); }
   if (d("carrega") !== undefined) { const s = (ler("mo_salvas_" + chaveElenco()) || {})[d("carrega")]; if (s) { E = JSON.parse(JSON.stringify(s)); sel = null; render(); } return; }
+  if (d("fechaescolha") !== undefined) { sel = null; return render(); }
   if (d("escolhe") !== undefined) return escolher(d("escolhe"));
   if (d("vaga") !== undefined) { const i = +d("vaga"); sel = sel && sel.tipo === "vaga" && sel.i === i ? null : { tipo: "vaga", i }; return render(); }
   if (d("banco") !== undefined) { const i = +d("banco"); sel = sel && sel.tipo === "banco" && sel.i === i ? null : { tipo: "banco", i }; return render(); }
