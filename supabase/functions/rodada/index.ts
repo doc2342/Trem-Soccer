@@ -1446,6 +1446,13 @@ async function autorizado(req, sb) {
   return !!admin;
 }
 
+// Grava nos jogadores o que a partida mudou: situação (lesão, suspensão, amarelos), forma e moral, e treino.
+async function gravarEfeitos(sb, e) {
+  for (const m of (e && e.situacao) || []) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", m.id);
+  if (e && e.momento && e.momento.length) await sb.rpc("aplicar_momento", { p_lista: e.momento });
+  if (e && e.treinos && e.treinos.length) await sb.rpc("aplicar_treino", { p_lista: e.treinos });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -1456,6 +1463,13 @@ Deno.serve(async (req) => {
     const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
     // leilões de jogadores livres e ofertas à liga que venceram (sem efeito antes do 21_jogadores_livres.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("resolver_leiloes", { p_liga: l.id }); } catch (e) { /* segue para as partidas */ }
+    // Lesões, suspensões, amarelos, forma, moral e treino de cada partida só são gravados no apito final (33_efeitos_no_apito_final.sql):
+    // ficam guardados no resultado até lá, para a página do clube não entregar o que ainda está passando na transmissão.
+    const adiar = !(await sb.from("resultados").select("efeitos").limit(1)).error;
+    if (adiar) {
+      const vencidos = (await sb.from("resultados").select("partida_id, efeitos").not("efeitos", "is", null).lte("libera_em", new Date().toISOString()).order("libera_em").limit(200)).data || [];
+      for (const r of vencidos) { await gravarEfeitos(sb, r.efeitos); await sb.from("resultados").update({ efeitos: null }).eq("partida_id", r.partida_id); }
+    }
 
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));
@@ -1498,11 +1512,11 @@ Deno.serve(async (req) => {
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
         // lesões, suspensões e amarelos para os próximos jogos
-        for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
+        const efeitos = { situacao: situacao.map(m => ({ id: +String(m.id).slice(1), fora: m.fora, motivo: m.motivo, amarelos: m.amarelos })), momento: [], treinos: [] };
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
         if (momento.length) {
-          await sb.rpc("aplicar_momento", { p_lista: momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral })) });
+          efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral }));
           const novo = Object.fromEntries(momento.map(m => [m.id, m]));
           for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novo[j.id]) { j.forma = novo[j.id].forma; j.moral = novo[j.id].moral; }
         }
@@ -1515,9 +1529,11 @@ Deno.serve(async (req) => {
             const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus, areas });
             if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
           } }
-          if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
+          efeitos.treinos = treinos;
           await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql
         }
+        // os efeitos ficam guardados até o apito final; sem a coluna (antes do SQL 33), são gravados na hora, como antes
+        if (adiar) ok(await sb.from("resultados").update({ efeitos }).eq("partida_id", p.id)); else await gravarEfeitos(sb, efeitos);
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada
         await sb.from("lances").delete().eq("partida_id", p.id);
