@@ -18,6 +18,16 @@ export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascend
 export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
 export const meuClube = userId => sb.from("clubes").select("*").eq("dono", userId).maybeSingle().then(ok);
 export const assumirClube = (nome, sigla, escudo, uniforme) => sb.rpc("assumir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
+// fila de aprovação (existe depois do 07_fila_de_aprovacao.sql; antes dele, meuPedido devolve null e o clube é assumido direto)
+export const meuPedido = userId => sb.from("pedidos").select("*").eq("user_id", userId).maybeSingle().then(({ data, error }) => error ? null : data);
+export async function pedirClube(nome, sigla, escudo, uniforme) {
+  const { error } = await sb.rpc("pedir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme });
+  if (!error) return "pedido";
+  if (/Could not find the function|does not exist/i.test(error.message)) { await assumirClube(nome, sigla, escudo, uniforme); return "clube"; }
+  throw new Error(error.message);
+}
+export const pedidosPendentes = () => sb.from("pedidos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
+export const decidirPedido = (id, aprovar, motivo) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 

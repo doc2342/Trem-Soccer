@@ -25,7 +25,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, assumirClube, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, svgUniforme, visualAleatorio, FORMAS, PADROES, CORES } from "./src/escudo.js";
@@ -47,20 +47,35 @@ async function carregar(s) {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
-    if (clube) { registrarAcesso().catch(() => {}); await telaClube(liga, clube); }
-    else await telaCriar(liga);
+    if (clube) { registrarAcesso().catch(() => {}); await telaClube(liga, clube); return; }
+    const pedido = await meuPedido(usuario.id);
+    if (minha !== versao) return;
+    if (pedido && pedido.estado === "pendente") telaEspera(pedido);
+    else await telaCriar(liga, pedido && pedido.estado === "recusado" ? pedido : null);
   } catch (e) { $("app").innerHTML = `<div class="card bad">Não consegui carregar: ${esc(e.message)}</div>`; }
 }
 
+// ---------- pedido esperando aprovação ----------
+function telaEspera(p) {
+  $("app").onclick = $("app").onchange = null;
+  $("app").innerHTML = `<div class="card"><h2>Pedido enviado</h2>
+    <div class="previa" style="margin-bottom:10px">${svgEscudo(p.escudo, p.sigla, 110)}${svgUniforme(p.uniforme, 90)}</div>
+    <div><b>${esc(p.nome)}</b> (${esc(p.sigla)}) está esperando a aprovação do administrador da liga. Assim que ele aprovar, o seu clube aparece aqui, já com 22 jogadores.</div>
+    <div class="row" style="margin-top:10px"><button id="verDeNovo">Ver se já foi aprovado</button><span class="mut">Esta página também confere sozinha a cada minuto.</span></div></div>`;
+  $("verDeNovo").onclick = () => carregar({ user: usuario });
+  const v = versao; setTimeout(() => { if (v === versao) carregar({ user: usuario }); }, 60000);
+}
+
 // ---------- criar o clube ----------
-async function telaCriar(liga) {
+async function telaCriar(liga, recusado) {
   const clubes = await clubesDaLiga(liga.id), vagas = clubes.filter(c => !c.dono).length;
   const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
   const paleta = (alvo, campo) => `<div class="cores">${CORES.map(c => `<span data-cor="${c}" data-alvo="${alvo}" data-campo="${campo}" class="${F[alvo][campo] === c ? "sel" : ""}" style="background:${c}"></span>`).join("")}</div>`;
   const opcoes = (obj, atual) => Object.entries(obj).map(([k, n]) => `<option value="${k}" ${k === atual ? "selected" : ""}>${n}</option>`).join("");
   const desenhar = (aviso = "") => {
     $("app").innerHTML = `<div class="card"><h2>Criar o seu clube</h2>
-      <div class="mut" style="margin-bottom:10px">${esc(liga.nome)} · ${vagas} ${vagas === 1 ? "vaga livre" : "vagas livres"} de ${clubes.length}. Você assume um dos clubes sem dono, já com 22 jogadores, e dá a ele o seu nome e as suas cores.</div>
+      <div class="mut" style="margin-bottom:10px">${esc(liga.nome)} · ${vagas} ${vagas === 1 ? "vaga livre" : "vagas livres"} de ${clubes.length}. Você escolhe nome, sigla e cores; quando o administrador aprovar o pedido, você assume um dos clubes sem dono, já com 22 jogadores.</div>
+      ${recusado ? `<div class="aviso" style="margin-bottom:10px">O pedido anterior (${esc(recusado.nome)}) foi recusado${recusado.motivo ? `: ${esc(recusado.motivo)}` : "."} Você pode enviar outro.</div>` : ""}
       ${vagas ? `<div class="duas"><div>
         <div class="row"><label style="flex:1;min-width:160px">Nome do clube<input id="cNome" maxlength="30" value="${esc(F.nome)}"></label><label>Sigla (3 letras)<input id="cSigla" maxlength="3" style="width:90px;text-transform:uppercase" value="${esc(F.sigla)}"></label></div>
         <div class="row" style="margin-top:10px"><label>Forma do escudo<select data-alvo="escudo" data-campo="forma">${opcoes(FORMAS, F.escudo.forma)}</select></label><label>Desenho do escudo<select data-alvo="escudo" data-campo="padrao">${opcoes(PADROES, F.escudo.padrao)}</select></label></div>
@@ -68,13 +83,13 @@ async function telaCriar(liga) {
         <div class="row" style="margin-top:10px"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opcoes(PADROES, F.uniforme.padrao)}</select></label></div>
         <div class="row" style="margin-top:10px"><label>Cor principal da camisa${paleta("uniforme", "cor1")}</label><label>Segunda cor da camisa${paleta("uniforme", "cor2")}</label><label>Calção${paleta("uniforme", "calcao")}</label></div>
       </div><div><div class="previa">${svgEscudo(F.escudo, F.sigla || "ABC", 110)}${svgUniforme(F.uniforme, 90)}</div>
-        <button id="cCriar" style="margin-top:12px;width:100%">Criar o clube</button>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div>` : `<div class="bad">Todas as vagas estão ocupadas.</div>`}</div>`;
+        <button id="cCriar" style="margin-top:12px;width:100%">Enviar o pedido</button>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div>` : `<div class="bad">Todas as vagas estão ocupadas.</div>`}</div>`;
     if (!vagas) return;
     $("cNome").oninput = e => { F.nome = e.target.value; };
     $("cSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); document.querySelector(".previa").innerHTML = svgEscudo(F.escudo, F.sigla || "ABC", 110) + svgUniforme(F.uniforme, 90); };
     $("cCriar").onclick = async () => {
-      $("cCriar").disabled = true; $("cCriar").textContent = "Criando…";
-      try { await assumirClube(F.nome, F.sigla, F.escudo, F.uniforme); await carregar({ user: usuario }); }
+      $("cCriar").disabled = true; $("cCriar").textContent = "Enviando…";
+      try { await pedirClube(F.nome, F.sigla, F.escudo, F.uniforme); await carregar({ user: usuario }); }
       catch (e) { desenhar(e.message); }
     };
   };

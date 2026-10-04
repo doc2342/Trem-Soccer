@@ -18,7 +18,7 @@ import { criarRng } from "./src/rng.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida } from "./src/rodada.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -30,6 +30,28 @@ const PREFIXOS = ["Atlético", "Esporte Clube", "União", "Sport", "Grêmio", "R
 const dataHora = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 let relogio = null, ocupado = false;
 
+// Fila de aprovação: pedidos de clube esperando decisão.
+let nPedidos = 0, nDirigentes = 0;
+const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedidos === 1 ? "pedido" : "pedidos") + " · " : ""}${nDirigentes}) Trem Soccer · Administração`; };
+async function pedidos(aviso = "") {
+  const el = $("pedidos"); if (!el) return;
+  const l = await pedidosPendentes();
+  nPedidos = l.length; titulo();
+  el.innerHTML = `<h2>Pedidos de clube: ${l.length} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
+    ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
+      <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : `<div class="mut">Nenhum pedido esperando.</div>`}
+    ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
+  el.onclick = async e => {
+    const a = e.target.dataset.aprova, r = e.target.dataset.recusa;
+    if (!a && !r) return;
+    let motivo = null;
+    if (r) { motivo = prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):"); if (motivo === null) return; }
+    e.target.disabled = true;
+    try { await decidirPedido(+(a || r), !!a, motivo); await pedidos(a ? "Pedido aprovado: o clube já está com o dirigente." : "Pedido recusado."); dirigentes().catch(() => {}); }
+    catch (err) { await pedidos("Não deu: " + err.message); }
+  };
+}
+
 // Clubes com dirigente, do mais recente para o mais antigo. Atualiza sozinho e põe o número no título da aba.
 async function dirigentes() {
   const el = $("dirigentes"); if (!el) return;
@@ -38,7 +60,7 @@ async function dirigentes() {
   const ePor = Object.fromEntries(emails.map(e => [e.clube_id, e.email]));
   const l = clubes.filter(c => c.dono).sort((a, b) => new Date(b.assumido_em) - new Date(a.assumido_em));
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
-  document.title = `(${l.length}) Trem Soccer · Administração`;
+  nDirigentes = l.length; titulo();
   el.innerHTML = `<h2>Dirigentes: ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada 30 segundos · o número também aparece no título da aba</span></h2>
     ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th></tr>
       ${l.map(c => `<tr><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
@@ -60,7 +82,7 @@ async function carregar(s) {
   try {
     if (!(await ehAdmin())) { $("app").innerHTML = `<div class="card bad">Esta conta não é de administrador.</div>`; return; }
     await tela();
-    relogio = setInterval(() => { dirigentes().catch(() => {}); if ($("auto") && $("auto").checked) processar(true); }, 30000);
+    relogio = setInterval(() => { dirigentes().catch(() => {}); pedidos().catch(() => {}); if ($("auto") && $("auto").checked) processar(true); }, 30000);
   } catch (e) { $("app").innerHTML = `<div class="card bad">Não consegui carregar: ${esc(e.message)}</div>`; }
 }
 
@@ -76,7 +98,7 @@ async function tela(aviso = "") {
     : `<div class="mut" style="margin-bottom:10px">Nenhuma liga criada. A criação gera ${GRUPOS.length * POR_GRUPO} clubes sem dono, em ${GRUPOS.length} grupos de ${POR_GRUPO}, cada um com 22 jogadores de mesmo nível. Leva cerca de um minuto.</div>
        <div class="row"><label style="flex:1;min-width:180px">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button id="criar">Criar a liga</button></div>`}
     <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
-    ${liga ? `<div class="card" id="dirigentes"></div>` : ""}
+    ${liga ? `<div class="card" id="pedidos"></div><div class="card" id="dirigentes"></div>` : ""}
     ${liga ? `<div class="card"><h2>Calendário e rodadas</h2>${partidas.length
       ? `<div>${partidas.length} partidas em ${rodadas.length} rodadas · ${feitas} já calculadas · ${liga.minutos_transmissao ? `transmissão de ${liga.minutos_transmissao} min` : "relatório instantâneo"} · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</div>
          <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar a rodada ${proxima} agora</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
@@ -86,7 +108,7 @@ async function tela(aviso = "") {
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="0" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Valores de teste: relatório instantâneo e tática fechando 1 segundo antes. Na liga de verdade serão 105 minutos e 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>Grupo ${g}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
-  dirigentes().catch(() => {});
+  dirigentes().catch(() => {}); pedidos().catch(() => {});
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
   em("apagar", async () => {
