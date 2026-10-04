@@ -9,13 +9,13 @@ const LINHAS_CAMPO = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol
 let serieAbas = 0;
 
 const ICONE_RESULTADO = { gol: "⚽", defesa: "🧤", trave: "🥅", fora: "👟", bloqueado: "🛡️" };
-const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺" };
+const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
 // Nomes vêm do motor marcados com o time ("{0:Fulano}"): aqui cada um ganha a cor do seu clube.
 const MARCA = /\{([01?]):([^{}]+)\}/g;
 export const textoSemMarcas = t => String(t).replace(MARCA, "$2");
 const textoColorido = t => esc(t).replace(MARCA, (_, time, nome) => `<span class="nm ${time === "0" ? "casa" : time === "1" ? "fora" : ""}">${nome}</span>`);
 const ROTULO = { gol: "Gol", defesa: "Finalização defendida", trave: "Finalização na trave", fora: "Finalização para fora", bloqueado: "Finalização bloqueada",
-  amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse", roda: "Roda a bola" };
+  amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse", roda: "Roda a bola", falta: "Falta", canto: "Escanteio" };
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
 export function htmlLance(l) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
@@ -23,7 +23,7 @@ export function htmlLance(l) {
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
   return `<div class="lance ${classe}"><span class="min">${l.s === undefined ? l.min + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
-export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
+export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
 // r: saída de montarRelatorio. nomes: [mandante, visitante]. analistas: de quais times mostrar o comentário.
 // abertura: html opcional com cara ou coroa, clima e escalações, mostrado no começo da reprise.

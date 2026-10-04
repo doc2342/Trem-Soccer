@@ -27,7 +27,7 @@ th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-
 .lance.gol { font-weight:700; background:rgba(242,193,78,.14); border-left:3px solid var(--ac); padding-left:6px; border-radius:4px; }
 .lance.amarelo, .lance.vermelho, .lance.lesao { background:rgba(229,100,107,.08); }
 .lance.substituicao, .lance.ordem, .lance.contra, .lance.impedimento { font-style:italic; }
-.lance.posse, .lance.roda { font-size:13px; opacity:.85; padding:4px 0; }
+.lance.posse, .lance.roda, .lance.falta, .lance.canto { font-size:13px; opacity:.85; padding:4px 0; }
 .lance .nm { font-weight:600; }
 .legenda.lances { flex-wrap:wrap; gap:4px 12px; } .legenda.lances span { border-left:none; padding-left:0; }
 .campo { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:360px; }
