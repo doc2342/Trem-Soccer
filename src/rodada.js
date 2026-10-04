@@ -85,19 +85,23 @@ export function horaDoMinuto(inicio, min, minutosTransmissao) {
 
 // O que muda em cada jogador do elenco depois da partida: quem estava fora cumpre um jogo; vermelho suspende por um jogo;
 // o terceiro amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
-// medico: { chance, vagas } do clube, ou null. Quem já estava lesionado antes do jogo pode ser atendido: os de maior nota primeiro,
-// até o número de vagas; cada atendido tem a chance de voltar um jogo antes.
-function situacaoDepois(elenco, p, medico = null, rng = null) {
-  const atendidos = new Set(medico && rng ? elenco.filter(j => j.fora > 1 && j.motivo === "lesão").sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)).slice(0, medico.vagas).filter(() => rng.chance(medico.chance)).map(j => j.id) : []);
+// medico: { reducao, vagas } do clube, ou null. A lesão nova de quem pega uma vaga livre do departamento médico dura menos:
+// a skill do médico é o corte (skill 50, metade do tempo), com mínimo de 1 jogo. As vagas são dos que ainda estão lesionados.
+function situacaoDepois(elenco, p, medico = null) {
+  let vagas = medico ? medico.vagas - elenco.filter(j => j.fora > 1 && j.motivo === "lesão").length : 0; // quem volta no próximo jogo já liberou a vaga
   const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), mudancas = [];
   for (const j of elenco) {
     let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelos || 0;
-    if (fora > 0) { fora--; if (fora > 0 && atendidos.has(j.id)) fora--; if (!fora) motivo = null; }
+    if (fora > 0) { fora--; if (!fora) motivo = null; }
     const s = p.jogadores[j.id];
     if (s) {
       if (s.vermelho) { fora = 1; motivo = "suspensão"; }
       else if (s.amarelos) { amarelos++; if (amarelos >= AMARELOS_PARA_SUSPENSAO) { amarelos = 0; fora = 1; motivo = "suspensão"; } }
-      if (lesao[j.id]) { const n = jogosFora(lesao[j.id]); if (n >= fora) { fora = n; motivo = "lesão"; } }
+      if (lesao[j.id]) {
+        let n = jogosFora(lesao[j.id]);
+        if (medico && vagas > 0) { vagas--; n = Math.max(1, Math.round(n * (1 - medico.reducao))); }
+        if (n >= fora) { fora = n; motivo = "lesão"; }
+      }
     }
     if (fora !== (j.fora || 0) || amarelos !== (j.amarelos || 0) || motivo !== (j.motivo || null)) mudancas.push({ id: j.id, fora, motivo, amarelos });
   }
@@ -154,7 +158,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
-    situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico, extra), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico, extra)],
+    situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)],
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
   };

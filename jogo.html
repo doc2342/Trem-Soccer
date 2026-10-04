@@ -137,7 +137,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { experienciaDe, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
+import { experienciaDe, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
@@ -319,7 +319,7 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px;font-size:12px">Em destaque, os atributos que contam para a posição dele.${Object.keys(j.fam).filter(p => p !== j.pos).length ? ` Também joga: ${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${sg(p)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})`).join(", ")}.` : ""}</div>`; };
   const outros = clubes.filter(c => c.id !== clube.id);
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
-  const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico atende mais lesionados por rodada"],
+  const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico cuida de mais lesionados ao mesmo tempo"],
     ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e com mais talento"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const estruturas = () => {
@@ -604,7 +604,7 @@ async function telaClube(liga, clube) {
           ${Object.entries(FUNCOES_DE_SAUDE).map(([f, nome]) => { const t = equipeDeSaude.find(x => x.funcao === f);
             const efeito = f === "forma" ? (t ? `dá ${Math.round(ganhoDeForma(t.skill))} pontos de forma, a cada rodada, aos ${atendidosNaForma(clube.fisio_nivel)} jogadores de pior forma (fisioterapia nível ${clube.fisio_nivel || 0})` : "sem preparador, a forma depende só de jogar e jogar bem; a fisioterapia só aumenta quantos ele atende")
               : f === "psicologo" ? (t ? `corta ${Math.round(corteDoPsicologo(t.skill) * 100)}% das quedas de moral do elenco` : "sem psicólogo, a moral cai inteira com derrota e banco")
-              : f === "medico" ? (t ? `atende ${atendidosPeloMedico(clube.medico_nivel)} ${atendidosPeloMedico(clube.medico_nivel) === 1 ? "lesionado" : "lesionados"} por rodada (departamento médico nível ${clube.medico_nivel || 0}); cada um tem ${Math.round(chanceDoMedico(t.skill) * 100)}% de chance de voltar um jogo antes` : "sem médico, as lesões duram o tempo todo; o departamento médico só aumenta quantos ele atende")
+              : f === "medico" ? (t ? `as lesões duram ${Math.round(reducaoDoMedico(t.skill) * 100)}% menos (mínimo de 1 jogo fora); cuida de ${atendidosPeloMedico(clube.medico_nivel)} ${atendidosPeloMedico(clube.medico_nivel) === 1 ? "lesionado" : "lesionados"} ao mesmo tempo (departamento médico nível ${clube.medico_nivel || 0})` : "sem médico, as lesões duram o tempo todo; o departamento médico só aumenta de quantos ele cuida ao mesmo tempo")
               : (t ? `reduz em ${Math.round(reducaoDeLesao(t.skill) * 100)}% a chance de lesão do elenco` : "sem preparador, a chance de lesão é a normal");
             return `<div style="margin-top:4px">${t ? `<b>${esc(t.nome)}</b> <span class="mut">${nome.toLowerCase()} · skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} · ${efeito}</span> <button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button>` : `<span class="aviso">${nome}: ninguém.</span> <span class="mut">${efeito[0].toUpperCase() + efeito.slice(1)}.</span>`}</div>`; }).join("")}</div>
         ${relatorios == null ? "" : (t => `<div style="margin-top:10px"><b>Olheiro</b> <span class="mut">mostra o teto de cada jogador do seu elenco</span>

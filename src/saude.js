@@ -6,8 +6,8 @@
 // Módulo puro: usado pelo motor, pela função do servidor e pelas páginas.
 export const CONFIG_SAUDE = {
   prevencao: [0.10, 0.30], // reduz a chance de lesão de 10% (skill 1) a 40% (skill 50)
-  medico: [0.15, 0.50],    // a cada rodada, cada lesionado atendido tem de 15% a 65% de chance de voltar um jogo antes
-  atendidos: [1, 1],       // o médico atende 1 lesionado por rodada, mais 1 por nível do departamento médico
+  medico: 0.01,            // a skill do médico é o corte na duração da lesão: skill 50, metade do tempo (mínimo de 1 jogo fora)
+  atendidos: [1, 1],       // o médico cuida de 1 lesionado ao mesmo tempo, mais 1 por nível do departamento médico
   efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
   forma: { jogou: 3, porNota: 2.5, entrou: 1, parado: -2, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
   moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
@@ -19,7 +19,7 @@ export const CONFIG_SAUDE = {
 export const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção", forma: "Preparador de forma", psicologo: "Psicólogo" };
 const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
 export const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
-export const chanceDoMedico = skill => escala(CONFIG_SAUDE.medico, skill);
+export const reducaoDoMedico = skill => CONFIG_SAUDE.medico * Math.min(50, skill || 0);
 export const atendidosPeloMedico = nivel => CONFIG_SAUDE.atendidos[0] + CONFIG_SAUDE.atendidos[1] * (nivel || 0);
 export const ganhoDeForma = skill => escala(CONFIG_SAUDE.preparador, skill);
 export const atendidosNaForma = nivel => CONFIG_SAUDE.atendidosNaForma[0] + CONFIG_SAUDE.atendidosNaForma[1] * (nivel || 0);
@@ -30,7 +30,7 @@ export function saudeDoClube(equipe, clube) {
   const medico = de("medico"), forma = de("forma");
   return {
     prevencao: reducaoDeLesao(de("prevencao")),
-    medico: medico ? { chance: chanceDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
+    medico: medico ? { reducao: reducaoDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
     forma: forma ? { ganho: ganhoDeForma(forma), vagas: atendidosNaForma(clube && clube.fisio_nivel) } : null,
     psicologo: corteDoPsicologo(de("psicologo")),
   };

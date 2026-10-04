@@ -173,8 +173,8 @@ const __saude = (() => {
   // Módulo puro: usado pelo motor, pela função do servidor e pelas páginas.
   const CONFIG_SAUDE = {
     prevencao: [0.10, 0.30], // reduz a chance de lesão de 10% (skill 1) a 40% (skill 50)
-    medico: [0.15, 0.50],    // a cada rodada, cada lesionado atendido tem de 15% a 65% de chance de voltar um jogo antes
-    atendidos: [1, 1],       // o médico atende 1 lesionado por rodada, mais 1 por nível do departamento médico
+    medico: 0.01,            // a skill do médico é o corte na duração da lesão: skill 50, metade do tempo (mínimo de 1 jogo fora)
+    atendidos: [1, 1],       // o médico cuida de 1 lesionado ao mesmo tempo, mais 1 por nível do departamento médico
     efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
     forma: { jogou: 3, porNota: 2.5, entrou: 1, parado: -2, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
     moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
@@ -186,7 +186,7 @@ const __saude = (() => {
   const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção", forma: "Preparador de forma", psicologo: "Psicólogo" };
   const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
   const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
-  const chanceDoMedico = skill => escala(CONFIG_SAUDE.medico, skill);
+  const reducaoDoMedico = skill => CONFIG_SAUDE.medico * Math.min(50, skill || 0);
   const atendidosPeloMedico = nivel => CONFIG_SAUDE.atendidos[0] + CONFIG_SAUDE.atendidos[1] * (nivel || 0);
   const ganhoDeForma = skill => escala(CONFIG_SAUDE.preparador, skill);
   const atendidosNaForma = nivel => CONFIG_SAUDE.atendidosNaForma[0] + CONFIG_SAUDE.atendidosNaForma[1] * (nivel || 0);
@@ -197,7 +197,7 @@ const __saude = (() => {
     const medico = de("medico"), forma = de("forma");
     return {
       prevencao: reducaoDeLesao(de("prevencao")),
-      medico: medico ? { chance: chanceDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
+      medico: medico ? { reducao: reducaoDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
       forma: forma ? { ganho: ganhoDeForma(forma), vagas: atendidosNaForma(clube && clube.fisio_nivel) } : null,
       psicologo: corteDoPsicologo(de("psicologo")),
     };
@@ -230,7 +230,7 @@ const __saude = (() => {
     if (dm < 0) dm *= 1 - psicologo;
     return { forma: limite(forma + df), moral: limite(moral + dm) };
   }
-  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, CONFIG_EXPERIENCIA, experienciaDe, desvioDoDia, diaDoJogador, experienciaDepois, fatorDeMomento, momentoDepois };
+  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, CONFIG_EXPERIENCIA, experienciaDe, desvioDoDia, diaDoJogador, experienciaDepois, fatorDeMomento, momentoDepois };
 })();
 
 const __escalacao = (() => {
@@ -1220,19 +1220,23 @@ const __rodada = (() => {
 
   // O que muda em cada jogador do elenco depois da partida: quem estava fora cumpre um jogo; vermelho suspende por um jogo;
   // o terceiro amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
-  // medico: { chance, vagas } do clube, ou null. Quem já estava lesionado antes do jogo pode ser atendido: os de maior nota primeiro,
-  // até o número de vagas; cada atendido tem a chance de voltar um jogo antes.
-  function situacaoDepois(elenco, p, medico = null, rng = null) {
-    const atendidos = new Set(medico && rng ? elenco.filter(j => j.fora > 1 && j.motivo === "lesão").sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)).slice(0, medico.vagas).filter(() => rng.chance(medico.chance)).map(j => j.id) : []);
+  // medico: { reducao, vagas } do clube, ou null. A lesão nova de quem pega uma vaga livre do departamento médico dura menos:
+  // a skill do médico é o corte (skill 50, metade do tempo), com mínimo de 1 jogo. As vagas são dos que ainda estão lesionados.
+  function situacaoDepois(elenco, p, medico = null) {
+    let vagas = medico ? medico.vagas - elenco.filter(j => j.fora > 1 && j.motivo === "lesão").length : 0; // quem volta no próximo jogo já liberou a vaga
     const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), mudancas = [];
     for (const j of elenco) {
       let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelos || 0;
-      if (fora > 0) { fora--; if (fora > 0 && atendidos.has(j.id)) fora--; if (!fora) motivo = null; }
+      if (fora > 0) { fora--; if (!fora) motivo = null; }
       const s = p.jogadores[j.id];
       if (s) {
         if (s.vermelho) { fora = 1; motivo = "suspensão"; }
         else if (s.amarelos) { amarelos++; if (amarelos >= AMARELOS_PARA_SUSPENSAO) { amarelos = 0; fora = 1; motivo = "suspensão"; } }
-        if (lesao[j.id]) { const n = jogosFora(lesao[j.id]); if (n >= fora) { fora = n; motivo = "lesão"; } }
+        if (lesao[j.id]) {
+          let n = jogosFora(lesao[j.id]);
+          if (medico && vagas > 0) { vagas--; n = Math.max(1, Math.round(n * (1 - medico.reducao))); }
+          if (n >= fora) { fora = n; motivo = "lesão"; }
+        }
       }
       if (fora !== (j.fora || 0) || amarelos !== (j.amarelos || 0) || motivo !== (j.motivo || null)) mudancas.push({ id: j.id, fora, motivo, amarelos });
     }
@@ -1289,7 +1293,7 @@ const __rodada = (() => {
         pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
         relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
       },
-      situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico, extra), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico, extra)],
+      situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)],
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
     };
