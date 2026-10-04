@@ -435,7 +435,7 @@ async function telaClube(liga, clube) {
     </div><div data-msecao="neg">
     ${propostas == null ? "" : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
       const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
-      const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada" };
+      const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada", anulada: "anulada pelo administrador" };
       const recebidas = propostas.filter(p => p.vendedor === clube.id), enviadas = propostas.filter(p => p.comprador === clube.id);
       const linhaR = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.comprador)}</td><td><b>${dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `você pediu ${dinheiro(p.contra_valor)}` : ESTADO[p.estado] || p.estado}</td>
         <td class="esq">${p.estado === "pendente" ? `<button data-prop="${p.id}" data-acao="aceitar">Aceitar</button> <button class="sec" data-prop="${p.id}" data-acao="contrapropor">Pedir outro valor</button> <button class="sec" data-prop="${p.id}" data-acao="recusar">Recusar</button>` : `<span class="mut">${esc(p.motivo || "")}</span>`}</td></tr>`;
