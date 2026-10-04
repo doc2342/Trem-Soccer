@@ -18,8 +18,9 @@
 import { criarRng } from "./src/rng.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
+import { contratoInicial, dinheiro } from "./src/economia.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, gravarSituacao, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -131,7 +132,7 @@ async function tela(aviso = "") {
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
     ? `<div>${esc(liga.nome)} · temporada ${liga.temporada} · ${clubes.length} clubes, ${humanos} com dirigente e ${clubes.length - humanos} do bot.</div>
        ${liga.pausada ? `<div class="aviso" style="margin-top:6px">Liga pausada desde ${dataHora(liga.pausada_em)}: nenhuma partida é calculada. Ao retomar, as partidas que faltam são adiadas pelo tempo da pausa.</div>` : ""}
-       <div class="row" style="margin-top:10px"><button id="pausar">${liga.pausada ? "Retomar a liga" : "Pausar a liga"}</button><button class="sec" id="backupServidor">Fazer backup no servidor agora</button><button class="sec" id="baixarCopia">Baixar uma cópia para este computador</button><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
+       <div class="row" style="margin-top:10px"><button id="pausar">${liga.pausada ? "Retomar a liga" : "Pausar a liga"}</button><button class="sec" id="contratos">Definir salários e contratos iniciais</button><button class="sec" id="backupServidor">Fazer backup no servidor agora</button><button class="sec" id="baixarCopia">Baixar uma cópia para este computador</button><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
     : `<div class="mut" style="margin-bottom:10px">Nenhuma liga criada. A criação gera ${GRUPOS.length * POR_GRUPO} clubes sem dono, em ${GRUPOS.length} grupos de ${POR_GRUPO}, cada um com 22 jogadores de mesmo nível. Leva cerca de um minuto.</div>
        <div class="row"><label style="flex:1;min-width:180px">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button id="criar">Criar a liga</button></div>`}
     <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
@@ -174,6 +175,22 @@ async function tela(aviso = "") {
   em("pausar", async () => {
     try { await pausarLiga(!liga.pausada); await tela(liga.pausada ? "Liga retomada: as partidas que faltavam foram adiadas." : "Liga pausada."); }
     catch (e) { await tela("Não deu: " + e.message + " (o 08_administracao.sql já foi executado?)"); }
+  });
+  em("contratos", async () => {
+    $("contratos").disabled = true; $("progresso").textContent = "Calculando salários e contratos…";
+    try {
+      const rng = criarRng(Date.now() % 2147483647), lista = [];
+      let folha = 0, clubesComFolha = 0;
+      for (let i = 0; i < clubes.length; i += 10) await Promise.all(clubes.slice(i, i + 10).map(async c => {
+        const elenco = await elencoDoClube(c.id), novos = elenco.filter(j => j.salario == null);
+        novos.forEach(j => lista.push({ id: j.id, ...contratoInicial(rng, j, liga.temporada) }));
+        if (novos.length) { clubesComFolha++; folha += novos.reduce((s, j) => s + lista.find(x => x.id === j.id).salario, 0); }
+      }));
+      if (!lista.length) { $("progresso").textContent = "Todos os jogadores já têm salário e contrato."; return; }
+      const n = await definirContratos(lista);
+      $("progresso").textContent = `Contratos definidos para ${n} jogadores. Folha média por clube: ${dinheiro(Math.round(folha / clubesComFolha))} por temporada; teto: ${dinheiro(liga.teto_folha)}.`;
+    } catch (e) { $("progresso").textContent = "Não deu: " + e.message + " (o 11_salarios_e_contratos.sql já foi executado?)"; }
+    finally { if ($("contratos")) $("contratos").disabled = false; }
   });
   em("backupServidor", async () => {
     $("progresso").textContent = "Fazendo o backup no servidor…";

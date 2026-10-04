@@ -34,7 +34,9 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok)
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
-    fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0 })));
+    fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
+    salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate })));
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
@@ -73,6 +75,17 @@ export async function gravarPartida(partidaId, lances, resultado) {
   await sb.from("lances").insert(lances).then(ok);
   await sb.from("resultados").insert(resultado).then(ok);
   await sb.from("partidas").update({ processada: true }).eq("id", partidaId).then(ok);
+}
+
+// ---------- salários e contratos (fase 2, passo E1) ----------
+const numero = id => +String(id).slice(1); // "j123" → 123
+// Aumenta o salário (temporadas = 0) ou renova o contrato por 1 a 3 temporadas. As regras são conferidas no banco.
+export const ajustarContrato = (jogadorId, salario, temporadas = 0) => sb.rpc("ajustar_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
+// Grava os contratos iniciais (só administrador). lista: [{ id: "j123", salario, mercado, contrato_ate, protegido_ate }]
+export async function definirContratos(lista) {
+  let n = 0;
+  for (let i = 0; i < lista.length; i += 300) n += await sb.rpc("definir_contratos", { p: lista.slice(i, i + 300).map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
+  return n;
 }
 
 // ---------- ferramentas do administrador (passo I) ----------

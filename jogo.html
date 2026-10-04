@@ -26,8 +26,9 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
+import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
@@ -113,7 +114,9 @@ async function telaClube(liga, clube) {
   const jogo = (p, res, agora) => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
     return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${esc(cPor[p.casa].nome)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${esc(cPor[p.fora].nome)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
   const situacao = j => (j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} · ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
-  const linha = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}${situacao(j)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+  const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
+  const contrato = j => j.salario == null ? `<td>—</td><td>—</td><td>—</td>` : `<td>${dinheiro(j.salario)}</td><td title="${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? "Protegido: a cláusula só vale depois desta temporada" : "Valor para outro clube levar o jogador"}">${dinheiro(clausula(j.salario))}${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? " 🔒" : ""}</td><td class="${j.contratoAte <= liga.temporada ? "aviso" : ""}">até a ${j.contratoAte}</td>`;
+  const linha = j => `<tr class="clk" data-jog="${j.id}"><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}${situacao(j)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${contrato(j)}
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
@@ -136,8 +139,9 @@ async function telaClube(liga, clube) {
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
-    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores</span></h2><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
-      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace("<tr>", i ? "<tr>" : `<tr class="sep">`)).join("")}</table></div></div>`;
+    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
+      <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th>Cláusula</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
+      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>`;
 
   // classificação e jogos do grupo escolhido
   async function grupo(g) {
@@ -163,6 +167,32 @@ async function telaClube(liga, clube) {
   }
   $("verGrupo").onchange = () => grupo($("verGrupo").value).catch(e => { $("tabela").innerHTML = `<span class="bad">${esc(e.message)}</span>`; });
   await grupo(clube.grupo);
+
+  // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
+  $("app").onclick = e => {
+    const tr = e.target.closest("tr[data-jog]"); if (!tr || !temContratos) return;
+    const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
+    const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
+    $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${j.pos} · ${j.idade} anos
+      <div class="mut" style="margin:4px 0">Salário atual ${dinheiro(j.salario)} por temporada · mínimo que ele aceita na renovação ${dinheiro(j.mercado)} · cláusula ${dinheiro(clausula(j.salario))}${protegido ? " (protegido até o fim desta temporada)" : ""} · contrato até o fim da temporada ${j.contratoAte}.</div>
+      <div class="mut" style="margin:4px 0">O salário só pode subir. A cláusula é 5 vezes o salário. Um jogador pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(sobra)} até o teto de folha.</div>
+      <div class="row"><label>Novo salário (em milhares por temporada)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:150px"></label>
+        <span class="mut" id="ctClausula"></span>
+        <button class="sec" id="ctAumentar">Só aumentar o salário</button>
+        <label>Renovar por<select id="ctTemporadas"><option value="1">1 temporada</option><option value="2">2 temporadas</option><option value="3">3 temporadas</option></select></label>
+        <button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctFechar">Fechar</button></div>
+      <div id="ctAviso" style="margin-top:6px"></div></div>`;
+    const mostra = () => { $("ctClausula").textContent = `cláusula nova: ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
+    $("ctSalario").oninput = mostra; mostra();
+    const enviar = async temporadas => {
+      try { await ajustarContrato(j.id, Math.round(+$("ctSalario").value), temporadas); await carregar({ user: usuario }); }
+      catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
+    $("ctAumentar").onclick = () => enviar(0);
+    $("ctRenovar").onclick = () => enviar(+$("ctTemporadas").value);
+    $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+    $("contratoPainel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 
   // amistoso: tática salva contra a tática de bot do adversário; nada é gravado
   const guardados = {};

@@ -68,3 +68,5 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:var(--ac); color:#1a1300; font-weight:600; font-size:12px; padding:4px 8px; border-radius:8px; white-space:nowrap; }
 .alvo { outline:2px solid var(--ac); outline-offset:1px; }
 body.arrastando { cursor:grabbing; } body.arrastando * { cursor:grabbing !important; }
+
+tr.clk { cursor:pointer; } tr.clk:hover td { background:#1e2b3a; }
