@@ -536,7 +536,9 @@ const __motor = (() => {
     let min = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0;
     const gols = () => [estat[0].gols, estat[1].gols];
     let seq = 0; // ordem de acontecimento, para a narração misturar finalizações e os outros lances na sequência certa
-    const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto });
+    // parcial para a transmissão ao vivo: [posse do mandante em %, faltas do mandante, do visitante, escanteios do mandante, do visitante]
+    const parcial = () => [min > 1 ? Math.round(somaPosse / (min - 1) * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
+    const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto, p: parcial() });
     // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
     const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `no meio, pela ${NOME_LADO[l]}`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
     function perdaDePosse(i, zona, d) {
@@ -659,7 +661,7 @@ const __motor = (() => {
       if (resultado === "gol") { e.gols++; sujo = true; }
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
-      lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro) });
+      lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) bolaParada(i, "escanteio", "C");
     }
 
@@ -1053,6 +1055,7 @@ const __rodada = (() => {
   // lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null }
   // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
   // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
+  const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
   function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
     const agora = new Date(partida.inicio).getTime();
     const lados = [casa, fora].map(l => {
@@ -1061,13 +1064,20 @@ const __rodada = (() => {
       const disponiveis = l.elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
+    const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil }));
     const times = lados.map((l, i) => {
-      const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil });
+      const t = taticas[i];
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 });
     });
     const p = simularPartida(criarRng(semente), times[0], times[1]);
     const r = montarRelatorio(p, [3, 3]);
     const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.min, minutosTransmissao).toISOString(), dados: l }));
+    // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
+    const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);
+    lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
+      n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima[0], temp: extra.int(clima[1], clima[2]) },
+      escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
+    } });
     const { narracao, ...semNarracao } = r; // a narração já está nos lances
     return {
       lances,

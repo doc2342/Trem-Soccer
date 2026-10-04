@@ -339,7 +339,9 @@ export function simularPartida(rng, casa, fora) {
   let min = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0;
   const gols = () => [estat[0].gols, estat[1].gols];
   let seq = 0; // ordem de acontecimento, para a narração misturar finalizações e os outros lances na sequência certa
-  const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto });
+  // parcial para a transmissão ao vivo: [posse do mandante em %, faltas do mandante, do visitante, escanteios do mandante, do visitante]
+  const parcial = () => [min > 1 ? Math.round(somaPosse / (min - 1) * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
+  const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto, p: parcial() });
   // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
   const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `no meio, pela ${NOME_LADO[l]}`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
   function perdaDePosse(i, zona, d) {
@@ -462,7 +464,7 @@ export function simularPartida(rng, casa, fora) {
     if (resultado === "gol") { e.gols++; sujo = true; }
     const sf = jogadores[c.finalizador.j.id];
     sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
-    lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro) });
+    lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro), p: parcial() });
     if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) bolaParada(i, "escanteio", "C");
   }
 

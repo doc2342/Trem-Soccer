@@ -13,6 +13,7 @@ const ROTULO = { gol: "Gol", defesa: "Finalização defendida", trave: "Finaliza
   amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse" };
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
 export function htmlLance(l) {
+  if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   const finalizacao = l.resultado !== undefined, chave = finalizacao ? l.resultado : l.tipo;
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
   return `<div class="lance ${classe}"><span class="min">${l.min}'</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;

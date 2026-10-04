@@ -10,7 +10,10 @@
   .painel { display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; text-align:center; }
   .painel .time { display:flex; flex-direction:column; align-items:center; gap:4px; width:120px; font-weight:600; }
   .painel .gols { font-size:44px; font-weight:800; }
-  .relogio { text-align:center; color:var(--ac); font-weight:700; margin-top:6px; }
+  .cronometro { text-align:center; color:var(--ac); font-weight:700; margin-top:6px; font-size:18px; font-variant-numeric:tabular-nums; }
+  .aovivo { display:grid; grid-template-columns:minmax(0,2fr) minmax(240px,1fr); gap:12px; align-items:start; }
+  @media (max-width:760px) { .aovivo { grid-template-columns:1fr; } }
+  .estat { width:100%; } .estat td { text-align:center; padding:5px 4px; } .estat td.esq { text-align:left; }
 </style>
 </head>
 <body>
@@ -21,7 +24,7 @@
 </main>
 
 <script type="module">
-import { nomeDoGrupo, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
+import { nomeDoGrupo, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
 import { htmlRelatorio, htmlLance, LEGENDA_LANCES } from "./src/ui-relatorio.js";
 import { svgEscudo } from "./src/escudo.js";
 
@@ -30,16 +33,17 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const f2 = v => v.toFixed(2).replace(".", ",");
 const id = +new URLSearchParams(location.search).get("id");
 const COR = ["casa", "fora"];
-let partida, clubes, encerrada = false, relogio;
+let partida, clubes, encerrada = false, relogio, tique, preco = null;
 
 // Minuto de jogo a partir do relógio real, com 15 minutos de intervalo, na escala da transmissão.
 function momento() {
   const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000;
   const t = total > 0 ? (Date.now() - new Date(partida.inicio)) / 60000 * 105 / total : Date.now() >= new Date(partida.inicio) ? 105 : -1;
+  const mmss = x => { const s = Math.max(0, Math.floor(x * 60)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
   if (t < 0) { const falta = Math.ceil((new Date(partida.inicio) - Date.now()) / 60000); return { texto: falta > 90 ? `Começa em ${new Date(partida.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : `Começa em ${falta} min`, antes: true }; }
-  if (t <= 45) return { texto: `${Math.max(1, Math.ceil(t))}' · 1º tempo` };
-  if (t < 60) return { texto: "Intervalo" };
-  if (t < 105) return { texto: `${Math.min(90, Math.ceil(t - 15))}' · 2º tempo` };
+  if (t <= 45) return { texto: `${mmss(t)} · 1º tempo` };
+  if (t < 60) return { texto: "45:00 · intervalo" };
+  if (t < 105) return { texto: `${mmss(t - 15)} · 2º tempo` };
   return { texto: "Fim de jogo", fim: true };
 }
 
@@ -47,7 +51,40 @@ function topo(gols, m) {
   const c = [clubes[partida.casa], clubes[partida.fora]];
   $("topo").innerHTML = `<div class="mut" style="text-align:center">${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}</div>
     <div class="painel"><div class="time casa">${svgEscudo(c[0].escudo, c[0].sigla, 56)}${esc(c[0].nome)}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${svgEscudo(c[1].escudo, c[1].sigla, 56)}${esc(c[1].nome)}</div></div>
-    <div class="relogio">${m.texto}</div>`;
+    <div class="cronometro" id="crono">${m.texto}</div>`;
+}
+
+const milhar = v => Math.round(v).toLocaleString("pt-BR");
+// público e renda: gravados pelo servidor logo depois do cálculo da partida
+function htmlEstadio(pre) {
+  const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
+  return `<div class="card"><h2>Estádio</h2><table class="estat">
+    <tr><td class="esq">Público pagante</td><td>${partida.publico != null ? milhar(partida.publico) : "–"}</td></tr>
+    <tr><td class="esq">Renda da partida</td><td>${renda != null ? (renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil") : "–"}</td></tr>
+    ${pre && pre.clima ? `<tr><td class="esq">Clima</td><td>${esc(pre.clima.nome)} (${pre.clima.temp} °C)</td></tr>` : ""}</table></div>`;
+}
+// estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
+function htmlEstatisticas(narracao) {
+  const conta = f => [0, 1].map(i => narracao.filter(l => l.time === i && f(l)).length);
+  const fin = l => l.resultado !== undefined, ult = narracao.filter(l => l.p).pop(), p = ult ? ult.p : null;
+  const xg = [0, 1].map(i => narracao.filter(l => l.time === i && fin(l)).reduce((s, l) => s + (l.xg || 0), 0));
+  const linhas = [
+    ["Posse", p ? [p[0] + "%", 100 - p[0] + "%"] : ["–", "–"]],
+    ["Finalizações", conta(fin)], ["No gol", conta(l => l.resultado === "gol" || l.resultado === "defesa")], ["xG", xg.map(f2)],
+    ["Escanteios", p ? [p[3], p[4]] : ["–", "–"]], ["Faltas cometidas", p ? [p[1], p[2]] : ["–", "–"]],
+    ["Cartões amarelos", conta(l => l.tipo === "amarelo")], ["Cartões vermelhos", conta(l => l.tipo === "vermelho")],
+    ["Impedimentos", conta(l => l.tipo === "impedimento")], ["Contra-ataques", conta(l => l.tipo === "contra")],
+  ];
+  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat">${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
+}
+// abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
+function htmlAbertura(pre) {
+  if (!pre) return "";
+  const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
+  const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${esc(j.nome)} (${j.pos})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${esc(j.nome)} (${j.pos})`).join(", ")}.</span>` : ""}</span></div>`;
+  return time(pre.escalacoes[1], 1) + time(pre.escalacoes[0], 0)
+    + `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ao estádio. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`
+    + `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`;
 }
 
 async function atualizar() {
@@ -57,11 +94,11 @@ async function atualizar() {
   const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;
   let [lances, res] = await Promise.all([lancesDaPartida(id), relatorioDaPartida(id)]);
   lances = lances.filter(noAr); if (res && !noAr(res)) res = null;
-  const narracao = lances.map(l => l.dados);
+  const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   if (res) {
-    encerrada = true; clearInterval(relogio);
+    encerrada = true; clearInterval(relogio); clearInterval(tique);
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" });
-    $("corpo").innerHTML = `<div class="card mut">Times comandados por: ${esc(clubes[partida.casa].nome)}, ${res.relatorio.comandados[0]} · ${esc(clubes[partida.fora].nome)}, ${res.relatorio.comandados[1]}.</div>` +
+    $("corpo").innerHTML = `<div class="card mut">Times comandados por: ${esc(clubes[partida.casa].nome)}, ${res.relatorio.comandados[0]} · ${esc(clubes[partida.fora].nome)}, ${res.relatorio.comandados[1]}.</div>` + htmlEstadio(pre) +
       htmlRelatorio({ ...res.relatorio, narracao }, { nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome] });
     return;
   }
@@ -69,16 +106,19 @@ async function atualizar() {
   topo(gols, m);
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">A partida ainda não foi calculada pelo servidor. Os lances aparecem assim que o cálculo rodar.</div>`
-    : `<div class="card"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(htmlLance).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}
-       <div class="mut" style="margin-top:8px">Estatísticas, xG, mapa de zonas e notas aparecem depois do apito final.</div></div>`;
+    : `<div class="aovivo"><div class="card"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(htmlLance).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre)}
+       <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
+       <div>${htmlEstatisticas(narracao)}${htmlEstadio(pre)}</div></div>`;
 }
 
 async function iniciar() {
   partida = id ? await partidaPorId(id) : null;
   if (!partida) { $("topo").innerHTML = `<div class="bad">Partida não encontrada.</div>`; return; }
   clubes = Object.fromEntries((await clubesPorIds([partida.casa, partida.fora])).map(c => [c.id, c]));
+  preco = await precoDoIngresso(partida.casa).catch(() => null);
   await atualizar();
-  relogio = setInterval(async () => { if (encerrada) return; if (!partida.processada) partida = await partidaPorId(id); atualizar().catch(() => {}); }, 10000);
+  relogio = setInterval(async () => { if (encerrada) return; if (!partida.processada || partida.publico == null) partida = await partidaPorId(id); atualizar().catch(() => {}); }, 10000);
+  tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
 iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
