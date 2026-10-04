@@ -46,9 +46,10 @@ export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*"
 export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
 // só voltam os resultados e os lances que o relógio já liberou
-export const resultadosDe = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora").in("partida_id", ids).then(ok) : Promise.resolve([]);
+// tudo = false: só o que o relógio já liberou, mesmo para o administrador (que lê tudo no banco)
+export const resultadosDe = (ids, tudo = false) => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, libera_em").in("partida_id", ids).then(ok).then(l => tudo ? l : l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
 export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("partida_id", id).maybeSingle().then(ok);
-export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados").eq("partida_id", id).order("ordem").then(ok);
+export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados, libera_em").eq("partida_id", id).order("ordem").then(ok);
 export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").in("id", ids).then(ok);
 
 // ---------- administração ----------

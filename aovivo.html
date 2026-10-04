@@ -53,7 +53,10 @@ function topo(gols, m) {
 async function atualizar() {
   const m = momento();
   if (m.antes) { topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
-  const [lances, res] = await Promise.all([lancesDaPartida(id), relatorioDaPartida(id)]);
+  // o administrador lê tudo no banco; aqui a transmissão segue o relógio para ele também
+  const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;
+  let [lances, res] = await Promise.all([lancesDaPartida(id), relatorioDaPartida(id)]);
+  lances = lances.filter(noAr); if (res && !noAr(res)) res = null;
   const narracao = lances.map(l => l.dados);
   if (res) {
     encerrada = true; clearInterval(relogio);

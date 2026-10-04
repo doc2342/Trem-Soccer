@@ -81,7 +81,7 @@ async function partidasAdmin() {
   const g = $("admGrupo") ? $("admGrupo").value : "A", rodadas = [...new Set(todas.map(p => p.rodada))];
   const ultimaFeita = Math.max(1, ...todas.filter(p => p.processada).map(p => p.rodada));
   const r = $("admRodada") ? +$("admRodada").value : ultimaFeita;
-  const lista = todas.filter(p => p.grupo === g && p.rodada === r), res = Object.fromEntries((await resultadosDe(lista.map(p => p.id))).map(x => [x.partida_id, x]));
+  const lista = todas.filter(p => p.grupo === g && p.rodada === r), res = Object.fromEntries((await resultadosDe(lista.map(p => p.id), true)).map(x => [x.partida_id, x]));
   el.innerHTML = `<h2>Partidas <span class="tag">refazer apaga o resultado e calcula de novo · trocar o placar serve para W.O. e não mexe no relatório</span></h2>
     <div class="row"><label>Grupo<select id="admGrupo">${GRUPOS.map(x => `<option ${x === g ? "selected" : ""}>${x}</option>`).join("")}</select></label>
       <label>Rodada<select id="admRodada">${rodadas.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>Rodada ${x}</option>`).join("")}</select></label></div>
