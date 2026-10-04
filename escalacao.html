@@ -222,8 +222,10 @@ function renderEscolha() {
   const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
   const lista = elenco.filter(j => !sel || sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
   const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `titular (${E.vagas[i]})` : E.banco.includes(j.id) ? "banco" : ""; };
+  const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
   el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
-    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
+    <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
+    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 
