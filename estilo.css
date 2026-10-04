@@ -63,6 +63,14 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .legenda span { border-left:4px solid var(--line); padding-left:6px; }
 .legenda .titular { border-left-color:var(--ok); } .legenda .reserva { border-left-color:var(--ac); }
 .lista .item .n { margin-left:auto; }
+.lista .item .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .lista .item .dir { margin-left:auto; display:flex; gap:8px; align-items:center; flex:none; }
+.lista .item .mo { width:24px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--mut); } .lista .item .mo.ok { color:var(--ok); } .lista .item .mo.bad { color:var(--bad, #e5484d); }
+.lista .item .info, .cabl .info { width:22px; height:22px; border-radius:50%; padding:0; font-size:12px; font-weight:700; background:transparent; color:var(--mut); border:1px solid var(--line); cursor:pointer; flex:none; }
+.cabl { display:flex; gap:8px; justify-content:flex-end; font-size:11px; color:var(--mut); padding:0 4px 2px; } .cabl span { width:24px; text-align:right; } .cabl span:nth-child(3) { width:34px; }
+.skills { columns:4; column-gap:14px; padding:6px 8px 8px 14px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.03); font-size:12.5px; }
+.skills .grupo { break-inside:avoid; margin-bottom:6px; } .skills h4 { margin:0 0 2px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); border-bottom:1px solid var(--line); }
+.skills .grupo > div { display:flex; justify-content:space-between; gap:6px; color:var(--mut); } .skills .grupo > div.conta { color:var(--tx); font-weight:600; }
+@media (max-width:900px) { .skills { columns:2; } }
 .tag { font-size:11px; color:var(--mut); }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; background:#0f1720; }
@@ -120,7 +128,7 @@ details.card[open] > summary { margin-bottom:8px; }
   .posDaVaga { display:flex; flex-direction:row; align-items:center; gap:8px; margin:4px 0 6px; font-size:13px; white-space:nowrap; }
   .posDaVaga select { flex:1; min-width:0; }
   .lista .item { padding:6px 2px; gap:6px; } .lista .item .pega { display:none; }
-  .lista .item > span:not(.pp):not(.n):not(.pega) { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lista .item > span:not(.pp):not(.n):not(.pega):not(.dir) { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* o cartão de salvar acompanha a rolagem */
   #online { position:sticky; top:0; z-index:30; }
   #banco .chip { padding:5px 10px; }
