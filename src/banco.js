@@ -126,7 +126,7 @@ export async function talentosDaLiga() { // só o administrador consegue ler
 }
 export const virarTemporada = (ligaId, plano) => sb.rpc("virar_temporada", { p_liga: ligaId, p_plano: plano }).then(ok);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
-// E5: carnê, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
+// E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
 export const venderAoBanco = jogadorId => sb.rpc("vender_ao_banco", { p_jogador: numero(jogadorId) }).then(ok);
 export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);

@@ -1,4 +1,4 @@
--- Trem Soccer · fase 2, passo E5: carnê, clube no vermelho, imposto sobre o lucro e fundo da liga.
+-- Trem Soccer · fase 2, passo E5: sócio-torcedor, clube no vermelho, imposto sobre o lucro e fundo da liga.
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run.
 -- Precisa do 17_acesso_e_descenso.sql já executado. Não exige publicar a função "rodada" de novo.
 -- Pode ser executado mais de uma vez sem apagar dados. Valores em milhares.
@@ -16,9 +16,9 @@ create or replace function public.premio_minimo(p_divisao int) returns int langu
   select (array[4000, 2400, 1200])[least(3, greatest(1, p_divisao))]
 $$;
 
--- ---------- carnê de temporada ----------
--- Antes da primeira rodada, o dirigente libera lugares para carnê: até um terço da torcida compra, com 20% de desconto,
--- pagando de uma vez os jogos em casa da temporada. Quem tem carnê ocupa o lugar em todos os jogos em casa.
+-- ---------- sócio-torcedor (as colunas guardam o nome antigo, "carne") ----------
+-- Antes da primeira rodada, o dirigente abre vagas de sócio-torcedor: até um terço da torcida adere, com 20% de desconto,
+-- pagando de uma vez os jogos em casa da temporada. O sócio-torcedor ocupa o lugar em todos os jogos em casa.
 create or replace function public.definir_carne(p_lugares int) returns int
 language plpgsql security definer set search_path = public as $$
 declare
@@ -29,8 +29,8 @@ begin
   select * into v_c from clubes where dono = auth.uid();
   if v_c.id is null then raise exception 'Você não tem clube.'; end if;
   select * into v_l from ligas where id = v_c.liga_id;
-  if v_c.carne_temporada is not distinct from v_l.temporada then raise exception 'Os carnês desta temporada já foram vendidos.'; end if;
-  if exists (select 1 from partidas where liga_id = v_c.liga_id and processada) then raise exception 'A temporada já começou: o carnê só é vendido antes da primeira rodada.'; end if;
+  if v_c.carne_temporada is not distinct from v_l.temporada then raise exception 'O Sócio-Torcedor desta temporada já foi aberto.'; end if;
+  if exists (select 1 from partidas where liga_id = v_c.liga_id and processada) then raise exception 'A temporada já começou: o Sócio-Torcedor só abre antes da primeira rodada.'; end if;
   if p_lugares is null or p_lugares < 0 then raise exception 'Número de lugares inválido.'; end if;
   v_n := least(p_lugares, v_c.torcida / 3, 5000 + 5000 * v_c.estadio_nivel);
   select coalesce((select preco_ingresso from divisoes where liga_id = v_c.liga_id and divisao = v_c.divisao), v_l.preco_ingresso) into v_preco;
@@ -39,7 +39,7 @@ begin
   if v_valor > 0 then
     update financas set caixa = caixa + v_valor where clube_id = v_c.id;
     insert into lancamentos (clube_id, temporada, rodada, tipo, valor, descricao)
-      values (v_c.id, v_l.temporada, null, 'carne', v_valor, 'Carnês da temporada (' || v_n || ' lugares)');
+      values (v_c.id, v_l.temporada, null, 'carne', v_valor, 'Sócio-Torcedor (' || v_n || ' sócios)');
   end if;
   return v_valor;
 end $$;
@@ -157,7 +157,7 @@ begin
   where id = p_jogador;
 end $$;
 
--- ---------- lançamentos da partida, agora com carnê e com o prazo do clube no vermelho ----------
+-- ---------- lançamentos da partida, agora com sócio-torcedor e com o prazo do clube no vermelho ----------
 create or replace function public.lancar_rodada(p_partida bigint) returns void
 language plpgsql security definer set search_path = public as $$
 declare
@@ -188,7 +188,7 @@ begin
   v_tv := round(v_d.receita_tv::numeric / v_l.rodadas_por_temporada);
   v_pat := round(v_d.receita_patrocinio::numeric / v_l.rodadas_por_temporada);
 
-  -- público: quem tem carnê já pagou e ocupa o lugar; os demais compram ingresso se houver lugar
+  -- público: o sócio-torcedor já pagou e ocupa o lugar; os demais compram ingresso se houver lugar
   v_lugares := 5000 + 5000 * v_c.estadio_nivel;
   v_carne := case when v_liga and v_c.carne_temporada is not distinct from v_l.temporada then least(v_c.carne, v_lugares) else 0 end;
   v_publico := least(v_lugares, greatest(v_carne,
@@ -223,7 +223,7 @@ begin
     if v_clube = v_p.casa then
       insert into lancamentos (clube_id, temporada, rodada, tipo, valor, descricao)
         values (v_clube, v_l.temporada, v_p.rodada, 'bilheteria', v_bilheteria,
-          'Bilheteria (' || v_avulsos || ' pagantes' || case when v_carne > 0 then ' e ' || v_carne || ' de carnê' else '' end || ')' || case when v_liga then '' else ' · playoff' end);
+          'Bilheteria (' || v_avulsos || ' pagantes' || case when v_carne > 0 then ' e ' || v_carne || ' sócios-torcedores' else '' end || ')' || case when v_liga then '' else ' · playoff' end);
       v_total := v_total + v_bilheteria;
     end if;
     insert into financas (clube_id, caixa) values (v_clube, 5000 + v_total)
@@ -290,7 +290,7 @@ revoke execute on function public.lucros_da_temporada(bigint) from public, anon;
 grant execute on function public.lucros_da_temporada(bigint) to authenticated;
 
 -- Virada com E5: desconta o prêmio antecipado, cobra o imposto, e distribui o fundo (metade para a terceira divisão da
--- temporada que começa, metade guardada para a segunda taça). Carnê e antecipação valem só para a temporada que acabou.
+-- temporada que começa, metade guardada para a segunda taça). Sócio-torcedor e antecipação valem só para a temporada que acabou.
 create or replace function public.virar_temporada(p_liga bigint, p_plano jsonb) returns text
 language plpgsql security definer set search_path = public as $$
 declare
@@ -394,7 +394,7 @@ end $$;
 revoke execute on function public.virar_temporada(bigint, jsonb) from public, anon;
 grant execute on function public.virar_temporada(bigint, jsonb) to authenticated;
 
--- ---------- reinício do teste: também zera carnê, dívida, antecipação, paraquedas e fundo ----------
+-- ---------- reinício do teste: também zera sócio-torcedor, dívida, antecipação, paraquedas e fundo ----------
 create or replace function public.reiniciar_teste(p_liga bigint, p_sortear boolean default true) returns text
 language plpgsql security definer set search_path = public as $$
 declare

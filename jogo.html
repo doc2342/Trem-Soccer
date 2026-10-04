@@ -171,16 +171,16 @@ async function telaClube(liga, clube) {
       <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
       <div id="vermelhoAviso" style="margin-top:6px"></div></div>`;
   };
-  // carnê: antes da primeira rodada, até um terço da torcida compra os jogos em casa de uma vez, com 20% de desconto
+  // sócio-torcedor (colunas "carne" no banco): antes da primeira rodada, até um terço da torcida compra os jogos em casa de uma vez, com 20% de desconto
   const carne = () => {
     if (caixa == null || clube.carne == null || clube.torcida == null) return "";
     const vendido = clube.carne_temporada != null && clube.carne_temporada === liga.temporada;
     const lugares = 5000 + 5000 * (clube.estadio_nivel || 1), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round((liga.rodadas_por_temporada || 18) / 2);
     const valor = n => Math.round(n * (liga.preco_ingresso || 0) * 0.8 * jogos / 1000);
-    return `<div class="card" style="margin:10px 0 0"><b>Carnê de temporada</b>
-      ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} lugares vendidos em carnê nesta temporada. Esses torcedores já pagaram e vão a todos os jogos em casa.` : "Você não vendeu carnês nesta temporada."}</div>`
-        : `<div class="mut" style="margin:4px 0">Só antes da primeira rodada. Até um terço da torcida (${maximo.toLocaleString("pt-BR")} lugares) compra os ${jogos} jogos em casa de uma vez, com 20% de desconto. Você recebe tudo agora e garante esse público mesmo com a torcida de mau humor; em troca, esses lugares rendem 20% menos do que o ingresso avulso.</div>
-          <div class="row"><label>Lugares para carnê<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Vender os carnês</button></div>
+    return `<div class="card" style="margin:10px 0 0"><b>Sócio-Torcedor</b>
+      ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles já pagaram e vão a todos os jogos em casa.` : "Você não abriu vagas de sócio-torcedor nesta temporada."}</div>`
+        : `<div class="mut" style="margin:4px 0">Só antes da primeira rodada. Até um terço da torcida (${maximo.toLocaleString("pt-BR")} lugares) vira sócio-torcedor e paga os ${jogos} jogos em casa de uma vez, com 20% de desconto. Você recebe tudo agora e garante esse público mesmo com a torcida de mau humor; em troca, esses lugares rendem 20% menos do que o ingresso avulso.</div>
+          <div class="row"><label>Vagas de sócio-torcedor<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Abrir o Sócio-Torcedor</button></div>
           <div id="carneAviso" style="margin-top:6px"></div>`}</div>`;
   };
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
@@ -222,13 +222,13 @@ async function telaClube(liga, clube) {
       ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>
     </section>`;
 
-  // carnê e antecipação do prêmio
+  // sócio-torcedor e antecipação do prêmio
   if ($("carneVender")) {
     const lugares = () => Math.max(0, Math.round(+$("carneLugares").value || 0));
     const mostra = () => { $("carneValor").textContent = `você recebe ${dinheiro(Math.round(Math.min(lugares(), +$("carneLugares").max) * (liga.preco_ingresso || 0) * 0.8 * Math.round((liga.rodadas_por_temporada || 18) / 2) / 1000))} agora`; };
     $("carneLugares").oninput = mostra; mostra();
     $("carneVender").onclick = async () => {
-      if (!confirm(`Vender ${lugares().toLocaleString("pt-BR")} lugares em carnê? Só dá para fazer uma vez por temporada.`)) return;
+      if (!confirm(`Vender ${lugares().toLocaleString("pt-BR")} vagas de sócio-torcedor? Só dá para fazer uma vez por temporada.`)) return;
       try { await definirCarne(lugares()); await carregar({ user: usuario }); }
       catch (err) { $("carneAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
