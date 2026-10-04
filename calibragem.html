@@ -145,11 +145,11 @@ async function rodar() {
     ["Linha de impedimento contra bola longa", O.linha, O.longo, "vence"], ["Linha de impedimento contra passe curto", O.linha, O.curto, "perde"],
     ["Linha de impedimento contra contra-ataque", O.linha, O.contra, "perde"], ["Passe curto contra retranca", O.curto, O.retranca, "vence"],
     ["Muito ofensivo contra neutro", O.ofensivo, {}, "equilibra"], ["Retranca contra neutro", O.retranca, {}, "equilibra"],
-  ].map(([nome, ia, ib, meta], k) => [nome, confronto({ instrucoes: ia }, { instrucoes: ib }, { pares: 24, neutro: true, semente: 500 + k }), meta]);
+  ].map(([nome, ia, ib, meta], k) => [nome, confronto({ instrucoes: ia }, { instrucoes: ib }, { pares: 60, neutro: true, semente: 500 + k }), meta]);
   const sinal = (r, meta) => { const d = r.pontosA - r.pontosB, ok = meta === "vence" ? d >= 0.15 : meta === "perde" ? d <= -0.1 : Math.abs(d) < 0.25; return `<span class="${ok ? "ok" : "bad"}">${d >= 0 ? "+" : ""}${f2(d)}</span>`; };
   h += `<div class="card"><h2>Confrontos táticos (time A com a instrução, campo neutro, mesmo nível)</h2>` + tabela(["Time A contra time B", "Esperado para A", "Pontos por jogo (A · B)", "Diferença", "Gols (A · B)"],
     testes.map(([nome, r, meta]) => [nome, meta, `${f2(r.pontosA)} · ${f2(r.pontosB)}`, sinal(r, meta), `${f2(r.gols[0])} · ${f2(r.gols[1])}`])) +
-    `<div class="mut" style="margin-top:6px">Com 600 partidas por linha, a diferença tem margem de cerca de 0,1 ponto por jogo para mais ou para menos.</div></div>`;
+    `<div class="mut" style="margin-top:6px">Com 1.500 partidas por linha, a diferença tem margem de cerca de 0,06 ponto por jogo para mais ou para menos.</div></div>`;
   $("saida").innerHTML = h; await pausa();
   const pf = perfis();
   h += `<div class="card"><h2>Perfis de elenco: pontos por jogo, todos contra todos (campo neutro)</h2>` + tabela(["Perfil", "Pontos por jogo"], Object.entries(pf).sort((a, b) => b[1] - a[1]).map(([k, p]) => [PERFIS[k].nome, faixa(p, 1.25, 1.5, f2(p))])) + `</div>`;
