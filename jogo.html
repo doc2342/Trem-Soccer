@@ -389,19 +389,30 @@ async function telaClube(liga, clube) {
     const tr = e.target.closest("tr[data-jog]"); if (!tr || !temContratos) return;
     const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
-    $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${j.pos} · ${j.idade} anos
-      <div class="mut" style="margin:4px 0">Salário atual ${dinheiro(j.salario)} por temporada · mínimo que ele aceita na renovação ${dinheiro(j.mercado)} · multa rescisória ${j.protegido ? "não tem (está na lista de protegidos)" : dinheiro(clausula(j.salario)) + (protegido ? " (só vale a partir da próxima temporada)" : "")} · contrato até o fim da temporada ${j.contratoAte}.</div>
-      ${caixa != null && caixa < 0 ? `<div class="row" style="margin:6px 0"><button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button><span class="mut">Saída do clube no vermelho: 60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</span></div>` : ""}
-      ${janela === undefined ? "" : `<div class="row" style="margin:6px 0"><button class="sec" id="ctProteger">${j.protegido ? "Tirar da lista de protegidos" : "Pôr na lista de protegidos"}</button><span class="mut">Protegido não tem multa rescisória: ninguém leva sem você vender. São até 5 por clube (você tem ${elenco.filter(x => x.protegido).length}); para tirar alguém da lista, só com a janela fechada.</span></div>`}
-      ${propostas == null ? "" : `<div class="row" style="margin:6px 0"><label>Preço pedido (em milhares)<input id="ctPreco" type="number" step="50" min="0" value="${j.precoPedido || clausula(j.salario)}" style="width:130px"></label><button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}<span class="mut" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</span></div>`}
-      <div class="mut" style="margin:4px 0">O salário só pode subir. A multa rescisória é 5 vezes o salário. Um jogador pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(sobra)} até o teto de folha.</div>
-      <div class="row"><label>Novo salário (em milhares por temporada)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:150px"></label>
-        <span class="mut" id="ctClausula"></span>
-        <button class="sec" id="ctAumentar">Só aumentar o salário</button>
-        <label>Renovar por<select id="ctTemporadas"><option value="1">1 temporada</option><option value="2">2 temporadas</option><option value="3">3 temporadas</option></select></label>
-        <button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctFechar">Fechar</button></div>
+    const bloco = (titulo, corpo) => `<div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="font-weight:700;margin-bottom:6px">${titulo}</div>${corpo}</div>`;
+    const nProtegidos = elenco.filter(x => x.protegido).length;
+    $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)">
+      <div class="row" style="align-items:center"><div><b style="font-size:16px">${esc(j.nome)}</b> <span class="mut">· ${j.pos} · ${j.idade} anos</span></div><button class="sec" id="ctFechar" style="margin-left:auto">Fechar</button></div>
+      <div class="row" style="gap:18px;margin:8px 0 10px">
+        <div><div class="mut">Salário</div><b>${dinheiro(j.salario)}</b></div>
+        <div><div class="mut">Contrato</div><b>até a temporada ${j.contratoAte}</b></div>
+        <div><div class="mut">Multa rescisória</div><b>${j.protegido ? "não tem (protegido)" : dinheiro(clausula(j.salario))}</b>${!j.protegido && protegido ? ` <span class="mut">só vale a partir da próxima temporada</span>` : ""}</div>
+        ${j.aVenda ? `<div><div class="mut">À venda por</div><b>${dinheiro(j.precoPedido)}</b></div>` : ""}</div>
+      <div class="duas">
+        ${bloco("Contrato", `<div class="row"><label>Novo salário (em milhares)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:120px"></label>
+            <label>Renovar por<select id="ctTemporadas"><option value="1">1 temporada</option><option value="2">2 temporadas</option><option value="3">3 temporadas</option></select></label></div>
+          <div class="row" style="margin-top:8px"><button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctAumentar">Só aumentar o salário</button></div>
+          <div class="mut" style="margin-top:6px"><span id="ctClausula"></span> · na renovação ele pede pelo menos ${dinheiro(j.mercado)} · máximo por jogador ${dinheiro(maximo)} · sobram ${dinheiro(sobra)} até o teto. O salário só sobe; a multa é 5 vezes o salário.</div>`)}
+        ${janela === undefined ? "" : bloco(`Lista de protegidos <span class="tag">${nProtegidos} de 5</span>`, `<button class="sec" id="ctProteger">${j.protegido ? "Tirar da lista de protegidos" : "Pôr na lista de protegidos"}</button>
+          <div class="mut" style="margin-top:6px">Protegido não tem multa rescisória: só sai se você vender. Para tirar alguém da lista, só com a janela fechada.</div>`)}
+        ${propostas == null ? "" : bloco("Lista de transferência", `<div class="row"><label>Preço pedido (em milhares)<input id="ctPreco" type="number" step="50" min="0" value="${j.precoPedido || clausula(j.salario)}" style="width:120px"></label>
+            <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
+          <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
+        ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button>
+          <div class="mut" style="margin-top:6px">60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</div>`) : ""}
+      </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
-    const mostra = () => { $("ctClausula").textContent = `multa nova: ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
+    const mostra = () => { $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
     $("ctSalario").oninput = mostra; mostra();
     const enviar = async temporadas => {
       try { await ajustarContrato(j.id, Math.round(+$("ctSalario").value), temporadas); await carregar({ user: usuario }); }
@@ -414,7 +425,7 @@ async function telaClube(liga, clube) {
       const listar = async preco => { try { await listarJogador(j.id, preco); await carregar({ user: usuario }); } catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; } };
       $("ctListar").onclick = () => listar(Math.round(+$("ctPreco").value) || 0);
       if ($("ctTirar")) $("ctTirar").onclick = () => listar(0);
-      taxaDaVenda(j.id).then(t => { if (t != null && $("ctTaxa")) $("ctTaxa").textContent = `Na venda negociada você paga ${Math.round(t * 100)}% de taxa sobre o valor (30% para quem acabou de chegar, 20% na janela seguinte, 10% depois).`; });
+      taxaDaVenda(j.id).then(t => { if (t != null && $("ctTaxa")) $("ctTaxa").textContent = `Se vender agora, a taxa é de ${Math.round(t * 100)}% do valor. (30% para quem acabou de chegar, 20% na janela seguinte, 10% depois.)`; });
     }
     if ($("ctProteger")) $("ctProteger").onclick = async () => {
       try { await protegerJogador(j.id, !j.protegido); await carregar({ user: usuario }); }
