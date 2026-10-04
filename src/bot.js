@@ -1,6 +1,9 @@
 // Tática de bot: vale para clubes sem dono e para dirigentes há 21 dias sem acessar.
 // O bot joga certo, mas sem ler o adversário: escolhe a formação que melhor aproveita o elenco e instruções neutras.
 import { IDX, notaNaPosicao } from "./modelo.js";
+import { fatorDeMomento } from "./saude.js";
+// nota na posição já com a forma e a moral do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
+const notaDoMomento = (j, pos) => notaNaPosicao(j, pos) * fatorDeMomento(j);
 import { FORMACOES, escalar } from "./escalacao.js";
 import { avaliarZonas } from "./motor.js";
 
@@ -16,7 +19,7 @@ export const ESTILO_DO_PERFIL = {
 const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
 const A = IDX;
 
-const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / escalacao.length;
+const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaDoMomento(x.j, x.pos), 0) / escalacao.length;
 const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
 
 // elenco: jogadores disponíveis (sem lesionados e suspensos). forcaAdversario: nota média do onze do adversário, se conhecida.
@@ -34,7 +37,7 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
   const { formacao, escalacao, forca } = melhor;
 
   // banco: um goleiro e os seis melhores que sobraram
-  const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
+  const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
   const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...fora.filter(j => j.pos !== "GK").slice(0, 6)];
 
   // mentalidade: normal; um nível acima se é favorito, um abaixo se é azarão (o mando já pesa no motor)
@@ -50,8 +53,8 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
   const livres = banco.filter(j => j.pos !== "GK"), substituicoes = [];
   for (const x of linha.slice().sort((a, b) => a.j.at[A.res] - b.j.at[A.res])) {
     if (substituicoes.length === 3 || !livres.length) break;
-    livres.sort((a, b) => notaNaPosicao(b, x.pos) - notaNaPosicao(a, x.pos));
-    if (notaNaPosicao(livres[0], x.pos) < 0.85 * notaNaPosicao(x.j, x.pos)) continue; // sem reserva à altura para a posição
+    livres.sort((a, b) => notaDoMomento(b, x.pos) - notaDoMomento(a, x.pos));
+    if (notaDoMomento(livres[0], x.pos) < 0.85 * notaDoMomento(x.j, x.pos)) continue; // sem reserva à altura para a posição
     substituicoes.push({ min: 60 + 10 * substituicoes.length, sai: x.j.id, entra: livres.shift().id, cond: "sempre" });
   }
 

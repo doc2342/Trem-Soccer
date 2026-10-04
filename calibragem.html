@@ -120,7 +120,7 @@ async function rodar() {
     ["Faltas por jogo", faixa(base.extra.faltas, 16, 28, f1(base.extra.faltas)), "16 a 28"],
     ["Cartões amarelos por jogo", faixa(base.extra.amarelos, 3, 5, f1(base.extra.amarelos)), "3 a 5"],
     ["Cartões vermelhos por jogo", faixa(base.extra.vermelhos, 0.1, 0.3, f2(base.extra.vermelhos)), "0,1 a 0,3"],
-    ["Lesões por jogo", faixa(base.extra.lesoes, 0.1, 0.3, f2(base.extra.lesoes)), "0,1 a 0,3"],
+    ["Lesões por jogo", faixa(base.extra.lesoes, 0.3, 0.45, f2(base.extra.lesoes)), "0,30 a 0,45 (3 a 4 por clube por temporada)"],
     ["Energia média no fim (sem substituição)", f1(base.energiaFinal), "de 100 no início"],
   ]) + `</div>`;
   h += `<div class="card"><h2>De onde saem os gols</h2>` + tabela(["Tipo de chance", "Por jogo", "xG médio", "Viram gol", "Fatia dos gols"], Object.entries(base.tipos).map(([t, x]) => [t, f1(x.porJogo), f2(x.xg), pc(x.conv), pc(x.fatiaGols)])) +

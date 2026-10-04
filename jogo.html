@@ -125,6 +125,8 @@
   <div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" id="quem" style="margin-left:auto"></span><button class="sec" id="sair" hidden>Sair</button></div>
   <div class="card" id="login"></div>
   <div id="app"></div>
+  <!-- aba Tática: fica fora de #app para não ser desmontada quando a tela do clube é redesenhada -->
+  <div id="taticaFora" hidden></div>
 </main>
 
 <script type="module">
@@ -150,6 +152,19 @@ const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4
 let usuario = null, versao = 0;
 // O que sobrevive quando a tela é redesenhada depois de uma ação (lance, proposta, compra): recado a mostrar, filtros da busca do mercado e clube aberto.
 let recado = "", verClube = null, carregadoEm = 0;
+// Aba Tática: a tela de escalação é montada uma vez em #taticaFora e só é refeita quando os dados do clube mudaram e não há alteração sem salvar.
+let telaTatica = null, taticaVelha = true, taticaDe = null, montandoTatica = false;
+async function mostrarTatica(sim) {
+  const fora = $("taticaFora");
+  fora.hidden = !sim || !usuario;
+  if (fora.hidden) { document.body.classList.remove("escolhendo"); return; }
+  if (montandoTatica || (telaTatica && taticaDe === usuario.id && (!taticaVelha || telaTatica.sujo()))) return;
+  taticaVelha = false; taticaDe = usuario.id; telaTatica = null; montandoTatica = true;
+  fora.innerHTML = `<div class="card mut">Carregando a tática…</div>`;
+  try { const { montarEscalacao } = await import("./src/ui-escalacao.js"); const eu = usuario; const t = await montarEscalacao(fora, { online: true, sessao: { user: eu }, cabecalho: false }); if (usuario && usuario.id === eu.id) telaTatica = t; }
+  catch (e) { fora.innerHTML = `<div class="card bad">Não consegui abrir a tática: ${esc(e.message)}</div>`; taticaVelha = true; }
+  montandoTatica = false;
+}
 const filtrosDoMercado = {};
 const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
 
@@ -158,7 +173,8 @@ async function carregar(s) {
   usuario = s ? s.user : null;
   $("quem").textContent = usuario ? usuario.email : "";
   $("sair").hidden = !usuario;
-  if (!usuario) { $("app").innerHTML = ""; return; }
+  if (!usuario) { $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
+  taticaVelha = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
   const redesenho = !!$("abas"), rolagem = scrollY; // a tela do clube já está aberta: troca o conteúdo sem piscar e fica onde estava
   if (!redesenho) $("app").innerHTML = `<div class="card mut">Carregando…</div>`;
   try {
@@ -180,6 +196,7 @@ function talvezAtualizar(idade) {
   if (document.hidden || !usuario || !$("abas") || Date.now() - carregadoEm < idade) return;
   const foco = document.activeElement;
   if (foco && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
+  if (!$("taticaFora").hidden) return; // escalando: não mexe na tela
   if (document.querySelector('#app [id$="Painel"]:not(:empty)') || ($("quadroAtr") && !$("quadroAtr").hidden)) return;
   carregar({ user: usuario });
 }
@@ -435,7 +452,7 @@ async function telaClube(liga, clube) {
     <div class="central">
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" class="mut" style="margin-top:8px"></div>
-      <div class="row" style="margin-top:10px"><a href="escalacao.html?online=1"><button>Escalação e tática</button></a><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
+      <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
     ${clube.torcida == null ? `<div class="card c-destaque"><h2>Clube</h2><div class="mut">Torcida e estádio aparecem aqui quando a economia da liga for ligada.</div></div>` : `<div class="card c-destaque"><h2>Torcida</h2><div class="row" style="gap:22px;align-items:center">
       <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
       <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
@@ -480,6 +497,7 @@ async function telaClube(liga, clube) {
       </div></div>
     </section>
     <section data-secao="clubeVisto"><div id="cvCorpo"></div></section>
+    <section data-secao="tatica"></section>
     <section data-secao="mercado">
     <div class="subabas" id="mSub">${[["busca", "🔎 Buscar jogadores", "Busca", 0],
         ...(propostas == null ? [] : [["neg", "🤝 Negociações", "Propostas", propostas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length]]),
@@ -770,12 +788,12 @@ async function telaClube(liga, clube) {
   // abas: mostra uma seção por vez e lembra a última aberta
   let abaAnterior = "inicio", abaAtual = "inicio";
   const abrir = k => {
-    if (k === "tatica") { location.href = "escalacao.html?online=1"; return; }
     if (abaAtual !== "clubeVisto") abaAnterior = abaAtual;
     abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
+    mostrarTatica(k === "tatica");
   };
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
