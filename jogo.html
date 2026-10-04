@@ -35,6 +35,20 @@
   .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:#0f1720; border-radius:10px; border:1px solid var(--line); }
   .a0 { color:#5d6b7c; } .a1 { color:#9fb0c3; } .a3 { color:#7fd4a6; font-weight:600; } .a4 { color:#3fe08f; font-weight:700; }
   tr.sep td { border-top:2px solid var(--line); }
+  /* elenco por zonas */
+  .elenco2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
+  @media (max-width:1040px) { .elenco2 { grid-template-columns:1fr; } }
+  .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; }
+  .zona table { width:100%; } .zona td, .zona th { padding:5px 6px; white-space:nowrap; } .zona td.esq { white-space:normal; min-width:130px; }
+  .act { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; font-size:11.5px; font-weight:700; text-align:center; }
+  .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; }
+  .info { width:22px; height:22px; padding:0; border-radius:50%; font-size:12px; font-weight:700; font-style:italic; line-height:1; background:#2a4a7a; color:#fff; border:0; cursor:pointer; }
+  .quadro-atr { position:fixed; z-index:50; width:min(520px, calc(100vw - 16px)); background:var(--card); border:1px solid var(--ac); border-radius:10px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,.55); }
+  .qa-topo { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .qa-grade { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px 14px; }
+  .qa-grupo { font-size:11px; text-transform:uppercase; color:var(--mut); letter-spacing:.04em; margin-top:4px; border-bottom:1px solid var(--line); }
+  .qa-linha { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:1px 0; color:var(--mut); }
+  .qa-linha.qa-conta { color:var(--tx); font-weight:600; }
 </style>
 </head>
 <body>
@@ -144,9 +158,29 @@ async function telaClube(liga, clube) {
   const situacao = j => (j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} · ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
   const contrato = j => j.salario == null ? `<td>—</td><td>—</td><td>—</td>` : `<td>${dinheiro(j.salario)}</td><td title="${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? "Primeira temporada de contrato: a multa só vale a partir da próxima" : "Valor para outro clube levar o jogador"}">${j.protegido ? `<span title="Na lista de protegidos: sem multa rescisória">🛡️ sem multa</span>` : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? " 🔒" : "")}</td><td class="${j.contratoAte <= liga.temporada ? "aviso" : ""}">até a ${j.contratoAte}</td>`;
-  const linha = j => `<tr class="clk" data-jog="${j.id}"><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${contrato(j)}
-    <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
-    ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
+  // elenco por zonas, como no Dugout: situação na tática salva, posição, botão de atributos, nome, idade, país, nota e contrato
+  const ZONAS_DO_ELENCO = [["Goleiros", ["gol"]], ["Defensores", ["defesa", "ala"]], ["Meio-campistas", ["volante", "meio", "meia"]], ["Atacantes", ["ataque"]]];
+  const naTatica = {};
+  if (tatica && tatica.dados && Array.isArray(tatica.dados.jog)) {
+    tatica.dados.jog.forEach((id, i) => { naTatica[id] = { titular: true, pos: (tatica.dados.vagas || [])[i] || "" }; });
+    (tatica.dados.banco || []).forEach(id => { if (!naTatica[id]) naTatica[id] = { titular: false }; });
+  }
+  const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
+  const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${naTatica[j.id].pos}">${naTatica[j.id].pos}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
+  const linha = j => `<tr class="clk" data-jog="${j.id}"><td>${selo(j)}</td><td><span class="pp">${j.pos}</span></td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
+    <td class="esq">${esc(j.nome)}${situacao(j)}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
+    <td>${j.idade}</td><td class="mut" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${contrato(j)}</tr>`;
+  const zonaDoElenco = ([titulo, linhas]) => {
+    const l = elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => ordemNaTatica(a) - ordemNaTatica(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
+    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><div class="rolagem"><table><tr><th title="Na tática salva: posição em que é titular, ou RES se está no banco">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>País</th><th title="Nota na posição dele">Nota</th><th>Salário</th><th title="Multa rescisória: quem pagar leva o jogador">Multa</th><th>Contrato</th></tr>
+      ${l.map(linha).join("") || `<tr><td colspan="10" class="mut">Ninguém nesta zona.</td></tr>`}</table></div></div>`;
+  };
+  // quadro de atributos, aberto pelo botão "i"
+  const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
+  const quadroDeAtributos = j => { const conta = PESOS[POSICOES[j.pos].papel] || {};
+    return `<div class="qa-topo"><b>${esc(j.nome)}</b> <span class="pp">${j.pos}</span> <span class="nota">${f1(notaNaPosicao(j, j.pos))}</span></div>
+      <div class="qa-grade">${GRUPOS_DE_ATRIBUTOS.map(([nome, g]) => `<div><div class="qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="qa-linha ${conta[a.k] ? "qa-conta" : ""}"><span>${a.nome}</span><span class="${corAtr(j.at[k])}">${j.at[k]}</span></div>`).join("")}</div>`).join("")}</div>
+      <div class="mut" style="margin-top:6px;font-size:12px">Em destaque, os atributos que contam para a posição dele.${Object.keys(j.fam).filter(p => p !== j.pos).length ? ` Também joga: ${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})`).join(", ")}.` : ""}</div>`; };
   const outros = clubes.filter(c => c.id !== clube.id);
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "cura lesões mais rápido"],
@@ -318,10 +352,12 @@ async function telaClube(liga, clube) {
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq"><span class="pp">${esc(t.pos || "")}</span> ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </section>
     <section data-secao="elenco">
-    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
+    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contrato). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
-      <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th title="Multa rescisória: quem pagar leva o jogador">Multa</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
-      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>
+      <div id="contratoPainel"></div>
+      <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
+      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos.</div></div>
+    <div id="quadroAtr" class="quadro-atr" hidden></div>
     </section>`;
 
   // sócio-torcedor e antecipação do prêmio
@@ -470,6 +506,27 @@ async function telaClube(liga, clube) {
     } catch (err) { $("negAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
   };
 
+  // quadro de atributos: aparece ao passar o mouse no "i" e fica preso com um clique (outro clique, ou clicar fora, fecha)
+  if ($("quadroAtr")) {
+    const q = $("quadroAtr"); let preso = null;
+    const mostrar = b => {
+      const j = elenco.find(x => x.id === b.dataset.info); if (!j) return;
+      q.innerHTML = quadroDeAtributos(j); q.hidden = false;
+      const r = b.getBoundingClientRect(), w = q.offsetWidth, h = q.offsetHeight;
+      q.style.left = Math.max(8, Math.min(r.right + 10, innerWidth - w - 8)) + "px";
+      q.style.top = Math.max(8, Math.min(r.top - 20, innerHeight - h - 8)) + "px";
+    };
+    const secao = document.querySelector('[data-secao="elenco"]');
+    secao.addEventListener("mouseover", e => { const b = e.target.closest("[data-info]"); if (b && !preso) mostrar(b); });
+    secao.addEventListener("mouseout", e => { if (e.target.closest("[data-info]") && !preso) q.hidden = true; });
+    document.addEventListener("click", e => {
+      const b = e.target.closest("[data-info]");
+      if (b && document.body.contains(q)) { if (preso === b.dataset.info) { preso = null; q.hidden = true; } else { preso = b.dataset.info; mostrar(b); } }
+      else if (preso && !e.target.closest("#quadroAtr")) { preso = null; q.hidden = true; }
+    });
+    addEventListener("scroll", () => { if (!preso) q.hidden = true; }, { passive: true });
+  }
+
   // abas: mostra uma seção por vez e lembra a última aberta
   let abaAnterior = "inicio", abaAtual = "inicio";
   const abrir = k => {
@@ -547,6 +604,7 @@ async function telaClube(liga, clube) {
       iniciarObra(qual).then(() => carregar({ user: usuario })).catch(err => { $("obraAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; e.target.disabled = false; });
       return;
     }
+    if (e.target.closest("[data-info]")) return; // o botão de atributos tem o seu próprio quadro
     const tr = e.target.closest("tr[data-jog]"); if (!tr || !temContratos) return;
     const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
