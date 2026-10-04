@@ -3,6 +3,18 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 const COR = ["casa", "fora"];
 
+const ICONE_RESULTADO = { gol: "⚽", defesa: "🧤", trave: "🥅", fora: "👟", bloqueado: "🛡️" };
+const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", impedimento: "🚩", contra: "⚡", posse: "·" };
+const ROTULO = { gol: "Gol", defesa: "Finalização defendida", trave: "Finalização na trave", fora: "Finalização para fora", bloqueado: "Finalização bloqueada",
+  amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse" };
+// Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
+export function htmlLance(l) {
+  const finalizacao = l.resultado !== undefined, chave = finalizacao ? l.resultado : l.tipo;
+  const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
+  return `<div class="lance ${classe}"><span class="min">${l.min}'</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+}
+export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["·", "perda de posse"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
+
 // r: saída de montarRelatorio. nomes: [mandante, visitante]. analistas: de quais times mostrar o comentário.
 export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1] } = {}) {
   const E = r.esperado, n = nomes.map(esc);
@@ -12,7 +24,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     <div class="barra"><div style="width:${E.vitoria * 100}%;background:var(--casa)">${pc(E.vitoria)}</div><div style="width:${E.empate * 100}%;background:#8b9bb0">empate ${pc(E.empate)}</div><div style="width:${E.derrota * 100}%;background:var(--fora)">${pc(E.derrota)}</div></div>
     ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${esc(r.melhor.nome)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}</div>`;
   const analise = `<div class="duas">${analistas.map(i => `<div class="card"><h2 class="${COR[i]}">Analista: ${n[i]}</h2><ul>${r.analise[i].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`).join("")}</div>`;
-  const lances = r.narracao.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`).join("");
+  const lances = LEGENDA_LANCES + r.narracao.map(htmlLance).join("");
   const linha = (t, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${t}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
   const estat = `<table>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
     ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}

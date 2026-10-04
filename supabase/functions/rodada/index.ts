@@ -250,6 +250,7 @@ const __motor = (() => {
     energiaPiso: 0.8, // eficácia de um jogador com energia zero
     limiarCansado: 55,
     recalcularACada: 5, // minutos
+    narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
     // faltas, cartões, lesões e bola parada
     falta: 0.1, // por duelo
@@ -523,7 +524,21 @@ const __motor = (() => {
     times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
     let min = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0;
     const gols = () => [estat[0].gols, estat[1].gols];
-    const evento = (i, tipo, texto) => eventos.push({ min, time: i, tipo, texto });
+    let seq = 0; // ordem de acontecimento, para a narração misturar finalizações e os outros lances na sequência certa
+    const evento = (i, tipo, texto) => eventos.push({ n: seq++, min, time: i, tipo, texto });
+    // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
+    const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `no meio, pela ${NOME_LADO[l]}`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
+    function perdaDePosse(i, zona, d) {
+      if (!d.pivo || !rng.chance(CONFIG.narrarPerda[zona[0]])) return;
+      const p = d.pivo, m = d.marcador, onde = ONDE[zona[0]](zona[1]);
+      const causas = [["dominio", 60 - p.at[A.dom]], ["passe", 60 - p.at[A.pas]]];
+      if (m) causas.push(["desarme", 20 + m.at[A.des]], ["corte", 20 + m.at[A.pos]]);
+      const causa = sortearPeso(rng, causas, c => c[1])[0];
+      if (causa === "desarme") evento(1 - i, "posse", `${m.j.nome} desarma ${p.j.nome} ${onde}.`);
+      else if (causa === "corte") evento(1 - i, "posse", `${m.j.nome} intercepta o passe de ${p.j.nome} ${onde}.`);
+      else if (causa === "dominio") evento(i, "posse", `${p.j.nome} domina mal ${onde} e perde a bola.`);
+      else evento(i, "posse", `${p.j.nome} erra o passe ${onde}.`);
+    }
     // esperado: chance que o jogador tinha de vencer o duelo; a nota compara o que ele venceu com o que era esperado
     const registrar = (jog, venceu, esperado) => { const s = jogadores[jog.j.id]; if (s) { s[venceu ? "duelosGanhos" : "duelosPerdidos"]++; s.duelosEsperados += esperado; } };
 
@@ -630,7 +645,7 @@ const __motor = (() => {
       if (resultado === "gol") { e.gols++; sujo = true; }
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
-      lances.push({ min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro) });
+      lances.push({ n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro) });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) bolaParada(i, "escanteio", "C");
     }
 
@@ -676,13 +691,14 @@ const __motor = (() => {
       const perdeu = () => {
         if (contra) return;
         const K = CONFIG.contraAtaque, p = (def.instr.contraAtaque ? K.com : K.sem) * (1 + K.porMentalidade * Math.max(0, atk.instr.mentalidade));
-        if (rng.chance(p)) { estat[1 - i].contraAtaques++; atacar(1 - i, true); }
+        if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); atacar(1 - i, true); }
       };
       e.ataques++;
       let lado = escolherLado(rng, atk, dz, contra ? "M" : "D");
-      if (!contra && !duelo(i, "D" + lado).venceu) return;
+      if (!contra) { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); }
       lado = escolherLado(rng, atk, dz, "M", lado);
-      if (!duelo(i, "M" + lado, bonus).venceu) return perdeu();
+      const d1 = duelo(i, "M" + lado, bonus);
+      if (!d1.venceu) { perdaDePosse(i, "M" + lado, d1); return perdeu(); }
       lado = escolherLado(rng, atk, dz, "A", lado);
       e.corredor[lado]++;
       const d = duelo(i, "A" + lado, bonus);
@@ -690,7 +706,7 @@ const __motor = (() => {
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) return;
       const forcado = !d.venceu;
       if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) return bolaParada(i, "escanteio", lado);
-      if (forcado && !rng.chance(CONFIG.chuteForcado)) return perdeu();
+      if (forcado && !rng.chance(CONFIG.chuteForcado)) { perdaDePosse(i, "A" + lado, d); return perdeu(); }
       finalizar(i, criarChance(rng, atk, def, lado, d.pivo, { forcado, contra }));
     }
 
@@ -718,7 +734,7 @@ const __motor = (() => {
     min = 90;
     times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
     estat[0].posse = Math.round(somaPosse / 90 * 100); estat[1].posse = 100 - estat[0].posse;
-    const narracao = [...lances, ...eventos].sort((a, b) => a.min - b.min);
+    const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);
     return { placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
   }
   return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, avaliarZonas, simularPartida };
