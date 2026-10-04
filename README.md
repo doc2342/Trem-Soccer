@@ -15,7 +15,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | E. Bot e relatório | pronto |
 | F. Tela de escalação | pronto |
 | G. Contas e clubes | pronto |
-| H. Rodada no servidor | a fazer |
+| H. Rodada no servidor | parte 1 pronta (calendário, tática no banco, cálculo disparado pela página de administração, transmissão minuto a minuto, tabela); falta o cálculo automático no servidor |
 | I. Lançamento fechado | a fazer |
 
 ## Arquivos
@@ -29,7 +29,10 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 - `src/bot.js`: tática de bot (formação, escalação, banco e instruções).
 - `src/relatorio.js`: relatório da partida (resultado esperado, notas, mapa de zonas, analista).
 - `jogo.html`: entrada por código no e-mail, criação do clube e elenco.
-- `admin.html`: criação da liga com os 50 clubes sem dono (só administradores).
+- `admin.html`: criação da liga com os 50 clubes sem dono, calendário e cálculo das rodadas (só administradores).
+- `aovivo.html`: transmissão de uma partida minuto a minuto e relatório depois do apito final.
+- `src/rodada.js`: calendário, cálculo de uma partida da liga e classificação.
+- `supabase/03_rodadas.sql`: táticas, partidas, lances e resultados, com liberação pelo relógio.
 - `src/banco.js`: ligação com o Supabase. `src/ui-login.js`: entrada por código. `src/escudo.js`: escudo e uniforme por parâmetros.
 - `supabase/01_esquema.sql`: tabelas, regras de acesso e ações; colar no SQL Editor do Supabase. `supabase/02_primeiro_admin.sql`: torna uma conta administradora.
 - `elenco.html`: página de conferência do passo A.

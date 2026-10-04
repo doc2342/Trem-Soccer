@@ -25,7 +25,8 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, assumirClube, registrarAcesso, elencoDoClube } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, assumirClube, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin } from "./src/banco.js";
+import { classificacao } from "./src/rodada.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, svgUniforme, visualAleatorio, FORMAS, PADROES, CORES } from "./src/escudo.js";
 
@@ -85,17 +86,38 @@ async function telaCriar(liga) {
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
-  const [elenco, clubes] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id)]);
-  const grupo = clubes.filter(c => c.grupo === clube.grupo), humanos = clubes.filter(c => c.dono).length;
+  const [elenco, clubes, partidas, tatica, admin] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), partidasDoGrupo(liga.id, clube.grupo), minhaTatica(clube.id), ehAdmin().catch(() => false)]);
+  const resultados = await resultadosDe(partidas.map(p => p.id));
+  const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+  const grupo = clubes.filter(c => c.grupo === clube.grupo), cPor = Object.fromEntries(grupo.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
+  const agora = Date.now(), quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const rodadas = [...new Set(partidas.map(p => p.rodada))];
+  // rodada em destaque: a primeira que ainda não terminou; se todas terminaram, a última
+  const atual = rodadas.find(r => partidas.some(p => p.rodada === r && new Date(p.fim).getTime() > agora)) || rodadas[rodadas.length - 1];
+  const meus = partidas.filter(p => p.casa === clube.id || p.fora === clube.id);
+  const proximo = meus.find(p => new Date(p.fim).getTime() > agora);
+  const jogo = p => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
+    return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${esc(cPor[p.casa].nome)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${esc(cPor[p.fora].nome)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
+  const tabela = classificacao(grupo, partidas, resultados);
   const linha = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
-      <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div></div>
+      <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div>
+      ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
+    <div class="card"><h2>Próximo jogo</h2>${proximo ? jogo(proximo) : `<div class="mut">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</div>`}
+      <div class="row" style="margin-top:10px"><a href="escalacao.html?online=1"><button>Escalação e tática</button></a><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${quando(tatica.atualizada_em)}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
+    <div class="duas">
+      <div class="card"><h2>Classificação do grupo ${esc(clube.grupo)} <span class="tag">PE: pontos esperados pelas chances criadas</span></h2><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>PE</th></tr>
+        ${tabela.map((t, i) => `<tr><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${esc(t.clube.nome)}${t.clube.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp}</td><td>${t.gc}</td><td>${t.gp - t.gc}</td><td class="mut">${f1(t.esp)}</td></tr>`).join("")}</table></div>
+        <div class="mut" style="margin-top:6px">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</div></div>
+      <div class="card"><h2>Jogos do grupo</h2>${rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>Rodada ${r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`}</div>
+    </div>
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores</span></h2><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
-      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace("<tr>", i ? "<tr>" : `<tr class="sep">`)).join("")}</table></div></div>
-    <div class="card"><h2>Grupo ${esc(clube.grupo)} <span class="tag">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga · os demais clubes são do bot</span></h2>
-      ${grupo.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span ${c.id === clube.id ? `class="nota"` : ""}>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"}</span></div>`).join("")}</div>`;
+      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace("<tr>", i ? "<tr>" : `<tr class="sep">`)).join("")}</table></div></div>`;
+  const mostrar = () => { if ($("rodada")) $("jogos").innerHTML = partidas.filter(p => p.rodada === +$("rodada").value).map(jogo).join(""); };
+  if ($("rodada")) $("rodada").onchange = mostrar;
+  mostrar();
 }
 
 $("sair").onclick = () => sair();

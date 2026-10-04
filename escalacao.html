@@ -11,10 +11,14 @@
   <h1>Escalação e tática</h1>
   <div class="mut">Monte o time nas 18 posições, escolha as instruções e jogue contra um clube comandado pelo bot.</div>
 
+  <div class="card" id="online" hidden>
+    <div class="row"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><b id="nomeOnline"></b><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
+    <div id="avisoOnline" class="mut" style="margin-top:6px"></div>
+  </div>
   <div class="card row">
-    <label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label>
-    <label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label>
-    <label>Perfil<select id="perfil"></select></label>
+    <label class="soLocal">Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label>
+    <label class="soLocal">Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label>
+    <label class="soLocal">Perfil<select id="perfil"></select></label>
     <label>Formação pronta<select id="formacao"></select></label>
     <button class="sec" id="auto">Escalar os melhores</button>
     <button class="sec" id="bot">Deixar o bot montar tudo</button>
@@ -42,7 +46,7 @@
     <label>Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
     <label>Mando<select id="mando"><option value="casa">Jogo em casa</option><option value="fora">Jogo fora</option></select></label>
     <label>Analista<select id="analista"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3" selected>Nível 3</option></select></label>
-    <button id="jogar">Jogar contra o bot</button>
+    <button id="jogar" class="sec">Amistoso de teste contra o bot</button>
     <span class="mut" id="infoAdv"></span>
   </div>
   <div id="rel"></div>
@@ -82,8 +86,9 @@ const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
-let elenco = [], porId = {}, E = null, sel = null;
-const chaveElenco = () => `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
+let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null;
+const ONLINE = new URLSearchParams(location.search).has("online"); // com ?online=1 a tela usa o elenco e a tática do clube no banco
+const chaveElenco = () => ONLINE ? "online_" + (clubeOnline ? clubeOnline.id : 0) : `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
 const jogDe = id => porId[id] || null;
 const escalacaoAtual = () => E.vagas.map((pos, i) => E.jog[i] ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe);
@@ -102,6 +107,36 @@ function novoElenco() {
   const salvo = ler("mo_trabalho_" + chaveElenco());
   E = salvo && salvo.vagas ? salvo : daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" }));
   sel = null; render();
+}
+async function iniciarOnline() {
+  const B = await import("./src/banco.js"), s = await B.sessao();
+  document.querySelectorAll(".soLocal").forEach(e => { e.hidden = true; });
+  $("online").hidden = false;
+  const parar = t => { $("avisoOnline").innerHTML = t; $("salvarOnline").hidden = true; };
+  if (!s) return parar(`Você não está na conta. <a href="jogo.html" style="color:var(--ac)">Entrar</a>`);
+  clubeOnline = await B.meuClube(s.user.id);
+  if (!clubeOnline) return parar(`Você ainda não tem clube. <a href="jogo.html" style="color:var(--ac)">Criar o clube</a>`);
+  $("nomeOnline").textContent = clubeOnline.nome;
+  elenco = await B.elencoDoClube(clubeOnline.id);
+  porId = Object.fromEntries(elenco.map(j => [j.id, j]));
+  const salva = await B.minhaTatica(clubeOnline.id);
+  E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
+  const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const situacao = async () => {
+    const fechada = await B.taticaFechada(clubeOnline.id);
+    $("avisoOnline").innerHTML = fechada ? `<span class="aviso">A tática está fechada: há um jogo começando ou em cálculo. O que você salvar agora só vale depois dele.</span>`
+      : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, o bot escala o seu time.";
+  };
+  await situacao();
+  $("salvarOnline").onclick = async () => {
+    const V = validar();
+    if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }
+    $("salvarOnline").disabled = true;
+    try { await B.salvarTatica(clubeOnline.id, E); $("avisoOnline").innerHTML = `<span class="ok">Tática salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
+    catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${/row-level security/.test(e.message) ? "Não deu para salvar: a tática está fechada para o jogo que vai começar." : esc(e.message)}</span>`; }
+    $("salvarOnline").disabled = false;
+  };
+  sel = null; limparReferencias(); render();
 }
 function aplicarFormacao(nome) {
   const esc11 = escalar(elenco, FORMACOES[nome]);
@@ -281,12 +316,12 @@ $("salvar").onclick = () => { const n = $("nomeSalva").value.trim() || "Escalaç
 $("auto").onclick = () => { const esc11 = escalar(elenco, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id)); limparReferencias(); render(); };
 $("bot").onclick = () => { E = daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" })); sel = null; render(); };
 $("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("formacao").value); $("formacao").value = ""; };
-["semente", "nivel", "perfil"].forEach(id => $(id).onchange = novoElenco);
+["semente", "nivel", "perfil"].forEach(id => $(id).onchange = () => { if (!ONLINE) novoElenco(); });
 $("jogar").onclick = jogar;
 
 $("perfil").innerHTML = Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("");
 $("formacao").innerHTML = `<option value="">escolher…</option>` + Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("");
-novoElenco();
+if (ONLINE) await iniciarOnline(); else novoElenco();
 window.__teste = { estado: () => E, elenco: () => elenco, jogar, validar, escolher, selecionar: s => { sel = s; render(); }, aplicarFormacao, render };
 </script>
 </body>

@@ -15,7 +15,7 @@ export const sair = () => sb.auth.signOut();
 
 export const ehAdmin = () => sb.rpc("eh_admin").then(ok);
 export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok);
-export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
+export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
 export const meuClube = userId => sb.from("clubes").select("*").eq("dono", userId).maybeSingle().then(ok);
 export const assumirClube = (nome, sigla, escudo, uniforme) => sb.rpc("assumir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
@@ -25,7 +25,33 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok)
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal })));
 
+// ---------- tática, partidas e resultados ----------
+export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
+export const salvarTatica = (clubeId, dados) => sb.from("taticas").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
+export const taticaFechada = clubeId => sb.rpc("tatica_fechada", { p_clube: clubeId }).then(ok);
+export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("rodada").order("id").then(ok);
+export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
+export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
+// só voltam os resultados e os lances que o relógio já liberou
+export const resultadosDe = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora").in("partida_id", ids).then(ok) : Promise.resolve([]);
+export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("partida_id", id).maybeSingle().then(ok);
+export const lancesDaPartida = id => sb.from("lances").select("ordem, min, dados").eq("partida_id", id).order("ordem").then(ok);
+export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, ultimo_acesso").in("id", ids).then(ok);
+
 // ---------- administração ----------
+export const atualizarLiga = (id, campos) => sb.from("ligas").update(campos).eq("id", id).then(ok);
+export const criarPartidas = linhas => sb.from("partidas").insert(linhas).then(ok);
+export const apagarPartidas = ligaId => sb.from("partidas").delete().eq("liga_id", ligaId).then(ok);
+export const partidasPendentes = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").then(ok);
+export const taticasDe = ids => sb.from("taticas").select("clube_id, dados").in("clube_id", ids).then(ok);
+export async function gravarPartida(partidaId, lances, resultado) {
+  await sb.from("lances").delete().eq("partida_id", partidaId).then(ok); // se uma tentativa anterior parou no meio
+  await sb.from("resultados").delete().eq("partida_id", partidaId).then(ok);
+  await sb.from("lances").insert(lances).then(ok);
+  await sb.from("resultados").insert(resultado).then(ok);
+  await sb.from("partidas").update({ processada: true }).eq("id", partidaId).then(ok);
+}
+
 export const criarLiga = nome => sb.from("ligas").insert({ nome }).select().single().then(ok);
 export async function criarClubeComElenco(ligaId, clube, elenco) {
   const c = await sb.from("clubes").insert({ liga_id: ligaId, ...clube }).select("id").single().then(ok);
