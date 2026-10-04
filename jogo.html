@@ -8,6 +8,15 @@
 <script src="atualiza.js"></script>
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
+  .aba .ai, .aba .at-c { display:none; }
+  .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
+  @media (max-width:620px) {
+    .abas { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:2px; }
+    .aba { padding:6px 1px 5px; border-radius:8px 8px 0 0; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
+    .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; }
+    .aba .at-l { display:none; } .aba .at-c { display:block; font-size:10.5px; font-weight:600; white-space:nowrap; }
+  }
   /* Central: blocos lado a lado, no espírito do modo carreira */
   .central { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:12px; }
   .central > .card { margin:0; }
@@ -318,8 +327,10 @@ async function telaClube(liga, clube) {
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
-      ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
-    <div class="abas" id="abas">${[["inicio", "Central"], ["elenco", "Elenco"], ["tatica", "Tática"], ["mercado", "Mercado"], ["classificacao", "Classificação"], ["financas", "Finanças"], ["config", "⚙️"]].map(([k, n]) => `<button class="aba" data-aba="${k}" ${k === "config" ? `title="Configurações"` : ""}>${n}</button>`).join("")}${telaPequena ? `<button class="aba" id="modoTela" style="margin-left:auto" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
+        ${telaPequena ? `<button class="sec" id="modoTela" style="padding:3px 10px;font-size:12.5px" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div></div>
+    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["mercado", "Mercado", "🛒"], ["classificacao", "Classificação", "🏆", "Tabela"], ["financas", "Finanças", "💰"], ["config", "Configurações", "⚙️", "Ajustes"]]
+      .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
     <div class="central">
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
@@ -595,7 +606,7 @@ async function telaClube(liga, clube) {
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
   };
-  $("abas").onclick = e => { if (e.target.dataset.aba) abrir(e.target.dataset.aba); };
+  $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
   document.querySelectorAll("[data-aba-ir]").forEach(a => { a.onclick = () => abrir(a.dataset.abaIr); });
