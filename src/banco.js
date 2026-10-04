@@ -94,6 +94,10 @@ export const extratoDoClube = (clubeId, limite = 120) => sb.from("lancamentos").
   .order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
 // Caixa do clube, em milhares; null antes do 12_caixa.sql ou para quem não é o dono.
 export const caixaDoClube = clubeId => sb.from("financas").select("caixa").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error || !data ? null : data.caixa);
+// Obra em andamento no clube (só o dono e o administrador leem); null se não há ou antes do 14_estruturas_e_obras.sql.
+export const obraAtiva = clubeId => sb.from("obras").select("*").eq("clube_id", clubeId).eq("concluida", false).maybeSingle().then(({ data, error }) => error ? null : data);
+// Começa uma obra: ct, medico, fisio, base ou estadio. As regras (uma por vez, caixa, nível máximo) são conferidas no banco.
+export const iniciarObra = estrutura => sb.rpc("iniciar_obra", { p_estrutura: estrutura }).then(ok);
 // Lançamentos de uma partida (TV, patrocínio, salários) para os dois clubes; só roda uma vez por partida.
 export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: partidaId }).then(({ error }) => !error);
 

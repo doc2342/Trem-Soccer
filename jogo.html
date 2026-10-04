@@ -26,7 +26,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, extratoDoClube, caixaDoClube } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -108,7 +108,7 @@ async function telaCriar(liga, recusado) {
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   const [elenco, clubes, tatica, admin, extrato] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id)]);
-  const caixa = await caixaDoClube(clube.id);
+  const [caixa, obra] = await Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]);
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
   const grupos = [...new Set(clubes.map(c => c.grupo))].sort();
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -121,6 +121,22 @@ async function telaClube(liga, clube) {
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
+  // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
+  const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "cura lesões mais rápido"],
+    ["fisio", "Fisioterapia", "fisio_nivel", "recupera a forma"], ["base", "Base", "base_nivel", "revela jogadores melhores"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
+  const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
+  const estruturas = () => {
+    const manut = Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, k) => s + ACUMULADO[clube[k] || 0], 0));
+    return `<div class="card"><h2>Estruturas e estádio <span class="tag">uma obra por vez · o prazo corre em rodadas de liga · manutenção atual: ${dinheiro(manut)} por temporada</span></h2>
+      ${obra ? `<div class="aviso" style="margin-bottom:8px">Obra em andamento: ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [0, obra.estrutura])[1])} para o nível ${obra.nivel_alvo}. Faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>` : ""}
+      <div class="rolagem"><table><tr><th class="esq">Estrutura</th><th>Nível</th><th class="esq">Para que serve</th><th>Próximo nível</th><th>Prazo</th><th></th></tr>
+      ${ESTRUTURAS.map(([k, nome, campo, serve]) => { const n = clube[campo] || 0, prox = n + 1, custo = prox > 5 ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox];
+        return `<tr><td class="esq">${nome}${k === "estadio" ? ` <span class="tag">${(5000 + 5000 * n).toLocaleString("pt-BR")} lugares</span>` : ""}</td><td><b>${n}</b> de 5</td><td class="esq mut">${serve}</td>
+          <td>${custo == null ? "máximo" : dinheiro(custo)}</td><td>${custo == null ? "—" : PRAZO[prox] + (PRAZO[prox] === 1 ? " rodada" : " rodadas")}</td>
+          <td>${custo == null ? "" : `<button class="sec" data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} title="${obra ? "Já há uma obra em andamento" : caixa < custo ? "Caixa insuficiente" : ""}">${n === 0 ? "Construir" : "Ampliar"}</button>`}</td></tr>`; }).join("")}</table></div>
+      <div class="mut" style="margin-top:6px">O efeito do centro de treinamento, do departamento médico, da fisioterapia e da base só entra quando treino, saúde e revelações forem programados. O estádio já rende na bilheteria.</div>
+      <div id="obraAviso" style="margin-top:6px"></div></div>`;
+  };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: caixa, previsão por rodada e extrato agrupado por rodada
   const financas = () => {
@@ -170,6 +186,7 @@ async function telaClube(liga, clube) {
     </section>
     <section data-secao="financas">
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores por rodada de liga, enquanto o calendário é de teste</span></h2>${financas()}</div>`}
+    ${caixa == null || clube.ct_nivel == null ? "" : estruturas()}
     </section>
     <section data-secao="elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
@@ -214,6 +231,14 @@ async function telaClube(liga, clube) {
 
   // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
   $("app").onclick = e => {
+    const qual = e.target.dataset.obra;
+    if (qual) {
+      const nome = (ESTRUTURAS.find(x => x[0] === qual) || [])[1];
+      if (!confirm(`Começar a obra: ${nome}? O valor sai do caixa agora e não dá para cancelar.`)) return;
+      e.target.disabled = true;
+      iniciarObra(qual).then(() => carregar({ user: usuario })).catch(err => { $("obraAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; e.target.disabled = false; });
+      return;
+    }
     const tr = e.target.closest("tr[data-jog]"); if (!tr || !temContratos) return;
     const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
