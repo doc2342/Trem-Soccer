@@ -21,7 +21,7 @@ import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -215,7 +215,10 @@ async function tela(aviso = "") {
       $("confirmarVirada").onclick = async () => {
         if (!confirm(`Virar a temporada ${liga.temporada}? Os prêmios são pagos, os jogadores envelhecem e o calendário antigo é apagado. Não dá para desfazer (só reiniciando o teste).`)) return;
         $("confirmarVirada").disabled = true;
-        try { await tela(await virarTemporada(liga.id, plano) + " Agora gere o calendário."); }
+        try {
+          const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou
+          await tela(feito + (taxas ? ` Taxas de venda distribuídas: ${dinheiro(taxas)}.` : "") + " Agora gere o calendário.");
+        }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
       };
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)}</span>`; }

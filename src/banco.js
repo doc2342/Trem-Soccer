@@ -36,7 +36,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido })));
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null })));
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
@@ -133,7 +133,19 @@ export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);
 export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
 // M1: mercado (supabase/19_mercado.sql e a função "mercado")
 export const janelaDoMercado = ligaId => sb.rpc("janela_do_mercado", { p_liga: ligaId }).then(({ data, error }) => error ? undefined : data); // undefined: mercado ainda não ligado
-export const jogadoresDaPosicao = pos => sb.from("jogadores").select("id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido").eq("pos", pos).order("id").then(ok);
+const CAMPOS_DO_MERCADO = "id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido";
+export const jogadoresDaPosicao = async pos => { // com a lista de transferência (SQL 20) quando ela já existe
+  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("pos", pos).order("id");
+  return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("pos", pos).order("id").then(ok) : r.data;
+};
+// M2: venda negociada (supabase/20_venda_negociada.sql). minhasPropostas devolve null enquanto o SQL 20 não foi executado.
+export const minhasPropostas = clubeId => sb.from("propostas").select("*, jogadores(nome, pos, idade)").or(`comprador.eq.${clubeId},vendedor.eq.${clubeId}`).order("id", { ascending: false }).limit(60).then(({ data, error }) => error ? null : data);
+export const listarJogador = (jogadorId, preco) => sb.rpc("listar_jogador", { p_jogador: numero(jogadorId), p_preco: preco || 0 }).then(ok);
+export const taxaDaVenda = jogadorId => sb.rpc("taxa_da_venda", { p_jogador: numero(jogadorId) }).then(({ data, error }) => error ? null : +data);
+export const fazerProposta = (jogadorId, valor, salario, temporadas) => sb.rpc("fazer_proposta", { p_jogador: numero(jogadorId), p_valor: valor, p_salario: salario, p_temporadas: temporadas }).then(ok);
+export const responderProposta = (id, acao, valor = null) => sb.rpc("responder_proposta", { p_id: id, p_acao: acao, p_valor: valor }).then(ok);
+export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraproposta", { p_id: id, p_aceitar: aceitar }).then(ok);
+export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
 export const transferenciasDaLiga = (ligaId, limite = 200) => sb.from("transferencias").select("*").eq("liga_id", ligaId).order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
 export const protegerJogador = (jogadorId, proteger) => sb.rpc("proteger_jogador", { p_jogador: numero(jogadorId), p_proteger: proteger }).then(ok);
 export async function comprarPelaMulta(jogadorId, salario, temporadas) {
