@@ -18,7 +18,7 @@ import { criarRng } from "./src/rng.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida } from "./src/rodada.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -54,6 +54,7 @@ async function tela(aviso = "") {
   const liga = await ligaAtual(), clubes = liga ? await clubesDaLiga(liga.id) : [], partidas = liga ? await partidasDaLiga(liga.id) : [];
   const humanos = clubes.filter(c => c.dono).length, feitas = partidas.filter(p => p.processada).length, auto = $("auto") ? $("auto").checked : true;
   const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l[0].inicio, feitas: l.filter(p => p.processada).length, total: l.length }; });
+  const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
     ? `<div>${esc(liga.nome)} · temporada ${liga.temporada} · ${clubes.length} clubes, ${humanos} com dirigente e ${clubes.length - humanos} do bot.</div>
@@ -62,13 +63,13 @@ async function tela(aviso = "") {
        <div class="row"><label style="flex:1;min-width:180px">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button id="criar">Criar a liga</button></div>`}
     <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
     ${liga ? `<div class="card"><h2>Calendário e rodadas</h2>${partidas.length
-      ? `<div>${partidas.length} partidas em ${rodadas.length} rodadas · ${feitas} já calculadas · transmissão de ${liga.minutos_transmissao} min · tática fecha ${liga.prazo_escalacao_min} min antes.</div>
-         <div class="row" style="margin-top:10px"><button id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> calcular sozinho enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
+      ? `<div>${partidas.length} partidas em ${rodadas.length} rodadas · ${feitas} já calculadas · ${liga.minutos_transmissao ? `transmissão de ${liga.minutos_transmissao} min` : "relatório instantâneo"} · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</div>
+         <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar a rodada ${proxima} agora</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> calcular sozinho enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
          <div class="rolagem" style="margin-top:10px"><table><tr><th>Rodada</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${x.r}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
       : `<div class="mut" style="margin-bottom:10px">Sem calendário. Cada grupo joga turno e returno: 18 rodadas, 5 partidas por grupo em cada uma.</div>
          <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre rodadas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
-         <label>Duração da transmissão (minutos)<input type="number" id="duracao" value="105" min="1" style="width:110px"></label><label>Tática fecha antes do apito (minutos)<input type="number" id="prazo" value="15" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
-         <div class="mut" style="margin-top:6px">Para um teste rápido: intervalo de 12, duração de 10 e prazo de 1.</div>`}</div>` : ""}
+         <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="0" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
+         <div class="mut" style="margin-top:6px">Valores de teste: relatório instantâneo e tática fechando 1 segundo antes. Na liga de verdade serão 105 minutos e 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>Grupo ${g}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
@@ -80,7 +81,7 @@ async function tela(aviso = "") {
     $("gerar").disabled = true;
     try {
       const inicio = new Date($("inicio").value).getTime(), intervalo = +$("intervalo").value * 60000, duracao = +$("duracao").value;
-      await atualizarLiga(liga.id, { minutos_transmissao: duracao, prazo_escalacao_min: +$("prazo").value });
+      await atualizarLiga(liga.id, { minutos_transmissao: duracao, prazo_escalacao_seg: +$("prazo").value });
       const linhas = [];
       for (const g of GRUPOS) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
         const ini = inicio + (j.rodada - 1) * intervalo;
@@ -94,6 +95,11 @@ async function tela(aviso = "") {
     try { await apagarPartidas(liga.id); await tela("Calendário apagado."); } catch (e) { await tela("Erro ao apagar: " + e.message); }
   });
   em("processar", () => processar(false));
+  em("antecipar", async () => {
+    $("antecipar").disabled = true;
+    try { await anteciparRodada(liga.id, proxima, liga.minutos_transmissao); await new Promise(r => setTimeout(r, 1500)); await processar(false); }
+    catch (e) { $("progresso").textContent = "Erro ao antecipar: " + e.message; }
+  });
 }
 
 // Calcula as partidas cujo horário já chegou. As táticas dos dirigentes valem; clube sem dono ou inativo joga com o bot.

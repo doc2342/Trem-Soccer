@@ -40,6 +40,9 @@ export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, no
 
 // ---------- administração ----------
 export const atualizarLiga = (id, campos) => sb.from("ligas").update(campos).eq("id", id).then(ok);
+// Traz uma rodada ainda não calculada para agora (para testes).
+export const anteciparRodada = (ligaId, rodada, minutos) => sb.from("partidas").update({ inicio: new Date().toISOString(), fim: new Date(Date.now() + minutos * 60000).toISOString() })
+  .eq("liga_id", ligaId).eq("rodada", rodada).eq("processada", false).then(ok);
 export const criarPartidas = linhas => sb.from("partidas").insert(linhas).then(ok);
 export const apagarPartidas = ligaId => sb.from("partidas").delete().eq("liga_id", ligaId).then(ok);
 export const partidasPendentes = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").then(ok);

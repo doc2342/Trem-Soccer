@@ -42,11 +42,12 @@
   </div>
 
   <div class="card row">
-    <label>Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
-    <label>Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
+    <label class="soLocal">Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
+    <label class="soLocal">Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
+    <label id="rotuloAdv" hidden>Adversário<select id="advOnline"></select></label>
     <label>Mando<select id="mando"><option value="casa">Jogo em casa</option><option value="fora">Jogo fora</option></select></label>
     <label>Analista<select id="analista"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3" selected>Nível 3</option></select></label>
-    <button id="jogar" class="sec">Amistoso de teste contra o bot</button>
+    <button id="jogar">Jogar amistoso</button>
     <span class="mut" id="infoAdv"></span>
   </div>
   <div id="rel"></div>
@@ -86,7 +87,7 @@ const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
-let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null;
+let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null;
 const ONLINE = new URLSearchParams(location.search).has("online"); // com ?online=1 a tela usa o elenco e a tática do clube no banco
 const chaveElenco = () => ONLINE ? "online_" + (clubeOnline ? clubeOnline.id : 0) : `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
 const jogDe = id => porId[id] || null;
@@ -136,6 +137,13 @@ async function iniciarOnline() {
     catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${/row-level security/.test(e.message) ? "Não deu para salvar: a tática está fechada para o jogo que vai começar." : esc(e.message)}</span>`; }
     $("salvarOnline").disabled = false;
   };
+  // amistosos: contra qualquer clube da liga, quantas vezes quiser; o adversário joga com a tática de bot e nada fica gravado
+  const liga = await B.ligaAtual(), outros = (await B.clubesDaLiga(liga.id)).filter(c => c.id !== clubeOnline.id);
+  $("rotuloAdv").hidden = false;
+  $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
+  const mesmoGrupo = outros.find(c => c.grupo === clubeOnline.grupo); if (mesmoGrupo) $("advOnline").value = mesmoGrupo.id;
+  const guardados = {};
+  adversarioOnline = async () => { const id = +$("advOnline").value; guardados[id] = guardados[id] || await B.elencoDoClube(id); return { elenco: guardados[id], nome: outros.find(c => c.id === id).nome }; };
   sel = null; limparReferencias(); render();
 }
 function aplicarFormacao(nome) {
@@ -241,19 +249,22 @@ function instrucoesParaOMotor() {
   return { ...I, substituicoes: E.subs.map(s => ({ ...s, min: +s.min })), ordens: E.ordens.map(o => { const [k, v] = o.muda.split(":"); return { min: +o.min, cond: o.cond, muda: { [k]: conv(v) } }; }) };
 }
 
-function jogar() {
+async function jogar() {
   const V = validar(); if (V.erros.length) return;
   const casa = $("mando").value === "casa", eu = casa ? 0 : 1;
-  const adv = gerarElenco(criarRng(8000 + +$("sementeAdv").value), { nivel: +$("nivelAdv").value, nomes, prefixoId: "a" });
+  const online = adversarioOnline ? await adversarioOnline() : null;
+  const adv = online ? online.elenco : gerarElenco(criarRng(8000 + +$("sementeAdv").value), { nivel: +$("nivelAdv").value, nomes, prefixoId: "a" });
+  const nomeMeu = clubeOnline ? clubeOnline.nome : "Meu time", nomeAdv = online ? online.nome : "Bot";
   const minhaForca = V.esc11.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11;
   const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca });
-  const meu = prepararTime({ nome: "Meu time", escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
-  const bot = prepararTime({ nome: "Bot", escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
+  const meu = prepararTime({ nome: nomeMeu, escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
+  const bot = prepararTime({ nome: nomeAdv, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
   const n = +(ler("mo_partidas") || 0) + 1; guardar("mo_partidas", n);
   const partida = casa ? simularPartida(criarRng(n), meu, bot) : simularPartida(criarRng(n), bot, meu);
   const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel]);
-  $("infoAdv").textContent = `Bot: ${t.formacao}, nota média ${f1(t.forca)}. Meu time: nota média ${f1(minhaForca)}.`;
-  $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? ["Meu time", "Bot"] : ["Bot", "Meu time"], analistas: [eu] });
+  $("infoAdv").textContent = `${nomeAdv} (tática de bot): ${t.formacao}, nota média ${f1(t.forca)}. ${nomeMeu}: nota média ${f1(minhaForca)}.`;
+  $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? [nomeMeu, nomeAdv] : [nomeAdv, nomeMeu], analistas: [eu] });
+  if (online) $("rel").scrollIntoView({ behavior: "smooth", block: "start" });
   return { r, partida };
 }
 

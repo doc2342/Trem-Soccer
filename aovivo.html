@@ -34,8 +34,8 @@ let partida, clubes, encerrada = false, relogio;
 // Minuto de jogo a partir do relógio real, com 15 minutos de intervalo, na escala da transmissão.
 function momento() {
   const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000;
-  const t = (Date.now() - new Date(partida.inicio)) / 60000 * 105 / total;
-  if (t < 0) { const falta = Math.ceil(-t * total / 105); return { texto: falta > 90 ? `Começa em ${new Date(partida.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : `Começa em ${falta} min`, antes: true }; }
+  const t = total > 0 ? (Date.now() - new Date(partida.inicio)) / 60000 * 105 / total : Date.now() >= new Date(partida.inicio) ? 105 : -1;
+  if (t < 0) { const falta = Math.ceil((new Date(partida.inicio) - Date.now()) / 60000); return { texto: falta > 90 ? `Começa em ${new Date(partida.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : `Começa em ${falta} min`, antes: true }; }
   if (t <= 45) return { texto: `${Math.max(1, Math.ceil(t))}' · 1º tempo` };
   if (t < 60) return { texto: "Intervalo" };
   if (t < 105) return { texto: `${Math.min(90, Math.ceil(t - 15))}' · 2º tempo` };

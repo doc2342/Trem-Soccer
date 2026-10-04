@@ -3,7 +3,7 @@
 -- Pode ser executado mais de uma vez sem apagar dados.
 
 alter table public.ligas add column if not exists minutos_transmissao int not null default 105; -- duração real da transmissão de uma partida
-alter table public.ligas add column if not exists prazo_escalacao_min int not null default 15;  -- a tática fecha tantos minutos antes do apito
+alter table public.ligas add column if not exists prazo_escalacao_seg int not null default 900; -- a tática fecha tantos segundos antes do apito
 
 -- tática de cada clube para o próximo jogo (escalação, banco, instruções, substituições e ordens)
 create table if not exists public.taticas (
@@ -81,10 +81,11 @@ language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from partidas p join ligas l on l.id = p.liga_id
     where (p.casa = p_clube or p.fora = p_clube) and not p.processada
-      and p.inicio - make_interval(mins => l.prazo_escalacao_min) <= now()
+      and p.inicio - make_interval(secs => l.prazo_escalacao_seg) <= now()
   )
 $$;
 grant execute on function public.tatica_fechada(bigint) to anon, authenticated;
+alter table public.ligas drop column if exists prazo_escalacao_min; -- versão anterior deste arquivo usava minutos
 
 drop policy if exists taticas_inserir on public.taticas;
 create policy taticas_inserir on public.taticas for insert to authenticated
