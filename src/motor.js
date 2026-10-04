@@ -35,7 +35,7 @@ export const CONFIG = {
   espacoPorMentalidade: 0.2, // por nível de mentalidade de quem defende: espaço para a bola em profundidade do adversário
   ritmoPorMentalidade: 0.03, // por nível, somando os dois times: jogo mais aberto tem mais ataques
   mentalidadePosse: 0.02,
-  agressividadeDefesa: 0.035, // por nível: força nos duelos defensivos
+  agressividadeDefesa: 0.07, // por nível: força nos duelos defensivos
   pressaoDefesa: 0.09, // por nível: força na marcação do meio para a frente
   pressaoGasto: 0.25, // por nível: energia gasta a mais
   ladoPreferido: 2.5, ladosPreferidos: 1.8, // quanto a instrução de lado concentra os ataques
