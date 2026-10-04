@@ -10,8 +10,8 @@ export const DIAS_PARA_BOT = 21; // dirigente sem acessar por tantos dias: o clu
 
 // Turno e returno pelo método do círculo. ids: clubes do grupo. Devolve [{ rodada, casa, fora }].
 // Os mandos alternam: o clube fixo troca a cada rodada e os demais pares alternam pela posição no círculo.
-// O returno repete o turno com o mando invertido, começando pela segunda rodada do turno, o que evita três jogos
-// seguidos em casa ou fora na virada. Com 10 clubes ninguém passa de dois seguidos.
+// O returno repete o turno na mesma ordem, com o mando invertido: a rodada 10 é a volta da rodada 1, e assim por diante.
+// Dentro de cada turno ninguém passa de dois jogos seguidos em casa ou fora; na virada do turno pode haver três.
 export function gerarTabela(ids) {
   const n = ids.length, roda = ids.slice(), jogos = [], meias = n - 1;
   for (let r = 0; r < meias; r++) {
@@ -19,7 +19,7 @@ export function gerarTabela(ids) {
       const a = roda[k], b = roda[n - 1 - k];
       const [casa, fora] = (k === 0 ? r % 2 === 0 : k % 2 === 1) ? [a, b] : [b, a];
       jogos.push({ rodada: r + 1, casa, fora });
-      jogos.push({ rodada: meias + 1 + (r - 1 + meias) % meias, casa: fora, fora: casa });
+      jogos.push({ rodada: r + 1 + meias, casa: fora, fora: casa });
     }
     roda.splice(1, 0, roda.pop()); // gira todos menos o primeiro
   }
