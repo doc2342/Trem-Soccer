@@ -38,7 +38,8 @@ export function saudeDoClube(equipe, clube) {
 
 // Experiência (0 a 100): sobe jogando e deixa o desempenho mais estável. Sem valor gravado, vale a estimativa pela idade.
 // Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
-export const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12 };
+// bonus: além de estabilizar, a experiência rende um pouco mais em campo, de 0% (experiência 0) a 3% (experiência 100)
+export const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03 };
 export const experienciaDe = j => j.exp != null ? j.exp : Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
 export const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
 // multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
@@ -47,8 +48,8 @@ export const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.li
 export const experienciaDepois = (j, minutos) => Math.min(100, Math.round((experienciaDe(j) + (minutos >= CONFIG_SAUDE.minutosDeJogo ? CONFIG_EXPERIENCIA.jogou : minutos > 0 ? CONFIG_EXPERIENCIA.entrou : 0)) * 10) / 10);
 
 const valor = v => v == null ? 50 : v;
-// Multiplicador do desempenho do jogador pela forma e pela moral (1 quando as duas estão em 50).
-export const fatorDeMomento = j => (1 + CONFIG_SAUDE.efeitoDaForma * (valor(j.forma) - 50) / 50) * (1 + CONFIG_SAUDE.efeitoDaMoral * (valor(j.moral) - 50) / 50);
+// Multiplicador do desempenho do jogador pela forma, pela moral (neutras em 50) e pela experiência (até 3% a mais).
+export const fatorDeMomento = j => (1 + CONFIG_SAUDE.efeitoDaForma * (valor(j.forma) - 50) / 50) * (1 + CONFIG_SAUDE.efeitoDaMoral * (valor(j.moral) - 50) / 50) * (1 + CONFIG_EXPERIENCIA.bonus * experienciaDe(j) / 100);
 const limite = v => Math.max(0, Math.min(100, Math.round(v)));
 // Forma e moral depois de uma partida. nota e minutos: do relatório (minutos 0 para quem não entrou); resultado: 1 vitória, 0 empate, -1 derrota;
 // fora: "lesão", "suspensão" ou null (como o jogador estava antes do jogo); ganho: pontos de forma do preparador; psicologo: corte nas quedas de moral.

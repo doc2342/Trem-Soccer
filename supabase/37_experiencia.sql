@@ -3,7 +3,7 @@
 -- Precisa do 30_forma_e_moral.sql já executado. Depois, republicar a função "rodada". Pode ser executado mais de uma vez.
 --
 -- Experiência vai de 0 a 100. Sobe 1 a cada partida oficial com pelo menos 45 minutos em campo (0,5 para quem só entrou).
--- Não muda a nota do jogador: deixa o desempenho mais estável. Em cada partida todo jogador tem um "dia", sorteado em torno do
+-- Não muda a nota do jogador: rende até 3% a mais em campo e deixa o desempenho mais estável. Em cada partida todo jogador tem um "dia", sorteado em torno do
 -- normal; o inexperiente varia até uns 10% para cima ou para baixo, o experiente quase nada.
 -- Coluna vazia: vale a estimativa pela idade (8 pontos por ano acima dos 17), e passa a ser gravada na primeira partida.
 
