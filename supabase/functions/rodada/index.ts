@@ -248,7 +248,7 @@ const __motor = (() => {
     estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
     estiloCurto: { area: 1.2, longe: 0.8 },
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
-    contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.6, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5 },
+    contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.6, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
     // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
     impedimento: { semLinha: 0.07, porPasse: { curto: 0.2, misto: 0.28, longo: 0.58 }, porComunicacao: 0.01, libero: -0.15, noContraAtaque: 0.3, furou: 1.35, furouNoContraAtaque: 1.6 },
     capitao: 0.002, // por ponto de Influência acima de 25, quando o time está perdendo
@@ -707,7 +707,9 @@ const __motor = (() => {
         const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
         // quem perde a bola jogando para a frente ou com a linha alta fica mais exposto; time montado para o contra-ataque aproveita mais
         const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
-        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * (atk.instr.impedimento ? K.linhaAlta : 1);
+        // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
+        const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
+        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1);
         if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); atacar(1 - i, true); }
       };
       e.ataques++;
