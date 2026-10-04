@@ -21,4 +21,14 @@
     if (/export|import|module/i.test(String(e.message || ""))) renovar();
   });
   window.addEventListener("load", function () { setTimeout(function () { sessionStorage.removeItem("mo_recarregou"); }, 8000); });
+
+  // relógio: preenche todo elemento com a classe "relogio" com a hora deste aparelho, a cada segundo
+  function dois(n) { return (n < 10 ? "0" : "") + n; }
+  function tique() {
+    var d = new Date(), t = dois(d.getHours()) + ":" + dois(d.getMinutes()) + ":" + dois(d.getSeconds());
+    var els = document.querySelectorAll(".relogio");
+    for (var i = 0; i < els.length; i++) els[i].textContent = t;
+  }
+  setInterval(tique, 1000);
+  document.addEventListener("DOMContentLoaded", tique);
 })();

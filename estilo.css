@@ -45,6 +45,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .lista .item { border-left:4px solid transparent; }
 .lista .item.titular { border-left-color:var(--ok); background:rgba(63,178,127,.13); }
 .lista .item.reserva { border-left-color:var(--ac); background:rgba(242,193,78,.10); }
+.relogio { font-variant-numeric:tabular-nums; font-weight:700; color:var(--ac); font-size:16px; }
 .legenda { display:flex; gap:12px; font-size:12px; color:var(--mut); margin-bottom:6px; }
 .legenda span { border-left:4px solid var(--line); padding-left:6px; }
 .legenda .titular { border-left-color:var(--ok); } .legenda .reserva { border-left-color:var(--ac); }

@@ -1055,10 +1055,24 @@ const { calcularPartida, aplicarSituacao } = __rodada;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-segredo",
 };
 const json = (corpo, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const MAXIMO_POR_CHAMADA = 40;
+
+// Quem pode disparar a função. Sem o segredo SEGREDO_DO_CRON cadastrado no Supabase, qualquer chamada vale.
+// Com ele cadastrado, só vale a chamada que traz o segredo (o agendamento) ou a de um administrador logado.
+async function autorizado(req, sb) {
+  const segredo = Deno.env.get("SEGREDO_DO_CRON");
+  if (!segredo) return true;
+  if (req.headers.get("x-segredo") === segredo) return true;
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token) return false;
+  const { data } = await sb.auth.getUser(token);
+  if (!data || !data.user) return false;
+  const { data: admin } = await sb.from("admins").select("user_id").eq("user_id", data.user.id).maybeSingle();
+  return !!admin;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -1066,6 +1080,7 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL"), chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !chave) return json({ erro: "Função sem acesso ao banco: faltam SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY." }, 500);
     const sb = createClient(url, chave, { auth: { persistSession: false } });
+    if (!(await autorizado(req, sb))) return json({ erro: "Não autorizado." }, 401);
     const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
 
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
