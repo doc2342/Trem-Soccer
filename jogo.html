@@ -26,7 +26,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDaPosicao, transferenciasDaLiga, protegerJogador, comprarPelaMulta, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDaPosicao, transferenciasDaLiga, protegerJogador, comprarPelaMulta, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -111,7 +111,10 @@ async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   const [elenco, clubes, tatica, admin, extrato] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id)]);
   const [caixa, obra] = await Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]);
-  const [janela, transferencias, propostas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id)]);
+  await resolverLeiloes(liga.id); // fecha leilões e ofertas que já venceram
+  const [janela, transferencias, propostas, livres, ofertas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]);
+  const lancesLivres = livres ? await lancesDosLivres(livres.map(j => j.id)) : [];
+  const ateQuando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
   const grupos = [...new Set(clubes.map(c => c.grupo))].sort();
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -168,7 +171,7 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin:4px 0">Com o caixa negativo, aumentos de salário, renovações e obras ficam bloqueados.
         ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende ao banco o maior salário fora dos 11 da sua tática, e repete até zerar.`
           : `Se a dívida passar de ${dinheiro(-limite)} (10% do teto de folha), começa um prazo de ${RODADAS_DE_PRAZO} rodadas para resolver.`}</div>
-      <div class="mut" style="margin:4px 0">Saídas: vender jogadores ao banco do jogo por 60% da multa rescisória (aba Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
+      <div class="mut" style="margin:4px 0">Saídas: vender jogadores ao banco do jogo por 60% da multa rescisória, oferecê-los à liga por 75% (as duas na aba Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
       <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
       <div id="vermelhoAviso" style="margin-top:6px"></div></div>`;
   };
@@ -239,11 +242,24 @@ async function telaClube(liga, clube) {
       return `<div id="negociacoes"><b>Recebidas</b>${recebidas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Quem quer</th><th>Oferta</th><th>Situação</th><th></th></tr>${recebidas.map(linhaR).join("")}</table></div>` : `<div class="mut">Nenhuma proposta recebida.</div>`}
         <div style="margin-top:10px"><b>Enviadas</b></div>${enviadas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Clube</th><th>Oferta</th><th>Situação</th><th></th></tr>${enviadas.map(linhaE).join("")}</table></div>` : `<div class="mut">Você não enviou propostas. Para fazer uma, clique num jogador de clube com dirigente na lista acima.</div>`}
         <div id="negAviso" style="margin-top:6px"></div></div>`; })()}</div>`}
+    ${livres == null ? "" : `<div class="card"><h2>Jogadores livres <span class="tag">leilão aberto: leva quem oferecer o maior salário · depois do prazo, sem lance, assina na hora</span></h2>${(() => {
+      if (!livres.length) return `<div class="mut">Nenhum jogador livre. Eles aparecem depois da virada, quando contratos vencem sem renovação.</div>`;
+      const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
+      return `<div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
+        ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id), aberto = new Date(j.livre_ate) > new Date();
+          return `<tr class="clk" data-livre="${j.id}"><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
+            <td class="esq ${m && m.clube_id === clube.id ? "nota" : ""}">${m ? `${dinheiro(m.salario)} · ${esc((cPor[m.clube_id] || {}).nome || "—")}` : "—"}</td><td class="${aberto ? "" : "aviso"}">${aberto ? "até " + ateQuando(j.livre_ate) : "encerrado: assina na hora"}</td></tr>`; }).join("")}</table></div>
+        <div id="livrePainel" style="margin-top:10px"></div>`; })()}</div>`}
+    ${livres == null || !ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length ? "" : `<div class="card"><h2>Ofertas de clubes no vermelho <span class="tag">75% da multa rescisória · vale mesmo com a janela fechada</span></h2>
+      <div class="rolagem" id="ofertasLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th>Salário</th><th>Preço</th><th>Até</th></tr>
+      ${ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).map(j => `<tr class="clk" data-oferta="${j.id}"><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="esq">${esc(cPor[j.clube_id].nome)}</td><td>${dinheiro(j.salario)}</td><td><b>${dinheiro(Math.round(3.75 * j.salario))}</b></td><td>${ateQuando(j.oferta_liga_ate)}</td></tr>`).join("")}</table></div>
+      <div id="ofertaPainel" style="margin-top:10px"></div></div>`}
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq"><span class="pp">${esc(t.pos || "")}</span> ${esc(t.jogador)}</td><td class="esq">${esc((cPor[t.de_clube] || {}).nome || "—")}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${esc((cPor[t.para_clube] || {}).nome || "—")}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </section>
     <section data-secao="elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato` : ""}</span></h2>
+      ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contrato). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Salário</th><th title="Multa rescisória: quem pagar leva o jogador">Multa</th><th>Contrato</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
       ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace(`<tr class="clk"`, i ? `<tr class="clk"` : `<tr class="clk sep"`)).join("")}</table></div></div>
     </section>`;
@@ -320,6 +336,39 @@ async function telaClube(liga, clube) {
     };
     buscar();
   }
+  // jogadores livres (lance no leilão) e ofertas de clubes no vermelho (compra por 75% da multa)
+  const contratoRapido = (alvo, j, minimo, textoDoBotao, explicacao, acao) => {
+    const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
+    alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${j.pos} · ${j.idade} anos
+      <div class="mut" style="margin:4px 0">${explicacao} Pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(teto - folha)} até o seu teto de folha.</div>
+      <div class="row"><label>Salário (em milhares por temporada)<input id="crSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
+        <label>Contrato de<select id="crTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
+        <button id="crFazer">${textoDoBotao}</button><button class="sec" id="crFechar">Fechar</button></div><div id="crAviso" style="margin-top:6px"></div></div>`;
+    $("crFechar").onclick = () => { alvo.innerHTML = ""; };
+    $("crFazer").onclick = async () => {
+      $("crFazer").disabled = true;
+      try { await acao(Math.round(+$("crSalario").value), +$("crTemporadas").value); await carregar({ user: usuario }); }
+      catch (err) { $("crAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("crFazer")) $("crFazer").disabled = false; }
+    };
+    alvo.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  if ($("livresLista")) $("livresLista").onclick = e => {
+    const tr = e.target.closest("tr[data-livre]"); if (!tr) return;
+    const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = new Date(j.livre_ate) > new Date();
+    const maior = lancesLivres.filter(l => l.jogador_id === j.id && l.clube_id !== clube.id).reduce((m, l) => Math.max(m, l.salario), 0);
+    const minimo = Math.max(j.salario_mercado || 0, aberto && maior ? maior + 5 : 0);
+    contratoRapido($("livrePainel"), j, minimo, aberto ? "Dar o lance" : "Contratar agora",
+      aberto ? `Leilão até ${ateQuando(j.livre_ate)}. Ele pede pelo menos ${dinheiro(j.salario_mercado)}${maior ? `; o maior lance de outro clube é de ${dinheiro(maior)}` : ""}. Leva quem oferecer o maior salário; não há valor a pagar a clube nenhum.`
+             : `O leilão terminou sem lances: assina na hora com quem oferecer pelo menos ${dinheiro(j.salario_mercado)}.`,
+      (salario, temporadas) => darLanceLivre(j.id, salario, temporadas));
+  };
+  if ($("ofertasLista")) $("ofertasLista").onclick = e => {
+    const tr = e.target.closest("tr[data-oferta]"); if (!tr) return;
+    const j = ofertas.find(x => String(x.id) === tr.dataset.oferta), preco = Math.round(3.75 * j.salario);
+    contratoRapido($("ofertaPainel"), j, Math.max(j.salario || 0, j.salario_mercado || 0), `Pagar ${dinheiro(preco)} e contratar`,
+      `${esc(cPor[j.clube_id].nome)} está no vermelho e oferece o jogador por ${dinheiro(preco)} (seu caixa: ${dinheiro(caixa)}).`,
+      (salario, temporadas) => comprarOfertaDaLiga(j.id, salario, temporadas));
+  };
   // negociações: responder às propostas recebidas e cuidar das enviadas
   if ($("negociacoes")) $("negociacoes").onclick = async e => {
     const b = e.target.closest("button[data-prop]"); if (!b) return;
@@ -409,7 +458,10 @@ async function telaClube(liga, clube) {
             <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
           <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
         ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" id="ctBanco" ${elenco.length <= 16 ? "disabled" : ""}>Vender ao banco por ${dinheiro(valorNoBanco(j.salario))}</button>
-          <div class="mut" style="margin-top:6px">60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</div>`) : ""}
+          <div class="mut" style="margin-top:6px">60% da multa rescisória, na hora. O elenco não pode ficar com menos de 16.</div>
+          ${livres == null ? "" : j.ofertaLigaAte ? `<div class="aviso" style="margin-top:8px">Oferecido à liga por ${dinheiro(Math.round(3.75 * j.salario))} até ${ateQuando(j.ofertaLigaAte)}. Se ninguém levar, vai ao banco.</div>`
+            : `<button class="sec" id="ctOferecer" style="margin-top:8px" ${elenco.length <= 16 ? "disabled" : ""}>Oferecer à liga por ${dinheiro(Math.round(3.75 * j.salario))}</button>
+               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, ele vai ao banco por 60%.</div>`}`) : ""}
       </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
     const mostra = () => { $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
@@ -429,6 +481,11 @@ async function telaClube(liga, clube) {
     }
     if ($("ctProteger")) $("ctProteger").onclick = async () => {
       try { await protegerJogador(j.id, !j.protegido); await carregar({ user: usuario }); }
+      catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
+    if ($("ctOferecer")) $("ctOferecer").onclick = async () => {
+      if (!confirm(`Oferecer ${j.nome} à liga? Qualquer clube poderá levá-lo por ${dinheiro(Math.round(3.75 * j.salario))}; se ninguém levar no prazo, ele vai ao banco.`)) return;
+      try { await oferecerALiga(j.id); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     if ($("ctBanco")) $("ctBanco").onclick = async () => {

@@ -36,7 +36,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null })));
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null })));
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
@@ -154,6 +154,16 @@ export async function comprarPelaMulta(jogadorId, salario, temporadas) {
   if (!data || data.erro) throw new Error(data ? data.erro : "Sem resposta do servidor.");
   return data.mensagem;
 }
+// M3: jogadores livres e oferta à liga (supabase/21_jogadores_livres.sql). As listas devolvem null enquanto o SQL 21 não foi executado.
+const CAMPOS_LIVRE = "id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, livre_ate, oferta_liga_ate";
+export const resolverLeiloes = ligaId => sb.rpc("resolver_leiloes", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
+export const livresDaLiga = ligaId => sb.from("jogadores").select(CAMPOS_LIVRE).eq("livre_liga", ligaId).order("id").then(({ data, error }) => error ? null : data);
+export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
+export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);
+export const darLanceLivre = (jogadorId, salario, temporadas) => sb.rpc("dar_lance_livre", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
+export const oferecerALiga = jogadorId => sb.rpc("oferecer_a_liga", { p_jogador: numero(jogadorId) }).then(ok);
+export const comprarOfertaDaLiga = (jogadorId, salario, temporadas) => sb.rpc("comprar_oferta_da_liga", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
+export const liberarJogadores = (ligaId, lista) => sb.rpc("liberar_jogadores", { p_liga: ligaId, p_lista: lista }).then(ok);
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {

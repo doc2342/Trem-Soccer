@@ -80,10 +80,12 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
 }
 
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
-export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes }) {
+// comLivres: o mercado de jogadores livres já existe (SQL 21); sem ele, todo contrato vencido se renova sozinho.
+export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
+export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now() }) {
   const nova = liga.temporada + 1;
-  const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [] };
-  const resumo = { grupos: {}, aposentados: [], novos: [], cresceram: 0, cairam: 0, renovados: 0 };
+  const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
+  const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0 };
 
   for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
     const doGrupo = clubes.filter(c => c.grupo === g);
@@ -105,9 +107,14 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   }
 
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
-  for (const c of clubes) for (const j of elencos[c.id] || []) {
+  for (const c of clubes) {
+   const vencidos = []; let ficam = 0;
+   // clube com dirigente que entrou nos últimos 21 dias cuida dos próprios contratos; os demais renovam sozinhos
+   const cuida = comLivres && !!c.dono && !!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000;
+   for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
     if (rng.chance(chanceDeAposentar(idade))) {
+      ficam++;
       plano.aposentados.push(numero(j.id));
       const jovem = gerarJogador(rng, { id: null, pos: j.pos, alvo: limitar(NOTA_DO_JOVEM + rng.normal(0, 1.5), 18, 26), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
       const mercado = salarioDeMercado(jovem);
@@ -121,12 +128,22 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     if (sobe) { at.forEach((v, i) => { if (j.pos === "GK" || !DE_GOLEIRO.has(i)) at[i] = limitar(v + sobe, ATR_MIN, ATR_MAX); }); resumo.cresceram++; }
     if (idade >= 34) { FISICOS.forEach(i => { at[i] = limitar(at[i] - rng.int(1, 2), ATR_MIN, ATR_MAX); }); resumo.cairam++; }
     else if (idade >= 31) { rng.embaralhar(FISICOS).slice(0, rng.int(1, 2)).forEach(i => { at[i] = limitar(at[i] - 1, ATR_MIN, ATR_MAX); }); resumo.cairam++; }
-    // contrato vencido se renova sozinho por uma temporada, pelo maior entre o salário atual e o de mercado (enquanto não há mercado)
-    let salario = j.salario, mercado = j.mercado, contrato = j.contratoAte;
-    if (salario != null && contrato != null && contrato < nova) {
-      mercado = salarioDeMercado({ ...j, idade, at }); salario = Math.max(salario, mercado); contrato = nova; resumo.renovados++;
+    const reg = { id: numero(j.id), idade, at, salario: j.salario, salario_mercado: j.mercado, contrato_ate: j.contratoAte };
+    plano.jogadores.push(reg);
+    if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
+    else ficam++;
+   }
+   // contratos vencidos: nos clubes sem dono (ou com dirigente ausente) renovam sozinhos por uma temporada, pelo maior entre o
+   // salário atual e o de mercado; nos demais o jogador fica livre, a não ser que o elenco fosse ficar com menos de 16
+   vencidos.sort((a, b) => b.mercado - a.mercado);
+   for (const v of vencidos) {
+    if (!cuida || ficam < ELENCO_MINIMO) {
+      v.reg.salario = Math.max(v.reg.salario, v.mercado); v.reg.salario_mercado = v.mercado; v.reg.contrato_ate = nova; ficam++; resumo.renovados++;
+    } else {
+      plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
+      resumo.livres.push({ clube: c.nome, dono: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
     }
-    plano.jogadores.push({ id: numero(j.id), idade, at, salario, salario_mercado: mercado, contrato_ate: contrato });
+   }
   }
   return { plano, resumo };
 }

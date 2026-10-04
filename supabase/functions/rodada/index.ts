@@ -1239,6 +1239,8 @@ Deno.serve(async (req) => {
     const sb = createClient(url, chave, { auth: { persistSession: false } });
     if (!(await autorizado(req, sb))) return json({ erro: "Não autorizado." }, 401);
     const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
+    // leilões de jogadores livres e ofertas à liga que venceram (sem efeito antes do 21_jogadores_livres.sql)
+    try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("resolver_leiloes", { p_liga: l.id }); } catch (e) { /* segue para as partidas */ }
 
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));
