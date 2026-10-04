@@ -139,6 +139,12 @@ export const jogadoresDaPosicao = async pos => { // com a lista de transferênci
   const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("pos", pos).order("id");
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("pos", pos).order("id").then(ok) : r.data;
 };
+// Todos os jogadores com clube, para a busca do mercado: uma leitura só (em páginas de 1.000), filtrada depois na tela.
+export async function jogadoresDoMercado() {
+  const ler = async campos => { const tudo = [];
+    for (let de = 0; ; de += 1000) { const r = await sb.from("jogadores").select(campos).not("clube_id", "is", null).order("id").range(de, de + 999); if (r.error) throw new Error(r.error.message); tudo.push(...r.data); if (r.data.length < 1000) return tudo; } };
+  try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido"); } catch (e) { return ler(CAMPOS_DO_MERCADO); }
+}
 // M2: venda negociada (supabase/20_venda_negociada.sql). minhasPropostas devolve null enquanto o SQL 20 não foi executado.
 export const minhasPropostas = clubeId => sb.from("propostas").select("*, jogadores(nome, pos, idade)").or(`comprador.eq.${clubeId},vendedor.eq.${clubeId}`).order("id", { ascending: false }).limit(60).then(({ data, error }) => error ? null : data);
 export const listarJogador = (jogadorId, preco) => sb.rpc("listar_jogador", { p_jogador: numero(jogadorId), p_preco: preco || 0 }).then(ok);
