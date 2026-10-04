@@ -754,9 +754,9 @@ const __bot = (() => {
     const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
     const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...fora.filter(j => j.pos !== "GK").slice(0, 6)];
 
-    // mentalidade: normal; um nível acima se é favorito ou joga em casa, um abaixo se é azarão
+    // mentalidade: normal; um nível acima se é favorito, um abaixo se é azarão (o mando já pesa no motor)
     const dif = forcaAdversario == null ? 0 : forca - forcaAdversario;
-    const mentalidade = dif <= -FAVORITO ? -1 : (dif >= FAVORITO || mandante) ? 1 : 0;
+    const mentalidade = dif <= -FAVORITO ? -1 : dif >= FAVORITO ? 1 : 0;
 
     // lado: o próprio corredor mais forte, se houver um claramente melhor
     const { atk } = avaliarZonas(escalacao);

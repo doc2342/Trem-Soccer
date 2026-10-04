@@ -123,7 +123,7 @@ async function iniciarOnline() {
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
-  const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const situacao = async () => {
     const fechada = await B.taticaFechada(clubeOnline.id);
     $("avisoOnline").innerHTML = fechada ? `<span class="aviso">A tática está fechada: há um jogo começando ou em cálculo. O que você salvar agora só vale depois dele.</span>`
