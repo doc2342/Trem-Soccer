@@ -40,6 +40,11 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 /* tela de escalação */
 .gramado { background:linear-gradient(#17402c,#12331f); border:1px solid #2b5a41; border-radius:10px; padding:10px 6px; display:flex; flex-direction:column; gap:8px; }
 .fila { display:flex; justify-content:space-around; gap:6px; min-height:10px; }
+.fila.grade { display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); justify-content:normal; }
+.fila.grade .vaga { width:auto; max-width:none; }
+/* em tela estreita cabe só o sobrenome na ficha do campinho */
+.vaga .ns { display:none; }
+@media (max-width:620px) { .vaga .nc { display:none; } .vaga .ns { display:inline; } .fila.grade { gap:4px 2px; } .gramado .vaga { padding:4px 2px; } .gramado .pp { min-width:0; padding:1px 5px; } }
 .vaga { background:rgba(15,23,32,.82); border:1px solid var(--line); border-radius:8px; padding:5px; width:31%; max-width:170px; min-width:0; cursor:pointer; text-align:center; }
 .vaga.sel { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac); }
 .vaga.vazia { border-style:dashed; }

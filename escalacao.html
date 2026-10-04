@@ -15,7 +15,7 @@
   @media (max-width:620px) {
     /* campo compacto: sigla, nome e nota; a posição da vaga muda na folha de escolha */
     .gramado { padding:8px 4px; gap:6px; } .fila { gap:4px; }
-    .vaga { flex:1 1 0; width:auto; max-width:112px; padding:4px 3px; }
+    .vaga { flex:1 1 0; width:auto; max-width:112px; padding:4px 3px; } .fila.grade .vaga { max-width:none; } .fila.grade { gap:4px 0; }
     .vaga select, .vaga .fam { display:none; } .vaga .vpos { display:inline-block; }
     .vaga .nome { font-size:11.5px; margin-top:2px; } .vaga .det { font-size:11.5px; }
     /* tocar numa vaga abre a lista de jogadores numa folha presa embaixo da tela */
@@ -93,7 +93,7 @@ import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } 
 import { taticaBot } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
-import { sg, pp } from "./src/siglas.js";
+import { sg, pp, filasDoCampo } from "./src/siglas.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -213,13 +213,11 @@ function render() {
   guardar("mo_trabalho_" + chaveElenco(), E);
   const V = validar();
   // gramado
-  const filas = Object.fromEntries(LINHAS.map(l => [l, []]));
-  E.vagas.forEach((pos, i) => filas[POSICOES[pos].linha].push(i));
-  $("gramado").innerHTML = LINHAS.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => ORDEM_LADO[POSICOES[E.vagas[a]].lado] - ORDEM_LADO[POSICOES[E.vagas[b]].lado]).map(i => {
+  $("gramado").innerHTML = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
-    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}">
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos" title="${POSICOES[pos].nome}">${sg(pos)}</span><select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
-      <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span><span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>` : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span><span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>` : "&nbsp;"}</div></div>`;
   }).join("")}</div>`).join("");
   // banco
   $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
