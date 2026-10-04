@@ -442,7 +442,7 @@ async function telaClube(liga, clube) {
     if (vencem.length) l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato termina" : "contratos terminam"} no fim desta temporada: ${vencem.slice(0, 6).map(j => esc(j.nome)).join(", ")}${vencem.length > 6 ? " e outros" : ""}.`, livres != null ? "aviso" : ""));
     if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
     if (clube.carne != null && clube.carne_temporada !== liga.temporada && transferencias && janela === "inicio") l.push(item("🎟️", "O Sócio-Torcedor desta temporada ainda não foi aberto (aba Finanças). Só dá para abrir antes da primeira rodada."));
-    if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : "do meio"} aberta: dá para comprar e vender.`));
+    if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
     return l.join("") || item("✅", "Sem novidades: ninguém lesionado, suspenso ou com contrato no fim.", "mut");
   };
   const muralDaLiga = () => {
@@ -520,7 +520,7 @@ async function telaClube(liga, clube) {
         ["hist", "📜 Transferências", "Feitas", 0]]
       .map(([k, n, curto, q]) => `<button class="sub" data-msub="${k}"><span class="sl">${n}</span><span class="sc">${curto}</span>${q ? `<span class="qt">${q}</span>` : ""}</button>`).join("")}</div>
     ${janela === undefined ? "" : `<div class="janela ${janela ? "aberta" : "fechada"}"><span class="jl">${janela ? "🟢 Janela aberta" : "🔴 Janela fechada"}</span>
-      <span>${janela === "inicio" ? "Janela de início: compras, vendas e propostas valem até o fim da rodada 2." : janela === "meio" ? "Janela do meio: compras, vendas e propostas valem até o fim da rodada 11." : "Compras pela multa e propostas só com a janela aberta: no início da temporada (até a rodada 2) e entre as rodadas 9 e 11. Jogadores livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo."}</span></div>`}
+      <span>${janela === "fim" ? "Janela de fim de temporada: já dá para comprar, vender e fazer propostas. Ela segue aberta depois da virada e fecha pouco antes de a rodada 2 começar. Quem chega agora conta como reforço da próxima temporada." : janela === "inicio" ? "Janela de início: compras, vendas e propostas valem até pouco antes de a rodada 2 começar." : janela === "meio" ? "Janela do meio: compras, vendas e propostas valem até o fim da rodada 11." : "Compras pela multa e propostas só com a janela aberta: do fim da última rodada da temporada até pouco antes da rodada 2 da seguinte, e entre as rodadas 9 e 11. Jogadores livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo."}</span></div>`}
     <div id="mRecado"></div>
     <div data-msecao="busca">
     ${janela === undefined ? `<div class="card mut">O mercado aparece aqui quando o administrador ligar (SQL 19 e a função "mercado").</div>` : `

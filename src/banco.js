@@ -48,6 +48,8 @@ export const dispensarTreinador = id => sb.rpc("dispensar_treinador", { p_id: id
 export const designarTreinador = (id, area) => sb.rpc("designar_treinador", { p_id: id, p_area: area }).then(ok);
 // partidas cujos efeitos (caixa, lesões, forma, treino) ainda não foram gravados; só o administrador enxerga. 0 antes do SQL 33.
 export const efeitosPendentes = () => sb.from("resultados").select("partida_id", { count: "exact", head: true }).not("efeitos", "is", null).then(({ count, error }) => error ? 0 : count || 0);
+// depois da virada: quem chegou entre a última rodada e a virada conta como reforço da temporada nova (38_janela_de_fim_de_temporada.sql)
+export const ajustarJanelaFinal = ligaId => sb.rpc("ajustar_janela_final", { p_liga: ligaId }).then(({ error }) => !error);
 export const limparTreinadores = ligaId => sb.rpc("limpar_treinadores", { p_liga: ligaId }).then(({ error }) => !error);
 // T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
 export const definirTreino = lista => sb.rpc("definir_treino", { p_lista: lista.map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
