@@ -10,7 +10,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 | B. Motor: núcleo (9 zonas, xG) | pronto |
 | C. Calibragem | pronto |
 | D. Instruções e energia | pronto |
-| E. Bot e relatório | a fazer |
+| E. Bot e relatório | pronto |
 | F. Tela de escalação | a fazer |
 | G. Contas e clubes | a fazer |
 | H. Rodada no servidor | a fazer |
@@ -24,7 +24,10 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 - `dados/nomes.json`: nomes e sobrenomes por país (gerado por `ferramentas/extrair_nomes.py`).
 - `src/escalacao.js`: formações de referência e escalação automática simples.
 - `src/motor.js`: motor da partida (zonas, duelos, chances com xG).
+- `src/bot.js`: tática de bot (formação, escalação, banco e instruções).
+- `src/relatorio.js`: relatório da partida (resultado esperado, notas, mapa de zonas, analista).
 - `elenco.html`: página de conferência do passo A.
+- `relatorio.html`: partida entre dois bots com o relatório completo.
 - `partida.html`: uma partida (ou 1.000) entre dois times, com as instruções de cada um.
 - `calibragem.html`: roda milhares de partidas e compara com as metas; mostra também o efeito de cada instrução.
 

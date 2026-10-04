@@ -196,6 +196,13 @@ function recalcular(t, saldo) {
     * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + CONFIG.mentalidadePosse * I.mentalidade);
 }
 
+// Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
+export function avaliarZonas(escalacao) {
+  const t = iniciar(prepararTime({ nome: "", escalacao }));
+  recalcular(t, 0);
+  return { atk: t.atk, def: t.def };
+}
+
 function sortearPeso(rng, lista, peso) {
   let total = 0;
   const pesos = lista.map(x => { const p = Math.max(0, peso(x)); total += p; return p; });
@@ -315,12 +322,13 @@ const novaEstatistica = () => ({
 export function simularPartida(rng, casa, fora) {
   const times = [iniciar(casa), iniciar(fora)], estat = [novaEstatistica(), novaEstatistica()];
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
-  const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
+  const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
   times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
   let min = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0;
   const gols = () => [estat[0].gols, estat[1].gols];
   const evento = (i, tipo, texto) => eventos.push({ min, time: i, tipo, texto });
-  const registrar = (jog, venceu) => { const s = jogadores[jog.j.id]; if (s) s[venceu ? "duelosGanhos" : "duelosPerdidos"]++; };
+  // esperado: chance que o jogador tinha de vencer o duelo; a nota compara o que ele venceu com o que era esperado
+  const registrar = (jog, venceu, esperado) => { const s = jogadores[jog.j.id]; if (s) { s[venceu ? "duelosGanhos" : "duelosPerdidos"]++; s.duelosEsperados += esperado; } };
 
   function sair(i, jog) {
     const t = times[i];
@@ -396,8 +404,8 @@ export function simularPartida(rng, casa, fora) {
       if (zona[0] === "A") parada = true; else venceu = true; // falta no ataque vira bola parada; atrás, a jogada segue
     } else {
       e.zonas[zona][venceu ? 0 : 1]++;
-      if (pivo) registrar(pivo, venceu);
-      if (marcador) registrar(marcador, !venceu);
+      if (pivo) registrar(pivo, venceu, p);
+      if (marcador) registrar(marcador, !venceu, 1 - p);
     }
     if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade))) {
       const r = rng.n(), dias = r < 0.5 ? rng.int(1, 3) : r < 0.8 ? rng.int(4, 10) : rng.int(11, 30);
@@ -425,7 +433,7 @@ export function simularPartida(rng, casa, fora) {
     if (resultado === "gol") { e.gols++; sujo = true; }
     const sf = jogadores[c.finalizador.j.id];
     sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
-    lances.push({ min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, texto: narrar(c, resultado, def.goleiro) });
+    lances.push({ min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: narrar(c, resultado, def.goleiro) });
     if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) bolaParada(i, "escanteio", "C");
   }
 
