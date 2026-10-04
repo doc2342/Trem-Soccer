@@ -37,7 +37,7 @@
   <div class="mut">Página de conferência do modelo de jogador: 22 atributos, 18 posições, familiaridade e nota por posição.</div>
 
   <div class="card row">
-    <label>Nível (nota média dos titulares)<input id="nivel" type="number" min="15" max="42" value="30" style="width:110px"></label>
+    <label>Nível (nota média dos 16 principais)<input id="nivel" type="number" min="15" max="42" value="30" style="width:110px"></label>
     <label>Perfil do elenco<select id="perfil"></select></label>
     <label>Semente<input id="semente" type="number" value="1" style="width:110px"></label>
     <button id="gerar">Gerar outro elenco</button>
@@ -81,13 +81,13 @@ function mostrar() {
   const nota = j => notaNaPosicao(j, j.pos);
   const mediaAtr = k => media(elenco.filter(j => j.pos !== "GK").map(j => j.at[IDX[k]]));
   $("resumo").innerHTML = [
-    ["Jogadores", elenco.length], ["Nota média dos titulares", f1(media(tit.map(nota)))], ["Nota média dos reservas", f1(media(res.map(nota)))],
+    ["Jogadores", elenco.length], ["Nota média dos 16 principais", f1(media(tit.map(nota)))], ["Nota média dos reservas", f1(media(res.map(nota)))],
     ["Idade média", f1(media(elenco.map(j => j.idade)))], ["Velocidade média", f1(mediaAtr("vel"))], ["Força média", f1(mediaAtr("for"))],
     ["Domínio médio", f1(mediaAtr("dom"))], ["Posicionamento médio", f1(mediaAtr("pos"))],
   ].map(([a, b]) => `<div>${a}<b>${b}</b></div>`).join("");
 
   $("tabela").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>` +
-    elenco.map((j, i) => `<tr class="clk ${i === 11 ? "sep" : ""} ${selecionado === j.id ? "sel" : ""}" data-id="${j.id}">
+    elenco.map((j, i) => `<tr class="clk ${!j.titular && elenco[i - 1].titular ? "sep" : ""} ${selecionado === j.id ? "sel" : ""}" data-id="${j.id}">
       <td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(nota(j))}</td><td class="esq">${outras(j)}</td>
       ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`).join("") + `</table>`;
   mostrarFicha();
@@ -118,7 +118,7 @@ function mostrarEquilibrio() {
     const faixa = l => `${f1(Math.min(...l))} a ${f1(Math.max(...l))}`;
     linhas.push(`<tr><td class="esq">${p.nome}</td><td>${faixa(tit)}</td><td>${faixa(res)}</td><td>${f1(media(vel))}</td><td>${f1(media(forca))}</td><td>${f1(media(dom))}</td><td>${f1(media(pos))}</td><td>${f1(media(soma))}</td></tr>`);
   }
-  $("equilibrio").innerHTML = `<table><tr><th class="esq">Perfil</th><th>Nota dos titulares</th><th>Nota dos reservas</th><th>Velocidade</th><th>Força</th><th>Domínio</th><th>Posicionamento</th><th>Soma dos 22 atributos</th></tr>${linhas.join("")}</table>`;
+  $("equilibrio").innerHTML = `<table><tr><th class="esq">Perfil</th><th>Nota dos 16 principais</th><th>Nota dos reservas</th><th>Velocidade</th><th>Força</th><th>Domínio</th><th>Posicionamento</th><th>Soma dos 22 atributos</th></tr>${linhas.join("")}</table>`;
 }
 
 $("gerar").onclick = () => { $("semente").value = +$("semente").value + 1; gerar(); };

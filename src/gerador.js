@@ -3,10 +3,10 @@
 import { limitar } from "./rng.js";
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta } from "./modelo.js";
 
-// Elenco inicial: 11 titulares num 4-4-2 e 11 reservas que cobrem as outras posições,
-// para o dirigente poder montar outras formações desde o primeiro dia.
-export const VAGAS_TITULARES = ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC"];
-export const VAGAS_RESERVAS = ["GK", "DC", "SW", "WBR", "WBL", "DMC", "AMC", "RW", "LW", "AML", "SC"];
+// Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
+// para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
+export const VAGAS_TITULARES = ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC", "DC", "DMC", "AMC", "RW", "LW"];
+export const VAGAS_RESERVAS = ["GK", "SW", "WBR", "WBL", "AML", "SC"];
 const FOLGA_RESERVA = 5; // quanto a nota-alvo do reserva fica abaixo da do titular
 
 // Cada perfil puxa alguns atributos para cima; o gerador tira o mesmo tanto de outros.
@@ -101,11 +101,11 @@ function desvios(rng, n, desvio) {
   return d.map(v => v - media);
 }
 
-// nivel: nota média dos titulares. Todos os elencos gerados com o mesmo nível têm a mesma força média.
+// nivel: nota média dos 16 de nível titular. Todos os elencos gerados com o mesmo nível têm a mesma força média.
 export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
   const usados = new Set(), elenco = [];
   const dTit = desvios(rng, VAGAS_TITULARES.length, 1.5), dRes = desvios(rng, VAGAS_RESERVAS.length, 1.5);
-  const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 5));
+  const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 4));
   VAGAS_TITULARES.forEach((pos, i) => elenco.push({
     ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
     titular: true,
