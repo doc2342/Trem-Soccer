@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer</title>
+<link rel="stylesheet" href="estilo.css">
+<style>
+  .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
+  .cores span { width:24px; height:24px; border-radius:6px; border:2px solid var(--line); cursor:pointer; }
+  .cores span.sel { border-color:var(--ac); }
+  .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:#0f1720; border-radius:10px; border:1px solid var(--line); }
+  .a0 { color:#5d6b7c; } .a1 { color:#9fb0c3; } .a3 { color:#7fd4a6; font-weight:600; } .a4 { color:#3fe08f; font-weight:700; }
+  tr.sep td { border-top:2px solid var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="mut" id="quem" style="margin-left:auto"></span><button class="sec" id="sair" hidden>Sair</button></div>
+  <div class="card" id="login"></div>
+  <div id="app"></div>
+</main>
+
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, assumirClube, registrarAcesso, elencoDoClube } from "./src/banco.js";
+import { montarLogin } from "./src/ui-login.js";
+import { svgEscudo, svgUniforme, visualAleatorio, FORMAS, PADROES, CORES } from "./src/escudo.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f1 = v => v.toFixed(1).replace(".", ",");
+const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4);
+let usuario = null, versao = 0;
+
+async function carregar(s) {
+  const minha = ++versao; // evita desenhar duas vezes quando a sessão muda rápido
+  usuario = s ? s.user : null;
+  $("quem").textContent = usuario ? usuario.email : "";
+  $("sair").hidden = !usuario;
+  if (!usuario) { $("app").innerHTML = ""; return; }
+  $("app").innerHTML = `<div class="card mut">Carregando…</div>`;
+  try {
+    const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
+    if (minha !== versao) return;
+    if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
+    if (clube) { registrarAcesso().catch(() => {}); await telaClube(liga, clube); }
+    else await telaCriar(liga);
+  } catch (e) { $("app").innerHTML = `<div class="card bad">Não consegui carregar: ${esc(e.message)}</div>`; }
+}
+
+// ---------- criar o clube ----------
+async function telaCriar(liga) {
+  const clubes = await clubesDaLiga(liga.id), vagas = clubes.filter(c => !c.dono).length;
+  const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
+  const paleta = (alvo, campo) => `<div class="cores">${CORES.map(c => `<span data-cor="${c}" data-alvo="${alvo}" data-campo="${campo}" class="${F[alvo][campo] === c ? "sel" : ""}" style="background:${c}"></span>`).join("")}</div>`;
+  const opcoes = (obj, atual) => Object.entries(obj).map(([k, n]) => `<option value="${k}" ${k === atual ? "selected" : ""}>${n}</option>`).join("");
+  const desenhar = (aviso = "") => {
+    $("app").innerHTML = `<div class="card"><h2>Criar o seu clube</h2>
+      <div class="mut" style="margin-bottom:10px">${esc(liga.nome)} · ${vagas} ${vagas === 1 ? "vaga livre" : "vagas livres"} de ${clubes.length}. Você assume um dos clubes sem dono, já com 22 jogadores, e dá a ele o seu nome e as suas cores.</div>
+      ${vagas ? `<div class="duas"><div>
+        <div class="row"><label style="flex:1;min-width:160px">Nome do clube<input id="cNome" maxlength="30" value="${esc(F.nome)}"></label><label>Sigla (3 letras)<input id="cSigla" maxlength="3" style="width:90px;text-transform:uppercase" value="${esc(F.sigla)}"></label></div>
+        <div class="row" style="margin-top:10px"><label>Forma do escudo<select data-alvo="escudo" data-campo="forma">${opcoes(FORMAS, F.escudo.forma)}</select></label><label>Desenho do escudo<select data-alvo="escudo" data-campo="padrao">${opcoes(PADROES, F.escudo.padrao)}</select></label></div>
+        <div class="row" style="margin-top:10px"><label>Cor principal do escudo${paleta("escudo", "cor1")}</label><label>Segunda cor do escudo${paleta("escudo", "cor2")}</label></div>
+        <div class="row" style="margin-top:10px"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opcoes(PADROES, F.uniforme.padrao)}</select></label></div>
+        <div class="row" style="margin-top:10px"><label>Cor principal da camisa${paleta("uniforme", "cor1")}</label><label>Segunda cor da camisa${paleta("uniforme", "cor2")}</label><label>Calção${paleta("uniforme", "calcao")}</label></div>
+      </div><div><div class="previa">${svgEscudo(F.escudo, F.sigla || "ABC", 110)}${svgUniforme(F.uniforme, 90)}</div>
+        <button id="cCriar" style="margin-top:12px;width:100%">Criar o clube</button>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div>` : `<div class="bad">Todas as vagas estão ocupadas.</div>`}</div>`;
+    if (!vagas) return;
+    $("cNome").oninput = e => { F.nome = e.target.value; };
+    $("cSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); document.querySelector(".previa").innerHTML = svgEscudo(F.escudo, F.sigla || "ABC", 110) + svgUniforme(F.uniforme, 90); };
+    $("cCriar").onclick = async () => {
+      $("cCriar").disabled = true; $("cCriar").textContent = "Criando…";
+      try { await assumirClube(F.nome, F.sigla, F.escudo, F.uniforme); await carregar({ user: usuario }); }
+      catch (e) { desenhar(e.message); }
+    };
+  };
+  $("app").onclick = e => { const d = e.target.dataset; if (d.cor) { F[d.alvo][d.campo] = d.cor; desenhar(); } };
+  $("app").onchange = e => { const d = e.target.dataset; if (d.alvo && e.target.tagName === "SELECT") { F[d.alvo][d.campo] = e.target.value; desenhar(); } };
+  desenhar();
+}
+
+// ---------- meu clube ----------
+async function telaClube(liga, clube) {
+  $("app").onclick = $("app").onchange = null;
+  const [elenco, clubes] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id)]);
+  const grupo = clubes.filter(c => c.grupo === clube.grupo), humanos = clubes.filter(c => c.dono).length;
+  const linha = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+    <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
+    ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
+  $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
+      <div><h2 style="margin:0;font-size:20px">${esc(clube.nome)}</h2><div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · grupo ${esc(clube.grupo)}</div></div></div>
+    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores</span></h2><div class="rolagem"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>
+      ${elenco.filter(j => j.titular).map(linha).join("")}${elenco.filter(j => !j.titular).map((j, i) => linha(j).replace("<tr>", i ? "<tr>" : `<tr class="sep">`)).join("")}</table></div></div>
+    <div class="card"><h2>Grupo ${esc(clube.grupo)} <span class="tag">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga · os demais clubes são do bot</span></h2>
+      ${grupo.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span ${c.id === clube.id ? `class="nota"` : ""}>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"}</span></div>`).join("")}</div>`;
+}
+
+$("sair").onclick = () => sair();
+await montarLogin($("login"), carregar);
+window.__teste = { carregar };
+</script>
+</body>
+</html>

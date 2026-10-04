@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Administração</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<main>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h1 style="margin:0">Administração</h1><span class="mut" id="quem" style="margin-left:auto"></span><button class="sec" id="sair" hidden>Sair</button></div>
+  <div class="card" id="login"></div>
+  <div id="app"></div>
+</main>
+
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { gerarElenco, PERFIS } from "./src/gerador.js";
+import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga } from "./src/banco.js";
+import { montarLogin } from "./src/ui-login.js";
+import { svgEscudo, visualAleatorio } from "./src/escudo.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nomes = await (await fetch("./dados/nomes.json")).json();
+const GRUPOS = ["A", "B", "C", "D", "E"], POR_GRUPO = 10, NIVEL = 30;
+const PREFIXOS = ["Atlético", "Esporte Clube", "União", "Sport", "Grêmio", "Real", "Operário", "Náutico", "Associação", "Sociedade Esportiva", "Clube", "Independente"];
+
+// Nome de clube sem dono: prefixo + sobrenome brasileiro, e sigla com as três primeiras letras do sobrenome.
+function nomeDeClube(rng, usados) {
+  for (;;) {
+    const sobrenome = rng.pick(nomes.paises.Brasil.s), nome = `${rng.pick(PREFIXOS)} ${sobrenome}`;
+    const sigla = sobrenome.normalize("NFD").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+    if (sigla.length === 3 && !usados.has(nome) && !usados.has(sigla)) { usados.add(nome); usados.add(sigla); return { nome, sigla }; }
+  }
+}
+
+async function carregar(s) {
+  $("quem").textContent = s ? s.user.email : ""; $("sair").hidden = !s;
+  if (!s) { $("app").innerHTML = ""; return; }
+  try {
+    if (!(await ehAdmin())) { $("app").innerHTML = `<div class="card bad">Esta conta não é de administrador.</div>`; return; }
+    await tela();
+  } catch (e) { $("app").innerHTML = `<div class="card bad">Não consegui carregar: ${esc(e.message)}</div>`; }
+}
+
+async function tela(aviso = "") {
+  const liga = await ligaAtual(), clubes = liga ? await clubesDaLiga(liga.id) : [];
+  const humanos = clubes.filter(c => c.dono).length;
+  $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
+    ? `<div>${esc(liga.nome)} · temporada ${liga.temporada} · ${clubes.length} clubes, ${humanos} com dirigente e ${clubes.length - humanos} do bot.</div>
+       <div class="row" style="margin-top:10px"><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
+    : `<div class="mut" style="margin-bottom:10px">Nenhuma liga criada. A criação gera ${GRUPOS.length * POR_GRUPO} clubes sem dono, em ${GRUPOS.length} grupos de ${POR_GRUPO}, cada um com 22 jogadores de mesmo nível. Leva cerca de um minuto.</div>
+       <div class="row"><label style="flex:1;min-width:180px">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button id="criar">Criar a liga</button></div>`}
+    <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
+    ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>Grupo ${g}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
+  if ($("criar")) $("criar").onclick = criar;
+  if ($("apagar")) $("apagar").onclick = async () => {
+    if (!confirm(`Apagar a liga "${liga.nome}" com todos os clubes e jogadores? Não dá para desfazer.`)) return;
+    try { await apagarLiga(liga.id); await tela("Liga apagada."); } catch (e) { await tela("Erro ao apagar: " + e.message); }
+  };
+}
+
+async function criar() {
+  $("criar").disabled = true;
+  const rng = criarRng(Date.now() % 2147483647), usados = new Set(), perfis = Object.keys(PERFIS);
+  try {
+    const liga = await criarLiga($("nomeLiga").value.trim() || "Liga");
+    let n = 0;
+    for (const grupo of GRUPOS) for (let k = 0; k < POR_GRUPO; k++) {
+      const { nome, sigla } = nomeDeClube(rng, usados), perfil = rng.pick(perfis), v = visualAleatorio(rng);
+      await criarClubeComElenco(liga.id, { grupo, nome, sigla, perfil, escudo: v.escudo, uniforme: v.uniforme }, gerarElenco(rng, { nivel: NIVEL, perfil, nomes }));
+      $("progresso").textContent = `Criando clubes: ${++n} de ${GRUPOS.length * POR_GRUPO}…`;
+    }
+    await tela("Liga criada.");
+  } catch (e) { await tela("Erro ao criar a liga: " + e.message + " (se ficou pela metade, apague a liga e crie de novo)"); }
+}
+
+$("sair").onclick = () => sair();
+await montarLogin($("login"), carregar);
+</script>
+</body>
+</html>
