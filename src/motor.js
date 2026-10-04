@@ -353,7 +353,9 @@ export function simularPartida(rng, casa, fora) {
   // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
   // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
   // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
-  let trilha = [], portador = null;
+  let trilha = [], portador = null, ultimoAtaque = null;
+  // quando o mesmo time ataca duas vezes seguidas, a narração diz que ele recuperou a bola (a retomada não é disputada lance a lance)
+  const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
   const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
   const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; portador = null; return t; };
   const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
@@ -553,6 +555,8 @@ export function simularPartida(rng, casa, fora) {
       if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${def.nome} recupera a bola e sai em contra-ataque.`); atacar(1 - i, true); }
     };
     e.ataques++; trilha = []; portador = null;
+    if (!contra && ultimoAtaque === i) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](atk.nome)], { fechada: true }));
+    ultimoAtaque = i;
     let lado = escolherLado(rng, atk, dz, contra ? "M" : "D");
     if (!contra) { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
     lado = escolherLado(rng, atk, dz, "M", lado);
