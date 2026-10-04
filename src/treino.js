@@ -15,7 +15,8 @@ export const CONFIG_TREINO = {
   teto: [24, 0.22],           // teto da nota = 24 + 0,22 × talento (1 a 100): de 24 a 46
   // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
   treinador: [0.8, 0.5],      // área sem treinador, 80%; qualidade 50, 130%
-  parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill em todas as áreas
+  parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill nas quatro áreas com treinador designado
+  coletivas: ["fis", "tat"], divisorDaSoma: 2.5, // físico e tática: soma da skill de TODOS os treinadores, dividida por 2,5 (teto 50)
   // perdaPorExcesso em 0: a punição por elenco inflado (mais de 7 jogadores acima de 21 anos por treinador) foi desligada
   // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
   maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
@@ -23,7 +24,7 @@ export const CONFIG_TREINO = {
   qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
 };
 
-// Áreas de treino e os atributos de cada uma.
+// Áreas de treino e os atributos de cada uma. Goleiros, defesa, meio e ataque têm treinador designado; físico e tática são coletivas.
 export const AREAS = {
   gol: { nome: "Goleiros", at: ["ref", "um", "enc"] },
   def: { nome: "Defesa", at: ["des", "mar", "cab"] },
@@ -43,7 +44,8 @@ export function qualidadeDoTreino(treinadores, jogadores, semDono = false) {
   const lista = treinadores.slice(0, C.maximoDeTreinadores), capacidade = lista.length * C.jogadoresPorTreinador;
   const excesso = capacidade && jogadores > capacidade ? 1 - C.perdaPorExcesso * Math.min(1, (jogadores - capacidade) / capacidade) : 1;
   for (const k in AREAS) {
-    const q = lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0);
+    const q = C.coletivas.includes(k) ? lista.reduce((s, t) => s + (t.skills[k] || 0), 0) / C.divisorDaSoma
+      : lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0);
     areas[k] = C.treinador[0] + (multDaQualidade(q) - C.treinador[0]) * excesso;
   }
   return areas;
