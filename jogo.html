@@ -408,13 +408,13 @@ async function telaClube(liga, clube) {
       return `<div id="negociacoes"><b>Recebidas</b>${recebidas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Quem quer</th><th>Oferta</th><th>Situação</th><th></th></tr>${recebidas.map(linhaR).join("")}</table></div>` : `<div class="mut">Nenhuma proposta recebida.</div>`}
         <div style="margin-top:10px"><b>Enviadas</b></div>${enviadas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Clube</th><th>Oferta</th><th>Situação</th><th></th></tr>${enviadas.map(linhaE).join("")}</table></div>` : `<div class="mut">Você não enviou propostas. Para fazer uma, clique num jogador de clube com dirigente na lista acima.</div>`}
         <div id="negAviso" style="margin-top:6px"></div></div>`; })()}</div>`}
-    ${livres == null ? "" : `<div class="card"><h2>Jogadores livres <span class="tag">leilão aberto: leva quem oferecer o maior salário · depois do prazo, sem lance, assina na hora</span></h2>${(() => {
+    ${livres == null ? "" : `<div class="card"><h2>Jogadores livres <span class="tag">o primeiro lance abre o leilão · quando o prazo acaba, leva quem ofereceu o maior salário</span></h2>${(() => {
       if (!livres.length) return `<div class="mut">Nenhum jogador livre. Eles aparecem depois da virada, quando contratos vencem sem renovação.</div>`;
       const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
       return `<div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
-        ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id), aberto = new Date(j.livre_ate) > new Date();
+        ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id);
           return `<tr class="clk" data-livre="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
-            <td class="esq ${m && m.clube_id === clube.id ? "nota" : ""}">${m ? `${dinheiro(m.salario)} · ${esc((cPor[m.clube_id] || {}).nome || "—")}` : "—"}</td><td class="${aberto ? "" : "aviso"}">${aberto ? "até " + ateQuando(j.livre_ate) : "encerrado: assina na hora"}</td></tr>`; }).join("")}</table></div>
+            <td class="esq ${m && m.clube_id === clube.id ? "nota" : ""}">${m ? `${dinheiro(m.salario)} · ${esc((cPor[m.clube_id] || {}).nome || "—")}` : "—"}</td><td class="${j.livre_ate ? "" : "mut"}">${!j.livre_ate ? "aguarda o 1º lance" : new Date(j.livre_ate) > new Date() ? "até " + ateQuando(j.livre_ate) : "encerrando"}</td></tr>`; }).join("")}</table></div>
         <div id="livrePainel" style="margin-top:10px"></div>`; })()}</div>`}
     ${livres == null || !ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length ? "" : `<div class="card"><h2>Ofertas de clubes no vermelho <span class="tag">75% da multa rescisória · vale mesmo com a janela fechada</span></h2>
       <div class="rolagem" id="ofertasLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th>Salário</th><th>Preço</th><th>Até</th></tr>
@@ -556,12 +556,12 @@ async function telaClube(liga, clube) {
   };
   if ($("livresLista")) $("livresLista").onclick = e => {
     const tr = e.target.closest("tr[data-livre]"); if (!tr) return;
-    const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = new Date(j.livre_ate) > new Date();
+    const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = !!j.livre_ate;
     const maior = lancesLivres.filter(l => l.jogador_id === j.id && l.clube_id !== clube.id).reduce((m, l) => Math.max(m, l.salario), 0);
-    const minimo = Math.max(j.salario_mercado || 0, aberto && maior ? maior + 5 : 0);
-    contratoRapido($("livrePainel"), j, minimo, aberto ? "Dar o lance" : "Contratar agora",
+    const minimo = Math.max(j.salario_mercado || 0, maior ? maior + 5 : 0);
+    contratoRapido($("livrePainel"), j, minimo, aberto ? "Dar o lance" : "Abrir o leilão",
       aberto ? `Leilão até ${ateQuando(j.livre_ate)}. Ele pede pelo menos ${dinheiro(j.salario_mercado)}${maior ? `; o maior lance de outro clube é de ${dinheiro(maior)}` : ""}. Leva quem oferecer o maior salário; não há valor a pagar a clube nenhum.`
-             : `O leilão terminou sem lances: assina na hora com quem oferecer pelo menos ${dinheiro(j.salario_mercado)}.`,
+             : `Ninguém deu lance ainda. O seu abre o leilão, que dura ${liga.horas_leilao == null ? 48 : +liga.horas_leilao >= 1 ? +liga.horas_leilao + " h" : Math.round(liga.horas_leilao * 60) + " min"}: nesse prazo os outros clubes podem cobrir, e leva quem oferecer o maior salário. Ele pede pelo menos ${dinheiro(j.salario_mercado)}.`,
       (salario, temporadas) => darLanceLivre(j.id, salario, temporadas));
   };
   if ($("ofertasLista")) $("ofertasLista").onclick = e => {
