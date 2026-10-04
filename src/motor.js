@@ -30,7 +30,10 @@ export const CONFIG = {
 
   // instruções
   mentalidadeAtaque: 0.06, // por nível de mentalidade: força no meio e no ataque
-  mentalidadeDefesa: 0.065, // por nível de mentalidade: força que a defesa perde
+  mentalidadeDefesa: 0.065, // por nível de mentalidade ofensiva: força que a defesa perde
+  mentalidadeRetranca: 0.065, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
+  espacoPorMentalidade: 0.2, // por nível de mentalidade de quem defende: espaço para a bola em profundidade do adversário
+  ritmoPorMentalidade: 0.03, // por nível, somando os dois times: jogo mais aberto tem mais ataques
   mentalidadePosse: 0.02,
   agressividadeDefesa: 0.035, // por nível: força nos duelos defensivos
   pressaoDefesa: 0.09, // por nível: força na marcação do meio para a frente
@@ -168,7 +171,7 @@ function recalcular(t, saldo) {
   const moral = saldo < 0 && cap ? 1 + (cap.j.at[A.inf] - 25) * CONFIG.capitao : 1;
   const base = (t.mandante ? CONFIG.mando : 1) * moral;
   const mAtk = { D: 1, M: 1 + CONFIG.mentalidadeAtaque * I.mentalidade, A: 1 + CONFIG.mentalidadeAtaque * I.mentalidade };
-  const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = 1 - CONFIG.mentalidadeDefesa * I.mentalidade;
+  const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = I.mentalidade > 0 ? 1 - CONFIG.mentalidadeDefesa * I.mentalidade : 1 - CONFIG.mentalidadeRetranca * I.mentalidade;
   const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
   if (I.passe === "curto") { mAtk.M *= CONFIG.passeCurto.M; mAtk.A *= CONFIG.passeCurto.A; }
   if (I.passe === "longo") mAtk.M *= CONFIG.passeLongo.M;
@@ -240,7 +243,8 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
   const presenca = Math.min(1, area.reduce((s, o) => s + o.w, 0));
   const pt = CONFIG.pesoTipo;
-  const estilo = { profundidade: (I.passe === "longo" ? 1.2 : 1) * (contra ? 2 : 1), area: I.passe === "curto" ? 1.2 : I.passe === "longo" ? 0.8 : 1, longe: I.passe === "curto" ? 0.8 : 1, cruzamento: I.passe === "longo" ? 1.2 : 1, corte: 1 };
+  const espaco = Math.max(0.3, 1 + CONFIG.espacoPorMentalidade * def.instr.mentalidade); // linha recuada tira o espaço nas costas
+  const estilo = { profundidade: (I.passe === "longo" ? 1.2 : 1) * (contra ? 2 : 1) * espaco, area: I.passe === "curto" ? 1.2 : I.passe === "longo" ? 0.8 : 1, longe: I.passe === "curto" ? 0.8 : 1, cruzamento: I.passe === "longo" ? 1.2 : 1, corte: 1 };
   const opcoes = lado === "C"
     ? [["profundidade", pt.profundidade * alvoVeloz * estilo.profundidade], ["area", pt.area * presenca * estilo.area], ["longe", pt.longe * estilo.longe]]
     : [["cruzamento", pt.cruzamento * alvoAereo * estilo.cruzamento], ["corte", pt.corte]];
@@ -491,7 +495,8 @@ export function simularPartida(rng, casa, fora) {
       const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1);
       jog.energia = Math.max(0, jog.energia - gasto);
     }
-    const n = (rng.chance(Math.min(1, CONFIG.ataquesPorMinuto)) ? 1 : 0) + (rng.chance(Math.max(0, CONFIG.ataquesPorMinuto - 1)) ? 1 : 0);
+    const ritmo = CONFIG.ataquesPorMinuto * (1 + CONFIG.ritmoPorMentalidade * (times[0].instr.mentalidade + times[1].instr.mentalidade));
+    const n = (rng.chance(Math.min(1, ritmo)) ? 1 : 0) + (rng.chance(Math.max(0, ritmo - 1)) ? 1 : 0);
     for (let k = 0; k <= n; k++) {
       if (sujo || (k === 0 && min % CONFIG.recalcularACada === 1)) {
         const g = gols();
