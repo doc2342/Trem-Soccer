@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escalação</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<main>
+  <h1>Escalação e tática</h1>
+  <div class="mut">Monte o time nas 18 posições, escolha as instruções e jogue contra um clube comandado pelo bot.</div>
+
+  <div class="card row">
+    <label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label>
+    <label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label>
+    <label>Perfil<select id="perfil"></select></label>
+    <label>Formação pronta<select id="formacao"></select></label>
+    <button class="sec" id="auto">Escalar os melhores</button>
+    <button class="sec" id="bot">Deixar o bot montar tudo</button>
+  </div>
+
+  <div class="duas">
+    <div>
+      <div class="card"><h2>Time <span class="tag">clique numa vaga para escolher o jogador; troque a posição no seletor da vaga</span></h2><div class="gramado" id="gramado"></div>
+        <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
+        <div id="validacao" style="margin-top:10px"></div></div>
+      <div class="card"><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2><div class="campo" id="zonas" style="max-width:none"></div></div>
+    </div>
+    <div>
+      <div class="card" id="escolha" hidden></div>
+      <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
+      <div class="card"><h2>Capitão, armador e cobradores</h2><div class="row" id="papeis"></div></div>
+      <div class="card"><h2>Substituições <span class="tag">até 5</span></h2><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></div>
+      <div class="card"><h2>Ordens condicionais <span class="tag">até 3</span></h2><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></div>
+      <div class="card"><h2>Escalações salvas</h2><div class="row"><input id="nomeSalva" placeholder="Nome da escalação" style="flex:1;min-width:140px"><button class="sec" id="salvar">Salvar</button></div><div class="chips" id="salvas" style="margin-top:8px"></div></div>
+    </div>
+  </div>
+
+  <div class="card row">
+    <label>Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
+    <label>Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
+    <label>Mando<select id="mando"><option value="casa">Jogo em casa</option><option value="fora">Jogo fora</option></select></label>
+    <label>Analista<select id="analista"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3" selected>Nível 3</option></select></label>
+    <button id="jogar">Jogar contra o bot</button>
+    <span class="mut" id="infoAdv"></span>
+  </div>
+  <div id="rel"></div>
+</main>
+
+<script type="module">
+import { criarRng } from "./src/rng.js";
+import { POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade } from "./src/modelo.js";
+import { gerarElenco, PERFIS } from "./src/gerador.js";
+import { FORMACOES, escalar } from "./src/escalacao.js";
+import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./src/motor.js";
+import { taticaBot } from "./src/bot.js";
+import { montarRelatorio } from "./src/relatorio.js";
+import { htmlRelatorio } from "./src/ui-relatorio.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const f1 = v => v.toFixed(1).replace(".", ",");
+const nomes = await (await fetch("./dados/nomes.json")).json();
+const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+
+const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
+const OPCOES = {
+  mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
+  pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
+  agressividade: ["Agressividade", [[-2, "Muito baixa"], [-1, "Baixa"], [0, "Normal"], [1, "Alta"], [2, "Muito alta"]]],
+  passe: ["Passe", [["misto", "Misto"], ["curto", "Curto"], ["longo", "Bola longa"]]],
+  lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
+  contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
+  impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
+};
+const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"]];
+const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"]];
+const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
+  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"]];
+const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
+const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
+
+let elenco = [], porId = {}, E = null, sel = null;
+const chaveElenco = () => `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
+const jogDe = id => porId[id] || null;
+const escalacaoAtual = () => E.vagas.map((pos, i) => E.jog[i] ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
+const titulares = () => E.jog.filter(Boolean).map(jogDe);
+
+function daTatica(t) {
+  const I = t.instrucoes;
+  return {
+    vagas: t.escalacao.map(x => x.pos), jog: t.escalacao.map(x => x.j.id), banco: t.banco.map(j => j.id),
+    instr: { ...INSTR, mentalidade: I.mentalidade, lado: I.lado, capitao: I.capitao, vice: I.vice, armador: I.armador, alvo: I.alvo, cobradores: JSON.parse(JSON.stringify(I.cobradores)) },
+    subs: I.substituicoes.map(s => ({ ...s })), ordens: I.ordens.map(o => ({ min: o.min, cond: o.cond, muda: Object.entries(o.muda).map(([k, v]) => k + ":" + v)[0] })),
+  };
+}
+function novoElenco() {
+  elenco = gerarElenco(criarRng(5000 + +$("semente").value), { nivel: +$("nivel").value, perfil: $("perfil").value, nomes, prefixoId: "m" });
+  porId = Object.fromEntries(elenco.map(j => [j.id, j]));
+  const salvo = ler("mo_trabalho_" + chaveElenco());
+  E = salvo && salvo.vagas ? salvo : daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" }));
+  sel = null; render();
+}
+function aplicarFormacao(nome) {
+  const esc11 = escalar(elenco, FORMACOES[nome]);
+  E.vagas = esc11.map(x => x.pos); E.jog = esc11.map(x => x.j.id);
+  E.banco = E.banco.filter(id => !E.jog.includes(id));
+  limparReferencias(); render();
+}
+// Tira das instruções quem saiu do time ou do banco.
+function limparReferencias() {
+  const emCampo = new Set(E.jog.filter(Boolean)), noBanco = new Set(E.banco);
+  for (const k of ["capitao", "vice", "armador", "alvo"]) if (!emCampo.has(E.instr[k])) E.instr[k] = null;
+  for (const k in E.instr.cobradores) E.instr.cobradores[k] = E.instr.cobradores[k].filter(id => emCampo.has(id));
+  E.subs = E.subs.filter(s => emCampo.has(s.sai) && noBanco.has(s.entra));
+}
+
+function validar() {
+  const esc11 = escalacaoAtual(), erros = [], avisos = [];
+  if (esc11.length < 11) erros.push(`Faltam ${11 - esc11.length} jogadores no time.`);
+  const goleiros = E.vagas.filter(p => p === "GK").length;
+  if (goleiros !== 1) erros.push(goleiros ? "O time só pode ter um goleiro." : "O time precisa de um goleiro.");
+  const cob = Object.fromEntries(ZONAS.map(z => [z, 0]));
+  esc11.forEach(x => { for (const [z, w] of Object.entries(COBERTURA[x.pos])) cob[z] += w; });
+  for (const z of ["DE", "DC", "DD", "ME", "MC", "MD"]) if (cob[z] < 0.2) avisos.push(`Quase ninguém cobre: ${NOME_ZONA[z]}.`);
+  if (cob.DC < 1) avisos.push("Centro da defesa com pouca gente: menos de dois zagueiros.");
+  if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
+  if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
+  esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${x.pos} (rende 80%).`));
+  if (E.banco.length && !E.banco.some(id => jogDe(id).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
+  return { erros, avisos, cob, esc11 };
+}
+
+function render() {
+  guardar("mo_trabalho_" + chaveElenco(), E);
+  const V = validar();
+  // gramado
+  const filas = Object.fromEntries(LINHAS.map(l => [l, []]));
+  E.vagas.forEach((pos, i) => filas[POSICOES[pos].linha].push(i));
+  $("gramado").innerHTML = LINHAS.filter(l => filas[l].length).map(l => `<div class="fila">${filas[l].sort((a, b) => ORDEM_LADO[POSICOES[E.vagas[a]].lado] - ORDEM_LADO[POSICOES[E.vagas[b]].lado]).map(i => {
+    const j = jogDe(E.jog[i]), pos = E.vagas[i];
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "" : "vazia"}" data-vaga="${i}">
+      <select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option ${p === pos ? "selected" : ""}>${p}</option>`).join("")}</select>
+      <div class="nome">${j ? esc(j.nome) : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}` : "&nbsp;"}</div></div>`;
+  }).join("")}</div>`).join("");
+  // banco
+  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${j.pos}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  // validação
+  $("validacao").innerHTML = [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
+  $("jogar").disabled = V.erros.length > 0;
+  // zonas
+  const z9 = V.esc11.length ? avaliarZonas(V.esc11) : null;
+  $("zonas").innerHTML = ["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = l + s; return `<div><b>${f1(V.cob[z])}</b> <span class="tag">jogadores</span><br>${z9 ? `${Math.round(z9.atk[z])} · ${Math.round(z9.def[z])}` : "—"}</div>`; }).join("")).join("");
+  renderEscolha();
+  // instruções
+  $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
+  // papéis
+  const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
+  const opJog = (lista, atual) => `<option value="">automático</option>${lista.map(j => `<option value="${j.id}" ${j.id === atual ? "selected" : ""}>${esc(j.nome)}</option>`).join("")}`;
+  $("papeis").innerHTML = [["capitao", "Capitão"], ["vice", "Vice-capitão"], ["armador", "Armador"], ["alvo", "Homem-alvo"]].map(([k, n]) => `<label>${n}<select data-papel="${k}">${opJog(k === "capitao" || k === "vice" ? tit : linha, E.instr[k])}</select></label>`).join("") +
+    [["escanteio", "Escanteio", 3], ["falta", "Falta", 3], ["penalti", "Pênalti", 5]].map(([k, n, q]) => Array.from({ length: q }, (_, i) => `<label>${n} ${i + 1}<select data-cob="${k}" data-i="${i}">${opJog(linha, E.instr.cobradores[k][i])}</select></label>`).join("")).join("");
+  // substituições e ordens
+  const reservas = E.banco.map(jogDe).filter(Boolean);
+  const sele = (attr, ops, atual) => `<select ${attr}>${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(atual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+  $("subs").innerHTML = E.subs.map((s, i) => `<div class="linhaSub">aos <input type="number" min="0" max="89" value="${s.min}" data-sub="${i}" data-campo="min"> min, sai ${sele(`data-sub="${i}" data-campo="sai"`, tit.map(j => [j.id, j.nome]), s.sai)} entra ${sele(`data-sub="${i}" data-campo="entra"`, reservas.map(j => [j.id, j.nome]), s.entra)} ${sele(`data-sub="${i}" data-campo="cond"`, CONDICOES_SUB, s.cond)} <button class="sec" data-tirasub="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma. Jogador lesionado é trocado sozinho pelo melhor do banco para a posição.</div>`;
+  $("maisSub").disabled = E.subs.length >= CONFIG.maxSubstituicoes || !reservas.length || !tit.length;
+  $("ordens").innerHTML = E.ordens.map((o, i) => `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button class="sec" data-tiraordem="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
+  $("maisOrdem").disabled = E.ordens.length >= 3;
+  // salvas
+  const salvas = ler("mo_salvas_" + chaveElenco()) || {};
+  $("salvas").innerHTML = Object.keys(salvas).map(n => `<span class="chip" data-carrega="${esc(n)}">${esc(n)} <b data-apaga="${esc(n)}" title="Apagar">×</b></span>`).join("") || `<span class="mut">Nenhuma escalação salva para este elenco.</span>`;
+}
+
+function renderEscolha() {
+  const el = $("escolha");
+  el.hidden = !sel;
+  if (!sel) return;
+  const pos = sel.tipo === "vaga" ? E.vagas[sel.i] : null;
+  const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
+  const lista = elenco.filter(j => sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
+  const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `titular (${E.vagas[i]})` : E.banco.includes(j.id) ? "banco" : ""; };
+  el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : "Quem vai para o banco"} <span class="tag">ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
+    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item" data-escolhe="${j.id}"><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
+    <div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div></div>`;
+}
+
+function escolher(id) {
+  if (sel.tipo === "vaga") {
+    const antes = E.jog[sel.i], outra = id ? E.jog.indexOf(id) : -1;
+    if (outra >= 0) E.jog[outra] = antes; // troca de vaga entre dois titulares
+    else if (id && E.banco.includes(id)) E.banco = E.banco.map(b => b === id ? antes : b).filter(Boolean); // vem do banco; quem saiu vai para lá
+    E.jog[sel.i] = id || null;
+  } else {
+    const b = E.banco.slice(); while (b.length < 7) b.push(null);
+    for (let i = 0; i < 7; i++) if (b[i] === id) b[i] = null;
+    b[sel.i] = id || null; E.banco = b.filter(Boolean);
+  }
+  sel = null; limparReferencias(); render();
+}
+
+function instrucoesParaOMotor() {
+  const I = E.instr, conv = v => v === "true" ? true : v === "false" ? false : isNaN(+v) ? v : +v;
+  return { ...I, substituicoes: E.subs.map(s => ({ ...s, min: +s.min })), ordens: E.ordens.map(o => { const [k, v] = o.muda.split(":"); return { min: +o.min, cond: o.cond, muda: { [k]: conv(v) } }; }) };
+}
+
+function jogar() {
+  const V = validar(); if (V.erros.length) return;
+  const casa = $("mando").value === "casa", eu = casa ? 0 : 1;
+  const adv = gerarElenco(criarRng(8000 + +$("sementeAdv").value), { nivel: +$("nivelAdv").value, nomes, prefixoId: "a" });
+  const minhaForca = V.esc11.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11;
+  const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca });
+  const meu = prepararTime({ nome: "Meu time", escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
+  const bot = prepararTime({ nome: "Bot", escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
+  const n = +(ler("mo_partidas") || 0) + 1; guardar("mo_partidas", n);
+  const partida = casa ? simularPartida(criarRng(n), meu, bot) : simularPartida(criarRng(n), bot, meu);
+  const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel]);
+  $("infoAdv").textContent = `Bot: ${t.formacao}, nota média ${f1(t.forca)}. Meu time: nota média ${f1(minhaForca)}.`;
+  $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? ["Meu time", "Bot"] : ["Bot", "Meu time"], analistas: [eu] });
+  return { r, partida };
+}
+
+// eventos
+document.querySelector("main").addEventListener("click", e => {
+  const t = e.target;
+  if (t.closest("select, input")) return;
+  const d = k => { const el = t.closest(`[data-${k}]`); return el ? el.dataset[k] : undefined; };
+  if (d("apaga") !== undefined) { const s = ler("mo_salvas_" + chaveElenco()) || {}; delete s[d("apaga")]; guardar("mo_salvas_" + chaveElenco(), s); return render(); }
+  if (d("carrega") !== undefined) { const s = (ler("mo_salvas_" + chaveElenco()) || {})[d("carrega")]; if (s) { E = JSON.parse(JSON.stringify(s)); sel = null; render(); } return; }
+  if (d("escolhe") !== undefined) return escolher(d("escolhe"));
+  if (d("vaga") !== undefined) { const i = +d("vaga"); sel = sel && sel.tipo === "vaga" && sel.i === i ? null : { tipo: "vaga", i }; return render(); }
+  if (d("banco") !== undefined) { const i = +d("banco"); sel = sel && sel.tipo === "banco" && sel.i === i ? null : { tipo: "banco", i }; return render(); }
+  if (d("tirasub") !== undefined) { E.subs.splice(+d("tirasub"), 1); return render(); }
+  if (d("tiraordem") !== undefined) { E.ordens.splice(+d("tiraordem"), 1); return render(); }
+});
+document.querySelector("main").addEventListener("change", e => {
+  const t = e.target, ds = t.dataset, conv = v => v === "true" ? true : v === "false" ? false : isNaN(+v) || v === "" ? v : +v;
+  if (ds.pos !== undefined) { E.vagas[+ds.pos] = t.value; limparReferencias(); return render(); }
+  if (ds.instr) { E.instr[ds.instr] = conv(t.value); return render(); }
+  if (ds.papel) { E.instr[ds.papel] = t.value || null; return render(); }
+  if (ds.cob) { const l = E.instr.cobradores[ds.cob]; l[+ds.i] = t.value || null; E.instr.cobradores[ds.cob] = l.filter(Boolean).filter((v, i, a) => a.indexOf(v) === i); return render(); }
+  if (ds.sub !== undefined) { E.subs[+ds.sub][ds.campo] = ds.campo === "min" ? +t.value : t.value; return render(); }
+  if (ds.ordem !== undefined) { E.ordens[+ds.ordem][ds.campo] = ds.campo === "min" ? +t.value : t.value; return render(); }
+});
+$("maisSub").onclick = () => { const tit = titulares(), usados = new Set(E.subs.map(s => s.entra)), livre = E.banco.find(id => !usados.has(id)) || E.banco[0]; const sai = tit.find(j => E.vagas[E.jog.indexOf(j.id)] !== "GK"); if (sai && livre) { E.subs.push({ min: 60, sai: sai.id, entra: livre, cond: "sempre" }); render(); } };
+$("maisOrdem").onclick = () => { E.ordens.push({ min: 70, cond: "perdendo", muda: "mentalidade:1" }); render(); };
+$("salvar").onclick = () => { const n = $("nomeSalva").value.trim() || "Escalação " + (Object.keys(ler("mo_salvas_" + chaveElenco()) || {}).length + 1); const s = ler("mo_salvas_" + chaveElenco()) || {}; s[n] = JSON.parse(JSON.stringify(E)); guardar("mo_salvas_" + chaveElenco(), s); $("nomeSalva").value = ""; render(); };
+$("auto").onclick = () => { const esc11 = escalar(elenco, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id)); limparReferencias(); render(); };
+$("bot").onclick = () => { E = daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" })); sel = null; render(); };
+$("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("formacao").value); $("formacao").value = ""; };
+["semente", "nivel", "perfil"].forEach(id => $(id).onchange = novoElenco);
+$("jogar").onclick = jogar;
+
+$("perfil").innerHTML = Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("");
+$("formacao").innerHTML = `<option value="">escolher…</option>` + Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("");
+novoElenco();
+window.__teste = { estado: () => E, elenco: () => elenco, jogar, validar, escolher, selecionar: s => { sel = s; render(); }, aplicarFormacao, render };
+</script>
+</body>
+</html>

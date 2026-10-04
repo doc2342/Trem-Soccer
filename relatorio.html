@@ -4,36 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bot e relatório</title>
-<style>
-  :root { --bg:#0f1720; --card:#18222e; --line:#283646; --tx:#e6edf3; --mut:#8b9bb0; --ac:#f2c14e; --casa:#5aa9e6; --fora:#e58a5a; --ok:#3fb27f; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif; }
-  main { max-width:1100px; margin:0 auto; padding:16px; }
-  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
-  .mut { color:var(--mut); } .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-top:12px; }
-  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
-  .duas { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:12px; }
-  label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--mut); }
-  select, input, button { font:inherit; color:var(--tx); background:#0f1720; border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
-  button { cursor:pointer; background:var(--ac); color:#1a1300; border-color:var(--ac); font-weight:600; }
-  table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
-  th, td { padding:4px 6px; border-bottom:1px solid var(--line); text-align:center; }
-  th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-align:left; }
-  .placar { font-size:30px; font-weight:800; text-align:center; } .placar small { display:block; font-size:13px; font-weight:400; color:var(--mut); }
-  .casa { color:var(--casa); } .fora { color:var(--fora); }
-  .barra { display:flex; height:22px; border-radius:6px; overflow:hidden; font-size:12px; font-weight:600; margin-top:6px; }
-  .barra div { display:flex; align-items:center; justify-content:center; color:#0f1720; min-width:0; overflow:hidden; white-space:nowrap; }
-  .lance { padding:5px 0; border-bottom:1px solid var(--line); display:flex; gap:8px; }
-  .lance .min { width:34px; color:var(--mut); flex:none; } .lance .xg { margin-left:auto; color:var(--mut); flex:none; font-size:12px; }
-  .lance.gol { font-weight:700; }
-  .campo { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; max-width:360px; }
-  .campo div { border:1px solid var(--line); border-radius:6px; padding:8px 4px; text-align:center; font-size:12px; }
-  .pp { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; background:#22344a; font-weight:600; font-size:12px; }
-  .nota { font-weight:700; color:var(--ac); }
-  ul { margin:0; padding-left:18px; } li { margin:4px 0; }
-  .rolagem { overflow-x:auto; }
-  .kv { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:13px; } .kv span:nth-child(odd) { color:var(--mut); }
-</style>
+<link rel="stylesheet" href="estilo.css">
+<style>.kv { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:13px; } .kv span:nth-child(odd) { color:var(--mut); }</style>
 </head>
 <body>
 <main>
@@ -51,16 +23,7 @@
   </div>
 
   <div class="duas"><div class="card" id="bot0"></div><div class="card" id="bot1"></div></div>
-  <div class="card" id="resultado"></div>
-  <div class="duas"><div class="card" id="ana0"></div><div class="card" id="ana1"></div></div>
-  <div class="duas">
-    <div class="card"><h2>Reprise</h2><div id="lances"></div></div>
-    <div>
-      <div class="card"><h2>Estatísticas</h2><div id="estat"></div></div>
-      <div class="card"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(duelos com a bola vencidos; cada time ataca para cima)</span></h2><div class="duas" id="zonas"></div></div>
-    </div>
-  </div>
-  <div class="card"><h2>Notas dos jogadores</h2><div class="rolagem" id="jogadores"></div></div>
+  <div id="rel"></div>
 </main>
 
 <script type="module">
@@ -69,6 +32,7 @@ import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
+import { htmlRelatorio } from "./src/ui-relatorio.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -103,24 +67,7 @@ function jogar() {
       <span>Ordens</span><span>perdendo aos 70: ${MENT[I.ordens[0].muda.mentalidade]}; ganhando aos 80: ${MENT[I.ordens[1].muda.mentalidade]}</span></div>`;
   });
 
-  const E = r.esperado;
-  $("resultado").innerHTML = `<div class="placar"><span class="casa">Mandante ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} Visitante</span>
-    <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
-    <div class="mut" style="margin-top:8px;font-size:12px">Com as chances que cada time criou, o resultado seria:</div>
-    <div class="barra"><div style="width:${E.vitoria * 100}%;background:var(--casa)">mandante ${pc(E.vitoria)}</div><div style="width:${E.empate * 100}%;background:#8b9bb0">empate ${pc(E.empate)}</div><div style="width:${E.derrota * 100}%;background:var(--fora)">visitante ${pc(E.derrota)}</div></div>
-    ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${esc(r.melhor.nome)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}`;
-
-  [0, 1].forEach(i => { $("ana" + i).innerHTML = `<h2 class="${COR[i]}">Analista do ${NOMES_TIME[i].toLowerCase()}</h2><ul>${r.analise[i].map(f => `<li>${esc(f)}</li>`).join("")}</ul>`; });
-
-  $("lances").innerHTML = r.narracao.map(l => `<div class="lance ${l.resultado === "gol" ? "gol" : ""}"><span class="min">${l.min}'</span><span class="${COR[l.time]}">${esc(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`).join("");
-  const linha = (n, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${n}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
-  $("estat").innerHTML = `<table>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
-    ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}
-    ${linha("Cartões amarelos · vermelhos", e => `${e.amarelos} · ${e.vermelhos}`)}${linha("Impedimentos", e => e.impedimentos)}${linha("Contra-ataques", e => e.contraAtaques)}</table>`;
-  const cor = z => z.total < 4 ? "transparent" : `rgba(63,178,127,${0.08 + 0.5 * z.ganhos / z.total})`;
-  $("zonas").innerHTML = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${NOMES_TIME[i]}</div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = r.zonas[i][l + s]; return `<div style="background:${cor(z)}">${z.total ? pc(z.ganhos / z.total) : "—"}<br><span class="mut">${z.ganhos}/${z.total}</span></div>`; }).join("")).join("")}</div></div>`).join("");
-  const js = r.jogadores.slice().sort((a, b) => a.time - b.time || b.nota - a.nota);
-  $("jogadores").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Nota</th><th>Min</th><th>Gols</th><th>Assist.</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos · perdidos</th><th>Defesas</th><th>Faltas</th><th>Cartões</th><th>Energia no fim</th></tr>${js.map(j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td class="nota">${f1(j.nota)}</td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + " · " + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${j.energia}</td></tr>`).join("")}</table>`;
+  $("rel").innerHTML = htmlRelatorio(r, { nomes: NOMES_TIME });
   return { r, taticas, partida };
 }
 
