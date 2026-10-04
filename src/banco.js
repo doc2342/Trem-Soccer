@@ -80,7 +80,8 @@ export async function gravarPartida(partidaId, lances, resultado) {
 }
 
 // ---------- salários e contratos (fase 2, passo E1) ----------
-const numero = id => +String(id).slice(1); // "j123" → 123
+// "j123" → 123, e 123 → 123. (Antes cortava sempre a primeira letra; com os ids numéricos das listas do mercado, isso trocava o jogador.)
+const numero = id => +String(id).replace(/^\D+/, "");
 // Aumenta o salário (temporadas = 0) ou renova o contrato por 1 a 3 temporadas. As regras são conferidas no banco.
 export const ajustarContrato = (jogadorId, salario, temporadas = 0) => sb.rpc("ajustar_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
 // Grava os contratos iniciais (só administrador). lista: [{ id: "j123", salario, mercado, contrato_ate, protegido_ate }]
