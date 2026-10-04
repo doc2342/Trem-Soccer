@@ -5,7 +5,7 @@
 // As constantes saíram da calibragem (calibragem.html).
 import { limitar } from "./rng.js";
 import { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } from "./modelo.js";
-import { fatorDeMomento } from "./saude.js";
+import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
   ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
@@ -160,14 +160,15 @@ export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, man
   };
 }
 
-const novoJog = (j, pos) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at });
+// dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
+const novoJog = (j, pos, rng = null) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j) });
 
 // Estado do time durante a partida.
-function iniciar(time) {
+function iniciar(time, rng = null) {
   return {
     nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
     instr: { ...time.instrucoes },
-    emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos)),
+    emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng)),
     banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
     goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
   };
@@ -194,7 +195,7 @@ function recalcular(t, saldo) {
   t.goleiro = null; t.temLibero = false;
   for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
   for (const jog of t.emCampo) {
-    const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j); // forma e moral do jogador (1 quando as duas estão em 50)
+    const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;
@@ -341,7 +342,7 @@ const novaEstatistica = () => ({
 
 // Simula uma partida inteira. O mesmo rng (mesma semente) dá sempre o mesmo jogo.
 export function simularPartida(rng, casa, fora) {
-  const times = [iniciar(casa), iniciar(fora)], estat = [novaEstatistica(), novaEstatistica()];
+  const times = [iniciar(casa, rng), iniciar(fora, rng)], estat = [novaEstatistica(), novaEstatistica()];
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
   const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
   times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
@@ -434,7 +435,7 @@ export function simularPartida(rng, casa, fora) {
     sujo = true;
   }
   function entrar(i, j, pos) {
-    const t = times[i], jog = novoJog(j, pos);
+    const t = times[i], jog = novoJog(j, pos, rng);
     t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
     ficha(jog, i).entrou = min; sujo = true;
     return jog;

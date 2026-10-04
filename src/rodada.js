@@ -5,7 +5,7 @@ import { notaNaPosicao, LISTA_POSICOES } from "./modelo.js";
 import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
-import { momentoDepois } from "./saude.js";
+import { momentoDepois, experienciaDe, experienciaDepois } from "./saude.js";
 
 export const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
 // A lesão sai do motor em dias; na liga ela vira jogos fora.
@@ -143,7 +143,8 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const atendidos = new Set(S.forma ? l.elenco.filter(j => !(j.fora > 0)).sort((a, b) => (a.forma == null ? 50 : a.forma) - (b.forma == null ? 50 : b.forma)).slice(0, S.forma.vagas).map(j => j.id) : []);
     for (const j of l.elenco) {
       const x = doJogo[j.id], m = momentoDepois(j, { nota: x ? x.nota : null, minutos: x ? x.minutos : 0, resultado, fora: j.fora > 0 ? j.motivo : null, ganho: atendidos.has(j.id) ? S.forma.ganho : 0, psicologo: S.psicologo || 0 });
-      if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral)) momento.push({ id: j.id, ...m });
+      const exp = experienciaDepois(j, x ? x.minutos : 0); // experiência: só sobe para quem entrou em campo
+      if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral) || exp !== j.exp) momento.push({ id: j.id, ...m, exp });
     }
   });
   return {

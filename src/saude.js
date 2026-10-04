@@ -36,6 +36,16 @@ export function saudeDoClube(equipe, clube) {
   };
 }
 
+// Experiência (0 a 100): sobe jogando e deixa o desempenho mais estável. Sem valor gravado, vale a estimativa pela idade.
+// Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
+export const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12 };
+export const experienciaDe = j => j.exp != null ? j.exp : Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
+export const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
+// multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
+export const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.limiteDoDia, Math.min(1 + CONFIG_EXPERIENCIA.limiteDoDia, 1 + rng.normal(0, desvioDoDia(experienciaDe(j))))) : 1;
+// experiência depois de uma partida oficial (guarda uma casa decimal)
+export const experienciaDepois = (j, minutos) => Math.min(100, Math.round((experienciaDe(j) + (minutos >= CONFIG_SAUDE.minutosDeJogo ? CONFIG_EXPERIENCIA.jogou : minutos > 0 ? CONFIG_EXPERIENCIA.entrou : 0)) * 10) / 10);
+
 const valor = v => v == null ? 50 : v;
 // Multiplicador do desempenho do jogador pela forma e pela moral (1 quando as duas estão em 50).
 export const fatorDeMomento = j => (1 + CONFIG_SAUDE.efeitoDaForma * (valor(j.forma) - 50) / 50) * (1 + CONFIG_SAUDE.efeitoDaMoral * (valor(j.moral) - 50) / 50);

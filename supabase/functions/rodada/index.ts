@@ -203,6 +203,16 @@ const __saude = (() => {
     };
   }
 
+  // Experiência (0 a 100): sobe jogando e deixa o desempenho mais estável. Sem valor gravado, vale a estimativa pela idade.
+  // Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
+  const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12 };
+  const experienciaDe = j => j.exp != null ? j.exp : Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
+  const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
+  // multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
+  const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.limiteDoDia, Math.min(1 + CONFIG_EXPERIENCIA.limiteDoDia, 1 + rng.normal(0, desvioDoDia(experienciaDe(j))))) : 1;
+  // experiência depois de uma partida oficial (guarda uma casa decimal)
+  const experienciaDepois = (j, minutos) => Math.min(100, Math.round((experienciaDe(j) + (minutos >= CONFIG_SAUDE.minutosDeJogo ? CONFIG_EXPERIENCIA.jogou : minutos > 0 ? CONFIG_EXPERIENCIA.entrou : 0)) * 10) / 10);
+
   const valor = v => v == null ? 50 : v;
   // Multiplicador do desempenho do jogador pela forma e pela moral (1 quando as duas estão em 50).
   const fatorDeMomento = j => (1 + CONFIG_SAUDE.efeitoDaForma * (valor(j.forma) - 50) / 50) * (1 + CONFIG_SAUDE.efeitoDaMoral * (valor(j.moral) - 50) / 50);
@@ -219,7 +229,7 @@ const __saude = (() => {
     if (dm < 0) dm *= 1 - psicologo;
     return { forma: limite(forma + df), moral: limite(moral + dm) };
   }
-  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, fatorDeMomento, momentoDepois };
+  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, chanceDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, CONFIG_EXPERIENCIA, experienciaDe, desvioDoDia, diaDoJogador, experienciaDepois, fatorDeMomento, momentoDepois };
 })();
 
 const __escalacao = (() => {
@@ -267,7 +277,7 @@ const __motor = (() => {
   // As constantes saíram da calibragem (calibragem.html).
   const { limitar } = __rng;
   const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } = __modelo;
-  const { fatorDeMomento } = __saude;
+  const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
     ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
     mando: 1.04, // multiplicador da força do mandante
@@ -421,14 +431,15 @@ const __motor = (() => {
     };
   }
 
-  const novoJog = (j, pos) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at });
+  // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
+  const novoJog = (j, pos, rng = null) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j) });
 
   // Estado do time durante a partida.
-  function iniciar(time) {
+  function iniciar(time, rng = null) {
     return {
       nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
       instr: { ...time.instrucoes },
-      emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos)),
+      emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng)),
       banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
       goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
     };
@@ -455,7 +466,7 @@ const __motor = (() => {
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
     for (const jog of t.emCampo) {
-      const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j); // forma e moral do jogador (1 quando as duas estão em 50)
+      const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
       if (jog.pos === "GK") { t.goleiro = jog; continue; }
       if (jog.pos === "SW") t.temLibero = true;
@@ -602,7 +613,7 @@ const __motor = (() => {
 
   // Simula uma partida inteira. O mesmo rng (mesma semente) dá sempre o mesmo jogo.
   function simularPartida(rng, casa, fora) {
-    const times = [iniciar(casa), iniciar(fora)], estat = [novaEstatistica(), novaEstatistica()];
+    const times = [iniciar(casa, rng), iniciar(fora, rng)], estat = [novaEstatistica(), novaEstatistica()];
     const jogadores = {}, lances = [], eventos = [], lesoes = [];
     const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
     times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
@@ -695,7 +706,7 @@ const __motor = (() => {
       sujo = true;
     }
     function entrar(i, j, pos) {
-      const t = times[i], jog = novoJog(j, pos);
+      const t = times[i], jog = novoJog(j, pos, rng);
       t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
       ficha(jog, i).entrou = min; sujo = true;
       return jog;
@@ -1129,7 +1140,7 @@ const __rodada = (() => {
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
   const { montarRelatorio } = __relatorio;
-  const { momentoDepois } = __saude;
+  const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
   const jogosFora = dias => dias <= 3 ? 1 : dias <= 10 ? 2 : dias <= 20 ? 3 : 4;
@@ -1266,7 +1277,8 @@ const __rodada = (() => {
       const atendidos = new Set(S.forma ? l.elenco.filter(j => !(j.fora > 0)).sort((a, b) => (a.forma == null ? 50 : a.forma) - (b.forma == null ? 50 : b.forma)).slice(0, S.forma.vagas).map(j => j.id) : []);
       for (const j of l.elenco) {
         const x = doJogo[j.id], m = momentoDepois(j, { nota: x ? x.nota : null, minutos: x ? x.minutos : 0, resultado, fora: j.fora > 0 ? j.motivo : null, ganho: atendidos.has(j.id) ? S.forma.ganho : 0, psicologo: S.psicologo || 0 });
-        if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral)) momento.push({ id: j.id, ...m });
+        const exp = experienciaDepois(j, x ? x.minutos : 0); // experiência: só sobe para quem entrou em campo
+        if (m.forma !== (j.forma == null ? 50 : j.forma) || m.moral !== (j.moral == null ? 50 : j.moral) || exp !== j.exp) momento.push({ id: j.id, ...m, exp });
       }
     });
     return {
@@ -1487,7 +1499,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -1517,9 +1529,9 @@ Deno.serve(async (req) => {
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
         if (momento.length) {
-          efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral }));
+          efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral, exp: m.exp }));
           const novo = Object.fromEntries(momento.map(m => [m.id, m]));
-          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novo[j.id]) { j.forma = novo[j.id].forma; j.moral = novo[j.id].moral; }
+          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novo[j.id]) { j.forma = novo[j.id].forma; j.moral = novo[j.id].moral; j.exp = novo[j.id].exp; }
         }
         // caixa da rodada (TV, patrocínio, salários, bilheteria, obras, humor da torcida): com o 34_caixa_no_apito_final.sql, só o público
         // é sorteado agora (ele aparece na abertura da transmissão) e o resto fica para o apito final, junto dos outros efeitos
