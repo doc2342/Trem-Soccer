@@ -172,6 +172,7 @@ function validar() {
   if (cob.DC < 1) avisos.push("Centro da defesa com pouca gente: menos de dois zagueiros.");
   if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
+  esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): na liga ele será trocado pelo melhor disponível para a posição.`));
   esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${x.pos} (rende 80%).`));
   if (E.banco.length && !E.banco.some(id => jogDe(id).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   return { erros, avisos, cob, esc11 };
@@ -226,7 +227,7 @@ function renderEscolha() {
   const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
   el.innerHTML = `<h2>${pos ? `Quem joga de ${pos} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
-    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} <span class="tag">${j.idade} anos${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
+    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span><span class="pp">${j.pos}</span><span>${esc(j.nome)} ${j.fora > 0 ? `<span class="bad">${j.motivo || "fora"} ${j.fora}j</span> ` : ""}<span class="tag">${j.idade} anos${j.amarelos ? " · " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? " · " + onde(j) : ""}${pos ? " · " + NOME_FAMILIARIDADE[familiaridade(j, pos)] : ""} · res ${j.at[IDX.res]}</span></span><span class="n nota">${f1(nota(j))}</span></div>`).join("")}
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 

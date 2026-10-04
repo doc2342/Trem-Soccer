@@ -112,7 +112,8 @@ async function telaClube(liga, clube) {
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const jogo = (p, res, agora) => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
     return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${esc(cPor[p.casa].nome)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${esc(cPor[p.fora].nome)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
-  const linha = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
+  const situacao = j => (j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} · ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
+  const linha = j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}${situacao(j)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>
     <td class="esq">${Object.entries(j.fam).filter(([p]) => p !== j.pos).map(([p, f]) => `${p}<span class="tag"> ${f}</span>`).join(" · ") || "—"}</td>
     ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`;
   const outros = clubes.filter(c => c.id !== clube.id);
@@ -168,9 +169,9 @@ async function telaClube(liga, clube) {
     try {
       const id = +$("amAdv").value, adv = cPor[id], casa = $("amMando").value === "casa";
       guardados[id] = guardados[id] || await elencoDoClube(id);
-      const minha = taticaDoDirigente(tatica && tatica.dados, elenco) || taticaBot(elenco, { mandante: casa });
+      const minha = taticaDoDirigente(tatica && tatica.dados, elenco) || taticaBot(elenco.filter(j => !(j.fora > 0)), { mandante: casa });
       const forca = minha.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / minha.escalacao.length;
-      const dele = taticaBot(guardados[id], { mandante: !casa, forcaAdversario: forca });
+      const dele = taticaBot(guardados[id].filter(j => !(j.fora > 0)), { mandante: !casa, forcaAdversario: forca });
       const meu = prepararTime({ nome: clube.nome, escalacao: minha.escalacao, banco: minha.banco, instrucoes: minha.instrucoes, mandante: casa });
       const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
       const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);

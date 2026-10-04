@@ -33,7 +33,8 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok)
-  .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal })));
+  .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
+    fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0 })));
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
@@ -56,7 +57,14 @@ export const atualizarLiga = (id, campos) => sb.from("ligas").update(campos).eq(
 export const anteciparRodada = (ligaId, rodada, minutos) => sb.from("partidas").update({ inicio: new Date().toISOString(), fim: new Date(Date.now() + minutos * 60000).toISOString() })
   .eq("liga_id", ligaId).eq("rodada", rodada).eq("processada", false).then(ok);
 export const criarPartidas = linhas => sb.from("partidas").insert(linhas).then(ok);
-export const apagarPartidas = ligaId => sb.from("partidas").delete().eq("liga_id", ligaId).then(ok);
+// Apaga o calendário e zera lesões, suspensões e amarelos dos jogadores da liga.
+export async function apagarPartidas(ligaId) {
+  await sb.from("partidas").delete().eq("liga_id", ligaId).then(ok);
+  const ids = (await sb.from("clubes").select("id").eq("liga_id", ligaId).then(ok)).map(c => c.id);
+  await sb.from("jogadores").update({ fora_jogos: 0, fora_motivo: null, amarelos: 0 }).in("clube_id", ids); // falha em silêncio antes do 09_suspensoes_e_lesoes.sql
+}
+// Grava a situação nova (jogos fora, motivo, amarelos) dos jogadores que mudaram numa partida.
+export const gravarSituacao = mudancas => Promise.all(mudancas.map(m => sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1))));
 export const partidasPendentes = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").then(ok);
 export const taticasDe = ids => sb.from("taticas").select("clube_id, dados").in("clube_id", ids).then(ok);
 export async function gravarPartida(partidaId, lances, resultado) {

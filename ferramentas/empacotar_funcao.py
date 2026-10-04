@@ -41,7 +41,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 '''
 
 RODAPE = '''// <<< motor embutido
-const { calcularPartida } = __rodada;
+const { calcularPartida, aplicarSituacao } = __rodada;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0 });
     }
 
     let calculadas = 0;
@@ -84,12 +84,15 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null });
-        const { lances, resultado } = calcularPartida({
+        const { lances, resultado, situacao } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
+        // lesões, suspensões e amarelos para os próximos jogos
+        for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
+        aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada
         await sb.from("lances").delete().eq("partida_id", p.id);

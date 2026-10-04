@@ -908,6 +908,9 @@ const __rodada = (() => {
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
   const { montarRelatorio } = __relatorio;
+  const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
+  // A lesão sai do motor em dias; na liga ela vira jogos fora.
+  const jogosFora = dias => dias <= 3 ? 1 : dias <= 10 ? 2 : dias <= 20 ? 3 : 4;
   const DIAS_PARA_BOT = 21; // dirigente sem acessar por tantos dias: o clube joga com a tática de bot
 
   // Turno e returno pelo método do círculo. ids: clubes do grupo. Devolve [{ rodada, casa, fora }].
@@ -935,8 +938,18 @@ const __rodada = (() => {
       if (!dados || !Array.isArray(dados.vagas) || dados.vagas.length !== 11 || !Array.isArray(dados.jog) || dados.jog.length !== 11) return null;
       if (dados.vagas.some(p => !LISTA_POSICOES.includes(p)) || dados.vagas.filter(p => p === "GK").length !== 1) return null;
       if (dados.jog.some(id => !porId[id]) || new Set(dados.jog).size !== 11) return null;
-      const emCampo = new Set(dados.jog);
-      const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id)))].slice(0, 7);
+      // titular lesionado ou suspenso é trocado pelo melhor disponível para a posição que não esteja escalado
+      const jog = dados.jog.slice(), fora = id => porId[id].fora > 0;
+      const livres = elenco.filter(j => !(j.fora > 0) && !jog.includes(j.id));
+      for (let i = 0; i < 11; i++) {
+        if (!fora(jog[i])) continue;
+        const pos = dados.vagas[i], candidatos = livres.filter(j => (j.pos === "GK") === (pos === "GK"));
+        if (!candidatos.length) return null;
+        const melhor = candidatos.reduce((m, j) => notaNaPosicao(j, pos) > notaNaPosicao(m, pos) ? j : m);
+        livres.splice(livres.indexOf(melhor), 1); jog[i] = melhor.id;
+      }
+      const emCampo = new Set(jog);
+      const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, 7);
       const noBanco = new Set(banco), I = dados.instr || {};
       const num = (v, min, max) => Math.max(min, Math.min(max, Math.round(+v) || 0));
       const um = (v, lista, padrao) => lista.includes(v) ? v : padrao;
@@ -958,7 +971,7 @@ const __rodada = (() => {
           return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 4), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
-      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[dados.jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };
+      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };
     } catch (e) { return null; }
   }
 
@@ -970,17 +983,42 @@ const __rodada = (() => {
     return new Date(new Date(inicio).getTime() + reais * 60000);
   }
 
+  // O que muda em cada jogador do elenco depois da partida: quem estava fora cumpre um jogo; vermelho suspende por um jogo;
+  // o terceiro amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
+  function situacaoDepois(elenco, p) {
+    const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), mudancas = [];
+    for (const j of elenco) {
+      let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelos || 0;
+      if (fora > 0) { fora--; if (!fora) motivo = null; }
+      const s = p.jogadores[j.id];
+      if (s) {
+        if (s.vermelho) { fora = 1; motivo = "suspensão"; }
+        else if (s.amarelos) { amarelos++; if (amarelos >= AMARELOS_PARA_SUSPENSAO) { amarelos = 0; fora = 1; motivo = "suspensão"; } }
+        if (lesao[j.id]) { const n = jogosFora(lesao[j.id]); if (n >= fora) { fora = n; motivo = "lesão"; } }
+      }
+      if (fora !== (j.fora || 0) || amarelos !== (j.amarelos || 0) || motivo !== (j.motivo || null)) mudancas.push({ id: j.id, fora, motivo, amarelos });
+    }
+    return mudancas;
+  }
+  // Aplica as mudanças ao elenco em memória (para quando o mesmo clube tem mais de uma partida calculada em seguida).
+  function aplicarSituacao(elenco, mudancas) {
+    const porId = Object.fromEntries(elenco.map(j => [j.id, j]));
+    for (const m of mudancas) if (porId[m.id]) Object.assign(porId[m.id], { fora: m.fora, motivo: m.motivo, amarelos: m.amarelos });
+  }
+
   // lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null }
-  // Devolve as linhas de lances e o resultado a gravar.
+  // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
+  // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
   function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
     const agora = new Date(partida.inicio).getTime();
     const lados = [casa, fora].map(l => {
       const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
       const humana = inativo ? null : taticaDoDirigente(l.tatica, l.elenco);
-      return { ...l, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(l.elenco).forca };
+      const disponiveis = l.elenco.filter(j => !(j.fora > 0));
+      return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
     const times = lados.map((l, i) => {
-      const t = l.humana || taticaBot(l.elenco, { mandante: i === 0, forcaAdversario: lados[1 - i].previa });
+      const t = l.humana || taticaBot(l.disponiveis, { mandante: i === 0, forcaAdversario: lados[1 - i].previa });
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 });
     });
     const p = simularPartida(criarRng(semente), times[0], times[1]);
@@ -994,6 +1032,7 @@ const __rodada = (() => {
         pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
         relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
       },
+      situacao: [...situacaoDepois(casa.elenco, p), ...situacaoDepois(fora.elenco, p)],
     };
   }
 
@@ -1009,10 +1048,10 @@ const __rodada = (() => {
     }
     return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
   }
-  return { DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, calcularPartida, classificacao };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, calcularPartida, classificacao };
 })();
 // <<< motor embutido
-const { calcularPartida } = __rodada;
+const { calcularPartida, aplicarSituacao } = __rodada;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -1044,7 +1083,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0 });
     }
 
     let calculadas = 0;
@@ -1055,12 +1094,15 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null });
-        const { lances, resultado } = calcularPartida({
+        const { lances, resultado, situacao } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
+        // lesões, suspensões e amarelos para os próximos jogos
+        for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", +String(m.id).slice(1));
+        aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         calculadas++;
       } catch (e) { // desfaz a reserva, para a partida ser calculada na próxima chamada
         await sb.from("lances").delete().eq("partida_id", p.id);
