@@ -6,11 +6,31 @@
 -- 1. Faixa de preço: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário).
 -- 2. Entre os mesmos dois clubes, um negócio por temporada em cada sentido (A vende a B uma vez; B vende a A uma vez).
 -- 3. Quarentena: quem saiu de um clube não volta a ele por negociação na mesma janela nem nas duas seguintes.
--- 4. O administrador pode anular uma transferência: jogador e dinheiro voltam.
+-- 4. Quem chegou ao clube nesta janela (por qualquer caminho) só pode ser vendido a partir da próxima.
+-- 5. O administrador pode anular uma transferência: jogador e dinheiro voltam.
 
 alter table public.transferencias add column if not exists salario_antes int;        -- contrato que o jogador tinha no clube de origem,
 alter table public.transferencias add column if not exists contrato_antes int;       -- para a anulação devolver tudo como estava
 alter table public.transferencias add column if not exists protegido_ate_antes int;
+
+-- Troca de clube, por qualquer caminho: sai da lista de transferência e da oferta à liga, as propostas abertas caem,
+-- e fica anotado em que temporada e janela ele chegou (para a taxa de venda e para a trava de revenda).
+create or replace function public.jogador_mudou_de_clube() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_liga bigint; v_temp int;
+begin
+  if new.clube_id is distinct from old.clube_id then
+    new.a_venda := false; new.preco_pedido := null; new.oferta_liga_ate := null;
+    update propostas set estado = 'cancelada', motivo = 'O jogador mudou de clube.', atualizada_em = now()
+      where jogador_id = new.id and estado in ('pendente', 'contra');
+    if new.clube_id is not null and old.clube_id is not null or (new.clube_id is not null and old.livre_liga is not null) then
+      select l.id, l.temporada into v_liga, v_temp from clubes c join ligas l on l.id = c.liga_id where c.id = new.clube_id;
+      new.chegou_temporada := v_temp;
+      new.chegou_janela := coalesce(janela_do_mercado(v_liga), 'inicio');
+    end if;
+  end if;
+  return new;
+end $$;
 
 create or replace function public.indice_da_janela(p_temporada int, p_janela text) returns int language sql immutable as $$
   select p_temporada * 2 + case when p_janela = 'meio' then 1 else 0 end
@@ -34,6 +54,9 @@ begin
     return 'esse clube já vendeu um jogador ao seu nesta temporada (é um negócio por temporada em cada sentido)';
   end if;
   v_agora := indice_da_janela(v_l.temporada, janela_do_mercado(v_l.id));
+  if v_j.chegou_temporada is not null and indice_da_janela(v_j.chegou_temporada, v_j.chegou_janela) = v_agora then
+    return 'o jogador chegou ao clube nesta janela: só pode ser vendido a partir da próxima';
+  end if;
   if exists (select 1 from transferencias t where t.jogador_id = p_jogador and t.de_clube = p_comprador
       and v_agora - indice_da_janela(t.temporada, t.janela) <= 2) then
     return 'o jogador saiu desse clube há pouco: ele só pode voltar depois de duas janelas';
@@ -178,6 +201,8 @@ begin
     protegido_ate = case when v_t.salario_antes is not null then v_t.protegido_ate_antes else protegido_ate end,
     chegou_temporada = null, chegou_janela = null
     where id = v_j.id;
+  -- a volta não conta como chegada: sem isto, o gatilho de troca de clube marcaria o jogador como recém-chegado
+  update jogadores set chegou_temporada = null, chegou_janela = null where id = v_j.id;
   delete from transferencias where id = p_id;
   return 'Transferência de ' || v_t.jogador || ' anulada.';
 end $$;
