@@ -20,7 +20,7 @@ import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro } from "./src/economia.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -146,7 +146,11 @@ async function tela(aviso = "") {
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="0" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Valores de teste: relatório instantâneo e tática fechando 1 segundo antes. Na liga de verdade serão 105 minutos e 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
-    ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>Grupo ${g}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
+    ${liga ? `<div class="card"><h2>Teste</h2>
+      <div class="mut" style="margin-bottom:10px">Reiniciar apaga calendário, resultados, extratos, obras e histórico, e devolve jogadores (idade, atributos, salários, contratos), caixa, torcida, estádio e estruturas ao estado inicial. Os grupos viram a pirâmide: A é a primeira divisão, B e C a segunda, D e E a terceira. Dirigentes, clubes e táticas salvas ficam. Depois é preciso gerar o calendário de novo.</div>
+      <div class="row"><button id="reiniciar">Reiniciar o teste</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="sortear" checked> sortear os dirigentes entre os grupos</label><button class="sec" id="guardarEstado">Guardar o elenco de agora como estado inicial</button></div>
+      <div id="avisoTeste" class="mut" style="margin-top:8px"></div></div>` : ""}
+    ${GRUPOS.map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>${nomeDoGrupo(g)}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
   dirigentes().catch(() => {}); pedidos().catch(() => {}); partidasAdmin().catch(() => {});
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
@@ -172,6 +176,17 @@ async function tela(aviso = "") {
     try { await apagarPartidas(liga.id); await tela("Calendário apagado."); } catch (e) { await tela("Erro ao apagar: " + e.message); }
   });
   em("processar", () => processar(false));
+  em("reiniciar", async () => {
+    if (!confirm("Reiniciar o teste? Calendário, resultados, extratos, obras e histórico serão apagados, e os jogadores voltam ao estado inicial. Não dá para desfazer.")) return;
+    $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
+    try { await tela(await reiniciarTeste(liga.id, $("sortear").checked) + " Agora gere o calendário."); }
+    catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; $("reiniciar").disabled = false; }
+  });
+  em("guardarEstado", async () => {
+    if (!confirm("Trocar o estado inicial guardado pelo elenco de agora (idades, atributos, salários e contratos como estão)?")) return;
+    try { $("avisoTeste").textContent = `Estado inicial guardado: ${await guardarEstadoInicial(liga.id)} jogadores.`; }
+    catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; }
+  });
   em("pausar", async () => {
     try { await pausarLiga(!liga.pausada); await tela(liga.pausada ? "Liga retomada: as partidas que faltavam foram adiadas." : "Liga pausada."); }
     catch (e) { await tela("Não deu: " + e.message + " (o 08_administracao.sql já foi executado?)"); }

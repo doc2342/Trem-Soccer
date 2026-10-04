@@ -142,7 +142,7 @@ async function iniciarOnline() {
   // amistosos: contra qualquer clube da liga, quantas vezes quiser; o adversário joga com a tática de bot e nada fica gravado
   const liga = await B.ligaAtual(), outros = (await B.clubesDaLiga(liga.id)).filter(c => c.id !== clubeOnline.id);
   $("rotuloAdv").hidden = false;
-  $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
+  $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">${esc(B.nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
   const mesmoGrupo = outros.find(c => c.grupo === clubeOnline.grupo); if (mesmoGrupo) $("advOnline").value = mesmoGrupo.id;
   const guardados = {};
   adversarioOnline = async () => { const id = +$("advOnline").value, c = outros.find(x => x.id === id); guardados[id] = guardados[id] || await B.elencoDoClube(id); return { elenco: guardados[id], nome: c.nome, perfil: c.perfil }; };

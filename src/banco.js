@@ -102,6 +102,11 @@ export const iniciarObra = estrutura => sb.rpc("iniciar_obra", { p_estrutura: es
 export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: partidaId }).then(({ error }) => !error);
 
 // ---------- ferramentas do administrador (passo I) ----------
+// V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
+export const nomeDoGrupo = g => ({ A: "1ª divisão", B: "2ª divisão · grupo B", C: "2ª divisão · grupo C", D: "3ª divisão · grupo D", E: "3ª divisão · grupo E" })[g] || "Grupo " + g;
+export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
+export const guardarEstadoInicial = ligaId => sb.rpc("guardar_estado_inicial", { p_liga: ligaId }).then(ok);
+export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p_liga: ligaId, p_sortear: sortear }).then(ok);
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {

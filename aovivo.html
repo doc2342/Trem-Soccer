@@ -21,7 +21,7 @@
 </main>
 
 <script type="module">
-import { ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
+import { nomeDoGrupo, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
 import { htmlRelatorio, htmlLance, LEGENDA_LANCES } from "./src/ui-relatorio.js";
 import { svgEscudo } from "./src/escudo.js";
 
@@ -45,7 +45,7 @@ function momento() {
 
 function topo(gols, m) {
   const c = [clubes[partida.casa], clubes[partida.fora]];
-  $("topo").innerHTML = `<div class="mut" style="text-align:center">Grupo ${esc(partida.grupo)} · rodada ${partida.rodada}</div>
+  $("topo").innerHTML = `<div class="mut" style="text-align:center">${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}</div>
     <div class="painel"><div class="time casa">${svgEscudo(c[0].escudo, c[0].sigla, 56)}${esc(c[0].nome)}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${svgEscudo(c[1].escudo, c[1].sigla, 56)}${esc(c[1].nome)}</div></div>
     <div class="relogio">${m.texto}</div>`;
 }

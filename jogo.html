@@ -26,7 +26,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -53,7 +53,7 @@ async function carregar(s) {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
-    if (clube) { registrarAcesso().catch(() => {}); await telaClube(liga, clube); return; }
+    if (clube) { registrarAcesso().catch(() => {}); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {}); await telaClube(liga, clube); return; }
     const pedido = await meuPedido(usuario.id);
     if (minha !== versao) return;
     if (pedido && pedido.estado === "pendente") telaEspera(pedido);
@@ -170,14 +170,14 @@ async function telaClube(liga, clube) {
       <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${(5000 + 5000 * clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
       <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.</div></div>`}
     <div class="card"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
-      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
+      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
       <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
       <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
-    <div class="card row"><label>Ver o grupo<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>Grupo ${esc(g)}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}</select></label>
+    <div class="card row"><label>Ver a divisão<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (a sua)" : ""}</option>`).join("")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div>
     <div class="duas">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
