@@ -16,8 +16,10 @@ export const CONFIG_TREINO = {
   // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
   treinador: [0.8, 0.5],      // área sem treinador, 80%; qualidade 50, 130%
   parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill em todas as áreas
-  maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0.1, // mais de 7 jogadores (acima de 21 anos) por treinador: o ganho dos treinadores cai até 10%
-  idadeSemContar: 21,         // jogador até esta idade não entra na conta dos 7 por treinador nem no limite de 35 do elenco
+  // perdaPorExcesso em 0: a punição por elenco inflado (mais de 7 jogadores acima de 21 anos por treinador) foi desligada
+  // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
+  maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
+  idadeSemContar: 21,         // jogador até esta idade não entra no limite de 35 do elenco
   qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
 };
 
