@@ -26,7 +26,7 @@
 <script type="module">
 import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, PESOS, notaNaPosicao } from "./src/modelo.js";
-import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
+import { sair, ligaAtual, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -217,6 +217,13 @@ async function telaClube(liga, clube) {
     $("tituloJogos").textContent = `Jogos do grupo ${g}`;
     $("rodadas").className = "";
     $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>Rodada ${r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
+    // temporadas anteriores deste grupo, guardadas na virada
+    historicoDoGrupo(liga.id, g).then(h => {
+      if (!h.length || !$("rodadas")) return;
+      const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), temporadas = [...new Set(h.map(x => x.temporada))];
+      $("rodadas").insertAdjacentHTML("beforeend", `<h2 style="margin-top:16px">Temporadas anteriores</h2>` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
+        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}</td></tr>`).join("")}</table></div></details>`).join(""));
+    }).catch(() => {});
     const mostrar = () => { if ($("rodada")) $("jogos").innerHTML = partidas.filter(p => p.rodada === +$("rodada").value).map(p => jogo(p, res, agora)).join(""); };
     if ($("rodada")) $("rodada").onchange = mostrar;
     mostrar();

@@ -113,6 +113,18 @@ export async function precoDoIngresso(clubeId) {
 }
 export const guardarEstadoInicial = ligaId => sb.rpc("guardar_estado_inicial", { p_liga: ligaId }).then(ok);
 export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p_liga: ligaId, p_sortear: sortear }).then(ok);
+// V2: virada de temporada (supabase/16_virada_de_temporada.sql)
+export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao").eq("liga_id", ligaId).then(ok);
+export async function talentosDaLiga() { // só o administrador consegue ler
+  const t = {};
+  for (let de = 0; ; de += 1000) {
+    const linhas = await sb.from("jogadores_ocultos").select("jogador_id, tal").order("jogador_id").range(de, de + 999).then(ok);
+    linhas.forEach(l => { t[l.jogador_id] = l.tal; });
+    if (linhas.length < 1000) return t;
+  }
+}
+export const virarTemporada = (ligaId, plano) => sb.rpc("virar_temporada", { p_liga: ligaId, p_plano: plano }).then(ok);
+export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {
