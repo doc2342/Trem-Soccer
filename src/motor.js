@@ -370,7 +370,8 @@ export function simularPartida(rng, casa, fora) {
     const mesmo = !!jog && jog === portador;
     if (jog && portador && !mesmo && trilha.length) {
       const ultima = trilha[trilha.length - 1];
-      if (ultima.fechada) trilha.push([`${portador.j.nome} toca para ${jog.j.nome}`]); else ultima.push(`toca para ${jog.j.nome}`);
+      if (ultima.falta) trilha.push([`${portador.j.nome} cobra a falta para ${jog.j.nome}`]);
+      else if (ultima.fechada) trilha.push([`${portador.j.nome} toca para ${jog.j.nome}`]); else ultima.push(`toca para ${jog.j.nome}`);
     }
     portador = jog || null;
     return mesmo;
@@ -379,9 +380,10 @@ export function simularPartida(rng, casa, fora) {
     const p = d.pivo, m = d.marcador, lado = zona[1];
     if (!p) { portador = null; trilha.push([`${times[i].nome} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
     const mesmo = recebe(p), nome = p.j.nome;
-    if (d.falta && m) trilha.push(Object.assign([`${m.j.nome} faz falta em ${nome} ${ONDE[zona[0]](lado)}, mas o jogo segue`], { fechada: true }));
+    // falta fora da zona de ataque: o time fica com a bola e recomeça dali, cobrando a falta (não é lei da vantagem)
+    if (d.falta && m) trilha.push(Object.assign([`${m.j.nome} para ${nome} com falta ${ONDE[zona[0]](lado)}`], { fechada: true, falta: true }));
     else if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "levanta a cabeça para o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [`passa por ${m.j.nome}`] : [])]);
-    else trilha.push([`${mesmo ? "Segue" : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`deixa ${m.j.nome} para trás`] : [])]);
+    else trilha.push([`${mesmo ? (trilha.length && trilha[trilha.length - 1].falta ? nome + " cobra rápido e segue" : "Segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`deixa ${m.j.nome} para trás`] : [])]);
   }
   function perdaDePosse(i, zona, d) {
     // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
