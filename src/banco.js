@@ -105,7 +105,7 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 
 // ---------- ferramentas do administrador (passo I) ----------
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
-export const nomeDoGrupo = g => ({ A: "1ª divisão", B: "2ª divisão · grupo B", C: "2ª divisão · grupo C", D: "3ª divisão · grupo D", E: "3ª divisão · grupo E" })[g] || "Grupo " + g;
+export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2" })[g] || "Grupo " + g;
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
   const { data: c } = await sb.from("clubes").select("liga_id, divisao").eq("id", clubeId).maybeSingle();

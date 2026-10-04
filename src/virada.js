@@ -61,7 +61,7 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
     linhas.forEach(l => { destino[l.clube_id] = l.posicao === 1 && d === 1 ? "campeão" : "ficou"; });
     if (d > 1) {
       const final = partidas.find(p => p.grupo === g && p.fase === "final");
-      if (!final || !res[final.id]) throw new Error(`Falta a final do playoff do grupo ${g}. Gere os playoffs antes da virada.`);
+      if (!final || !res[final.id]) throw new Error(`Falta a final do playoff da ${({ B: "Série B1", C: "Série B2", D: "Série C1", E: "Série C2" })[g] || "chave " + g}. Gere os playoffs antes da virada.`);
       const pelo = vencedorDoPlayoff(final, res[final.id]);
       for (const id of [linhas[0].clube_id, pelo]) { destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g }); }
     }
