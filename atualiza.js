@@ -1,0 +1,24 @@
+// Evita que o navegador misture arquivos novos e antigos do jogo depois de uma atualização.
+// 1. A cada abertura, confere versao.txt; se mudou, baixa de novo todos os arquivos e recarrega a página.
+// 2. Se mesmo assim um módulo falhar ao carregar (arquivo antigo no cache), faz o mesmo uma vez.
+(function () {
+  var ARQUIVOS = ["estilo.css", "jogo.html", "admin.html", "aovivo.html", "escalacao.html", "index.html",
+    "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js",
+    "src/banco.js", "src/escudo.js", "src/ui-login.js", "src/ui-relatorio.js"];
+  var ja = sessionStorage.getItem("mo_recarregou");
+  function renovar() {
+    if (ja) return;
+    ja = "1"; sessionStorage.setItem("mo_recarregou", "1");
+    Promise.all(ARQUIVOS.map(function (f) { return fetch(f, { cache: "reload" }).catch(function () {}); })).then(function () { location.reload(); });
+  }
+  fetch("versao.txt", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (v) {
+    v = v.trim(); if (!v) return;
+    var antes = localStorage.getItem("mo_versao");
+    localStorage.setItem("mo_versao", v);
+    if (antes && antes !== v) renovar();
+  }).catch(function () {});
+  window.addEventListener("error", function (e) {
+    if (/export|import|module/i.test(String(e.message || ""))) renovar();
+  });
+  window.addEventListener("load", function () { setTimeout(function () { sessionStorage.removeItem("mo_recarregou"); }, 8000); });
+})();
