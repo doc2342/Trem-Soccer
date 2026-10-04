@@ -127,7 +127,7 @@ async function telaClube(liga, clube) {
     <div class="card"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>Grupo ${esc(c.grupo)} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
-      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Para testar mudanças sem salvar, use o amistoso da tela de escalação.</div>
+      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
       <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
     <div id="amRel"></div>
     <div class="card row"><label>Ver o grupo<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>Grupo ${esc(g)}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}</select></label>
@@ -171,9 +171,10 @@ async function telaClube(liga, clube) {
     try {
       const id = +$("amAdv").value, adv = cPor[id], casa = $("amMando").value === "casa";
       guardados[id] = guardados[id] || await elencoDoClube(id);
-      const minha = taticaDoDirigente(tatica && tatica.dados, elenco) || taticaBot(elenco.filter(j => !(j.fora > 0)), { mandante: casa });
+      const todos = e => e.map(j => ({ ...j, fora: 0 })); // em amistoso ninguém está lesionado nem suspenso
+      const meuElenco = todos(elenco), minha = taticaDoDirigente(tatica && tatica.dados, meuElenco) || taticaBot(meuElenco, { mandante: casa });
       const forca = minha.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / minha.escalacao.length;
-      const dele = taticaBot(guardados[id].filter(j => !(j.fora > 0)), { mandante: !casa, forcaAdversario: forca, perfil: adv.perfil });
+      const dele = taticaBot(todos(guardados[id]), { mandante: !casa, forcaAdversario: forca, perfil: adv.perfil });
       const meu = prepararTime({ nome: clube.nome, escalacao: minha.escalacao, banco: minha.banco, instrucoes: minha.instrucoes, mandante: casa });
       const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
       const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);

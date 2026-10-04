@@ -15,6 +15,7 @@
   <div class="card" id="online" hidden>
     <div class="row"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><b id="nomeOnline"></b><span class="relogio" title="Hora deste aparelho"></span><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
     <div id="avisoOnline" class="mut" style="margin-top:6px"></div>
+    <div class="mut" style="margin-top:4px">Para testar a tática, salve e jogue um amistoso na página do clube.</div>
   </div>
   <div class="card row">
     <label class="soLocal">Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label>
@@ -42,7 +43,7 @@
     </div>
   </div>
 
-  <div class="card row">
+  <div class="card row soLocal">
     <label class="soLocal">Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
     <label class="soLocal">Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
     <label id="rotuloAdv" hidden>Adversário<select id="advOnline"></select></label>
