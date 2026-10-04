@@ -67,6 +67,9 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .lista .item .mo { width:24px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--mut); } .lista .item .mo.ok { color:var(--ok); } .lista .item .mo.bad { color:var(--bad, #e5484d); }
 .lista .item .info, .cabl .info { width:22px; height:22px; border-radius:50%; padding:0; font-size:12px; font-weight:700; background:transparent; color:var(--mut); border:1px solid var(--line); cursor:pointer; flex:none; }
 .lista { overflow-x:hidden; }
+/* titular ou reserva que não pode jogar a próxima partida (suspenso ou lesionado) */
+.vaga.fora { border-color:var(--bad) !important; background:rgba(229,100,107,.22); box-shadow:0 0 0 1px var(--bad); } .vaga.fora .nome { text-decoration:line-through; text-decoration-color:var(--bad); }
+.chip.fora { border-color:var(--bad); color:var(--bad); text-decoration:line-through; }
 .papeis { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:8px 12px; align-items:center; } .papeis > b { font-size:13px; color:var(--mut); font-weight:600; }
 .papeis > div { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
 .cobradores { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin-top:10px; } .cobradores > div { display:flex; flex-direction:column; gap:6px; min-width:0; }

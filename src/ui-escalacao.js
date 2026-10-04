@@ -203,9 +203,9 @@ const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol:
 function htmlGramado(mapa = null) {
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
-    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos" title="${POSICOES[pos].nome}">${sg(pos)}</span><select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? `<span class="nota">${f1(notaNaPosicao(j, pos))}</span><span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>` : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 2 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
@@ -218,7 +218,7 @@ function render() {
   // gramado
   $("gramado").innerHTML = htmlGramado();
   // banco
-  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `<b>${sg(j.pos)}</b> ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
@@ -266,7 +266,7 @@ function renderEscolha() {
     ${pos ? `<label class="posDaVaga">Posição <select data-pos="${sel.i}">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)} · ${POSICOES[p].nome}</option>`).join("")}</select></label>` : ""}
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
     <div class="cabl"><span>forma</span><span>moral</span><span>nota</span><span style="width:24px"></span></div>
-    <div class="lista" style="max-height:340px;overflow:auto">${lista.map(j => { const fam = pos ? familiaridade(j, pos) : "N", p = pos || j.pos;
+    <div class="lista" style="max-height:340px;overflow-y:auto;overflow-x:hidden">${lista.map(j => { const fam = pos ? familiaridade(j, pos) : "N", p = pos || j.pos;
       return `<div class="item ${situacao(j)}" data-escolhe="${j.id}" data-arrasta="${j.id}"><span class="pega" title="Arrastar">⠿</span>${pp(j.pos)}<span class="nm">${esc(j.nome)} <span class="tag">${j.idade}</span>${j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} ${j.fora}j</span>` : ""}${j.amarelos ? " " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? ` <span class="tag">${onde(j)}</span>` : ""}${fam !== "N" ? ` <span class="${fam === "I" ? "bad" : "aviso"}" style="font-size:12px">${NOME_FAMILIARIDADE[fam].toLowerCase()}</span>` : ""}</span>
         <span class="dir"><span class="mo ${momento(j.forma)}" title="Forma">${j.forma == null ? 50 : j.forma}</span><span class="mo ${momento(j.moral)}" title="Moral">${j.moral == null ? 50 : j.moral}</span><span class="nota" style="min-width:34px;text-align:right">${f1(nota(j))}</span><button class="info" data-skills="${j.id}" title="Atributos">i</button></span></div>
         ${skillsDe === j.id ? `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="${(PESOS[POSICOES[p].papel] || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
