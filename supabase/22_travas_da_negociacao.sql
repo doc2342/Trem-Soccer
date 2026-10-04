@@ -4,7 +4,7 @@
 -- Pode ser executado mais de uma vez sem apagar dados. Valores em milhares.
 --
 -- 1. Faixa de preço: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário).
--- 2. Um negócio por temporada entre o mesmo par de clubes.
+-- 2. Entre os mesmos dois clubes, um negócio por temporada em cada sentido (A vende a B uma vez; B vende a A uma vez).
 -- 3. Quarentena: quem saiu de um clube não volta a ele por negociação na mesma janela nem nas duas seguintes.
 -- 4. O administrador pode anular uma transferência: jogador e dinheiro voltam.
 
@@ -30,8 +30,8 @@ begin
   if p_valor > round(7.5 * v_j.salario) then return 'o valor máximo é de ' || round(7.5 * v_j.salario) || ' mil (150% da multa rescisória)'; end if;
   select l.* into v_l from clubes c join ligas l on l.id = c.liga_id where c.id = p_comprador;
   if exists (select 1 from transferencias t where t.liga_id = v_l.id and t.temporada = v_l.temporada and t.tipo = 'negociada'
-      and ((t.de_clube = v_j.clube_id and t.para_clube = p_comprador) or (t.de_clube = p_comprador and t.para_clube = v_j.clube_id))) then
-    return 'esses dois clubes já fizeram um negócio entre si nesta temporada';
+      and t.de_clube = v_j.clube_id and t.para_clube = p_comprador) then
+    return 'esse clube já vendeu um jogador ao seu nesta temporada (é um negócio por temporada em cada sentido)';
   end if;
   v_agora := indice_da_janela(v_l.temporada, janela_do_mercado(v_l.id));
   if exists (select 1 from transferencias t where t.jogador_id = p_jogador and t.de_clube = p_comprador
