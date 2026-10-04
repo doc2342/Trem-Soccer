@@ -22,7 +22,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -236,6 +236,8 @@ async function tela(aviso = "") {
         <div class="row" style="margin-top:10px"><button id="confirmarVirada">Confirmar a virada</button><span class="mut">Cada vez que a prévia é preparada, o sorteio de aposentadorias e jovens é refeito. Vale o que está nesta tela.</span></div>`;
       $("confirmarVirada").onclick = async () => {
         if (!confirm(`Virar a temporada ${liga.temporada}? Os prêmios são pagos, os jogadores envelhecem e o calendário antigo é apagado. Não dá para desfazer (só reiniciando o teste).`)) return;
+        // a última rodada só entra no caixa e nos jogadores um minuto depois do apito final: virar antes disso perderia esses lançamentos
+        if (await efeitosPendentes()) { alert("Ainda há partidas com o fechamento pendente (caixa, lesões e treino entram até um minuto depois do apito final). Espere um instante e tente de novo."); return; }
         $("confirmarVirada").disabled = true;
         try {
           const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou

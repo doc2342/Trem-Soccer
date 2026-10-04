@@ -78,7 +78,8 @@ async function autorizado(req, sb) {
 }
 
 // Grava nos jogadores o que a partida mudou: situação (lesão, suspensão, amarelos), forma e moral, e treino.
-async function gravarEfeitos(sb, e) {
+async function gravarEfeitos(sb, e, partida = null) {
+  if (e && e.caixa && partida) { await sb.rpc("lancar_rodada", { p_partida: partida }); await sb.rpc("lancar_treinadores", { p_partida: partida }); }
   for (const m of (e && e.situacao) || []) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", m.id);
   if (e && e.momento && e.momento.length) await sb.rpc("aplicar_momento", { p_lista: e.momento });
   if (e && e.treinos && e.treinos.length) await sb.rpc("aplicar_treino", { p_lista: e.treinos });
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
     const adiar = !(await sb.from("resultados").select("efeitos").limit(1)).error;
     if (adiar) {
       const vencidos = (await sb.from("resultados").select("partida_id, efeitos").not("efeitos", "is", null).lte("libera_em", new Date().toISOString()).order("libera_em").limit(200)).data || [];
-      for (const r of vencidos) { await gravarEfeitos(sb, r.efeitos); await sb.from("resultados").update({ efeitos: null }).eq("partida_id", r.partida_id); }
+      for (const r of vencidos) { await gravarEfeitos(sb, r.efeitos, r.partida_id); await sb.from("resultados").update({ efeitos: null }).eq("partida_id", r.partida_id); }
     }
 
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
@@ -151,7 +152,12 @@ Deno.serve(async (req) => {
           const novo = Object.fromEntries(momento.map(m => [m.id, m]));
           for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novo[j.id]) { j.forma = novo[j.id].forma; j.moral = novo[j.id].moral; }
         }
-        await sb.rpc("lancar_rodada", { p_partida: p.id }); // TV, patrocínio e salários da rodada; sem efeito antes do 12_caixa.sql
+        // caixa da rodada (TV, patrocínio, salários, bilheteria, obras, humor da torcida): com o 34_caixa_no_apito_final.sql, só o público
+        // é sorteado agora (ele aparece na abertura da transmissão) e o resto fica para o apito final, junto dos outros efeitos
+        let caixaAdiado = false;
+        if (adiar) caixaAdiado = !(await sb.rpc("definir_publico", { p_partida: p.id })).error;
+        if (!caixaAdiado) await sb.rpc("lancar_rodada", { p_partida: p.id });
+        efeitos.caixa = caixaAdiado;
         // sessão de treino dos dois elencos, só em partida de liga; lesionado não treina (sem efeito antes do 27_treino.sql)
         if (!p.fase || p.fase === "liga") {
           const treinos = [];
@@ -161,7 +167,7 @@ Deno.serve(async (req) => {
             if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
           } }
           efeitos.treinos = treinos;
-          await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql
+          if (!caixaAdiado) await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql
         }
         // os efeitos ficam guardados até o apito final; sem a coluna (antes do SQL 33), são gravados na hora, como antes
         if (adiar) ok(await sb.from("resultados").update({ efeitos }).eq("partida_id", p.id)); else await gravarEfeitos(sb, efeitos);
