@@ -16,7 +16,8 @@ const json = (corpo, status = 200) => new Response(JSON.stringify(corpo), { stat
 
 // tabela e coluna usada para ordenar
 const TABELAS = [["ligas", "id"], ["clubes", "id"], ["jogadores", "id"], ["jogadores_ocultos", "jogador_id"], ["taticas", "clube_id"], ["escalacoes", "id"],
-  ["partidas", "id"], ["lances", "id"], ["resultados", "partida_id"], ["pedidos", "id"], ["admins", "user_id"], ["financas", "clube_id"], ["lancamentos", "id"], ["obras", "id"], ["divisoes", "liga_id"], ["historico", "clube_id"]];
+  ["partidas", "id"], ["lances", "id"], ["resultados", "partida_id"], ["pedidos", "id"], ["admins", "user_id"], ["financas", "clube_id"], ["lancamentos", "id"], ["obras", "id"], ["divisoes", "liga_id"], ["historico", "clube_id"],
+  ["transferencias", "id"], ["propostas", "id"], ["ofertas_livres", "id"], ["estado_inicial", "liga_id"]];
 const BALDE = "backups", DIAS = 14, PAGINA = 1000;
 
 // Quem pode disparar a função. Sem o segredo SEGREDO_DO_CRON cadastrado no Supabase, qualquer chamada vale.
