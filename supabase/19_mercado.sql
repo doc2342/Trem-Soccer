@@ -105,7 +105,7 @@ begin
   if (select count(*) from transferencias where para_clube = v_para.id and temporada = v_l.temporada and tipo = 'multa') >= 4 then
     raise exception 'Você já fez as 4 compras pela multa desta temporada.';
   end if;
-  if (select count(*) from transferencias where de_clube = v_de.id and temporada = v_l.temporada and tipo = 'multa') >= case when v_de.dono is null then 2 else 3 end then
+  if (select count(*) from transferencias where de_clube = v_de.id and temporada = v_l.temporada and tipo = 'multa') >= (case when v_de.dono is null then 2 else 3 end) then
     raise exception 'Esse clube já perdeu o máximo de jogadores pela multa nesta temporada.';
   end if;
   if v_de.dono is null and exists (select 1 from transferencias where de_clube = v_de.id and temporada = v_l.temporada and tipo = 'multa' and janela = v_janela) then
