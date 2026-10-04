@@ -1085,9 +1085,10 @@ const __rodada = (() => {
       const porId = Object.fromEntries(elenco.map(j => [j.id, j]));
       if (!dados || !Array.isArray(dados.vagas) || dados.vagas.length !== 11 || !Array.isArray(dados.jog) || dados.jog.length !== 11) return null;
       if (dados.vagas.some(p => !LISTA_POSICOES.includes(p)) || dados.vagas.filter(p => p === "GK").length !== 1) return null;
-      if (dados.jog.some(id => !porId[id]) || new Set(dados.jog).size !== 11) return null;
+      if (new Set(dados.jog).size !== 11) return null;
       // titular lesionado ou suspenso é trocado pelo melhor disponível para a posição que não esteja escalado
-      const jog = dados.jog.slice(), fora = id => porId[id].fora > 0;
+      // quem saiu do clube (vendido, aposentado) conta como indisponível, igual a lesionado ou suspenso
+      const jog = dados.jog.slice(), fora = id => !porId[id] || porId[id].fora > 0;
       const livres = elenco.filter(j => !(j.fora > 0) && !jog.includes(j.id));
       for (let i = 0; i < 11; i++) {
         if (!fora(jog[i])) continue;

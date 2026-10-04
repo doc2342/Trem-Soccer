@@ -36,7 +36,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate })));
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido })));
 
 // ---------- tática, partidas e resultados ----------
 export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ok);
@@ -131,6 +131,17 @@ export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: luga
 export const venderAoBanco = jogadorId => sb.rpc("vender_ao_banco", { p_jogador: numero(jogadorId) }).then(ok);
 export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);
 export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
+// M1: mercado (supabase/19_mercado.sql e a função "mercado")
+export const janelaDoMercado = ligaId => sb.rpc("janela_do_mercado", { p_liga: ligaId }).then(({ data, error }) => error ? undefined : data); // undefined: mercado ainda não ligado
+export const jogadoresDaPosicao = pos => sb.from("jogadores").select("id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido").eq("pos", pos).order("id").then(ok);
+export const transferenciasDaLiga = (ligaId, limite = 200) => sb.from("transferencias").select("*").eq("liga_id", ligaId).order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
+export const protegerJogador = (jogadorId, proteger) => sb.rpc("proteger_jogador", { p_jogador: numero(jogadorId), p_proteger: proteger }).then(ok);
+export async function comprarPelaMulta(jogadorId, salario, temporadas) {
+  const { data, error } = await sb.functions.invoke("mercado", { body: { jogador: numero(jogadorId), salario, temporadas } });
+  if (error) throw new Error('A função "mercado" não respondeu (ela já foi publicada no Supabase?).');
+  if (!data || data.erro) throw new Error(data ? data.erro : "Sem resposta do servidor.");
+  return data.mensagem;
+}
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {

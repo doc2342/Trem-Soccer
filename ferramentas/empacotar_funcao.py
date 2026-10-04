@@ -128,3 +128,71 @@ saida = CABECALHO + "\n".join(modulo(m) for m in MODULOS) + RODAPE
 destino = os.path.join(RAIZ, "supabase", "functions", "rodada", "index.ts")
 io.open(destino, "w", encoding="utf-8", newline="\n").write(saida)
 print("gerado:", destino, "-", len(saida) // 1024, "KB,", saida.count("\n"), "linhas")
+
+
+# ---------- função "mercado": compra pela multa rescisória, com reposição nos clubes sem dono ----------
+MODULOS_MERCADO = ["rng", "modelo", "gerador", "economia"]
+CABECALHO_MERCADO = """// @ts-nocheck
+// ARQUIVO GERADO por ferramentas/empacotar_funcao.py. Não editar à mão: mudar os módulos de src/ e gerar de novo.
+//
+// Trem Soccer · função do servidor do mercado. Recebe o pedido de compra pela multa rescisória de um dirigente logado,
+// gera o jogador de reposição quando o vendedor é um clube sem dono e manda o banco fazer a transferência
+// (as regras e os limites são conferidos lá, em comprar_pela_multa, do 19_mercado.sql).
+//
+// Como publicar: painel do Supabase → Edge Functions → Deploy a new function → Via Editor → nome "mercado" →
+// colar este arquivo inteiro → Deploy. Depois, nas configurações da função, desligar "Verify JWT".
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+// >>> módulos embutidos
+"""
+RODAPE_MERCADO = r"""// <<< módulos embutidos
+const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia;
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+const json = (corpo, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { ...cors, "Content-Type": "application/json" } });
+const NOMES = "https://doc2342.github.io/Trem-Soccer/dados/nomes.json";
+let nomes = null; // base de nomes, buscada uma vez e guardada enquanto a função fica no ar
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  try {
+    const url = Deno.env.get("SUPABASE_URL"), chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !chave) return json({ erro: "Função sem acesso ao banco: faltam SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY." }, 500);
+    const sb = createClient(url, chave, { auth: { persistSession: false } });
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    const { data: quem } = token ? await sb.auth.getUser(token) : { data: null };
+    if (!quem || !quem.user) return json({ erro: "É preciso entrar na conta." });
+    const pedido = await req.json().catch(() => ({}));
+    const idJogador = +String(pedido.jogador || "").replace(/^j/, "");
+    if (!idJogador) return json({ erro: "Jogador não informado." });
+
+    const { data: j } = await sb.from("jogadores").select("*").eq("id", idJogador).maybeSingle();
+    if (!j) return json({ erro: "Jogador não encontrado." });
+    const { data: clube } = await sb.from("clubes").select("id, dono, perfil, liga_id").eq("id", j.clube_id).maybeSingle();
+    let reposicao = null;
+    if (clube && !clube.dono) { // clube sem dono: entra no lugar um jogador gerado da mesma nota, para o clube não enfraquecer
+      const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
+      if (!nomes) nomes = await (await fetch(NOMES)).json();
+      const rng = criarRng(Math.floor(Math.random() * 2147483647));
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), perfil: clube.perfil, nomes });
+      const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
+      reposicao = { nome: novo.nome, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
+        salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
+    }
+    const { data, error } = await sb.rpc("comprar_pela_multa", { p_user: quem.user.id, p_jogador: idJogador,
+      p_salario: Math.round(+pedido.salario), p_temporadas: Math.round(+pedido.temporadas), p_reposicao: reposicao });
+    if (error) return json({ erro: error.message });
+    return json({ ok: true, mensagem: data });
+  } catch (e) {
+    return json({ erro: e.message }, 500);
+  }
+});
+"""
+saida = CABECALHO_MERCADO + "\n".join(modulo(m) for m in MODULOS_MERCADO) + RODAPE_MERCADO
+destino = os.path.join(RAIZ, "supabase", "functions", "mercado", "index.ts")
+os.makedirs(os.path.dirname(destino), exist_ok=True)
+io.open(destino, "w", encoding="utf-8", newline="\n").write(saida)
+print("gerado:", destino, "-", len(saida) // 1024, "KB,", saida.count("\n"), "linhas")
