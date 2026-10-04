@@ -550,8 +550,8 @@ const __motor = (() => {
     // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
     // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
     // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
-    let trilha = [], portador = null, ultimoAtaque = null;
-    // quando o mesmo time ataca duas vezes seguidas, a narração diz que ele recuperou a bola (a retomada não é disputada lance a lance)
+    let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null; // saida: time que dá a saída depois de sofrer um gol
+    // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
     const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
     const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
     const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; portador = null; return t; };
@@ -694,7 +694,7 @@ const __motor = (() => {
       const resultado = rng.chance(pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
       e.chances++; e.xg += c.xg; e.finalizacoes++;
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
-      if (resultado === "gol") { e.gols++; sujo = true; }
+      if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
@@ -788,7 +788,20 @@ const __motor = (() => {
           posseCasa = limitar(cc / (cc + cf), 0.25, 0.75);
           sujo = false;
         }
-        if (k < n) atacar(rng.chance(posseCasa) ? 0 : 1);
+        if (k < n) {
+          // Posse encadeada: quem sofreu o gol dá a saída; fora isso, a bola quase sempre passa para quem estava se defendendo.
+          // O time de mais controle às vezes retoma a bola logo depois de perdê-la, na medida exata para que, no fim,
+          // cada time faça a mesma fatia de ataques que a sua posse (cadeia de dois estados com essa fatia estacionária).
+          let i;
+          if (saida !== null) { i = saida; saida = null; }
+          else if (cadeia === null || min === 46) i = rng.chance(posseCasa) ? 0 : 1;
+          else {
+            const p = cadeia === 0 ? posseCasa : 1 - posseCasa;
+            i = rng.chance((1 - p) / Math.max(p, 1 - p)) ? 1 - cadeia : cadeia;
+          }
+          cadeia = i; // o contra-ataque é um ataque a mais de quem recuperou a bola: não conta como a vez dele na cadeia
+          atacar(i);
+        }
       }
       somaPosse += posseCasa;
     }
