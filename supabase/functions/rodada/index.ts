@@ -369,6 +369,7 @@ const __motor = (() => {
     gastoGoleiro: 0.3,
     energiaPiso: 0.8, // eficácia de um jogador com energia zero
     limiarCansado: 55,
+    pe: { mesmo: 0.03, ambidestro: 0.06, compensacao: 0.02 }, // confronto de pés no duelo: bônus de quem ataca e o desconto que zera o efeito médio
     desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
     recalcularACada: 5, // minutos
     narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
@@ -805,9 +806,14 @@ const __motor = (() => {
       const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
       const tatico = (contra ? 0 : CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
         + (ensaiado && zona[0] !== "D" ? CONFIG.ensaio : 0);
-      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + tatico + CONFIG.inclinacaoDuelo * Math.log(a / d))));
-      let venceu = rng.chance(p), parada = false, comFalta = false;
+      // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
+      // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
+      // A compensação tira de todo duelo o ganho médio, para a regra não aumentar os gols da liga. Sem pé definido, nada acontece.
       const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
+      const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
+      const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
+      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d))));
+      let venceu = rng.chance(p), parada = false, comFalta = false;
       if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25))) {
         falta(1 - i, marcador, pivo); comFalta = true;
         if (zona[0] === "A") parada = true; else venceu = true; // falta no ataque vira bola parada; atrás, a jogada segue
