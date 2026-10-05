@@ -309,7 +309,7 @@ const __motor = (() => {
   const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
-    ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
+    ataquesPorMinuto: 0.84, /* era 0,9; baixou quando o embalo entrou, para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
     mando: 1.04, // multiplicador da força do mandante
     expoentePosse: 1,
     expoenteCorredor: 1.5,
@@ -369,6 +369,11 @@ const __motor = (() => {
     gastoGoleiro: 0.3,
     energiaPiso: 0.8, // eficácia de um jogador com energia zero
     limiarCansado: 55,
+    // Embalo: quem vence um duelo em que tinha folga (vantagem acima do normal naquela zona) leva parte dela para o lance seguinte.
+    //   parte: fração da folga que segue adiante; teto: limite, em logit (0,28 dá uns 7 pontos percentuais);
+    //   chance: quanto a folga no último duelo melhora a qualidade da finalização, no teto;
+    //   contra: quanto a folga da defesa, quando ela rouba a bola, aumenta a chance de contra-ataque, no teto.
+    embalo: { parte: 0.5, teto: 0.28, chance: 0.12, contra: 0.5 },
     pe: { mesmo: 0.03, ambidestro: 0.06, compensacao: 0.02 }, // confronto de pés no duelo: bônus de quem ataca e o desconto que zera o efeito médio
     desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
     recalcularACada: 5, // minutos
@@ -812,7 +817,9 @@ const __motor = (() => {
       const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
       const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
       const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
-      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d))));
+      // folga: a vantagem de quem ataca acima do normal da zona (negativa quando a vantagem é da defesa); o embalo que veio do duelo anterior não conta
+      const folga = tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
+      const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
       let venceu = rng.chance(p), parada = false, comFalta = false;
       if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25))) {
         falta(1 - i, marcador, pivo); comFalta = true;
@@ -828,7 +835,7 @@ const __motor = (() => {
         sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
         return { venceu: false, pivo: null, marcador, parada: false };
       }
-      return { venceu, pivo, marcador, parada, falta: comFalta };
+      return { venceu, pivo, marcador, parada, falta: comFalta, folga };
     }
 
     function finalizar(i, c) {
@@ -893,6 +900,10 @@ const __motor = (() => {
       const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
       const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
       // quem recupera a bola pode sair em contra-ataque, mais ainda contra time que joga para a frente
+      // embalo de um duelo: quanto da folga segue para o lance seguinte (de 0 ao teto); a da defesa vale para o contra-ataque
+      const embalo = d => Math.min(CONFIG.embalo.teto, Math.max(0, CONFIG.embalo.parte * d.folga));
+      const embaloDaDefesa = d => Math.min(CONFIG.embalo.teto, Math.max(0, -CONFIG.embalo.parte * d.folga)) / CONFIG.embalo.teto;
+      let roubada = 0; // de 0 a 1: com quanta folga a defesa ganhou o duelo que encerrou o ataque
       const perdeu = () => {
         if (contra) return;
         const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
@@ -900,7 +911,7 @@ const __motor = (() => {
         const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
         // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
         const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
-        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1);
+        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada);
         if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
       };
       e.ataques++; trilha = []; portador = null; bola = null; aposFalta = false;
@@ -910,16 +921,18 @@ const __motor = (() => {
       ultimoAtaque = i; if (!contra) rodou = false;
       if (contra) inicio = "M";
       let lado = escolherLado(rng, atk, dz, inicio);
-      if (inicio === "D") { const d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
+      let d0 = null, levado = 0; // levado: embalo que o duelo do meio deixa para o do ataque
+      if (inicio === "D") { d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
       if (inicio !== "A") {
         if (inicio === "D") lado = escolherLado(rng, atk, dz, "M", lado);
-        const d1 = duelo(i, "M" + lado, bonus, contra);
-        if (!d1.venceu) { if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
+        const d1 = duelo(i, "M" + lado, bonus + (d0 ? embalo(d0) : 0), contra);
+        if (!d1.venceu) { roubada = embaloDaDefesa(d1); if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
+        levado = embalo(d1);
         passo(i, "M" + lado, d1);
         lado = escolherLado(rng, atk, dz, "A", lado);
       }
       e.corredor[lado]++;
-      const d = duelo(i, "A" + lado, bonus, contra);
+      const d = duelo(i, "A" + lado, bonus + levado, contra);
       if (d.parada) {
         const penal = lado === "C" && rng.chance(CONFIG.penalti); // decidido aqui (era dentro de bolaParada), para o texto da falta já dizer se foi pênalti
         if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.` : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}.`)); }
@@ -928,8 +941,11 @@ const __motor = (() => {
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
       const forcado = !d.venceu;
       if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
-      if (forcado && !rng.chance(CONFIG.chuteForcado)) { if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
-      finalizar(i, criarChance(rng, atk, def, lado, d.pivo, { forcado, contra }));
+      if (forcado && !rng.chance(CONFIG.chuteForcado)) { roubada = embaloDaDefesa(d); if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
+      const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra });
+      // duelo do ataque vencido com folga: a finalização sai em melhor condição
+      if (!forcado && chance && chance.xg) chance.xg = limitar(chance.xg * (1 + CONFIG.embalo.chance * embalo(d) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo);
+      finalizar(i, chance);
     }
 
     for (min = 1; min <= 90; min++) {
