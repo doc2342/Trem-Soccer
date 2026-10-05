@@ -4,7 +4,8 @@ import { criarRng } from "./rng.js";
 import { experienciaDe } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
-import { FORMACOES, escalar } from "./escalacao.js";
+import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
+import { foraDaCopa } from "./rodada.js";
 import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
@@ -85,7 +86,14 @@ const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
-let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null;
+let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null, proximoJogo = null;
+// elenco visto pela copa: "fora" passa a ser a indisponibilidade na copa, com o motivo certo
+const paraACopa = (lista, clubeId) => lista.map(j => {
+  const lesionado = j.fora > 0 && j.motivo === "lesão";
+  if (lesionado) return j;
+  if (!foraDaCopa(j, clubeId)) return { ...j, fora: 0, motivo: null };
+  return { ...j, fora: j.foraCopa > 0 ? j.foraCopa : 1, motivo: j.foraCopa > 0 ? "suspensão na copa" : "jogou a copa por outro clube" };
+});
 const ONLINE = online; // online: a tela usa o elenco e a tática do clube no banco
 const chaveElenco = () => ONLINE ? "online_" + (clubeOnline ? clubeOnline.id : 0) : `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
 const jogDe = id => porId[id] || null;
@@ -118,15 +126,15 @@ async function previaDoAdversario(B) {
   const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
   if (comissao == null) return; // comissão técnica ainda não ligada no banco
   const analista = comissao.find(t => t.funcao === "analista");
-  const { data: jogo } = await B.sb.from("partidas").select("id, rodada, fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle();
+  const jogo = proximoJogo, copa = !!jogo && jogo.fase === "copa";
   el.hidden = false;
   if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
   const emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const topo = `<h2>Próximo adversário <span class="tag">${jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${emCasa ? "em casa" : "fora"}</span></h2>
+  const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + " da copa" : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>`;
   if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (aba Elenco, em Treino, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
-  const disponiveis = (await B.elencoDoClube(adv.id)).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
+  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
   const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
   const forca = media(t.escalacao), minha = media(meu);
@@ -172,6 +180,10 @@ async function iniciarOnline(sessaoDeTeste) {
     };
   } catch (e) { $("cabecalho").innerHTML = `<div class="row" style="margin-bottom:10px"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>`; }
   elenco = await B.elencoDoClube(clubeOnline.id);
+  // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
+  // a suspensão da liga não vale na copa
+  proximoJogo = (await B.sb.from("partidas").select("id, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
+  if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
@@ -229,7 +241,7 @@ function validar() {
   if (cob.DC < 1) avisos.push("Centro da defesa com pouca gente: menos de dois zagueiros.");
   if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
-  esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): na liga ele será trocado pelo melhor disponível para a posição.`));
+  esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
   esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${sg(x.pos)} (rende 80%).`));
   if (E.banco.length && !E.banco.some(id => (jogDe(id) || {}).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   return { erros, avisos, cob, esc11 };
@@ -422,7 +434,13 @@ raiz.addEventListener("change", e => {
 $("maisSub").onclick = () => { const tit = titulares(), usados = new Set(E.subs.map(s => s.entra)), livre = E.banco.find(id => !usados.has(id)) || E.banco[0]; const sai = tit.find(j => E.vagas[E.jog.indexOf(j.id)] !== "GK"); if (sai && livre) { E.subs.push({ min: 60, sai: sai.id, entra: livre, cond: "sempre" }); render(); } };
 $("maisOrdem").onclick = () => { E.ordens.push({ min: 70, cond: "perdendo", muda: "mentalidade:1" }); render(); };
 $("salvar").onclick = () => { const n = $("nomeSalva").value.trim() || "Escalação " + (Object.keys(ler("mo_salvas_" + chaveElenco()) || {}).length + 1); const s = ler("mo_salvas_" + chaveElenco()) || {}; s[n] = JSON.parse(JSON.stringify(E)); guardar("mo_salvas_" + chaveElenco(), s); $("nomeSalva").value = ""; render(); };
-$("auto").onclick = () => { const esc11 = escalar(elenco, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id)); limparReferencias(); render(); };
+$("auto").onclick = () => { const disp = elenco.filter(j => !(j.fora > 0)), esc11 = escalar(disp, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id) && porId[id] && !(porId[id].fora > 0)); completarBanco(disp); limparReferencias(); render(); };
+// banco com 7: mantém quem já estava (disponível) e completa com os melhores que sobraram, com um goleiro reserva se houver
+function completarBanco(disp) {
+  const sobra = disp.filter(j => !E.jog.includes(j.id) && !E.banco.includes(j.id)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
+  if (E.banco.length < 7 && !E.banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { E.banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
+  for (const j of sobra) { if (E.banco.length >= 7) break; if (j.pos !== "GK") E.banco.push(j.id); }
+}
 $("bot").onclick = () => { E = daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" })); sel = null; render(); };
 $("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("formacao").value); $("formacao").value = ""; };
 ["semente", "nivel", "perfil"].forEach(id => $(id).onchange = () => { if (!ONLINE) novoElenco(); });

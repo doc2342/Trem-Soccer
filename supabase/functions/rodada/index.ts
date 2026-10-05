@@ -297,7 +297,7 @@ const __escalacao = (() => {
     }
     return escalacao.filter(Boolean);
   }
-  return { FORMACOES, escalar };
+  return { notaDoMomento, FORMACOES, escalar };
 })();
 
 const __motor = (() => {
@@ -1211,6 +1211,7 @@ const __rodada = (() => {
   const { notaNaPosicao, LISTA_POSICOES } = __modelo;
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
+  const { notaDoMomento } = __escalacao;
   const { montarRelatorio } = __relatorio;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
@@ -1243,7 +1244,8 @@ const __rodada = (() => {
       if (!dados || !Array.isArray(dados.vagas) || dados.vagas.length !== 11 || !Array.isArray(dados.jog) || dados.jog.length !== 11) return null;
       if (dados.vagas.some(p => !LISTA_POSICOES.includes(p)) || dados.vagas.filter(p => p === "GK").length !== 1) return null;
       if (new Set(dados.jog).size !== 11) return null;
-      // titular lesionado ou suspenso é trocado pelo melhor disponível para a posição que não esteja escalado
+      // titular lesionado ou suspenso é trocado pelo melhor disponível para a posição que não esteja escalado,
+      // pela mesma nota do botão "Escalar os melhores" (com pé, forma, moral e experiência)
       // quem saiu do clube (vendido, aposentado) conta como indisponível, igual a lesionado ou suspenso
       const jog = dados.jog.slice(), fora = id => !porId[id] || porId[id].fora > 0;
       const livres = elenco.filter(j => !(j.fora > 0) && !jog.includes(j.id));
@@ -1251,11 +1253,16 @@ const __rodada = (() => {
         if (!fora(jog[i])) continue;
         const pos = dados.vagas[i], candidatos = livres.filter(j => (j.pos === "GK") === (pos === "GK"));
         if (!candidatos.length) return null;
-        const melhor = candidatos.reduce((m, j) => notaNaPosicao(j, pos) > notaNaPosicao(m, pos) ? j : m);
+        const melhor = candidatos.reduce((m, j) => notaDoMomento(j, pos) > notaDoMomento(m, pos) ? j : m);
         livres.splice(livres.indexOf(melhor), 1); jog[i] = melhor.id;
       }
       const emCampo = new Set(jog);
       const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, 7);
+      // banco desfalcado (lesão, suspensão, saída ou titular que foi para o campo): completa com os melhores que sobraram,
+      // garantindo um goleiro reserva se houver
+      const sobra = elenco.filter(j => !(j.fora > 0) && !emCampo.has(j.id) && !banco.includes(j.id)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
+      if (banco.length < 7 && !banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
+      for (const j of sobra) { if (banco.length >= 7) break; if (j.pos !== "GK") banco.push(j.id); }
       const noBanco = new Set(banco), I = dados.instr || {};
       const num = (v, min, max) => Math.max(min, Math.min(max, Math.round(+v) || 0));
       const um = (v, lista, padrao) => lista.includes(v) ? v : padrao;
@@ -1440,7 +1447,7 @@ const __rodada = (() => {
     }
     return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, COPA, calcularPartida, classificacao };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, COPA, foraDaCopa, calcularPartida, classificacao };
 })();
 
 const __treino = (() => {

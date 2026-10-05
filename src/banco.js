@@ -29,6 +29,20 @@ export async function pedirClube(nome, sigla, escudo, uniforme) {
 export const pedidosPendentes = () => sb.from("pedidos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
 export const decidirPedido = (id, aprovar, motivo) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
+// escudo enviado como imagem (51_escudo_enviado.sql): sobe ao Storage, passa a valer e apaga a imagem anterior
+export async function enviarEscudo(clubeId, blob) {
+  const ext = blob.type === "image/png" ? "png" : "webp", nome = `${clubeId}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from("escudos").upload(nome, blob, { contentType: blob.type, cacheControl: "31536000", upsert: false });
+  if (error) throw new Error(/bucket not found/i.test(error.message) ? "O envio de escudo ainda não foi ligado (falta o SQL 51)." : error.message);
+  const antes = await sb.rpc("usar_escudo_enviado", { p_img: nome }).then(ok);
+  if (antes && antes !== nome) await sb.storage.from("escudos").remove([antes]).catch(() => {});
+  return nome;
+}
+export async function tirarEscudoEnviado() {
+  const antes = await sb.rpc("tirar_escudo_enviado").then(ok);
+  if (antes) await sb.storage.from("escudos").remove([antes]).catch(() => {});
+}
+export const pedirTrocaDeEscudo = clubeId => sb.rpc("pedir_troca_de_escudo", { p_clube: clubeId }).then(ok);
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
@@ -192,6 +206,12 @@ export const meusPreContratos = () => sb.from("pre_contratos").select("jogador_i
 export const anunciarAposentadorias = ligaId => sb.rpc("anunciar_aposentadorias", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 // campeões e vices da copa nas temporadas anteriores (50_copa_no_historico.sql); vazio antes dele
 export const finalistasDaCopa = ligaId => sb.from("historico").select("temporada, clube_id, copa").eq("liga_id", ligaId).in("copa", ["campeão", "vice"]).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+// troféus: campeões de cada grupo (1º lugar) e finalistas da copa, de todas as temporadas guardadas na virada
+export async function trofeusDaLiga(ligaId) {
+  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada");
+  if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
+  return r.error ? [] : r.data.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice");
+}
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);

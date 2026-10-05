@@ -142,7 +142,7 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
-import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, finalistasDaCopa, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -151,7 +151,8 @@ import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { montarLogin } from "./src/ui-login.js";
 import { sg, pp, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
-import { svgEscudo, svgUniforme, visualAleatorio, FORMAS, PADROES, CORES } from "./src/escudo.js";
+import { svgEscudo, svgUniforme, visualAleatorio } from "./src/escudo.js";
+import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -205,6 +206,7 @@ function talvezAtualizar(idade) {
   const foco = document.activeElement;
   if (foco && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
   if (!$("taticaFora").hidden) return; // escalando: não mexe na tela
+  if ($("cfgSalvarVisual") && !$("cfgSalvarVisual").disabled) return; // escudo ou uniforme mudado sem salvar
   if (document.querySelector('#app [id$="Painel"]:not(:empty)') || ($("quadroAtr") && !$("quadroAtr").hidden)) return;
   carregar({ user: usuario });
 }
@@ -226,31 +228,26 @@ function telaEspera(p) {
 async function telaCriar(liga, recusado) {
   const clubes = await clubesDaLiga(liga.id), vagas = clubes.filter(c => !c.dono).length;
   const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
-  const paleta = (alvo, campo) => `<div class="cores">${CORES.map(c => `<span data-cor="${c}" data-alvo="${alvo}" data-campo="${campo}" class="${F[alvo][campo] === c ? "sel" : ""}" style="background:${c}"></span>`).join("")}</div>`;
-  const opcoes = (obj, atual) => Object.entries(obj).map(([k, n]) => `<option value="${k}" ${k === atual ? "selected" : ""}>${n}</option>`).join("");
   const desenhar = (aviso = "") => {
     $("app").innerHTML = `<div class="card"><h2>Criar o seu clube</h2>
       <div class="mut" style="margin-bottom:10px">${esc(liga.nome)} · ${vagas} ${vagas === 1 ? "vaga livre" : "vagas livres"} de ${clubes.length}. Você escolhe nome, sigla e cores; quando o administrador aprovar o pedido, você assume um dos clubes sem dono, já com 22 jogadores.</div>
       ${recusado ? `<div class="aviso" style="margin-bottom:10px">O pedido anterior (${esc(recusado.nome)}) foi recusado${recusado.motivo ? `: ${esc(recusado.motivo)}` : "."} Você pode enviar outro.</div>` : ""}
       ${vagas ? `<div class="duas"><div>
         <div class="row"><label style="flex:1;min-width:160px">Nome do clube<input id="cNome" maxlength="30" value="${esc(F.nome)}"></label><label>Sigla (3 letras)<input id="cSigla" maxlength="3" style="width:90px;text-transform:uppercase" value="${esc(F.sigla)}"></label></div>
-        <div class="row" style="margin-top:10px"><label>Forma do escudo<select data-alvo="escudo" data-campo="forma">${opcoes(FORMAS, F.escudo.forma)}</select></label><label>Desenho do escudo<select data-alvo="escudo" data-campo="padrao">${opcoes(PADROES, F.escudo.padrao)}</select></label></div>
-        <div class="row" style="margin-top:10px"><label>Cor principal do escudo${paleta("escudo", "cor1")}</label><label>Segunda cor do escudo${paleta("escudo", "cor2")}</label></div>
-        <div class="row" style="margin-top:10px"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opcoes(PADROES, F.uniforme.padrao)}</select></label></div>
-        <div class="row" style="margin-top:10px"><label>Cor principal da camisa${paleta("uniforme", "cor1")}</label><label>Segunda cor da camisa${paleta("uniforme", "cor2")}</label><label>Calção${paleta("uniforme", "calcao")}</label></div>
-      </div><div><div class="previa">${svgEscudo(F.escudo, F.sigla || "ABC", 110)}${svgUniforme(F.uniforme, 90)}</div>
+        <div class="mut" style="margin-top:8px;font-size:12.5px">Depois que o clube for aprovado, dá para mudar tudo nas Configurações e também enviar uma imagem própria para o escudo.</div>
+      </div><div><div id="cVisual"></div>
         <button id="cCriar" style="margin-top:12px;width:100%">Enviar o pedido</button>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div>` : `<div class="bad">Todas as vagas estão ocupadas.</div>`}</div>`;
     if (!vagas) return;
     $("cNome").oninput = e => { F.nome = e.target.value; };
-    $("cSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); document.querySelector(".previa").innerHTML = svgEscudo(F.escudo, F.sigla || "ABC", 110) + svgUniforme(F.uniforme, 90); };
+    const ed = editorVisual($("cVisual"), F, { sigla: () => F.sigla });
+    $("cSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); ed.atualizarPrevia(); };
     $("cCriar").onclick = async () => {
       $("cCriar").disabled = true; $("cCriar").textContent = "Enviando…";
       try { await pedirClube(F.nome, F.sigla, F.escudo, F.uniforme); await carregar({ user: usuario }); }
       catch (e) { desenhar(e.message); }
     };
   };
-  $("app").onclick = e => { const d = e.target.dataset; if (d.cor) { F[d.alvo][d.campo] = d.cor; desenhar(); } };
-  $("app").onchange = e => { const d = e.target.dataset; if (d.alvo && e.target.tagName === "SELECT") { F[d.alvo][d.campo] = e.target.value; desenhar(); } };
+  $("app").onclick = $("app").onchange = null;
   desenhar();
 }
 
@@ -281,6 +278,14 @@ async function telaClube(liga, clube) {
   const copaJogos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
   const copaRes = Object.fromEntries((await resultadosDaCopa(copaJogos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
   const finalistas = liga.copa === undefined ? [] : await finalistasDaCopa(liga.id); // campeões e vices das temporadas anteriores
+  // sala de troféus: títulos de liga (1º do grupo) e da copa, por clube; e o quadro dos maiores campeões
+  const trofeus = await trofeusDaLiga(liga.id).catch(() => []);
+  const TIPOS_DE_TROFEU = [["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["D", "🏆", "Brasileiro Série C1"], ["E", "🏆", "Brasileiro Série C2"], ["vice", "🥈", "Vice da Copa do Brasil"]];
+  const tiposDe = x => [...(x.posicao === 1 ? [x.grupo] : []), ...(x.copa === "campeão" ? ["copa"] : x.copa === "vice" ? ["vice"] : [])];
+  const trofeusDe = id => { const m = {}; trofeus.filter(x => x.clube_id === id).forEach(x => tiposDe(x).forEach(k => (m[k] = m[k] || []).push(x.temporada))); return m; };
+  const salaDeTrofeus = (id, titulo = "Sala de troféus") => { const m = trofeusDe(id), tipos = TIPOS_DE_TROFEU.filter(([k]) => m[k]);
+    return `<div class="card"><h2>${titulo}</h2>${tipos.length ? tipos.map(([k, ic, nome]) => `<div style="margin:4px 0">${ic.repeat(Math.min(m[k].length, 5))}${m[k].length > 5 ? "…" : ""} <b>${m[k].length}× ${nome}</b> <span class="mut">· ${m[k].map(t => "T" + t).join(", ")}</span></div>`).join("")
+      : `<div class="mut">Nenhum título ainda. Aqui entram os títulos de cada série e da Copa do Brasil.</div>`}</div>`; };
   // a copa do meu clube: o jogo mais recente e se ele ainda está vivo nela (jogo marcado, esperando o sorteio ou entrando direto na fase de 32)
   const minhaCopa = copaJogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ultCopa = minhaCopa[minhaCopa.length - 1];
   const vivoNaCopa = !!(liga.copa && (ultCopa ? !copaRes[ultCopa.id] || (ultCopa.copa_fase < 6 && (ultCopa.vencedor || (copaRes[ultCopa.id].vencedor ? +copaRes[ultCopa.id].vencedor : null)) === clube.id)
@@ -331,6 +336,24 @@ async function telaClube(liga, clube) {
       return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${nome(p.casa)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${nome(p.fora)}${penais(r)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; }).join(""); };
     $("copaFase").onchange = mostrar;
     mostrar();
+  }
+  // maiores campeões da liga: quadro por clube e os campeões de cada temporada
+  function telaDosCampeoes() {
+    const ids = [...new Set(trofeus.map(x => x.clube_id))].filter(id => cPor[id]), cols = TIPOS_DE_TROFEU.filter(([k]) => k !== "vice");
+    const linhas = ids.map(id => { const m = trofeusDe(id); return { id, m, n: cols.map(([k]) => (m[k] || []).length), vice: (m.vice || []).length }; })
+      .filter(l => l.n.some(Boolean)).sort((a, b) => { for (let i = 0; i < a.n.length; i++) if (b.n[i] !== a.n[i]) return b.n[i] - a.n[i]; return b.vice - a.vice; });
+    $("tituloTabela").innerHTML = "🏅 Maiores campeões";
+    $("tabela").className = "";
+    $("tabela").innerHTML = linhas.length ? `<table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Brasileiro Série A">A</th><th title="Copa do Brasil">Copa</th><th title="Série B1 e B2">B</th><th title="Série C1 e C2">C</th></tr>
+      ${linhas.map((l, i) => `<tr><td>${i + 1}</td><td class="esq ${l.id === clube.id ? "nota" : ""}">${lk(l.id)}</td><td><b>${l.n[0] || ""}</b></td><td>${l.n[1] || ""}</td><td>${(l.n[2] + l.n[3]) || ""}</td><td>${(l.n[4] + l.n[5]) || ""}</td></tr>`).join("")}</table>
+      <div class="mut" style="margin-top:6px;font-size:12px">Ordem: títulos da Série A, depois Copa do Brasil, Série B e Série C. O título de série é o 1º lugar do grupo na temporada.</div>`
+      : `<div class="mut">Nenhum título ainda: os campeões entram aqui a cada virada de temporada.</div>`;
+    $("tituloJogos").textContent = "Campeões por temporada";
+    $("rodadas").className = "";
+    const temporadas = [...new Set(trofeus.map(x => x.temporada))].sort((a, b) => b - a);
+    $("rodadas").innerHTML = temporadas.length ? temporadas.map(t => { const da = trofeus.filter(x => x.temporada === t);
+      return `<div style="margin-bottom:10px"><b>Temporada ${t}</b>${TIPOS_DE_TROFEU.map(([k, ic, nome]) => { const x = da.find(y => tiposDe(y).includes(k)); return x ? `<div>${ic} ${nome}: ${lk(x.clube_id)}</div>` : ""; }).join("")}</div>`; }).join("")
+      : `<div class="mut">Ainda não houve virada de temporada.</div>`;
   }
   const situacao = j => (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
@@ -484,6 +507,7 @@ async function telaClube(liga, clube) {
   const muralDoClube = () => {
     const l = [];
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso"));
+    if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config">Ajustes</a>.`, "aviso"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja a aba Finanças.`, "bad"));
     const recebidas = (propostas || []).filter(p => p.vendedor === clube.id && p.estado === "pendente");
     if (recebidas.length) l.push(item("💬", `${recebidas.length} ${recebidas.length === 1 ? "proposta esperando" : "propostas esperando"} a sua resposta, na aba Mercado.`, "aviso"));
@@ -553,6 +577,7 @@ async function telaClube(liga, clube) {
     <div class="card c-liga"><h2>Mural da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
     <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
     </div>
+    <div style="margin-top:12px">${salaDeTrofeus(clube.id)}</div>
     <div class="card" style="margin-top:12px"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
@@ -561,7 +586,7 @@ async function telaClube(liga, clube) {
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
-    <div class="card row"><label>Ver o campeonato<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}${copaJogos.length || finalistas.length ? `<option value="COPA">🏆 Copa do Brasil</option>` : ""}</select></label>
+    <div class="card row"><label>Ver o campeonato<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}${copaJogos.length || finalistas.length ? `<option value="COPA">🏆 Copa do Brasil</option>` : ""}<option value="TROFEUS">🏅 Maiores campeões</option></select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div>
     <div class="duas">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
@@ -574,6 +599,14 @@ async function telaClube(liga, clube) {
     </section>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
+    <div class="card"><h2>Escudo e uniforme</h2>
+      <div class="duas"><div id="cfgVisual"></div>
+        <div><button id="cfgSalvarVisual" disabled>Salvar escudo e uniformes</button> <span id="cfgVisualAviso" class="mut"></span>
+          <div style="margin-top:14px"><b>Escudo enviado</b>
+            <div class="mut" style="margin:4px 0 8px;font-size:12.5px">Uma imagem sua no lugar do escudo desenhado: PNG, JPG ou WebP. A página reduz para 128 × 128 (até 100 KB) antes de enviar; prefira fundo transparente. O desenho continua guardado e volta se a imagem sair. O administrador pode pedir a troca.</div>
+            ${clube.escudo && clube.escudo.img ? `<div class="row" style="align-items:center">${svgEscudo(clube.escudo, clube.sigla, 64)}<button class="sec" id="cfgTirarEscudo">Voltar ao escudo desenhado</button></div>` : ""}
+            <label style="margin-top:8px">${clube.escudo && clube.escudo.img ? "Trocar a imagem" : "Enviar uma imagem"}<input type="file" id="cfgArquivo" accept="image/png,image/jpeg,image/webp"></label>
+            <div id="cfgEnvio" class="mut" style="margin-top:6px"></div></div></div></div></div>
     <div class="card"><h2>Configurações</h2>
       <div class="duas">
         <div><b>Siglas das posições</b>
@@ -824,6 +857,8 @@ async function telaClube(liga, clube) {
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${esc(nomeDoGrupo(c.grupo))}${c.torcida != null ? ` · torcida de ${c.torcida.toLocaleString("pt-BR")} · estádio de ${(5000 + 5000 * (c.estadio_nivel || 1)).toLocaleString("pt-BR")} lugares` : ""} · ${l.length} jogadores · folha ${dinheiro(folhaDele)}</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
+          ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
+          ${salaDeTrofeus(id, "Troféus")}
           <div class="card"><h2>Elenco <span class="tag">clique num jogador para ver a multa rescisória${c.dono ? " ou fazer uma proposta" : ""} · o botão i abre os atributos</span></h2>
             <div id="cvPainel"></div>
             <div class="elenco2" id="cvLista">${[ZONAS_DO_ELENCO.slice(0, 2), ZONAS_DO_ELENCO.slice(2)].map(metade => `<div>${metade.map(([titulo, linhas]) => { const z = l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota);
@@ -831,6 +866,7 @@ async function telaClube(liga, clube) {
                 ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
                   <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(clausula(j.salario))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>`;
         $("cvVoltar").onclick = () => abrir(abaAnterior);
+        if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
         $("cvLista").onclick = e => { const tr = e.target.closest("tr[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
       } catch (err) { $("cvCorpo").innerHTML = `<div class="card bad">${esc(err.message)}</div>`; }
     };
@@ -936,6 +972,24 @@ async function telaClube(liga, clube) {
     e.preventDefault(); const id = +a.dataset.clube;
     if (id === clube.id) abrir("elenco"); else if (paginaDoClube) paginaDoClube(id);
   });
+  // escudo e uniformes: editor com prévia; salvar não mexe na imagem enviada
+  const visual = { escudo: { ...(clube.escudo || {}) }, uniforme: JSON.parse(JSON.stringify(clube.uniforme || {})) };
+  delete visual.escudo.img;
+  editorVisual($("cfgVisual"), visual, { sigla: () => clube.sigla, aoMudar: () => { $("cfgSalvarVisual").disabled = false; $("cfgVisualAviso").textContent = "há mudanças sem salvar"; } });
+  $("cfgSalvarVisual").onclick = async () => {
+    $("cfgSalvarVisual").disabled = true;
+    try { await editarVisual(visual.escudo, visual.uniforme); await carregar({ user: usuario }); }
+    catch (err) { $("cfgVisualAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("cfgSalvarVisual").disabled = false; }
+  };
+  $("cfgArquivo").onchange = async e => {
+    const arq = e.target.files[0]; if (!arq) return;
+    $("cfgEnvio").textContent = "Reduzindo e enviando…";
+    try { await enviarEscudo(clube.id, await reduzirImagem(arq)); await carregar({ user: usuario }); }
+    catch (err) { $("cfgEnvio").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+  };
+  if ($("cfgTirarEscudo")) $("cfgTirarEscudo").onclick = async () => {
+    try { await tirarEscudoEnviado(); await carregar({ user: usuario }); } catch (err) { $("cfgEnvio").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+  };
   if ($("cfgDirigente")) $("cfgDirigente").onclick = async () => {
     const nome = prompt("Seu nome de dirigente (de 2 a 24 caracteres):", clube.dirigente || ""); if (nome == null) return;
     try { await definirDirigente(nome); await carregar({ user: usuario }); } catch (err) { alert(err.message); }
@@ -1032,6 +1086,7 @@ async function telaClube(liga, clube) {
   // classificação e jogos do grupo escolhido
   async function grupo(g) {
     if (g === "COPA") return telaDaCopa();
+    if (g === "TROFEUS") return telaDosCampeoes();
     const partidas = await partidasDoGrupo(liga.id, g), resultados = await resultadosDe(partidas.map(p => p.id));
     const res = Object.fromEntries(resultados.map(r => [r.partida_id, r])), agora = Date.now(), doGrupo = clubes.filter(c => c.grupo === g);
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
