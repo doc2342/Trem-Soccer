@@ -95,3 +95,56 @@ export async function liga({ temporadas = 8, humanos = 3, semente = 11 } = {}) {
   }
   return linhas;
 }
+
+// Economia ao longo das temporadas, sem mercado: os elencos evoluem pelo treino e os contratos vencidos se renovam pelo maior entre o salário
+// atual e o salário de mercado (é o que o jogo faz nos clubes sem dono). Mostra se a folha cabe no teto e na receita de cada divisão.
+//   await S.economia({ temporadas: 10 })
+import { salarioDeMercado, impostoDoLucro } from "../src/economia.js";
+const DIV = { 1: { teto: 20000, tv: 6500, pat: 5200, ingresso: 25, premio: [10000, 4000] }, 2: { teto: 14000, tv: 4500, pat: 3600, ingresso: 24, premio: [6000, 2400] }, 3: { teto: 10000, tv: 4200, pat: 3400, ingresso: 22, premio: [3500, 1200] } };
+export async function economia({ temporadas = 10, semente = 11 } = {}) {
+  const nm = await nomes(), rng = N.criarRng(semente), usados = new Set(), clubes = [], C = T.CONFIG_TREINO;
+  const contrato = (j, t, n) => { j.salario = salarioDeMercado(j); j.ate = t + n; };
+  for (let c = 0; c < 50; c++) {
+    const elenco = G.gerarElenco(rng, { nivel: 30, nomes: nm, prefixoId: "c" + c + "_" }).map(j => ({ ...j, pts: null, treino: null }));
+    elenco.forEach(j => contrato(j, 1, rng.int(0, 2)));
+    clubes.push({ div: c < 10 ? 1 : c < 30 ? 2 : 3, caixa: 5000, ct: 0, treinador: C.treinador[0] + C.treinador[1] * C.qualidadeSemDono / 50, elenco });
+  }
+  const nota = j => M.notaBruta(j.at, j.pos), onze = c => quantil(c.elenco.map(nota).sort((a, b) => b - a).slice(0, 11), 0.5);
+  const linhas = [];
+  for (let t = 1; t <= temporadas; t++) {
+    for (const c of clubes) { const areas = areasDe(c.treinador);
+      for (let s = 0; s < 18; s++) { const jogam = new Set(c.elenco.slice().sort((a, b) => nota(b) - nota(a)).slice(0, 14).map(j => j.id)); for (const j of c.elenco) sessao(j, { tal: j.tal, ct: c.ct, jogou: jogam.has(j.id), areas }); } }
+    // caixa da temporada: receitas fixas, bilheteria com estádio de 10 mil lugares cheio, prêmio pela ordem de força dentro da divisão
+    let imposto = 0;
+    for (const d of [1, 2, 3]) {
+      const grupo = clubes.filter(c => c.div === d).sort((a, b) => onze(b) - onze(a)), D = DIV[d];
+      grupo.forEach((c, i) => {
+        c.folha = c.elenco.reduce((s, j) => s + j.salario, 0);
+        c.receita = D.tv + D.pat + 10000 * D.ingresso * 9 / 1000 + Math.round(D.premio[0] - (D.premio[0] - D.premio[1]) * (i % 10) / 9);
+        c.lucro = c.receita - c.folha; c.imp = impostoDoLucro(c.lucro, D.teto); imposto += c.imp; c.caixa += c.lucro - c.imp;
+      });
+    }
+    clubes.filter(c => c.div === 3).forEach(c => { c.caixa += Math.round(imposto / 2 / 20); });
+    const por = d => { const g = clubes.filter(c => c.div === d), m = k => Math.round(quantil(g.map(c => c[k]), 0.5));
+      return `${["", "A", "B", "C"][d]}: onze ${f1(quantil(g.map(onze), 0.5))} · folha ${f1(m("folha") / 1000)} mi (${pct(m("folha") / DIV[d].teto)} do teto; acima do teto: ${g.filter(c => c.folha > DIV[d].teto).length}) · receita ${f1(m("receita") / 1000)} · saldo ${f1(m("lucro") / 1000)} · caixa ${f1(m("caixa") / 1000)} · no vermelho ${g.filter(c => c.caixa < 0).length}`; };
+    linhas.push(`T${t} | ${por(1)} | ${por(2)} | ${por(3)} | liga: receita ${Math.round(clubes.reduce((s, c) => s + c.receita, 0) / 1000)} mi, folha ${Math.round(clubes.reduce((s, c) => s + c.folha, 0) / 1000)} mi, imposto ${Math.round(imposto / 1000)} mi, caixa total ${Math.round(clubes.reduce((s, c) => s + c.caixa, 0) / 1000)} mi`);
+    // virada
+    clubes.forEach((c, ci) => {
+      const fica = [];
+      for (const j of c.elenco) {
+        j.idade++;
+        if (j.idade >= 34) FISICOS.forEach(i => { j.at[i] = Math.max(1, j.at[i] - rng.int(1, 2)); });
+        else if (j.idade >= 31) rng.embaralhar(FISICOS).slice(0, rng.int(1, 2)).forEach(i => { j.at[i] = Math.max(1, j.at[i] - 1); });
+        if (j.idade >= 38 || (j.idade >= 34 && rng.chance((j.idade - 33) * 0.2))) continue;
+        if (j.ate <= t) { j.salario = Math.max(j.salario, salarioDeMercado(j)); j.ate = t + 1; }
+        fica.push(j);
+      }
+      for (let k = fica.length; k < c.elenco.length; k++) {
+        const j = { ...G.gerarJogador(rng, { id: `n${t}_${ci}_${k}`, pos: rng.pick(POS), alvo: 22, idade: rng.int(17, 19), nomes: nm, usados }), pts: null, treino: null };
+        contrato(j, t + 1, 2); fica.push(j);
+      }
+      c.elenco = fica;
+    });
+  }
+  return linhas;
+}
