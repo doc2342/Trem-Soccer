@@ -23,7 +23,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -145,8 +145,8 @@ async function tela(aviso = "") {
          <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar a rodada ${proxima} agora</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
          <div class="rolagem" style="margin-top:10px"><table><tr><th>Rodada</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${x.r}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
       : `<div class="mut" style="margin-bottom:10px">Sem calendário. Cada grupo joga turno e returno: 18 rodadas, 5 partidas por grupo em cada uma.</div>
-         <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre rodadas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
-         <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="105" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><button id="gerar">Gerar o calendário</button></div>
+         <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
+         <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="105" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><label style="flex-direction:row;align-items:center;gap:6px" title="Uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga; precisa do SQL 47"><input type="checkbox" id="comCopa" checked> Com a Copa do Brasil</label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Duração 105 = transmissão ao vivo em tempo real (lances minuto a minuto, relatório só no apito final). Um número menor acelera o jogo (15 = partida inteira em 15 minutos); 0 mostra o resultado e o relatório na hora, sem transmissão. A tática fechando 1 segundo antes é valor de teste; na liga de verdade serão 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
@@ -191,25 +191,52 @@ async function tela(aviso = "") {
     try {
       const inicio = new Date($("inicio").value).getTime(), intervalo = +$("intervalo").value * 60000, duracao = +$("duracao").value;
       await atualizarLiga(liga.id, { minutos_transmissao: duracao, prazo_escalacao_seg: +$("prazo").value });
+      // Calendário com a Copa do Brasil no meio: uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga.
+      // Cada data ocupa um "espaço" do calendário; os espaços ficam a um intervalo um do outro.
+      const comCopa = $("comCopa") ? $("comCopa").checked : false;
+      const espacoDaRodada = r => r - 1 + (comCopa ? Math.floor(r / 3) : 0), espacoDaCopa = k => 4 * k - 2; // k: fase da copa, de 1 a 6
+      const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
       const linhas = [];
       for (const g of GRUPOS) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
-        const ini = inicio + (j.rodada - 1) * intervalo;
-        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(ini + duracao * 60000).toISOString() });
+        const ini = hora(espacoDaRodada(j.rodada));
+        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
+      }
+      let copa = "";
+      if (comCopa) {
+        // preliminar: os 36 de pior campanha na temporada anterior, em sorteio livre; os outros 14 entram direto na fase de 32
+        const [campanhas, dados] = await Promise.all([campanhasDaTemporada(liga.id, liga.temporada - 1), divisoesDosClubes(liga.id)]);
+        const camp = Object.fromEntries(campanhas.map(x => [x.clube_id, x])), nivel = Object.fromEntries(dados.map(x => [x.id, x.estadio_nivel || 1])), divisao = Object.fromEntries(dados.map(x => [x.id, x.divisao]));
+        const rng = criarRng(Date.now() % 2147483647);
+        // ordem de força: divisão da temporada passada, posição e pontos; sem histórico (primeira temporada), divisão atual e sorteio
+        const chave = c => { const h = camp[c.id]; return h ? [h.divisao, h.posicao, -h.pontos] : [divisao[c.id] || 9, 99, rng.n()]; };
+        const ordem = clubes.slice().sort((a, b) => { const x = chave(a), y = chave(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
+        const diretos = ordem.slice(0, Math.max(0, clubes.length - 36)).map(c => c.id), sorteados = rng.embaralhar(ordem.slice(Math.max(0, clubes.length - 36)));
+        const datas = [1, 2, 3, 4, 5, 6].map(k => ({ inicio: iso(hora(espacoDaCopa(k))), fim: iso(hora(espacoDaCopa(k)) + duracao * 60000) }));
+        for (let k = 0; k + 1 < sorteados.length; k += 2) {
+          let [a, b] = [sorteados[k].id, sorteados[k + 1].id];
+          if (nivel[b] > nivel[a]) [a, b] = [b, a]; // joga no estádio maior; iguais, vale a ordem do sorteio
+          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
+        }
+        await atualizarLiga(liga.id, { copa: { datas, diretos } });
+        copa = ` Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.`;
       }
       await criarPartidas(linhas);
-      // janelas por data: a de início fecha na véspera da rodada 3; a do meio abre no meio do caminho entre as rodadas 8 e 9
-      // (onde ficarão as oitavas da copa) e fecha na véspera da rodada 12. Em calendário de teste, com rodadas a minutos uma da outra,
-      // "véspera" vira um minuto antes.
-      const rodada = n => inicio + (n - 1) * intervalo, diario = intervalo >= 20 * 3600000;
+      // janelas por data: a de início fecha na véspera da rodada 3; a do meio abre depois das oitavas da copa e fecha na véspera das quartas
+      // (sem copa: da metade entre as rodadas 8 e 9 até a véspera da rodada 12). Em calendário de teste, com datas a minutos uma da outra,
+      // "véspera" vira um minuto antes e "dia seguinte" vira logo depois do fim da transmissão.
+      const diario = intervalo >= 20 * 3600000;
       const vespera = t => diario ? new Date(new Date(t).setHours(0, 0, 0, 0) - 60000) : new Date(t - 60000);
-      const meioAbre = rodada(8) + intervalo / 2;
+      const diaSeguinte = t => diario ? new Date(new Date(t).setHours(24, 0, 0, 0)) : new Date(t + duracao * 60000 + 60000);
+      const fechaInicio = vespera(hora(espacoDaRodada(3)));
+      const abreMeio = comCopa ? diaSeguinte(hora(espacoDaCopa(3))) : (diario ? new Date(new Date(hora(espacoDaRodada(8)) + intervalo / 2).setHours(0, 0, 0, 0)) : new Date(hora(espacoDaRodada(8)) + intervalo / 2));
+      const fechaMeio = vespera(comCopa ? hora(espacoDaCopa(4)) : hora(espacoDaRodada(12)));
       let janelas = "";
       try {
-        await atualizarLiga(liga.id, { janela_inicio_fecha: vespera(rodada(3)).toISOString(), janela_meio_abre: (diario ? new Date(new Date(meioAbre).setHours(0, 0, 0, 0)) : new Date(meioAbre)).toISOString(), janela_meio_fecha: vespera(rodada(12)).toISOString() });
+        await atualizarLiga(liga.id, { janela_inicio_fecha: fechaInicio.toISOString(), janela_meio_abre: abreMeio.toISOString(), janela_meio_fecha: fechaMeio.toISOString() });
         const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-        janelas = ` Janela de início até ${quando(vespera(rodada(3)))}; janela do meio de ${quando(diario ? new Date(meioAbre).setHours(0, 0, 0, 0) : meioAbre)} a ${quando(vespera(rodada(12)))}.`;
+        janelas = ` Janela de início até ${quando(fechaInicio)}; janela do meio de ${quando(abreMeio)} a ${quando(fechaMeio)}.`;
       } catch (e) { janelas = " (As datas das janelas não foram gravadas: falta o SQL 46. Vale a regra antiga, por rodada.)"; }
-      await tela(`Calendário gerado: ${linhas.length} partidas.` + janelas);
+      await tela(`Calendário gerado: ${linhas.length} partidas.` + copa + janelas);
     } catch (e) { await tela("Erro ao gerar o calendário: " + e.message); }
   });
   em("apagarCal", async () => {

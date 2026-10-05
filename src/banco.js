@@ -144,7 +144,10 @@ export async function precoDoIngresso(clubeId) {
 export const guardarEstadoInicial = ligaId => sb.rpc("guardar_estado_inicial", { p_liga: ligaId }).then(ok);
 export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p_liga: ligaId, p_sortear: sortear }).then(ok);
 // V2: virada de temporada (supabase/16_virada_de_temporada.sql)
-export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel").eq("liga_id", ligaId).then(ok);
+export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
+// Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
+export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, divisao, posicao, pontos").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
+export const partidasDaCopa = ligaId => sb.from("partidas").select("id, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).eq("fase", "copa").order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
 export const meusRelatorios = () => sb.from("relatorios").select("jogador_id, nivel, minimo, maximo").then(({ data, error }) => error ? null : data);
