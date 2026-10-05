@@ -208,6 +208,8 @@ export const temporadasComEstatisticas = ligaId => sb.from("estatisticas_histori
 export const estatisticasGuardadas = (ligaId, temporada, comp) => sb.from("estatisticas_historico").select("dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("comp", comp).maybeSingle().then(({ data, error }) => error || !data ? null : data.dados);
 // antes da virada (que apaga as partidas): copia as listas da temporada para o histórico. Sem o SQL 54, não faz nada.
 export const guardarEstatisticas = ligaId => sb.rpc("guardar_estatisticas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
+// depois da virada: atualiza o prestígio (fator da torcida) de cada clube pela campanha da temporada que acabou. Sem o SQL 55, não faz nada.
+export const atualizarTorcidas = ligaId => sb.rpc("atualizar_torcidas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
 // Federação: resumo do fundo da liga por temporada e tipo (53_fundo_da_liga.sql; null antes dele) e os valores das três divisões
 export const resumoDoFundo = ligaId => sb.from("fundo_resumo").select("temporada, tipo, valor").eq("liga_id", ligaId).then(({ data, error }) => error ? null : data);
 export const divisoesDaLiga = ligaId => sb.from("divisoes").select("divisao, teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).order("divisao").then(({ data, error }) => error ? [] : data);

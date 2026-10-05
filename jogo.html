@@ -146,7 +146,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { sair, ligaAtual, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
-import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao } from "./src/economia.js";
+import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
 function acertarSalarioPelaDuracao() {
@@ -450,7 +450,7 @@ async function telaClube(liga, clube) {
         <tr><td class="esq">Vice</td><td>${dinheiro(P.vice)}</td><td>${dinheiro(P.vice)}</td></tr><tr><td class="esq">Campeão</td><td>${dinheiro(P.campeao)}</td><td>${dinheiro(P.campeao)}</td></tr>
         <tr><td class="esq"><b>Copa inteira</b></td><td></td><td><b>${dinheiro([2, 3, 4, 5].reduce((t, f) => t + P.fases[f] * clubesNaFase[f], 0) + P.vice + P.campeao)}</b></td></tr></table>
       <h2 style="margin-top:14px">O que a liga cobra</h2>
-      <div class="mut">Imposto: 20% do lucro da temporada que passar de um quarto do teto de folha. Bilheteria: 10% de todo jogo. Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
+      <div class="mut">Imposto: 20% do lucro da temporada que passar de um quarto do teto de folha. Bilheteria: 10% de todo jogo (copa e playoff têm ingresso mais caro: até 50% a mais na final do playoff e o dobro na final da copa). Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
   }
   function telaDosCampeoes() {
     const ids = [...new Set(trofeus.map(x => x.clube_id))].filter(id => cPor[id]), cols = TIPOS_DE_TROFEU.filter(([k]) => k !== "vice");
@@ -512,7 +512,8 @@ async function telaClube(liga, clube) {
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico cuida de mais lesionados ao mesmo tempo"],
     ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e com mais talento"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
-  const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
+  const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18, 22, 27, 36], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
+  const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção de 2% por temporada
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
   // comissão por estrutura: cada profissional aparece (e é contratado) na aba da estrutura em que trabalha
@@ -538,7 +539,7 @@ async function telaClube(liga, clube) {
   // uma estrutura: nível, o que faz agora e no próximo nível, obra e quem da comissão trabalha nela
   const estrutura = k => {
     if (caixa == null || clube.ct_nivel == null) return `<div class="card mut">As estruturas aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>`;
-    const [, nome, campo] = ESTRUTURAS.find(x => x[0] === k), n = clube[campo] || 0, prox = n + 1, custo = prox > 5 ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox];
+    const [, nome, campo] = ESTRUTURAS.find(x => x[0] === k), n = clube[campo] || 0, prox = n + 1, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox];
     const fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`;
     const pct = v => Math.round(v * 100) + "%";
     const efeito = {
@@ -546,17 +547,17 @@ async function telaClube(liga, clube) {
       medico: [`O médico cuida de <b>${atendidosPeloMedico(n)}</b> ${atendidosPeloMedico(n) === 1 ? "lesionado" : "lesionados"} ao mesmo tempo`, prox <= 5 ? `${atendidosPeloMedico(prox)} ao mesmo tempo` : null, ""],
       fisio: [`O preparador de forma atende <b>${atendidosNaForma(n)}</b> jogadores por rodada`, prox <= 5 ? `${atendidosNaForma(prox)} jogadores` : null, ""],
       base: [`Jovens que sobem da base na virada: <b>${fx(faixaDeJovens(n, "promocao"))}</b>; na peneira: <b>${fx(faixaDeJovens(n, "peneira"))}</b>`, prox <= 5 ? `${fx(faixaDeJovens(prox, "promocao"))} na virada e ${fx(faixaDeJovens(prox, "peneira"))} na peneira` : null, ""],
-      estadio: [`<b>${(5000 + 5000 * n).toLocaleString("pt-BR")}</b> lugares`, prox <= 5 ? `${(5000 + 5000 * prox).toLocaleString("pt-BR")} lugares` : null, `Torcida de ${(clube.torcida || 0).toLocaleString("pt-BR")}. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças.`],
+      estadio: [`<b>${lugaresDoEstadio(n).toLocaleString("pt-BR")}</b> lugares`, prox <= maximo ? `${lugaresDoEstadio(prox).toLocaleString("pt-BR")} lugares` : null, `Torcida de ${(clube.torcida || 0).toLocaleString("pt-BR")}; com o prestígio de hoje (${String(clube.torcida_fator == null ? 1 : +clube.torcida_fator).replace(".", ",")}) ela pode chegar a ${Math.round((liga.torcida_base || 0) * 1.4 * (clube.torcida_fator == null ? 1 : +clube.torcida_fator)).toLocaleString("pt-BR")}. O prestígio sobe com temporadas na Série A e títulos e cai devagar nas séries de baixo; no máximo (${String(PRESTIGIO_MAXIMO).replace(".", ",")}) um clube da Série A enche 60 mil. O público de cada jogo depende também do adversário e da competição: final de copa lota, preliminar não. Copa e playoff têm ingresso mais caro. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças.`],
     }[k];
     const minhaObra = obra && obra.estrutura === k;
-    return `<div class="card"><h2>${nome} <span class="tag">nível ${n} de 5</span></h2>
+    return `<div class="card"><h2>${nome} <span class="tag">nível ${n} de ${maximo}</span></h2>
       <div>${efeito[0]}.${efeito[1] ? ` <span class="mut">No nível ${prox}: ${efeito[1]}.</span>` : ` <span class="mut">Nível máximo.</span>`}</div>
       ${efeito[2] ? `<div style="margin-top:6px">${efeito[2]}</div>` : ""}
       ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
         : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button>
           <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
       ${comissaoDa(k)}
-      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, x) => s + ACUMULADO[clube[x] || 0], 0)))} por temporada. O prazo da obra corre em rodadas de liga.</div></div>`;
+      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, x) => s + ACUMULADO[clube[x] || 0], 0)) + Math.round(0.02 * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]))} por temporada (10% do que foi gasto nas quatro estruturas e 2% do que foi gasto no estádio). O prazo da obra corre em rodadas de liga.</div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
@@ -566,7 +567,7 @@ async function telaClube(liga, clube) {
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
-    const temTorcida = clube.torcida != null, lugares = 5000 + 5000 * (clube.estadio_nivel || 1);
+    const temTorcida = clube.torcida != null, lugares = lugaresDoEstadio(clube.estadio_nivel);
     const publico = temTorcida ? Math.min(lugares, Math.round(clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida))) : 0;
     const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000), bil = Math.round(porJogo / 2);
     const humor = clube.humor < 3 ? "revoltada" : clube.humor < 6 ? "nervosa" : clube.humor < 10 ? "calma" : clube.humor < 13 ? "animada" : "eufórica";
@@ -637,7 +638,7 @@ async function telaClube(liga, clube) {
   const carne = () => {
     if (caixa == null || clube.carne == null || clube.torcida == null) return "";
     const vendido = clube.carne_temporada != null && clube.carne_temporada === liga.temporada;
-    const lugares = 5000 + 5000 * (clube.estadio_nivel || 1), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round((liga.rodadas_por_temporada || 18) / 2);
+    const lugares = lugaresDoEstadio(clube.estadio_nivel), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round((liga.rodadas_por_temporada || 18) / 2);
     const valor = n => Math.round(n * (liga.preco_ingresso || 0) * 0.8 * jogos / 1000);
     return `<div class="card" style="margin:10px 0 0"><b>Sócio-Torcedor</b>
       ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles já pagaram e vão a todos os jogos em casa.` : "Você não abriu vagas de sócio-torcedor nesta temporada."}</div>`
@@ -718,7 +719,7 @@ async function telaClube(liga, clube) {
     ${clube.torcida == null ? `<div class="card c-destaque"><h2>Clube</h2><div class="mut">Torcida e estádio aparecem aqui quando a economia da liga for ligada.</div></div>` : `<div class="card c-destaque"><h2>Torcida</h2><div class="row" style="gap:22px;align-items:center">
       <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
       <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
-      <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${(5000 + 5000 * clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
+      <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${lugaresDoEstadio(clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
       <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
     <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
     <div class="card c-liga"><h2>Mural da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
@@ -1010,7 +1011,7 @@ async function telaClube(liga, clube) {
         const folhaDele = l.reduce((s, j) => s + (j.salario || 0), 0);
         $("cvCorpo").innerHTML = `<div class="card topo">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
-              <div class="mut">${esc(nomeDoGrupo(c.grupo))}${c.torcida != null ? ` · torcida de ${c.torcida.toLocaleString("pt-BR")} · estádio de ${(5000 + 5000 * (c.estadio_nivel || 1)).toLocaleString("pt-BR")} lugares` : ""} · ${l.length} jogadores · folha ${dinheiro(folhaDele)}</div></div>
+              <div class="mut">${esc(nomeDoGrupo(c.grupo))}${c.torcida != null ? ` · torcida de ${c.torcida.toLocaleString("pt-BR")} · estádio de ${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : ""} · ${l.length} jogadores · folha ${dinheiro(folhaDele)}</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
           ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
           ${salaDeTrofeus(id, "Troféus")}
