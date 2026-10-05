@@ -53,7 +53,10 @@ export function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
 }
 
 // Acesso e descenso: na primeira caem os 4 últimos; nas outras sobem o campeão e o vencedor do playoff, e na segunda caem
-// os 2 últimos de cada grupo. Quem muda de nível é sorteado entre os grupos do destino, em partes iguais.
+// os 2 últimos de cada grupo. Entre a segunda e a terceira divisão o destino é fixo e cruzado:
+//   campeão da C1 → B1 e vencedor do playoff da C1 → B2; campeão da C2 → B2 e vencedor do playoff da C2 → B1;
+//   lanterna da B1 → C1 e 9º da B1 → C2; lanterna da B2 → C2 e 9º da B2 → C1.
+// Os 4 que caem da primeira divisão continuam sorteados, 2 para cada grupo da segunda.
 export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
   const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
   const divDoGrupo = g => (clubes.find(c => c.grupo === g) || {}).divisao, maxDiv = Math.max(...clubes.map(c => c.divisao));
@@ -65,15 +68,21 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
       const final = partidas.find(p => p.grupo === g && p.fase === "final");
       if (!final || !res[final.id]) throw new Error(`Falta a final do playoff da ${({ B: "Série B1", C: "Série B2", D: "Série C1", E: "Série C2" })[g] || "chave " + g}. Gere os playoffs antes da virada.`);
       const pelo = vencedorDoPlayoff(final, res[final.id]);
-      for (const id of [linhas[0].clube_id, pelo]) { destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g }); }
+      // papel 0: fica no grupo "da mesma letra" do destino (campeão, lanterna); papel 1: vai para o outro grupo (playoff, penúltimo)
+      [linhas[0].clube_id, pelo].forEach((id, papel) => { destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g, papel }); });
     }
-    if (d < maxDiv) linhas.slice(n - (d === 1 ? 4 : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g }); });
+    if (d < maxDiv) linhas.slice(n - (d === 1 ? 4 : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g, papel: d === 1 ? null : l.posicao === n ? 0 : 1 }); });
   }
   const gruposDa = d => Object.keys(grupos).filter(g => divDoGrupo(g) === d).sort();
   const lista = [];
   // distribui por igual entre os grupos do destino; quem sai de cada grupo abre exatamente as vagas que os que chegam ocupam
   const distribuir = (quem, d, caiu) => {
-    const alvos = gruposDa(d), vagas = Object.fromEntries(alvos.map(g => [g, 0]));
+    const alvos = gruposDa(d), vagas = Object.fromEntries(alvos.map(g => [g, 0])), origens = [...new Set(quem.map(x => x.de))].sort();
+    // mesmo número de grupos na origem e no destino, com papel definido: destino fixo e cruzado, sem sorteio
+    if (alvos.length > 1 && origens.length === alvos.length && quem.every(x => x.papel != null)) {
+      quem.forEach(x => lista.push({ clube_id: x.id, grupo: alvos[(origens.indexOf(x.de) + x.papel) % alvos.length], divisao: d, caiu }));
+      return;
+    }
     rng.embaralhar(quem).forEach((x, k) => { const g = alvos[k % alvos.length]; vagas[g]++; lista.push({ clube_id: x.id, grupo: g, divisao: d, caiu }); });
   };
   for (const d of Object.keys(sobem)) distribuir(sobem[d], +d - 1, false);
