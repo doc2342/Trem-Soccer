@@ -1,5 +1,6 @@
 // Editor do escudo e dos uniformes (titular e reserva), usado na criação do clube e nas Configurações.
 // F: { escudo, uniforme } (alterado no lugar); opcoes.sigla(): sigla para a prévia; opcoes.aoMudar(): avisa que algo mudou.
+// opcoes.parte: "escudo", "titular" ou "reserva" desenha só aquela parte (as Configurações têm uma aba para cada); sem ela, tudo.
 import { svgEscudo, svgUniforme, FORMAS, PADROES, SIMBOLOS, GOLAS, CORES } from "./escudo.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -7,7 +8,8 @@ const hex = c => /^#[0-9a-fA-F]{6}$/.test(c || "");
 
 export function editorVisual(raiz, F, opcoes = {}) {
   const sigla = () => (opcoes.sigla ? opcoes.sigla() : "") || "ABC";
-  let qual = "titular"; // uniforme que está sendo editado
+  const parte = opcoes.parte || null;
+  let qual = parte === "reserva" ? "reserva" : "titular"; // uniforme que está sendo editado
   F.uniforme = F.uniforme || {}; F.escudo = F.escudo || {};
   const alvo = a => a === "escudo" ? F.escudo : qual === "reserva" ? (F.uniforme.reserva = F.uniforme.reserva || { padrao: "liso", cor1: F.uniforme.cor2 || "#ffffff", cor2: F.uniforme.cor1 || "#0b3d91" }) : F.uniforme;
   const opc = (obj, atual) => Object.entries(obj).map(([k, n]) => `<option value="${k}" ${k === atual ? "selected" : ""}>${n}</option>`).join("");
@@ -16,10 +18,27 @@ export function editorVisual(raiz, F, opcoes = {}) {
     return `<label class="ev-cor">${rotulo}<div class="cores">${automatico ? `<span data-cor="" data-alvo="${a}" data-campo="${campo}" class="${!hex(atual) ? "sel" : ""}" title="${esc(automatico)}" style="background:repeating-linear-gradient(45deg,#2a3542 0 4px,#1a222c 4px 8px)"></span>` : ""}
       ${CORES.map(c => `<span data-cor="${c}" data-alvo="${a}" data-campo="${campo}" class="${atual === c ? "sel" : ""}" style="background:${c}"></span>`).join("")}
       <input type="color" data-livre="1" data-alvo="${a}" data-campo="${campo}" value="${hex(atual) ? atual : "#888888"}" title="Outra cor" style="width:28px;height:24px;padding:0;border:none;background:none"></div></label>`; };
-  const previa = () => `${svgEscudo({ ...F.escudo, img: null }, sigla(), 110)}<div style="text-align:center">${svgUniforme(F.uniforme, 74)}<div class="mut" style="font-size:11px">titular</div></div>
+  const previa = () => parte === "escudo" ? svgEscudo({ ...F.escudo, img: null }, sigla(), 120)
+    : parte ? `${svgUniforme(alvo("uniforme"), 100)}${parte === "reserva" ? `<div style="text-align:center;opacity:.75">${svgUniforme(F.uniforme, 60)}<div class="mut" style="font-size:11px">titular</div></div>` : ""}`
+    : `${svgEscudo({ ...F.escudo, img: null }, sigla(), 110)}<div style="text-align:center">${svgUniforme(F.uniforme, 74)}<div class="mut" style="font-size:11px">titular</div></div>
     <div style="text-align:center">${svgUniforme(F.uniforme.reserva || {}, 74)}<div class="mut" style="font-size:11px">reserva</div></div>`;
   const desenhar = () => {
     const u = alvo("uniforme"), e = F.escudo;
+    const blocoEscudo = `<div class="row" style="margin-top:6px"><label>Forma<select data-alvo="escudo" data-campo="forma">${opc(FORMAS, e.forma || "escudo")}</select></label>
+          <label>Desenho<select data-alvo="escudo" data-campo="padrao">${opc(PADROES, e.padrao || "liso")}</select></label>
+          <label>Símbolo<select data-alvo="escudo" data-campo="simbolo">${opc(SIMBOLOS, e.simbolo || "sigla")}</select></label>
+          <label>Estrelas<select data-alvo="escudo" data-campo="estrelas">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${(+e.estrelas || 0) === n ? "selected" : ""}>${n || "nenhuma"}</option>`).join("")}</select></label></div>
+        <div class="row" style="margin-top:6px">${paleta("escudo", "cor1", "Cor principal")}${paleta("escudo", "cor2", "Segunda cor")}${paleta("escudo", "cor3", "Cor do símbolo e das estrelas", "automática")}</div>`;
+    const blocoUniforme = `<div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(Object.fromEntries(Object.entries(PADROES).filter(([k]) => k !== "borda")), u.padrao || "liso")}</select></label>
+          <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}${paleta("uniforme", "manga", "Mangas", "iguais à camisa")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola", "automática")}${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "meiao", "Meião", "igual ao calção")}</div>`;
+    if (parte) { // uma parte só, para as abas das Configurações
+      raiz.innerHTML = `<div class="duas ev-parte"><div class="previa ev-previa">${previa()}</div><div>
+        ${parte === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O uniforme visitante (reserva) entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
+        ${parte === "escudo" ? blocoEscudo : blocoUniforme}</div></div>`;
+      return;
+    }
     raiz.innerHTML = `<div class="previa ev-previa">${previa()}</div>
       <details open style="margin-top:10px"><summary><b>Escudo</b></summary>
         <div class="row" style="margin-top:6px"><label>Forma<select data-alvo="escudo" data-campo="forma">${opc(FORMAS, e.forma || "escudo")}</select></label>
