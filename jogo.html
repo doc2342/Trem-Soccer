@@ -143,7 +143,7 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
-import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -278,6 +278,9 @@ async function telaClube(liga, clube) {
   // Copa do Brasil: jogos e resultados liberados (sem a coluna ligas.copa, antes do 47_copa_calendario_e_chave.sql, não há copa)
   const copaJogos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
   const copaRes = Object.fromEntries((await resultadosDaCopa(copaJogos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
+  // calendário do clube: jogos de liga, playoff e copa, com os resultados já liberados (os de copa trazem pênaltis)
+  const meusJogos = (await partidasDoClube(liga.id, clube.id).catch(() => [])).filter(p => cPor[p.casa] && cPor[p.fora]);
+  const resDosMeus = { ...Object.fromEntries((await resultadosDe(meusJogos.filter(p => p.fase !== "copa").map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r])), ...copaRes };
   const finalistas = liga.copa === undefined ? [] : await finalistasDaCopa(liga.id); // campeões e vices das temporadas anteriores
   // sala de troféus: títulos de liga (1º do grupo) e da copa, por clube; e o quadro dos maiores campeões
   const trofeus = await trofeusDaLiga(liga.id).catch(() => []);
@@ -337,6 +340,28 @@ async function telaClube(liga, clube) {
       return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${nome(p.casa)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${nome(p.fora)}${penais(r)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; }).join(""); };
     $("copaFase").onchange = mostrar;
     mostrar();
+  }
+  // calendário do clube: próximos jogos e os já disputados, com resultado e campanha
+  function calendarioDoClube() {
+    if (!meusJogos.length) return `<div class="card mut">O calendário da temporada ainda não foi gerado.</div>`;
+    const agora = Date.now(), dia = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const comp = p => p.fase === "copa" ? `🏆 Copa · ${FASES_DA_COPA[p.copa_fase] || ""}` : p.rodada === 19 ? "Playoff · semifinal" : p.rodada === 20 ? "Playoff · final" : `${nomeDoGrupo(p.grupo)} · rodada ${p.rodada}`;
+    const resultado = p => { const r = resDosMeus[p.id]; if (!r) return null; const casa = p.casa === clube.id, meus = casa ? r.gols_casa : r.gols_fora, deles = casa ? r.gols_fora : r.gols_casa;
+      const v = p.fase === "copa" ? (quemPassou(p) === clube.id ? "V" : "D") : meus > deles ? "V" : meus < deles ? "D" : "E";
+      return { v: p.fase === "copa" && meus === deles ? (v === "V" ? "V" : "D") : v, texto: `${meus} x ${deles}${penais(r).replace(/pên\. (\d+) x (\d+)/, (m, a, b) => `pên. ${casa ? a : b} x ${casa ? b : a}`)}` }; };
+    const linha = p => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], r = resultado(p), aoVivo = !r && new Date(p.inicio).getTime() <= agora;
+      const onde = p.fase === "copa" ? (casa ? "no seu estádio · neutro" : "estádio dele · neutro") : casa ? "casa" : "fora";
+      return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">
+        ${r ? `<b class="${r.v === "V" ? "ok" : r.v === "D" ? "bad" : "aviso"}" style="min-width:18px;text-align:center">${r.v}</b>` : `<span style="min-width:18px;text-align:center">${aoVivo ? "🔴" : "·"}</span>`}
+        ${svgEscudo(adv.escudo, adv.sigla, 26)}<span style="flex:1;min-width:0"><b>${esc(adv.nome)}</b> <span class="mut">(${onde})</span><br><span class="mut" style="font-size:12px">${comp(p)} · ${dia(p.inicio)}</span></span>
+        <span class="xg" style="white-space:nowrap">${r ? `<b>${r.texto}</b>` : aoVivo ? `<b class="aviso">ao vivo</b>` : ""}</span></a>`; };
+    const jogados = meusJogos.filter(p => resDosMeus[p.id]).reverse(), proximos = meusJogos.filter(p => !resDosMeus[p.id]);
+    const conta = k => jogados.filter(p => resultado(p).v === k).length;
+    return `<div class="duas">
+      <div class="card"><h2>Próximos jogos <span class="tag">${proximos.length}</span></h2>${proximos.map(linha).join("") || `<div class="mut">Nenhum jogo marcado.</div>`}
+        <div class="mut" style="margin-top:6px;font-size:12px">Os jogos de copa das fases seguintes entram aqui quando forem sorteados.</div></div>
+      <div class="card"><h2>Disputados <span class="tag">${jogados.length} · ${conta("V")}V ${conta("E")}E ${conta("D")}D</span></h2>${jogados.map(linha).join("") || `<div class="mut">Nenhum jogo disputado ainda.</div>`}
+        <div class="mut" style="margin-top:6px;font-size:12px">Clique num jogo para ver a transmissão e o relatório. Na copa, V e D contam quem passou de fase.</div></div></div>`;
   }
   // maiores campeões da liga: quadro por clube e os campeões de cada temporada
   function telaDosCampeoes() {
@@ -725,7 +750,7 @@ async function telaClube(liga, clube) {
     </div>
     </section>
     <section data-secao="clube">
-    ${subAbas("clube", [["elenco", "👥 Elenco", "Elenco"], ["trofeus", "🏆 Troféus", "Troféus"], ["financas", "💰 Finanças", "Finanças"], ["tatica", "📋 Tática", "Tática"]])}
+    ${subAbas("clube", [["elenco", "👥 Elenco", "Elenco"], ["trofeus", "🏆 Troféus", "Troféus"], ["financas", "💰 Finanças", "Finanças"], ["calendario", "📅 Calendário", "Jogos"], ["tatica", "📋 Tática", "Tática"]])}
     <div data-parte="clube:elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · ${adultos} de 35 com mais de 21 anos${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
@@ -734,6 +759,7 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
     </div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}</div>
+    <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
     </div>

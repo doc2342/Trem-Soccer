@@ -87,6 +87,8 @@ export const salvarTatica = (clubeId, dados) => sb.from("taticas").upsert({ club
 export const taticaFechada = clubeId => sb.rpc("tatica_fechada", { p_clube: clubeId }).then(ok);
 export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("rodada").order("id").then(ok);
 export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
+// todos os jogos de um clube na temporada (liga, playoff e copa), para o calendário do clube
+export const partidasDoClube = (ligaId, clubeId) => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, vencedor").eq("liga_id", ligaId).or(`casa.eq.${clubeId},fora.eq.${clubeId}`).order("inicio").order("id").then(ok);
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
 // resultados da copa, com os pênaltis e quem passou (só os já liberados pelo relógio)
 export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(l => l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
