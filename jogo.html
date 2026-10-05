@@ -404,7 +404,7 @@ async function telaClube(liga, clube) {
     const base = PREMIO_MINIMO[clube.divisao] || PREMIO_MINIMO[2], jaAntecipou = clube.antecipou_temporada != null && clube.antecipou_temporada === liga.temporada;
     return `<div class="card" style="margin:10px 0 0;border-color:var(--bad, #e5484d)"><b class="bad">Clube no vermelho</b>
       <div class="mut" style="margin:4px 0">Com o caixa negativo, aumentos de salário, renovações e obras ficam bloqueados.
-        ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende ao banco o maior salário fora dos 11 da sua tática, e repete até zerar.`
+        ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende pelo agente o maior salário fora dos 11 da sua tática, e repete até zerar.`
           : `Se a dívida passar de ${dinheiro(-limite)} (10% do teto de folha), começa um prazo de ${RODADAS_DE_PRAZO} rodadas para resolver.`}</div>
       <div class="mut" style="margin:4px 0">Saídas: vender jogadores pelo agente por 3 vezes o salário de mercado, oferecê-los à liga por 75% da multa rescisória (as duas na aba Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
       <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
@@ -438,7 +438,7 @@ async function telaClube(liga, clube) {
     if (contra.length) l.push(item("💬", `${contra.length} ${contra.length === 1 ? "contraproposta" : "contrapropostas"} para você decidir, na aba Mercado.`, "aviso"));
     elenco.filter(j => j.fora > 0 && j.motivo === "lesão").forEach(j => l.push(item("🩹", `${esc(j.nome)} (${sg(j.pos)}) lesionado: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
-    const pendurados = elenco.filter(j => j.amarelos === 2 && !(j.fora > 0));
+    const pendurados = elenco.filter(j => j.amarelos === 3 && !(j.fora > 0)); // a suspensão vem no quarto amarelo
     if (pendurados.length) l.push(item("🟨", `Pendurados (o próximo amarelo suspende): ${pendurados.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
     const vencem = elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada);
     if (vencem.length) l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato termina" : "contratos terminam"} no fim desta temporada: ${vencem.slice(0, 6).map(j => esc(j.nome)).join(", ")}${vencem.length > 6 ? " e outros" : ""}.`, livres != null ? "aviso" : ""));
@@ -1021,7 +1021,7 @@ async function telaClube(liga, clube) {
           <div class="mut" style="margin-top:6px">No vermelho o agente paga 3 vezes o salário de mercado, na hora, mesmo com a janela fechada e sem gastar as vendas da temporada. O jogador vai para um clube sem dono. O elenco não pode ficar com menos de 16.</div>
           ${livres == null ? "" : j.ofertaLigaAte ? `<div class="aviso" style="margin-top:8px">Oferecido à liga por ${dinheiro(Math.round(3.75 * j.salario))} até ${ateQuando(j.ofertaLigaAte)}. Se ninguém levar, o agente vende.</div>`
             : `<button class="sec" id="ctOferecer" style="margin-top:8px" ${elenco.length <= 16 ? "disabled" : ""}>Oferecer à liga por ${dinheiro(Math.round(3.75 * j.salario))}</button>
-               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, ele vai ao banco por 60%.</div>`}`) : ""}
+               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, o agente o vende por 3 vezes o salário de mercado.</div>`}`) : ""}
       </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
     const mostra = () => { $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
@@ -1044,7 +1044,7 @@ async function telaClube(liga, clube) {
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     if ($("ctOferecer")) $("ctOferecer").onclick = async () => {
-      if (!confirm(`Oferecer ${j.nome} à liga? Qualquer clube poderá levá-lo por ${dinheiro(Math.round(3.75 * j.salario))}; se ninguém levar no prazo, ele vai ao banco.`)) return;
+      if (!confirm(`Oferecer ${j.nome} à liga? Qualquer clube poderá levá-lo por ${dinheiro(Math.round(3.75 * j.salario))}; se ninguém levar no prazo, o agente o vende a um clube sem dono.`)) return;
       try { await oferecerALiga(j.id); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };

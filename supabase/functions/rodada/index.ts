@@ -1147,7 +1147,7 @@ const __rodada = (() => {
   const { taticaBot } = __bot;
   const { montarRelatorio } = __relatorio;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
-  const AMARELOS_PARA_SUSPENSAO = 3; // o terceiro amarelo acumulado suspende por um jogo
+  const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
   const jogosFora = dias => dias <= 3 ? 1 : dias <= 10 ? 2 : dias <= 20 ? 3 : 4;
   const DIAS_PARA_BOT = 21; // dirigente sem acessar por tantos dias: o clube joga com a tática de bot
@@ -1224,7 +1224,7 @@ const __rodada = (() => {
   }
 
   // O que muda em cada jogador do elenco depois da partida: quem estava fora cumpre um jogo; vermelho suspende por um jogo;
-  // o terceiro amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
+  // o quarto amarelo acumulado suspende por um jogo; lesão deixa fora por alguns jogos. Devolve só quem mudou.
   // medico: { reducao, vagas } do clube, ou null. A lesão nova de quem pega uma vaga livre do departamento médico dura menos:
   // a skill do médico é o corte (skill 50, metade do tempo), com mínimo de 1 jogo. As vagas são dos que ainda estão lesionados.
   function situacaoDepois(elenco, p, medico = null) {
