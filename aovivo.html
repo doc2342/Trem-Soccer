@@ -25,7 +25,7 @@
 </main>
 
 <script type="module">
-import { nomeDoGrupo, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
+import { nomeDoGrupo, FASES_DA_COPA, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida } from "./src/banco.js";
 import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES } from "./src/ui-relatorio.js";
 import { svgEscudo } from "./src/escudo.js";
 import { sg } from "./src/siglas.js";
@@ -57,7 +57,7 @@ function momento() {
 
 function topo(gols, m, narracao = []) {
   const c = [clubes[partida.casa], clubes[partida.fora]];
-  $("topo").innerHTML = `<div class="mut" style="text-align:center">${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}</div>
+  $("topo").innerHTML = `<div class="mut" style="text-align:center">${partida.fase === "copa" ? `🏆 Copa do Brasil · ${esc(FASES_DA_COPA[partida.copa_fase] || "")} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}`}</div>
     <div class="painel"><div class="time casa">${svgEscudo(c[0].escudo, c[0].sigla, 56)}${esc(c[0].nome)}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${svgEscudo(c[1].escudo, c[1].sigla, 56)}${esc(c[1].nome)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}`;
 }
@@ -68,7 +68,7 @@ function htmlEstadio(pre) {
   const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
   return `<div class="card"><h2>Estádio</h2><table class="estat">
     <tr><td class="esq">Público pagante</td><td>${partida.publico != null ? milhar(partida.publico) : "–"}</td></tr>
-    <tr><td class="esq">Renda da partida</td><td>${renda != null ? (renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil") : "–"}</td></tr>
+    <tr><td class="esq">Renda da partida${partida.fase === "copa" ? " (meio a meio)" : ""}</td><td>${renda != null ? (renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil") : "–"}</td></tr>
     ${pre && pre.clima ? `<tr><td class="esq">Clima</td><td>${esc(pre.clima.nome)} (${pre.clima.temp} °C)</td></tr>` : ""}</table></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
@@ -113,7 +113,7 @@ async function atualizar() {
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") });
     // depois do jogo, estádio e comando cabem numa linha só; o placar grande já está no topo
     const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
-    const resumo = [partida.publico != null ? `${milhar(partida.publico)} pagantes` : "", renda != null ? `renda de ${renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil"}` : "",
+    const resumo = [partida.publico != null ? `${milhar(partida.publico)} pagantes` : "", renda != null ? `renda de ${renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil"}${partida.fase === "copa" ? ", dividida meio a meio" : ""}` : "",
       pre && pre.clima ? `${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C` : "",
       `${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}`].filter(Boolean);
     $("corpo").innerHTML = `<div class="card mut" style="font-size:13.5px">${resumo.join(" · ")}.</div>` +

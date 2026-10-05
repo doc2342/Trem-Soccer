@@ -73,6 +73,8 @@ export const taticaFechada = clubeId => sb.rpc("tatica_fechada", { p_clube: club
 export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("rodada").order("id").then(ok);
 export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
+// resultados da copa, com os pênaltis e quem passou (só os já liberados pelo relógio)
+export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(l => l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
 // só voltam os resultados e os lances que o relógio já liberou
 // tudo = false: só o que o relógio já liberou, mesmo para o administrador (que lê tudo no banco)
 export const resultadosDe = (ids, tudo = false) => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, libera_em").in("partida_id", ids).then(ok).then(l => tudo ? l : l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
@@ -134,7 +136,10 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 
 // ---------- ferramentas do administrador (passo I) ----------
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
-export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2" })[g] || "Grupo " + g;
+export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil" })[g] || "Grupo " + g;
+// Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
+export const FASES_DA_COPA = ["", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
+export const PREMIOS_DA_COPA = { fases: [0, 0, 50, 150, 300, 500], vice: 800, campeao: 2000 };
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
   const { data: c } = await sb.from("clubes").select("liga_id, divisao").eq("id", clubeId).maybeSingle();
@@ -147,7 +152,7 @@ export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p
 export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
 // Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
 export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, divisao, posicao, pontos").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
-export const partidasDaCopa = ligaId => sb.from("partidas").select("id, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).eq("fase", "copa").order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
+export const partidasDaCopa = ligaId => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).eq("fase", "copa").order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
 export const meusRelatorios = () => sb.from("relatorios").select("jogador_id, nivel, minimo, maximo").then(({ data, error }) => error ? null : data);
