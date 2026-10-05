@@ -1,4 +1,4 @@
-// Tela de escalação e tática. Montada dentro de um elemento: na página escalacao.html (sozinha) e na aba Tática de jogo.html.
+// Tela de escalação e tática. Montada dentro de um elemento: na página escalacao.html (sozinha) e em Clube, Tática, de jogo.html.
 // online: usa o elenco e a tática do clube no banco; sessao: { user } de quem está logado; cabecalho: desenha o topo com as abas (só na página sozinha).
 import { criarRng } from "./rng.js";
 import { experienciaDe } from "./saude.js";
@@ -133,7 +133,7 @@ async function previaDoAdversario(B) {
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + " da copa" : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>`;
-  if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (aba Elenco, em Treino, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
+  if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
   const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
   const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
@@ -171,10 +171,10 @@ async function iniciarOnline(sessaoDeTeste) {
           ${clubeOnline.dirigente ? `<div style="font-size:15px">${esc(clubeOnline.dirigente)}</div>` : ""}
           <div class="mut">${esc(ligaC.nome)} · temporada ${ligaC.temporada} · ${esc(B.nomeDoGrupo(clubeOnline.grupo))}</div></div>
         ${admin ? `<a href="admin.html" style="color:var(--ac);margin-left:auto">Administração</a>` : ""}</div>
-      <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["mercado", "Mercado", "🛒"], ["classificacao", "Classificação", "🏆", "Tabela"], ["financas", "Finanças", "💰"], ["config", "Configurações", "⚙️", "Ajustes"]]
-        .map(([k, n, ic, curto]) => `<button class="aba ${k === "tatica" ? "ativa" : ""}" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`;
+      <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["clube", "Clube", "👥"], ["mercado", "Mercado", "🛒"], ["classificacao", "Classificação", "🏆", "Tabela"], ["estruturas", "Estruturas", "🏗️", "Obras"], ["config", "Ajustes", "⚙️"]]
+        .map(([k, n, ic, curto]) => `<button class="aba ${k === "clube" ? "ativa" : ""}" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`;
     $("abas").onclick = e => {
-      const b = e.target.closest("[data-aba]"); if (!b || b.dataset.aba === "tatica") return;
+      const b = e.target.closest("[data-aba]"); if (!b) return;
       try { localStorage.setItem("mo_aba", b.dataset.aba); } catch (err) {}
       location.href = "jogo.html";
     };
