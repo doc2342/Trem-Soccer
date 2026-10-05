@@ -72,7 +72,7 @@ export const CONFIG = {
   //   parte: fração da folga que segue adiante; teto: limite, em logit (0,28 dá uns 7 pontos percentuais);
   //   chance: quanto a folga no último duelo melhora a qualidade da finalização, no teto;
   //   contra: quanto a folga da defesa, quando ela rouba a bola, aumenta a chance de contra-ataque, no teto.
-  embalo: { parte: 0.5, teto: 0.28, chance: 0.12, contra: 0.5 },
+  embalo: { parte: 0.5, teto: 0.28, chance: 0.12, contra: 0.5, narrar: 0.85 },
   pe: { mesmo: 0.03, ambidestro: 0.06, compensacao: 0.02 }, // confronto de pés no duelo: bônus de quem ataca e o desconto que zera o efeito médio
   desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
   recalcularACada: 5, // minutos
@@ -396,14 +396,16 @@ export function simularPartida(rng, casa, fora) {
     portador = jog || null; aposFalta = false;
     return mesmo;
   }
+  // duelo vencido com folga de sobra (bem acima do teto do embalo, para não virar bordão): a narração diz que foi fácil
+  const comFolga = d => (d.folga || 0) >= CONFIG.embalo.narrar;
   function passo(i, zona, d) {
-    const p = d.pivo, m = d.marcador, lado = zona[1];
+    const p = d.pivo, m = d.marcador, lado = zona[1], facil = comFolga(d);
     if (!p) { portador = null; trilha.push([`${tm(i)} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
     const depoisDeFalta = aposFalta, mesmo = recebe(p), nome = nm(p);
     // falta fora da zona de ataque: o time fica com a bola e recomeça dali, cobrando a falta (não é lei da vantagem)
     if (d.falta && m) { evento(i, "falta", comTrilha(`Falta de ${nm(m)} em ${nome} ${ONDE[zona[0]](lado)}.`)); portador = p; aposFalta = true; return; }
-    if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [`passa por ${nm(m)}`] : [])]);
-    else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [`supera ${nm(m)}`] : [])]);
+    if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [facil ? `passa fácil por ${nm(m)}` : `passa por ${nm(m)}`] : facil ? ["sem ser incomodado"] : [])]);
+    else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás com facilidade` : `supera ${nm(m)}`] : facil ? ["com todo o espaço do mundo"] : [])]);
   }
   function perdaDePosse(i, zona, d) {
     // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
@@ -602,7 +604,7 @@ export function simularPartida(rng, casa, fora) {
     // embalo de um duelo: quanto da folga segue para o lance seguinte (de 0 ao teto); a da defesa vale para o contra-ataque
     const embalo = d => Math.min(CONFIG.embalo.teto, Math.max(0, CONFIG.embalo.parte * d.folga));
     const embaloDaDefesa = d => Math.min(CONFIG.embalo.teto, Math.max(0, -CONFIG.embalo.parte * d.folga)) / CONFIG.embalo.teto;
-    let roubada = 0; // de 0 a 1: com quanta folga a defesa ganhou o duelo que encerrou o ataque
+    let roubada = 0, roubadaFacil = false; // roubada, de 0 a 1: com quanta folga a defesa ganhou o duelo que encerrou o ataque
     const perdeu = () => {
       if (contra) return;
       const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
@@ -611,7 +613,7 @@ export function simularPartida(rng, casa, fora) {
       // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
       const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
       const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada);
-      if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+      if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
     };
     e.ataques++; trilha = []; portador = null; bola = null; aposFalta = false;
     soltarCartoes();
@@ -625,7 +627,7 @@ export function simularPartida(rng, casa, fora) {
     if (inicio !== "A") {
       if (inicio === "D") lado = escolherLado(rng, atk, dz, "M", lado);
       const d1 = duelo(i, "M" + lado, bonus + (d0 ? embalo(d0) : 0), contra);
-      if (!d1.venceu) { roubada = embaloDaDefesa(d1); if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
+      if (!d1.venceu) { roubada = embaloDaDefesa(d1); roubadaFacil = -d1.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
       levado = embalo(d1);
       passo(i, "M" + lado, d1);
       lado = escolherLado(rng, atk, dz, "A", lado);
@@ -640,7 +642,7 @@ export function simularPartida(rng, casa, fora) {
     if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
     const forcado = !d.venceu;
     if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
-    if (forcado && !rng.chance(CONFIG.chuteForcado)) { roubada = embaloDaDefesa(d); if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
+    if (forcado && !rng.chance(CONFIG.chuteForcado)) { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
     const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra });
     // duelo do ataque vencido com folga: a finalização sai em melhor condição
     if (!forcado && chance && chance.xg) chance.xg = limitar(chance.xg * (1 + CONFIG.embalo.chance * embalo(d) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo);
