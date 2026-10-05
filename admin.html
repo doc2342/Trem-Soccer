@@ -363,8 +363,11 @@ async function processar(silencioso) {
       else if (!silencioso) diz(`Servidor: nenhuma partida esperando cálculo (${hora}).`);
       return;
     }
-    const liga = await ligaAtual(), pendentes = liga ? await partidasPendentes(liga.id) : [];
-    if (!pendentes.length) { if (!silencioso) diz("Nenhuma partida esperando cálculo."); return; }
+    const liga = await ligaAtual(), todas = liga ? await partidasPendentes(liga.id) : [];
+    // jogo de copa só o servidor calcula: aqui não há cartões da copa nem a trava de clube; ele espera o servidor voltar
+    const pendentes = todas.filter(p => p.fase !== "copa"), copaEsperando = todas.length - pendentes.length;
+    const avisoCopa = copaEsperando ? ` ${copaEsperando} ${copaEsperando === 1 ? "jogo de copa espera" : "jogos de copa esperam"} o servidor (só ele calcula a copa).` : "";
+    if (!pendentes.length) { if (!silencioso || copaEsperando) diz((todas.length ? "O servidor não respondeu." : "Nenhuma partida esperando cálculo.") + avisoCopa); return; }
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const [clubes, taticas] = await Promise.all([clubesPorIds(ids), taticasDe(ids)]);
     const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), tPor = Object.fromEntries(taticas.map(t => [t.clube_id, t.dados])), elencos = {};
@@ -378,7 +381,7 @@ async function processar(silencioso) {
       await lancarRodada(p.id);
       diz(`Calculando: ${++n} de ${pendentes.length}…`);
     }
-    ocupado = false; await tela(`Neste navegador (o servidor não respondeu): ${n} ${n === 1 ? "partida calculada" : "partidas calculadas"} às ${new Date().toLocaleTimeString("pt-BR")}.`);
+    ocupado = false; await tela(`Neste navegador (o servidor não respondeu): ${n} ${n === 1 ? "partida calculada" : "partidas calculadas"} às ${new Date().toLocaleTimeString("pt-BR")}.${avisoCopa}`);
   } catch (e) { diz("Erro ao calcular: " + e.message); }
   finally { ocupado = false; }
 }
