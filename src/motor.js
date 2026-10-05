@@ -4,7 +4,7 @@
 // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
 // As constantes saíram da calibragem (calibragem.html).
 import { limitar } from "./rng.js";
-import { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } from "./modelo.js";
+import { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
@@ -198,6 +198,8 @@ function recalcular(t, saldo) {
   for (const jog of t.emCampo) {
     const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
+    const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
+    if (pe) for (const k in pe) jog.at[k] *= pe[k];
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;
     const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;

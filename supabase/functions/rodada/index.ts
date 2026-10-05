@@ -151,6 +151,24 @@ const __modelo = (() => {
     return soma / 100;
   }
 
+  // Pé dominante: "D" (direito), "E" (esquerdo) ou "A" (ambidestro). Só pesa em quem joga pelos lados, como no futebol de verdade:
+  //   no lado do pé bom, o cruzamento sai melhor;
+  //   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
+  //   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
+  // Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+  const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
+  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
+  function ajusteDoPe(pe, pos) {
+    const p = POSICOES[pos];
+    if (!p || p.lado === "C" || !pe || pe === "A") return null;
+    if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
+    return p.linha === "ataque" || p.linha === "meia"
+      ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
+      : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+  }
+  // como o pé cai numa posição de lado: "natural", "trocado" ou "" (centro, ambidestro ou sem pé definido)
+  const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || p.lado === "C" || !pe || pe === "A" ? "" : pe === p.lado ? "natural" : "trocado"; };
+
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
   function melhorPosicao(jogador) {
@@ -161,7 +179,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, peNaPosicao, notaNaPosicao, melhorPosicao };
 })();
 
 const __saude = (() => {
@@ -280,7 +298,7 @@ const __motor = (() => {
   // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
   // As constantes saíram da calibragem (calibragem.html).
   const { limitar } = __rng;
-  const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao } = __modelo;
+  const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
     ataquesPorMinuto: 0.9, // ataques iniciados por minuto, somando os dois times
@@ -473,6 +491,8 @@ const __motor = (() => {
     for (const jog of t.emCampo) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
+      const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
+      if (pe) for (const k in pe) jog.at[k] *= pe[k];
       if (jog.pos === "GK") { t.goleiro = jog; continue; }
       if (jog.pos === "SW") t.temLibero = true;
       const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
@@ -1515,7 +1535,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"

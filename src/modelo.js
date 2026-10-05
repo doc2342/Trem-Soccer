@@ -108,6 +108,24 @@ export function notaBruta(atributos, pos) {
   return soma / 100;
 }
 
+// Pé dominante: "D" (direito), "E" (esquerdo) ou "A" (ambidestro). Só pesa em quem joga pelos lados, como no futebol de verdade:
+//   no lado do pé bom, o cruzamento sai melhor;
+//   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
+//   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
+// Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+export const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
+export const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
+export function ajusteDoPe(pe, pos) {
+  const p = POSICOES[pos];
+  if (!p || p.lado === "C" || !pe || pe === "A") return null;
+  if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
+  return p.linha === "ataque" || p.linha === "meia"
+    ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
+    : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+}
+// como o pé cai numa posição de lado: "natural", "trocado" ou "" (centro, ambidestro ou sem pé definido)
+export const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || p.lado === "C" || !pe || pe === "A" ? "" : pe === p.lado ? "natural" : "trocado"; };
+
 export const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
 export function melhorPosicao(jogador) {

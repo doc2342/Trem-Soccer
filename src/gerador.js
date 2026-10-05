@@ -78,6 +78,13 @@ export function sortearNome(rng, nomes, pais, usados) {
 }
 
 // alvo: nota que o jogador deve ter na posição natural (escala 1 a 50)
+// Pé dominante, puxado pelo lado da posição: quem joga pela esquerda costuma ser canhoto. No geral, perto de 70% destros, 22% canhotos e 8% ambidestros.
+export function sortearPe(rng, pos) {
+  const lado = (POSICOES[pos] || {}).lado, r = rng.n();
+  if (lado === "E") return r < 0.75 ? "E" : r < 0.85 ? "A" : "D";
+  if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
+  return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
+}
 export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados }) {
   const at = sortearAtributos(rng, pos, alvo);
   aplicarPerfil(rng, at, pos, perfil);
@@ -91,6 +98,7 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
     fam: sortearFamiliaridade(rng, pos),
     at,
     tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, 100), // talento oculto, 1 a 100
+    pe: sortearPe(rng, pos),
   };
 }
 

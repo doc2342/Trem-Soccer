@@ -150,6 +150,24 @@ const __modelo = (() => {
     return soma / 100;
   }
 
+  // Pé dominante: "D" (direito), "E" (esquerdo) ou "A" (ambidestro). Só pesa em quem joga pelos lados, como no futebol de verdade:
+  //   no lado do pé bom, o cruzamento sai melhor;
+  //   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
+  //   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
+  // Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+  const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
+  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
+  function ajusteDoPe(pe, pos) {
+    const p = POSICOES[pos];
+    if (!p || p.lado === "C" || !pe || pe === "A") return null;
+    if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
+    return p.linha === "ataque" || p.linha === "meia"
+      ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
+      : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+  }
+  // como o pé cai numa posição de lado: "natural", "trocado" ou "" (centro, ambidestro ou sem pé definido)
+  const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || p.lado === "C" || !pe || pe === "A" ? "" : pe === p.lado ? "natural" : "trocado"; };
+
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
   function melhorPosicao(jogador) {
@@ -160,7 +178,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, peNaPosicao, notaNaPosicao, melhorPosicao };
 })();
 
 const __gerador = (() => {
@@ -243,6 +261,13 @@ const __gerador = (() => {
   }
 
   // alvo: nota que o jogador deve ter na posição natural (escala 1 a 50)
+  // Pé dominante, puxado pelo lado da posição: quem joga pela esquerda costuma ser canhoto. No geral, perto de 70% destros, 22% canhotos e 8% ambidestros.
+  function sortearPe(rng, pos) {
+    const lado = (POSICOES[pos] || {}).lado, r = rng.n();
+    if (lado === "E") return r < 0.75 ? "E" : r < 0.85 ? "A" : "D";
+    if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
+    return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
+  }
   function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados }) {
     const at = sortearAtributos(rng, pos, alvo);
     aplicarPerfil(rng, at, pos, perfil);
@@ -256,6 +281,7 @@ const __gerador = (() => {
       fam: sortearFamiliaridade(rng, pos),
       at,
       tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, 100), // talento oculto, 1 a 100
+      pe: sortearPe(rng, pos),
     };
   }
 
@@ -291,7 +317,7 @@ const __gerador = (() => {
       pos,
     }));
   }
-  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, sortearNome, gerarJogador, gerarElenco, gerarOnze };
+  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, sortearNome, sortearPe, gerarJogador, gerarElenco, gerarOnze };
 })();
 
 const __economia = (() => {

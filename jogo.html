@@ -136,7 +136,7 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta } from "./src/modelo.js";
+import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta, NOME_DO_PE, peNaPosicao } from "./src/modelo.js";
 import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
@@ -312,7 +312,7 @@ async function telaClube(liga, clube) {
   const botaoInfo = j => { fichas.set("m" + j.id, j); return `<button class="info" data-info="m${j.id}" title="Atributos">i</button>`; };
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
     return `<div class="qa-topo"><span class="qa-nome">${esc(j.nome)}</span><span class="nota" style="margin-left:auto;flex:none">${f1(notaNaPosicao(j, j.pos))}</span><button class="sec" data-fecha-quadro style="padding:1px 8px;flex:none">✕</button></div>
-      <div class="qa-sub">${pp(j.pos)} <span class="mut">${esc(POSICOES[j.pos].nome)} · ${j.idade} anos</span></div>
+      <div class="qa-sub">${pp(j.pos)} <span class="mut">${esc(POSICOES[j.pos].nome)} · ${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}</span></div>
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       ${(t => t ? `<div style="font-size:12.5px;margin-bottom:6px">🔭 Teto estimado pelo olheiro: nota entre <b>${t.minimo}</b> e <b>${t.maximo}</b></div>` : "")(tetoDe[j.id] || relatorioDe(j.id))}
       <div style="font-size:12.5px;margin-bottom:6px" title="Sobe 1 a cada partida oficial com pelo menos 45 minutos em campo. Não muda a nota: quanto mais experiência, menos o desempenho do jogador varia de um jogo para o outro, e ele rende até 3% a mais.">🎖️ Experiência <b>${Math.round(experienciaDe(j))}</b> de 100 <span class="mut">· ${experienciaDe(j) >= 70 ? "rende sempre perto do que sabe" : experienciaDe(j) >= 35 ? "ainda oscila um pouco de um jogo para o outro" : "oscila bastante de um jogo para o outro"}</span></div>
@@ -533,7 +533,9 @@ async function telaClube(liga, clube) {
             : [["gol", "GK", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "DM", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "AM", "Meias-atacantes"], ["ataque", "F", "Atacantes e pontas"]])
             .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.linhas || []).includes(k) ? "ligado" : ""}" data-chip="linhas" data-v="${k}" title="${d}">${t}</button>`).join("")}
           <b style="margin-left:10px">Lado</b>${(formatoDasSiglas() === "pt" ? [["E", "E", "Esquerda"], ["C", "C", "Centro"], ["D", "D", "Direita"]] : [["E", "L", "Esquerda"], ["C", "C", "Centro"], ["D", "R", "Direita"]])
-            .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.lados || []).includes(k) ? "ligado" : ""}" data-chip="lados" data-v="${k}" title="${d}">${t}</button>`).join("")}</div>
+            .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.lados || []).includes(k) ? "ligado" : ""}" data-chip="lados" data-v="${k}" title="${d}">${t}</button>`).join("")}
+          <b style="margin-left:10px">Pé</b>${[["E", formatoDasSiglas() === "pt" ? "E" : "L", "Esquerdo"], ["A", formatoDasSiglas() === "pt" ? "E/D" : "L/R", "Ambidestro"], ["D", formatoDasSiglas() === "pt" ? "D" : "R", "Direito"]]
+            .map(([k, t, d]) => `<button class="chipf ${(filtrosDoMercado.pes || []).includes(k) ? "ligado" : ""}" data-chip="pes" data-v="${k}" title="${d}">${t}</button>`).join("")}</div>
         <label>Campeonato<select id="mGrupo"><option value="">todos</option>${grupos.map(g => `<option value="${esc(g)}">${esc(nomeDoGrupo(g))}</option>`).join("")}</select></label>
         <label>Idade de<input id="mIdadeMin" type="number" min="15" max="45" value="15" style="width:70px"></label>
         <label>até<input id="mIdade" type="number" min="15" max="45" value="45" style="width:70px"></label>
@@ -647,10 +649,10 @@ async function telaClube(liga, clube) {
     const desenhar = () => {
       IDS_DOS_FILTROS.forEach(id => { if ($(id)) filtrosDoMercado[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value; });
       const g = $("mGrupo").value, idade = +$("mIdade").value || 99, idadeMin = +$("mIdadeMin").value || 0, soVenda = !!($("mSoVenda") && $("mSoVenda").checked), soMulta = $("mSoMulta").checked && !soVenda;
-      const linhas = (filtrosDoMercado.linhas || []).join(",").split(",").filter(Boolean), lados = filtrosDoMercado.lados || [], notaMin = +$("mNota").value || 0, multaMax = +$("mMulta").value || Infinity, nome = $("mNome").value.trim().toLowerCase();
+      const linhas = (filtrosDoMercado.linhas || []).join(",").split(",").filter(Boolean), lados = filtrosDoMercado.lados || [], pes = filtrosDoMercado.pes || [], notaMin = +$("mNota").value || 0, multaMax = +$("mMulta").value || Infinity, nome = $("mNome").value.trim().toLowerCase();
       // tudo menos o filtro "só quem pode ser comprado", para explicar por que a lista ficou vazia
       const antes = daPosicao.filter(j => j.clube_id !== clube.id && cPor[j.clube_id] && (!g || cPor[j.clube_id].grupo === g) && j.idade <= idade && j.idade >= idadeMin
-          && (!linhas.length || linhas.includes(POSICOES[j.pos].linha)) && (!lados.length || lados.includes(POSICOES[j.pos].lado)) && j.nota >= notaMin
+          && (!linhas.length || linhas.includes(POSICOES[j.pos].linha)) && (!lados.length || lados.includes(POSICOES[j.pos].lado)) && (!pes.length || pes.includes(j.pe)) && j.nota >= notaMin
           && (!nome || j.nome.toLowerCase().includes(nome)) && (multaMax === Infinity || clausula(j.salario || 0) <= multaMax) && (!soVenda || j.a_venda));
       const l = antes.filter(j => !soMulta || !situacao(j)).sort((a, b) => b.nota - a.nota);
       const escondidos = {}; if (soMulta) antes.forEach(j => { const m = situacao(j); if (m) escondidos[m] = (escondidos[m] || 0) + 1; });
