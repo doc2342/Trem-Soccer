@@ -100,7 +100,7 @@ export async function liga({ temporadas = 8, humanos = 3, semente = 11 } = {}) {
 // atual e o salário de mercado (é o que o jogo faz nos clubes sem dono). Mostra se a folha cabe no teto e na receita de cada divisão.
 //   await S.economia({ temporadas: 10 })
 import { salarioDeMercado, impostoDoLucro } from "../src/economia.js";
-const DIV = { 1: { teto: 20000, tv: 6500, pat: 5200, ingresso: 25, premio: [10000, 4000] }, 2: { teto: 14000, tv: 4500, pat: 3600, ingresso: 24, premio: [6000, 2400] }, 3: { teto: 10000, tv: 4200, pat: 3400, ingresso: 22, premio: [3500, 1200] } };
+const DIV = { 1: { teto: 20000, tv: 6500, pat: 5200, ingresso: 25, premio: [10000, 4000] }, 2: { teto: 14000, tv: 5300, pat: 3600, ingresso: 24, premio: [6000, 2400] }, 3: { teto: 10000, tv: 4200, pat: 3400, ingresso: 22, premio: [3500, 1200] } };
 export async function economia({ temporadas = 10, semente = 11 } = {}) {
   const nm = await nomes(), rng = N.criarRng(semente), usados = new Set(), clubes = [], C = T.CONFIG_TREINO;
   const contrato = (j, t, n) => { j.salario = salarioDeMercado(j); j.ate = t + n; };
