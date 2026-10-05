@@ -202,6 +202,9 @@ export const virarTemporada = async (ligaId, plano) => {
 // Depois da virada: executa os pré-acordos entre dirigentes e resolve os pré-contratos. Devolve o resumo, ou "" sem o SQL 46.
 export const executarPreAcordos = ligaId => sb.rpc("executar_pre_acordos", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data);
 // Período de pré-acordo (da última rodada à virada): null sem o SQL 46.
+// Federação: resumo do fundo da liga por temporada e tipo (53_fundo_da_liga.sql; null antes dele) e os valores das três divisões
+export const resumoDoFundo = ligaId => sb.from("fundo_resumo").select("temporada, tipo, valor").eq("liga_id", ligaId).then(({ data, error }) => error ? null : data);
+export const divisoesDaLiga = ligaId => sb.from("divisoes").select("divisao, teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).order("divisao").then(({ data, error }) => error ? [] : data);
 // Quanto do preço cheio o agente consegue pagar agora (0 a 1); 1 antes do 52_pacote_da_economia.sql.
 export const cotacaoDoAgente = ligaId => sb.rpc("cotacao_do_agente", { p_liga: ligaId }).then(({ data, error }) => error || data == null ? 1 : +data);
 export const periodoDePreAcordo = ligaId => sb.rpc("periodo_de_pre_acordo", { p_liga: ligaId }).then(({ data, error }) => error ? null : !!data);
