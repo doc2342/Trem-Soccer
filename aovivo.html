@@ -105,7 +105,7 @@ async function atualizar() {
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
-    topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" });
+    topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") });
     // depois do jogo, estádio e comando cabem numa linha só; o placar grande já está no topo
     const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
     const resumo = [partida.publico != null ? `${milhar(partida.publico)} pagantes` : "", renda != null ? `renda de ${renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil"}` : "",
