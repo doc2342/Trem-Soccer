@@ -321,12 +321,14 @@ const __economia = (() => {
   const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
   const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
   const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
-  const valorNoBanco = salario => 3 * (salario || 0);          // 60% da cláusula
+  const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
+  const VENDAS_PELO_AGENTE = 4;                                // por temporada, fora do vermelho
+  const valorNoAgente = (mercado, vermelho = false) => Math.round((mercado || 0) * (vermelho ? 3 : 2.5)); // metade do valor de mercado (5 vezes o salário de mercado)
   // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __base = (() => {

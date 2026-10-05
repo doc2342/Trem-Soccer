@@ -25,7 +25,9 @@ export const PREMIO_MINIMO = { 1: 4000, 2: 2400, 3: 1200 };        // prêmio do
 export const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
 export const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
 export const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
-export const valorNoBanco = salario => 3 * (salario || 0);          // 60% da cláusula
+export const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
+export const VENDAS_PELO_AGENTE = 4;                                // por temporada, fora do vermelho
+export const valorNoAgente = (mercado, vermelho = false) => Math.round((mercado || 0) * (vermelho ? 3 : 2.5)); // metade do valor de mercado (5 vezes o salário de mercado)
 // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
 export const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
 // 440 → "440 mil"; 1370 → "1,37 mi"

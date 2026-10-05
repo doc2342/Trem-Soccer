@@ -148,6 +148,8 @@ export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
 export const meusRelatorios = () => sb.from("relatorios").select("jogador_id, nivel, minimo, maximo").then(({ data, error }) => error ? null : data);
 export const comprarRelatorio = (jogadorId, nivel) => sb.rpc("comprar_relatorio", { p_jogador: numero(jogadorId), p_nivel: nivel }).then(ok);
+// Venda pelo agente (supabase/41_venda_pelo_agente.sql): saída garantida, o jogador vai para um clube sem dono.
+export const venderPeloAgente = jogadorId => sb.rpc("vender_pelo_agente", { p_jogador: numero(jogadorId) }).then(ok);
 // Base e dispensa (supabase/35_base_e_dispensa.sql). A peneira passa pela função "mercado", que gera os jovens no servidor.
 export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jogador: numero(jogadorId) }).then(ok);
 export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
