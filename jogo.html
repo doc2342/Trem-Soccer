@@ -708,7 +708,7 @@ async function telaClube(liga, clube) {
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
         ${telaPequena ? `<button class="sec" id="modoTela" style="padding:3px 10px;font-size:12.5px" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div></div>
-    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["clube", "Clube", "👥"], ["mercado", "Mercado", "🛒"], ["classificacao", "Competições", "🏆", "Ligas"], ["estruturas", "Estruturas", "🏗️", "Obras"], ["config", "Ajustes", "⚙️"]]
+    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["clube", "Clube", "👥"], ["mercado", "Mercado", "🛒"], ["classificacao", "Competições", "🏆", "Compet."], ["estruturas", "Estruturas", "🏗️", "Obras"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
     <div class="central">
@@ -732,7 +732,7 @@ async function telaClube(liga, clube) {
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
-    ${subAbas("comp", [["liga", "🏆 Campeonatos", "Séries"], ["copa", "🏆 Copa do Brasil", "Copa"], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Maiores campeões", "Campeões"]])}
+    ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Maiores campeões", "Campeões"]])}
     <div data-parte="comp:liga"><div class="card row"><label>Ver o campeonato<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div></div>
     <div data-parte="comp:stats"><div class="card row">
