@@ -1,9 +1,9 @@
 // Tática de bot: vale para clubes sem dono e para dirigentes há 21 dias sem acessar.
 // O bot joga certo, mas sem ler o adversário: escolhe a formação que melhor aproveita o elenco e instruções neutras.
-import { IDX, notaNaPosicao } from "./modelo.js";
+import { IDX, notaNaPosicao, notaComPe } from "./modelo.js";
 import { fatorDeMomento } from "./saude.js";
-// nota na posição já com a forma e a moral do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
-const notaDoMomento = (j, pos) => notaNaPosicao(j, pos) * fatorDeMomento(j);
+// nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
+const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 import { FORMACOES, escalar } from "./escalacao.js";
 import { avaliarZonas } from "./motor.js";
 

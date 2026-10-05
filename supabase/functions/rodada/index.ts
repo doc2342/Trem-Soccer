@@ -166,6 +166,14 @@ const __modelo = (() => {
       ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
       : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
   }
+  // nota na posição já com o efeito do pé: é a que o bot (e o botão de escalar os melhores) usa para escolher quem joga em cada lado
+  function notaComPe(j, pos) {
+    const a = ajusteDoPe(j.pe, pos);
+    if (!a) return notaNaPosicao(j, pos);
+    const at = j.at.slice();
+    for (const k in a) at[k] *= a[k];
+    return notaBruta(at, pos) * FAMILIARIDADE[familiaridade(j, pos)];
+  }
   // como o pé cai numa posição de lado: "natural", "trocado" ou "" (centro, ambidestro ou sem pé definido)
   const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || p.lado === "C" || !pe || pe === "A" ? "" : pe === p.lado ? "natural" : "trocado"; };
 
@@ -179,7 +187,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, peNaPosicao, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, melhorPosicao };
 })();
 
 const __saude = (() => {
@@ -256,10 +264,10 @@ const __saude = (() => {
 
 const __escalacao = (() => {
   // Formações de referência e escalação automática simples (o melhor disponível para cada vaga).
-  const { notaNaPosicao } = __modelo;
+  const { notaNaPosicao, notaComPe } = __modelo;
   const { fatorDeMomento } = __saude;
-  // nota na posição já com a forma e a moral do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
-  const notaDoMomento = (j, pos) => notaNaPosicao(j, pos) * fatorDeMomento(j);
+  // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
+  const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 
   const FORMACOES = {
     "4-4-2": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC"],
@@ -973,10 +981,10 @@ const __motor = (() => {
 const __bot = (() => {
   // Tática de bot: vale para clubes sem dono e para dirigentes há 21 dias sem acessar.
   // O bot joga certo, mas sem ler o adversário: escolhe a formação que melhor aproveita o elenco e instruções neutras.
-  const { IDX, notaNaPosicao } = __modelo;
+  const { IDX, notaNaPosicao, notaComPe } = __modelo;
   const { fatorDeMomento } = __saude;
-  // nota na posição já com a forma e a moral do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
-  const notaDoMomento = (j, pos) => notaNaPosicao(j, pos) * fatorDeMomento(j);
+  // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
+  const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
   const { FORMACOES, escalar } = __escalacao;
   const { avaliarZonas } = __motor;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"];

@@ -165,6 +165,14 @@ const __modelo = (() => {
       ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
       : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
   }
+  // nota na posição já com o efeito do pé: é a que o bot (e o botão de escalar os melhores) usa para escolher quem joga em cada lado
+  function notaComPe(j, pos) {
+    const a = ajusteDoPe(j.pe, pos);
+    if (!a) return notaNaPosicao(j, pos);
+    const at = j.at.slice();
+    for (const k in a) at[k] *= a[k];
+    return notaBruta(at, pos) * FAMILIARIDADE[familiaridade(j, pos)];
+  }
   // como o pé cai numa posição de lado: "natural", "trocado" ou "" (centro, ambidestro ou sem pé definido)
   const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || p.lado === "C" || !pe || pe === "A" ? "" : pe === p.lado ? "natural" : "trocado"; };
 
@@ -178,7 +186,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, peNaPosicao, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, melhorPosicao };
 })();
 
 const __gerador = (() => {

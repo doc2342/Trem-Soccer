@@ -1,8 +1,8 @@
 // Formações de referência e escalação automática simples (o melhor disponível para cada vaga).
-import { notaNaPosicao } from "./modelo.js";
+import { notaNaPosicao, notaComPe } from "./modelo.js";
 import { fatorDeMomento } from "./saude.js";
-// nota na posição já com a forma e a moral do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
-const notaDoMomento = (j, pos) => notaNaPosicao(j, pos) * fatorDeMomento(j);
+// nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
+const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 
 export const FORMACOES = {
   "4-4-2": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC"],
