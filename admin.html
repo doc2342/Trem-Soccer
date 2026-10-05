@@ -22,7 +22,7 @@ import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
-import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
+import { FASES_DA_COPA, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
@@ -129,7 +129,10 @@ async function carregar(s) {
 async function tela(aviso = "") {
   const liga = await ligaAtual(), clubes = liga ? await clubesDaLiga(liga.id) : [], partidas = liga ? await partidasDaLiga(liga.id) : [];
   const humanos = clubes.filter(c => c.dono).length, feitas = partidas.filter(p => p.processada).length, auto = $("auto") ? $("auto").checked : true;
-  const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l[0].inicio, feitas: l.filter(p => p.processada).length, total: l.length }; });
+  // em ordem de data, com o nome de cada data: rodada da liga, playoff ou fase da copa (rodada 100 + fase)
+  const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l.reduce((m, p) => p.inicio < m ? p.inicio : m, l[0].inicio), feitas: l.filter(p => p.processada).length, total: l.length }; })
+    .sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.r - b.r);
+  const nomeDaData = r => r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : "Rodada " + r;
   const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
@@ -141,9 +144,9 @@ async function tela(aviso = "") {
     <div id="progresso" class="mut" style="margin-top:8px">${esc(aviso)}</div></div>
     ${liga ? `<div class="card" id="pedidos"></div><div class="card" id="dirigentes"></div>` : ""}
     ${liga ? `<div class="card"><h2>Calendário e rodadas</h2>${partidas.length
-      ? `<div>${partidas.length} partidas em ${rodadas.length} rodadas · ${feitas} já calculadas · ${liga.minutos_transmissao ? `transmissão de ${liga.minutos_transmissao} min` : "relatório instantâneo"} · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</div>
-         <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar a rodada ${proxima} agora</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
-         <div class="rolagem" style="margin-top:10px"><table><tr><th>Rodada</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${x.r}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
+      ? `<div>${partidas.length} partidas em ${rodadas.length} datas · ${feitas} já calculadas · ${liga.minutos_transmissao ? `transmissão de ${liga.minutos_transmissao} min` : "relatório instantâneo"} · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</div>
+         <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar agora: ${nomeDaData(proxima).toLowerCase()}</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
+         <div class="rolagem" style="margin-top:10px"><table><tr><th>Data</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${nomeDaData(x.r)}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
       : `<div class="mut" style="margin-bottom:10px">Sem calendário. Cada grupo joga turno e returno: 18 rodadas, 5 partidas por grupo em cada uma.</div>
          <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="105" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><label style="flex-direction:row;align-items:center;gap:6px" title="Uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga; precisa do SQL 47"><input type="checkbox" id="comCopa" checked> Com a Copa do Brasil</label><button id="gerar">Gerar o calendário</button></div>
