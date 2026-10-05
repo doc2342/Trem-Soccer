@@ -142,7 +142,7 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
-import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, finalistasDaCopa, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao } from "./src/economia.js";
 import { prepararTime, simularPartida } from "./src/motor.js";
@@ -280,6 +280,11 @@ async function telaClube(liga, clube) {
   // Copa do Brasil: jogos e resultados liberados (sem a coluna ligas.copa, antes do 47_copa_calendario_e_chave.sql, não há copa)
   const copaJogos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
   const copaRes = Object.fromEntries((await resultadosDaCopa(copaJogos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
+  const finalistas = liga.copa === undefined ? [] : await finalistasDaCopa(liga.id); // campeões e vices das temporadas anteriores
+  // a copa do meu clube: o jogo mais recente e se ele ainda está vivo nela (jogo marcado, esperando o sorteio ou entrando direto na fase de 32)
+  const minhaCopa = copaJogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ultCopa = minhaCopa[minhaCopa.length - 1];
+  const vivoNaCopa = !!(liga.copa && (ultCopa ? !copaRes[ultCopa.id] || (ultCopa.copa_fase < 6 && (ultCopa.vencedor || (copaRes[ultCopa.id].vencedor ? +copaRes[ultCopa.id].vencedor : null)) === clube.id)
+    : ((liga.copa.diretos || []).map(Number).includes(clube.id) && !copaJogos.some(p => p.copa_fase >= 2))));
   const grupos = [...new Set(clubes.map(c => c.grupo))].sort();
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const jogo = (p, res, agora) => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
@@ -295,7 +300,8 @@ async function telaClube(liga, clube) {
     const meus = copaJogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ult = meus[meus.length - 1];
     const adv = p => lk(p.casa === clube.id ? p.fora : p.casa), dia = d => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     let campanha;
-    if (!ult) campanha = diretos.includes(clube.id) ? "Seu clube entra direto na fase de 32, sem jogar a preliminar." : "Seu clube não está na copa desta temporada.";
+    if (!copaJogos.length) campanha = "A copa desta temporada ainda não começou.";
+    else if (!ult) campanha = diretos.includes(clube.id) ? "Seu clube entra direto na fase de 32, sem jogar a preliminar." : "Seu clube não está na copa desta temporada.";
     else { const v = quemPassou(ult);
       campanha = v == null ? `Seu clube joga ${naFase(ult.copa_fase)} contra ${adv(ult)}, ${new Date(ult.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(ult.inicio)}.`
         : v !== clube.id ? `Seu clube caiu ${naFase(ult.copa_fase)}, diante de ${adv(ult)}.`
@@ -311,6 +317,8 @@ async function telaClube(liga, clube) {
       <div style="margin-bottom:8px">${campanha}${ganho ? ` <span class="mut">Prêmios recebidos: <b>${dinheiro(ganho)}</b>.</span>` : ""}</div>
       <table class="mini" style="width:100%"><tr><th class="esq">Fase</th><th>Data</th><th class="esq">Prêmio</th><th>Jogos</th></tr>
       ${[1, 2, 3, 4, 5, 6].map(f => `<tr class="${ult && ult.copa_fase === f ? "e-tit" : ""}"><td class="esq">${FASES_DA_COPA[f]}</td><td>${datas[f - 1] ? dia(datas[f - 1].inicio) : "—"}</td><td class="esq">${premio(f)}</td><td>${andamento(f)}</td></tr>`).join("")}</table>
+      ${finalistas.some(x => x.copa === "campeão") ? `<div style="margin-top:12px"><b>Campeões</b>${[...new Set(finalistas.map(x => x.temporada))].map(t => { const c = finalistas.find(x => x.temporada === t && x.copa === "campeão"), v = finalistas.find(x => x.temporada === t && x.copa === "vice");
+        return `<div>Temporada ${t}: 🏆 ${c ? lk(c.clube_id) : "—"}${v ? ` <span class="mut">· vice ${lk(v.clube_id)}</span>` : ""}</div>`; }).join("")}</div>` : ""}
       <div class="mut" style="margin-top:6px;font-size:12px">Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a cada clube que entra na fase; a preliminar não paga. A renda de cada jogo é dividida meio a meio.</div>`;
     $("tituloJogos").textContent = "Copa do Brasil · jogos";
     $("rodadas").className = "";
@@ -324,7 +332,7 @@ async function telaClube(liga, clube) {
     $("copaFase").onchange = mostrar;
     mostrar();
   }
-  const situacao = j => (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
+  const situacao = j => (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
   const contrato = j => j.salario == null ? `<td>—</td><td>—</td><td>—</td>` : `<td>${dinheiro(j.salario)}</td><td title="${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? "Primeira temporada de contrato: a multa só vale a partir da próxima" : "Valor para outro clube levar o jogador"}">${j.protegido ? `<span title="Na lista de protegidos: sem multa rescisória">🛡️ sem multa</span>` : dinheiro(clausula(j.salario)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? " 🔒" : "")}</td><td class="${j.contratoAte <= liga.temporada ? "aviso" : ""}">até a ${j.contratoAte}</td>`;
   // elenco por zonas, como no Dugout: situação na tática salva, posição, botão de atributos, nome, idade, país, nota e contrato
@@ -485,6 +493,14 @@ async function telaClube(liga, clube) {
     elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     const pendurados = elenco.filter(j => j.amarelos === 3 && !(j.fora > 0)); // a suspensão vem no quarto amarelo
     if (pendurados.length) l.push(item("🟨", `Pendurados (o próximo amarelo suspende): ${pendurados.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
+    // copa: suspensos, pendurados e quem não pode jogar por ter jogado a copa por outro clube (só enquanto o clube está vivo nela)
+    if (vivoNaCopa) {
+      elenco.filter(j => j.foraCopa > 0).forEach(j => l.push(item("⛔", `${esc(j.nome)} (${sg(j.pos)}) suspenso na copa: fora do próximo jogo de copa.`)));
+      const pendC = elenco.filter(j => j.amarelosCopa >= 1 && !(j.foraCopa > 0) && j.copaClube === clube.id);
+      if (pendC.length) l.push(item("🟨", `Pendurados na copa (o próximo amarelo suspende por um jogo de copa): ${pendC.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
+      const travados = elenco.filter(j => j.copaClube != null && j.copaClube !== clube.id);
+      if (travados.length) l.push(item("🔒", `Não podem jogar a copa por você (já jogaram por outro clube nesta temporada): ${travados.map(j => esc(j.nome)).join(", ")}.`));
+    }
     const param = elenco.filter(j => j.aposentaEm != null);
     if (param.length) l.push(item("🏁", `${param.length === 1 ? "Anunciou" : "Anunciaram"} a aposentadoria para o fim da temporada: ${param.map(j => `${esc(j.nome)} (${j.idade})`).join(", ")}. Não podem mais ser vendidos nem renovar.`, "aviso"));
     const vencem = elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada);
@@ -496,6 +512,17 @@ async function telaClube(liga, clube) {
   };
   const muralDaLiga = () => {
     const l = [];
+    // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
+    if (copaJogos.length) {
+      const fases = [...new Set(copaJogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => copaJogos.filter(p => p.copa_fase === f);
+      const final = daFase(6)[0], campeao = final && copaRes[final.id] ? quemPassou(final) : null;
+      if (campeao) l.push(item("🏆", `${lk(campeao)} é o campeão da Copa do Brasil: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.`));
+      else { const f = fases.find(k => daFase(k).some(p => !copaRes[p.id]));
+        if (f) l.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()} ${daFase(f).some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${daFase(f).length === 1 ? "o jogo" : daFase(f).length + " jogos"} em ${new Date(daFase(f)[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}. A chave está na aba Classificação.`)); }
+      const encerrada = fases.filter(k => daFase(k).every(p => copaRes[p.id])).pop();
+      if (encerrada && encerrada < 6) daFase(encerrada).filter(p => copaRes[p.id].penaltis).slice(0, 4).forEach(p => { const v = quemPassou(p);
+        l.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da copa${penais(copaRes[p.id])}.`)); });
+    }
     if (livres && livres.length) l.push(item("✍️", `${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"} na aba Mercado${livres.some(j => new Date(j.livre_ate) > new Date()) ? ", com leilão aberto" : ""}.`));
     (transferencias || []).slice(0, 8).forEach(t => l.push(item(t.tipo === "livre" ? "✍️" : "🔁",
       t.tipo === "livre" ? `${esc(t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
@@ -534,7 +561,7 @@ async function telaClube(liga, clube) {
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
-    <div class="card row"><label>Ver o campeonato<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}${copaJogos.length ? `<option value="COPA">🏆 Copa do Brasil</option>` : ""}</select></label>
+    <div class="card row"><label>Ver o campeonato<select id="verGrupo">${grupos.map(g => `<option value="${esc(g)}" ${g === clube.grupo ? "selected" : ""}>${esc(nomeDoGrupo(g))}${g === clube.grupo ? " (o seu)" : ""}</option>`).join("")}${copaJogos.length || finalistas.length ? `<option value="COPA">🏆 Copa do Brasil</option>` : ""}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div>
     <div class="duas">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
@@ -1024,7 +1051,7 @@ async function telaClube(liga, clube) {
       if (!h.length || !$("rodadas")) return;
       const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), temporadas = [...new Set(h.map(x => x.temporada))];
       $("rodadas").insertAdjacentHTML("beforeend", `<h2 style="margin-top:16px">Temporadas anteriores</h2>` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
-        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join(""));
+        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}${x.copa === "campeão" ? ` <span class="mut" title="Campeão da Copa do Brasil">🥇 copa</span>` : x.copa === "vice" ? ` <span class="mut" title="Vice-campeão da Copa do Brasil">vice copa</span>` : ""}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join(""));
     }).catch(() => {});
     const mostrar = () => { if ($("rodada")) $("jogos").innerHTML = partidas.filter(p => p.rodada === +$("rodada").value).map(p => jogo(p, res, agora)).join(""); };
     if ($("rodada")) $("rodada").onchange = mostrar;
