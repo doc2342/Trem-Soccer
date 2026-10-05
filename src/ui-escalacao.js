@@ -93,8 +93,8 @@ const momento = v => { const n = v == null ? 50 : v; return n >= 65 ? "ok" : n <
 const GRUPOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
 let skillsDe = null; // jogador com os atributos abertos na lista de escolha
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
-const escalacaoAtual = () => E.vagas.map((pos, i) => E.jog[i] ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
-const titulares = () => E.jog.filter(Boolean).map(jogDe);
+const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
+const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
 
 function daTatica(t) {
   const I = t.instrucoes;
@@ -176,6 +176,7 @@ async function iniciarOnline(sessaoDeTeste) {
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
   salvoComo = JSON.stringify(E);
+  limparReferencias(); // a tática salva pode citar quem já saiu do clube
   const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const situacao = async () => {
     const fechada = await B.taticaFechada(clubeOnline.id);
@@ -209,6 +210,8 @@ function aplicarFormacao(nome) {
 }
 // Tira das instruções quem saiu do time ou do banco.
 function limparReferencias() {
+  // quem saiu do clube (vendido, dispensado, comprado pela multa) some da escalação guardada: a vaga fica vazia e o banco encolhe
+  E.jog = E.jog.map(id => (id && porId[id] ? id : null)); E.banco = E.banco.filter(id => porId[id]);
   const emCampo = new Set(E.jog.filter(Boolean)), noBanco = new Set(E.banco);
   for (const k of ["capitao", "vice", "armador", "alvo"]) if (!emCampo.has(E.instr[k])) E.instr[k] = null;
   for (const k in E.instr.cobradores) E.instr.cobradores[k] = E.instr.cobradores[k].filter(id => emCampo.has(id));
@@ -228,7 +231,7 @@ function validar() {
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
   esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): na liga ele será trocado pelo melhor disponível para a posição.`));
   esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${sg(x.pos)} (rende 80%).`));
-  if (E.banco.length && !E.banco.some(id => jogDe(id).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
+  if (E.banco.length && !E.banco.some(id => (jogDe(id) || {}).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   return { erros, avisos, cob, esc11 };
 }
 
