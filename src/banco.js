@@ -29,6 +29,20 @@ export async function pedirClube(nome, sigla, escudo, uniforme) {
 export const pedidosPendentes = () => sb.from("pedidos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
 export const decidirPedido = (id, aprovar, motivo) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
+// escudo enviado como imagem (51_escudo_enviado.sql): sobe ao Storage, passa a valer e apaga a imagem anterior
+export async function enviarEscudo(clubeId, blob) {
+  const ext = blob.type === "image/png" ? "png" : "webp", nome = `${clubeId}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from("escudos").upload(nome, blob, { contentType: blob.type, cacheControl: "31536000", upsert: false });
+  if (error) throw new Error(/bucket not found/i.test(error.message) ? "O envio de escudo ainda não foi ligado (falta o SQL 51)." : error.message);
+  const antes = await sb.rpc("usar_escudo_enviado", { p_img: nome }).then(ok);
+  if (antes && antes !== nome) await sb.storage.from("escudos").remove([antes]).catch(() => {});
+  return nome;
+}
+export async function tirarEscudoEnviado() {
+  const antes = await sb.rpc("tirar_escudo_enviado").then(ok);
+  if (antes) await sb.storage.from("escudos").remove([antes]).catch(() => {});
+}
+export const pedirTrocaDeEscudo = clubeId => sb.rpc("pedir_troca_de_escudo", { p_clube: clubeId }).then(ok);
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
