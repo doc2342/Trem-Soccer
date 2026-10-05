@@ -4,7 +4,7 @@ import { ATRIBUTOS, ATR_MIN, ATR_MAX } from "./modelo.js";
 import { jovensDaBase } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador } from "./gerador.js";
-import { salarioDeMercado } from "./economia.js";
+import { salarioDeMercado, TETO_DE_FOLHA } from "./economia.js";
 import { classificacao } from "./rodada.js";
 
 // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
@@ -93,10 +93,12 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
 // comLivres: o mercado de jogadores livres já existe (SQL 21); sem ele, todo contrato vencido se renova sozinho.
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
-export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now() }) {
+export const ELENCO_MINIMO_DO_BOT = 18;
+export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
   const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0 };
+  const grupoNovo = {}; // grupo em que cada clube que sobe ou cai vai jogar
 
   for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
     const doGrupo = clubes.filter(c => c.grupo === g);
@@ -112,6 +114,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   if (new Set(clubes.map(c => c.divisao)).size > 1) {
     const m = movimentos({ rng, clubes, grupos: resumo.grupos, partidas, resultados });
     plano.movimentos = m.lista;
+    m.lista.forEach(x => { grupoNovo[x.clube_id] = x.grupo; });
     const para = Object.fromEntries(m.lista.map(x => [x.clube_id, x.grupo]));
     plano.classificacao.forEach(l => { l.destino = m.destino[l.clube_id]; });
     Object.values(resumo.grupos).flat().forEach(l => { l.destino = m.destino[l.clube_id]; l.para = para[l.clube_id] || null; });
@@ -119,7 +122,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
 
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
   for (const c of clubes) {
-   const vencidos = []; let ficam = 0;
+   const vencidos = [], regs = [], renovadosAqui = []; let ficam = 0;
    // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
    if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova })) {
      ficam++;
@@ -149,7 +152,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     if (idade >= 34) { FISICOS.forEach(i => { at[i] = limitar(at[i] - rng.int(1, 2), ATR_MIN, ATR_MAX); }); resumo.cairam++; }
     else if (idade >= 31) { rng.embaralhar(FISICOS).slice(0, rng.int(1, 2)).forEach(i => { at[i] = limitar(at[i] - 1, ATR_MIN, ATR_MAX); }); resumo.cairam++; }
     const reg = { id: numero(j.id), idade, at, salario: j.salario, salario_mercado: j.mercado, contrato_ate: j.contratoAte };
-    plano.jogadores.push(reg);
+    plano.jogadores.push(reg); regs.push(reg);
     if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
     else ficam++;
    }
@@ -158,10 +161,22 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    vencidos.sort((a, b) => b.mercado - a.mercado);
    for (const v of vencidos) {
     if (!cuida || ficam < ELENCO_MINIMO) {
-      v.reg.salario = Math.max(v.reg.salario, v.mercado); v.reg.salario_mercado = v.mercado; v.reg.contrato_ate = nova; ficam++; resumo.renovados++;
+      v.reg.salario = Math.max(v.reg.salario, v.mercado); v.reg.salario_mercado = v.mercado; v.reg.contrato_ate = nova; ficam++; resumo.renovados++; renovadosAqui.push(v);
     } else {
       plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
       resumo.livres.push({ clube: c.nome, dono: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
+    }
+   }
+   // Clube sem dono (ou com dirigente ausente) também respeita o teto de folha: se a folha renovada passa do teto da divisão em que ele vai
+   // jogar, os renovados mais caros ficam livres e vão a leilão, até caber ou até o elenco chegar a 18.
+   if (!cuida && comLivres) {
+    const g = grupoNovo[c.id], teto = tetos[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || Infinity;
+    let folha = regs.reduce((s, r) => s + (r.salario || 0), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
+    for (const v of renovadosAqui.sort((a, b) => b.reg.salario - a.reg.salario)) {
+      if (folha <= teto || ficam <= ELENCO_MINIMO_DO_BOT) break;
+      folha -= v.reg.salario; ficam--; resumo.renovados--;
+      plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
+      resumo.livres.push({ clube: c.nome, dono: !!c.dono, peloTeto: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
     }
    }
   }

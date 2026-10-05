@@ -14,7 +14,7 @@ export const CONFIG_TREINO = {
   ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
   equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe
   bonusPorJogar: 0.1, minutosParaBonus: 45,
-  teto: [24, 0.22],           // teto da nota = 24 + 0,22 × talento (1 a 100): de 24 a 46
+  teto: [23, 0.20],           // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
   // caminho: os pontos da sessão são multiplicados por (teto − partida) / divisor. Sem saber o teto (tela sem olheiro), vale o teto típico.
   caminho: { partida: 15, divisor: 26, minimo: 6, tetoTipico: 36 },
   // freio: fração do caminho que o melhor caso tem feito em cada idade; quem passa dela treina mais devagar (até o piso), nunca mais rápido

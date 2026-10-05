@@ -143,9 +143,22 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
-import { sair, ligaAtual, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
-import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao } from "./src/economia.js";
+import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao } from "./src/economia.js";
+// Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
+// Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
+function acertarSalarioPelaDuracao() {
+  document.querySelectorAll("select[data-prog]").forEach(sel => {
+    const campo = document.getElementById(sel.dataset.prog); if (!campo) return;
+    if (campo.dataset.base == null) campo.dataset.base = campo.min || "0";
+    const minimo = Math.max(+campo.dataset.base, minimoPelaDuracao(+sel.dataset.mercado, +sel.value));
+    if (+campo.min !== minimo) campo.min = minimo;
+    if (sel.dataset.visto !== sel.value) { sel.dataset.visto = sel.value; if (+campo.value < minimo) campo.value = minimo; }
+  });
+}
+document.addEventListener("change", e => { if (e.target && e.target.matches && e.target.matches("select[data-prog]")) acertarSalarioPelaDuracao(); });
+new MutationObserver(acertarSalarioPelaDuracao).observe(document.documentElement, { childList: true, subtree: true });
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
@@ -265,7 +278,7 @@ async function telaClube(liga, clube) {
   await resolverLeiloes(liga.id); // fecha leilões e ofertas que já venceram
   const [janela, transferencias, propostas, livres, ofertas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]);
   // olheiro: faixa de teto do meu elenco (vazia sem olheiro contratado) e relatórios que comprei de outros jogadores; nulos antes do 36_olheiro.sql
-  const [tetosDoElenco, relatorios, prePeriodo, preContratos] = await Promise.all([relatorioDoElenco(), meusRelatorios(), periodoDePreAcordo(liga.id), meusPreContratos()]);
+  const [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao] = await Promise.all([relatorioDoElenco(), meusRelatorios(), periodoDePreAcordo(liga.id), meusPreContratos(), cotacaoDoAgente(liga.id)]);
   const tetoDe = Object.fromEntries((tetosDoElenco || []).map(t => ["j" + t.jogador_id, t]));
   const relatorioDe = id => (relatorios || []).filter(r => r.jogador_id === +String(id).replace(/^\D+/, "")).sort((a, b) => b.nivel - a.nivel)[0] || null;
   const vendasPeloAgente = (transferencias || []).filter(t => t.tipo === "agente" && t.de_clube === clube.id && t.temporada === liga.temporada).length;
@@ -541,7 +554,7 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin:4px 0">Com o caixa negativo, aumentos de salário, renovações e obras ficam bloqueados.
         ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende pelo agente o maior salário fora dos 11 da sua tática, e repete até zerar.`
           : `Se a dívida passar de ${dinheiro(-limite)} (10% do teto de folha), começa um prazo de ${RODADAS_DE_PRAZO} rodadas para resolver.`}</div>
-      <div class="mut" style="margin:4px 0">Saídas: vender jogadores pelo agente por 3 vezes o salário de mercado, oferecê-los à liga por 75% da multa rescisória (as duas em Clube, Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
+      <div class="mut" style="margin:4px 0">Saídas: vender jogadores pelo agente por até 3 vezes o salário de mercado, oferecê-los à liga por 75% da multa rescisória (as duas em Clube, Elenco, clicando no jogador) ou antecipar o prêmio da temporada com 20% de desconto, uma vez por temporada.</div>
       <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
       <div id="vermelhoAviso" style="margin-top:6px"></div></div>`;
   };
@@ -868,17 +881,17 @@ async function telaClube(liga, clube) {
         ${motivo ? `<div class="aviso" style="margin:6px 0">Não dá para comprar pela multa: ${motivo === "protegido" ? "está na lista de protegidos do clube" : motivo === "primeira temporada" ? "está na primeira temporada de contrato no clube" : motivo === "divisão acima" ? "é de uma divisão acima da sua, e o jogador não desce de divisão pela multa" : "ainda não tem contrato"}.</div><button class="sec" id="mFechar">Fechar</button>`
           : `<div class="mut" style="margin:4px 0">Multa rescisória: <b>${dinheiro(multa)}</b> (seu caixa: ${dinheiro(caixa)}). Salário atual ${dinheiro(j.salario)}; no contrato novo ele pede pelo menos ${dinheiro(minimo)} e pode ganhar até ${dinheiro(maximo)}. Sobram ${dinheiro(teto - folha)} até o seu teto de folha. No seu clube ele fica sem multa até o fim desta temporada.</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="mSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
-            <label>Contrato de<select id="mTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
+            <label>Contrato de<select id="mTemporadas" data-prog="mSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
             <button id="mComprar" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pagar a multa e contratar</button><button class="sec" id="mFechar">Fechar</button></div>`}
         ${propostas != null && cPor[j.clube_id].dono && j.salario != null ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>Proposta ao clube</b> <span class="mut">${j.a_venda ? `· está à venda por ${dinheiro(j.preco_pedido)}` : "· o dono pode aceitar, recusar ou pedir outro valor"} · o valor tem de ficar entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa) · entre os mesmos dois clubes, um negócio por temporada em cada sentido · quem chegou nesta janela só pode ser vendido na próxima</span>
           <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="${faixaDaNegociacao(j.salario).minimo}" max="${faixaDaNegociacao(j.salario).maximo}" value="${Math.min(faixaDaNegociacao(j.salario).maximo, Math.max(faixaDaNegociacao(j.salario).minimo, j.preco_pedido || multa))}" style="width:140px"></label>
             <label>Salário do jogador<input id="pSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:120px"></label>
-            <label>Contrato de<select id="pTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
+            <label>Contrato de<select id="pTemporadas" data-prog="pSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
             <button class="sec" id="pEnviar" ${janela || (prePeriodo && j.idade < 37) ? "" : "disabled"} title="${janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div></div>` : ""}
         ${!prePeriodo || !cPor[j.clube_id].dono || j.contrato_ate == null || j.contrato_ate > liga.temporada || j.aposenta_em != null ? "" : (meu => `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>✍️ Pré-contrato</b> <span class="mut">· o contrato dele acaba nesta temporada · você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas</span>
           <div class="mut" style="margin:4px 0">Se ele não renovar e ficar livre na virada, vai para quem ofereceu o maior salário, sem pagar nada ao clube. As propostas são fechadas: ninguém vê a dos outros.${meu ? ` A sua está em <b>${dinheiro(meu.salario)}</b> por ${meu.temporadas} ${meu.temporadas === 1 ? "temporada" : "temporadas"}.` : ""}</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="pcSalario" type="number" step="5" min="${j.salario_mercado || j.salario || 0}" value="${meu ? meu.salario : j.salario_mercado || j.salario || 0}" style="width:150px"></label>
-            <label>Contrato de<select id="pcTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
+            <label>Contrato de<select id="pcTemporadas" data-prog="pcSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
             <button class="sec" id="pcEnviar" ${j.idade >= 37 ? "disabled" : ""}>${meu ? "Mudar a proposta" : "Propor pré-contrato"}</button></div></div>`)((preContratos || []).find(x => x.jogador_id === +j.id && x.clube_id === clube.id))}
         ${relatorios == null ? "" : `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>🔭 Relatório de olheiro</b> <span class="mut">· mostra o teto do jogador (até onde o treino pode levá-lo) como uma faixa de nota</span>
           ${(r => r ? `<div style="margin-top:4px">Teto entre <b>${r.minimo}</b> e <b>${r.maximo}</b> <span class="mut">(relatório ${["", "simples", "bom", "completo"][r.nivel]}; a nota dele hoje é ${f1(notaNaPosicao(j, j.pos))})</span></div>` : "")(relatorioDe(j.id))}
@@ -942,7 +955,7 @@ async function telaClube(liga, clube) {
     alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${sg(j.pos)} · ${j.idade} anos
       <div class="mut" style="margin:4px 0">${explicacao} Pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(teto - folha)} até o seu teto de folha.</div>
       <div class="row"><label>Salário (em milhares por temporada)<input id="crSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
-        <label>Contrato de<select id="crTemporadas"><option value="1">1 temporada</option><option value="2" selected>2 temporadas</option><option value="3">3 temporadas</option></select></label>
+        <label>Contrato de<select id="crTemporadas" data-prog="crSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
         <button id="crFazer">${textoDoBotao}</button><button class="sec" id="crFechar">Fechar</button></div><div id="crAviso" style="margin-top:6px"></div></div>`;
     $("crFechar").onclick = () => { alvo.innerHTML = ""; };
     $("crFazer").onclick = async () => {
@@ -1237,7 +1250,7 @@ async function telaClube(liga, clube) {
         ${j.aVenda ? `<div><div class="mut">À venda por</div><b>${dinheiro(j.precoPedido)}</b></div>` : ""}</div>
       <div class="duas">
         ${bloco("Contrato", `<div class="row"><label>Novo salário (em milhares)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:120px"></label>
-            <label>Renovar por<select id="ctTemporadas"><option value="1">1 temporada</option><option value="2">2 temporadas</option><option value="3">3 temporadas</option></select></label></div>
+            <label>Renovar por<select id="ctTemporadas" data-prog="ctSalario" data-mercado="${j.mercado || 0}"><option value="1">1 temporada</option><option value="2">2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label></div>
           <div class="row" style="margin-top:8px"><button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctAumentar">Só aumentar o salário</button></div>
           <div class="mut" style="margin-top:6px"><span id="ctClausula"></span> · na renovação ele pede pelo menos ${dinheiro(j.mercado)} · máximo por jogador ${dinheiro(maximo)} · sobram ${dinheiro(sobra)} até o teto. O salário só sobe; a multa é 5 vezes o salário.</div>`)}
         ${janela === undefined ? "" : bloco(`Lista de protegidos <span class="tag">${nProtegidos} de 7</span>`, `<button class="sec" id="ctProteger">${j.protegido ? "Tirar da lista de protegidos" : "Pôr na lista de protegidos"}</button>
@@ -1246,15 +1259,15 @@ async function telaClube(liga, clube) {
             <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
           <div class="mut" style="margin-top:6px">A venda negociada só fecha entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa).</div>
           <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
-        ${propostas == null || (caixa != null && caixa < 0) ? "" : bloco(`Vender pelo agente <span class="tag">${vendasPeloAgente} de ${VENDAS_PELO_AGENTE} nesta temporada</span>`, `<button class="sec" data-agente="1" ${!janela || vendasPeloAgente >= VENDAS_PELO_AGENTE || elenco.length <= 16 ? "disabled" : ""}>Vender por ${dinheiro(valorNoAgente(j.mercado ?? j.salario))}</button>
-          <div class="mut" style="margin-top:6px">Venda garantida, na hora: o agente coloca o jogador num clube sem dono e paga metade do valor de mercado dele (2,5 vezes o salário de mercado, que hoje é ${dinheiro(j.mercado ?? j.salario)}; aumentar o salário do contrato não muda esse preço). Só com a janela aberta${janela ? "" : ", e ela está fechada"}.</div>`)}
+        ${propostas == null || (caixa != null && caixa < 0) ? "" : bloco(`Vender pelo agente <span class="tag">${vendasPeloAgente} de ${VENDAS_PELO_AGENTE} nesta temporada</span>`, `<button class="sec" data-agente="1" ${!janela || vendasPeloAgente >= VENDAS_PELO_AGENTE || elenco.length <= 16 ? "disabled" : ""}>Vender por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, false, cotacao))}</button>
+          <div class="mut" style="margin-top:6px">Venda garantida, na hora: o agente coloca o jogador num clube sem dono. Quem paga são os clubes sem dono: com o caixa deles folgado, o preço é 2,5 vezes o salário de mercado (que hoje é ${dinheiro(j.mercado ?? j.salario)}); quando aperta, cai até 1 vez. Hoje o agente paga ${String(Math.round((1 + 1.5 * cotacao) * 100) / 100).replace(".", ",")} vezes. Aumentar o salário do contrato não muda esse preço. Só com a janela aberta${janela ? "" : ", e ela está fechada"}.</div>`)}
         ${clube.peneira_temporada === undefined || (j.idade > 21 && j.idade < 31) ? "" : bloco("Dispensar", `<button class="sec" id="ctDispensar" ${elenco.length <= 16 ? "disabled" : ""}>Dispensar sem custo</button>
           <div class="mut" style="margin-top:6px">Vale para quem tem até 21 anos ou 31 ou mais. Ele fica livre e pode ser contratado por qualquer clube. O elenco não pode ficar com menos de 16.</div>`)}
-        ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" data-agente="1" ${elenco.length <= 16 ? "disabled" : ""}>Vender pelo agente por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, true))}</button>
-          <div class="mut" style="margin-top:6px">No vermelho o agente paga 3 vezes o salário de mercado, na hora, mesmo com a janela fechada e sem gastar as vendas da temporada. O jogador vai para um clube sem dono. O elenco não pode ficar com menos de 16.</div>
+        ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" data-agente="1" ${elenco.length <= 16 ? "disabled" : ""}>Vender pelo agente por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, true, cotacao))}</button>
+          <div class="mut" style="margin-top:6px">No vermelho o agente paga até 3 vezes o salário de mercado (hoje ${String(Math.round((1 + 2 * cotacao) * 100) / 100).replace(".", ",")} vezes, conforme o caixa dos clubes sem dono), na hora, mesmo com a janela fechada e sem gastar as vendas da temporada. O jogador vai para um clube sem dono. O elenco não pode ficar com menos de 16.</div>
           ${livres == null ? "" : j.ofertaLigaAte ? `<div class="aviso" style="margin-top:8px">Oferecido à liga por ${dinheiro(Math.round(3.75 * j.salario))} até ${ateQuando(j.ofertaLigaAte)}. Se ninguém levar, o agente vende.</div>`
             : `<button class="sec" id="ctOferecer" style="margin-top:8px" ${elenco.length <= 16 ? "disabled" : ""}>Oferecer à liga por ${dinheiro(Math.round(3.75 * j.salario))}</button>
-               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, o agente o vende por 3 vezes o salário de mercado.</div>`}`) : ""}
+               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, o agente o vende pelo preço do dia (até 3 vezes o salário de mercado).</div>`}`) : ""}
       </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
     const mostra = () => { $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(+$("ctSalario").value || 0))}`; };
@@ -1283,7 +1296,7 @@ async function telaClube(liga, clube) {
     };
     $("contratoPainel").querySelectorAll("[data-agente]").forEach(bt => { bt.onclick = async () => {
       const vermelho = caixa != null && caixa < 0;
-      if (!confirm(`Vender ${j.nome} pelo agente por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, vermelho))}? Ele vai para um clube sem dono. Não dá para desfazer.`)) return;
+      if (!confirm(`Vender ${j.nome} pelo agente por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, vermelho, cotacao))}? Ele vai para um clube sem dono. Não dá para desfazer.`)) return;
       bt.disabled = true;
       try { alert(await venderPeloAgente(j.id)); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; bt.disabled = false; }

@@ -12,6 +12,11 @@ export function salarioDeMercado(j) {
   return Math.max(50, Math.round(250 * Math.pow(1.12, nota - 25) * idade / 5) * 5);
 }
 export const clausula = salario => salario * MULTIPLO_DA_CLAUSULA;
+// Contrato mais longo pede mais: 2 temporadas, salário de mercado + 10%; 3 temporadas, + 20% (52_pacote_da_economia.sql).
+export const ADICIONAL_POR_TEMPORADA = 0.1;
+export const minimoPelaDuracao = (mercado, temporadas) => Math.round((mercado || 0) * (1 + ADICIONAL_POR_TEMPORADA * (Math.max(1, temporadas) - 1)));
+// Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
+export const TETO_DE_FOLHA = { 1: 20000, 2: 14000, 3: 10000 };
 
 // Contrato inicial de um jogador gerado: salário de mercado, duração sorteada de 1 a 3 temporadas (contando a atual)
 // e proteção contra a cláusula até o fim da primeira temporada.
@@ -27,7 +32,9 @@ export const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
 export const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
 export const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
 export const VENDAS_PELO_AGENTE = 4;                                // por temporada, fora do vermelho
-export const valorNoAgente = (mercado, vermelho = false) => Math.round((mercado || 0) * (vermelho ? 3 : 2.5)); // metade do valor de mercado (5 vezes o salário de mercado)
+// O agente paga com o caixa dos clubes sem dono. cotacao (0 a 1) diz quanto do preço cheio dá para pagar: de 1 vez o salário de mercado
+// (caixa vazio) a 2,5 vezes (caixa folgado); para clube no vermelho, de 1 a 3 vezes.
+export const valorNoAgente = (mercado, vermelho = false, cotacao = 1) => Math.round((mercado || 0) * (1 + (vermelho ? 2 : 1.5) * Math.max(0, Math.min(1, cotacao == null ? 1 : cotacao))));
 // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
 export const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
 // 440 → "440 mil"; 1370 → "1,37 mi"

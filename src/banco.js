@@ -202,6 +202,8 @@ export const virarTemporada = async (ligaId, plano) => {
 // Depois da virada: executa os pré-acordos entre dirigentes e resolve os pré-contratos. Devolve o resumo, ou "" sem o SQL 46.
 export const executarPreAcordos = ligaId => sb.rpc("executar_pre_acordos", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data);
 // Período de pré-acordo (da última rodada à virada): null sem o SQL 46.
+// Quanto do preço cheio o agente consegue pagar agora (0 a 1); 1 antes do 52_pacote_da_economia.sql.
+export const cotacaoDoAgente = ligaId => sb.rpc("cotacao_do_agente", { p_liga: ligaId }).then(({ data, error }) => error || data == null ? 1 : +data);
 export const periodoDePreAcordo = ligaId => sb.rpc("periodo_de_pre_acordo", { p_liga: ligaId }).then(({ data, error }) => error ? null : !!data);
 export const proporPreContrato = (jogadorId, salario, temporadas) => sb.rpc("propor_pre_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
 export const meusPreContratos = () => sb.from("pre_contratos").select("jogador_id, clube_id, temporada, salario, temporadas, jogadores(nome, pos, idade)").then(({ data, error }) => error ? null : data);
