@@ -79,7 +79,8 @@ const forcaDoOnze = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.
 
 // Instante em que um minuto de jogo passa a ser visível, com 15 minutos de intervalo, na escala da transmissão.
 export function horaDoMinuto(inicio, min, minutosTransmissao) {
-  const reais = (min <= 45 ? min : min + 15) * minutosTransmissao / 105;
+  // intervalo de 15 minutos; antes da prorrogação, mais 5 de pausa
+  const reais = (min <= 45 ? min : min <= 90 ? min + 15 : min + 20) * minutosTransmissao / 105;
   return new Date(new Date(inicio).getTime() + reais * 60000);
 }
 
@@ -118,7 +119,7 @@ export function aplicarSituacao(elenco, mudancas) {
 // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
 const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
 // Copa do Brasil: regras próprias da partida de copa.
-export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76, golsNaProrrogacao: 1 / 3 };
+export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
 // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
 const foraDaCopa = (j, clubeId) => (j.fora > 0 && j.motivo === "lesão") || j.foraCopa > 0 || (j.copaClube != null && j.copaClube !== clubeId);
 // Situação dos jogadores depois de um jogo de copa: lesões valem para tudo; cartões e suspensões são só da copa
@@ -163,7 +164,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const t = taticas[i];
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
-  const p = simularPartida(criarRng(semente), times[0], times[1]);
+  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
   const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
@@ -173,28 +174,24 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima[0], temp: extra.int(clima[1], clima[2]) },
     escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
   } });
-  // Copa: empate nos 90 minutos vai à prorrogação e, persistindo, aos pênaltis. A prorrogação é resumida: os gols saem do ritmo de
-  // chances que cada time criou no jogo (um terço dele, por serem 30 minutos); os pênaltis são cinco para cada lado e, depois, alternados.
-  const placar = p.placar.slice(); let penaltis = null, vencedor = null;
+  // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis
+  // (cinco para cada lado e, depois, alternados). Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida.
+  const placar = p.placar.slice(), fimReal = p.duracao > 90 ? horaDoMinuto(partida.inicio, p.duracao, minutosTransmissao).toISOString() : partida.fim;
+  let penaltis = null, vencedor = null;
   if (copa) {
-    const nomes = [casa.clube.nome, fora.clube.nome], noFim = { partida_id: partida.id, min: 120, libera_em: new Date(partida.fim).toISOString() };
-    let ordem = lances.length;
+    const nomes = [casa.clube.nome, fora.clube.nome];
     if (placar[0] === placar[1]) {
-      const golsET = [0, 1].map(i => { let g = 0, m = Math.max(0.15, p.xg[i]) * COPA.golsNaProrrogacao; for (let k = 0; k < 6; k++) if (extra.chance(m / 6)) g++; return g; });
-      golsET.forEach((g, i) => { for (let k = 0; k < g; k++) { placar[i]++; lances.push({ ...noFim, ordem: ordem++, dados: { n: 9000 + ordem, min: 120, time: i, tipo: "prorrogacao", texto: `Prorrogação: gol do {${i}:${nomes[i]}}!` } }); } });
-      lances.push({ ...noFim, ordem: ordem++, dados: { n: 9000 + ordem, min: 120, time: 0, tipo: "ordem", texto: golsET[0] + golsET[1] ? `Fim da prorrogação: ${nomes[0]} ${placar[0]} x ${placar[1]} ${nomes[1]}.` : "A prorrogação termina sem gols." } });
-      if (placar[0] === placar[1]) {
-        penaltis = [0, 0];
-        // cinco cobranças alternadas, parando quando um time não alcança mais o outro; depois, uma para cada lado até desempatar
-        const batidas = [0, 0];
-        for (let k = 0; k < 10; k++) { const i = k % 2; batidas[i]++; if (extra.chance(COPA.penalti)) penaltis[i]++;
-          if (penaltis[0] > penaltis[1] + 5 - batidas[1] || penaltis[1] > penaltis[0] + 5 - batidas[0]) break; }
-        while (penaltis[0] === penaltis[1]) { const a = extra.chance(COPA.penalti), b = extra.chance(COPA.penalti); if (a) penaltis[0]++; if (b) penaltis[1]++; }
-        lances.push({ ...noFim, ordem: ordem++, dados: { n: 9000 + ordem, min: 120, time: penaltis[0] > penaltis[1] ? 0 : 1, tipo: "penaltis", texto: `Pênaltis: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]}. Passa o {${penaltis[0] > penaltis[1] ? 0 : 1}:${nomes[penaltis[0] > penaltis[1] ? 0 : 1]}}.` } });
-      }
+      penaltis = [0, 0];
+      // cinco cobranças alternadas, parando quando um time não alcança mais o outro; depois, uma para cada lado até desempatar
+      const batidas = [0, 0];
+      for (let k = 0; k < 10; k++) { const i = k % 2; batidas[i]++; if (extra.chance(COPA.penalti)) penaltis[i]++;
+        if (penaltis[0] > penaltis[1] + 5 - batidas[1] || penaltis[1] > penaltis[0] + 5 - batidas[0]) break; }
+      while (penaltis[0] === penaltis[1]) { const a = extra.chance(COPA.penalti), b = extra.chance(COPA.penalti); if (a) penaltis[0]++; if (b) penaltis[1]++; }
+      const v = penaltis[0] > penaltis[1] ? 0 : 1;
+      lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: fimReal, dados: { n: 99999, min: 120, time: v, tipo: "penaltis", texto: `A prorrogação não resolveu. Pênaltis: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]}. Passa o {${v}:${nomes[v]}}.` } });
     }
     vencedor = (penaltis ? penaltis[0] > penaltis[1] : placar[0] > placar[1]) ? casa.clube.id : fora.clube.id;
-    r.placar = placar; r.vencedor = vencedor; if (penaltis) r.penaltis = penaltis;
+    r.vencedor = vencedor; if (p.duracao > 90) r.prorrogacao = true; if (penaltis) r.penaltis = penaltis;
   }
   const { narracao, ...semNarracao } = r; // a narração já está nos lances
   // forma e moral de todo mundo depois do jogo; o preparador de forma atende os de pior forma entre os que não estão fora
@@ -211,7 +208,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   return {
     lances,
     resultado: {
-      partida_id: partida.id, libera_em: partida.fim, gols_casa: placar[0], gols_fora: placar[1], xg_casa: p.xg[0], xg_fora: p.xg[1],
+      partida_id: partida.id, libera_em: fimReal, gols_casa: placar[0], gols_fora: placar[1], xg_casa: p.xg[0], xg_fora: p.xg[1],
       pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
@@ -221,7 +218,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       return { situacao: [...a.situacao, ...b.situacao], copa: [...a.copa, ...b.copa], vencedor };
     })(),
     momento,
-    minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+    minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
   };
 }
 

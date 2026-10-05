@@ -37,7 +37,7 @@ function notas(partida) {
     }
   }
   return Object.entries(partida.jogadores).map(([id, j]) => {
-    const x = de(id), minutos = (j.saiu === null ? 90 : j.saiu) - j.entrou;
+    const x = de(id), minutos = (j.saiu === null ? partida.duracao || 90 : j.saiu) - j.entrou;
     let nota = 6;
     if (j.pos === "GK") nota += 0.3 * x.defesas - 0.4 * x.sofridos + 0.6 * (x.xgContra - x.sofridos);
     else nota += limitar(0.4 * (j.duelosGanhos - j.duelosEsperados), -2, 2) + 1.1 * j.gols + 0.6 * x.assistencias + 0.5 * (j.xg - j.gols * 0.5) - 0.08 * j.faltas;

@@ -47,6 +47,11 @@ function momento() {
   if (t <= 45) return { texto: `${mmss(t)} · 1º tempo` };
   if (t < 60) return { texto: "45:00 · intervalo" };
   if (t < 105) return { texto: `${mmss(t - 15)} · 2º tempo` };
+  if (partida.fase === "copa" && !encerrada) { // se não houve prorrogação, o resultado chega e encerra a transmissão antes disto aparecer
+    if (t < 110) return { texto: "90:00 · fim do tempo normal", fim: true };
+    if (t < 140) return { texto: `${mmss(t - 20)} · prorrogação`, fim: true };
+    return { texto: "Pênaltis", fim: true };
+  }
   return { texto: "Fim de jogo", fim: true };
 }
 

@@ -2,7 +2,7 @@
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run.
 -- Precisa do 47_copa_calendario_e_chave.sql já executado. Depois, republicar a função "rodada". Pode ser executado mais de uma vez.
 --
--- Na partida de copa (tudo calculado pela função "rodada"): campo neutro, prorrogação e pênaltis no empate, experiência valendo 1,5,
+-- Na partida de copa (tudo calculado pela função "rodada"): campo neutro, prorrogação jogada (30 minutos) e pênaltis no empate, experiência valendo 1,5,
 -- cartões contados à parte (o segundo amarelo suspende por um jogo de copa; depois das quartas os amarelos zeram) e a trava de clube:
 -- quem jogou a copa da temporada por um clube não joga por outro. Lesão continua valendo para liga e copa.
 

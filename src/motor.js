@@ -350,7 +350,10 @@ const novaEstatistica = () => ({
 });
 
 // Simula uma partida inteira. O mesmo rng (mesma semente) dá sempre o mesmo jogo.
-export function simularPartida(rng, casa, fora) {
+// minutos em que a bola volta ao centro: segundo tempo e os dois tempos da prorrogação
+const reinicio = min => min === 46 || min === 91 || min === 106;
+// opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
+export function simularPartida(rng, casa, fora, opcoes = {}) {
   const times = [iniciar(casa, rng), iniciar(fora, rng)], estat = [novaEstatistica(), novaEstatistica()];
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
   const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
@@ -649,7 +652,7 @@ export function simularPartida(rng, casa, fora) {
     finalizar(i, chance);
   }
 
-  for (min = 1; min <= 90; min++) {
+  const jogar = (de, ate) => { for (min = de; min <= ate; min++) {
     ordensESubstituicoes(0); ordensESubstituicoes(1);
     for (const t of times) for (const jog of t.emCampo) {
       const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1);
@@ -673,28 +676,35 @@ export function simularPartida(rng, casa, fora) {
         let i;
         let zona = null;
         if (saida !== null) { i = saida; saida = null; zona = "D"; }
-        else if (proximo && min !== 46) { i = proximo.time; zona = proximo.zona; }
-        else if (cadeia === null || min === 46) i = rng.chance(posseCasa) ? 0 : 1;
+        else if (proximo && !reinicio(min)) { i = proximo.time; zona = proximo.zona; }
+        else if (cadeia === null || reinicio(min)) i = rng.chance(posseCasa) ? 0 : 1;
         else {
           const p = cadeia === 0 ? posseCasa : 1 - posseCasa;
           i = rng.chance((1 - p) / Math.max(p, 1 - p)) ? 1 - cadeia : cadeia;
         }
         cadeia = i; // o contra-ataque é um ataque a mais de quem recuperou a bola: não conta como a vez dele na cadeia
-        if (zona === null) zona = bola && bola.time === i && min !== 46 ? bola.zona : "D";
+        if (zona === null) zona = bola && bola.time === i && !reinicio(min) ? bola.zona : "D";
         proximo = null;
         atacar(i, false, zona);
       }
     }
     somaPosse += posseCasa;
+  } };
+  jogar(1, 90);
+  let duracao = 90;
+  if (opcoes.prorrogacao && gols()[0] === gols()[1]) {
+    soltarCartoes(); min = 91; saida = null; proximo = null;
+    evento(0, "prorrogacao", "Fim do tempo normal com tudo igual. Vamos à prorrogação: mais 30 minutos.");
+    jogar(91, 120); duracao = 120;
   }
-  min = 90;
+  min = duracao;
   times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
-  estat[0].posse = Math.round(somaPosse / 90 * 100); estat[1].posse = 100 - estat[0].posse;
+  estat[0].posse = Math.round(somaPosse / duracao * 100); estat[1].posse = 100 - estat[0].posse;
   soltarCartoes();
   const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);
   // segundo de cada lance dentro do seu minuto, para a transmissão soltar um por vez em vez de todos no minuto cheio
   const porMinuto = {};
   narracao.forEach(l => (porMinuto[l.min] = porMinuto[l.min] || []).push(l));
   Object.values(porMinuto).forEach(g => g.forEach((l, k) => { l.s = Math.floor((k + 0.5) / g.length * 60); }));
-  return { placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
+  return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
 }

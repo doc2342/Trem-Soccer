@@ -9,7 +9,7 @@ const LINHAS_CAMPO = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol
 let serieAbas = 0;
 
 const ICONE_RESULTADO = { gol: "⚽", defesa: "🧤", trave: "🥅", fora: "👟", bloqueado: "🛡️" };
-const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", prorrogacao: "⚽", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
+const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", prorrogacao: "⏱️", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
 // Nomes vêm do motor marcados com o time ("{0:Fulano}"): aqui cada um ganha a cor do seu clube.
 const MARCA = /\{([01?]):([^{}]+)\}/g;
 export const textoSemMarcas = t => String(t).replace(MARCA, "$2");
