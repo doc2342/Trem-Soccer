@@ -1316,7 +1316,9 @@ async function telaClube(liga, clube) {
   ["stComp", "stTemp", "stLista"].forEach(id => { $(id).onchange = () => mostrarCompeticao("stats"); });
   temporadasComEstatisticas(liga.id).then(ts => { if ($("stTemp")) $("stTemp").insertAdjacentHTML("beforeend", ts.filter(t => t !== liga.temporada).map(t => `<option value="${t}">Temporada ${t}</option>`).join("")); }).catch(() => {});
   compPronta = true;
-  await mostrarCompeticao(subGuardada("comp"));
+  // a série do clube é sempre calculada primeiro: é ela que preenche "Próximos jogos" e "Tabela" na Central
+  await grupo(clube.grupo).catch(e => { $("tabela").innerHTML = `<span class="bad">${esc(e.message)}</span>`; });
+  if (subGuardada("comp") !== "liga") await mostrarCompeticao(subGuardada("comp"));
 
   // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
   $("app").onclick = e => {
