@@ -130,7 +130,9 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    const cuida = comLivres && !!c.dono && !!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000;
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
-    if (rng.chance(chanceDeAposentar(idade))) {
+    // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 38; antes dele, vale o sorteio na virada
+    const para = j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 38) : rng.chance(chanceDeAposentar(idade));
+    if (para) {
       plano.aposentados.push(numero(j.id));
       resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
       if (c.dono) continue; // clube com dirigente: quem repõe é a base

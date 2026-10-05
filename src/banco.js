@@ -39,7 +39,8 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null,
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
-    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
+    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
+    aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, preContrato: l.pre_contrato || null }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
 export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);
@@ -167,7 +168,19 @@ export async function talentosDaLiga() { // só o administrador consegue ler
     if (linhas.length < 1000) return t;
   }
 }
-export const virarTemporada = (ligaId, plano) => sb.rpc("virar_temporada", { p_liga: ligaId, p_plano: plano }).then(ok);
+// A virada passa pela versão que desliga as guardas de contrato (46_janelas_aposentadoria_e_pre_acordo.sql); sem ela, usa a antiga.
+export const virarTemporada = async (ligaId, plano) => {
+  const r = await sb.rpc("virar_temporada_com_guardas", { p_liga: ligaId, p_plano: plano });
+  if (r.error && (r.error.code === "PGRST202" || /could not find the function/i.test(r.error.message || ""))) return sb.rpc("virar_temporada", { p_liga: ligaId, p_plano: plano }).then(ok);
+  return ok(r);
+};
+// Depois da virada: executa os pré-acordos entre dirigentes e resolve os pré-contratos. Devolve o resumo, ou "" sem o SQL 46.
+export const executarPreAcordos = ligaId => sb.rpc("executar_pre_acordos", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data);
+// Período de pré-acordo (da última rodada à virada): null sem o SQL 46.
+export const periodoDePreAcordo = ligaId => sb.rpc("periodo_de_pre_acordo", { p_liga: ligaId }).then(({ data, error }) => error ? null : !!data);
+export const proporPreContrato = (jogadorId, salario, temporadas) => sb.rpc("propor_pre_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
+export const meusPreContratos = () => sb.from("pre_contratos").select("jogador_id, clube_id, temporada, salario, temporadas, jogadores(nome, pos, idade)").then(({ data, error }) => error ? null : data);
+export const anunciarAposentadorias = ligaId => sb.rpc("anunciar_aposentadorias", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
@@ -186,6 +199,7 @@ export async function jogadoresDoMercado() {
   const ler = async campos => { const tudo = [];
     for (let de = 0; ; de += 1000) { const r = await sb.from("jogadores").select(campos).not("clube_id", "is", null).order("id").range(de, de + 999); if (r.error) throw new Error(r.error.message); tudo.push(...r.data); if (r.data.length < 1000) return tudo; } };
   // "pe" só existe depois do 44_pe_dominante.sql; sem ele, a busca funciona sem o filtro de pé
+  try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, pe, aposenta_em"); } catch (e0) { /* sem o SQL 46 */ }
   try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, pe"); } catch (e) { try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido"); } catch (e2) { return ler(CAMPOS_DO_MERCADO); } }
 }
 // M2: venda negociada (supabase/20_venda_negociada.sql). minhasPropostas devolve null enquanto o SQL 20 não foi executado.

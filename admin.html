@@ -23,7 +23,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -196,7 +196,20 @@ async function tela(aviso = "") {
         const ini = inicio + (j.rodada - 1) * intervalo;
         linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(ini + duracao * 60000).toISOString() });
       }
-      await criarPartidas(linhas); await tela(`Calendário gerado: ${linhas.length} partidas.`);
+      await criarPartidas(linhas);
+      // janelas por data: a de início fecha na véspera da rodada 3; a do meio abre no meio do caminho entre as rodadas 8 e 9
+      // (onde ficarão as oitavas da copa) e fecha na véspera da rodada 12. Em calendário de teste, com rodadas a minutos uma da outra,
+      // "véspera" vira um minuto antes.
+      const rodada = n => inicio + (n - 1) * intervalo, diario = intervalo >= 20 * 3600000;
+      const vespera = t => diario ? new Date(new Date(t).setHours(0, 0, 0, 0) - 60000) : new Date(t - 60000);
+      const meioAbre = rodada(8) + intervalo / 2;
+      let janelas = "";
+      try {
+        await atualizarLiga(liga.id, { janela_inicio_fecha: vespera(rodada(3)).toISOString(), janela_meio_abre: (diario ? new Date(new Date(meioAbre).setHours(0, 0, 0, 0)) : new Date(meioAbre)).toISOString(), janela_meio_fecha: vespera(rodada(12)).toISOString() });
+        const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        janelas = ` Janela de início até ${quando(vespera(rodada(3)))}; janela do meio de ${quando(diario ? new Date(meioAbre).setHours(0, 0, 0, 0) : meioAbre)} a ${quando(vespera(rodada(12)))}.`;
+      } catch (e) { janelas = " (As datas das janelas não foram gravadas: falta o SQL 46. Vale a regra antiga, por rodada.)"; }
+      await tela(`Calendário gerado: ${linhas.length} partidas.` + janelas);
     } catch (e) { await tela("Erro ao gerar o calendário: " + e.message); }
   });
   em("apagarCal", async () => {
@@ -246,6 +259,7 @@ async function tela(aviso = "") {
           await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos)); // foto das notas, para medir o treino da temporada que começa
           let livres = ""; // contratos vencidos: os jogadores saem dos clubes e entram em leilão
           if (comLivres) { try { livres = ` ${await liberarJogadores(liga.id, plano.livres)} jogadores ficaram livres.`; } catch (e) { livres = " Não consegui liberar os jogadores de contrato vencido: " + e.message; } }
+          const pre = await executarPreAcordos(liga.id); if (pre) livres += " " + pre; // pré-acordos e pré-contratos fechados antes da virada
           await tela(feito + (taxas ? ` Taxas de venda distribuídas: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
         }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
