@@ -53,7 +53,7 @@ begin
   if exists (select 1 from obras where clube_id = v_c.id and not concluida) then raise exception 'Já existe uma obra em andamento. Só cabe uma por vez.'; end if;
   v_nivel := 1 + case p_estrutura when 'ct' then v_c.ct_nivel when 'medico' then v_c.medico_nivel when 'fisio' then v_c.fisio_nivel
     when 'base' then v_c.base_nivel else v_c.estadio_nivel end;
-  if v_nivel > case when p_estrutura = 'estadio' then 8 else 5 end then raise exception 'Essa estrutura já está no nível máximo.'; end if;
+  if v_nivel > (case when p_estrutura = 'estadio' then 8 else 5 end) then raise exception 'Essa estrutura já está no nível máximo.'; end if;
   v_custo := custo_da_obra(p_estrutura, v_nivel);
   select caixa into v_caixa from financas where clube_id = v_c.id;
   if coalesce(v_caixa, 0) < v_custo then raise exception 'Caixa insuficiente: a obra custa % mil e o caixa é de % mil.', v_custo, coalesce(v_caixa, 0); end if;
