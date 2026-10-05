@@ -199,7 +199,8 @@ async function tela(aviso = "") {
       const linhas = [];
       for (const g of GRUPOS) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
         const ini = hora(espacoDaRodada(j.rodada));
-        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
+        // fase e copa_fase explícitas: num insert com linhas de copa junto, o campo que falta numa linha vira nulo (não vale o padrão do banco)
+        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, fase: "liga", copa_fase: null, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
       }
       let copa = "";
       if (comCopa) {
