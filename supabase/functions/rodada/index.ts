@@ -183,6 +183,8 @@ const __saude = (() => {
     psicologo: [0.2, 0.4],   // o psicólogo corta de 20% a 60% das quedas de moral
     minutosDeJogo: 45,
   };
+  // Analista: nível do comentário pós-jogo (1 sem analista, 2 com skill até 24, 3 com 25 ou mais) e detalhe da prévia do adversário.
+  const nivelDoAnalista = skill => !skill ? 1 : skill < 25 ? 2 : 3;
   const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção", forma: "Preparador de forma", psicologo: "Psicólogo" };
   const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
   const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
@@ -200,6 +202,7 @@ const __saude = (() => {
       medico: medico ? { reducao: reducaoDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
       forma: forma ? { ganho: ganhoDeForma(forma), vagas: atendidosNaForma(clube && clube.fisio_nivel) } : null,
       psicologo: corteDoPsicologo(de("psicologo")),
+      analista: nivelDoAnalista(de("analista")),
     };
   }
 
@@ -230,7 +233,7 @@ const __saude = (() => {
     if (dm < 0) dm *= 1 - psicologo;
     return { forma: limite(forma + df), moral: limite(moral + dm) };
   }
-  return { CONFIG_SAUDE, FUNCOES_DE_SAUDE, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, CONFIG_EXPERIENCIA, experienciaDe, desvioDoDia, diaDoJogador, experienciaDepois, fatorDeMomento, momentoDepois };
+  return { CONFIG_SAUDE, nivelDoAnalista, FUNCOES_DE_SAUDE, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo, saudeDoClube, CONFIG_EXPERIENCIA, experienciaDe, desvioDoDia, diaDoJogador, experienciaDepois, fatorDeMomento, momentoDepois };
 })();
 
 const __escalacao = (() => {
@@ -1271,7 +1274,8 @@ const __rodada = (() => {
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0, prevencao: l.saude ? l.saude.prevencao : 0 });
     });
     const p = simularPartida(criarRng(semente), times[0], times[1]);
-    const r = montarRelatorio(p, [3, 3]);
+    // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
+    const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
     const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
     // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
     const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);

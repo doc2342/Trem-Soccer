@@ -16,6 +16,8 @@ export const CONFIG_SAUDE = {
   psicologo: [0.2, 0.4],   // o psicólogo corta de 20% a 60% das quedas de moral
   minutosDeJogo: 45,
 };
+// Analista: nível do comentário pós-jogo (1 sem analista, 2 com skill até 24, 3 com 25 ou mais) e detalhe da prévia do adversário.
+export const nivelDoAnalista = skill => !skill ? 1 : skill < 25 ? 2 : 3;
 export const FUNCOES_DE_SAUDE = { medico: "Médico", prevencao: "Preparador de prevenção", forma: "Preparador de forma", psicologo: "Psicólogo" };
 const escala = ([base, extra], skill) => skill ? base + extra * Math.min(50, skill) / 50 : 0;
 export const reducaoDeLesao = skill => escala(CONFIG_SAUDE.prevencao, skill);
@@ -33,6 +35,7 @@ export function saudeDoClube(equipe, clube) {
     medico: medico ? { reducao: reducaoDoMedico(medico), vagas: atendidosPeloMedico(clube && clube.medico_nivel) } : null,
     forma: forma ? { ganho: ganhoDeForma(forma), vagas: atendidosNaForma(clube && clube.fisio_nivel) } : null,
     psicologo: corteDoPsicologo(de("psicologo")),
+    analista: nivelDoAnalista(de("analista")),
   };
 }
 

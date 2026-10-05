@@ -131,7 +131,8 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
   const p = simularPartida(criarRng(semente), times[0], times[1]);
-  const r = montarRelatorio(p, [3, 3]);
+  // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
+  const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
   const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
   // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
   const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);

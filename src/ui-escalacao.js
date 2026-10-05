@@ -20,6 +20,7 @@ const HTML = `  <div id="cabecalho"></div>
     <div id="avisoOnline" class="mut" style="margin-top:6px"></div>
     <div class="mut" style="margin-top:4px">Para testar a tática, salve e jogue um amistoso na página do clube.</div>
   </div>
+  <div class="card" id="previa" hidden></div>
   <div class="card row">
     <label class="soLocal">Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label>
     <label class="soLocal">Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label>
@@ -110,6 +111,40 @@ function novoElenco() {
   E = salvo && salvo.vagas ? salvo : daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" }));
   sel = null; render();
 }
+// Prévia do próximo adversário, feita pelo analista do clube. Quanto maior a skill dele, mais a prévia mostra:
+// qualquer analista dá a formação provável e a força do onze; com skill 20, o estilo de jogo; com 35, como enfrentar.
+// O adversário comandado por bot é previsto com o mesmo código que o bot usa; o de dirigente pode jogar diferente.
+async function previaDoAdversario(B) {
+  const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
+  if (comissao == null) return; // comissão técnica ainda não ligada no banco
+  const analista = comissao.find(t => t.funcao === "analista");
+  const { data: jogo } = await B.sb.from("partidas").select("id, rodada, fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle();
+  el.hidden = false;
+  if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
+  const emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
+  const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const topo = `<h2>Próximo adversário <span class="tag">${jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${emCasa ? "em casa" : "fora"}</span></h2>
+    <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>`;
+  if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (aba Elenco, em Treino, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
+  const disponiveis = (await B.elencoDoClube(adv.id)).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
+  const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
+  const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
+  const forca = media(t.escalacao), minha = media(meu);
+  let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${t.escalacao.map(x => sg(x.pos)).join(" · ")})</span></div>
+    <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut">· o seu onze de agora: ${f1(minha)} (${minha >= forca + 0.5 ? "você é mais forte" : minha <= forca - 0.5 ? "eles são mais fortes" : "times parelhos"})</span></div>`;
+  if (sk >= 20) h += `<div>Estilo provável: pressão <b>${["baixa", "média", "alta"][I.pressao] || "média"}</b> · passe <b>${{ curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto"}</b> · mentalidade <b>${I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal"}</b>${I.contraAtaque ? " · joga no <b>contra-ataque</b>" : ""}${I.impedimento ? " · faz <b>linha de impedimento</b>" : ""}</div>`;
+  if (sk >= 35) {
+    const dicas = [];
+    if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
+    if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
+    if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
+    if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho");
+    if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
+    h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
+  }
+  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${adv.dono ? "É o que o bot faria com esse elenco: o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
+  el.innerHTML = h;
+}
 async function iniciarOnline(sessaoDeTeste) {
   const B = await import("./banco.js"), s = sessaoDeTeste || await B.sessao();
   raiz.querySelectorAll(".soLocal").forEach(e => { e.hidden = true; });
@@ -148,6 +183,7 @@ async function iniciarOnline(sessaoDeTeste) {
       : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, o bot escala o seu time.";
   };
   await situacao();
+  previaDoAdversario(B).catch(() => { $("previa").hidden = true; }); // sem esperar: a prévia aparece quando ficar pronta
   $("salvarOnline").onclick = async () => {
     const V = validar();
     if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }
