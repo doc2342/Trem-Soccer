@@ -272,7 +272,8 @@ async function tela(aviso = "") {
       const impostoDe = x => { const l = lucroDe[x.clube_id]; return l ? impostoDoLucro(l.lucro + x.premio - l.antecipado, l.teto) : 0; };
       const comLivres = (await livresDaLiga(liga.id)) != null; // o SQL 21 já foi executado?
       const safras = {}; (await safrasRecentes(liga.id)).forEach(x => { safras[x.clube_id] = Math.max(safras[x.clube_id] || 0, x.temporada); }); // quem ganhou talento raro há pouco concorre com metade do peso
-      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras });
+      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras,
+        juvenis: Object.values(elencos).flat().some(j => j.juvenil !== undefined) }); // jovens sem contrato só depois do 60_juvenis_e_formador.sql
       const seta = x => x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : "";
       const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
       const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${sg(x.pos)}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";

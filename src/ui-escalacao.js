@@ -179,7 +179,7 @@ async function iniciarOnline(sessaoDeTeste) {
       location.href = "jogo.html";
     };
   } catch (e) { $("cabecalho").innerHTML = `<div class="row" style="margin-bottom:10px"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>`; }
-  elenco = await B.elencoDoClube(clubeOnline.id);
+  elenco = (await B.elencoDoClube(clubeOnline.id)).filter(j => !j.juvenil); // juvenil não joga partida oficial
   // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
   // a suspensão da liga não vale na copa
   proximoJogo = (await B.sb.from("partidas").select("id, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;

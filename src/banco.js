@@ -51,7 +51,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
-    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
+    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, preContrato: l.pre_contrato || null,
@@ -187,6 +187,13 @@ export const venderPeloAgente = jogadorId => sb.rpc("vender_pelo_agente", { p_jo
 // Base e dispensa (supabase/35_base_e_dispensa.sql). A peneira passa pela função "mercado", que gera os jovens no servidor.
 export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jogador: numero(jogadorId) }).then(ok);
 export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
+// juvenil assina o primeiro contrato (60_juvenis_e_formador.sql); o salário de mercado é calculado pela função "mercado"
+export async function profissionalizar(id, temporadas) {
+  const { data, error } = await sb.functions.invoke("mercado", { body: { acao: "profissionalizar", jogador: id, temporadas } });
+  if (error) throw new Error('A função "mercado" não respondeu (ela já foi republicada no Supabase?).');
+  if (!data || data.erro) throw new Error(data ? data.erro : "Sem resposta do servidor.");
+  return data.mensagem;
+}
 export async function fazerPeneira() {
   const { data, error } = await sb.functions.invoke("mercado", { body: { acao: "peneira" } });
   if (error) throw new Error('A função "mercado" não respondeu (ela já foi publicada no Supabase?).');

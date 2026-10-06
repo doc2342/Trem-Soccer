@@ -401,28 +401,33 @@ const __base = (() => {
     rodadaDaPeneira: 9,
     nota: [15, 1.5, 1.5, 13, 25], // nota de chegada: 15 + 1,5 por nível, com desvio de 1,5, entre 13 e 25
     idade: [16, 18], contrato: 3,
+    idadeDeJuvenil: 21,           // juvenil que chega à virada com esta idade sem contrato fica livre; o formado no clube fica protegido até ela
   };
+  const LIMITE_DE_CONTRATADOS = 30;
+  const LIMITE_DE_JUVENIS = 25;
   // posições sorteadas para os jovens: mais gente de linha do que goleiro
   const POSICOES_DA_BASE = ["GK", "DC", "DC", "DR", "DL", "DMC", "MC", "MC", "MR", "ML", "AMC", "AMR", "AML", "FC", "SC", "RW", "LW"];
   const faixaDeJovens = (nivel, momento) => CONFIG_BASE[momento === "peneira" ? "peneira" : "promocao"][limitar(nivel || 0, 0, 5)];
 
   // Devolve os jovens prontos para gravar: { nome, pais, idade, pos, fam, at, tal, salario, salario_mercado, contrato_ate, protegido_ate }.
   // temporada: a temporada em que eles começam a jogar. usados: nomes que não podem se repetir.
-  function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "equilibrado", nomes, usados, temporada }) {
+  // juvenis (60_juvenis_e_formador.sql): chegam sem contrato nem salário e com a multa travada até os 21 anos; sem isso, contrato de 3 temporadas como antes.
+  function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "equilibrado", nomes, usados, temporada, juvenis = false }) {
     const C = CONFIG_BASE, [min, max] = faixaDeJovens(nivel, momento), n = rng.int(min, max), lista = [];
     for (let k = 0; k < n; k++) {
       const j = gerarJogador(rng, { id: null, pos: rng.pick(POSICOES_DA_BASE), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
         idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
       const mercado = salarioDeMercado(j);
       lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
-        salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada });
+        ...(juvenis ? { salario: null, salario_mercado: mercado, contrato_ate: null, protegido_ate: temporada + C.idadeDeJuvenil - j.idade, juvenil: true }
+          : { salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada }) });
     }
     return lista;
   }
-  return { CONFIG_BASE, faixaDeJovens, jovensDaBase };
+  return { CONFIG_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS, faixaDeJovens, jovensDaBase };
 })();
 // <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -448,13 +453,22 @@ Deno.serve(async (req) => {
       if (!meu) return json({ erro: "Você não tem clube." });
       const { data: lg } = await sb.from("ligas").select("temporada").eq("id", meu.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
-      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0 });
+      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0,
+        juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
       const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });
       if (r.error) return json({ erro: r.error.message });
       return json({ ok: true, mensagem: r.data });
     }
     const idJogador = +String(pedido.jogador || "").replace(/^j/, "");
     if (!idJogador) return json({ erro: "Jogador não informado." });
+    // juvenil assina o primeiro contrato: o salário de mercado sai dos atributos de hoje (60_juvenis_e_formador.sql)
+    if (pedido.acao === "profissionalizar") {
+      const { data: jv } = await sb.from("jogadores").select("id, idade, pos, fam, at, juvenil").eq("id", idJogador).maybeSingle();
+      if (!jv || !jv.juvenil) return json({ erro: "Esse jogador não é juvenil." });
+      const r = await sb.rpc("profissionalizar_jogador", { p_user: quem.user.id, p_jogador: idJogador, p_mercado: salarioDeMercado(jv), p_temporadas: Math.round(+pedido.temporadas) || 1 });
+      if (r.error) return json({ erro: r.error.message });
+      return json({ ok: true, mensagem: r.data });
+    }
 
     const { data: j } = await sb.from("jogadores").select("*").eq("id", idJogador).maybeSingle();
     if (!j) return json({ erro: "Jogador não encontrado." });

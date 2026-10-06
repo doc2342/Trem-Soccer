@@ -1,7 +1,7 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
 import { ATRIBUTOS, ATR_MIN, ATR_MAX } from "./modelo.js";
-import { jovensDaBase } from "./base.js";
+import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador } from "./gerador.js";
 import { salarioDeMercado, TETO_DE_FOLHA } from "./economia.js";
@@ -94,7 +94,8 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
 // comLivres: o mercado de jogadores livres já existe (SQL 21); sem ele, todo contrato vencido se renova sozinho.
 // Safra: os talentos raros de cada temporada. A liga sorteia quantos nascem (em média 1,5 de teto 43 e 3 de teto 42) e para que clubes vão.
 // Cada clube tem um bilhete: peso 1 + nível da base (clube sem dirigente, 0,5); quem ganhou um raro nas últimas 3 temporadas (ou já ganhou nesta)
-// concorre com metade do peso. No máximo um de cada nível por clube por temporada. O raro é um dos jovens que o clube já ia receber.
+// concorre com metade do peso. No máximo um de cada nível por clube por temporada. O raro é um dos jovens que o clube já ia receber:
+// clube sem dirigente que não repôs ninguém nesta virada fica fora do sorteio, para não aparecer um garoto a mais denunciando o raro.
 export const CONFIG_SAFRA = {
   niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.15], [1, 0.35], [2, 0.35], [3, 0.15]] }, { nivel: 42, tal: 95, quantos: [[1, 0.1], [2, 0.25], [3, 0.3], [4, 0.25], [5, 0.1]] }],
   pesoDoBot: 0.5, meioPesoPor: 3,
@@ -102,7 +103,7 @@ export const CONFIG_SAFRA = {
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
 export const ELENCO_MINIMO_DO_BOT = 18;
 // safras: { clubeId: última temporada em que o clube recebeu um talento raro }
-export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {} }) {
+export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
   const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0 };
@@ -134,7 +135,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(NOTA_DO_JOVEM + rng.normal(0, 1.5), 18, 26), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
-      salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: nova };
+      salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };
     plano.novos.push(novo);
     resumo.novos.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
     return novo;
@@ -142,8 +143,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   for (const c of clubes) {
    const vencidos = [], regs = [], renovadosAqui = []; let ficam = 0;
    // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
-   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova })) {
-     ficam++;
+   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova, juvenis })) {
+     if (!juvenis) ficam++; // juvenil não conta no elenco profissional
      plano.novos.push({ clube_id: c.id, ...jovem });
      resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
    }
@@ -167,7 +168,13 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     else if (idade >= 31) { rng.embaralhar(FISICOS).slice(0, rng.int(1, 2)).forEach(i => { at[i] = limitar(at[i] - 1, ATR_MIN, ATR_MAX); }); resumo.cairam++; }
     const reg = { id: numero(j.id), idade, at, salario: j.salario, salario_mercado: j.mercado, contrato_ate: j.contratoAte };
     plano.jogadores.push(reg); regs.push(reg);
-    if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
+    if (j.juvenil) { // juvenil que passou dos 21 sem ser profissionalizado fica livre
+      if (comLivres && idade > CONFIG_BASE.idadeDeJuvenil) {
+        plano.livres.push({ id: reg.id, salario_mercado: salarioDeMercado({ ...j, idade, at }) });
+        resumo.livres.push({ clube: c.nome, dono: !!c.dono, juvenil: true, nome: j.nome, pos: j.pos, idade });
+      }
+    }
+    else if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
     else ficam++;
    }
    // contratos vencidos: nos clubes sem dono (ou com dirigente ausente) renovam sozinhos por uma temporada, pelo maior entre o
@@ -201,7 +208,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   for (const { nivel, tal, quantos } of CONFIG_SAFRA.niveis) {
     const fora = new Set();
     for (let k = sorteado(quantos); k > 0; k--) {
-      const cand = clubes.filter(c => !fora.has(c.id));
+      const cand = clubes.filter(c => !fora.has(c.id) && (c.dono || plano.novos.some(x => x.clube_id === c.id && !raros.has(x))));
       const pesos = cand.map(c => (c.dono ? 1 + (c.base_nivel || 0) : CONFIG_SAFRA.pesoDoBot)
         * (safras[c.id] != null && safras[c.id] >= nova - CONFIG_SAFRA.meioPesoPor ? 0.5 : 1) * (jaGanhou.has(c.id) ? 0.5 : 1));
       let r = rng.n() * pesos.reduce((s, p) => s + p, 0), i = 0;
@@ -209,7 +216,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       const c = cand[i]; if (!c) break;
       fora.add(c.id); jaGanhou.add(c.id);
       const meus = plano.novos.filter(x => x.clube_id === c.id && !raros.has(x));
-      const jovem = meus.length ? rng.pick(meus) : jovemDoBot(c, rng.pick(["DC", "DR", "DL", "DMC", "MC", "MC", "AMC", "AMR", "AML", "FC", "SC"]));
+      if (!meus.length) continue; // clube com dirigente sem jovem nesta virada: o raro não nasce
+      const jovem = rng.pick(meus);
       jovem.tal = tal; raros.add(jovem);
       plano.safra.push({ clube_id: c.id, temporada: nova, jogador: jovem.nome, pos: jovem.pos, idade: jovem.idade, nivel, publico: !!c.dono });
       resumo.safra.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade, nivel });
