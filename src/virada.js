@@ -209,12 +209,15 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const fora = new Set();
     for (let k = sorteado(quantos); k > 0; k--) {
       const cand = clubes.filter(c => !fora.has(c.id) && (c.dono || plano.novos.some(x => x.clube_id === c.id && !raros.has(x))));
-      const pesos = cand.map(c => (c.dono ? 1 + (c.base_nivel || 0) : CONFIG_SAFRA.pesoDoBot)
-        * (safras[c.id] != null && safras[c.id] >= nova - CONFIG_SAFRA.meioPesoPor ? 0.5 : 1) * (jaGanhou.has(c.id) ? 0.5 : 1));
+      // os clubes sem dirigente que ficaram fora (não iam receber jovem) passam o peso deles aos que concorrem: a fatia dos bots não encolhe
+      const bots = clubes.filter(c => !c.dono).length, botsNoSorteio = cand.filter(c => !c.dono).length, pesoDoBot = CONFIG_SAFRA.pesoDoBot * (botsNoSorteio ? bots / botsNoSorteio : 1);
+      const pesos = cand.map(c => (c.dono ? 1 + (c.base_nivel || 0) : pesoDoBot)
+        * (!c.dono ? 1 : (safras[c.id] != null && safras[c.id] >= nova - CONFIG_SAFRA.meioPesoPor ? 0.5 : 1) * (jaGanhou.has(c.id) ? 0.5 : 1))); // o meio peso só vale para clube com dirigente
       let r = rng.n() * pesos.reduce((s, p) => s + p, 0), i = 0;
       while (i < cand.length - 1 && (r -= pesos[i]) >= 0) i++;
       const c = cand[i]; if (!c) break;
-      fora.add(c.id); jaGanhou.add(c.id);
+      if (c.dono) fora.add(c.id); // clube sem dirigente pode receber mais de um do mesmo nível: são poucos no sorteio
+      jaGanhou.add(c.id);
       const meus = plano.novos.filter(x => x.clube_id === c.id && !raros.has(x));
       if (!meus.length) continue; // clube com dirigente sem jovem nesta virada: o raro não nasce
       const jovem = rng.pick(meus);
