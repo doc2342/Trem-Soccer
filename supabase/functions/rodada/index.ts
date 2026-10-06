@@ -1458,7 +1458,37 @@ const __rodada = (() => {
     }
     return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, COPA, foraDaCopa, calcularPartida, classificacao };
+
+  // ---------- playoffs de acesso: 2º x 5º e 3º x 4º, depois a final; jogo único na casa do mais bem colocado ----------
+  const RODADA_SEMI = 19;
+  const RODADA_FINAL = 20;
+  const daLiga = p => !p.fase || p.fase === "liga";
+  // Empate classifica o mandante, que é sempre o de melhor campanha.
+  const vencedorDoPlayoff = (p, r) => r.gols_casa >= r.gols_fora ? p.casa : p.fora;
+  // Devolve os jogos da próxima fase a criar: { fase, jogos: [{ grupo, rodada, fase, casa, fora }] } ou { erro }.
+  function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
+    const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+    if (!partidas.length || partidas.some(p => daLiga(p) && !res[p.id])) return { erro: "A fase de liga ainda não terminou." };
+    const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].sort();
+    if (!grupos.length) return { erro: "Nenhum grupo disputa playoff (só as divisões abaixo da primeira)." };
+    const semis = partidas.filter(p => p.fase === "semi"), finais = partidas.filter(p => p.fase === "final");
+    if (finais.length) return { erro: "As finais dos playoffs já foram criadas." };
+    const jogos = [];
+    for (const g of grupos) {
+      const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);
+      if (!semis.length) {
+        if (t.length < 5) continue;
+        jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[1], fora: t[4] }, { grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
+      } else {
+        const doGrupo = semis.filter(p => p.grupo === g);
+        if (doGrupo.some(p => !res[p.id])) return { erro: "As semifinais ainda não terminaram." };
+        const v = doGrupo.map(p => vencedorDoPlayoff(p, res[p.id])).sort((a, b) => t.indexOf(a) - t.indexOf(b));
+        if (v.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: v[0], fora: v[1] });
+      }
+    }
+    return { fase: semis.length ? "final" : "semi", jogos };
+  }
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, vencedorDoPlayoff, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
@@ -1678,10 +1708,33 @@ const __ligabase = (() => {
   return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, timeDaBase };
 })();
 // <<< motor embutido
-const { calcularPartida, aplicarSituacao } = __rodada;
+const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
+
+// Playoffs de acesso: quando a fase de liga (ou as semifinais) termina, a fase seguinte é criada sozinha, uma data depois, no intervalo do calendário.
+async function avancarPlayoffs(sb) {
+  for (const liga of (await sb.from("ligas").select("id, pausada, minutos_transmissao")).data || []) {
+    if (liga.pausada) continue;
+    const conta = async f => (await f(sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id))).count || 0;
+    if (await conta(q => q.eq("fase", "final")) || await conta(q => q.eq("fase", "liga").eq("processada", false))) continue; // já tem final, ou a liga ainda está em jogo
+    const partidas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio").eq("liga_id", liga.id).in("fase", ["liga", "semi", "final"]).order("id").limit(2000)).data || [];
+    if (!partidas.length) continue;
+    const resultados = [], agora = new Date().toISOString(), ids = partidas.map(p => p.id);
+    for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));
+    const clubes = (await sb.from("clubes").select("id, nome, grupo, divisao").eq("liga_id", liga.id)).data || [];
+    const r = proximaFaseDosPlayoffs({ clubes, partidas, resultados });
+    if (r.erro || !r.jogos.length) continue;
+    // a data: um intervalo do calendário (o que separa as duas primeiras rodadas) depois do último jogo marcado, e nunca no passado
+    const hora = p => new Date(p.inicio).getTime(), daLiga = partidas.filter(p => p.fase === "liga");
+    const r1 = Math.min(...daLiga.filter(p => p.rodada === 1).map(hora)), r2 = Math.min(...daLiga.filter(p => p.rodada === 2).map(hora));
+    const intervalo = isFinite(r2 - r1) && r2 > r1 ? r2 - r1 : 86400000;
+    const ini = Math.max(Math.max(...partidas.map(hora)) + intervalo, Date.now() + 60000), fim = ini + (liga.minutos_transmissao || 0) * 60000;
+    // com o 63_playoffs_automaticos.sql, o índice único barra a criação em dobro se duas chamadas chegarem juntas
+    await sb.from("partidas").insert(r.jogos.map(j => ({ liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, copa_fase: null, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(fim).toISOString() })));
+  }
+}
 
 // Liga de base (61_liga_de_base.sql): joga as partidas cuja hora chegou. Só fica o placar, os gols e as notas; o juvenil que jogou ganha um bônus de treino.
 async function jogarBase(sb) {
@@ -1774,6 +1827,7 @@ Deno.serve(async (req) => {
 
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
+    try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));

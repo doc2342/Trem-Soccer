@@ -242,3 +242,33 @@ export function classificacao(clubes, partidas, resultados) {
   }
   return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
 }
+
+// ---------- playoffs de acesso: 2º x 5º e 3º x 4º, depois a final; jogo único na casa do mais bem colocado ----------
+export const RODADA_SEMI = 19;
+export const RODADA_FINAL = 20;
+const daLiga = p => !p.fase || p.fase === "liga";
+// Empate classifica o mandante, que é sempre o de melhor campanha.
+export const vencedorDoPlayoff = (p, r) => r.gols_casa >= r.gols_fora ? p.casa : p.fora;
+// Devolve os jogos da próxima fase a criar: { fase, jogos: [{ grupo, rodada, fase, casa, fora }] } ou { erro }.
+export function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
+  const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+  if (!partidas.length || partidas.some(p => daLiga(p) && !res[p.id])) return { erro: "A fase de liga ainda não terminou." };
+  const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].sort();
+  if (!grupos.length) return { erro: "Nenhum grupo disputa playoff (só as divisões abaixo da primeira)." };
+  const semis = partidas.filter(p => p.fase === "semi"), finais = partidas.filter(p => p.fase === "final");
+  if (finais.length) return { erro: "As finais dos playoffs já foram criadas." };
+  const jogos = [];
+  for (const g of grupos) {
+    const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);
+    if (!semis.length) {
+      if (t.length < 5) continue;
+      jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[1], fora: t[4] }, { grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
+    } else {
+      const doGrupo = semis.filter(p => p.grupo === g);
+      if (doGrupo.some(p => !res[p.id])) return { erro: "As semifinais ainda não terminaram." };
+      const v = doGrupo.map(p => vencedorDoPlayoff(p, res[p.id])).sort((a, b) => t.indexOf(a) - t.indexOf(b));
+      if (v.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: v[0], fora: v[1] });
+    }
+  }
+  return { fase: semis.length ? "final" : "semi", jogos };
+}
