@@ -514,6 +514,26 @@ async function telaClube(liga, clube) {
     ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e com mais talento"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18, 22, 27, 36], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção de 2% por temporada
+  // Resumo das estruturas: as cinco numa tela só, com o que cada uma faz hoje, o que ganha no próximo nível e o botão de ampliar
+  const resumoDasEstruturas = () => {
+    if (caixa == null || clube.ct_nivel == null) return `<div class="card mut">As estruturas aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>`;
+    const pct = v => Math.round(v * 100) + "%", fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`, mil = v => v.toLocaleString("pt-BR");
+    const efeito = (k, n) => k === "ct" ? `treino a ${pct(CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * n)}`
+      : k === "medico" ? `médico cuida de ${atendidosPeloMedico(n)} ao mesmo tempo`
+      : k === "fisio" ? `preparador de forma atende ${atendidosNaForma(n)} por rodada`
+      : k === "base" ? `${fx(faixaDeJovens(n, "promocao"))} jovens na virada, ${fx(faixaDeJovens(n, "peneira"))} na peneira`
+      : `${mil(lugaresDoEstadio(n))} lugares`;
+    const manut = Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(0.02 * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
+    return `<div class="card"><h2>Estruturas <span class="tag">caixa de ${dinheiro(caixa)} · manutenção de ${dinheiro(manut)} por temporada · uma obra por vez</span></h2>
+      ${obra ? `<div class="aviso" style="margin-bottom:8px">Obra em andamento: ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)} para o nível ${obra.nivel_alvo}, faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas de liga.</div>` : ""}
+      ${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
+        return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)">
+          <div style="flex:1 1 220px;min-width:0"><a class="lk" data-sub-ir="estr:${k}"><b>${nome}</b></a> <span class="tag">nível ${n} de ${maximo}</span>
+            <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div></div>
+          ${emObra ? `<span class="aviso">em obra</span>` : custo == null ? "" : `<div style="text-align:right"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
+            <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
+      <div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Toque no nome para ver os detalhes e a equipe de cada estrutura.</div></div>`;
+  };
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
   // comissão por estrutura: cada profissional aparece (e é contratado) na aba da estrutura em que trabalha
@@ -861,7 +881,8 @@ async function telaClube(liga, clube) {
     </section>
     <section data-secao="estruturas">
     <div id="obraAviso"></div>
-    ${subAbas("estr", [["treino", "🏋️ Treinamento", "Treino"], ["ct", "🏟️ Centro de treinamento", "CT"], ["medico", "🩺 Departamento médico", "Médico"], ["fisio", "💆 Fisioterapia", "Fisio"], ["base", "🌱 Base", "Base"], ["estadio", "🏟️ Estádio", "Estádio"]])}
+    ${subAbas("estr", [["resumo", "📋 Resumo", "Resumo"], ["treino", "🏋️ Treinamento", "Treino"], ["ct", "🏟️ Centro de treinamento", "CT"], ["medico", "🩺 Departamento médico", "Médico"], ["fisio", "💆 Fisioterapia", "Fisio"], ["base", "🌱 Base", "Base"], ["estadio", "🏟️ Estádio", "Estádio"]])}
+    <div data-parte="estr:resumo">${resumoDasEstruturas()}</div>
     <div data-parte="estr:treino">
     ${treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
       <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
@@ -1322,6 +1343,7 @@ async function telaClube(liga, clube) {
 
   // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
   $("app").onclick = e => {
+    const ir = e.target.closest("[data-sub-ir]"); if (ir) { const [g, k] = ir.dataset.subIr.split(":"); abrirSubAba(g, k); return; }
     const qual = e.target.dataset.obra;
     if (qual) {
       const nome = (ESTRUTURAS.find(x => x[0] === qual) || [])[1];
