@@ -3,7 +3,7 @@
 import { ATRIBUTOS, ATR_MIN, ATR_MAX } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
-import { gerarJogador } from "./gerador.js";
+import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
 import { salarioDeMercado, TETO_DE_FOLHA } from "./economia.js";
 import { classificacao } from "./rodada.js";
 
@@ -98,7 +98,7 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
 // clube sem dirigente que não repôs ninguém nesta virada fica fora do sorteio, para não aparecer um garoto a mais denunciando o raro.
 export const CONFIG_SAFRA = {
   niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.15], [1, 0.35], [2, 0.35], [3, 0.15]] }, { nivel: 42, tal: 95, quantos: [[1, 0.1], [2, 0.25], [3, 0.3], [4, 0.25], [5, 0.1]] }],
-  pesoDoBot: 0.5, meioPesoPor: 3,
+  pesoDoBot: 0.5, meioPesoPor: 3, idadeNoBot: 19,
 };
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
 export const ELENCO_MINIMO_DO_BOT = 18;
@@ -203,12 +203,15 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   }
   // safra da temporada nova
   plano.safra = []; resumo.safra = [];
-  const jaGanhou = new Set(), raros = new Set();
+  const jaGanhou = new Set(), raros = new Set(), aposentou = new Set([...plano.aposentados, ...plano.livres.map(x => x.id)]); // quem se aposenta ou fica livre não recebe o raro
   const sorteado = tabela => { let r = rng.n(); for (const [n, p] of tabela) if ((r -= p) < 0) return n; return tabela[tabela.length - 1][0]; };
   for (const { nivel, tal, quantos } of CONFIG_SAFRA.niveis) {
     const fora = new Set();
     for (let k = sorteado(quantos); k > 0; k--) {
-      const cand = clubes.filter(c => !fora.has(c.id) && (c.dono || plano.novos.some(x => x.clube_id === c.id && !raros.has(x))));
+      // em clube sem dirigente o raro pode ser um jovem que chega ou alguém do elenco que terá até 19 anos e talento comum: não sobra pista
+      const doBot = c => [...plano.novos.filter(x => x.clube_id === c.id && !raros.has(x)),
+        ...(elencos[c.id] || []).filter(j => j.idade + 1 <= CONFIG_SAFRA.idadeNoBot && !raros.has(j) && !aposentou.has(numero(j.id)) && (talentos[numero(j.id)] || 50) <= TALENTO_COMUM)];
+      const cand = clubes.filter(c => !fora.has(c.id) && (c.dono || doBot(c).length));
       // os clubes sem dirigente que ficaram fora (não iam receber jovem) passam o peso deles aos que concorrem: a fatia dos bots não encolhe
       const bots = clubes.filter(c => !c.dono).length, botsNoSorteio = cand.filter(c => !c.dono).length, pesoDoBot = CONFIG_SAFRA.pesoDoBot * (botsNoSorteio ? bots / botsNoSorteio : 1);
       const pesos = cand.map(c => (c.dono ? 1 + (c.base_nivel || 0) : pesoDoBot)
@@ -218,12 +221,13 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       const c = cand[i]; if (!c) break;
       if (c.dono) fora.add(c.id); // clube sem dirigente pode receber mais de um do mesmo nível: são poucos no sorteio
       jaGanhou.add(c.id);
-      const meus = plano.novos.filter(x => x.clube_id === c.id && !raros.has(x));
+      const meus = c.dono ? plano.novos.filter(x => x.clube_id === c.id && !raros.has(x)) : doBot(c);
       if (!meus.length) continue; // clube com dirigente sem jovem nesta virada: o raro não nasce
-      const jovem = rng.pick(meus);
-      jovem.tal = tal; raros.add(jovem);
-      plano.safra.push({ clube_id: c.id, temporada: nova, jogador: jovem.nome, pos: jovem.pos, idade: jovem.idade, nivel, publico: !!c.dono });
-      resumo.safra.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade, nivel });
+      const jovem = rng.pick(meus), jaNoClube = !plano.novos.includes(jovem), idade = jovem.idade + (jaNoClube ? 1 : 0);
+      raros.add(jovem);
+      if (!jaNoClube) jovem.tal = tal; // quem já estava no elenco tem o talento trocado pelo registro da safra (62_selecao_safra_e_devolucao.sql)
+      plano.safra.push({ clube_id: c.id, temporada: nova, jogador: jovem.nome, pos: jovem.pos, idade, nivel, publico: !!c.dono, ...(jaNoClube ? { jogador_id: numero(jovem.id), tal } : {}) });
+      resumo.safra.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade, nivel });
     }
   }
   return { plano, resumo };

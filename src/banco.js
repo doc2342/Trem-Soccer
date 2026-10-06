@@ -236,6 +236,9 @@ export const premiarTemporada = (ligaId, merito) => sb.rpc("premiar_temporada", 
 export const fatorDaCopa = ligaId => sb.rpc("fator_da_copa", { p_liga: ligaId }).then(({ data, error }) => error || data == null ? 1 : +data);
 export const premiosIndividuais = (ligaId, temporada) => sb.from("premios_individuais").select("comp, premio, jogador, pos, clube_id, valor, numero").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
 export const RESERVA_DO_FUNDO = 25000, COPA_BASE = 11200; // mil: acima da reserva, a copa seguinte paga mais, até o dobro
+// todos os prêmios individuais e seleções da liga (ficha do jogador, sala de troféus e mural); seleção da temporada: 62_selecao_safra_e_devolucao.sql
+export const premiosDaLiga = ligaId => sb.from("premios_individuais").select("temporada, comp, premio, jogador_id, jogador, pos, clube_id, numero").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+export const selecaoDaTemporada = ligaId => sb.rpc("selecao_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
 // Federação: resumo do fundo da liga por temporada e tipo (53_fundo_da_liga.sql; null antes dele) e os valores das três divisões
 export const resumoDoFundo = ligaId => sb.from("fundo_resumo").select("temporada, tipo, valor").eq("liga_id", ligaId).then(({ data, error }) => error ? null : data);
 export const divisoesDaLiga = ligaId => sb.from("divisoes").select("divisao, teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).order("divisao").then(({ data, error }) => error ? [] : data);
