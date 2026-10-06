@@ -905,9 +905,9 @@ async function telaClube(liga, clube) {
       const fase = j => !j.livre_ate ? `<span class="mut">aguarda o 1º lance</span>` : new Date(j.livre_ate) <= new Date() ? "encerrando"
         : `até ${ateQuando(j.livre_ate)}${entradaAte(j) ? (entradaAte(j) > new Date() ? `<div class="mut" style="font-size:12px">clube novo entra até ${ateQuando(entradaAte(j))}</div>` : `<div class="aviso" style="font-size:12px">só quem já deu lance</div>`) : ""}`;
       return `<div class="mut" style="margin-bottom:8px">O leilão dura ${duracaoDoLeilao} a partir do primeiro lance. Clubes novos só entram ${(h => h >= 1 ? "nas primeiras " + h * 0.75 + " horas" : "nos primeiros " + Math.round(h * 45) + " minutos")(liga.horas_leilao == null ? 48 : +liga.horas_leilao)}; depois, só disputa quem já deu lance, e se só um clube deu lance até ali, ele já assina. Lance nos últimos 3 minutos estende o leilão em 3 minutos e precisa superar o maior em 5%. Quem abriu o leilão e termina na frente assina por <b>10% a menos</b> (marcado com ★). Nenhum leilão termina entre 23h e 6h59. Você está em <b>${meusLeiloes} de 3</b> leilões ao mesmo tempo.</div>
-        <div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
+        <div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
         ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id);
-          return `<tr class="clk" data-livre="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
+          return `<tr class="clk" data-livre="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
             <td class="esq ${m && m.clube_id === clube.id ? "nota" : ""}">${m ? `${dinheiro(m.salario)} · ${esc((cPor[m.clube_id] || {}).nome || "—")}${m.clube_id === j.livre_abriu ? ` <span title="Abriu o leilão: se terminar na frente, assina por 10% a menos">★</span>` : ""}` : "—"}</td><td>${fase(j)}</td></tr>`; }).join("")}</table></div>
         <div id="livrePainel" style="margin-top:10px"></div>`; })()}</div>`}
     ${livres == null || !ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length ? "" : `<div class="card"><h2>Ofertas de clubes no vermelho <span class="tag">75% da multa rescisória · vale mesmo com a janela fechada</span></h2>
@@ -1126,7 +1126,7 @@ async function telaClube(liga, clube) {
     alvo.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
   if ($("livresLista")) $("livresLista").onclick = e => {
-    const tr = e.target.closest("tr[data-livre]"); if (!tr) return;
+    const tr = e.target.closest("tr[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
     const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = !!j.livre_ate;
     const maior = lancesLivres.filter(l => l.jogador_id === j.id && l.clube_id !== clube.id).reduce((m, l) => Math.max(m, l.salario), 0);
     const meu = lancesLivres.find(l => l.jogador_id === j.id && l.clube_id === clube.id), retaFinal = aberto && new Date(j.livre_ate) - new Date() <= 180000;

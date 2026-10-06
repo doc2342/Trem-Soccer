@@ -294,7 +294,7 @@ export async function comprarPelaMulta(jogadorId, salario, temporadas) {
   return data.mensagem;
 }
 // M3: jogadores livres e oferta à liga (supabase/21_jogadores_livres.sql). As listas devolvem null enquanto o SQL 21 não foi executado.
-const CAMPOS_LIVRE = "id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, livre_ate, oferta_liga_ate";
+const CAMPOS_LIVRE = "id, clube_id, nome, idade, pos, fam, at, exp, pe, salario, salario_mercado, contrato_ate, livre_ate, oferta_liga_ate";
 export const resolverLeiloes = ligaId => sb.rpc("resolver_leiloes", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 // livre_inicio e livre_abriu chegam com o SQL 25 (regras do leilão); sem ele, a lista vem sem esses campos
 export const livresDaLiga = async ligaId => {
