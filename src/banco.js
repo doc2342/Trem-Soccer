@@ -187,6 +187,11 @@ export const venderPeloAgente = jogadorId => sb.rpc("vender_pelo_agente", { p_jo
 // Base e dispensa (supabase/35_base_e_dispensa.sql). A peneira passa pela função "mercado", que gera os jovens no servidor.
 export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jogador: numero(jogadorId) }).then(ok);
 export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
+// Liga de base (61_liga_de_base.sql): partidas do grupo na temporada, campeões, e as duas chamadas do administrador
+export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").select("id, rodada, casa, fora, inicio, processada, gols_casa, gols_fora, dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("grupo", grupo).order("rodada").order("id").then(({ data, error }) => error ? null : data);
+export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+export const gerarLigaDeBase = ligaId => sb.rpc("gerar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
+export const premiarLigaDeBase = ligaId => sb.rpc("premiar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data || "");
 // juvenil assina o primeiro contrato (60_juvenis_e_formador.sql); o salário de mercado é calculado pela função "mercado"
 export async function profissionalizar(id, temporadas) {
   const { data, error } = await sb.functions.invoke("mercado", { body: { acao: "profissionalizar", jogador: id, temporadas } });

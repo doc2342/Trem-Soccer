@@ -9,7 +9,7 @@ Uso: python ferramentas/empacotar_funcao.py   (rodar de novo sempre que o motor 
 import io, os, re
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODULOS = ["rng", "modelo", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino"]  # em ordem de dependência
+MODULOS = ["rng", "modelo", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "ligabase"]  # em ordem de dependência
 
 RE_IMPORT = re.compile(r'^import\s*\{([^}]*)\}\s*from\s*"\./(\w+)\.js";\s*$', re.M | re.S)
 RE_EXPORT = re.compile(r'^export\s+(?=(?:async\s+)?(?:const|let|function)\s+(\w+))', re.M)
@@ -55,6 +55,47 @@ RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
 const { saudeDoClube } = __saude;
+const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
+
+// Liga de base (61_liga_de_base.sql): joga as partidas cuja hora chegou. Só fica o placar, os gols e as notas; o juvenil que jogou ganha um bônus de treino.
+async function jogarBase(sb) {
+  const r = await sb.from("base_jogos").select("*").eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").limit(25);
+  if (r.error || !r.data || !r.data.length) return 0;
+  const jogos = r.data, ids = [...new Set(jogos.flatMap(p => [p.casa, p.fora]))];
+  const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel").in("id", ids)).data || []).map(c => [c.id, c]));
+  const juvenis = {};
+  for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).eq("juvenil", true).order("id")).data || [])
+    (juvenis[l.clube_id] = juvenis[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
+  const todos = Object.values(juvenis).flat().map(j => +String(j.id).slice(1)), talentos = {};
+  if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
+  const comissoes = {};
+  for (const x of (await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids)).data || []) if ((x.funcao || "treinador") === "treinador") (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x);
+  let n = 0;
+  for (const p of jogos) {
+    const reserva = await sb.from("base_jogos").update({ processada: true }).eq("id", p.id).eq("processada", false).select("id");
+    if (reserva.error || !reserva.data.length) continue;
+    try {
+      const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
+      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id), tatica: null });
+      const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
+      const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
+      const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados }).eq("id", p.id);
+      if (g.error) throw new Error(g.error.message);
+      const treinos = [];
+      for (const id of [p.casa, p.fora]) {
+        const c = clubes[id] || {}, areas = qualidadeDoTreino(comissoes[id] || [], 0, !c.dono);
+        for (const j of juvenis[id] || []) {
+          if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
+          const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
+          if (t) { treinos.push({ id: +String(j.id).slice(1), at: t.at, pts: t.pts }); j.at = t.at; j.pts = t.pts; }
+        }
+      }
+      if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
+      n++;
+    } catch (e) { await sb.from("base_jogos").update({ processada: false }).eq("id", p.id); }
+  }
+  return n;
+}
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -107,6 +148,7 @@ Deno.serve(async (req) => {
 
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
+    try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));
     if (!pendentes.length) return json({ calculadas: 0, erros: [] });

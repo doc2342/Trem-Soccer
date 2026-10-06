@@ -161,8 +161,9 @@ export function partilha(j) {
 // Uma sessão de treino. j: { idade, pos, at, treino, pts }. tal: talento oculto (só o servidor sabe).
 // areas: multiplicadores de qualidadeDoTreino (sem eles, tudo 100%).
 // Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
-export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null } = {}) {
-  const total = pontosDaSessao(j, { ct, jogou, tal });
+// fator: fração de uma sessão (a liga de base dá um bônus de 20% de sessão a quem jogou).
+export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
+  const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
   if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal)) return null;
   const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
