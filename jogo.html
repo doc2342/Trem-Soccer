@@ -144,7 +144,7 @@ import { CONFIG_BASE, faixaDeJovens } from "./src/base.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
-import { sair, ligaAtual, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
@@ -316,6 +316,9 @@ async function telaClube(liga, clube) {
   const penais = r => r && r.penaltis ? ` <span class="mut">(pên. ${r.penaltis[0]} x ${r.penaltis[1]})</span>` : r && r.prorrogacao ? ` <span class="mut">(prorr.)</span>` : "";
   const quemPassou = p => { const r = copaRes[p.id]; return r ? p.vencedor || (r.vencedor ? +r.vencedor : r.gols_fora > r.gols_casa ? p.fora : p.casa) : null; };
   const naFase = f => ["", "na preliminar", "na fase de 32", "nas oitavas", "nas quartas", "na semifinal", "na final"][f];
+  // prêmios da copa desta temporada: os normais vezes o fator guardado quando o calendário foi gerado (fundo acima da reserva)
+  const fatorDaCopaAtual = Math.min(2, Math.max(1, +(liga.copa && liga.copa.fator) || 1));
+  const P_COPA = { fases: PREMIOS_DA_COPA.fases.map(v => Math.round(v * fatorDaCopaAtual)), vice: Math.round(PREMIOS_DA_COPA.vice * fatorDaCopaAtual), campeao: Math.round(PREMIOS_DA_COPA.campeao * fatorDaCopaAtual) };
   function telaDaCopa() {
     const agora = Date.now(), datas = (liga.copa && liga.copa.datas) || [], diretos = ((liga.copa && liga.copa.diretos) || []).map(Number);
     const fases = [...new Set(copaJogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => copaJogos.filter(p => p.copa_fase === f);
@@ -330,8 +333,8 @@ async function telaClube(liga, clube) {
         : v !== clube.id ? `Seu clube caiu ${naFase(ult.copa_fase)}, diante de ${adv(ult)}.`
         : ult.copa_fase === 6 ? "🏆 <b>Seu clube é o campeão da Copa do Brasil!</b>"
         : `Seu clube passou ${naFase(ult.copa_fase)} e está ${naFase(ult.copa_fase + 1)}: o sorteio sai quando a fase atual terminar.`; }
-    const ganho = meus.reduce((t, p) => t + (PREMIOS_DA_COPA.fases[p.copa_fase] || 0), 0) + (final && campeao && meus.includes(final) ? (campeao === clube.id ? PREMIOS_DA_COPA.campeao : PREMIOS_DA_COPA.vice) : 0);
-    const premio = f => f === 6 ? `${dinheiro(PREMIOS_DA_COPA.campeao)} <span class="mut">(vice ${dinheiro(PREMIOS_DA_COPA.vice)})</span>` : PREMIOS_DA_COPA.fases[f] ? dinheiro(PREMIOS_DA_COPA.fases[f]) : "—";
+    const ganho = meus.reduce((t, p) => t + (P_COPA.fases[p.copa_fase] || 0), 0) + (final && campeao && meus.includes(final) ? (campeao === clube.id ? P_COPA.campeao : P_COPA.vice) : 0);
+    const premio = f => f === 6 ? `${dinheiro(P_COPA.campeao)} <span class="mut">(vice ${dinheiro(P_COPA.vice)})</span>` : P_COPA.fases[f] ? dinheiro(P_COPA.fases[f]) : "—";
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
       return !l.length ? `<span class="mut" title="O sorteio sai quando a fase anterior terminar">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
     $("tituloTabela").innerHTML = "🏆 Copa do Brasil · fases";
@@ -412,7 +415,14 @@ async function telaClube(liga, clube) {
     $("rodadas").innerHTML = `<table class="mini" style="width:100%;table-layout:fixed"><tr><th class="esq">Clube</th><th style="width:26px" title="Jogos">J</th><th style="width:30px" title="Gols marcados">GP</th><th style="width:30px" title="Gols sofridos">GC</th><th style="width:36px" title="Finalizações por jogo">Fin</th><th style="width:40px" title="Posse de bola média">Pos</th><th style="width:30px" title="Cartões amarelos">🟨</th><th style="width:52px" title="Público médio em casa">Púb.</th></tr>
         ${cl.map(x => `<tr><td class="esq ${x.clube === clube.id ? "nota" : ""}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lk(x.clube)}</td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td>${num((x.fin / x.j).toFixed(1))}</td><td>${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.am}</td><td>${x.publico == null ? "—" : (x.publico / 1000).toFixed(1).replace(".", ",") + " mil"}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px">Ordenado por gols marcados.</div>
-      ${recordes.length ? `<h2 style="margin-top:14px">Recordes</h2>${recordes.join("")}` : ""}`;
+      ${recordes.length ? `<h2 style="margin-top:14px">Recordes</h2>${recordes.join("")}` : ""}<div id="stPremios"></div>`;
+    // premiados da temporada escolhida (os prêmios são pagos na virada: a temporada em andamento ainda não tem)
+    premiosIndividuais(liga.id, temp ? +temp : liga.temporada).then(ps => {
+      const NOME = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque da copa" };
+      const daqui = ps.filter(p => comp === "TODOS" ? true : p.comp === comp).sort((a, b) => a.comp.localeCompare(b.comp) || Object.keys(NOME).indexOf(a.premio) - Object.keys(NOME).indexOf(b.premio));
+      if (!daqui.length || !$("stPremios") || $("stComp").value !== comp || $("stTemp").value !== temp) return;
+      $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
+    }).catch(() => {});
   }
   // Federação: o fundo da liga (saldo, de onde veio e para onde foi) e os valores que a liga paga e cobra
   async function telaDaFederacao() {
@@ -420,11 +430,11 @@ async function telaClube(liga, clube) {
     $("tabela").className = ""; $("rodadas").className = "";
     $("tabela").innerHTML = $("rodadas").innerHTML = `<span class="mut">Carregando…</span>`;
     const [atual, resumo, divs] = await Promise.all([ligaAtual(), resumoDoFundo(liga.id), divisoesDaLiga(liga.id)]);
-    const saldo = atual && atual.fundo_taca != null ? atual.fundo_taca : liga.fundo_taca, P = PREMIOS_DA_COPA;
+    const saldo = atual && atual.fundo_taca != null ? atual.fundo_taca : liga.fundo_taca, P = P_COPA;
     // prêmios da copa desta temporada que ainda vão sair: fases de 32 a semifinal ainda não pagas, mais a final
     const clubesNaFase = [0, 0, 32, 16, 8, 4], pagas = (atual && atual.copa && atual.copa.pagas) || [];
     const aPagar = atual && atual.copa ? [2, 3, 4, 5].filter(f => !pagas.includes(f)).reduce((t, f) => t + P.fases[f] * clubesNaFase[f], 0) + (pagas.includes(6) ? 0 : P.campeao + P.vice) : null;
-    const TIPOS = [["bilheteria", "10% das bilheterias"], ["imposto", "Metade do imposto sobre o lucro"], ["taxas", "Metade das taxas de transferência"], ["copa", "Prêmios da Copa do Brasil"], ["devolucao", "Taxas devolvidas (transferência anulada)"]];
+    const TIPOS = [["bilheteria", "10% das bilheterias"], ["imposto", "Metade do imposto sobre o lucro"], ["taxas", "Metade das taxas de transferência"], ["copa", "Prêmios da Copa do Brasil"], ["merito", "Bônus de mérito da Série C"], ["premios", "Prêmios individuais"], ["devolucao", "Taxas devolvidas (transferência anulada)"]];
     const temporadas = [...new Set((resumo || []).map(x => x.temporada))].sort((a, b) => b - a);
     const valor = (t, k) => ((resumo || []).find(x => x.temporada === t && x.tipo === k) || {}).valor || 0;
     const sinal = v => `<td class="${v > 0 ? "ok" : v < 0 ? "bad" : "mut"}">${v > 0 ? "+" : v < 0 ? "−" : ""}${v ? dinheiro(Math.abs(v)) : "—"}</td>`;
@@ -436,8 +446,9 @@ async function telaClube(liga, clube) {
           ${TIPOS.filter(([k]) => temporadas.some(t => valor(t, k))).map(([k, n]) => `<tr><td class="esq">${n}</td>${temporadas.map(t => sinal(valor(t, k))).join("")}</tr>`).join("")}
           <tr><td class="esq"><b>Saldo da temporada</b></td>${temporadas.map(t => sinal(TIPOS.reduce((s, [k]) => s + valor(t, k), 0))).join("")}</tr></table>
           <div class="mut" style="margin-top:6px;font-size:12px">O registro começou depois de o fundo já existir: valores anteriores estão no saldo, não na tabela.</div>`}
-      <div class="mut" style="margin-top:10px"><b>Entra:</b> 10% da bilheteria de todo jogo (liga, playoff e copa), metade do imposto sobre o lucro cobrado na virada e metade das taxas de venda entre dirigentes.
-        <b>Sai:</b> os prêmios da Copa do Brasil. A outra metade do imposto e das taxas é dividida entre os clubes da Série C.</div>`;
+      <div class="mut" style="margin-top:10px"><b>Entra:</b> 10% da bilheteria de todo jogo (liga, playoff e copa), o imposto sobre o lucro cobrado na virada e as taxas de venda entre dirigentes.
+        <b>Sai:</b> os prêmios da Copa do Brasil, os bônus de mérito da Série C (campeão do grupo 800 mil, 2º 400, 3º 300, 4º 200; quem sobe pelo playoff 600) e os prêmios individuais de fim de temporada.
+        <b>Reserva:</b> ${dinheiro(RESERVA_DO_FUNDO)}. O que o fundo tiver acima disso quando o calendário for gerado engorda a copa daquela temporada, até o dobro${fatorDaCopaAtual > 1 ? `; a copa desta temporada paga ${String(fatorDaCopaAtual).replace(".", ",")} vezes os prêmios normais` : ""}. Com o saldo de hoje, a próxima pagaria ${String(Math.round(Math.min(2, Math.max(1, 1 + ((saldo || 0) - RESERVA_DO_FUNDO) / COPA_BASE)) * 100) / 100).replace(".", ",")} vezes.</div>`;
     const porDiv = d => divs.find(x => x.divisao === d) || {}, nomeDiv = ["", "Série A", "Séries B", "Séries C"];
     const linha = (rotulo, f) => `<tr><td class="esq">${rotulo}</td>${[1, 2, 3].map(d => `<td>${f(porDiv(d), d)}</td>`).join("")}</tr>`;
     $("rodadas").innerHTML = `<table class="mini" style="width:100%"><tr><th class="esq">Por temporada</th>${[1, 2, 3].map(d => `<th>${nomeDiv[d]}</th>`).join("")}</tr>
@@ -449,6 +460,8 @@ async function telaClube(liga, clube) {
         ${[2, 3, 4, 5].map(f => `<tr><td class="esq">${FASES_DA_COPA[f]}</td><td>${dinheiro(P.fases[f])}</td><td>${dinheiro(P.fases[f] * clubesNaFase[f])}</td></tr>`).join("")}
         <tr><td class="esq">Vice</td><td>${dinheiro(P.vice)}</td><td>${dinheiro(P.vice)}</td></tr><tr><td class="esq">Campeão</td><td>${dinheiro(P.campeao)}</td><td>${dinheiro(P.campeao)}</td></tr>
         <tr><td class="esq"><b>Copa inteira</b></td><td></td><td><b>${dinheiro([2, 3, 4, 5].reduce((t, f) => t + P.fases[f] * clubesNaFase[f], 0) + P.vice + P.campeao)}</b></td></tr></table>
+      <h2 style="margin-top:14px">Prêmios individuais</h2>
+      <div class="mut">Pagos na virada ao clube do jogador. Em cada série: artilheiro, garçom, melhor jogador, melhor goleiro e revelação (até 21 anos), a 100 mil na Série A, 60 mil nas B e 40 mil nas C; o melhor jogador da Série A é o Bola de Ouro e vale 200 mil. Na copa: artilheiro e craque, 100 mil cada. Os premiados de cada temporada ficam em Estatísticas.</div>
       <h2 style="margin-top:14px">O que a liga cobra</h2>
       <div class="mut">Imposto: 20% do lucro da temporada que passar de um quarto do teto de folha. Bilheteria: 10% de todo jogo (copa e playoff têm ingresso mais caro: até 50% a mais na final do playoff e o dobro na final da copa). Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
   }

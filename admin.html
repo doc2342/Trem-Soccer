@@ -23,7 +23,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -221,8 +221,9 @@ async function tela(aviso = "") {
           if (nivel[b] > nivel[a]) [a, b] = [b, a]; // joga no estádio maior; iguais, vale a ordem do sorteio
           linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
         }
-        await atualizarLiga(liga.id, { copa: { datas, diretos } });
-        copa = ` Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.`;
+        const fator = await fatorDaCopa(liga.id); // fundo acima da reserva: a copa desta temporada paga mais (até o dobro)
+        await atualizarLiga(liga.id, { copa: { datas, diretos, fator } });
+        copa = ` Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
       }
       await criarPartidas(linhas);
       // janelas por data: a de início fecha na véspera da rodada 3; a do meio abre depois das oitavas da copa e fecha na véspera das quartas
@@ -275,7 +276,7 @@ async function tela(aviso = "") {
       const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
       const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${sg(x.pos)}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";
       $("previaVirada").innerHTML = `<div class="duas">${Object.entries(resumo.grupos).map(([g, l]) => `<div><b>${nomeDoGrupo(g)}</b><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>Prêmio</th><th>Imposto</th><th class="esq">Destino</th></tr>${l.map(lugar).join("")}</table></div>`).join("")}</div>
-        <div style="margin-top:10px">Prêmios: ${dinheiro(plano.classificacao.reduce((s, x) => s + x.premio, 0))} no total · imposto previsto: ${dinheiro(plano.classificacao.reduce((s, x) => s + impostoDe(x), 0))} (metade vai, por igual, para a terceira divisão da temporada nova; metade vai para o fundo da liga, que paga os prêmios da Copa do Brasil) · ${resumo.cresceram} jogadores crescem · ${resumo.cairam} perdem físico · ${resumo.renovados} contratos renovados sozinhos · ${plano.aposentados.length} se aposentam e ${plano.novos.length} jovens chegam.</div>
+        <div style="margin-top:10px">Prêmios: ${dinheiro(plano.classificacao.reduce((s, x) => s + x.premio, 0))} no total · imposto previsto: ${dinheiro(plano.classificacao.reduce((s, x) => s + impostoDe(x), 0))} (vai inteiro para o fundo da liga, que paga a copa, os bônus de mérito da Série C e os prêmios individuais) · ${resumo.cresceram} jogadores crescem · ${resumo.cairam} perdem físico · ${resumo.renovados} contratos renovados sozinhos · ${plano.aposentados.length} se aposentam e ${plano.novos.length} jovens chegam.</div>
         <div class="mut" style="margin-top:6px">Aposentam-se: ${gente(resumo.aposentados)}.</div><div class="mut" style="margin-top:4px">Chegam: ${gente(resumo.novos)}.</div>
         <div class="mut" style="margin-top:4px">${comLivres ? `Ficam livres por contrato vencido (${resumo.livres.length}): ${gente(resumo.livres)}.${resumo.livres.some(x => x.peloTeto) ? ` Desses, ${resumo.livres.filter(x => x.peloTeto).length} são de clubes sem dirigente que passariam do teto de folha: ${resumo.livres.filter(x => x.peloTeto).slice(0, 30).map(x => `${x.nome} (${x.pos}, ${x.idade}, ${x.clube})`).join(" · ")}.` : ""} Cada um entra em leilão de ${liga.horas_leilao || 48} horas a partir do primeiro lance.` : "Jogadores livres ainda não ligados (SQL 21): todo contrato vencido se renova sozinho."}</div>
         <div class="row" style="margin-top:10px"><button id="confirmarVirada">Confirmar a virada</button><span class="mut">Cada vez que a prévia é preparada, o sorteio de aposentadorias e jovens é refeito. Vale o que está nesta tela.</span></div>`;
@@ -286,6 +287,11 @@ async function tela(aviso = "") {
         $("confirmarVirada").disabled = true;
         try {
           await guardarEstatisticas(liga.id); // artilheiros e demais listas da temporada, antes de a virada apagar as partidas
+          // fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff) e prêmios individuais
+          const BONUS_DA_C = [0, 800, 400, 300, 200], merito = [];
+          for (const x of plano.classificacao.filter(x => x.divisao === 3 && x.posicao <= 4)) merito.push({ clube_id: x.clube_id, valor: BONUS_DA_C[x.posicao], descricao: `Fundo da liga: bônus pelo ${x.posicao}º lugar na Série C` });
+          for (const m of plano.movimentos.filter(m => !m.caiu)) { const x = plano.classificacao.find(c => c.clube_id === m.clube_id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: m.clube_id, valor: 600, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
+          const premiosDoFundo = await premiarTemporada(liga.id, merito);
           const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou
           await atualizarTorcidas(liga.id); // prestígio de cada clube, pela campanha que acabou de ir para o histórico
           await ajustarJanelaFinal(liga.id); // compras feitas depois da última rodada passam a contar na temporada nova
@@ -293,7 +299,7 @@ async function tela(aviso = "") {
           let livres = ""; // contratos vencidos: os jogadores saem dos clubes e entram em leilão
           if (comLivres) { try { livres = ` ${await liberarJogadores(liga.id, plano.livres)} jogadores ficaram livres.`; } catch (e) { livres = " Não consegui liberar os jogadores de contrato vencido: " + e.message; } }
           const pre = await executarPreAcordos(liga.id); if (pre) livres += " " + pre; // pré-acordos e pré-contratos fechados antes da virada
-          await tela(feito + (taxas ? ` Taxas de venda distribuídas: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
+          await tela(feito + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
         }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
       };

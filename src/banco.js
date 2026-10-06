@@ -210,6 +210,12 @@ export const estatisticasGuardadas = (ligaId, temporada, comp) => sb.from("estat
 export const guardarEstatisticas = ligaId => sb.rpc("guardar_estatisticas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
 // depois da virada: atualiza o prestígio (fator da torcida) de cada clube pela campanha da temporada que acabou. Sem o SQL 55, não faz nada.
 export const atualizarTorcidas = ligaId => sb.rpc("atualizar_torcidas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
+// Fundo da liga (58_fundo_e_premios.sql). Antes da virada: paga os bônus de mérito (lista montada pela página) e os prêmios individuais.
+export const premiarTemporada = (ligaId, merito) => sb.rpc("premiar_temporada", { p_liga: ligaId, p_merito: merito }).then(({ data, error }) => error ? "" : data);
+// quanto a copa paga a mais com o fundo acima da reserva (1 a 2); 1 antes do SQL 58
+export const fatorDaCopa = ligaId => sb.rpc("fator_da_copa", { p_liga: ligaId }).then(({ data, error }) => error || data == null ? 1 : +data);
+export const premiosIndividuais = (ligaId, temporada) => sb.from("premios_individuais").select("comp, premio, jogador, pos, clube_id, valor, numero").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
+export const RESERVA_DO_FUNDO = 25000, COPA_BASE = 11200; // mil: acima da reserva, a copa seguinte paga mais, até o dobro
 // Federação: resumo do fundo da liga por temporada e tipo (53_fundo_da_liga.sql; null antes dele) e os valores das três divisões
 export const resumoDoFundo = ligaId => sb.from("fundo_resumo").select("temporada, tipo, valor").eq("liga_id", ligaId).then(({ data, error }) => error ? null : data);
 export const divisoesDaLiga = ligaId => sb.from("divisoes").select("divisao, teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).order("divisao").then(({ data, error }) => error ? [] : data);
