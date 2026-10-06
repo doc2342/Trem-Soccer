@@ -26,7 +26,7 @@ export const CONFIG = {
   fatorLibero: 0.8, // o líbero reduz o xG das bolas em profundidade
   // quem chuta mal prefere cruzar ou tocar: o peso do corte e do chute de longe depende do pé de quem venceu o duelo,
   // e o chute forçado (ataque emperrado) sai do pé de quem chuta melhor entre ele e os atacantes da área (null desliga)
-  decisaoDoChute: null, // em teste: { referencia: 25, inclinacao: 3 } liga
+  decisaoDoChute: { referencia: 25, inclinacao: 3 },
   pesoTipo: { profundidade: 0.3, area: 0.8, longe: 0.2, cruzamento: 0.35, corte: 0.3, longeLado: 0.5 }, // mistura dos tipos de chance, pelo centro e pelos lados
   variacaoChance: { profundidade: 0.4, area: 0.55, cruzamento: 0.45, corte: 0.35, longe: 0.35 }, // dispersão da qualidade de cada chance (0 = todas parecidas); a média não muda
   ajusteGol: { cruzamento: 0.97, corte: 1.28, profundidade: 0.93, area: 0.89, longe: 1.26, escanteio: 0.99, falta: 1, penalti: 0.98 }, // acerto fino para o xG de cada tipo bater com os gols
