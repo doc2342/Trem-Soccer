@@ -5,7 +5,7 @@
 // o centro de treinamento, o trabalho em equipe, ter jogado e os treinadores (cada atributo pertence a uma área de treino, e a qualidade da área
 // depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
 // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, notaBruta } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto } from "./modelo.js";
 
 export const CONFIG_TREINO = {
   pontosPorNivel: 100,
@@ -96,6 +96,29 @@ export function focoDoJogador(j) {
   return { p: t.p, c: c.length ? c : auto.c };
 }
 
+// Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
+// Cada sessão dá pontos de posição; a posição vizinha de uma em que ele já é natural custa 1800 pontos por degrau (improvisado → competente → natural:
+// perto de uma temporada cada) e a distante, o dobro. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
+export const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 1800, distante: 3600, bonusPorJogar: 0.5 };
+export const ritmoDaPosicao = idade => idade <= 23 ? 1 : idade <= 27 ? 0.7 : 0.4;
+// posição que o jogador está aprendendo agora (nula quando não há, ou quando ele já virou natural nela)
+export const posicaoEmEstudo = j => { const p = j.aprende && j.aprende.pos; return p && POSICOES[p] && p !== "GK" && j.pos !== "GK" && (j.fam || {})[p] !== "N" ? p : null; };
+export const custoDaPosicao = (j, pos) => Object.keys(j.fam || {}).some(p => j.fam[p] === "N" && (VIZINHAS[p] || []).includes(pos)) ? CONFIG_POSICAO.vizinha : CONFIG_POSICAO.distante;
+export const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
+// Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
+export function aprenderPosicao(j, { jogouNa = false } = {}) {
+  const pos = posicaoEmEstudo(j); if (!pos) return null;
+  const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + pontosDePosicao(j, jogouNa);
+  while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
+  if (fam[pos] === "N") pts = 0;
+  return { fam, aprende: { pos, pts } };
+}
+// quantas sessões faltam para o próximo degrau e para virar natural (sem jogar na posição)
+export function prazoDaPosicao(j, pos, pts = 0) {
+  const custo = custoDaPosicao(j, pos), porSessao = pontosDePosicao(j), degraus = (j.fam || {})[pos] === "C" ? 1 : 2;
+  return { proximo: Math.max(1, Math.ceil((custo - pts) / porSessao)), natural: Math.max(1, Math.ceil((custo * degraus - pts) / porSessao)) };
+}
+
 export const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
 
 // Fração do caminho que o melhor caso tem feito na idade (interpolação da curva do freio). A idade é contada no meio da temporada.
@@ -107,7 +130,7 @@ export function alvoDaIdade(idade) {
 }
 // Multiplicador do caminho: proporcional ao tamanho do caminho do jogador e freado quando ele está adiante da curva. teto: o teto da nota.
 export function fatorDoCaminho(j, teto) {
-  const C = CONFIG_TREINO, cam = Math.max(C.caminho.minimo, teto - C.caminho.partida), feito = (notaBruta(j.at, j.pos) - C.caminho.partida) / cam;
+  const C = CONFIG_TREINO, cam = Math.max(C.caminho.minimo, teto - C.caminho.partida), feito = (notaDeTeto(j) - C.caminho.partida) / cam;
   return cam / C.caminho.divisor * Math.max(C.freio.piso, Math.min(1, 1 + C.freio.forca * (alvoDaIdade(j.idade) - feito)));
 }
 // Pontos de uma sessão para o jogador, antes de dividir pelos focos. tal: talento (só o servidor sabe); teto: estimativa do teto, para as telas
@@ -115,6 +138,7 @@ export function fatorDoCaminho(j, teto) {
 export function pontosDaSessao(j, { ct = 0, jogou = false, tal = null, teto = null } = {}) {
   const C = CONFIG_TREINO, equ = (j.at[IDX.equ] - ATR_MIN) / (ATR_MAX - ATR_MIN);
   return C.pontosPorSessao * ritmoDaIdade(j.idade) * (C.ct[0] + C.ct[1] * (ct || 0)) * (C.equipe[0] + (C.equipe[1] - C.equipe[0]) * equ) * (jogou ? 1 + C.bonusPorJogar : 1)
+    * (posicaoEmEstudo(j) ? 1 - CONFIG_POSICAO.custoDoTreino : 1)
     * fatorDoCaminho(j, teto != null ? teto : tal != null ? tetoDaNota(tal) : C.caminho.tetoTipico);
 }
 // Quanto de cada sessão vai para cada atributo: { índice: fração }. Atributo cheio (50) passa a vez aos outros do foco; com o foco todo cheio,
@@ -139,7 +163,7 @@ export function partilha(j) {
 // Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
 export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null } = {}) {
   const total = pontosDaSessao(j, { ct, jogou, tal });
-  if (total <= 0 || notaBruta(j.at, j.pos) >= tetoDaNota(tal)) return null;
+  if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal)) return null;
   const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
     if (at[i] >= ATR_MAX) continue;

@@ -226,6 +226,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     })(),
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+    posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
   };
 }
 

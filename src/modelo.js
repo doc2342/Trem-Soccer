@@ -136,6 +136,14 @@ export const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || 
 
 export const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+// Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
+// Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
+export function notaDeTeto(j) {
+  let n = notaBruta(j.at, j.pos);
+  for (const p in j.fam || {}) if (j.fam[p] === "N" && p !== j.pos && POSICOES[p]) n = Math.max(n, notaBruta(j.at, p));
+  return n;
+}
+
 export function melhorPosicao(jogador) {
   let melhor = null;
   for (const pos of LISTA_POSICOES) {

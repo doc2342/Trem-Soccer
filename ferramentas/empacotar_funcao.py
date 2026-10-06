@@ -53,7 +53,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
-const { treinar, CONFIG_TREINO, qualidadeDoTreino } = __treino;
+const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
 const { saudeDoClube } = __saude;
 
 const cors = {
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, momento, copa, vencedor } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -173,8 +173,12 @@ Deno.serve(async (req) => {
           const treinos = [];
           for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
-            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus, areas });
-            if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
+            const jogou = (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus;
+            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou, areas });
+            // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
+            const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
+            if (r || a) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
+              if (r) { j.at = r.at; j.pts = r.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
           } }
           efeitos.treinos = treinos;
           if (!caixaAdiado) await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql

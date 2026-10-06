@@ -179,6 +179,14 @@ const __modelo = (() => {
 
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+  // Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
+  // Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
+  function notaDeTeto(j) {
+    let n = notaBruta(j.at, j.pos);
+    for (const p in j.fam || {}) if (j.fam[p] === "N" && p !== j.pos && POSICOES[p]) n = Math.max(n, notaBruta(j.at, p));
+    return n;
+  }
+
   function melhorPosicao(jogador) {
     let melhor = null;
     for (const pos of LISTA_POSICOES) {
@@ -187,7 +195,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao };
 })();
 
 const __saude = (() => {
@@ -236,7 +244,9 @@ const __saude = (() => {
   // Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
   // bonus: além de estabilizar, a experiência rende um pouco mais em campo, de 0% (experiência 0) a 3% (experiência 100)
   const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03 };
-  const experienciaDe = j => j.exp != null ? j.exp : Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
+  // vale a maior entre a gravada e a estimativa pela idade: quem demora a estrear não fica para trás de quem nunca jogou
+  const experienciaPelaIdade = j => Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
+  const experienciaDe = j => j.exp != null ? Math.max(+j.exp, experienciaPelaIdade(j)) : experienciaPelaIdade(j);
   const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
   // multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
   const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.limiteDoDia, Math.min(1 + CONFIG_EXPERIENCIA.limiteDoDia, 1 + rng.normal(0, desvioDoDia(experienciaDe(j))))) : 1;
@@ -1432,6 +1442,7 @@ const __rodada = (() => {
       })(),
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+      posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
     };
   }
 
@@ -1458,7 +1469,7 @@ const __treino = (() => {
   // o centro de treinamento, o trabalho em equipe, ter jogado e os treinadores (cada atributo pertence a uma área de treino, e a qualidade da área
   // depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
   // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
-  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, notaBruta } = __modelo;
+  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto } = __modelo;
   const CONFIG_TREINO = {
     pontosPorNivel: 100,
     pontosPorSessao: 150,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,5 ponto de atributo por sessão
@@ -1548,6 +1559,29 @@ const __treino = (() => {
     return { p: t.p, c: c.length ? c : auto.c };
   }
 
+  // Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
+  // Cada sessão dá pontos de posição; a posição vizinha de uma em que ele já é natural custa 1800 pontos por degrau (improvisado → competente → natural:
+  // perto de uma temporada cada) e a distante, o dobro. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
+  const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 1800, distante: 3600, bonusPorJogar: 0.5 };
+  const ritmoDaPosicao = idade => idade <= 23 ? 1 : idade <= 27 ? 0.7 : 0.4;
+  // posição que o jogador está aprendendo agora (nula quando não há, ou quando ele já virou natural nela)
+  const posicaoEmEstudo = j => { const p = j.aprende && j.aprende.pos; return p && POSICOES[p] && p !== "GK" && j.pos !== "GK" && (j.fam || {})[p] !== "N" ? p : null; };
+  const custoDaPosicao = (j, pos) => Object.keys(j.fam || {}).some(p => j.fam[p] === "N" && (VIZINHAS[p] || []).includes(pos)) ? CONFIG_POSICAO.vizinha : CONFIG_POSICAO.distante;
+  const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
+  // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
+  function aprenderPosicao(j, { jogouNa = false } = {}) {
+    const pos = posicaoEmEstudo(j); if (!pos) return null;
+    const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + pontosDePosicao(j, jogouNa);
+    while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
+    if (fam[pos] === "N") pts = 0;
+    return { fam, aprende: { pos, pts } };
+  }
+  // quantas sessões faltam para o próximo degrau e para virar natural (sem jogar na posição)
+  function prazoDaPosicao(j, pos, pts = 0) {
+    const custo = custoDaPosicao(j, pos), porSessao = pontosDePosicao(j), degraus = (j.fam || {})[pos] === "C" ? 1 : 2;
+    return { proximo: Math.max(1, Math.ceil((custo - pts) / porSessao)), natural: Math.max(1, Math.ceil((custo * degraus - pts) / porSessao)) };
+  }
+
   const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
 
   // Fração do caminho que o melhor caso tem feito na idade (interpolação da curva do freio). A idade é contada no meio da temporada.
@@ -1559,7 +1593,7 @@ const __treino = (() => {
   }
   // Multiplicador do caminho: proporcional ao tamanho do caminho do jogador e freado quando ele está adiante da curva. teto: o teto da nota.
   function fatorDoCaminho(j, teto) {
-    const C = CONFIG_TREINO, cam = Math.max(C.caminho.minimo, teto - C.caminho.partida), feito = (notaBruta(j.at, j.pos) - C.caminho.partida) / cam;
+    const C = CONFIG_TREINO, cam = Math.max(C.caminho.minimo, teto - C.caminho.partida), feito = (notaDeTeto(j) - C.caminho.partida) / cam;
     return cam / C.caminho.divisor * Math.max(C.freio.piso, Math.min(1, 1 + C.freio.forca * (alvoDaIdade(j.idade) - feito)));
   }
   // Pontos de uma sessão para o jogador, antes de dividir pelos focos. tal: talento (só o servidor sabe); teto: estimativa do teto, para as telas
@@ -1567,6 +1601,7 @@ const __treino = (() => {
   function pontosDaSessao(j, { ct = 0, jogou = false, tal = null, teto = null } = {}) {
     const C = CONFIG_TREINO, equ = (j.at[IDX.equ] - ATR_MIN) / (ATR_MAX - ATR_MIN);
     return C.pontosPorSessao * ritmoDaIdade(j.idade) * (C.ct[0] + C.ct[1] * (ct || 0)) * (C.equipe[0] + (C.equipe[1] - C.equipe[0]) * equ) * (jogou ? 1 + C.bonusPorJogar : 1)
+      * (posicaoEmEstudo(j) ? 1 - CONFIG_POSICAO.custoDoTreino : 1)
       * fatorDoCaminho(j, teto != null ? teto : tal != null ? tetoDaNota(tal) : C.caminho.tetoTipico);
   }
   // Quanto de cada sessão vai para cada atributo: { índice: fração }. Atributo cheio (50) passa a vez aos outros do foco; com o foco todo cheio,
@@ -1591,7 +1626,7 @@ const __treino = (() => {
   // Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
   function treinar(j, { tal = null, ct = 0, jogou = false, areas = null } = {}) {
     const total = pontosDaSessao(j, { ct, jogou, tal });
-    if (total <= 0 || notaBruta(j.at, j.pos) >= tetoDaNota(tal)) return null;
+    if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal)) return null;
     const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
     for (const [i, parte] of Object.entries(partilha(j))) {
       if (at[i] >= ATR_MAX) continue;
@@ -1601,11 +1636,11 @@ const __treino = (() => {
     }
     return { at, pts, subiu };
   }
-  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
+  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, custoDaPosicao, pontosDePosicao, aprenderPosicao, prazoDaPosicao, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
 })();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao } = __rodada;
-const { treinar, CONFIG_TREINO, qualidadeDoTreino } = __treino;
+const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
 const { saudeDoClube } = __saude;
 
 const cors = {
@@ -1674,7 +1709,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -1693,7 +1728,7 @@ Deno.serve(async (req) => {
       if (!reserva.length) continue;
       try {
         const lado = id => ({ clube: clubes[id], elenco: elencos[id] || [], tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, momento, copa, vencedor } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -1725,8 +1760,12 @@ Deno.serve(async (req) => {
           const treinos = [];
           for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
-            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou: (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus, areas });
-            if (r) { treinos.push({ id: +String(j.id).slice(1), at: r.at, pts: r.pts }); j.at = r.at; j.pts = r.pts; }
+            const jogou = (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus;
+            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou, areas });
+            // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
+            const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
+            if (r || a) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
+              if (r) { j.at = r.at; j.pts = r.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
           } }
           efeitos.treinos = treinos;
           if (!caixaAdiado) await sb.rpc("lancar_treinadores", { p_partida: p.id }); // salário dos treinadores; sem efeito antes do 28_treinadores.sql

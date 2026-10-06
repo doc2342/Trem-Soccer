@@ -1,5 +1,5 @@
 // Base: os jovens que o clube revela. Chegam na virada da temporada (promoção) e numa peneira a partir da rodada 9.
-// Quantos vêm depende do nível da base; a nota de chegada é baixa (14 a 20) e o talento médio sobe com o nível.
+// O nível da base dá quantidade e nota de chegada (15 + 1,5 por nível); o talento não depende dele. Os talentos raros vêm da safra (virada.js).
 // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
 import { limitar } from "./rng.js";
 import { gerarJogador } from "./gerador.js";
@@ -9,8 +9,7 @@ export const CONFIG_BASE = {
   promocao: [[1, 1], [1, 2], [2, 2], [2, 3], [3, 3], [3, 4]], // por nível da base (0 a 5): mínimo e máximo de jovens na virada
   peneira: [[0, 0], [0, 1], [0, 1], [0, 2], [1, 2], [1, 3]],  // idem, na peneira do meio da temporada
   rodadaDaPeneira: 9,
-  nota: [15, 0.6, 1.5, 13, 21], // nota de chegada: 15 + 0,6 por nível, com desvio de 1,5, entre 13 e 21
-  talentoPorNivel: 4,           // cada nível da base soma 4 ao talento sorteado (1 a 100)
+  nota: [15, 1.5, 1.5, 13, 25], // nota de chegada: 15 + 1,5 por nível, com desvio de 1,5, entre 13 e 25
   idade: [16, 18], contrato: 3,
 };
 // posições sorteadas para os jovens: mais gente de linha do que goleiro
@@ -25,7 +24,7 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
     const j = gerarJogador(rng, { id: null, pos: rng.pick(POSICOES_DA_BASE), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
       idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
     const mercado = salarioDeMercado(j);
-    lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: limitar(j.tal + C.talentoPorNivel * (nivel || 0), 1, 100),
+    lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada });
   }
   return lista;

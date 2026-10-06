@@ -178,6 +178,14 @@ const __modelo = (() => {
 
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+  // Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
+  // Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
+  function notaDeTeto(j) {
+    let n = notaBruta(j.at, j.pos);
+    for (const p in j.fam || {}) if (j.fam[p] === "N" && p !== j.pos && POSICOES[p]) n = Math.max(n, notaBruta(j.at, p));
+    return n;
+  }
+
   function melhorPosicao(jogador) {
     let melhor = null;
     for (const pos of LISTA_POSICOES) {
@@ -186,7 +194,7 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, melhorPosicao };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao };
 })();
 
 const __gerador = (() => {
@@ -276,7 +284,10 @@ const __gerador = (() => {
     if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
     return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
   }
-  function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados }) {
+  // Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
+  // raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
+  const TALENTO_COMUM = 92;
+  function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false }) {
     const at = sortearAtributos(rng, pos, alvo);
     aplicarPerfil(rng, at, pos, perfil);
     ajustarNota(rng, at, pos, alvo);
@@ -288,7 +299,7 @@ const __gerador = (() => {
       pos, // posição principal
       fam: sortearFamiliaridade(rng, pos),
       at,
-      tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, 100), // talento oculto, 1 a 100
+      tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
       pe: sortearPe(rng, pos),
     };
   }
@@ -306,11 +317,11 @@ const __gerador = (() => {
     const dTit = desvios(rng, VAGAS_TITULARES.length, 1.5), dRes = desvios(rng, VAGAS_RESERVAS.length, 1.5);
     const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 4));
     VAGAS_TITULARES.forEach((pos, i) => elenco.push({
-      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
+      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true }),
       titular: true,
     }));
     VAGAS_RESERVAS.forEach((pos, i) => elenco.push({
-      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados }),
+      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true }),
       titular: false,
     }));
     return elenco;
@@ -325,7 +336,7 @@ const __gerador = (() => {
       pos,
     }));
   }
-  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, sortearNome, sortearPe, gerarJogador, gerarElenco, gerarOnze };
+  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, sortearNome, sortearPe, TALENTO_COMUM, gerarJogador, gerarElenco, gerarOnze };
 })();
 
 const __economia = (() => {
@@ -379,7 +390,7 @@ const __economia = (() => {
 
 const __base = (() => {
   // Base: os jovens que o clube revela. Chegam na virada da temporada (promoção) e numa peneira a partir da rodada 9.
-  // Quantos vêm depende do nível da base; a nota de chegada é baixa (14 a 20) e o talento médio sobe com o nível.
+  // O nível da base dá quantidade e nota de chegada (15 + 1,5 por nível); o talento não depende dele. Os talentos raros vêm da safra (virada.js).
   // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
   const { limitar } = __rng;
   const { gerarJogador } = __gerador;
@@ -388,8 +399,7 @@ const __base = (() => {
     promocao: [[1, 1], [1, 2], [2, 2], [2, 3], [3, 3], [3, 4]], // por nível da base (0 a 5): mínimo e máximo de jovens na virada
     peneira: [[0, 0], [0, 1], [0, 1], [0, 2], [1, 2], [1, 3]],  // idem, na peneira do meio da temporada
     rodadaDaPeneira: 9,
-    nota: [15, 0.6, 1.5, 13, 21], // nota de chegada: 15 + 0,6 por nível, com desvio de 1,5, entre 13 e 21
-    talentoPorNivel: 4,           // cada nível da base soma 4 ao talento sorteado (1 a 100)
+    nota: [15, 1.5, 1.5, 13, 25], // nota de chegada: 15 + 1,5 por nível, com desvio de 1,5, entre 13 e 25
     idade: [16, 18], contrato: 3,
   };
   // posições sorteadas para os jovens: mais gente de linha do que goleiro
@@ -404,7 +414,7 @@ const __base = (() => {
       const j = gerarJogador(rng, { id: null, pos: rng.pick(POSICOES_DA_BASE), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
         idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
       const mercado = salarioDeMercado(j);
-      lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: limitar(j.tal + C.talentoPorNivel * (nivel || 0), 1, 100),
+      lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
         salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada });
     }
     return lista;

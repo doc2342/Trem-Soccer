@@ -51,7 +51,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
-    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null,
+    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, preContrato: l.pre_contrato || null,
@@ -79,6 +79,14 @@ export async function marcarInicioDaTemporada(ligaId, notaDe) {
 }
 export const limparTreinadores = ligaId => sb.rpc("limpar_treinadores", { p_liga: ligaId }).then(({ error }) => !error);
 // T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
+// Posição nova e safra (59_posicao_nova_e_safra.sql). pos nula: para de aprender.
+export const definirPosicaoNova = (id, pos) => sb.rpc("aprender_posicao", { p_jogador: numero(id), p_pos: pos }).then(ok);
+export const tornarPrincipal = (id, pos) => sb.rpc("tornar_principal", { p_jogador: numero(id), p_pos: pos }).then(ok);
+// talentos raros anunciados na temporada (só os que foram para clube com dirigente)
+export const safraDaTemporada = (ligaId, temporada) => sb.from("safras").select("clube_id, jogador, pos, idade, nivel").eq("liga_id", ligaId).eq("temporada", temporada).order("nivel", { ascending: false }).then(({ data, error }) => error ? [] : data);
+// administrador: quem ganhou talento raro nas últimas temporadas (pesa no sorteio) e o registro da safra depois da virada
+export const safrasRecentes = ligaId => sb.rpc("safras_recentes", { p_liga: ligaId }).then(({ data, error }) => error || !data ? [] : data);
+export const registrarSafra = (ligaId, lista) => sb.rpc("registrar_safra", { p_liga: ligaId, p_lista: lista }).then(({ error }) => !error);
 export const definirTreino = lista => sb.rpc("definir_treino", { p_lista: lista.map(x => ({ ...x, id: numero(x.id) })) }).then(ok);
 
 // ---------- tática, partidas e resultados ----------

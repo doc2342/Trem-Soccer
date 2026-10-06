@@ -85,7 +85,10 @@ export function sortearPe(rng, pos) {
   if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
   return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
 }
-export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados }) {
+// Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
+// raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
+export const TALENTO_COMUM = 92;
+export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false }) {
   const at = sortearAtributos(rng, pos, alvo);
   aplicarPerfil(rng, at, pos, perfil);
   ajustarNota(rng, at, pos, alvo);
@@ -97,7 +100,7 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
     pos, // posição principal
     fam: sortearFamiliaridade(rng, pos),
     at,
-    tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, 100), // talento oculto, 1 a 100
+    tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
     pe: sortearPe(rng, pos),
   };
 }
@@ -115,11 +118,11 @@ export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "B
   const dTit = desvios(rng, VAGAS_TITULARES.length, 1.5), dRes = desvios(rng, VAGAS_RESERVAS.length, 1.5);
   const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 4));
   VAGAS_TITULARES.forEach((pos, i) => elenco.push({
-    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
+    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true }),
     titular: true,
   }));
   VAGAS_RESERVAS.forEach((pos, i) => elenco.push({
-    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados }),
+    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true }),
     titular: false,
   }));
   return elenco;
