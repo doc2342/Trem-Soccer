@@ -141,7 +141,7 @@ import { criarRng } from "./src/rng.js";
 import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta, NOME_DO_PE, peNaPosicao } from "./src/modelo.js";
 import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
-import { escalacaoDaBase } from "./src/ligabase.js";
+import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, custoDaPosicao, prazoDaPosicao } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
@@ -272,6 +272,7 @@ async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   const [elenco, clubes, tatica, admin, extrato, comissaoToda] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
+  const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
   const comissao = comissaoToda && comissaoToda.filter(t => (t.funcao || "treinador") === "treinador"), equipeDeSaude = (comissaoToda || []).filter(t => t.funcao && t.funcao !== "treinador");
   const saude = saudeDoClube(equipeDeSaude, clube);
   const adultos = elenco.filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length; // os que contam no limite de 35 do elenco e nos 7 por treinador
@@ -531,8 +532,11 @@ async function telaClube(liga, clube) {
   const ligaDeBase = () => {
     if (baseJogos == null) return "";
     const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-    const regras = `<div class="mut" style="margin-top:8px;font-size:12px">Turno único de 9 rodadas contra os clubes do seu grupo, uma a cada duas rodadas da liga. O time é montado sozinho com os seus juvenis; se não houver onze (ou faltar goleiro), garotos da escolinha completam, e eles são melhores quanto maior o nível da base (os dos clubes sem dirigente valem os de uma base de nível 2). O esquema é o que melhor encaixa os seus juvenis na posição deles. Não há lesão, cartão nem experiência. O juvenil que joga 45 minutos ganha um bônus de treino. O campeão do grupo recebe ${dinheiro(200)} do fundo da liga na virada.</div>`;
-    if (!baseJogos.length) return `<div class="card"><h2>Liga de base</h2><div class="mut">Começa quando o calendário da temporada for gerado.</div>${regras}</div>`;
+    const regras = `<div class="mut" style="margin-top:8px;font-size:12px">Turno único de 9 rodadas contra os clubes do seu grupo, uma a cada duas rodadas da liga. O time é montado sozinho com os seus juvenis e, nas vagas que sobrarem, com os profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos; se não houver onze (ou faltar goleiro), garotos da escolinha completam, e eles são melhores quanto maior o nível da base (os dos clubes sem dirigente valem os de uma base de nível 2). O esquema é o que melhor encaixa os seus juvenis na posição deles. Não há lesão, cartão nem experiência. O juvenil que joga 45 minutos ganha um bônus de treino. O campeão do grupo recebe ${dinheiro(200)} do fundo da liga na virada.</div>`;
+    const meusJuvenis = elenco.filter(j => j.juvenil), meusProfs = elenco.filter(j => !j.juvenil && j.formador === clube.id && j.idade <= CONFIG_LIGA_DE_BASE.idadeMaxima && !(j.fora > 0 && j.motivo === "lesão"));
+    const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs) : null;
+    const linhaPrevista = prevista ? `<div style="margin-top:4px"><b>Escalação prevista</b> <span class="mut">(${esc(prevista.nome)})</span>: ${prevista.vagas.map(v => v.j ? `${esc(sg(v.pos))} <b>${esc(v.j.nome)}</b>${v.j.juvenil ? "" : ` <span class="mut">(prof.)</span>`}${(v.j.fam || {})[v.pos] === "N" ? "" : (v.j.fam || {})[v.pos] === "C" ? ` <span class="mut">(competente)</span>` : ` <span class="aviso">(improvisado)</span>`}` : `<span class="mut">${esc(sg(v.pos))} garoto</span>`).join(" · ")}${prevista.fora.length ? ` <span class="aviso">· sem vaga: ${prevista.fora.map(j => esc(j.nome)).join(", ")}</span>` : ""}</div>` : "";
+    if (!baseJogos.length) return `<div class="card"><h2>Liga de base</h2><div class="mut">Começa quando o calendário da temporada for gerado.</div>${linhaPrevista}${regras}</div>`;
     const T = {}, de = id => T[id] || (T[id] = { id, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }), gols = {};
     for (const p of baseJogos) { de(p.casa); de(p.fora); if (!p.processada || p.gols_casa == null) continue;
       [[p.casa, p.gols_casa, p.gols_fora], [p.fora, p.gols_fora, p.gols_casa]].forEach(([c, gp, gc]) => { const t = de(c); t.j++; t.gp += gp; t.gc += gc; if (gp > gc) t.v++; else if (gp === gc) t.e++; else t.d++; });
@@ -542,11 +546,10 @@ async function telaClube(liga, clube) {
     const quemFez = p => { const eu = p.casa === clube.id ? 0 : 1, l = ((p.dados && p.dados.jogadores) || []).filter(x => x.t === eu && x.g > 0); return l.length ? ` <span class="mut">· ${l.map(x => `${esc(x.n)}${x.g > 1 ? ` (${x.g})` : ""}`).join(", ")}</span>` : ""; };
     // quem jogou pelo meu time numa partida da base: posição, nome (juvenil em destaque) e nota
     const escalados = p => { const eu = p.casa === clube.id ? 0 : 1; return ((p.dados && p.dados.jogadores) || []).filter(x => x.t === eu).map(x => String(x.id).startsWith("j") ? `${esc(sg(x.p))} <b style="color:var(--tx)">${esc(x.n)}</b> ${f1(x.nota)}` : `${esc(sg(x.p))} garoto ${f1(x.nota)}`).join(" · "); };
-    const meusJuvenis = elenco.filter(j => j.juvenil), prevista = meusJuvenis.length ? escalacaoDaBase(meusJuvenis) : null;
     const art = Object.values(gols).sort((a, b) => b.g - a.g).slice(0, 5), titulos = baseCampeoes.filter(x => x.clube_id === clube.id).length;
     return `<div class="card"><h2>Liga de base <span class="tag">${esc(nomeDoGrupo(clube.grupo))}</span>${titulos ? ` <span class="tag">🏆 ${titulos} ${titulos === 1 ? "título" : "títulos"}</span>` : ""}</h2>
       <div><b>Próximo jogo:</b> ${prox ? `rodada ${prox.rodada}, ${lk(prox.casa)} x ${lk(prox.fora)}, ${quando(prox.inicio)}` : "a temporada da base acabou."}</div>
-      ${prevista ? `<div style="margin-top:4px"><b>Escalação prevista</b> <span class="mut">(${esc(prevista.nome)})</span>: ${prevista.vagas.map(v => v.j ? `${esc(sg(v.pos))} <b>${esc(v.j.nome)}</b>${(v.j.fam || {})[v.pos] === "N" ? "" : (v.j.fam || {})[v.pos] === "C" ? ` <span class="mut">(competente)</span>` : ` <span class="aviso">(improvisado)</span>`}` : `<span class="mut">${esc(sg(v.pos))} garoto</span>`).join(" · ")}${prevista.fora.length ? ` <span class="aviso">· sem vaga: ${prevista.fora.map(j => esc(j.nome)).join(", ")}</span>` : ""}</div>` : ""}
+      ${linhaPrevista}
       <div class="duas" style="margin-top:10px"><div><table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
         ${tabela.map((t, i) => `<tr class="${t.id === clube.id ? "e-tit" : ""}"><td>${i + 1}</td><td class="esq">${lk(t.id)}</td><td><b>${t.v * 3 + t.e}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp - t.gc}</td></tr>`).join("")}</table></div>
         <div><b>Seus jogos</b> <span class="mut" style="font-size:12px">· clique num jogo para ver quem jogou</span>${feitos.length ? feitos.map(p => `<details style="margin-top:4px"><summary style="cursor:pointer">R${p.rodada}: ${esc(cPor[p.casa].nome)} <b>${p.gols_casa} x ${p.gols_fora}</b> ${esc(cPor[p.fora].nome)}${quemFez(p)}</summary><div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${escalados(p)}</div></details>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum jogo ainda.</div>`}
@@ -755,6 +758,8 @@ async function telaClube(liga, clube) {
     }
     const saindo = elenco.filter(j => j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil);
     if (saindo.length) l.push(item("🌱", `${saindo.length === 1 ? "Juvenil" : "Juvenis"} com ${CONFIG_BASE.idadeDeJuvenil} anos: ${saindo.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}. Sem contrato até a virada, ${saindo.length === 1 ? "fica livre" : "ficam livres"}. Profissionalize em Clube, Elenco.`, "aviso"));
+    const veteranos = (comissaoToda || []).filter(t => t.idade >= IDADE_DE_APOSENTAR_DA_COMISSAO - 1);
+    if (veteranos.length) l.push(item("👴", `${veteranos.length === 1 ? "Se aposenta" : "Se aposentam"} no fim da temporada (chegam aos ${IDADE_DE_APOSENTAR_DA_COMISSAO} anos): ${veteranos.map(t => `${esc(t.nome)} (${(t.funcao || "treinador") === "treinador" ? "treinador" : (FUNCOES_DE_SAUDE[t.funcao] || t.funcao).toLowerCase()}, ${t.idade})`).join(", ")}. Procure um substituto na lista de candidatos.`, "aviso"));
     const param = elenco.filter(j => j.aposentaEm != null);
     if (param.length) l.push(item("🏁", `${param.length === 1 ? "Anunciou" : "Anunciaram"} a aposentadoria para o fim da temporada: ${param.map(j => `${esc(j.nome)} (${j.idade})`).join(", ")}. Não podem mais ser vendidos nem renovar.`, "aviso"));
     const vencem = elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada);
@@ -1452,7 +1457,7 @@ async function telaClube(liga, clube) {
         <div class="duas">
           ${bloco("Profissionalizar", `<div class="row"><label>Contrato de<select id="ctProfTemp">${[1, 2, 3].map(n => `<option value="${n}">${n} ${n === 1 ? "temporada" : "temporadas"} · ${dinheiro(minimoPelaDuracao(mercado, n))} por temporada</option>`).join("")}</select></label>
               <button id="ctProf" ${cheio ? "disabled" : ""}>Assinar o primeiro contrato</button></div>
-            <div class="mut" style="margin-top:6px">${cheio ? `O elenco já tem ${LIMITE_DE_CONTRATADOS} jogadores com contrato. ` : ""}Ele passa a contar nos ${LIMITE_DE_CONTRATADOS} do elenco e pode jogar. O salário é o de mercado dele hoje; contrato mais longo pede 10% a mais por temporada extra. Formado no clube, segue sem multa rescisória e sem pré-contrato até a temporada em que tem ${CONFIG_BASE.idadeDeJuvenil} anos.</div>`)}
+            <div class="mut" style="margin-top:6px">${cheio ? `O elenco já tem ${LIMITE_DE_CONTRATADOS} jogadores com contrato. ` : ""}Ele passa a contar nos ${LIMITE_DE_CONTRATADOS} do elenco e pode jogar partida oficial; até os ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos continua jogando a liga de base, nas vagas que os juvenis deixarem. O salário é o de mercado dele hoje; contrato mais longo pede 10% a mais por temporada extra. Formado no clube, segue sem multa rescisória e sem pré-contrato até a temporada em que tem ${CONFIG_BASE.idadeDeJuvenil} anos.</div>`)}
           ${bloco("Dispensar", `<button class="sec" id="ctDispensar" ${elenco.length <= 16 ? "disabled" : ""}>Dispensar sem custo</button>
             <div class="mut" style="margin-top:6px">Ele fica livre e pode ser contratado por qualquer clube.</div>`)}
         </div><div id="ctAviso" style="margin-top:6px"></div></div>`;

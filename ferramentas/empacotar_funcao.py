@@ -86,10 +86,12 @@ async function jogarBase(sb) {
   if (r.error || !r.data || !r.data.length) return 0;
   const jogos = r.data, ids = [...new Set(jogos.flatMap(p => [p.casa, p.fora]))];
   const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel").in("id", ids)).data || []).map(c => [c.id, c]));
-  const juvenis = {};
-  for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).eq("juvenil", true).order("id")).data || [])
-    (juvenis[l.clube_id] = juvenis[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
-  const todos = Object.values(juvenis).flat().map(j => +String(j.id).slice(1)), talentos = {};
+  // jogam a base: os juvenis e, nos clubes com dirigente, o profissional formado no clube de até 21 anos que não esteja lesionado
+  const juvenis = {}, profs = {};
+  for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).lte("idade", CONFIG_LIGA_DE_BASE.idadeMaxima).order("id")).data || [])
+    if (l.juvenil || ((clubes[l.clube_id] || {}).dono && l.formador === l.clube_id && !(l.fora_jogos > 0 && l.fora_motivo === "lesão")))
+    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
+  const todos = [...Object.values(juvenis).flat(), ...Object.values(profs).flat()].map(j => +String(j.id).slice(1)), talentos = {};
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
   for (const x of (await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids)).data || []) if ((x.funcao || "treinador") === "treinador") (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x);
@@ -99,7 +101,7 @@ async function jogarBase(sb) {
     if (reserva.error || !reserva.data.length) continue;
     try {
       const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
-      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id), tatica: null });
+      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id, profs[id] || []), tatica: null });
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
       const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados }).eq("id", p.id);
@@ -107,7 +109,7 @@ async function jogarBase(sb) {
       const treinos = [];
       for (const id of [p.casa, p.fora]) {
         const c = clubes[id] || {}, areas = qualidadeDoTreino(comissoes[id] || [], 0, !c.dono);
-        for (const j of juvenis[id] || []) {
+        for (const j of [...(juvenis[id] || []), ...(profs[id] || [])]) {
           if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
           const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
           if (t) { treinos.push({ id: +String(j.id).slice(1), at: t.at, pts: t.pts }); j.at = t.at; j.pts = t.pts; }

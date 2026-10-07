@@ -1692,6 +1692,7 @@ const __ligabase = (() => {
     nivelDoBot: 2,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 2
     bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou: equivale ao bônus de 10% por jogar em duas rodadas da liga
     minutos: 45,
+    idadeMaxima: 21,      // profissional formado no clube joga a base até esta idade (só em clube com dirigente)
     premio: 200,          // mil, ao campeão de cada grupo, pagos pelo fundo da liga
   };
   const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
@@ -1701,14 +1702,14 @@ const __ligabase = (() => {
     return { id, nome: "Garoto da escolinha", pais: "Brasil", idade: 16, pos, fam: { [pos]: "N" }, at, pe: "D", escolinha: true };
   }
 
-  // Escolhe o esquema em que mais juvenis jogam numa posição que conhecem (natural ou competente) e os distribui nas vagas.
-  // Quem sobra sem vaga conhecida entra improvisado numa vaga de linha, se houver; só então ficam vagas para os garotos da escolinha.
+  // Escolhe o esquema e distribui as vagas. A ordem de preferência: juvenil numa posição que conhece (natural ou competente); juvenil improvisado
+  // numa vaga de linha (ele não tem outro jogo para jogar); profissional formado no clube, de até 21 anos, numa posição que conhece;
+  // e só então garoto da escolinha. Entre os esquemas, vale o que encaixa mais juvenis, depois mais profissionais, depois a maior soma de notas.
   // Devolve { nome, vagas: [{ pos, j }] (j nulo = vaga de garoto), fora: [juvenis que não cabem] }.
   // ponytail: com mais de 11 juvenis, os que sobram ficam sem jogar; rodízio entre eles se algum clube chegar a esse ponto
-  function escalacaoDaBase(juvenis) {
-    let melhor = null;
-    for (const nome of FORMACOES_DA_BASE) {
-      const vagas = FORMACOES[nome].map(pos => ({ pos, j: null })), livres = new Set(juvenis); let soma = 0, n = 0;
+  function escalacaoDaBase(juvenis, profissionais = []) {
+    const encaixar = (vagas, lista) => { // cada jogador na vaga conhecida de maior nota; devolve [quantos entraram, soma das notas, quem sobrou]
+      const livres = new Set(lista); let soma = 0, n = 0;
       for (;;) {
         let m = null;
         for (const v of vagas) if (!v.j) for (const j of livres) {
@@ -1718,20 +1719,26 @@ const __ligabase = (() => {
         if (!m) break;
         m.v.j = m.j; livres.delete(m.j); soma += m.nota; n++;
       }
-      if (!melhor || n > melhor.n || (n === melhor.n && soma > melhor.soma)) melhor = { nome, vagas, n, soma, fora: [...livres] };
-    }
-    for (const j of melhor.fora.slice().sort((a, b) => notaBruta(b.at, b.pos) - notaBruta(a.at, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
-      if (j.pos === "GK") continue;
-      const v = melhor.vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
-      if (v) { v.j = j; melhor.fora.splice(melhor.fora.indexOf(j), 1); }
+      return [n, soma, [...livres]];
+    };
+    let melhor = null;
+    for (const nome of FORMACOES_DA_BASE) {
+      const vagas = FORMACOES[nome].map(pos => ({ pos, j: null })), [nJ, somaJ, fora] = encaixar(vagas, juvenis);
+      for (const j of fora.slice().sort((a, b) => notaBruta(b.at, b.pos) - notaBruta(a.at, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
+        if (j.pos === "GK") continue;
+        const v = vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
+        if (v) { v.j = j; fora.splice(fora.indexOf(j), 1); }
+      }
+      const [nP, somaP] = encaixar(vagas, profissionais), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
+      if (!melhor || pontos > melhor.pontos) melhor = { nome, vagas, fora, pontos };
     }
     return { nome: melhor.nome, vagas: melhor.vagas, fora: melhor.fora };
   }
 
-  // juvenis: os de verdade, no formato do motor. Devolve os onze da partida: os juvenis escalados e um garoto da escolinha em cada vaga que sobrou.
-  function timeDaBase(rng, juvenis, nivelDaBase = 0, prefixo = "") {
+  // juvenis e profissionais: os de verdade, no formato do motor. Devolve os onze da partida, com um garoto da escolinha em cada vaga que sobrou.
+  function timeDaBase(rng, juvenis, nivelDaBase = 0, prefixo = "", profissionais = []) {
     const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);
-    return escalacaoDaBase(juvenis).vagas.map((v, i) => v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i));
+    return escalacaoDaBase(juvenis, profissionais).vagas.map((v, i) => v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i));
   }
   return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, escalacaoDaBase, timeDaBase };
 })();
@@ -1770,10 +1777,12 @@ async function jogarBase(sb) {
   if (r.error || !r.data || !r.data.length) return 0;
   const jogos = r.data, ids = [...new Set(jogos.flatMap(p => [p.casa, p.fora]))];
   const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel").in("id", ids)).data || []).map(c => [c.id, c]));
-  const juvenis = {};
-  for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).eq("juvenil", true).order("id")).data || [])
-    (juvenis[l.clube_id] = juvenis[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
-  const todos = Object.values(juvenis).flat().map(j => +String(j.id).slice(1)), talentos = {};
+  // jogam a base: os juvenis e, nos clubes com dirigente, o profissional formado no clube de até 21 anos que não esteja lesionado
+  const juvenis = {}, profs = {};
+  for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).lte("idade", CONFIG_LIGA_DE_BASE.idadeMaxima).order("id")).data || [])
+    if (l.juvenil || ((clubes[l.clube_id] || {}).dono && l.formador === l.clube_id && !(l.fora_jogos > 0 && l.fora_motivo === "lesão")))
+    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
+  const todos = [...Object.values(juvenis).flat(), ...Object.values(profs).flat()].map(j => +String(j.id).slice(1)), talentos = {};
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
   for (const x of (await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids)).data || []) if ((x.funcao || "treinador") === "treinador") (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x);
@@ -1783,7 +1792,7 @@ async function jogarBase(sb) {
     if (reserva.error || !reserva.data.length) continue;
     try {
       const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
-      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id), tatica: null });
+      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id, profs[id] || []), tatica: null });
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
       const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados }).eq("id", p.id);
@@ -1791,7 +1800,7 @@ async function jogarBase(sb) {
       const treinos = [];
       for (const id of [p.casa, p.fora]) {
         const c = clubes[id] || {}, areas = qualidadeDoTreino(comissoes[id] || [], 0, !c.dono);
-        for (const j of juvenis[id] || []) {
+        for (const j of [...(juvenis[id] || []), ...(profs[id] || [])]) {
           if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
           const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
           if (t) { treinos.push({ id: +String(j.id).slice(1), at: t.at, pts: t.pts }); j.at = t.at; j.pts = t.pts; }
