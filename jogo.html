@@ -401,8 +401,21 @@ async function telaClube(liga, clube) {
     $("tabela").innerHTML = $("rodadas").innerHTML = `<span class="mut">Carregando…</span>`;
     const d = temp ? await estatisticasGuardadas(liga.id, +temp, comp) : await estatisticasDaLiga(liga.id, comp);
     if ($("stComp").value !== comp || $("stTemp").value !== temp || $("stLista").value !== lista) return; // já pediram outra
+    const mostrarPremios = () => {
+    // premiados da temporada escolhida (os prêmios são pagos na virada: a temporada em andamento ainda não tem)
+    premiosIndividuais(liga.id, temp ? +temp : liga.temporada).then(async ps => {
+      let deQual = temp ? +temp : liga.temporada; // na temporada em andamento ainda não há premiados: mostra os da anterior
+      if (!ps.length && !temp && deQual > 1) { deQual--; ps = await premiosIndividuais(liga.id, deQual); }
+      const NOME = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque da copa" };
+      const selecao = ps.filter(p => ehSelecao(p) && (comp === "TODOS" || p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || a.premio.localeCompare(b.premio));
+      const daqui = ps.filter(p => !ehSelecao(p) && (comp === "TODOS" ? true : p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || Object.keys(NOME).indexOf(a.premio) - Object.keys(NOME).indexOf(b.premio));
+      if (!(daqui.length || selecao.length) || !$("stPremios") || $("stComp").value !== comp || $("stTemp").value !== temp) return;
+      $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada ${deQual}</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
+      if (selecao.length) $("stPremios").innerHTML += `<h2 style="margin-top:14px">Seleção da temporada ${deQual}</h2>` + [...new Set(selecao.map(p => p.comp))].map(c => `<div style="margin:3px 0">${comp === "TODOS" ? `<b>${esc(nomeDoGrupo(c).replace("Brasileiro ", ""))}:</b> ` : ""}${selecao.filter(p => p.comp === c).map(p => `${esc(sg(p.pos || ""))} ${esc(p.jogador || "")} <span class="mut">(${lk(p.clube_id)})</span>`).join(" · ")}</div>`).join("") + `<div class="mut" style="font-size:12px;margin-top:4px">Os onze de melhor nota média da série (1 goleiro, 4 de defesa, 3 de meio e 3 de ataque), com pelo menos metade dos jogos. Só de honra.</div>`;
+    }).catch(() => {});
+    };
     if (!d) { $("tabela").innerHTML = `<span class="mut">${temp ? "Não há estatísticas guardadas dessa competição nessa temporada." : "As estatísticas aparecem quando o administrador ligar a soma no banco."}</span>`; $("rodadas").innerHTML = ""; return; }
-    if (!d.jogos) { $("tabela").innerHTML = `<span class="mut">Nenhuma partida encerrada nessa competição ainda.</span>`; $("rodadas").innerHTML = ""; return; }
+    if (!d.jogos) { $("tabela").innerHTML = `<span class="mut">Nenhuma partida encerrada nessa competição ainda.</span>`; $("rodadas").innerHTML = `<div id="stPremios"></div>`; mostrarPremios(); return; }
     const num = v => v == null ? "—" : String(v).replace(".", ","), por90 = (v, min) => min > 0 ? num((v * 90 / min).toFixed(2)) : "—";
     // colunas de cada lista: [título, dica, valor]; a primeira coluna numérica é a que ordena
     const COLUNAS = {
@@ -427,15 +440,7 @@ async function telaClube(liga, clube) {
         ${cl.map(x => `<tr><td class="esq ${x.clube === clube.id ? "nota" : ""}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lk(x.clube)}</td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td>${num((x.fin / x.j).toFixed(1))}</td><td>${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.am}</td><td>${x.publico == null ? "—" : (x.publico / 1000).toFixed(1).replace(".", ",") + " mil"}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px">Ordenado por gols marcados.</div>
       ${recordes.length ? `<h2 style="margin-top:14px">Recordes</h2>${recordes.join("")}` : ""}<div id="stPremios"></div>`;
-    // premiados da temporada escolhida (os prêmios são pagos na virada: a temporada em andamento ainda não tem)
-    premiosIndividuais(liga.id, temp ? +temp : liga.temporada).then(ps => {
-      const NOME = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque da copa" };
-      const selecao = ps.filter(p => ehSelecao(p) && (comp === "TODOS" || p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || a.premio.localeCompare(b.premio));
-      const daqui = ps.filter(p => !ehSelecao(p) && (comp === "TODOS" ? true : p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || Object.keys(NOME).indexOf(a.premio) - Object.keys(NOME).indexOf(b.premio));
-      if (!(daqui.length || selecao.length) || !$("stPremios") || $("stComp").value !== comp || $("stTemp").value !== temp) return;
-      $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
-      if (selecao.length) $("stPremios").innerHTML += `<h2 style="margin-top:14px">Seleção da temporada</h2>` + [...new Set(selecao.map(p => p.comp))].map(c => `<div style="margin:3px 0">${comp === "TODOS" ? `<b>${esc(nomeDoGrupo(c).replace("Brasileiro ", ""))}:</b> ` : ""}${selecao.filter(p => p.comp === c).map(p => `${esc(sg(p.pos || ""))} ${esc(p.jogador || "")} <span class="mut">(${lk(p.clube_id)})</span>`).join(" · ")}</div>`).join("") + `<div class="mut" style="font-size:12px;margin-top:4px">Os onze de melhor nota média da série (1 goleiro, 4 de defesa, 3 de meio e 3 de ataque), com pelo menos metade dos jogos. Só de honra.</div>`;
-    }).catch(() => {});
+    mostrarPremios();
   }
   // Federação: o fundo da liga (saldo, de onde veio e para onde foi) e os valores que a liga paga e cobra
   async function telaDaFederacao() {
