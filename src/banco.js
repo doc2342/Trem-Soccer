@@ -192,6 +192,8 @@ export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").s
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 export const gerarLigaDeBase = ligaId => sb.rpc("gerar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 export const premiarLigaDeBase = ligaId => sb.rpc("premiar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data || "");
+// registro de quem a base revelou (64_revelados.sql): temporada, como chegou e os atributos da chegada
+export const reveladosDoClube = clubeId => sb.from("revelados").select("temporada, origem, jogador_id, nome, pos, idade, at").eq("clube_id", clubeId).order("temporada", { ascending: false }).order("id", { ascending: false }).then(({ data, error }) => error ? null : data);
 // juvenil assina o primeiro contrato (60_juvenis_e_formador.sql); o salário de mercado é calculado pela função "mercado"
 export async function profissionalizar(id, temporadas) {
   const { data, error } = await sb.functions.invoke("mercado", { body: { acao: "profissionalizar", jogador: id, temporadas } });

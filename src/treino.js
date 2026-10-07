@@ -27,6 +27,7 @@ export const CONFIG_TREINO = {
   // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
   maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
   idadeSemContar: 21,         // jogador até esta idade não entra no limite de 35 do elenco
+  ctSemDono: { 1: 4, 2: 2, 3: 0 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
   qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
 };
 
@@ -56,6 +57,8 @@ export function qualidadeDoTreino(treinadores, jogadores, semDono = false) {
   }
   return areas;
 }
+// nível do centro de treinamento que vale para o treino: o do clube, ou o da divisão quando ele não tem dirigente
+export const ctDoClube = c => !c ? 0 : c.dono ? (c.ct_nivel || 0) : (CONFIG_TREINO.ctSemDono[c.divisao] || 0);
 export const multDoAtributo = (areas, i) => areas ? (areas[AREA_DO_ATRIBUTO[i]] || 1) : 1;
 // ritmo por idade: cheio até os 23, caindo até parar depois dos 30
 export const ritmoDaIdade = idade => idade <= 23 ? 1 : idade <= 25 ? 0.85 : idade <= 27 ? 0.7 : idade <= 30 ? 0.5 : 0;

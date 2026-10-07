@@ -53,7 +53,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
-const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
+const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, divisao, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
           for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
             const jogou = (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus;
-            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou, areas });
+            const r = treinar(j, { tal: talentos[j.id], ct: ctDoClube(clubes[lado]), jogou, areas });
             // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
             const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
             if (r || a) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });

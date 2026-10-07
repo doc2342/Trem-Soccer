@@ -15,6 +15,8 @@ export const premioDaLiga = (divisao, posicao, clubes = 10) => {
 };
 export const chanceDeAposentar = idade => idade >= 38 ? 1 : idade < 34 ? 0 : (idade - 33) * 0.2; // 20% aos 34 … 80% aos 37
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
+// jovem que repõe o aposentado nos clubes sem dirigente: chega mais pronto nas divisões de cima
+export const NOTA_DO_JOVEM_POR_DIVISAO = { 1: 26, 2: 24, 3: 22 };
 // Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
 // agora o jogador evolui rodada a rodada, pelos focos. A queda física por idade continua aqui.
 export const crescimento = () => 0;
@@ -106,7 +108,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
   // jovem que o clube sem dirigente recebe (no lugar de um aposentado, ou quando a safra cai nele)
   const jovemDoBot = (c, pos) => {
-    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(NOTA_DO_JOVEM + rng.normal(0, 1.5), 18, 26), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
+    const g = grupoNovo[c.id], alvo = NOTA_DO_JOVEM_POR_DIVISAO[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
+    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };

@@ -1526,6 +1526,7 @@ const __treino = (() => {
     // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
     maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
     idadeSemContar: 21,         // jogador até esta idade não entra no limite de 35 do elenco
+    ctSemDono: { 1: 4, 2: 2, 3: 0 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
     qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
   };
 
@@ -1555,6 +1556,8 @@ const __treino = (() => {
     }
     return areas;
   }
+  // nível do centro de treinamento que vale para o treino: o do clube, ou o da divisão quando ele não tem dirigente
+  const ctDoClube = c => !c ? 0 : c.dono ? (c.ct_nivel || 0) : (CONFIG_TREINO.ctSemDono[c.divisao] || 0);
   const multDoAtributo = (areas, i) => areas ? (areas[AREA_DO_ATRIBUTO[i]] || 1) : 1;
   // ritmo por idade: cheio até os 23, caindo até parar depois dos 30
   const ritmoDaIdade = idade => idade <= 23 ? 1 : idade <= 25 ? 0.85 : idade <= 27 ? 0.7 : idade <= 30 ? 0.5 : 0;
@@ -1673,7 +1676,7 @@ const __treino = (() => {
     }
     return { at, pts, subiu };
   }
-  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, custoDaPosicao, pontosDePosicao, aprenderPosicao, prazoDaPosicao, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
+  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, custoDaPosicao, pontosDePosicao, aprenderPosicao, prazoDaPosicao, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
 })();
 
 const __ligabase = (() => {
@@ -1681,41 +1684,60 @@ const __ligabase = (() => {
   // O time é montado sozinho: entram os juvenis de verdade e, só nas vagas que faltarem para completar onze (goleiro incluso), garotos da escolinha,
   // que não existem fora da partida. Não há lesão, cartão, experiência, forma, moral nem bilheteria: ficam o placar, os gols e as notas,
   // e quem jogou 45 minutos ganha um bônus de treino. Módulo puro: usado pela função do servidor.
-  const { ATRIBUTOS, notaBruta } = __modelo;
+  const { ATRIBUTOS, notaBruta, notaNaPosicao } = __modelo;
   const { limitar } = __rng;
+  const { FORMACOES } = __escalacao;
   const CONFIG_LIGA_DE_BASE = {
     escolinha: [13, 1.2], // nota do garoto da escolinha: 13 + 1,2 por nível da base (o juvenil de verdade chega com 15 + 1,5 por nível e treina)
-    nivelDoBot: 3,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 3, para a liga não ser um passeio
+    nivelDoBot: 2,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 2
     bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou: equivale ao bônus de 10% por jogar em duas rodadas da liga
     minutos: 45,
     premio: 200,          // mil, ao campeão de cada grupo, pagos pelo fundo da liga
   };
-  const VAGAS = ["GK", "DC", "DC", "DR", "DL", "MC", "MC", "MR", "ML", "FC", "SC"];
+  const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
 
   function garotoDaEscolinha(rng, pos, nivel, id) {
     const at = ATRIBUTOS.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));
     return { id, nome: "Garoto da escolinha", pais: "Brasil", idade: 16, pos, fam: { [pos]: "N" }, at, pe: "D", escolinha: true };
   }
 
-  // juvenis: os de verdade, no formato do motor. Devolve o elenco da partida: todos eles mais os garotos necessários para haver onze e um goleiro.
-  function timeDaBase(rng, juvenis, nivelDaBase = 0, prefixo = "") {
-    const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0), livres = VAGAS.slice(), garotos = [];
-    for (const j of juvenis.slice().sort((a, b) => notaBruta(b.at, b.pos) - notaBruta(a.at, a.pos))) {
-      let i = livres.indexOf(j.pos);
-      if (i < 0 && j.pos !== "GK") i = livres.findIndex(p => p !== "GK");
-      if (i >= 0) livres.splice(i, 1);
+  // Escolhe o esquema em que mais juvenis jogam numa posição que conhecem (natural ou competente) e os distribui nas vagas.
+  // Quem sobra sem vaga conhecida entra improvisado numa vaga de linha, se houver; só então ficam vagas para os garotos da escolinha.
+  // Devolve { nome, vagas: [{ pos, j }] (j nulo = vaga de garoto), fora: [juvenis que não cabem] }.
+  // ponytail: com mais de 11 juvenis, os que sobram ficam sem jogar; rodízio entre eles se algum clube chegar a esse ponto
+  function escalacaoDaBase(juvenis) {
+    let melhor = null;
+    for (const nome of FORMACOES_DA_BASE) {
+      const vagas = FORMACOES[nome].map(pos => ({ pos, j: null })), livres = new Set(juvenis); let soma = 0, n = 0;
+      for (;;) {
+        let m = null;
+        for (const v of vagas) if (!v.j) for (const j of livres) {
+          const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C") continue;
+          const nota = notaNaPosicao(j, v.pos); if (!m || nota > m.nota) m = { v, j, nota };
+        }
+        if (!m) break;
+        m.v.j = m.j; livres.delete(m.j); soma += m.nota; n++;
+      }
+      if (!melhor || n > melhor.n || (n === melhor.n && soma > melhor.soma)) melhor = { nome, vagas, n, soma, fora: [...livres] };
     }
-    const novo = pos => garotos.push(garotoDaEscolinha(rng, pos, nivel, "e" + prefixo + "_" + garotos.length));
-    if (!juvenis.some(j => j.pos === "GK")) novo("GK");
-    const deLinha = livres.filter(p => p !== "GK");
-    while (juvenis.length + garotos.length < 11) novo(deLinha.shift() || "MC");
-    return [...juvenis, ...garotos];
+    for (const j of melhor.fora.slice().sort((a, b) => notaBruta(b.at, b.pos) - notaBruta(a.at, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
+      if (j.pos === "GK") continue;
+      const v = melhor.vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
+      if (v) { v.j = j; melhor.fora.splice(melhor.fora.indexOf(j), 1); }
+    }
+    return { nome: melhor.nome, vagas: melhor.vagas, fora: melhor.fora };
   }
-  return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, timeDaBase };
+
+  // juvenis: os de verdade, no formato do motor. Devolve os onze da partida: os juvenis escalados e um garoto da escolinha em cada vaga que sobrou.
+  function timeDaBase(rng, juvenis, nivelDaBase = 0, prefixo = "") {
+    const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);
+    return escalacaoDaBase(juvenis).vagas.map((v, i) => v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i));
+  }
+  return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, escalacaoDaBase, timeDaBase };
 })();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
-const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao } = __treino;
+const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 
@@ -1845,7 +1867,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, divisao, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
@@ -1903,7 +1925,7 @@ Deno.serve(async (req) => {
           for (const lado of [p.casa, p.fora]) { const areas = qualidadeDoTreino(comissoes ? comissoes[lado] || [] : null, (elencos[lado] || []).filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length, !(clubes[lado] || {}).dono); for (const j of elencos[lado] || []) {
             if (j.fora > 0 && j.motivo === "lesão") continue;
             const jogou = (minutos[j.id] || 0) >= CONFIG_TREINO.minutosParaBonus;
-            const r = treinar(j, { tal: talentos[j.id], ct: (clubes[lado] || {}).ct_nivel || 0, jogou, areas });
+            const r = treinar(j, { tal: talentos[j.id], ct: ctDoClube(clubes[lado]), jogou, areas });
             // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
             const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
             if (r || a) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
