@@ -12,6 +12,10 @@ export function salarioDeMercado(j) {
   return Math.max(50, Math.round(250 * Math.pow(1.12, nota - 25) * idade / 5) * 5);
 }
 export const clausula = salario => salario * MULTIPLO_DA_CLAUSULA;
+// Valor de hoje do jogador: o maior entre o salário do contrato, o salário de mercado gravado e o de mercado pela nota atual.
+// A multa rescisória e o salário mínimo de quem compra pela multa partem dele (66_multa_e_bots.sql).
+export const valorDeHoje = j => Math.max(j.salario || 0, j.salario_mercado || j.mercado || 0, j.at ? salarioDeMercado(j) : 0);
+export const multaDe = j => clausula(valorDeHoje(j));
 // Contrato mais longo pede mais: 2 temporadas, salário de mercado + 10%; 3 temporadas, + 20% (52_pacote_da_economia.sql).
 export const ADICIONAL_POR_TEMPORADA = 0.1;
 export const minimoPelaDuracao = (mercado, temporadas) => Math.round((mercado || 0) * (1 + ADICIONAL_POR_TEMPORADA * (Math.max(1, temporadas) - 1)));

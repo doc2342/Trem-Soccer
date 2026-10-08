@@ -353,6 +353,10 @@ const __economia = (() => {
     return Math.max(50, Math.round(250 * Math.pow(1.12, nota - 25) * idade / 5) * 5);
   }
   const clausula = salario => salario * MULTIPLO_DA_CLAUSULA;
+  // Valor de hoje do jogador: o maior entre o salário do contrato, o salário de mercado gravado e o de mercado pela nota atual.
+  // A multa rescisória e o salário mínimo de quem compra pela multa partem dele (66_multa_e_bots.sql).
+  const valorDeHoje = j => Math.max(j.salario || 0, j.salario_mercado || j.mercado || 0, j.at ? salarioDeMercado(j) : 0);
+  const multaDe = j => clausula(valorDeHoje(j));
   // Contrato mais longo pede mais: 2 temporadas, salário de mercado + 10%; 3 temporadas, + 20% (52_pacote_da_economia.sql).
   const ADICIONAL_POR_TEMPORADA = 0.1;
   const minimoPelaDuracao = (mercado, temporadas) => Math.round((mercado || 0) * (1 + ADICIONAL_POR_TEMPORADA * (Math.max(1, temporadas) - 1)));
@@ -385,7 +389,7 @@ const __economia = (() => {
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __base = (() => {
@@ -484,7 +488,7 @@ Deno.serve(async (req) => {
         salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
     }
     const { data, error } = await sb.rpc("comprar_pela_multa", { p_user: quem.user.id, p_jogador: idJogador,
-      p_salario: Math.round(+pedido.salario), p_temporadas: Math.round(+pedido.temporadas), p_reposicao: reposicao });
+      p_salario: Math.round(+pedido.salario), p_temporadas: Math.round(+pedido.temporadas), p_reposicao: reposicao, p_mercado: salarioDeMercado(j) }); // valor de hoje: a multa e o salário mínimo partem dele (66_multa_e_bots.sql)
     if (error) return json({ erro: error.message });
     return json({ ok: true, mensagem: data });
   } catch (e) {
