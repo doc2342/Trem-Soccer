@@ -7,7 +7,8 @@
 --    (Na virada, o salário de mercado de todos é recalculado, e os clubes sem dono reajustam quem ganha abaixo dele: src/virada.js.)
 -- 2. Bots investem: clube sem dono, sem obra em andamento e com caixa folgado constrói rumo aos níveis-alvo da divisão (bots_investem).
 -- 3. Mercado entre bots: uma vez por janela, a função "rodada" monta os negócios (src/mercadobots.js) e transferir_entre_bots grava,
---    conferindo de novo janela, caixa, teto de folha e tamanho dos elencos. Fica em transferencias com tipo 'bot'.
+--    conferindo de novo janela, caixa, teto de folha, tamanho dos elencos, idade (só mais de 21) e divisão (o talento só sobe ou fica:
+--    o bot compra da mesma divisão ou de uma abaixo). Bot no vermelho vende mais barato. Fica em transferencias com tipo 'bot'.
 
 -- ---------- 1. multa ----------
 drop function if exists public.comprar_pela_multa(uuid, bigint, int, int, jsonb);
@@ -102,7 +103,8 @@ revoke execute on function public.comprar_pela_multa(uuid, bigint, int, int, jso
 grant execute on function public.comprar_pela_multa(uuid, bigint, int, int, jsonb, int) to service_role;
 
 -- ---------- 2. bots investem ----------
--- Níveis-alvo de cada estrutura por divisão (1 = Série A). O bot só obra com caixa acima da reserva (25% do teto de folha + o custo),
+-- Níveis-alvo de cada estrutura por divisão (1 = Série A). O bot só obra se, depois de pagar, o caixa ainda ficar acima de 40% do teto
+-- de folha: 25% de reserva e 15% para um reforço na janela (o mercado entre bots usa o mesmo caixa),
 -- uma obra por vez, pela estrutura mais longe do alvo (na ordem: CT, médico, base, fisioterapia, estádio).
 create or replace function public.bots_investem(p_liga bigint) returns int
 language plpgsql security definer set search_path = public as $$
@@ -127,7 +129,7 @@ begin
                             case when v_melhor = 'estadio' then 1 else 0 end);
     v_custo := custo_da_obra(v_melhor, v_nivel);
     select caixa into v_caixa from financas where clube_id = c.id;
-    v_reserva := 0.25 * teto_do_clube(c.id);
+    v_reserva := 0.40 * teto_do_clube(c.id); -- 25% de reserva + 15% guardados para um reforço na janela
     continue when coalesce(v_caixa, 0) - v_custo < v_reserva;
     update financas set caixa = caixa - v_custo where clube_id = c.id;
     insert into lancamentos (clube_id, temporada, rodada, tipo, valor, descricao)
@@ -167,6 +169,8 @@ begin
       continue when v_j.id is null or v_de.id is null or v_para.id is null or v_de.id = v_para.id;
       continue when v_de.dono is not null or v_para.dono is not null or v_de.liga_id <> p_liga or v_para.liga_id <> p_liga;
       continue when v_j.aposenta_em is not null or v_j.salario is null or coalesce(x.valor, 0) <= 0 or coalesce(x.salario, 0) <= 0;
+      continue when v_j.idade <= 21; -- jovem não é vendido entre bots
+      continue when coalesce(v_de.divisao, 3) < coalesce(v_para.divisao, 3) or coalesce(v_de.divisao, 3) > coalesce(v_para.divisao, 3) + 1; -- o talento só sobe ou fica
       select caixa into v_caixa from financas where clube_id = v_para.id;
       continue when coalesce(v_caixa, 0) - x.valor < 0.25 * teto_do_clube(v_para.id);
       select coalesce(sum(salario), 0) into v_folha from jogadores where clube_id = v_para.id;

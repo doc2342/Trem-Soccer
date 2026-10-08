@@ -73,7 +73,7 @@ async function mercadoDosBots(sb, ligaId) {
     for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
       forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
   }
-  const clubes = cs.map(c => ({ id: c.id, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 }));
+  const clubes = cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 }));
   const negocios = negociosEntreBots(__rng.criarRng(Math.floor(Math.random() * 2147483647)), { clubes, elencos });
   await sb.rpc("transferir_entre_bots", { p_liga: ligaId, p_lista: negocios.map(n => ({ jogador: n.jogador, para: n.para, valor: n.valor, salario: n.salario })) });
 }
