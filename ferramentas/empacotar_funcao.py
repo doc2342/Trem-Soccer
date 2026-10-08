@@ -116,13 +116,23 @@ async function jogarBase(sb) {
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
   for (const x of (await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids)).data || []) if ((x.funcao || "treinador") === "treinador") (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x);
+  // rodízio: minutos que cada um já jogou na base nesta temporada
+  const minutosNaBase = {}, chave = (liga, t) => liga + ":" + t;
+  for (const k of new Set(jogos.map(p => chave(p.liga_id, p.temporada)))) {
+    const [liga, t] = k.split(":").map(Number), m = minutosNaBase[k] = {};
+    for (const q of (await sb.from("base_jogos").select("dados").eq("liga_id", liga).eq("temporada", t).eq("processada", true).not("gols_casa", "is", null)).data || [])
+      for (const x of (q.dados && q.dados.jogadores) || []) if (String(x.id).startsWith("j")) m[x.id] = (m[x.id] || 0) + (x.min || 0);
+  }
   let n = 0;
   for (const p of jogos) {
     const reserva = await sb.from("base_jogos").update({ processada: true }).eq("id", p.id).eq("processada", false).select("id");
     if (reserva.error || !reserva.data.length) continue;
     try {
       const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
-      const lado = id => ({ clube: { id, nome: (clubes[id] || {}).nome || "", dono: null, perfil: (clubes[id] || {}).perfil }, elenco: timeDaBase(rng, juvenis[id] || [], (clubes[id] || {}).dono ? (clubes[id].base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, id, profs[id] || []), tatica: null });
+      const jaJogou = minutosNaBase[chave(p.liga_id, p.temporada)];
+      const lado = id => { const c = clubes[id] || {};
+        const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil });
+        return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
       const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados }).eq("id", p.id);
@@ -137,6 +147,7 @@ async function jogarBase(sb) {
         }
       }
       if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
+      for (const [id, m] of Object.entries(minutos)) if (id.startsWith("j")) jaJogou[id] = (jaJogou[id] || 0) + m;
       n++;
     } catch (e) { await sb.from("base_jogos").update({ processada: false }).eq("id", p.id); }
   }

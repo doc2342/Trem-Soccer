@@ -121,7 +121,7 @@ export function aplicarSituacao(elenco, mudancas) {
   for (const m of mudancas) if (porId[m.id]) Object.assign(porId[m.id], { fora: m.fora, motivo: m.motivo, amarelos: m.amarelos });
 }
 
-// lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null, saude: saída de saudeDoClube (opcional) }
+// lado: { clube: { id, nome, dono, ultimo_acesso }, elenco, tatica: dados salvos ou null, saude: saída de saudeDoClube (opcional) , pronta: { escalacao, banco, instrucoes } (opcional) }
 // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
 // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
 const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
@@ -162,7 +162,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
     // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
     const elenco = copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
-    const humana = inativo ? null : taticaDoDirigente(l.tatica, elenco);
+    const humana = l.pronta || (inativo ? null : taticaDoDirigente(l.tatica, elenco)); // pronta: tática já montada (liga de base)
     const disponiveis = elenco.filter(j => !(j.fora > 0));
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
   });
