@@ -1,6 +1,6 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
-import { ATRIBUTOS, ATR_MIN, ATR_MAX } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
@@ -15,6 +15,7 @@ export const premioDaLiga = (divisao, posicao, clubes = 10) => {
 };
 export const chanceDeAposentar = idade => idade >= 38 ? 1 : idade < 34 ? 0 : (idade - 33) * 0.2; // 20% aos 34 … 80% aos 37
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
+export const REPOSICAO = { abaixoDoAposentado: 5 }; // o jovem que repõe o aposentado no bot chega até 5 pontos de nota abaixo dele
 // jovem que repõe o aposentado nos clubes sem dirigente: chega mais pronto nas divisões de cima
 export const NOTA_DO_JOVEM_POR_DIVISAO = { 1: 26, 2: 24, 3: 22 };
 // Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
@@ -82,7 +83,7 @@ export const ELENCO_MINIMO_DO_BOT = 18;
 export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
-  const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0 };
+  const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
   const grupoNovo = {}; // grupo em que cada clube que sobe ou cai vai jogar
 
   for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
@@ -107,9 +108,12 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
 
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
   // jovem que o clube sem dirigente recebe (no lugar de um aposentado, ou quando a safra cai nele)
-  const jovemDoBot = (c, pos) => {
-    const g = grupoNovo[c.id], alvo = NOTA_DO_JOVEM_POR_DIVISAO[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
-    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: rng.int(17, 19), perfil: c.perfil, nomes, usados });
+  // notaDeQuemSai: nota do aposentado que ele substitui; o jovem chega até 5 pontos abaixo dela (e nunca abaixo do piso da divisão),
+  // para a liga não perder nível de uma vez quando a geração mais velha se aposenta
+  const jovemDoBot = (c, pos, notaDeQuemSai = 0) => {
+    const g = grupoNovo[c.id], piso = NOTA_DO_JOVEM_POR_DIVISAO[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
+    const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
+    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), perfil: c.perfil, nomes, usados });
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };
@@ -136,14 +140,17 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
       if (c.dono) continue; // clube com dirigente: quem repõe é a base
       ficam++;
-      jovemDoBot(c, j.pos);
+      jovemDoBot(c, j.pos, notaNaPosicao(j, j.pos));
       continue;
     }
     const at = j.at.slice(), sobe = crescimento(idade, talentos[numero(j.id)] || 50);
     if (sobe) { at.forEach((v, i) => { if (j.pos === "GK" || !DE_GOLEIRO.has(i)) at[i] = limitar(v + sobe, ATR_MIN, ATR_MAX); }); resumo.cresceram++; }
     if (idade >= 34) { FISICOS.forEach(i => { at[i] = limitar(at[i] - rng.int(1, 2), ATR_MIN, ATR_MAX); }); resumo.cairam++; }
     else if (idade >= 31) { rng.embaralhar(FISICOS).slice(0, rng.int(1, 2)).forEach(i => { at[i] = limitar(at[i] - 1, ATR_MIN, ATR_MAX); }); resumo.cairam++; }
-    const reg = { id: numero(j.id), idade, at, salario: j.salario, salario_mercado: j.mercado, contrato_ate: j.contratoAte };
+    // salário de mercado de todos refeito pela nota de hoje; clube sem dono reajusta quem ganha abaixo dele (66_multa_e_bots.sql)
+    const mercadoHoje = salarioDeMercado({ ...j, idade, at });
+    const reg = { id: numero(j.id), idade, at, salario: j.salario, salario_mercado: mercadoHoje, contrato_ate: j.contratoAte };
+    if (!c.dono && !j.juvenil && j.salario != null && j.salario < mercadoHoje) { reg.salario = mercadoHoje; resumo.reajustados++; }
     plano.jogadores.push(reg); regs.push(reg);
     if (j.juvenil) { // juvenil que passou dos 21 sem ser profissionalizado fica livre
       if (comLivres && idade > CONFIG_BASE.idadeDeJuvenil) {

@@ -9,7 +9,7 @@ Uso: python ferramentas/empacotar_funcao.py   (rodar de novo sempre que o motor 
 import io, os, re
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODULOS = ["rng", "modelo", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "ligabase"]  # em ordem de dependência
+MODULOS = ["rng", "modelo", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "ligabase", "economia", "mercadobots"]  # em ordem de dependência
 
 RE_IMPORT = re.compile(r'^import\s*\{([^}]*)\}\s*from\s*"\./(\w+)\.js";\s*$', re.M | re.S)
 RE_EXPORT = re.compile(r'^export\s+(?=(?:async\s+)?(?:const|let|function)\s+(\w+))', re.M)
@@ -56,6 +56,27 @@ const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
+const { negociosEntreBots } = __mercadobots;
+
+// Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
+async function mercadoDosBots(sb, ligaId) {
+  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
+  if (!janela) return;
+  const { data: liga } = await sb.from("ligas").select("id, temporada, pausada, bots_mercado").eq("id", ligaId).maybeSingle();
+  if (!liga || liga.pausada || liga.bots_mercado === liga.temporada + ":" + janela) return;
+  const cs = (await sb.from("clubes").select("id, divisao").eq("liga_id", ligaId).is("dono", null)).data || [];
+  const tetos = Object.fromEntries(((await sb.from("divisoes").select("divisao, teto_folha").eq("liga_id", ligaId)).data || []).map(d => [d.divisao, d.teto_folha]));
+  const caixas = Object.fromEntries(((await sb.from("financas").select("clube_id, caixa").in("clube_id", cs.map(c => c.id))).data || []).map(f => [f.clube_id, f.caixa]));
+  const elencos = {};
+  for (let i = 0; i < cs.length; i += 20) {
+    const linhas = (await sb.from("jogadores").select("*").in("clube_id", cs.slice(i, i + 20).map(c => c.id)).order("id")).data || [];
+    for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
+      forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
+  }
+  const clubes = cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 }));
+  const negocios = negociosEntreBots(__rng.criarRng(Math.floor(Math.random() * 2147483647)), { clubes, elencos });
+  await sb.rpc("transferir_entre_bots", { p_liga: ligaId, p_lista: negocios.map(n => ({ jogador: n.jogador, para: n.para, valor: n.valor, salario: n.salario })) });
+}
 
 // Playoffs de acesso: quando a fase de liga (ou as semifinais) termina, a fase seguinte é criada sozinha, uma data depois, no intervalo do calendário.
 async function avancarPlayoffs(sb) {
@@ -173,6 +194,8 @@ Deno.serve(async (req) => {
 
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
+    // bots: obras rumo aos níveis da divisão e, uma vez por janela, negócios entre clubes sem dono (sem efeito antes do 66_multa_e_bots.sql)
+    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); } } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
@@ -348,7 +371,7 @@ Deno.serve(async (req) => {
         salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
     }
     const { data, error } = await sb.rpc("comprar_pela_multa", { p_user: quem.user.id, p_jogador: idJogador,
-      p_salario: Math.round(+pedido.salario), p_temporadas: Math.round(+pedido.temporadas), p_reposicao: reposicao });
+      p_salario: Math.round(+pedido.salario), p_temporadas: Math.round(+pedido.temporadas), p_reposicao: reposicao, p_mercado: salarioDeMercado(j) }); // valor de hoje: a multa e o salário mínimo partem dele (66_multa_e_bots.sql)
     if (error) return json({ erro: error.message });
     return json({ ok: true, mensagem: data });
   } catch (e) {
