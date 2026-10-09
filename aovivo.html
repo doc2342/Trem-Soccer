@@ -135,7 +135,10 @@ async function iniciar() {
   clubes = Object.fromEntries((await clubesPorIds([partida.casa, partida.fora])).map(c => [c.id, c]));
   preco = await precoDoIngresso(partida.casa).catch(() => null);
   await atualizar();
-  relogio = setInterval(async () => { if (encerrada) return; if (!partida.processada || partida.publico == null) partida = await partidaPorId(id); atualizar().catch(() => {}); }, 10000);
+  // a cada 10 segundos busca os lances novos; com a aba em segundo plano não busca nada, e ao voltar busca de uma vez o que aconteceu
+  const buscar = async () => { if (encerrada || document.hidden) return; if (!partida.processada || partida.publico == null) partida = await partidaPorId(id); atualizar().catch(() => {}); };
+  relogio = setInterval(buscar, 10000);
+  document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
 iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
