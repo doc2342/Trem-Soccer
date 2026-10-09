@@ -9,7 +9,8 @@ export const CONFIG_SAUDE = {
   medico: 0.01,            // a skill do médico é o corte na duração da lesão: skill 50, metade do tempo (mínimo de 1 jogo fora)
   atendidos: [1, 1],       // o médico cuida de 1 lesionado ao mesmo tempo, mais 1 por nível do departamento médico
   efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
-  forma: { jogou: 3, porNota: 2.5, entrou: 1, parado: -2, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
+  // jogou: por jogar 45 minutos ou mais; porNota: por ponto de nota acima (ou abaixo) de 6. Titular que joga mal fica perto de 50, quem joga bem passa de 80
+  forma: { jogou: 1, porNota: 4, entrou: 1, parado: -1, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
   moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
   preparador: [2, 6],      // o preparador de forma dá de 2 a 8 pontos de forma a cada jogador atendido
   atendidosNaForma: [2, 2],// atende 2 jogadores por rodada, mais 2 por nível da fisioterapia (os de pior forma)
