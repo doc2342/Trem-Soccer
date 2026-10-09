@@ -147,16 +147,17 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { sair, ligaAtual, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
-import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
+import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
 function acertarSalarioPelaDuracao() {
   document.querySelectorAll("select[data-prog]").forEach(sel => {
     const campo = document.getElementById(sel.dataset.prog); if (!campo) return;
     if (campo.dataset.base == null) campo.dataset.base = campo.min || "0";
-    const minimo = Math.max(+campo.dataset.base, minimoPelaDuracao(+sel.dataset.mercado, +sel.value));
+    // com luvas (data-luvas), o campo aceita até 70% do pedido; ao trocar a duração, o valor vai para o pedido cheio
+    const pede = minimoPelaDuracao(+sel.dataset.mercado, +sel.value), minimo = Math.max(+campo.dataset.base, sel.dataset.luvas ? salarioMinimoComLuvas(pede) : pede);
     if (+campo.min !== minimo) campo.min = minimo;
-    if (sel.dataset.visto !== sel.value) { sel.dataset.visto = sel.value; if (+campo.value < minimo) campo.value = minimo; }
+    if (sel.dataset.visto !== sel.value) { sel.dataset.visto = sel.value; if (+campo.value < Math.max(minimo, pede)) campo.value = Math.max(minimo, pede); campo.dispatchEvent(new Event("input")); }
   });
 }
 document.addEventListener("change", e => { if (e.target && e.target.matches && e.target.matches("select[data-prog]")) acertarSalarioPelaDuracao(); });
@@ -579,7 +580,9 @@ async function telaClube(liga, clube) {
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico cuida de mais lesionados ao mesmo tempo"],
     ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e mais prontos"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18, 22, 27, 36], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
-  const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção de 2% por temporada
+  const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção do estádio
+  // manutenção por temporada, a mesma conta do manutencao_por_temporada (68_economia.sql)
+  const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
   // Resumo das estruturas: as cinco numa tela só, com o que cada uma faz hoje, o que ganha no próximo nível e o botão de ampliar
   const resumoDasEstruturas = () => {
     if (caixa == null || clube.ct_nivel == null) return `<div class="card mut">As estruturas aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>`;
@@ -589,7 +592,7 @@ async function telaClube(liga, clube) {
       : k === "fisio" ? `preparador de forma atende ${atendidosNaForma(n)} por rodada`
       : k === "base" ? `${fx(faixaDeJovens(n, "promocao"))} jovens na virada, ${fx(faixaDeJovens(n, "peneira"))} na peneira`
       : `${mil(lugaresDoEstadio(n))} lugares`;
-    const manut = Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(0.02 * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
+    const manut = manutencaoDoClube();
     return `<div class="card"><h2>Estruturas <span class="tag">caixa de ${dinheiro(caixa)} · manutenção de ${dinheiro(manut)} por temporada · uma obra por vez</span></h2>
       ${obra ? `<div class="aviso" style="margin-bottom:8px">Obra em andamento: ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)} para o nível ${obra.nivel_alvo}, faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas de liga.</div>` : ""}
       ${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
@@ -643,13 +646,13 @@ async function telaClube(liga, clube) {
         : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button>
           <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
       ${comissaoDa(k)}
-      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(Math.round(0.1 * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((s, x) => s + ACUMULADO[clube[x] || 0], 0)) + Math.round(0.02 * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]))} por temporada (10% do que foi gasto nas quatro estruturas e 2% do que foi gasto no estádio). O prazo da obra corre em rodadas de liga.</div></div>`;
+      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada (${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do que foi gasto no estádio). O prazo da obra corre em rodadas de liga.</div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
   const rotRodada = r => r > 100 ? "copa, " + (FASES_DA_COPA[r - 100] || "").toLowerCase() : r + "ª";
   const CATEGORIAS = [["Ingressos e Sócio-Torcedor", ["bilheteria", "carne"]], ["Patrocínio", ["patrocinio"]], ["Direitos de TV", ["tv", "paraquedas"]], ["Prêmios e fundo da liga", ["premio", "fundo", "antecipacao"]], ["Copa do Brasil", ["copa"]],
-    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao", "formador"]], ["Salários", ["salarios"]], ["Comissão técnica e olheiros", ["treinadores", "olheiro"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
+    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao", "formador"]], ["Salários e luvas", ["salarios", "luvas"]], ["Comissão técnica e olheiros", ["treinadores", "olheiro"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
   const financas = () => {
     const n = liga.rodadas_por_temporada || 18, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folha / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
@@ -1482,9 +1485,11 @@ async function telaClube(liga, clube) {
         ${j.aVenda ? `<div><div class="mut">À venda por</div><b>${dinheiro(j.precoPedido)}</b></div>` : ""}</div>
       <div class="duas">
         ${bloco("Contrato", `<div class="row"><label>Novo salário (em milhares)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:120px"></label>
-            <label>Renovar por<select id="ctTemporadas" data-prog="ctSalario" data-mercado="${j.mercado || 0}"><option value="1">1 temporada</option><option value="2">2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label></div>
+            <label>Renovar por<select id="ctTemporadas" data-prog="ctSalario" data-luvas="1" data-mercado="${j.mercado || 0}"><option value="1">1 temporada</option><option value="2">2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label></div>
           <div class="row" style="margin-top:8px"><button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctAumentar">Só aumentar o salário</button></div>
-          <div class="mut" style="margin-top:6px"><span id="ctClausula"></span> · na renovação ele pede pelo menos ${dinheiro(j.mercado)} · máximo por jogador ${dinheiro(maximo)} · sobram ${dinheiro(sobra)} até o teto. O salário só sobe; a multa é 5 vezes o maior entre o salário e o valor de hoje do jogador.</div>`)}
+          <div id="ctLuvas" style="margin-top:6px"></div>
+          <div class="mut" style="margin-top:6px"><span id="ctClausula"></span> · na renovação ele pede pelo menos ${dinheiro(j.mercado)} · máximo por jogador ${dinheiro(maximo)} · sobram ${dinheiro(sobra)} até o teto. O salário só sobe; a multa é 5 vezes o maior entre o salário e o valor de hoje do jogador.
+            <b>Luvas:</b> na renovação dá para pôr um salário abaixo do pedido (até ${Math.round(LUVAS.piso * 100)}% dele) pagando a diferença de uma vez, fora da folha: cada mil a menos por temporada custa ${String(LUVAS.fator).replace(".", ",")} mil por temporada de contrato. A multa continua pelo valor de hoje.</div>`)}
         ${janela === undefined ? "" : bloco(`Lista de protegidos <span class="tag">${nProtegidos} de 7</span>`, `<button class="sec" id="ctProteger">${j.protegido ? "Tirar da lista de protegidos" : "Pôr na lista de protegidos"}</button>
           <div class="mut" style="margin-top:6px">Protegido não tem multa rescisória: só sai se você vender. Para tirar alguém da lista, só com a janela fechada.</div>`)}
         ${propostas == null ? "" : bloco("Lista de transferência", `<div class="row"><label>Preço pedido (em milhares) <span class="mut">· sugerido: ${dinheiro(multaDe(j))}, o valor da multa</span><input id="ctPreco" type="number" step="50" min="0" value="${j.precoPedido || multaDe(j)}" style="width:120px"></label>
@@ -1502,10 +1507,20 @@ async function telaClube(liga, clube) {
                <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, o agente o vende pelo preço do dia (até 3 vezes o salário de mercado).</div>`}`) : ""}
       </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
-    const mostra = () => { $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(Math.max(+$("ctSalario").value || 0, salarioDeMercado(j))))}`; }; // a multa nunca fica abaixo do valor de hoje
-    $("ctSalario").oninput = mostra; mostra();
+    // luvas da renovação: quanto custa o salário abaixo do pedido para a duração escolhida
+    const luvasAgora = () => { const t = +$("ctTemporadas").value, pede = minimoPelaDuracao(j.mercado || 0, t), s = Math.round(+$("ctSalario").value || 0);
+      return { t, pede, s, valor: s < pede ? luvasDaRenovacao(pede, s, t) : 0, abaixo: s < salarioMinimoComLuvas(pede) }; };
+    const mostra = () => {
+      $("ctClausula").textContent = `Com esse salário a multa fica em ${dinheiro(clausula(Math.max(+$("ctSalario").value || 0, salarioDeMercado(j))))}`; // a multa nunca fica abaixo do valor de hoje
+      const L = luvasAgora();
+      $("ctLuvas").innerHTML = !L.valor ? "" : L.abaixo ? `<span class="bad">Abaixo de ${Math.round(LUVAS.piso * 100)}% do pedido (${dinheiro(L.pede)}), nem com luvas.</span>`
+        : `<span class="aviso">Renovar por ${L.t} ${L.t === 1 ? "temporada" : "temporadas"} com ${dinheiro(L.s)} (o pedido é ${dinheiro(L.pede)}) custa <b>${dinheiro(L.valor)} de luvas</b>, pagas agora do caixa e fora da folha.${caixa != null && caixa < L.valor ? " O caixa não cobre." : ""}</span>`;
+    };
+    $("ctSalario").oninput = mostra; $("ctTemporadas").addEventListener("change", mostra); mostra();
     const enviar = async temporadas => {
-      try { await ajustarContrato(j.id, Math.round(+$("ctSalario").value), temporadas); await carregar({ user: usuario }); }
+      const L = luvasAgora(), comLuvas = temporadas > 0 && L.valor > 0;
+      if (comLuvas && !confirm(`Pagar ${dinheiro(L.valor)} de luvas para renovar ${j.nome} por ${dinheiro(L.s)} por temporada?`)) return;
+      try { await ajustarContrato(j.id, Math.round(+$("ctSalario").value), temporadas, comLuvas); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     $("ctAumentar").onclick = () => enviar(0);
