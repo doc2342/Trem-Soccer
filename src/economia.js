@@ -19,6 +19,13 @@ export const multaDe = j => clausula(valorDeHoje(j));
 // Contrato mais longo pede mais: 2 temporadas, salário de mercado + 10%; 3 temporadas, + 20% (52_pacote_da_economia.sql).
 export const ADICIONAL_POR_TEMPORADA = 0.1;
 export const minimoPelaDuracao = (mercado, temporadas) => Math.round((mercado || 0) * (1 + ADICIONAL_POR_TEMPORADA * (Math.max(1, temporadas) - 1)));
+// Luvas (68_economia.sql): na renovação, o clube paga de uma vez, fora da folha, para o jogador aceitar um salário menor que o pedido.
+// Cada mil a menos por temporada custa 1,5 mil de luvas por temporada de contrato, e o salário fica em no mínimo 70% do pedido.
+export const LUVAS = { fator: 1.5, piso: 0.7 };
+export const salarioMinimoComLuvas = pede => Math.round(pede * LUVAS.piso);
+export const luvasDaRenovacao = (pede, salario, temporadas) => Math.max(0, Math.ceil((pede - salario) * LUVAS.fator * Math.max(1, temporadas)));
+// Manutenção por temporada (68_economia.sql): 20% do que foi gasto nas quatro estruturas e 4% do que foi gasto no estádio (era 10% e 2%)
+export const MANUTENCAO = { estruturas: 0.2, estadio: 0.04 };
 // Estádio: níveis 1 a 5 de 10 a 30 mil lugares; 6, 7 e 8 com 40, 50 e 60 mil (55_estadio_torcida_e_publico.sql)
 export const NIVEL_MAXIMO_DO_ESTADIO = 8;
 export const lugaresDoEstadio = nivel => { const n = Math.max(1, nivel || 1); return n <= 5 ? 5000 + 5000 * n : [40000, 50000, 60000][Math.min(8, n) - 6]; };
@@ -35,7 +42,7 @@ export function contratoInicial(rng, j, temporada) {
 }
 
 // Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
-export const PREMIO_MINIMO = { 1: 4000, 2: 2400, 3: 1200 };        // prêmio do lanterna: é o que dá para antecipar
+export const PREMIO_MINIMO = { 1: 2000, 2: 1200, 3: 600 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
 export const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
 export const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
 export const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir

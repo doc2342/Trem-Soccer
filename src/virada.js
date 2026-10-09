@@ -8,7 +8,8 @@ import { salarioDeMercado, TETO_DE_FOLHA } from "./economia.js";
 import { classificacao } from "./rodada.js";
 
 // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
-export const PREMIOS = { 1: [10000, 4000], 2: [6000, 2400], 3: [3500, 1200] };
+// pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
+export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
 export const premioDaLiga = (divisao, posicao, clubes = 10) => {
   const [topo, fundo] = PREMIOS[divisao] || PREMIOS[2];
   return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));

@@ -138,7 +138,9 @@ export async function gravarPartida(partidaId, lances, resultado) {
 // "j123" → 123, e 123 → 123. (Antes cortava sempre a primeira letra; com os ids numéricos das listas do mercado, isso trocava o jogador.)
 const numero = id => +String(id).replace(/^\D+/, "");
 // Aumenta o salário (temporadas = 0) ou renova o contrato por 1 a 3 temporadas. As regras são conferidas no banco.
-export const ajustarContrato = (jogadorId, salario, temporadas = 0) => sb.rpc("ajustar_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
+// comLuvas (68_economia.sql): renovação abaixo do salário pedido, com a diferença paga de uma vez em luvas
+export const ajustarContrato = (jogadorId, salario, temporadas = 0, comLuvas = false) =>
+  sb.rpc("ajustar_contrato", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas, ...(comLuvas ? { p_com_luvas: true } : {}) }).then(ok);
 // Grava os contratos iniciais (só administrador). lista: [{ id: "j123", salario, mercado, contrato_ate, protegido_ate }]
 export async function definirContratos(lista) {
   let n = 0;
