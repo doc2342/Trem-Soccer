@@ -2031,7 +2031,10 @@ async function autorizado(req, sb) {
 // Grava nos jogadores o que a partida mudou: situação (lesão, suspensão, amarelos), forma e moral, e treino.
 async function gravarEfeitos(sb, e, partida = null) {
   if (e && e.caixa && partida) { await sb.rpc("lancar_rodada", { p_partida: partida }); await sb.rpc("lancar_treinadores", { p_partida: partida }); }
-  for (const m of (e && e.situacao) || []) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", m.id);
+  // situação em lote numa chamada só (67_cron_enxuto.sql); sem a função, um jogador por vez, como antes
+  const situacao = (e && e.situacao) || [];
+  if (situacao.length && (await sb.rpc("aplicar_situacao", { p_lista: situacao })).error)
+    for (const m of situacao) await sb.from("jogadores").update({ fora_jogos: m.fora, fora_motivo: m.motivo, amarelos: m.amarelos }).eq("id", m.id);
   if (e && e.momento && e.momento.length) await sb.rpc("aplicar_momento", { p_lista: e.momento });
   if (e && e.treinos && e.treinos.length) await sb.rpc("aplicar_treino", { p_lista: e.treinos });
   if (e && e.copa && e.copa.length) await sb.rpc("aplicar_copa", { p_lista: e.copa });
