@@ -1616,8 +1616,8 @@ const __treino = (() => {
 
   // Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
   // Cada sessão dá pontos de posição; o custo por degrau (improvisado → competente → natural) depende da distância até uma posição
-  // em que ele já é natural: vizinha 1200 (natural em cerca de uma temporada), vizinha de vizinha 2400, o resto 3600. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
-  const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 1200, proxima: 2400, distante: 3600, bonusPorJogar: 0.5 };
+  // em que ele já é natural: vizinha 900 (natural em uma temporada de 18 sessões), vizinha de vizinha 1800, o resto 2700. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
+  const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 900, proxima: 1800, distante: 2700, bonusPorJogar: 0.5 };
   const ritmoDaPosicao = idade => idade <= 23 ? 1 : idade <= 27 ? 0.7 : 0.4;
   // posição que o jogador está aprendendo agora (nula quando não há, ou quando ele já virou natural nela)
   const posicaoEmEstudo = j => { const p = j.aprende && j.aprende.pos; return p && POSICOES[p] && p !== "GK" && j.pos !== "GK" && (j.fam || {})[p] !== "N" ? p : null; };
