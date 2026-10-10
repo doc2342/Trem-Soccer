@@ -114,13 +114,18 @@ export const custoDaPosicao = (j, pos) => CONFIG_POSICAO[distanciaDaPosicao(j, p
 export const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
 // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
 // soBonus: só a parte de "jogou na posição", sem a sessão (jogo da liga de base).
-export function aprenderPosicao(j, { jogouNa = false, soBonus = false } = {}) {
+// subiu: { para: "C" ou "N", em: data } do último degrau conquistado, para o mural do clube avisar por AVISO_DE_DEGRAU_DIAS.
+export function aprenderPosicao(j, { jogouNa = false, soBonus = false, em = new Date().toISOString() } = {}) {
   const pos = posicaoEmEstudo(j); if (!pos) return null;
   const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + (soBonus ? pontosDePosicao(j, true) - pontosDePosicao(j) : pontosDePosicao(j, jogouNa));
   while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
   if (fam[pos] === "N") pts = 0;
-  return { fam, aprende: { pos, pts } };
+  const subiu = fam[pos] !== (j.fam || {})[pos] ? { para: fam[pos], em } : j.aprende.subiu;
+  return { fam, aprende: { pos, pts, ...(subiu ? { subiu } : {}) } };
 }
+export const AVISO_DE_DEGRAU_DIAS = 3;
+// degrau de posição conquistado há pouco: { pos, para } ou null
+export const degrauRecente = (j, agora = Date.now()) => { const s = j.aprende && j.aprende.subiu; return s && agora - Date.parse(s.em) < AVISO_DE_DEGRAU_DIAS * 864e5 ? { pos: j.aprende.pos, para: s.para } : null; };
 // quantas sessões faltam para o próximo degrau e para virar natural (sem jogar na posição)
 export function prazoDaPosicao(j, pos, pts = 0) {
   const custo = custoDaPosicao(j, pos), porSessao = pontosDePosicao(j), degraus = (j.fam || {})[pos] === "C" ? 1 : 2;
