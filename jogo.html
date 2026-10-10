@@ -142,6 +142,7 @@ import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta, N
 import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
 import { CONFIG_MERCADO_BOTS } from "./src/mercadobots.js";
+const prazoEmTexto = h => h >= 48 ? Math.round(h / 24) + " dias" : h >= 1 ? Math.round(h) + " horas" : Math.round(h * 60) + " minutos";
 import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
@@ -784,6 +785,8 @@ async function telaClube(liga, clube) {
       if (travados.length) l.push(item("🔒", `Não podem jogar a copa por você (já jogaram por outro clube nesta temporada): ${travados.map(j => esc(j.nome)).join(", ")}.`));
     }
     elenco.forEach(j => { const d = degrauRecente(j); if (d) l.push(item("🎓", `${esc(j.nome)} agora é ${d.para === "N" ? "natural" : "competente"} como ${POSICOES[d.pos].nome.toLowerCase()} (${sg(d.pos)}).`, "ok")); });
+    elenco.filter(j => j.aVenda && janela && j.botsViram === liga.temporada + ":" + janela).forEach(j => { const teto = CONFIG_MERCADO_BOTS.precoEmSalarios * salarioDeMercado(j);
+      l.push(item("🏷️", `${esc(j.nome)} (${sg(j.pos)}) segue na lista por ${dinheiro(j.precoPedido)}: nenhum clube sem dirigente comprou. ${j.idade > CONFIG_MERCADO_BOTS.idadeMaxima ? `Eles não compram quem tem mais de ${CONFIG_MERCADO_BOTS.idadeMaxima} anos.` : j.precoPedido > teto ? `Eles pagam até ${dinheiro(teto)} por ele: baixando o preço, olham de novo.` : "O preço cabia, mas ele não reforça o time titular de nenhum que tenha caixa."}`)); });
     const saindo = elenco.filter(j => j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil);
     if (saindo.length) l.push(item("🌱", `${saindo.length === 1 ? "Juvenil" : "Juvenis"} com ${CONFIG_BASE.idadeDeJuvenil} anos: ${saindo.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}. Sem contrato até a virada, ${saindo.length === 1 ? "fica livre" : "ficam livres"}. Profissionalize em Clube, Elenco.`, "aviso"));
     const veteranos = (comissaoToda || []).filter(t => t.idade >= IDADE_DE_APOSENTAR_DA_COMISSAO - 1);
@@ -1384,7 +1387,7 @@ async function telaClube(liga, clube) {
         const tipos = v.dataset.candidatos.split(","), alvo = secaoEstr.querySelector(`[data-cand-lista="${v.dataset.candidatos}"]`);
         alvo.innerHTML = `<span class="mut">Carregando…</span>`;
         const l = (await candidatosATreinador()).filter(t => tipos.includes(t.funcao || "treinador"));
-        alvo.innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube e se renova a cada ${(h => h >= 24 ? Math.round(h / 24) + " dias" : h + " horas")(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.</div>
+        alvo.innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube e se renova a cada ${prazoEmTexto(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.</div>
           ${!tipos.includes("treinador") ? `<table class="mini" style="width:100%"><tr><th class="esq">Candidato</th><th class="esq">Função</th><th>Salário</th><th></th></tr>
             ${l.map(t => `<tr><td class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade}</span></td><td class="esq">${FUNCOES_DE_SAUDE[t.funcao] || (t.funcao === "olheiro" ? "Olheiro" : t.funcao === "analista" ? "Analista" : t.funcao)} · skill <b class="nota">${t.skill}</b></td><td>${dinheiro(t.salario)}</td>
               <td><button data-tcontratar="${t.id}" style="padding:3px 8px" title="Luvas de ${dinheiro(Math.round(t.salario * 0.1))}">Contratar</button></td></tr>`).join("")}</table>` : `<table class="mini ctab" style="width:100%"><tr><th class="esq c-nome">Candidato</th>${Object.keys(AREAS).map(k => `<th title="${AREAS[k].nome}">${AREAS[k].nome.slice(0, 3)}</th>`).join("")}<th>Salário</th><th></th></tr>
@@ -1534,7 +1537,7 @@ async function telaClube(liga, clube) {
           <div class="mut" style="margin-top:6px">No vermelho o agente paga até 3 vezes o salário de mercado (hoje ${String(Math.round((1 + 2 * cotacao) * 100) / 100).replace(".", ",")} vezes, conforme o caixa dos clubes sem dono), na hora, mesmo com a janela fechada e sem gastar as vendas da temporada. O jogador vai para um clube sem dono. O elenco não pode ficar com menos de 16.</div>
           ${livres == null ? "" : j.ofertaLigaAte ? `<div class="aviso" style="margin-top:8px">Oferecido à liga por ${dinheiro(Math.round(3.75 * j.salario))} até ${ateQuando(j.ofertaLigaAte)}. Se ninguém levar, o agente vende.</div>`
             : `<button class="sec" id="ctOferecer" style="margin-top:8px" ${contratados <= 16 ? "disabled" : ""}>Oferecer à liga por ${dinheiro(Math.round(3.75 * j.salario))}</button>
-               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${Math.round((liga.horas_oferta || 168) / 24)} dias, mesmo com a janela fechada. Se ninguém levar, o agente o vende pelo preço do dia (até 3 vezes o salário de mercado).</div>`}`) : ""}
+               <div class="mut" style="margin-top:6px">75% da multa: qualquer clube pode levar durante ${prazoEmTexto(+liga.horas_oferta || 168)}, mesmo com a janela fechada. Se ninguém levar, o agente o vende pelo preço do dia (até 3 vezes o salário de mercado).</div>`}`) : ""}
       </div>
       <div id="ctAviso" style="margin-top:6px"></div></div>`;
     // luvas da renovação: quanto custa o salário abaixo do pedido para a duração escolhida

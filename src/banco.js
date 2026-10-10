@@ -50,7 +50,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
@@ -196,6 +196,8 @@ export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").s
 // Copinha (70_copinha.sql): todos os jogos da temporada, com o placar dos pênaltis quando houve
 export const jogosDaCopinha = (ligaId, temporada) => sb.from("base_jogos").select("id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id").then(({ data, error }) => error ? null : data);
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+// prazos (leilão, oferta, candidatos, espera dos bots) no ritmo do calendário: 73_prazos_e_comissao.sql; sem efeito antes dele
+export const ajustarPrazos = ligaId => sb.rpc("ajustar_prazos", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 export const gerarLigaDeBase = ligaId => sb.rpc("gerar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 export const premiarLigaDeBase = ligaId => sb.rpc("premiar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data || "");
 // registro de quem a base revelou (64_revelados.sql): temporada, como chegou e os atributos da chegada
