@@ -191,6 +191,8 @@ export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jog
 export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 // Liga de base (61_liga_de_base.sql): partidas do grupo na temporada, campeões, e as duas chamadas do administrador
 export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").select("id, rodada, casa, fora, inicio, processada, gols_casa, gols_fora, dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("grupo", grupo).order("rodada").order("id").then(({ data, error }) => error ? null : data);
+// Copinha (70_copinha.sql): todos os jogos da temporada, com o placar dos pênaltis quando houve
+export const jogosDaCopinha = (ligaId, temporada) => sb.from("base_jogos").select("id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id").then(({ data, error }) => error ? null : data);
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 export const gerarLigaDeBase = ligaId => sb.rpc("gerar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 export const premiarLigaDeBase = ligaId => sb.rpc("premiar_liga_de_base", { p_liga: ligaId }).then(({ data, error }) => error ? "" : data || "");

@@ -1901,7 +1901,10 @@ const __mercadobots = (() => {
       if (negocios.length >= C.porJanela) break;
       const b = porId[id];
       let melhor = null;
+      // goleiro: o bot só procura outro se o dele for pior que a média dos titulares de linha (senão os bons goleiros sobem todos de divisão)
+      const deLinha = (titulares[id] || []).filter(x => x.pos !== "GK"), mediaDaLinha = deLinha.length ? deLinha.reduce((s, x) => s + x.nota, 0) / deLinha.length : 0;
       for (const vaga of titulares[id] || []) {
+        if (vaga.pos === "GK" && vaga.nota >= mediaDaLinha) continue;
         for (const o of vitrine) {
           const v = porId[o.de];
           if (o.de === id || o.vendido || v.vendas >= (v.vermelho ? 2 : 1) || (vaga.pos === "GK") !== (o.j.pos === "GK")) continue;
@@ -2010,7 +2013,16 @@ async function jogarBase(sb) {
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
-      const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados }).eq("id", p.id);
+      // Copinha (70_copinha.sql): mata-mata; empate vai direto aos pênaltis
+      const extra = {};
+      if (p.fase === "copinha") {
+        extra.vencedor = resultado.gols_casa > resultado.gols_fora ? p.casa : resultado.gols_fora > resultado.gols_casa ? p.fora : null;
+        if (!extra.vencedor) { const pen = [0, 0];
+          for (let k = 0; k < 5; k++) { if (rng.chance(0.76)) pen[0]++; if (rng.chance(0.76)) pen[1]++; }
+          while (pen[0] === pen[1]) { if (rng.chance(0.76)) pen[0]++; if (rng.chance(0.76)) pen[1]++; }
+          dados.penaltis = pen; extra.vencedor = pen[0] > pen[1] ? p.casa : p.fora; }
+      }
+      const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, ...extra }).eq("id", p.id);
       if (g.error) throw new Error(g.error.message);
       const treinos = [];
       for (const id of [p.casa, p.fora]) {
@@ -2026,6 +2038,8 @@ async function jogarBase(sb) {
       n++;
     } catch (e) { await sb.from("base_jogos").update({ processada: false }).eq("id", p.id); }
   }
+  // Copinha: com a fase toda jogada, o banco sorteia a seguinte (ou paga o campeão)
+  for (const liga of new Set(jogos.filter(p => p.fase === "copinha").map(p => p.liga_id))) await sb.rpc("copinha_avancar", { p_liga: liga });
   return n;
 }
 

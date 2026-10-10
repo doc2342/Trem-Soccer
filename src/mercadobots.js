@@ -55,7 +55,10 @@ export function negociosEntreBots(rng, { clubes, elencos }, C = CONFIG_MERCADO_B
     if (negocios.length >= C.porJanela) break;
     const b = porId[id];
     let melhor = null;
+    // goleiro: o bot só procura outro se o dele for pior que a média dos titulares de linha (senão os bons goleiros sobem todos de divisão)
+    const deLinha = (titulares[id] || []).filter(x => x.pos !== "GK"), mediaDaLinha = deLinha.length ? deLinha.reduce((s, x) => s + x.nota, 0) / deLinha.length : 0;
     for (const vaga of titulares[id] || []) {
+      if (vaga.pos === "GK" && vaga.nota >= mediaDaLinha) continue;
       for (const o of vitrine) {
         const v = porId[o.de];
         if (o.de === id || o.vendido || v.vendas >= (v.vermelho ? 2 : 1) || (vaga.pos === "GK") !== (o.j.pos === "GK")) continue;
