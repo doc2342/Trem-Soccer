@@ -1940,14 +1940,43 @@ const __mercadobots = (() => {
     }
     return negocios;
   }
-  return { CONFIG_MERCADO_BOTS, negociosEntreBots };
+
+  // Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql). Pelo preço pedido, sem pechincha:
+  // só se o preço couber na conta do bot (precoEmSalarios), se o jogador reforçar o time titular (ganhoMinimo) e um por bot por janela.
+  // O banco só entrega em `listados` quem já esperou o prazo na lista sem proposta de dirigente; quem fecha (e confere tudo de novo) é bot_compra_listado.
+  // listados: [{ j (formato do motor, com salario, juvenil e aposentaEm), preco }]; jaCompraram: ids dos bots que já compraram nesta janela.
+  // Devolve [{ jogador (id numérico), para, valor, salario, ganho }].
+  function comprasDeListados({ clubes, elencos, listados, jaCompraram = [] }, C = CONFIG_MERCADO_BOTS) {
+    const usados = new Set(jaCompraram), compras = [];
+    const bots = clubes.map(c => { const el = (elencos[c.id] || []).filter(j => !j.juvenil);
+      const onze = (el.length >= 11 ? taticaBot(el).escalacao : []).map(x => ({ pos: x.pos, nota: notaNaPosicao(x.j, x.pos) })), linha = onze.filter(x => x.pos !== "GK");
+      return { ...c, onze, contratados: el.length, folha: el.reduce((s, j) => s + (j.salario || 0), 0), mediaDaLinha: linha.length ? linha.reduce((s, x) => s + x.nota, 0) / linha.length : 0 }; });
+    for (const { j, preco } of listados) {
+      if (j.juvenil || j.aposentaEm != null || j.idade > C.idadeMaxima) continue;
+      const mercado = salarioDeMercado(j), salario = Math.max(mercado, j.salario || 0);
+      if (!(preco > 0) || preco > C.precoEmSalarios * mercado) continue; // acima da conta do bot: ele não paga
+      let melhor = null;
+      for (const b of bots) {
+        if (usados.has(b.id) || b.contratados >= 30) continue;
+        if (b.caixa - preco < C.reserva * b.teto || b.folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
+        // goleiro: mesmo freio do mercado entre bots (só troca se o dele for pior que a média da linha)
+        const ganho = Math.max(-99, ...b.onze.filter(v => (v.pos === "GK") === (j.pos === "GK") && !(v.pos === "GK" && v.nota >= b.mediaDaLinha)).map(v => notaNaPosicao(j, v.pos) - v.nota));
+        if (ganho >= C.ganhoMinimo && (!melhor || ganho > melhor.ganho)) melhor = { b, ganho };
+      }
+      if (!melhor) continue;
+      const b = melhor.b; usados.add(b.id); b.caixa -= preco; b.folha += salario;
+      compras.push({ jogador: +String(j.id).replace(/^\D+/, ""), para: b.id, valor: preco, salario, ganho: +melhor.ganho.toFixed(1) });
+    }
+    return compras;
+  }
+  return { CONFIG_MERCADO_BOTS, negociosEntreBots, comprasDeListados };
 })();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
-const { negociosEntreBots } = __mercadobots;
+const { negociosEntreBots, comprasDeListados } = __mercadobots;
 
 // Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
 async function mercadoDosBots(sb, ligaId) {
@@ -1955,18 +1984,42 @@ async function mercadoDosBots(sb, ligaId) {
   if (!janela) return;
   const { data: liga } = await sb.from("ligas").select("id, temporada, pausada, bots_mercado").eq("id", ligaId).maybeSingle();
   if (!liga || liga.pausada || liga.bots_mercado === liga.temporada + ":" + janela) return;
+  const { clubes, elencos } = await botsDaLiga(sb, ligaId);
+  const negocios = negociosEntreBots(__rng.criarRng(Math.floor(Math.random() * 2147483647)), { clubes, elencos });
+  await sb.rpc("transferir_entre_bots", { p_liga: ligaId, p_lista: negocios.map(n => ({ jogador: n.jogador, para: n.para, valor: n.valor, salario: n.salario })) });
+}
+
+// jogador do banco no formato que o mercado dos bots usa
+const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
+  forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
+
+// clubes sem dono da liga, com caixa e teto, e os elencos deles
+async function botsDaLiga(sb, ligaId) {
   const cs = (await sb.from("clubes").select("id, divisao").eq("liga_id", ligaId).is("dono", null)).data || [];
   const tetos = Object.fromEntries(((await sb.from("divisoes").select("divisao, teto_folha").eq("liga_id", ligaId)).data || []).map(d => [d.divisao, d.teto_folha]));
   const caixas = Object.fromEntries(((await sb.from("financas").select("clube_id, caixa").in("clube_id", cs.map(c => c.id))).data || []).map(f => [f.clube_id, f.caixa]));
   const elencos = {};
   for (let i = 0; i < cs.length; i += 20) {
     const linhas = (await sb.from("jogadores").select("*").in("clube_id", cs.slice(i, i + 20).map(c => c.id)).order("id")).data || [];
-    for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
-      forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
+    for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(jogadorDoMercado(l));
   }
-  const clubes = cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 }));
-  const negocios = negociosEntreBots(__rng.criarRng(Math.floor(Math.random() * 2147483647)), { clubes, elencos });
-  await sb.rpc("transferir_entre_bots", { p_liga: ligaId, p_lista: negocios.map(n => ({ jogador: n.jogador, para: n.para, valor: n.valor, salario: n.salario })) });
+  return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 })), elencos };
+}
+
+// Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql): o banco entrega a fila (quem já esperou o prazo sem
+// proposta de dirigente), cada listado é olhado uma vez por janela e o negócio é fechado pelo preço pedido. Sem efeito antes do SQL 72.
+async function botsCompramListados(sb, ligaId) {
+  const { data: fila, error } = await sb.rpc("listados_para_os_bots", { p_liga: ligaId });
+  if (error || !fila || !fila.length) return;
+  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
+  const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
+  if (!janela || !liga) return;
+  const { clubes, elencos } = await botsDaLiga(sb, ligaId);
+  const jaCompraram = ((await sb.from("transferencias").select("para_clube").eq("liga_id", ligaId).eq("temporada", liga.temporada).eq("janela", janela).eq("tipo", "negociada")
+    .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
+  const compras = comprasDeListados({ clubes, elencos, listados: fila.map(l => ({ j: jogadorDoMercado(l), preco: l.preco_pedido })), jaCompraram });
+  for (const c of compras) await sb.rpc("bot_compra_listado", { p_jogador: c.jogador, p_para: c.para, p_valor: c.valor, p_salario: c.salario }); // o que esbarra numa regra é pulado
+  await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
 }
 
 // Playoffs de acesso: quando a fase de liga (ou as semifinais) termina, a fase seguinte é criada sozinha, uma data depois, no intervalo do calendário.
@@ -2114,7 +2167,7 @@ Deno.serve(async (req) => {
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
     // bots: obras rumo aos níveis da divisão e, uma vez por janela, negócios entre clubes sem dono (sem efeito antes do 66_multa_e_bots.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); } } catch (e) { /* segue */ }
+    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); } } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())

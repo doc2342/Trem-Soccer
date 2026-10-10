@@ -81,3 +81,32 @@ export function negociosEntreBots(rng, { clubes, elencos }, C = CONFIG_MERCADO_B
   }
   return negocios;
 }
+
+// Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql). Pelo preço pedido, sem pechincha:
+// só se o preço couber na conta do bot (precoEmSalarios), se o jogador reforçar o time titular (ganhoMinimo) e um por bot por janela.
+// O banco só entrega em `listados` quem já esperou o prazo na lista sem proposta de dirigente; quem fecha (e confere tudo de novo) é bot_compra_listado.
+// listados: [{ j (formato do motor, com salario, juvenil e aposentaEm), preco }]; jaCompraram: ids dos bots que já compraram nesta janela.
+// Devolve [{ jogador (id numérico), para, valor, salario, ganho }].
+export function comprasDeListados({ clubes, elencos, listados, jaCompraram = [] }, C = CONFIG_MERCADO_BOTS) {
+  const usados = new Set(jaCompraram), compras = [];
+  const bots = clubes.map(c => { const el = (elencos[c.id] || []).filter(j => !j.juvenil);
+    const onze = (el.length >= 11 ? taticaBot(el).escalacao : []).map(x => ({ pos: x.pos, nota: notaNaPosicao(x.j, x.pos) })), linha = onze.filter(x => x.pos !== "GK");
+    return { ...c, onze, contratados: el.length, folha: el.reduce((s, j) => s + (j.salario || 0), 0), mediaDaLinha: linha.length ? linha.reduce((s, x) => s + x.nota, 0) / linha.length : 0 }; });
+  for (const { j, preco } of listados) {
+    if (j.juvenil || j.aposentaEm != null || j.idade > C.idadeMaxima) continue;
+    const mercado = salarioDeMercado(j), salario = Math.max(mercado, j.salario || 0);
+    if (!(preco > 0) || preco > C.precoEmSalarios * mercado) continue; // acima da conta do bot: ele não paga
+    let melhor = null;
+    for (const b of bots) {
+      if (usados.has(b.id) || b.contratados >= 30) continue;
+      if (b.caixa - preco < C.reserva * b.teto || b.folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
+      // goleiro: mesmo freio do mercado entre bots (só troca se o dele for pior que a média da linha)
+      const ganho = Math.max(-99, ...b.onze.filter(v => (v.pos === "GK") === (j.pos === "GK") && !(v.pos === "GK" && v.nota >= b.mediaDaLinha)).map(v => notaNaPosicao(j, v.pos) - v.nota));
+      if (ganho >= C.ganhoMinimo && (!melhor || ganho > melhor.ganho)) melhor = { b, ganho };
+    }
+    if (!melhor) continue;
+    const b = melhor.b; usados.add(b.id); b.caixa -= preco; b.folha += salario;
+    compras.push({ jogador: +String(j.id).replace(/^\D+/, ""), para: b.id, valor: preco, salario, ganho: +melhor.ganho.toFixed(1) });
+  }
+  return compras;
+}
