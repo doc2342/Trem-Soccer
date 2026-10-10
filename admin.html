@@ -132,7 +132,7 @@ async function tela(aviso = "") {
   // em ordem de data, com o nome de cada data: rodada da liga, playoff ou fase da copa (rodada 100 + fase)
   const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l.reduce((m, p) => p.inicio < m ? p.inicio : m, l[0].inicio), feitas: l.filter(p => p.processada).length, total: l.length }; })
     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.r - b.r);
-  const nomeDaData = r => r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : "Rodada " + r;
+  const nomeDaData = r => r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
   const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
@@ -256,9 +256,9 @@ async function tela(aviso = "") {
       const r = proximaFaseDosPlayoffs({ clubes: lista, partidas, resultados: await resultadosDe(partidas.map(p => p.id), true) });
       if (r.erro) { $("previaVirada").innerHTML = `<span class="aviso">${esc(r.erro)}</span>`; return; }
       const ini = new Date($("inicioPlayoff").value).getTime(), fim = ini + (liga.minutos_transmissao || 0) * 60000, nome = Object.fromEntries(clubes.map(c => [c.id, c.nome]));
-      if (!confirm(`Criar ${r.jogos.length} jogos (${r.fase === "semi" ? "semifinais" : "finais"}) para ${new Date(ini).toLocaleString("pt-BR")}?\n\n${r.jogos.map(j => `${nomeDoGrupo(j.grupo)}: ${nome[j.casa]} x ${nome[j.fora]}`).join("\n")}`)) return;
+      if (!confirm(`Criar ${r.jogos.length} jogos (${r.fase === "semi" ? "semifinais" : r.fase === "acesso" ? "final do acesso" : "finais"}) para ${new Date(ini).toLocaleString("pt-BR")}?\n\n${r.jogos.map(j => `${nomeDoGrupo(j.grupo)}: ${nome[j.casa]} x ${nome[j.fora]}`).join("\n")}`)) return;
       await criarPartidas(r.jogos.map(j => ({ liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(fim).toISOString() })));
-      await tela(`Playoffs: ${r.jogos.length} jogos criados (${r.fase === "semi" ? "semifinais" : "finais"}).`);
+      await tela(`Playoffs: ${r.jogos.length} jogos criados (${r.fase === "semi" ? "semifinais" : r.fase === "acesso" ? "final do acesso" : "finais"}).`);
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)} (o 17_acesso_e_descenso.sql já foi executado?)</span>`; }
   });
   em("prepararVirada", async () => {

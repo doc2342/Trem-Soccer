@@ -83,8 +83,8 @@ async function avancarPlayoffs(sb) {
   for (const liga of (await sb.from("ligas").select("id, pausada, minutos_transmissao")).data || []) {
     if (liga.pausada) continue;
     const conta = async f => (await f(sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id))).count || 0;
-    if (await conta(q => q.eq("fase", "final")) || await conta(q => q.eq("fase", "liga").eq("processada", false))) continue; // já tem final, ou a liga ainda está em jogo
-    const partidas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio").eq("liga_id", liga.id).in("fase", ["liga", "semi", "final"]).order("id").limit(2000)).data || [];
+    if (await conta(q => q.eq("fase", "acesso")) || await conta(q => q.eq("fase", "liga").eq("processada", false))) continue; // já tem a final do acesso, ou a liga ainda está em jogo
+    const partidas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio").eq("liga_id", liga.id).in("fase", ["liga", "semi", "final", "acesso"]).order("id").limit(2000)).data || [];
     if (!partidas.length) continue;
     const resultados = [], agora = new Date().toISOString(), ids = partidas.map(p => p.id);
     for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));

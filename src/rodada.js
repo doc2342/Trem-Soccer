@@ -246,6 +246,11 @@ export function classificacao(clubes, partidas, resultados) {
 // ---------- playoffs de acesso: 2º x 5º e 3º x 4º, depois a final; jogo único na casa do mais bem colocado ----------
 export const RODADA_SEMI = 19;
 export const RODADA_FINAL = 20;
+// Final do acesso: os vencedores dos playoffs dos dois grupos da segunda divisão jogam pela terceira vaga na primeira.
+export const RODADA_DO_ACESSO = 21;
+export const DESCENSO_DA_PRIMEIRA = 3;
+// grupos da segunda divisão que disputam a final do acesso (só existe com exatamente dois)
+export const gruposDoAcesso = clubes => { const g = [...new Set(clubes.filter(c => c.divisao === 2).map(c => c.grupo))].sort(); return g.length === 2 ? g : null; };
 const daLiga = p => !p.fase || p.fase === "liga";
 // Empate classifica o mandante, que é sempre o de melhor campanha.
 export const vencedorDoPlayoff = (p, r) => r.gols_casa >= r.gols_fora ? p.casa : p.fora;
@@ -256,7 +261,17 @@ export function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
   const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].sort();
   if (!grupos.length) return { erro: "Nenhum grupo disputa playoff (só as divisões abaixo da primeira)." };
   const semis = partidas.filter(p => p.fase === "semi"), finais = partidas.filter(p => p.fase === "final");
-  if (finais.length) return { erro: "As finais dos playoffs já foram criadas." };
+  if (finais.length) { // finais criadas: falta só a final do acesso, entre os vencedores dos playoffs da segunda divisão
+    const gs = gruposDoAcesso(clubes);
+    if (!gs) return { erro: "As finais dos playoffs já foram criadas." };
+    if (partidas.some(p => p.fase === "acesso")) return { erro: "A final do acesso já foi criada." };
+    const lados = gs.map(g => { const f = finais.find(p => p.grupo === g); if (!f || !res[f.id]) return null;
+      const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados), id = vencedorDoPlayoff(f, res[f.id]), k = t.findIndex(x => x.clube.id === id);
+      return { id, g, pos: k, pts: t[k].pts, saldo: t[k].gp - t[k].gc }; });
+    if (lados.some(x => !x)) return { erro: "As finais dos playoffs da segunda divisão ainda não terminaram." };
+    lados.sort((a, b) => a.pos - b.pos || b.pts - a.pts || b.saldo - a.saldo || a.id - b.id); // em casa, o de melhor campanha
+    return { fase: "acesso", jogos: [{ grupo: lados[0].g, rodada: RODADA_DO_ACESSO, fase: "acesso", casa: lados[0].id, fora: lados[1].id }] };
+  }
   const jogos = [];
   for (const g of grupos) {
     const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);

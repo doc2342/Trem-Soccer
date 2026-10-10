@@ -28,17 +28,25 @@ const DE_GOLEIRO = new Set(ATRIBUTOS.map((a, i) => a.grupo === "gol" ? i : -1).f
 const numero = id => +String(id).replace(/^j/, "");
 
 // playoffs de acesso: a montagem das fases mora em rodada.js, porque o servidor também usa (cria as fases sozinho)
-import { RODADA_SEMI, RODADA_FINAL, vencedorDoPlayoff, proximaFaseDosPlayoffs } from "./rodada.js";
-export { RODADA_SEMI, RODADA_FINAL, vencedorDoPlayoff, proximaFaseDosPlayoffs };
-// Acesso e descenso: na primeira caem os 4 últimos; nas outras sobem o campeão e o vencedor do playoff, e na segunda caem
-// os 2 últimos de cada grupo. Entre a segunda e a terceira divisão o destino é fixo e cruzado:
+import { RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs } from "./rodada.js";
+export { RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, proximaFaseDosPlayoffs };
+// Acesso e descenso: na primeira caem os 3 últimos. Da segunda sobem os dois campeões e o vencedor da final do acesso, jogada entre
+// os vencedores dos playoffs dos dois grupos (quem perde fica); da terceira sobem o campeão e o vencedor do playoff de cada grupo;
+// na segunda caem os 2 últimos de cada grupo. Entre a segunda e a terceira divisão o destino é fixo e cruzado:
 //   campeão da C1 → B1 e vencedor do playoff da C1 → B2; campeão da C2 → B2 e vencedor do playoff da C2 → B1;
 //   lanterna da B1 → C1 e 9º da B1 → C2; lanterna da B2 → C2 e 9º da B2 → C1.
-// Os 4 que caem da primeira divisão continuam sorteados, 2 para cada grupo da segunda.
+// Os 3 que caem da primeira divisão são sorteados: 2 para o grupo de onde saiu o vencedor da final do acesso e 1 para o outro.
+// (Segunda divisão sem exatamente dois grupos: vale a regra antiga, caem 4 e sobe o vencedor do playoff de cada grupo.)
 export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
   const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
   const divDoGrupo = g => (clubes.find(c => c.grupo === g) || {}).divisao, maxDiv = Math.max(...clubes.map(c => c.divisao));
   const destino = {}, sobem = {}, caem = {}; // por divisão de origem
+  const gsAcesso = gruposDoAcesso(clubes); let doAcesso = null, grupoDoAcesso = null; // quem venceu a final do acesso e de que grupo saiu
+  if (gsAcesso) {
+    const f = partidas.find(p => p.fase === "acesso");
+    if (!f || !res[f.id]) throw new Error("Falta a final do acesso (entre os vencedores dos playoffs da Série B1 e da B2). Gere a próxima fase dos playoffs antes da virada.");
+    doAcesso = vencedorDoPlayoff(f, res[f.id]); grupoDoAcesso = (clubes.find(c => c.id === doAcesso) || {}).grupo;
+  }
   for (const [g, linhas] of Object.entries(grupos)) {
     const d = divDoGrupo(g), n = linhas.length;
     linhas.forEach(l => { destino[l.clube_id] = l.posicao === 1 && d === 1 ? "campeão" : "ficou"; });
@@ -47,9 +55,11 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
       if (!final || !res[final.id]) throw new Error(`Falta a final do playoff da ${({ B: "Série B1", C: "Série B2", D: "Série C1", E: "Série C2" })[g] || "chave " + g}. Gere os playoffs antes da virada.`);
       const pelo = vencedorDoPlayoff(final, res[final.id]);
       // papel 0: fica no grupo "da mesma letra" do destino (campeão, lanterna); papel 1: vai para o outro grupo (playoff, penúltimo)
-      [linhas[0].clube_id, pelo].forEach((id, papel) => { destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g, papel }); });
+      // na segunda divisão com final do acesso, o vencedor do playoff só sobe se venceu também a final
+      [linhas[0].clube_id, pelo].forEach((id, papel) => { if (papel === 1 && d === 2 && gsAcesso && id !== doAcesso) return;
+        destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g, papel }); });
     }
-    if (d < maxDiv) linhas.slice(n - (d === 1 ? 4 : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g, papel: d === 1 ? null : l.posicao === n ? 0 : 1 }); });
+    if (d < maxDiv) linhas.slice(n - (d === 1 ? (gsAcesso ? DESCENSO_DA_PRIMEIRA : 4) : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g, papel: d === 1 ? null : l.posicao === n ? 0 : 1 }); });
   }
   const gruposDa = d => Object.keys(grupos).filter(g => divDoGrupo(g) === d).sort();
   const lista = [];
@@ -61,6 +71,8 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
       quem.forEach(x => lista.push({ clube_id: x.id, grupo: alvos[(origens.indexOf(x.de) + x.papel) % alvos.length], divisao: d, caiu }));
       return;
     }
+    // os que caem da primeira: o grupo que cedeu o vencedor da final do acesso abriu uma vaga a mais, então recebe primeiro
+    if (caiu && d === 2 && grupoDoAcesso && alvos.includes(grupoDoAcesso)) alvos.sort((a, b) => (b === grupoDoAcesso) - (a === grupoDoAcesso));
     rng.embaralhar(quem).forEach((x, k) => { const g = alvos[k % alvos.length]; vagas[g]++; lista.push({ clube_id: x.id, grupo: g, divisao: d, caiu }); });
   };
   for (const d of Object.keys(sobem)) distribuir(sobem[d], +d - 1, false);
