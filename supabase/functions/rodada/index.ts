@@ -1615,13 +1615,17 @@ const __treino = (() => {
   }
 
   // Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
-  // Cada sessão dá pontos de posição; a posição vizinha de uma em que ele já é natural custa 1800 pontos por degrau (improvisado → competente → natural:
-  // perto de uma temporada cada) e a distante, o dobro. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
-  const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 1800, distante: 3600, bonusPorJogar: 0.5 };
+  // Cada sessão dá pontos de posição; o custo por degrau (improvisado → competente → natural) depende da distância até uma posição
+  // em que ele já é natural: vizinha 1200 (natural em cerca de uma temporada), vizinha de vizinha 2400, o resto 3600. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
+  const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 1200, proxima: 2400, distante: 3600, bonusPorJogar: 0.5 };
   const ritmoDaPosicao = idade => idade <= 23 ? 1 : idade <= 27 ? 0.7 : 0.4;
   // posição que o jogador está aprendendo agora (nula quando não há, ou quando ele já virou natural nela)
   const posicaoEmEstudo = j => { const p = j.aprende && j.aprende.pos; return p && POSICOES[p] && p !== "GK" && j.pos !== "GK" && (j.fam || {})[p] !== "N" ? p : null; };
-  const custoDaPosicao = (j, pos) => Object.keys(j.fam || {}).some(p => j.fam[p] === "N" && (VIZINHAS[p] || []).includes(pos)) ? CONFIG_POSICAO.vizinha : CONFIG_POSICAO.distante;
+  function distanciaDaPosicao(j, pos) {
+    const naturais = Object.keys(j.fam || {}).filter(p => j.fam[p] === "N"), perto = (de, p) => (VIZINHAS[de] || []).includes(p);
+    return naturais.some(p => perto(p, pos)) ? "vizinha" : naturais.some(p => (VIZINHAS[p] || []).some(v => perto(v, pos))) ? "proxima" : "distante";
+  }
+  const custoDaPosicao = (j, pos) => CONFIG_POSICAO[distanciaDaPosicao(j, pos)];
   const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
   // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
   function aprenderPosicao(j, { jogouNa = false } = {}) {
@@ -1692,7 +1696,7 @@ const __treino = (() => {
     }
     return { at, pts, subiu };
   }
-  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, custoDaPosicao, pontosDePosicao, aprenderPosicao, prazoDaPosicao, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
+  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, distanciaDaPosicao, custoDaPosicao, pontosDePosicao, aprenderPosicao, prazoDaPosicao, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
 })();
 
 const __ligabase = (() => {

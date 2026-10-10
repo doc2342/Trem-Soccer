@@ -137,7 +137,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   for (const c of clubes) {
    const vencidos = [], regs = [], renovadosAqui = []; let ficam = 0;
    // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
-   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova, juvenis })) {
+   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova, juvenis,
+     jaTem: (elencos[c.id] || []).filter(j => j.idade < CONFIG_BASE.idadeDeJuvenil).map(j => j.pos) })) {
      if (!juvenis) ficam++; // juvenil não conta no elenco profissional
      plano.novos.push({ clube_id: c.id, ...jovem });
      resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
