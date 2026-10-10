@@ -152,7 +152,10 @@ async function jogarBase(sb) {
         for (const j of [...(juvenis[id] || []), ...(profs[id] || [])]) {
           if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
           const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
-          if (t) { treinos.push({ id: +String(j.id).slice(1), at: t.at, pts: t.pts }); j.at = t.at; j.pts = t.pts; }
+          const jogouEm = (resultado.relatorio.jogadores.find(x => x.id === j.id) || {}).pos;
+          const a = c.dono && j.aprende && jogouEm === j.aprende.pos ? aprenderPosicao(j, { soBonus: true }) : null; // jogar na posição em estudo acelera, como na liga
+          if (t || a) { treinos.push({ id: +String(j.id).slice(1), at: t ? t.at : j.at, pts: t ? t.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
+            if (t) { j.at = t.at; j.pts = t.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
         }
       }
       if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });

@@ -113,9 +113,10 @@ export function distanciaDaPosicao(j, pos) {
 export const custoDaPosicao = (j, pos) => CONFIG_POSICAO[distanciaDaPosicao(j, pos)];
 export const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
 // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
-export function aprenderPosicao(j, { jogouNa = false } = {}) {
+// soBonus: só a parte de "jogou na posição", sem a sessão (jogo da liga de base).
+export function aprenderPosicao(j, { jogouNa = false, soBonus = false } = {}) {
   const pos = posicaoEmEstudo(j); if (!pos) return null;
-  const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + pontosDePosicao(j, jogouNa);
+  const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + (soBonus ? pontosDePosicao(j, true) - pontosDePosicao(j) : pontosDePosicao(j, jogouNa));
   while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
   if (fam[pos] === "N") pts = 0;
   return { fam, aprende: { pos, pts } };

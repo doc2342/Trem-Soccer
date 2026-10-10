@@ -17,6 +17,7 @@ export const CONFIG_LIGA_DE_BASE = {
   idadeMaxima: 21,      // profissional formado no clube joga a base até esta idade (só em clube com dirigente)
   premio: 200,          // mil, ao campeão de cada grupo, pagos pelo fundo da liga
   trocas: 5,            // juvenis que entram no intervalo (as cinco substituições do motor)
+  estudo: 10,           // pontos de nota a mais, na escolha da vaga, para a posição que o jogador está aprendendo (jogar nela acelera o estudo)
   rodizio: 10,          // pontos de nota a menos, na escolha de quem começa, por partida inteira (90 minutos) já jogada na base
 };
 const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
@@ -29,17 +30,19 @@ export function garotoDaEscolinha(rng, pos, nivel, id) {
 // Escolhe o esquema e distribui as vagas. A ordem de preferência: juvenil numa posição que conhece (natural ou competente); juvenil improvisado
 // numa vaga de linha (ele não tem outro jogo para jogar); profissional formado no clube, de até 21 anos, numa posição que conhece;
 // e só então garoto da escolinha. Entre os esquemas, vale o que encaixa mais juvenis, depois mais profissionais, depois a maior soma de notas.
+// Quem está aprendendo uma posição joga nela sempre que o esquema tiver a vaga: conta como posição conhecida e tem a preferência.
 // minutos: { id: minutos já jogados na base nesta temporada }, para o rodízio (o juvenil que jogou menos tem a preferência para começar).
 // Devolve { nome, vagas: [{ pos, j }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra }] no intervalo, fora: [juvenis sem jogo] }.
 export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
   const C = CONFIG_LIGA_DE_BASE, jogou = j => minutos[j.id] || 0;
-  const valor = (j, pos) => notaNaPosicao(j, pos) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
+  const estuda = (j, pos) => !!j.aprende && j.aprende.pos === pos && (j.fam || {})[pos] !== "N";
+  const valor = (j, pos) => notaNaPosicao(j, pos) + (estuda(j, pos) ? C.estudo : 0) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
   const encaixar = (vagas, lista) => { // cada jogador na vaga conhecida de maior valor; devolve [quantos entraram, soma dos valores, quem sobrou]
     const livres = new Set(lista); let soma = 0, n = 0;
     for (;;) {
       let m = null;
       for (const v of vagas) if (!v.j) for (const j of livres) {
-        const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C") continue;
+        const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C" && !estuda(j, v.pos)) continue;
         const nota = valor(j, v.pos); if (!m || nota > m.nota) m = { v, j, nota };
       }
       if (!m) break;
@@ -64,7 +67,7 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
   const trocas = [], usadas = new Set();
   for (const j of reservas) {
     if (trocas.length >= C.trocas) break;
-    const conhece = pos => ["N", "C"].includes((j.fam || {})[pos]), tipo = v => !v.j ? 0 : v.j.juvenil ? 2 : 1;
+    const conhece = pos => estuda(j, pos) ? 2 : +["N", "C"].includes((j.fam || {})[pos]), tipo = v => !v.j ? 0 : v.j.juvenil ? 2 : 1;
     const cand = melhor.vagas.map((v, i) => ({ v, i })).filter(({ v, i }) => !usadas.has(i) && (v.pos === "GK") === (j.pos === "GK"))
       .sort((a, b) => conhece(b.v.pos) - conhece(a.v.pos) || tipo(a.v) - tipo(b.v) || (a.v.j && b.v.j ? jogou(b.v.j) - jogou(a.v.j) : 0) || notaNaPosicao(j, b.v.pos) - notaNaPosicao(j, a.v.pos));
     if (!cand.length) continue;

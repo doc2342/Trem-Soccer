@@ -1628,9 +1628,10 @@ const __treino = (() => {
   const custoDaPosicao = (j, pos) => CONFIG_POSICAO[distanciaDaPosicao(j, pos)];
   const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
   // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
-  function aprenderPosicao(j, { jogouNa = false } = {}) {
+  // soBonus: só a parte de "jogou na posição", sem a sessão (jogo da liga de base).
+  function aprenderPosicao(j, { jogouNa = false, soBonus = false } = {}) {
     const pos = posicaoEmEstudo(j); if (!pos) return null;
-    const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + pontosDePosicao(j, jogouNa);
+    const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + (soBonus ? pontosDePosicao(j, true) - pontosDePosicao(j) : pontosDePosicao(j, jogouNa));
     while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
     if (fam[pos] === "N") pts = 0;
     return { fam, aprende: { pos, pts } };
@@ -1718,6 +1719,7 @@ const __ligabase = (() => {
     idadeMaxima: 21,      // profissional formado no clube joga a base até esta idade (só em clube com dirigente)
     premio: 200,          // mil, ao campeão de cada grupo, pagos pelo fundo da liga
     trocas: 5,            // juvenis que entram no intervalo (as cinco substituições do motor)
+    estudo: 10,           // pontos de nota a mais, na escolha da vaga, para a posição que o jogador está aprendendo (jogar nela acelera o estudo)
     rodizio: 10,          // pontos de nota a menos, na escolha de quem começa, por partida inteira (90 minutos) já jogada na base
   };
   const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
@@ -1730,17 +1732,19 @@ const __ligabase = (() => {
   // Escolhe o esquema e distribui as vagas. A ordem de preferência: juvenil numa posição que conhece (natural ou competente); juvenil improvisado
   // numa vaga de linha (ele não tem outro jogo para jogar); profissional formado no clube, de até 21 anos, numa posição que conhece;
   // e só então garoto da escolinha. Entre os esquemas, vale o que encaixa mais juvenis, depois mais profissionais, depois a maior soma de notas.
+  // Quem está aprendendo uma posição joga nela sempre que o esquema tiver a vaga: conta como posição conhecida e tem a preferência.
   // minutos: { id: minutos já jogados na base nesta temporada }, para o rodízio (o juvenil que jogou menos tem a preferência para começar).
   // Devolve { nome, vagas: [{ pos, j }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra }] no intervalo, fora: [juvenis sem jogo] }.
   function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
     const C = CONFIG_LIGA_DE_BASE, jogou = j => minutos[j.id] || 0;
-    const valor = (j, pos) => notaNaPosicao(j, pos) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
+    const estuda = (j, pos) => !!j.aprende && j.aprende.pos === pos && (j.fam || {})[pos] !== "N";
+    const valor = (j, pos) => notaNaPosicao(j, pos) + (estuda(j, pos) ? C.estudo : 0) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
     const encaixar = (vagas, lista) => { // cada jogador na vaga conhecida de maior valor; devolve [quantos entraram, soma dos valores, quem sobrou]
       const livres = new Set(lista); let soma = 0, n = 0;
       for (;;) {
         let m = null;
         for (const v of vagas) if (!v.j) for (const j of livres) {
-          const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C") continue;
+          const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C" && !estuda(j, v.pos)) continue;
           const nota = valor(j, v.pos); if (!m || nota > m.nota) m = { v, j, nota };
         }
         if (!m) break;
@@ -1765,7 +1769,7 @@ const __ligabase = (() => {
     const trocas = [], usadas = new Set();
     for (const j of reservas) {
       if (trocas.length >= C.trocas) break;
-      const conhece = pos => ["N", "C"].includes((j.fam || {})[pos]), tipo = v => !v.j ? 0 : v.j.juvenil ? 2 : 1;
+      const conhece = pos => estuda(j, pos) ? 2 : +["N", "C"].includes((j.fam || {})[pos]), tipo = v => !v.j ? 0 : v.j.juvenil ? 2 : 1;
       const cand = melhor.vagas.map((v, i) => ({ v, i })).filter(({ v, i }) => !usadas.has(i) && (v.pos === "GK") === (j.pos === "GK"))
         .sort((a, b) => conhece(b.v.pos) - conhece(a.v.pos) || tipo(a.v) - tipo(b.v) || (a.v.j && b.v.j ? jogou(b.v.j) - jogou(a.v.j) : 0) || notaNaPosicao(j, b.v.pos) - notaNaPosicao(j, a.v.pos));
       if (!cand.length) continue;
@@ -2034,7 +2038,10 @@ async function jogarBase(sb) {
         for (const j of [...(juvenis[id] || []), ...(profs[id] || [])]) {
           if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
           const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
-          if (t) { treinos.push({ id: +String(j.id).slice(1), at: t.at, pts: t.pts }); j.at = t.at; j.pts = t.pts; }
+          const jogouEm = (resultado.relatorio.jogadores.find(x => x.id === j.id) || {}).pos;
+          const a = c.dono && j.aprende && jogouEm === j.aprende.pos ? aprenderPosicao(j, { soBonus: true }) : null; // jogar na posição em estudo acelera, como na liga
+          if (t || a) { treinos.push({ id: +String(j.id).slice(1), at: t ? t.at : j.at, pts: t ? t.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
+            if (t) { j.at = t.at; j.pts = t.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
         }
       }
       if (treinos.length) await sb.rpc("aplicar_treino", { p_lista: treinos });
