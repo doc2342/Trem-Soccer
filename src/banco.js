@@ -59,6 +59,9 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
 export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);
+// refaz a lista de candidatos na hora, pagando (74_procurar_candidatos.sql); o custo e o limite por temporada estão lá e em BUSCA_DE_CANDIDATOS
+export const procurarCandidatos = () => sb.rpc("procurar_candidatos").then(ok);
+export const BUSCA_DE_CANDIDATOS = { custo: 50, limite: 3 };
 export const contratarTreinador = id => sb.rpc("contratar_treinador", { p_id: id }).then(ok);
 export const dispensarTreinador = id => sb.rpc("dispensar_treinador", { p_id: id }).then(ok);
 export const designarTreinador = (id, area) => sb.rpc("designar_treinador", { p_id: id, p_area: area }).then(ok);
