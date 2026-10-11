@@ -173,7 +173,7 @@ begin
     where x.clube_id = v_para.id and x.pos = v_j.pos
       and coalesce(x.salario_mercado, x.salario, 0) / (case when x.idade <= 21 then 0.8 when x.idade >= 31 then 0.9 else 1 end)
        >= coalesce(v_j.salario_mercado, v_j.salario, 0) / (case when v_j.idade <= 21 then 0.8 when v_j.idade >= 31 then 0.9 else 1 end);
-  if v_melhores >= case when v_j.pos in ('DC', 'MC', 'FC') then 2 else 1 end then
+  if v_melhores >= (case when v_j.pos in ('DC', 'MC', 'FC') then 2 else 1 end) then -- entre parênteses: sem eles o "then" do case fecha o if
     raise exception 'O % não quer % por empréstimo: já tem jogador igual ou melhor na posição dele, e clube sem dirigente só recebe quem chega para ser titular.', v_para.nome, v_j.nome;
   end if;
   return executar_emprestimo(p_jogador, p_clube);
