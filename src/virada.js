@@ -19,6 +19,10 @@ export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
 export const REPOSICAO = { abaixoDoAposentado: 5 }; // o jovem que repõe o aposentado no bot chega até 5 pontos de nota abaixo dele
 // jovem que repõe o aposentado nos clubes sem dirigente: chega mais pronto nas divisões de cima
 export const NOTA_DO_JOVEM_POR_DIVISAO = { 1: 26, 2: 24, 3: 22 };
+// Escada das divisões: o talento (teto) do jovem que o clube sem dirigente recebe é deslocado pela divisão de destino: média 66 / 50 / 38
+// (o sorteio comum tem média 58). Sem isso o teto é igual em toda divisão e os elencos convergem; simulado em ferramentas/sim_escada.mjs:
+// com a meia safra, onze mediano de 38,1 / 35,6 / 33,8 na liga madura (alvo 38 / 35 / 32).
+export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -8, 3: -20 };
 // Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
 // agora o jogador evolui rodada a rodada, pelos focos. A queda física por idade continua aqui.
 export const crescimento = () => 0;
@@ -82,12 +86,13 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
 
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
 // comLivres: o mercado de jogadores livres já existe (SQL 21); sem ele, todo contrato vencido se renova sozinho.
-// Safra: os talentos raros de cada temporada. A liga sorteia quantos nascem (em média 1,5 de teto 43 e 3 de teto 42) e para que clubes vão.
+// Safra: os talentos raros de cada temporada. A liga sorteia quantos nascem (em média 0,75 de teto 43 e 1,5 de teto 42: metade do que era até a T9,
+// quando a liga madura caminhava para ~22 jogadores com 43 e ~65 com 41,5 ou mais; com a metade, ~8 e ~32) e para que clubes vão.
 // Cada clube tem um bilhete: peso 1 + nível da base (clube sem dirigente, 0,5); quem ganhou um raro nas últimas 3 temporadas (ou já ganhou nesta)
 // concorre com metade do peso. No máximo um de cada nível por clube por temporada. O raro é um dos jovens que o clube já ia receber:
 // clube sem dirigente que não repôs ninguém nesta virada fica fora do sorteio, para não aparecer um garoto a mais denunciando o raro.
 export const CONFIG_SAFRA = {
-  niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.15], [1, 0.35], [2, 0.35], [3, 0.15]] }, { nivel: 42, tal: 95, quantos: [[1, 0.1], [2, 0.25], [3, 0.3], [4, 0.25], [5, 0.1]] }],
+  niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.4], [1, 0.45], [2, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.1], [1, 0.4], [2, 0.4], [3, 0.1]] }],
   pesoDoBot: 0.5, meioPesoPor: 3, idadeNoBot: 19,
 };
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
@@ -124,9 +129,10 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   // notaDeQuemSai: nota do aposentado que ele substitui; o jovem chega até 5 pontos abaixo dela (e nunca abaixo do piso da divisão),
   // para a liga não perder nível de uma vez quando a geração mais velha se aposenta
   const jovemDoBot = (c, pos, notaDeQuemSai = 0) => {
-    const g = grupoNovo[c.id], piso = NOTA_DO_JOVEM_POR_DIVISAO[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
+    const g = grupoNovo[c.id], div = g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao, piso = NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
     const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), perfil: c.perfil, nomes, usados });
+    jovem.tal = limitar(jovem.tal + (TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };
