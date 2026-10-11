@@ -147,7 +147,7 @@ import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
-import { sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
@@ -290,7 +290,7 @@ async function telaClube(liga, clube) {
   // nome de um prêmio individual: "Bola de Ouro", "Artilheiro da Série B1", "Seleção da Série A"…
   const NOMES_DE_PREMIO = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque" };
   const ehSelecao = p => String(p.premio).startsWith("sel");
-  const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
+  const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
     return ehSelecao(p) ? `Seleção ${serie}` : p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : `${NOMES_DE_PREMIO[p.premio] || p.premio} ${serie}`; };
   const premiosDoJogador = id => premiosTodos.filter(p => p.jogador_id != null && String(p.jogador_id).replace(/\D/g, "") === String(id).replace(/\D/g, "")); // liga de base: nula antes do 61_liga_de_base.sql
   const safra = await safraDaTemporada(liga.id, liga.temporada); // talentos raros revelados nesta temporada em clubes com dirigente
@@ -592,6 +592,46 @@ async function telaClube(liga, clube) {
         ${tabela.map((t, i) => `<tr class="${t.id === clube.id ? "e-tit" : ""}"><td>${i + 1}</td><td class="esq">${lk(t.id)}</td><td><b>${t.v * 3 + t.e}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp - t.gc}</td></tr>`).join("")}</table></div>
         <div><b>Seus jogos</b> <span class="mut" style="font-size:12px">· clique num jogo para ver quem jogou</span>${feitos.length ? feitos.map(p => `<details style="margin-top:4px"><summary style="cursor:pointer">R${p.rodada}: ${esc(cPor[p.casa].nome)} <b>${p.gols_casa} x ${p.gols_fora}</b> ${esc(cPor[p.fora].nome)}${quemFez(p)}</summary><div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${escalados(p)}</div></details>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum jogo ainda.</div>`}
           <div style="margin-top:10px"><b>Artilheiros do grupo</b>${art.length ? art.map(a => `<div style="margin-top:4px">${esc(a.n)} <span class="mut">(${lk(a.c)})</span> · <b>${a.g}</b></div>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum gol de juvenil ainda (gol de garoto da escolinha não entra na lista).</div>`}</div></div></div>${regras}</div>`;
+  };
+  // Histórico da base: os campeões de cada temporada já vêm com a página; as tabelas e as chaves antigas só são buscadas ao abrir
+  const historicoDaBase = () => {
+    if (baseJogos == null || !baseCampeoes.length) return "";
+    const COLUNAS = ["A", "B", "C", "D", "E", "COPINHA"].filter(g => baseCampeoes.some(x => x.grupo === g)), temporadas = [...new Set(baseCampeoes.map(x => x.temporada))];
+    const nomeH = id => esc((cPor[id] || {}).nome || "—"), meu = id => id === clube.id ? ` class="nota"` : "";
+    const campeao = (t, g) => { const x = baseCampeoes.find(x => x.temporada === t && x.grupo === g); return x ? `<td${meu(x.clube_id)}>${lk(x.clube_id)}</td>` : `<td class="mut">—</td>`; };
+    // o que a busca precisa fica guardado fora do desenho, porque a página é redesenhada a toda hora
+    window.__histBase = { liga: liga.id, temporada: liga.temporada, grupo: clube.grupo, nomeH, meu };
+    if (!window.__histBaseLigado) { window.__histBaseLigado = true; // "toggle" não sobe na árvore: é ouvido na captura
+      document.addEventListener("toggle", async e => {
+        const d = e.target, c = window.__histBase;
+        if (!d.open || d.dataset.pronto || !["histLigaBase", "histCopinha"].includes(d.id)) return;
+        d.dataset.pronto = "1";
+        const corpo = d.querySelector("div");
+        if (d.id === "histLigaBase") {
+          const jogos = await historicoDaLigaDeBase(c.liga, c.grupo, c.temporada), ts = [...new Set(jogos.map(p => p.temporada))];
+          corpo.innerHTML = ts.length ? ts.map(t => { const tab = {};
+            for (const p of jogos.filter(p => p.temporada === t)) for (const [id, gp, gc] of [[p.casa, p.gols_casa, p.gols_fora], [p.fora, p.gols_fora, p.gols_casa]]) { const x = tab[id] ||= { id, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }; x.j++; x.gp += gp; x.gc += gc; gp > gc ? x.v++ : gp === gc ? x.e++ : x.d++; }
+            const linhas = Object.values(tab).sort((a, b) => (b.v * 3 + b.e) - (a.v * 3 + a.e) || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.id - b.id);
+            return `<details style="margin-top:6px"><summary style="cursor:pointer">Temporada ${t} <span class="mut">· campeão: ${c.nomeH(linhas[0].id)}</span></summary><table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
+              ${linhas.map((x, i) => `<tr><td>${i + 1}</td><td class="esq"><span${c.meu(x.id)}>${c.nomeH(x.id)}</span></td><td><b>${x.v * 3 + x.e}</b></td><td>${x.j}</td><td>${x.v}</td><td>${x.e}</td><td>${x.d}</td><td>${x.gp - x.gc}</td></tr>`).join("")}</table></details>`; }).join("")
+            : `<div class="mut">Nenhuma temporada anterior guardada para este grupo.</div>`;
+        } else {
+          const jogos = await historicoDaCopinha(c.liga, c.temporada), ts = [...new Set(jogos.map(p => p.temporada))];
+          const lado = (id, p) => p.vencedor === id ? `<b${c.meu(id)}>${c.nomeH(id)}</b>` : `<span${c.meu(id)}>${c.nomeH(id)}</span>`;
+          const linha = p => `<div style="margin-top:3px">${lado(p.casa, p)} ${p.gols_casa} x ${p.gols_fora}${p.penaltis ? ` <span class="mut">(pên. ${p.penaltis[0]} x ${p.penaltis[1]})</span>` : ""} ${lado(p.fora, p)}</div>`;
+          corpo.innerHTML = ts.length ? ts.map(t => { const doAno = jogos.filter(p => p.temporada === t), fases = [...new Set(doAno.map(p => p.copinha_fase))], final = doAno.find(p => p.copinha_fase === 6);
+            return `<details style="margin-top:6px"><summary style="cursor:pointer">Temporada ${t}${final ? ` <span class="mut">· campeão: ${c.nomeH(final.vencedor)}</span>` : ""}</summary>
+              ${fases.map(f => `<div style="margin:6px 0 0 14px"><b>${FASES_DA_COPA[f]}</b>${doAno.filter(p => p.copinha_fase === f).map(linha).join("")}</div>`).join("")}</details>`; }).join("")
+            : `<div class="mut">Nenhuma Copinha anterior guardada.</div>`;
+        }
+      }, true);
+    }
+    return `<div class="card"><h2>Histórico da base</h2>
+      <div class="rolagem"><table class="mini" style="width:100%"><tr><th>Temp.</th>${COLUNAS.map(g => `<th class="esq">${g === "COPINHA" ? "Copinha" : esc(nomeDoGrupo(g).replace("Brasileiro ", ""))}</th>`).join("")}</tr>
+        ${temporadas.map(t => `<tr><td>T${t}</td>${COLUNAS.map(g => campeao(t, g)).join("")}</tr>`).join("")}</table></div>
+      <details id="histLigaBase" style="margin-top:10px"><summary style="cursor:pointer"><b>Tabelas das temporadas anteriores</b> <span class="mut">· ${esc(nomeDoGrupo(clube.grupo))}</span></summary><div class="mut">Buscando…</div></details>
+      ${baseCampeoes.some(x => x.grupo === "COPINHA") ? `<details id="histCopinha" style="margin-top:6px"><summary style="cursor:pointer"><b>Chaves das Copinhas anteriores</b></summary><div class="mut">Buscando…</div></details>` : ""}
+      <div class="mut" style="margin-top:8px;font-size:12px">O campeão da liga de base de cada série sai na virada da temporada; o da Copinha, depois da final.</div></div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
   const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
@@ -1034,6 +1074,7 @@ async function telaClube(liga, clube) {
         <div style="margin-top:8px">${LISTA_POSICOES.map(linha).join("")}</div></div>`; })()}
     ${ligaDeBase()}
     ${cartaoDaCopinha()}
+    ${historicoDaBase()}
     ${revelados == null ? "" : `<div class="card"><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
       ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
         <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</div>`}

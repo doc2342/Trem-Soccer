@@ -152,3 +152,7 @@ export function melhorPosicao(jogador) {
   }
   return melhor;
 }
+
+// Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
+export const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
+export const paisDoGrupo = g => PAISES[g] || "Brasil";

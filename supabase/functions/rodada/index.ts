@@ -195,7 +195,11 @@ const __modelo = (() => {
     }
     return melhor;
   }
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao };
+
+  // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
+  const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
+  const paisDoGrupo = g => PAISES[g] || "Brasil";
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __saude = (() => {
@@ -2005,7 +2009,7 @@ async function botsDaLiga(sb, ligaId) {
     const linhas = (await sb.from("jogadores").select("*").in("clube_id", cs.slice(i, i + 20).map(c => c.id)).order("id")).data || [];
     for (const l of linhas) if (!l.emprestado_de) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(jogadorDoMercado(l)); // emprestado não é do bot: fora do mercado
   }
-  return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, pais: PAIS_DO_GRUPO[c.grupo] || "Brasil", caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 })), elencos };
+  return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, pais: PAIS_DO_GRUPO[c.grupo] || "Brasil", caixa: caixas[c.id] || 0, teto: PAIS_DO_GRUPO[c.grupo] ? 24000 : tetos[c.divisao] || tetos[2] || 14000 })), elencos };
 }
 
 // Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql): o banco entrega a fila (quem já esperou o prazo sem

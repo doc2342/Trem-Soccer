@@ -1,6 +1,6 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, PAISES, paisDoGrupo } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
@@ -10,8 +10,8 @@ import { classificacao } from "./rodada.js";
 // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
 // pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
 export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
-export const premioDaLiga = (divisao, posicao, clubes = 10) => {
-  const [topo, fundo] = PREMIOS[divisao] || PREMIOS[2];
+export const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
+  const [topo, fundo] = fora ? REGUA_DE_FORA.premios : PREMIOS[divisao] || PREMIOS[2];
   return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));
 };
 export const chanceDeAposentar = idade => idade >= 38 ? 1 : idade < 34 ? 0 : (idade - 33) * 0.2; // 20% aos 34 … 80% aos 37
@@ -23,6 +23,15 @@ export const NOTA_DO_JOVEM_POR_DIVISAO = { 1: 26, 2: 24, 3: 22 };
 // (o sorteio comum tem média 58). Sem isso o teto é igual em toda divisão e os elencos convergem; simulado em ferramentas/sim_escada.mjs:
 // com a meia safra, onze mediano de 38,1 / 35,6 / 33,8 na liga madura (alvo 38 / 35 / 32).
 export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -8, 3: -20 };
+// Outros países: campeonato de uma divisão só, sem acesso nem descenso, com régua própria, um pouco acima da Série A, para o campeão de
+// cada país chegar à Libertadores com onze de 39 a 40. Simulado em ferramentas/sim_paises.mjs (10 clubes, 20 temporadas, 4 sementes): com jovem
+// de nota 28 e talento +14, o campeão tem onze de ~38,5 nas primeiras temporadas e ~40,4 na liga madura, com folha de até ~23,9 mi.
+// O teto de 24 mi é o mesmo do banco (teto_do_clube, 80_virada_com_paises.sql). O prêmio da liga é maior que o da Série A porque a folha é
+// maior e TV, patrocínio e ingresso são os da Série A: sem ele o clube ficaria no vermelho e venderia jogador ao banco.
+export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 24000, premios: [9000, 5000] };
+// Safra de cada país, sorteada à parte (não tira raro do Brasil): em média 0,15 de teto 43 e 0,3 de teto 42 por temporada, a mesma
+// proporção do Brasil por clube.
+export const SAFRA_DE_FORA = [{ nivel: 43, tal: 100, quantos: [[0, 0.85], [1, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.7], [1, 0.3]] }];
 // Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
 // agora o jogador evolui rodada a rodada, pelos focos. A queda física por idade continua aqui.
 export const crescimento = () => 0;
@@ -108,20 +117,22 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const doGrupo = clubes.filter(c => c.grupo === g);
     resumo.grupos[g] = classificacao(doGrupo, partidas.filter(p => p.grupo === g), resultados).map((t, i) => {
       const linha = { clube_id: t.clube.id, divisao: t.clube.divisao, grupo: g, posicao: i + 1, pontos: t.pts, vitorias: t.v, empates: t.e, derrotas: t.d,
-        gols_pro: t.gp, gols_contra: t.gc, premio: premioDaLiga(t.clube.divisao, i + 1, doGrupo.length) };
+        gols_pro: t.gp, gols_contra: t.gc, premio: premioDaLiga(t.clube.divisao, i + 1, doGrupo.length, !!PAISES[g]) };
       plano.classificacao.push(linha);
       return { ...linha, nome: t.clube.nome, dono: !!t.clube.dono };
     });
   }
 
-  // acesso e descenso (só quando há mais de uma divisão)
-  if (new Set(clubes.map(c => c.divisao)).size > 1) {
-    const m = movimentos({ rng, clubes, grupos: resumo.grupos, partidas, resultados });
+  // acesso e descenso (só quando há mais de uma divisão), só entre os clubes do Brasil: o campeonato de outro país não sobe nem cai ninguém
+  const doBrasil = clubes.filter(c => !PAISES[c.grupo]);
+  for (const [g, linhas] of Object.entries(resumo.grupos)) if (PAISES[g]) linhas.forEach(l => { l.destino = plano.classificacao.find(x => x.clube_id === l.clube_id).destino = l.posicao === 1 ? "campeão" : "ficou"; });
+  if (new Set(doBrasil.map(c => c.divisao)).size > 1) {
+    const m = movimentos({ rng, clubes: doBrasil, grupos: Object.fromEntries(Object.entries(resumo.grupos).filter(([g]) => !PAISES[g])), partidas, resultados });
     plano.movimentos = m.lista;
     m.lista.forEach(x => { grupoNovo[x.clube_id] = x.grupo; });
     const para = Object.fromEntries(m.lista.map(x => [x.clube_id, x.grupo]));
-    plano.classificacao.forEach(l => { l.destino = m.destino[l.clube_id]; });
-    Object.values(resumo.grupos).flat().forEach(l => { l.destino = m.destino[l.clube_id]; l.para = para[l.clube_id] || null; });
+    plano.classificacao.forEach(l => { if (!PAISES[l.grupo]) l.destino = m.destino[l.clube_id]; });
+    Object.values(resumo.grupos).flat().forEach(l => { if (!PAISES[l.grupo]) { l.destino = m.destino[l.clube_id]; l.para = para[l.clube_id] || null; } });
   }
 
   const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
@@ -129,10 +140,11 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   // notaDeQuemSai: nota do aposentado que ele substitui; o jovem chega até 5 pontos abaixo dela (e nunca abaixo do piso da divisão),
   // para a liga não perder nível de uma vez quando a geração mais velha se aposenta
   const jovemDoBot = (c, pos, notaDeQuemSai = 0) => {
-    const g = grupoNovo[c.id], div = g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao, piso = NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM; // pela divisão em que o clube vai jogar
+    const g = grupoNovo[c.id], div = g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao, fora = !!PAISES[c.grupo]; // pela divisão em que o clube vai jogar
+    const piso = fora ? REGUA_DE_FORA.nota : NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM;
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
-    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), perfil: c.perfil, nomes, usados });
-    jovem.tal = limitar(jovem.tal + (TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
+    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados });
+    jovem.tal = limitar(jovem.tal + (fora ? REGUA_DE_FORA.talento : TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };
@@ -195,7 +207,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    // Clube sem dono (ou com dirigente ausente) também respeita o teto de folha: se a folha renovada passa do teto da divisão em que ele vai
    // jogar, os renovados mais caros ficam livres e vão a leilão, até caber ou até o elenco chegar a 18.
    if (!cuida && comLivres) {
-    const g = grupoNovo[c.id], teto = tetos[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || Infinity;
+    const g = grupoNovo[c.id], teto = PAISES[c.grupo] ? REGUA_DE_FORA.teto : tetos[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || Infinity;
     let folha = regs.reduce((s, r) => s + (r.salario || 0), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
     for (const v of renovadosAqui.sort((a, b) => b.reg.salario - a.reg.salario)) {
       if (folha <= teto || ficam <= ELENCO_MINIMO_DO_BOT) break;
@@ -209,7 +221,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   plano.safra = []; resumo.safra = [];
   const jaGanhou = new Set(), raros = new Set(), aposentou = new Set([...plano.aposentados, ...plano.livres.map(x => x.id)]); // quem se aposenta ou fica livre não recebe o raro
   const sorteado = tabela => { let r = rng.n(); for (const [n, p] of tabela) if ((r -= p) < 0) return n; return tabela[tabela.length - 1][0]; };
-  for (const { nivel, tal, quantos } of CONFIG_SAFRA.niveis) {
+  const sortearSafra = (clubes, niveis) => { for (const { nivel, tal, quantos } of niveis) {
     const fora = new Set();
     for (let k = sorteado(quantos); k > 0; k--) {
       // em clube sem dirigente o raro pode ser um jovem que chega ou alguém do elenco que terá até 19 anos e talento comum: não sobra pista
@@ -233,6 +245,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       plano.safra.push({ clube_id: c.id, temporada: nova, jogador: jovem.nome, pos: jovem.pos, idade, nivel, publico: !!c.dono, ...(jaNoClube ? { jogador_id: numero(jovem.id), tal } : {}) });
       resumo.safra.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade, nivel });
     }
-  }
+  } };
+  sortearSafra(doBrasil, CONFIG_SAFRA.niveis);
+  for (const g of Object.keys(PAISES)) { const doPais = clubes.filter(c => c.grupo === g); if (doPais.length) sortearSafra(doPais, SAFRA_DE_FORA); }
   return { plano, resumo };
 }

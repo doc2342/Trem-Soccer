@@ -170,8 +170,8 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 // ---------- ferramentas do administrador (passo I) ----------
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
 // Outros países (77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
-export const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
-export const paisDoGrupo = g => PAISES[g] || "Brasil";
+import { PAISES, paisDoGrupo } from "./modelo.js";
+export { PAISES, paisDoGrupo };
 // grupos em ordem de tela: os do Brasil primeiro (A a E), depois os países
 export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
 export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil",
@@ -205,6 +205,12 @@ export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: 
 export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").select("id, rodada, casa, fora, inicio, processada, gols_casa, gols_fora, dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("grupo", grupo).order("rodada").order("id").then(({ data, error }) => error ? null : data);
 // Copinha (70_copinha.sql): todos os jogos da temporada, com o placar dos pênaltis quando houve
 export const jogosDaCopinha = (ligaId, temporada) => sb.from("base_jogos").select("id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id").then(({ data, error }) => error ? null : data);
+// histórico da base: jogos das temporadas anteriores, que a virada não apaga (a liga de base de um grupo, sem as escalações, e a Copinha)
+// ponytail: sem paginação; a Copinha tem 49 jogos por temporada e a resposta vai até 1.000 linhas (~20 temporadas). Paginar quando chegar lá.
+export const historicoDaLigaDeBase = (ligaId, grupo, antesDe) => sb.from("base_jogos").select("temporada, casa, fora, gols_casa, gols_fora").eq("liga_id", ligaId).eq("grupo", grupo).lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+export const historicoDaCopinha = (ligaId, antesDe) => sb.from("base_jogos").select("temporada, copinha_fase, casa, fora, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("grupo", "COPINHA").lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).order("copinha_fase", { ascending: false }).order("id").then(({ data, error }) => error ? [] : data);
+// teto de folha que o banco aplica ao clube (o administrador usa para saber se o 80_virada_com_paises.sql já foi executado)
+export const tetoDoClube = clubeId => sb.rpc("teto_do_clube", { p_clube: clubeId }).then(({ data, error }) => error ? null : data);
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // prazos (leilão, oferta, candidatos, espera dos bots) no ritmo do calendário: 73_prazos_e_comissao.sql; sem efeito antes dele
 export const ajustarPrazos = ligaId => sb.rpc("ajustar_prazos", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);

@@ -24,6 +24,9 @@ const transf = await tudo("transferencias?select=temporada,janela,tipo,jogador,p
 const safras = await tudo("safras?select=temporada,clube_id,jogador,pos,nivel&order=temporada");
 writeFileSync(process.argv[3] || "dados.json", JSON.stringify({ liga, clubes, jog, partidas, res, hist, transf, safras }));
 
+// clube de outro país: a "divisão" dele, aqui, é o grupo (ARG, URU…), para não misturar com a Série A
+for (const c of clubes) if (!"ABCDE".includes(c.grupo)) c.divisao = c.grupo;
+const SERIES = [1, 2, 3, ...new Set(clubes.map(c => c.divisao).filter(d => typeof d === "string"))];
 const C = Object.fromEntries(clubes.map(c => [c.id, c]));
 const med = v => { const s = [...v].sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : NaN; };
 const media = v => v.reduce((s, x) => s + x, 0) / (v.length || 1);
@@ -37,7 +40,7 @@ for (const c of clubes) { const l = porClube[c.id] || []; c.onze = onze(l); c.n1
 
 console.log(`\n== T${T} · fundo ${liga.fundo_taca} mil · fator da copa ${liga.copa?.fator} · ${jog.length} jogadores (${jog.filter(j => j.juvenil).length} juvenis, ${jog.filter(j => !j.clube_id).length} sem clube)`);
 console.log("\n== FORÇA POR DIVISÃO (melhor onze)  mediana | min–max | folha mediana | topo do elenco");
-for (const d of [1, 2, 3]) {
+for (const d of SERIES) {
   const cs = clubes.filter(c => c.divisao === d), bots = cs.filter(c => !c.dono);
   console.log(`div ${d}: ${f1(med(cs.map(c => c.n11)))} | ${f1(Math.min(...cs.map(c => c.n11)))}–${f1(Math.max(...cs.map(c => c.n11)))} | só bots ${f1(med(bots.map(c => c.n11)))} (máx ${f1(Math.max(...bots.map(c => c.n11)))}) | folha ${Math.round(med(cs.map(c => c.folha)))} | CT/base bots ${f1(media(bots.map(c => c.ct_nivel)))}/${f1(media(bots.map(c => c.base_nivel)))}`);
 }
@@ -67,7 +70,7 @@ console.log("\n== JOGOS");
 const R = Object.fromEntries(res.map(r => [r.partida_id, r]));
 const liga_ = partidas.filter(p => !p.fase || p.fase === "liga");
 console.log("fases:", JSON.stringify(partidas.reduce((o, p) => (o[p.fase || "liga"] = (o[p.fase || "liga"] || 0) + 1, o), {})), "resultados", res.length);
-for (const d of [1, 2, 3]) {
+for (const d of SERIES) {
   const ps = liga_.filter(p => C[p.casa]?.divisao === d && R[p.id]);
   const g = ps.map(p => R[p.id]);
   console.log(`div ${d}: ${ps.length} jogos · ${(media(g.map(r => r.gols_casa + r.gols_fora))).toFixed(2)} gols (xG ${(media(g.map(r => r.xg_casa + r.xg_fora))).toFixed(2)}) · casa ${Math.round(100 * g.filter(r => r.gols_casa > r.gols_fora).length / g.length)}% empate ${Math.round(100 * g.filter(r => r.gols_casa === r.gols_fora).length / g.length)}% fora ${Math.round(100 * g.filter(r => r.gols_casa < r.gols_fora).length / g.length)}%`);
@@ -84,8 +87,8 @@ for (const g of "ABCDE") {
 console.log("playoffs/copa:", partidas.filter(p => p.fase && p.fase !== "liga" && (p.fase !== "copa" || ["final", "semi"].includes(p.copa_fase))).map(p => `${p.fase}${p.copa_fase ? "/" + p.copa_fase : ""} ${C[p.casa]?.nome} ${R[p.id]?.gols_casa}x${R[p.id]?.gols_fora} ${C[p.fora]?.nome}${p.vencedor ? " → " + C[p.vencedor]?.nome : ""}`).join(" | "));
 
 console.log("\n== HISTÓRICO: campeões da Série A e da copa; por onde andaram os dirigentes");
-for (let t = 0; t < T; t++) { const h = hist.filter(x => x.temporada === t); const camp = h.find(x => x.divisao === 1 && x.posicao === 1); const copa = h.find(x => x.copa === "campeão" || x.copa === "campeao"); console.log(`T${t}: A ${C[camp?.clube_id]?.nome} · copa ${C[copa?.clube_id]?.nome || "-"} · ` + clubes.filter(c => c.dono).map(c => { const x = h.find(y => y.clube_id === c.id); return x ? `${c.nome.slice(0, 6)} ${x.grupo}${x.posicao}` : ""; }).join(" ")); }
-console.log(`clubes que já jogaram a Série A: ${new Set(hist.filter(x => x.divisao === 1).map(x => x.clube_id)).size}`);
+for (let t = 0; t < T; t++) { const h = hist.filter(x => x.temporada === t); const camp = h.find(x => x.grupo === "A" && x.posicao === 1); const copa = h.find(x => x.copa === "campeão" || x.copa === "campeao"); console.log(`T${t}: A ${C[camp?.clube_id]?.nome} · copa ${C[copa?.clube_id]?.nome || "-"} · ` + clubes.filter(c => c.dono).map(c => { const x = h.find(y => y.clube_id === c.id); return x ? `${c.nome.slice(0, 6)} ${x.grupo}${x.posicao}` : ""; }).join(" ")); }
+console.log(`clubes que já jogaram a Série A: ${new Set(hist.filter(x => x.grupo === "A").map(x => x.clube_id)).size}`);
 console.log("valores de copa no histórico:", JSON.stringify([...new Set(hist.map(x => x.copa))]));
 
 console.log("\n== MERCADO por temporada (tipo: negócios / mil)");
