@@ -67,7 +67,7 @@
   .mural > div:last-child { border-bottom:0; }
   .mural .ic { flex:none; width:20px; text-align:center; }
   .mini td, .mini th { padding:4px 6px; }
-  .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
+  .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
   .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
   .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
@@ -1486,10 +1486,10 @@ async function telaClube(liga, clube) {
     $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
     $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
-    const faixaG = i => !serieG ? "" : serieG === 1 ? (i >= tabG.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : serieG === 2 && i >= tabG.length - 2 ? "cai" : "";
+    const faixaG = i => !serieG ? (i <= 2 ? "lib" : "") : serieG === 1 ? (i <= 2 ? "lib" : i >= tabG.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : serieG === 2 && i >= tabG.length - 2 ? "cai" : "";
     $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th></tr>
       ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td></tr>`).join("")}</table>
-      <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? "uma divisão só, sem acesso nem descenso" : serieG === 1 ? `<span class="bad">▌</span> rebaixamento` : `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff${serieG === 2 ? ` · <span class="bad">▌</span> rebaixamento` : ""}`}</div>`;
+      <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span style="color:var(--ac)">▌</span> Libertadores · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span class="bad">▌</span> rebaixamento` : `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff${serieG === 2 ? ` · <span class="bad">▌</span> rebaixamento` : ""}`}</div>`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
     $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
@@ -1516,7 +1516,7 @@ async function telaClube(liga, clube) {
         + (rival ? (rival.dono ? `Próximo adversário: ${lk(rival.id)} tem dirigente, e a tática dele é segredo.` : `Próximo adversário: ${lk(rival.id)} é comandado pelo bot e joga com ${estiloDe(rival)}.`) : "");
       // tabela resumida, com as faixas de acesso, playoff e descenso
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
-      const faixa = i => !serie ? "" : serie === 1 ? (i >= tab.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : serie === 2 && i >= tab.length - 2 ? "cai" : "";
+      const faixa = i => !serie ? (i <= 2 ? "lib" : "") : serie === 1 ? (i <= 2 ? "lib" : i >= tab.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : serie === 2 && i >= tab.length - 2 ? "cai" : "";
       $("miniTabela").className = "";
       $("miniTabela").innerHTML = `<table class="mini" style="width:100%"><tr><th></th><th class="esq">${esc(nomeDoGrupo(g))}</th><th>J</th><th>SG</th><th>PTS</th></tr>
         ${tab.map((t, i) => `<tr class="${faixa(i)}"><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}</td><td>${t.j}</td><td>${t.gp - t.gc}</td><td><b>${t.pts}</b></td></tr>`).join("")}</table>

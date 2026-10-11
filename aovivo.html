@@ -71,12 +71,12 @@ function estadoDaRodada(T, meu) {
 // zona da tabela pela posição (0 = líder): A cai 3; nas outras sobe o campeão, do 2º ao 5º é playoff, e na B caem 2
 const divisaoDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BC".includes(g) ? 2 : 3; // 0: país de uma divisão só
 function zonaDaPosicao(i, n) { const d = divisaoDoGrupo(partida.grupo);
-  return !d ? (i === 0 ? "lider" : "") : d === 1 ? (i === 0 ? "lider" : i >= n - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
-const NOME_DA_ZONA = { lider: "a liderança", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
+  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
+const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";
   const e = estadoDaRodada(T, meu), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—"), posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;
-  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ok, #4caf50)", sobe: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
+  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sobe: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
   const jogos = rodada.daRodada.map(p => { const x = e.placares[p.id];
     return `<div style="padding:3px 0;${p.id === id ? "font-weight:700" : ""}">${p.id === id ? "" : `<a href="aovivo.html?id=${p.id}" style="color:inherit;text-decoration:none">`}${nome(p.casa)} <b>${x.g ? x.g[0] + " x " + x.g[1] : "x"}</b> ${nome(p.fora)}${p.id === id ? "" : "</a>"} <span class="mut" style="font-weight:400;font-size:12px">${x.fim ? "encerrado" : x.g ? "ao vivo" : hora(p.inicio)}</span></div>`; }).join("");
   const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, z = zonaDaPosicao(i, n), nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
