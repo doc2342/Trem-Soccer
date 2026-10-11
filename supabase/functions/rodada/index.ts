@@ -1388,11 +1388,13 @@ const __rodada = (() => {
   }
 
   function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
-    const agora = new Date(partida.inicio).getTime(), copa = partida.fase === "copa"; // copa: campo neutro, prorrogação, pênaltis e cartões próprios
+    const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
     const lados = [casa, fora].map(l => {
       const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
       // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
-      const elenco = copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
+      // ponytail: a Libertadores não tem cartões próprios (só lesão tira do jogo; vermelho e amarelos não passam para o jogo seguinte).
+      // Se fizer falta, dar a ela colunas próprias como as da copa (amarelos_copa, fora_copa).
+      const elenco = lib ? l.elenco.map(j => ({ ...j, fora: j.fora > 0 && j.motivo === "lesão" ? 1 : 0 })) : copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
       const humana = l.pronta || (inativo ? null : taticaDoDirigente(l.tatica, elenco)); // pronta: tática já montada (liga de base)
       const disponiveis = elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
@@ -1452,7 +1454,8 @@ const __rodada = (() => {
       },
       ...(() => { // na copa, cartões e suspensões vão para os campos da copa, e sai também quem passou de fase
         if (!copa) return { situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)] };
-        const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, partida.copa_fase, casa.saude && casa.saude.medico), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, partida.copa_fase, fora.saude && fora.saude.medico);
+        const fase = lib ? 0 : partida.copa_fase; // Libertadores: como a Supercopa (fase 0), não mexe nos cartões nem na trava de clube da copa
+        const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, fase, casa.saude && casa.saude.medico), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, fase, fora.saude && fora.saude.medico);
         return { situacao: [...a.situacao, ...b.situacao], copa: [...a.copa, ...b.copa], vencedor };
       })(),
       momento,

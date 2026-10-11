@@ -86,6 +86,8 @@ const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
+// na Libertadores só a lesão tira do jogo (rodada.js): suspensão da liga ou da copa não vale
+const paraALib = lista => lista.map(j => j.fora > 0 && j.motivo !== "lesão" ? { ...j, fora: 0, motivo: null } : j);
 let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null, proximoJogo = null;
 // elenco visto pela copa: "fora" passa a ser a indisponibilidade na copa, com o motivo certo
 const paraACopa = (lista, clubeId) => lista.map(j => {
@@ -126,15 +128,15 @@ async function previaDoAdversario(B) {
   const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
   if (comissao == null) return; // comissão técnica ainda não ligada no banco
   const analista = comissao.find(t => t.funcao === "analista");
-  const jogo = proximoJogo, copa = !!jogo && jogo.fase === "copa";
+  const jogo = proximoJogo, copa = B.ehCopa(jogo);
   el.hidden = false;
   if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
   const emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + " da copa" : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
+  const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + (jogo.fase === "lib" ? " da Libertadores" : " da copa") : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>`;
   if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
-  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
+  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
   const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
   const forca = media(t.escalacao), minha = media(meu);
@@ -184,6 +186,7 @@ async function iniciarOnline(sessaoDeTeste) {
   // a suspensão da liga não vale na copa
   proximoJogo = (await B.sb.from("partidas").select("id, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
   if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
+  if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));

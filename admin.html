@@ -22,7 +22,7 @@ import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
-import { FASES_DA_COPA, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
+import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
@@ -136,7 +136,7 @@ async function tela(aviso = "") {
   // em ordem de data, com o nome de cada data: rodada da liga, playoff ou fase da copa (rodada 100 + fase)
   const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l.reduce((m, p) => p.inicio < m ? p.inicio : m, l[0].inicio), feitas: l.filter(p => p.processada).length, total: l.length }; })
     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.r - b.r);
-  const nomeDaData = r => r === 100 ? "Supercopa" : r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
+  const nomeDaData = r => r === 100 ? "Supercopa" : r > 200 ? "Libertadores: " + (FASES_DA_COPA[r - 200] || "").toLowerCase() : r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
   const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
@@ -227,7 +227,18 @@ async function tela(aviso = "") {
       // Calendário com a Copa do Brasil no meio: uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga.
       // Cada data ocupa um "espaço" do calendário; os espaços ficam a um intervalo um do outro.
       const comCopa = $("comCopa") ? $("comCopa").checked : false;
-      const espacoDaRodada = r => r - 1 + (comCopa ? Math.floor(r / 3) : 0), espacoDaCopa = k => 4 * k - 2; // k: fase da copa, de 1 a 6
+      const [campanhas, dados] = comCopa ? await Promise.all([campanhasDaTemporada(liga.id, liga.temporada - 1), divisoesDosClubes(liga.id)]) : [[], []];
+      const nivel = Object.fromEntries(dados.map(x => [x.id, x.estadio_nivel || 1]));
+      const daA = p => (campanhas.find(x => x.grupo === "A" && x.posicao === p) || {}).clube_id, daCopa = comCopa ? ((await finalistasDaCopa(liga.id)).find(x => x.temporada === liga.temporada - 1 && x.copa === "campeão") || {}).clube_id : null;
+      // Libertadores (81_libertadores.sql), pela temporada anterior: os 3 primeiros da Série A, o campeão da Copa do Brasil (ou o 4º da A,
+      // se ele já está entre os três) e os 3 primeiros de cada país. Só sai com os 16; vem com a copa (as datas ficam em ligas.copa).
+      const libBrasil = [daA(1), daA(2), daA(3)]; libBrasil.push(daCopa && !libBrasil.includes(daCopa) ? daCopa : daA(4));
+      const libFora = Object.keys(PAISES).flatMap(g => campanhas.filter(x => x.grupo === g && x.posicao <= 3).map(x => x.clube_id));
+      const comLib = comCopa && [...libBrasil, ...libFora].every(id => nivel[id]) && libFora.length === 3 * Object.keys(PAISES).length && libFora.length >= 4;
+      // ordem das datas: rodadas da liga, copa depois das rodadas 2, 5, 8, 11, 14 e 17 e Libertadores depois das rodadas 7, 10, 13 e 16
+      const ordem = [];
+      for (let r = 1; r <= 60; r++) { ordem.push("r" + r); if (comCopa && r % 3 === 2 && r <= 17) ordem.push("c" + (r + 1) / 3); if (comLib && r % 3 === 1 && r >= 7 && r <= 16) ordem.push("l" + (r - 4) / 3); }
+      const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k); // k: fase da copa, de 1 a 6
       const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
       const linhas = [];
       for (const g of gruposDe(clubes)) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
@@ -238,8 +249,7 @@ async function tela(aviso = "") {
       let copa = "";
       if (comCopa) {
         // preliminar: os 36 de pior campanha na temporada anterior, em sorteio livre; os outros 14 entram direto na fase de 32
-        const [campanhas, dados] = await Promise.all([campanhasDaTemporada(liga.id, liga.temporada - 1), divisoesDosClubes(liga.id)]);
-        const camp = Object.fromEntries(campanhas.map(x => [x.clube_id, x])), nivel = Object.fromEntries(dados.map(x => [x.id, x.estadio_nivel || 1])), divisao = Object.fromEntries(dados.map(x => [x.id, x.divisao]));
+        const camp = Object.fromEntries(campanhas.map(x => [x.clube_id, x])), divisao = Object.fromEntries(dados.map(x => [x.id, x.divisao]));
         const rng = criarRng(Date.now() % 2147483647);
         // ordem de força: divisão da temporada passada, posição e pontos; sem histórico (primeira temporada), divisão atual e sorteio
         const chave = c => { const h = camp[c.id]; return h ? [h.divisao, h.posicao, -h.pontos] : [divisao[c.id] || 9, 99, rng.n()]; };
@@ -253,7 +263,6 @@ async function tela(aviso = "") {
           linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
         }
         // Supercopa, um intervalo antes da rodada 1: campeão da Série A x campeão da copa da temporada anterior (o mesmo clube: entra o vice da A)
-        const daA = p => (campanhas.find(x => x.grupo === "A" && x.posicao === p) || {}).clube_id, daCopa = ((await finalistasDaCopa(liga.id)).find(x => x.temporada === liga.temporada - 1 && x.copa === "campeão") || {}).clube_id;
         let [sa, sb2] = [daA(1), daCopa === daA(1) ? daA(2) : daCopa];
         if (sa && sb2 && nivel[sa] && nivel[sb2]) {
           if (nivel[sb2] > nivel[sa]) [sa, sb2] = [sb2, sa]; // joga no estádio maior
@@ -261,8 +270,19 @@ async function tela(aviso = "") {
           linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 100, fase: "copa", copa_fase: 0, casa: sa, fora: sb2, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
           copa = ` Supercopa: ${clubes.find(c => c.id === sa).nome} x ${clubes.find(c => c.id === sb2).nome}.`;
         }
+        // oitavas da Libertadores: cada clube do Brasil contra um de fora, por sorteio; os outros de fora entre si. Estádio maior, como na copa.
+        let lib;
+        if (comLib) {
+          const s = rng.embaralhar(libFora), jogos = [...libBrasil.map((id, k) => [id, s[k]]), ...s.slice(libBrasil.length).reduce((l, id, k, a) => k % 2 ? l : [...l, [id, a[k + 1]]], [])];
+          lib = { datas: [1, 2, 3, 4].map(k => { const t = hora(ordem.indexOf("l" + k)); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
+          for (let [a, b] of jogos) {
+            if (nivel[b] > nivel[a]) [a, b] = [b, a];
+            linhas.push({ liga_id: liga.id, grupo: "LIB", rodada: 203, fase: "lib", copa_fase: 3, casa: a, fora: b, inicio: lib.datas[0].inicio, fim: lib.datas[0].fim });
+          }
+          copa += ` Libertadores: ${jogos.length} jogos nas oitavas.`;
+        } else copa += " Libertadores: não saiu (faltam os 16 classificados da temporada anterior no histórico).";
         const fator = await fatorDaCopa(liga.id); // fundo acima da reserva: a copa desta temporada paga mais (até o dobro)
-        await atualizarLiga(liga.id, { copa: { datas, diretos, fator } });
+        await atualizarLiga(liga.id, { copa: { datas, diretos, fator, ...(lib ? { lib } : {}) } });
         copa = `${copa} Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
       }
       await criarPartidas(linhas);
@@ -430,7 +450,7 @@ async function processar(silencioso) {
     }
     const liga = await ligaAtual(), todas = liga ? await partidasPendentes(liga.id) : [];
     // jogo de copa só o servidor calcula: aqui não há cartões da copa nem a trava de clube; ele espera o servidor voltar
-    const pendentes = todas.filter(p => p.fase !== "copa"), copaEsperando = todas.length - pendentes.length;
+    const pendentes = todas.filter(p => !ehCopa(p)), copaEsperando = todas.length - pendentes.length;
     const avisoCopa = copaEsperando ? ` ${copaEsperando} ${copaEsperando === 1 ? "jogo de copa espera" : "jogos de copa esperam"} o servidor (só ele calcula a copa).` : "";
     if (!pendentes.length) { if (!silencioso || copaEsperando) diz((todas.length ? "O servidor não respondeu." : "Nenhuma partida esperando cálculo.") + avisoCopa); return; }
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
