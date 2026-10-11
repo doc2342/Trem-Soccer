@@ -296,7 +296,9 @@ async function telaClube(liga, clube) {
   const safra = await safraDaTemporada(liga.id, liga.temporada); // talentos raros revelados nesta temporada em clubes com dirigente
   const tetoDe = Object.fromEntries((tetosDoElenco || []).map(t => ["j" + t.jogador_id, t]));
   const relatorioDe = id => (relatorios || []).filter(r => r.jogador_id === +String(id).replace(/^\D+/, "")).sort((a, b) => b.nivel - a.nivel)[0] || null;
-  const vendasPeloAgente = (transferencias || []).filter(t => t.tipo === "agente" && t.de_clube === clube.id && t.temporada === liga.temporada).length;
+  // janela de saídas (79_janela_de_saidas.sql): entre a última rodada e a virada, 2 vendas pelo agente além das da temporada
+  const SAIDAS = 2, janelaDeSaidas = !janela && !!prePeriodo, doAgente = (transferencias || []).filter(t => t.tipo === "agente" && t.de_clube === clube.id && t.temporada === liga.temporada);
+  const vendasDeSaida = doAgente.filter(t => t.janela === "saida").length, vendasPeloAgente = doAgente.length - vendasDeSaida;
   const rodadasFeitas = clube.peneira_temporada === undefined ? null : await rodadasCompletas(liga.id); // base e peneira: só depois do 35_base_e_dispensa.sql
   const lancesLivres = livres ? await lancesDosLivres(livres.map(j => j.id)) : [];
   const duracaoDoLeilao = liga.horas_leilao == null ? "48 horas" : +liga.horas_leilao >= 1 ? +liga.horas_leilao + " horas" : Math.round(liga.horas_leilao * 60) + " minutos";
@@ -972,7 +974,7 @@ async function telaClube(liga, clube) {
       <div id="ofertaPainel" style="margin-top:10px"></div></div>`}
     </div><div data-msecao="hist">
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
-      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
+      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </div>
     </section>
     <section data-secao="clube">
@@ -1532,7 +1534,7 @@ async function telaClube(liga, clube) {
       $("ctProf").onclick = async () => { $("ctProf").disabled = true;
         try { alert(await profissionalizar(j.id, +$("ctProfTemp").value)); await carregar({ user: usuario }); }
         catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("ctProf").disabled = false; } };
-      $("ctDispensar").onclick = async () => { if (!confirm(`Dispensar ${j.nome}? Ele fica livre e qualquer clube pode contratá-lo.`)) return;
+      $("ctDispensar").onclick = async () => { if (!confirm(`Dispensar ${j.nome}? Ele fica livre para os outros clubes. O seu não pode contratá-lo de novo nesta temporada nem na próxima.`)) return;
         try { await dispensarJogador(j.id); await carregar({ user: usuario }); } catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; } };
       return;
     }
@@ -1561,8 +1563,8 @@ async function telaClube(liga, clube) {
           <div class="mut" style="margin-top:6px">A venda negociada só fecha entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa).</div>
           ${liga.bots_espera_horas == null ? "" : `<div class="mut" style="margin-top:6px"><b>Clubes sem dirigente</b> também compram da lista, pelo preço pedido e sem pechincha: depois de ${liga.bots_espera_horas >= 1 ? Math.round(liga.bots_espera_horas) + " h" : Math.round(liga.bots_espera_horas * 60) + " min"} na lista sem proposta de dirigente, com a janela aberta, se o preço for de até <b>${dinheiro(CONFIG_MERCADO_BOTS.precoEmSalarios * salarioDeMercado(j))}</b> (${CONFIG_MERCADO_BOTS.precoEmSalarios} vezes o salário de mercado dele)${j.idade > CONFIG_MERCADO_BOTS.idadeMaxima ? `, mas <b>não</b> compram quem tem mais de ${CONFIG_MERCADO_BOTS.idadeMaxima} anos` : ""} e se ele reforçar o time titular de algum deles. Um por clube por janela.</div>`}
           <div class="mut" style="margin-top:6px" id="ctTaxa">Na venda negociada você paga taxa sobre o valor.</div>`)}
-        ${propostas == null || (caixa != null && caixa < 0) ? "" : bloco(`Vender pelo agente <span class="tag">${vendasPeloAgente} de ${VENDAS_PELO_AGENTE} nesta temporada</span>`, `<button class="sec" data-agente="1" ${!janela || vendasPeloAgente >= VENDAS_PELO_AGENTE || contratados <= 16 ? "disabled" : ""}>Vender por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, false, cotacao))}</button>
-          <div class="mut" style="margin-top:6px">Venda garantida, na hora: o agente coloca o jogador num clube sem dono. Quem paga são os clubes sem dono: com o caixa deles folgado, o preço é 2,5 vezes o salário de mercado (que hoje é ${dinheiro(j.mercado ?? j.salario)}); quando aperta, cai até 1 vez. Hoje o agente paga ${String(Math.round((1 + 1.5 * cotacao) * 100) / 100).replace(".", ",")} vezes. Aumentar o salário do contrato não muda esse preço. Só com a janela aberta${janela ? "" : ", e ela está fechada"}.</div>`)}
+        ${propostas == null || (caixa != null && caixa < 0) ? "" : bloco(`Vender pelo agente <span class="tag">${janelaDeSaidas ? `${vendasDeSaida} de ${SAIDAS} na janela de saídas` : `${vendasPeloAgente} de ${VENDAS_PELO_AGENTE} nesta temporada`}</span>`, `<button class="sec" data-agente="1" ${(janelaDeSaidas ? vendasDeSaida >= SAIDAS : !janela || vendasPeloAgente >= VENDAS_PELO_AGENTE) || contratados <= 16 ? "disabled" : ""}>Vender por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, false, cotacao))}</button>
+          <div class="mut" style="margin-top:6px">Venda garantida, na hora: o agente coloca o jogador num clube sem dono. Quem paga são os clubes sem dono: com o caixa deles folgado, o preço é 2,5 vezes o salário de mercado (que hoje é ${dinheiro(j.mercado ?? j.salario)}); quando aperta, cai até 1 vez. Hoje o agente paga ${String(Math.round((1 + 1.5 * cotacao) * 100) / 100).replace(".", ",")} vezes. Aumentar o salário do contrato não muda esse preço. ${janelaDeSaidas ? `Janela de saídas: da última rodada até a virada dá para vender ${SAIDAS} jogadores pelo agente, para abrir espaço na folha antes de renovar.` : `Só com a janela aberta${janela ? "" : ", e ela está fechada"}.`}</div>`)}
         ${clube.peneira_temporada === undefined || (j.idade > 21 && j.idade < 31) ? "" : bloco("Dispensar", `<button class="sec" id="ctDispensar" ${contratados <= 16 ? "disabled" : ""}>Dispensar sem custo</button>
           <div class="mut" style="margin-top:6px">Vale para quem tem até 21 anos ou 31 ou mais. Ele fica livre e pode ser contratado por qualquer clube. O elenco não pode ficar com menos de 16.</div>`)}
         ${caixa != null && caixa < 0 ? bloco(`<span class="bad">Clube no vermelho</span>`, `<button class="sec" data-agente="1" ${contratados <= 16 ? "disabled" : ""}>Vender pelo agente por ${dinheiro(valorNoAgente(j.mercado ?? j.salario, true, cotacao))}</button>
@@ -1618,7 +1620,7 @@ async function telaClube(liga, clube) {
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; bt.disabled = false; }
     }; });
     if ($("ctDispensar")) $("ctDispensar").onclick = async () => {
-      if (!confirm(`Dispensar ${j.nome}? Ele sai do clube agora e fica livre para qualquer um contratar. Não dá para desfazer.`)) return;
+      if (!confirm(`Dispensar ${j.nome}? Ele sai do clube agora e fica livre para os outros clubes. O seu não pode contratá-lo de novo nesta temporada nem na próxima. Não dá para desfazer.`)) return;
       try { await dispensarJogador(j.id); await carregar({ user: usuario }); }
       catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
