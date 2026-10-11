@@ -297,7 +297,7 @@ export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);
 export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
 // M1: mercado (supabase/19_mercado.sql e a função "mercado")
 export const janelaDoMercado = ligaId => sb.rpc("janela_do_mercado", { p_liga: ligaId }).then(({ data, error }) => error ? undefined : data); // undefined: mercado ainda não ligado
-const CAMPOS_DO_MERCADO = "id, clube_id, nome, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido";
+const CAMPOS_DO_MERCADO = "id, clube_id, nome, pais, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido";
 export const jogadoresDaPosicao = async pos => { // com a lista de transferência (SQL 20) quando ela já existe
   const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("pos", pos).order("id");
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("pos", pos).order("id").then(ok) : r.data;
@@ -319,7 +319,7 @@ export const fazerProposta = (jogadorId, valor, salario, temporadas) => sb.rpc("
 // para clube sem dirigente, o dono oferece e a resposta vem na hora.
 export const pedirEmprestimo = jogadorId => sb.rpc("pedir_emprestimo", { p_jogador: numero(jogadorId) }).then(ok);
 export const emprestarABot = (jogadorId, clubeId) => sb.rpc("emprestar_a_bot", { p_jogador: numero(jogadorId), p_clube: clubeId }).then(ok);
-export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, nome, pos, idade, salario, clube_id").eq("emprestado_de", clubeId).order("id").then(({ data, error }) => error ? [] : data);
+export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, nome, pos, idade, salario, clube_id, pais").eq("emprestado_de", clubeId).order("id").then(({ data, error }) => error ? [] : data);
 export const responderProposta = (id, acao, valor = null) => sb.rpc("responder_proposta", { p_id: id, p_acao: acao, p_valor: valor }).then(ok);
 export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraproposta", { p_id: id, p_aceitar: aceitar }).then(ok);
 export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);

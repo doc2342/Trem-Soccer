@@ -70,7 +70,7 @@ async function mercadoDosBots(sb, ligaId) {
 }
 
 // jogador do banco no formato que o mercado dos bots usa
-const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
+const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
   forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
 
 const PAIS_DO_GRUPO = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" }; // o mesmo de src/banco.js
@@ -367,7 +367,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // >>> módulos embutidos
 """
 RODAPE_MERCADO = r"""// <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta } = __modelo, { gerarJogador } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -414,13 +414,13 @@ Deno.serve(async (req) => {
 
     const { data: j } = await sb.from("jogadores").select("*").eq("id", idJogador).maybeSingle();
     if (!j) return json({ erro: "Jogador não encontrado." });
-    const { data: clube } = await sb.from("clubes").select("id, dono, perfil, liga_id").eq("id", j.clube_id).maybeSingle();
+    const { data: clube } = await sb.from("clubes").select("id, dono, perfil, liga_id, grupo").eq("id", j.clube_id).maybeSingle();
     let reposicao = null;
     if (clube && !clube.dono) { // clube sem dono: entra no lugar um jogador gerado da mesma nota, para o clube não enfraquecer
       const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
       const rng = criarRng(Math.floor(Math.random() * 2147483647));
-      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), perfil: clube.perfil, nomes });
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
       const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
       reposicao = { nome: novo.nome, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
         salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
