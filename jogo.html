@@ -147,7 +147,7 @@ import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
-import { sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
+import { sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, valoresDaDivisao, historicoDoGrupo, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA } from "./src/banco.js";
 import { classificacao, taticaDoDirigente } from "./src/rodada.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
@@ -304,16 +304,17 @@ async function telaClube(liga, clube) {
   const ateQuando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
   // Copa do Brasil: jogos e resultados liberados (sem a coluna ligas.copa, antes do 47_copa_calendario_e_chave.sql, não há copa)
-  const copaJogos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
-  const copaRes = Object.fromEntries((await resultadosDaCopa(copaJogos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
+  const copaTodos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
+  const supercopa = copaTodos.find(p => p.copa_fase === 0) || null, copaJogos = copaTodos.filter(p => p.copa_fase > 0); // a Supercopa é um jogo de copa com fase 0, fora da chave (76_emprestimo_e_supercopa.sql)
+  const copaRes = Object.fromEntries((await resultadosDaCopa(copaTodos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
   // calendário do clube: jogos de liga, playoff e copa, com os resultados já liberados (os de copa trazem pênaltis)
   const meusJogos = (await partidasDoClube(liga.id, clube.id).catch(() => [])).filter(p => cPor[p.casa] && cPor[p.fora]);
   const resDosMeus = { ...Object.fromEntries((await resultadosDe(meusJogos.filter(p => p.fase !== "copa").map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r])), ...copaRes };
   const finalistas = liga.copa === undefined ? [] : await finalistasDaCopa(liga.id); // campeões e vices das temporadas anteriores
   // sala de troféus: títulos de liga (1º do grupo) e da copa, por clube; e o quadro dos maiores campeões
   const trofeus = await trofeusDaLiga(liga.id).catch(() => []);
-  const TIPOS_DE_TROFEU = [["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["D", "🏆", "Brasileiro Série C1"], ["E", "🏆", "Brasileiro Série C2"], ["vice", "🥈", "Vice da Copa do Brasil"]];
-  const tiposDe = x => [...(x.posicao === 1 ? [x.grupo] : []), ...(x.copa === "campeão" ? ["copa"] : x.copa === "vice" ? ["vice"] : [])];
+  const TIPOS_DE_TROFEU = [["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["super", "⭐", "Supercopa"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["D", "🏆", "Brasileiro Série C1"], ["E", "🏆", "Brasileiro Série C2"], ["vice", "🥈", "Vice da Copa do Brasil"]];
+  const tiposDe = x => [...(x.posicao === 1 ? [x.grupo] : []), ...(x.copa === "campeão" ? ["copa"] : x.copa === "vice" ? ["vice"] : []), ...(x.supercopa ? ["super"] : [])];
   const trofeusDe = id => { const m = {}; trofeus.filter(x => x.clube_id === id).forEach(x => tiposDe(x).forEach(k => (m[k] = m[k] || []).push(x.temporada))); return m; };
   const salaDeTrofeus = (id, titulo = "Sala de troféus") => { const m = trofeusDe(id), tipos = TIPOS_DE_TROFEU.filter(([k]) => m[k]);
     return `<div class="card"><h2>${titulo}</h2>${tipos.length ? tipos.map(([k, ic, nome]) => `<div style="margin:4px 0">${ic.repeat(Math.min(m[k].length, 5))}${m[k].length > 5 ? "…" : ""} <b>${m[k].length}× ${nome}</b> <span class="mut">· ${m[k].map(t => "T" + t).join(", ")}</span></div>`).join("")
@@ -355,7 +356,8 @@ async function telaClube(liga, clube) {
       return !l.length ? `<span class="mut" title="O sorteio sai quando a fase anterior terminar">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
     $("tituloTabela").innerHTML = "🏆 Copa do Brasil · fases";
     $("tabela").className = "";
-    $("tabela").innerHTML = `${campeao ? `<div style="font-size:16px;margin-bottom:8px">🏆 Campeão: <b>${lk(campeao)}</b></div>` : ""}
+    $("tabela").innerHTML = `${supercopa ? (r => `<div style="margin-bottom:8px">⭐ <b>Supercopa</b> <span class="mut">· campeão da Série A x campeão da Copa do Brasil ·</span> <a class="lk" href="aovivo.html?id=${supercopa.id}">${esc(cPor[supercopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[supercopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(supercopa))}</b>` : ` · ${new Date(supercopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(supercopa.inicio)}`}</div>`)(copaRes[supercopa.id]) : ""}
+      ${campeao ? `<div style="font-size:16px;margin-bottom:8px">🏆 Campeão: <b>${lk(campeao)}</b></div>` : ""}
       <div style="margin-bottom:8px">${campanha}${ganho ? ` <span class="mut">Prêmios recebidos: <b>${dinheiro(ganho)}</b>.</span>` : ""}</div>
       <table class="mini" style="width:100%"><tr><th class="esq">Fase</th><th>Data</th><th class="esq">Prêmio</th><th>Jogos</th></tr>
       ${[1, 2, 3, 4, 5, 6].map(f => `<tr class="${ult && ult.copa_fase === f ? "e-tit" : ""}"><td class="esq">${FASES_DA_COPA[f]}</td><td>${datas[f - 1] ? dia(datas[f - 1].inicio) : "—"}</td><td class="esq">${premio(f)}</td><td>${andamento(f)}</td></tr>`).join("")}</table>
@@ -505,10 +507,13 @@ async function telaClube(liga, clube) {
       return `<div style="margin-bottom:10px"><b>Temporada ${t}</b>${TIPOS_DE_TROFEU.map(([k, ic, nome]) => { const x = da.find(y => tiposDe(y).includes(k)); return x ? `<div>${ic} ${nome}: ${lk(x.clube_id)}</div>` : ""; }).join("")}</div>`; }).join("")
       : `<div class="mut">Ainda não houve virada de temporada.</div>`;
   }
-  const situacao = j => (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
+  const situacao = j => (j.emprestadoDe ? ` <span class="tag" title="Emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")} até a virada da temporada">emp.</span>` : "") + (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const contratados = elenco.filter(j => !j.juvenil).length; // o mínimo de 16 vale para quem tem contrato
   const temJuvenis = elenco.some(j => j.juvenil !== undefined); // juvenis sem contrato: depois do 60_juvenis_e_formador.sql
-  const temContratos = elenco.some(j => j.salario != null), folha = elenco.reduce((s, j) => s + (j.salario || 0), 0), teto = liga.teto_folha || 0;
+  // empréstimo (76_emprestimo_e_supercopa.sql): quem veio emprestado conta metade na folha, e quem saiu emprestado também
+  const temEmprestimo = elenco.some(j => j.emprestadoDe !== undefined), emprestados = temEmprestimo ? await emprestadosDoClube(clube.id) : [];
+  const temContratos = elenco.some(j => j.salario != null), teto = liga.teto_folha || 0;
+  const folha = Math.round(elenco.reduce((s, j) => s + (j.salario || 0) * (j.emprestadoDe ? 0.5 : 1), 0) + emprestados.reduce((s, j) => s + (j.salario || 0) / 2, 0));
   const contrato = j => j.salario == null ? `<td>—</td><td>—</td><td>—</td>` : `<td>${dinheiro(j.salario)}</td><td title="${j.protegidoAte != null && j.protegidoAte >= liga.temporada ? "Primeira temporada de contrato: a multa só vale a partir da próxima" : "Valor para outro clube levar o jogador"}">${j.protegido ? `<span title="Na lista de protegidos: sem multa rescisória">🛡️ sem multa</span>` : dinheiro(multaDe(j)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? " 🔒" : "")}</td><td class="${j.contratoAte <= liga.temporada ? "aviso" : ""}">até a ${j.contratoAte}</td>`;
   // elenco por zonas, como no Dugout: situação na tática salva, posição, botão de atributos, nome, idade, país, nota e contrato
   const ZONAS_DO_ELENCO = [["Goleiros", ["gol"]], ["Defensores", ["defesa", "ala"]], ["Meio-campistas", ["volante", "meio", "meia"]], ["Atacantes", ["ataque"]]];
@@ -672,7 +677,7 @@ async function telaClube(liga, clube) {
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
-  const rotRodada = r => r > 100 ? "copa, " + (FASES_DA_COPA[r - 100] || "").toLowerCase() : r + "ª";
+  const rotRodada = r => r === 100 ? "Supercopa" : r > 100 ? "copa, " + (FASES_DA_COPA[r - 100] || "").toLowerCase() : r + "ª";
   const CATEGORIAS = [["Ingressos e Sócio-Torcedor", ["bilheteria", "carne"]], ["Patrocínio", ["patrocinio"]], ["Direitos de TV", ["tv", "paraquedas"]], ["Prêmios e fundo da liga", ["premio", "fundo", "antecipacao"]], ["Copa do Brasil", ["copa"]],
     ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao", "formador"]], ["Salários e luvas", ["salarios", "luvas"]], ["Comissão técnica e olheiros", ["treinadores", "olheiro", "busca"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
   const financas = () => {
@@ -935,9 +940,9 @@ async function telaClube(liga, clube) {
       const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
       const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada", anulada: "anulada pelo administrador", pre: "pré-acordo fechado: acontece na virada" };
       const recebidas = propostas.filter(p => p.vendedor === clube.id), enviadas = propostas.filter(p => p.comprador === clube.id);
-      const linhaR = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.comprador)}</td><td><b>${dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `você pediu ${dinheiro(p.contra_valor)}` : ESTADO[p.estado] || p.estado}</td>
-        <td class="esq">${p.estado === "pendente" ? `<button data-prop="${p.id}" data-acao="aceitar">Aceitar</button> <button class="sec" data-prop="${p.id}" data-acao="contrapropor">Pedir outro valor</button> <button class="sec" data-prop="${p.id}" data-acao="recusar">Recusar</button>` : `<span class="mut">${esc(p.motivo || "")}</span>`}</td></tr>`;
-      const linhaE = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.vendedor)}</td><td><b>${dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `pediram <b>${dinheiro(p.contra_valor)}</b>` : ESTADO[p.estado] || p.estado}</td>
+      const linhaR = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.comprador)}</td><td><b>${p.emprestimo ? "empréstimo" : dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `você pediu ${dinheiro(p.contra_valor)}` : ESTADO[p.estado] || p.estado}</td>
+        <td class="esq">${p.estado === "pendente" ? `<button data-prop="${p.id}" data-acao="aceitar">Aceitar</button> ${p.emprestimo ? "" : `<button class="sec" data-prop="${p.id}" data-acao="contrapropor">Pedir outro valor</button> `}<button class="sec" data-prop="${p.id}" data-acao="recusar">Recusar</button>` : `<span class="mut">${esc(p.motivo || "")}</span>`}</td></tr>`;
+      const linhaE = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.vendedor)}</td><td><b>${p.emprestimo ? "empréstimo" : dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `pediram <b>${dinheiro(p.contra_valor)}</b>` : ESTADO[p.estado] || p.estado}</td>
         <td class="esq">${p.estado === "contra" ? `<button data-prop="${p.id}" data-acao="aceitarContra">Aceitar por ${dinheiro(p.contra_valor)}</button> ` : ""}${p.estado === "pendente" || p.estado === "contra" ? `<button class="sec" data-prop="${p.id}" data-acao="retirar">Retirar a proposta</button>` : `<span class="mut">${esc(p.motivo || "")}</span>`}</td></tr>`;
       return `<div id="negociacoes"><b>Recebidas</b>${recebidas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Quem quer</th><th>Oferta</th><th>Situação</th><th></th></tr>${recebidas.map(linhaR).join("")}</table></div>` : `<div class="mut">Nenhuma proposta recebida.</div>`}
         <div style="margin-top:10px"><b>Enviadas</b></div>${enviadas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Clube</th><th>Oferta</th><th>Situação</th><th></th></tr>${enviadas.map(linhaE).join("")}</table></div>` : `<div class="mut">Você não enviou propostas. Para fazer uma, clique num jogador de clube com dirigente na lista acima.</div>`}
@@ -972,6 +977,7 @@ async function telaClube(liga, clube) {
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="contratoPainel"></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
+      ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
       <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
     </div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}</div>
@@ -1103,7 +1109,7 @@ async function telaClube(liga, clube) {
           <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="${faixaDaNegociacao(j.salario).minimo}" max="${faixaDaNegociacao(j.salario).maximo}" value="${Math.min(faixaDaNegociacao(j.salario).maximo, Math.max(faixaDaNegociacao(j.salario).minimo, j.preco_pedido || multa))}" style="width:140px"></label>
             <label>Salário do jogador<input id="pSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:120px"></label>
             <label>Contrato de<select id="pTemporadas" data-prog="pSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
-            <button class="sec" id="pEnviar" ${janela || (prePeriodo && j.idade < 37) ? "" : "disabled"} title="${janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div></div>` : ""}
+            <button class="sec" id="pEnviar" ${janela || (prePeriodo && j.idade < 37) ? "" : "disabled"} title="${janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div>${temEmprestimo && j.idade <= 23 ? `<div class="row" style="margin-top:6px;align-items:center"><button class="sec" id="pEmprestimo" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pedir por empréstimo</button><span class="mut">até a virada da temporada · salário meio a meio (${dinheiro(Math.round(j.salario / 2))} para cada clube, e metade em cada folha) · o dono aceita ou recusa</span></div>` : ""}</div>` : ""}
         ${!prePeriodo || !cPor[j.clube_id].dono || j.contrato_ate == null || j.contrato_ate > liga.temporada || j.aposenta_em != null ? "" : (meu => `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>✍️ Pré-contrato</b> <span class="mut">· o contrato dele acaba nesta temporada · você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas</span>
           <div class="mut" style="margin:4px 0">Se ele não renovar e ficar livre na virada, vai para quem ofereceu o maior salário, sem pagar nada ao clube. As propostas são fechadas: ninguém vê a dos outros.${meu ? ` A sua está em <b>${dinheiro(meu.salario)}</b> por ${meu.temporadas} ${meu.temporadas === 1 ? "temporada" : "temporadas"}.` : ""}</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="pcSalario" type="number" step="5" min="${j.salario_mercado || j.salario || 0}" value="${meu ? meu.salario : j.salario_mercado || j.salario || 0}" style="width:150px"></label>
@@ -1128,6 +1134,11 @@ async function telaClube(liga, clube) {
         $("pEnviar").disabled = true;
         try { await fazerProposta(j.id, Math.round(+$("pValor").value), Math.round(+$("pSalario").value), +$("pTemporadas").value); recado = `Proposta por ${j.nome} enviada. Ela aparece em Negociações, na aba Mercado.`; await carregar({ user: usuario }); }
         catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("pEnviar")) $("pEnviar").disabled = false; }
+      };
+      if ($("pEmprestimo")) $("pEmprestimo").onclick = async () => {
+        $("pEmprestimo").disabled = true;
+        try { await pedirEmprestimo(j.id); recado = `Pedido de empréstimo de ${j.nome} enviado. Ele aparece em Negociações, na aba Mercado.`; await carregar({ user: usuario }); }
+        catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("pEmprestimo")) $("pEmprestimo").disabled = false; }
       };
       if ($("mComprar")) $("mComprar").onclick = async () => {
         if (!confirm(`Pagar ${dinheiro(multa)} de multa rescisória e contratar ${j.nome}? Não dá para desfazer.`)) return;
@@ -1207,7 +1218,7 @@ async function telaClube(liga, clube) {
     const id = +b.dataset.prop, acao = b.dataset.acao, p = propostas.find(x => x.id === id);
     try {
       let r;
-      if (acao === "aceitar") { if (!confirm(`Vender por ${dinheiro(p.valor)}? A taxa de venda sai desse valor. Não dá para desfazer.`)) return; r = await responderProposta(id, "aceitar"); }
+      if (acao === "aceitar") { if (!confirm(p.emprestimo ? `Emprestar até a virada da temporada, com o salário meio a meio? Não dá para desfazer.` : `Vender por ${dinheiro(p.valor)}? A taxa de venda sai desse valor. Não dá para desfazer.`)) return; r = await responderProposta(id, "aceitar"); }
       else if (acao === "recusar") r = await responderProposta(id, "recusar");
       else if (acao === "contrapropor") { const v = Math.round(+prompt(`A oferta é de ${p.valor} mil. Quanto você quer (em milhares)? O valor tem de ficar entre 60% e 150% da multa rescisória do jogador.`, Math.round(p.valor * 1.2))); if (!v) return; r = await responderProposta(id, "contrapropor", v); }
       else if (acao === "aceitarContra") { if (!confirm(`Fechar por ${dinheiro(p.contra_valor)}? Não dá para desfazer.`)) return; r = await decidirContraproposta(id, true); }
@@ -1447,13 +1458,13 @@ async function telaClube(liga, clube) {
     if (g === clube.grupo) {
       // jogos de liga e de copa juntos, pela data
       Object.assign(res, copaRes);
-      const meus = [...partidas, ...copaJogos].filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.id - b.id);
+      const meus = [...partidas, ...copaTodos].filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.id - b.id);
       const proximos = meus.filter(p => !res[p.id]).slice(0, 5), proximo = proximos[0];
       const rival = proximo ? cPor[proximo.casa === clube.id ? proximo.fora : proximo.casa] : null, ultimo = meus.filter(p => res[p.id]).pop();
       $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
-        return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${p.fase === "copa" ? `🏆 ${FASES_DA_COPA[p.copa_fase]} da copa` : `${p.rodada === 19 ? "Semifinal" : p.rodada === 20 ? "Final" : p.rodada === 21 ? "Final do acesso" : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
+        return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${p.fase === "copa" ? (p.copa_fase ? `🏆 ${FASES_DA_COPA[p.copa_fase]} da copa` : "⭐ Supercopa") : `${p.rodada === 19 ? "Semifinal" : p.rodada === 20 ? "Final" : p.rodada === 21 ? "Final do acesso" : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
         : `<div class="mut" style="grid-column:1/-1">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</div>`;
-      $("proximo").innerHTML = (ultimo ? `Último jogo: <a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora} ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ultimo.fase === "copa" ? ` (${FASES_DA_COPA[ultimo.copa_fase].toLowerCase()} da copa)` : ""}. ` : "")
+      $("proximo").innerHTML = (ultimo ? `Último jogo: <a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora} ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ultimo.fase === "copa" ? (ultimo.copa_fase ? ` (${FASES_DA_COPA[ultimo.copa_fase].toLowerCase()} da copa)` : " (Supercopa)") : ""}. ` : "")
         + (rival ? (rival.dono ? `Próximo adversário: ${lk(rival.id)} tem dirigente, e a tática dele é segredo.` : `Próximo adversário: ${lk(rival.id)} é comandado pelo bot e joga com ${estiloDe(rival)}.`) : "");
       // tabela resumida, com as faixas de acesso, playoff e descenso
       const serie = g === "A" ? 1 : g === "B" || g === "C" ? 2 : 3, tab = classificacao(doGrupo, partidas, resultados);
@@ -1493,6 +1504,13 @@ async function telaClube(liga, clube) {
     const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
     const bloco = (titulo, corpo) => `<div style="border:1px solid var(--line);border-radius:8px;padding:10px"><div style="font-weight:700;margin-bottom:6px">${titulo}</div>${corpo}</div>`;
+    if (j.emprestadoDe) { // emprestado: nada a mexer até ele voltar
+      $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)">
+        <div class="row" style="align-items:center"><div><b style="font-size:16px">${esc(j.nome)}</b> <span class="mut">· ${sg(j.pos)} · ${j.idade} anos · emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")}</span></div><button class="sec" id="ctFechar" style="margin-left:auto">Fechar</button></div>
+        <div class="mut" style="margin-top:8px">Fica no seu clube até a virada da temporada e depois volta. Joga e treina normalmente. Você paga metade do salário (${dinheiro(Math.round((j.salario || 0) / 2))} por temporada), e é essa metade que conta na sua folha. Não pode ser vendido, listado, protegido, renovado nem dispensado.</div></div>`;
+      $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+      return;
+    }
     if (j.juvenil) { // juvenil: só dá para profissionalizar ou dispensar
       const mercado = salarioDeMercado(j), cheio = elenco.filter(x => !x.juvenil).length >= LIMITE_DE_CONTRATADOS;
       $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)">
@@ -1530,6 +1548,9 @@ async function telaClube(liga, clube) {
             <b>Luvas:</b> na renovação dá para pôr um salário abaixo do pedido (até ${Math.round(LUVAS.piso * 100)}% dele) pagando a diferença de uma vez, fora da folha: cada mil a menos por temporada custa ${String(LUVAS.fator).replace(".", ",")} mil por temporada de contrato. A multa continua pelo valor de hoje.</div>`)}
         ${janela === undefined ? "" : bloco(`Lista de protegidos <span class="tag">${nProtegidos} de 7</span>`, `<button class="sec" id="ctProteger">${j.protegido ? "Tirar da lista de protegidos" : "Pôr na lista de protegidos"}</button>
           <div class="mut" style="margin-top:6px">Protegido não tem multa rescisória: só sai se você vender. Para tirar alguém da lista, só com a janela fechada.</div>`)}
+        ${!temEmprestimo || j.idade > 23 ? "" : bloco(`Empréstimo <span class="tag">${emprestados.length} de 2 emprestados</span>`, `<div class="row"><label>Para um clube sem dirigente<select id="ctEmpClube">${Object.values(cPor).filter(c => !c.dono && c.id !== clube.id).sort((a, b) => String(a.grupo).localeCompare(String(b.grupo)) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}</option>`).join("")}</select></label>
+            <button class="sec" id="ctEmprestar" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Oferecer por empréstimo</button></div>
+          <div class="mut" style="margin-top:6px">Ele fica lá até a virada da temporada e volta. O salário fica meio a meio: ${dinheiro(Math.round((j.salario || 0) / 2))} para cada clube, e metade em cada folha. Clube sem dirigente responde na hora e só aceita quem chega para ser titular na posição. Com outro dirigente, é ele quem pede: no Mercado, na página do jogador. Vale para quem tem até 23 anos e contrato que passe desta temporada; cada clube empresta 2 e recebe 2 por temporada.</div>`)}
         ${propostas == null ? "" : bloco("Lista de transferência", `<div class="row"><label>Preço pedido (em milhares) <span class="mut">· sugerido: ${dinheiro(multaDe(j))}, o valor da multa</span><input id="ctPreco" type="number" step="50" min="0" value="${j.precoPedido || multaDe(j)}" style="width:120px"></label>
             <button class="sec" id="ctListar">${j.aVenda ? "Mudar o preço" : "Pôr à venda"}</button>${j.aVenda ? `<button class="sec" id="ctTirar">Tirar da lista</button>` : ""}</div>
           <div class="mut" style="margin-top:6px">A venda negociada só fecha entre ${dinheiro(faixaDaNegociacao(j.salario).minimo)} e ${dinheiro(faixaDaNegociacao(j.salario).maximo)} (60% a 150% da multa).</div>
@@ -1565,6 +1586,10 @@ async function telaClube(liga, clube) {
     $("ctAumentar").onclick = () => enviar(0);
     $("ctRenovar").onclick = () => enviar(+$("ctTemporadas").value);
     $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+    if ($("ctEmprestar")) $("ctEmprestar").onclick = async () => {
+      const alvo = cPor[$("ctEmpClube").value]; if (!alvo || !confirm(`Emprestar ${j.nome} ao ${alvo.nome} até a virada da temporada? Não dá para desfazer.`)) return;
+      try { recado = await emprestarABot(j.id, alvo.id); await carregar({ user: usuario }); } catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    };
     if ($("ctListar")) {
       const listar = async preco => { try { await listarJogador(j.id, preco); await carregar({ user: usuario }); } catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; } };
       $("ctListar").onclick = () => listar(Math.round(+$("ctPreco").value) || 0);

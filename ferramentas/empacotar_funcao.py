@@ -81,7 +81,7 @@ async function botsDaLiga(sb, ligaId) {
   const elencos = {};
   for (let i = 0; i < cs.length; i += 20) {
     const linhas = (await sb.from("jogadores").select("*").in("clube_id", cs.slice(i, i + 20).map(c => c.id)).order("id")).data || [];
-    for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(jogadorDoMercado(l));
+    for (const l of linhas) if (!l.emprestado_de) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(jogadorDoMercado(l)); // emprestado não é do bot: fora do mercado
   }
   return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 })), elencos };
 }

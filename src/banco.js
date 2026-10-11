@@ -54,7 +54,8 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
-    aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, preContrato: l.pre_contrato || null,
+    aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, emprestadoDe: l.emprestado_de === undefined ? undefined : l.emprestado_de, // indefinido: antes do 76_emprestimo_e_supercopa.sql
+     preContrato: l.pre_contrato || null,
     amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
@@ -170,7 +171,7 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
 export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil" })[g] || "Grupo " + g;
 // Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
-export const FASES_DA_COPA = ["", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
+export const FASES_DA_COPA = ["Supercopa", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
 export const PREMIOS_DA_COPA = { fases: [0, 0, 50, 150, 300, 500], vice: 800, campeao: 2000 };
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
@@ -265,9 +266,10 @@ export const anunciarAposentadorias = ligaId => sb.rpc("anunciar_aposentadorias"
 export const finalistasDaCopa = ligaId => sb.from("historico").select("temporada, clube_id, copa").eq("liga_id", ligaId).in("copa", ["campeão", "vice"]).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // troféus: campeões de cada grupo (1º lugar) e finalistas da copa, de todas as temporadas guardadas na virada
 export async function trofeusDaLiga(ligaId) {
-  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada");
+  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true").order("temporada");
+  if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada"); // antes do SQL 76
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
-  return r.error ? [] : r.data.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice");
+  return r.error ? [] : r.data.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa);
 }
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
@@ -295,6 +297,11 @@ export const minhasPropostas = clubeId => sb.from("propostas").select("*, jogado
 export const listarJogador = (jogadorId, preco) => sb.rpc("listar_jogador", { p_jogador: numero(jogadorId), p_preco: preco || 0 }).then(ok);
 export const taxaDaVenda = jogadorId => sb.rpc("taxa_da_venda", { p_jogador: numero(jogadorId) }).then(({ data, error }) => error ? null : +data);
 export const fazerProposta = (jogadorId, valor, salario, temporadas) => sb.rpc("fazer_proposta", { p_jogador: numero(jogadorId), p_valor: valor, p_salario: salario, p_temporadas: temporadas }).then(ok);
+// Empréstimo (76_emprestimo_e_supercopa.sql): até a virada, salário meio a meio. Entre dirigentes, quem quer o jogador pede;
+// para clube sem dirigente, o dono oferece e a resposta vem na hora.
+export const pedirEmprestimo = jogadorId => sb.rpc("pedir_emprestimo", { p_jogador: numero(jogadorId) }).then(ok);
+export const emprestarABot = (jogadorId, clubeId) => sb.rpc("emprestar_a_bot", { p_jogador: numero(jogadorId), p_clube: clubeId }).then(ok);
+export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, nome, pos, idade, salario, clube_id").eq("emprestado_de", clubeId).order("id").then(({ data, error }) => error ? [] : data);
 export const responderProposta = (id, acao, valor = null) => sb.rpc("responder_proposta", { p_id: id, p_acao: acao, p_valor: valor }).then(ok);
 export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraproposta", { p_id: id, p_aceitar: aceitar }).then(ok);
 export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);

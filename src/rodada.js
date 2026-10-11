@@ -153,7 +153,7 @@ function situacaoDaCopa(elenco, p, clubeId, fase, medico = null) {
     if (fora !== (j.fora || 0) || motivo !== (j.motivo || null)) situacao.push({ id: j.id, fora, motivo, amarelos: j.amarelos || 0 });
     if (amarelos !== (j.amarelosCopa || 0) || foraCopa !== (j.foraCopa || 0) || copaClube !== (j.copaClube == null ? null : j.copaClube)) copa.push({ id: j.id, amarelos, fora: foraCopa, clube: copaClube });
   }
-  return { situacao, copa };
+  return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa (fase 0): cartões e trava de clube da copa não contam
 }
 
 export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {

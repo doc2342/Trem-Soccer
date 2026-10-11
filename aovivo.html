@@ -124,7 +124,7 @@ function momento() {
 
 function topo(gols, m, narracao = []) {
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}); // o segundo usa o reserva se as camisas se parecem
-  $("topo").innerHTML = `<div class="mut" style="text-align:center">${partida.fase === "copa" ? `🏆 Copa do Brasil · ${esc(FASES_DA_COPA[partida.copa_fase] || "")} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}`}</div>
+  $("topo").innerHTML = `<div class="mut" style="text-align:center">${partida.fase === "copa" ? `${partida.copa_fase ? `🏆 Copa do Brasil · ${esc(FASES_DA_COPA[partida.copa_fase] || "")}` : "⭐ Supercopa"} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}`}</div>
     <div class="painel"><div class="time casa"><span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>${esc(c[0].nome)}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora"><span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>${esc(c[1].nome)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}`;
 }

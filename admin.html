@@ -22,7 +22,7 @@ import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
-import { FASES_DA_COPA, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
+import { FASES_DA_COPA, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
@@ -132,7 +132,7 @@ async function tela(aviso = "") {
   // em ordem de data, com o nome de cada data: rodada da liga, playoff ou fase da copa (rodada 100 + fase)
   const rodadas = [...new Set(partidas.map(p => p.rodada))].map(r => { const l = partidas.filter(p => p.rodada === r); return { r, inicio: l.reduce((m, p) => p.inicio < m ? p.inicio : m, l[0].inicio), feitas: l.filter(p => p.processada).length, total: l.length }; })
     .sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.r - b.r);
-  const nomeDaData = r => r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
+  const nomeDaData = r => r === 100 ? "Supercopa" : r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
   const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
@@ -221,9 +221,18 @@ async function tela(aviso = "") {
           if (nivel[b] > nivel[a]) [a, b] = [b, a]; // joga no estádio maior; iguais, vale a ordem do sorteio
           linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
         }
+        // Supercopa, um intervalo antes da rodada 1: campeão da Série A x campeão da copa da temporada anterior (o mesmo clube: entra o vice da A)
+        const daA = p => (campanhas.find(x => x.divisao === 1 && x.posicao === p) || {}).clube_id, daCopa = ((await finalistasDaCopa(liga.id)).find(x => x.temporada === liga.temporada - 1 && x.copa === "campeão") || {}).clube_id;
+        let [sa, sb2] = [daA(1), daCopa === daA(1) ? daA(2) : daCopa];
+        if (sa && sb2 && nivel[sa] && nivel[sb2]) {
+          if (nivel[sb2] > nivel[sa]) [sa, sb2] = [sb2, sa]; // joga no estádio maior
+          const ini = Math.max(hora(-1), Date.now() + 60000);
+          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 100, fase: "copa", copa_fase: 0, casa: sa, fora: sb2, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
+          copa = ` Supercopa: ${clubes.find(c => c.id === sa).nome} x ${clubes.find(c => c.id === sb2).nome}.`;
+        }
         const fator = await fatorDaCopa(liga.id); // fundo acima da reserva: a copa desta temporada paga mais (até o dobro)
         await atualizarLiga(liga.id, { copa: { datas, diretos, fator } });
-        copa = ` Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
+        copa = `${copa} Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
       }
       await criarPartidas(linhas);
       await ajustarPrazos(liga.id); // leilão, oferta, candidatos e espera dos bots acompanham o intervalo entre as rodadas
@@ -268,6 +277,8 @@ async function tela(aviso = "") {
       const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
       const elencos = {};
       for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
+      // empréstimo: na virada todo mundo volta antes de tudo, então o plano já é montado com cada emprestado no clube de origem
+      for (const c of lista) for (const j of (elencos[c.id] || []).filter(j => j.emprestadoDe)) if (elencos[j.emprestadoDe]) { elencos[c.id] = elencos[c.id].filter(x => x !== j); elencos[j.emprestadoDe].push(j); j.emprestadoDe = null; }
       const [talentos, resultados, lucros] = await Promise.all([talentosDaLiga(), resultadosDe(partidas.map(p => p.id), true), lucrosDaTemporada(liga.id)]);
       const lucroDe = Object.fromEntries(lucros.map(x => [x.clube_id, x]));
       // imposto previsto: lucro da temporada já lançado, mais o prêmio, menos o prêmio antecipado
