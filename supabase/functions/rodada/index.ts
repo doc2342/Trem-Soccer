@@ -1883,7 +1883,7 @@ const __mercadobots = (() => {
     divisoesAbaixo: 1,      // compra da mesma divisão ou de até uma abaixo
   };
 
-  // clubes: [{ id, divisao, caixa, teto }] (só os sem dono); elencos: { clube: [jogador no formato do motor, com salario, juvenil e aposentaEm] }
+  // clubes: [{ id, divisao, pais, caixa, teto }] (só os sem dono); elencos: { clube: [jogador no formato do motor, com salario, juvenil e aposentaEm] }
   // Devolve [{ jogador (id numérico), para, valor, salario, de, ganho }].
   function negociosEntreBots(rng, { clubes, elencos }, C = CONFIG_MERCADO_BOTS) {
     const num = id => +String(id).replace(/^\D+/, "");
@@ -1921,6 +1921,7 @@ const __mercadobots = (() => {
         for (const o of vitrine) {
           const v = porId[o.de];
           if (o.de === id || o.vendido || v.vendas >= (v.vermelho ? 2 : 1) || (vaga.pos === "GK") !== (o.j.pos === "GK")) continue;
+          if ((v.pais || "Brasil") !== (b.pais || "Brasil")) continue; // fronteira fechada até o mercado entre países abrir (77_paises.sql)
           const dv = (v.divisao || 3) - (b.divisao || 3);
           if (dv < 0 || dv > C.divisoesAbaixo) continue; // o talento só sobe ou fica na mesma divisão
           const ganho = notaNaPosicao(o.j, vaga.pos) - vaga.nota;
@@ -1957,7 +1958,7 @@ const __mercadobots = (() => {
       if (!(preco > 0) || preco > C.precoEmSalarios * mercado) continue; // acima da conta do bot: ele não paga
       let melhor = null;
       for (const b of bots) {
-        if (usados.has(b.id) || b.contratados >= 30) continue;
+        if (usados.has(b.id) || b.contratados >= 30 || (b.pais || "Brasil") !== "Brasil") continue; // dirigente só existe no Brasil; bot de fora não compra dele por enquanto
         if (b.caixa - preco < C.reserva * b.teto || b.folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
         // goleiro: mesmo freio do mercado entre bots (só troca se o dele for pior que a média da linha)
         const ganho = Math.max(-99, ...b.onze.filter(v => (v.pos === "GK") === (j.pos === "GK") && !(v.pos === "GK" && v.nota >= b.mediaDaLinha)).map(v => notaNaPosicao(j, v.pos) - v.nota));
@@ -1993,9 +1994,10 @@ async function mercadoDosBots(sb, ligaId) {
 const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at,
   forma: l.forma, moral: l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, salario: l.salario, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em == null ? null : l.aposenta_em });
 
+const PAIS_DO_GRUPO = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" }; // o mesmo de src/banco.js
 // clubes sem dono da liga, com caixa e teto, e os elencos deles
 async function botsDaLiga(sb, ligaId) {
-  const cs = (await sb.from("clubes").select("id, divisao").eq("liga_id", ligaId).is("dono", null)).data || [];
+  const cs = (await sb.from("clubes").select("id, divisao, grupo").eq("liga_id", ligaId).is("dono", null)).data || [];
   const tetos = Object.fromEntries(((await sb.from("divisoes").select("divisao, teto_folha").eq("liga_id", ligaId)).data || []).map(d => [d.divisao, d.teto_folha]));
   const caixas = Object.fromEntries(((await sb.from("financas").select("clube_id, caixa").in("clube_id", cs.map(c => c.id))).data || []).map(f => [f.clube_id, f.caixa]));
   const elencos = {};
@@ -2003,7 +2005,7 @@ async function botsDaLiga(sb, ligaId) {
     const linhas = (await sb.from("jogadores").select("*").in("clube_id", cs.slice(i, i + 20).map(c => c.id)).order("id")).data || [];
     for (const l of linhas) if (!l.emprestado_de) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(jogadorDoMercado(l)); // emprestado não é do bot: fora do mercado
   }
-  return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 })), elencos };
+  return { clubes: cs.map(c => ({ id: c.id, divisao: c.divisao, pais: PAIS_DO_GRUPO[c.grupo] || "Brasil", caixa: caixas[c.id] || 0, teto: tetos[c.divisao] || tetos[2] || 14000 })), elencos };
 }
 
 // Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql): o banco entrega a fila (quem já esperou o prazo sem

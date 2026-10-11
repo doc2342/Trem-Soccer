@@ -24,7 +24,7 @@ export const CONFIG_MERCADO_BOTS = {
   divisoesAbaixo: 1,      // compra da mesma divisão ou de até uma abaixo
 };
 
-// clubes: [{ id, divisao, caixa, teto }] (só os sem dono); elencos: { clube: [jogador no formato do motor, com salario, juvenil e aposentaEm] }
+// clubes: [{ id, divisao, pais, caixa, teto }] (só os sem dono); elencos: { clube: [jogador no formato do motor, com salario, juvenil e aposentaEm] }
 // Devolve [{ jogador (id numérico), para, valor, salario, de, ganho }].
 export function negociosEntreBots(rng, { clubes, elencos }, C = CONFIG_MERCADO_BOTS) {
   const num = id => +String(id).replace(/^\D+/, "");
@@ -62,6 +62,7 @@ export function negociosEntreBots(rng, { clubes, elencos }, C = CONFIG_MERCADO_B
       for (const o of vitrine) {
         const v = porId[o.de];
         if (o.de === id || o.vendido || v.vendas >= (v.vermelho ? 2 : 1) || (vaga.pos === "GK") !== (o.j.pos === "GK")) continue;
+        if ((v.pais || "Brasil") !== (b.pais || "Brasil")) continue; // fronteira fechada até o mercado entre países abrir (77_paises.sql)
         const dv = (v.divisao || 3) - (b.divisao || 3);
         if (dv < 0 || dv > C.divisoesAbaixo) continue; // o talento só sobe ou fica na mesma divisão
         const ganho = notaNaPosicao(o.j, vaga.pos) - vaga.nota;
@@ -98,7 +99,7 @@ export function comprasDeListados({ clubes, elencos, listados, jaCompraram = [] 
     if (!(preco > 0) || preco > C.precoEmSalarios * mercado) continue; // acima da conta do bot: ele não paga
     let melhor = null;
     for (const b of bots) {
-      if (usados.has(b.id) || b.contratados >= 30) continue;
+      if (usados.has(b.id) || b.contratados >= 30 || (b.pais || "Brasil") !== "Brasil") continue; // dirigente só existe no Brasil; bot de fora não compra dele por enquanto
       if (b.caixa - preco < C.reserva * b.teto || b.folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
       // goleiro: mesmo freio do mercado entre bots (só troca se o dele for pior que a média da linha)
       const ganho = Math.max(-99, ...b.onze.filter(v => (v.pos === "GK") === (j.pos === "GK") && !(v.pos === "GK" && v.nota >= b.mediaDaLinha)).map(v => notaNaPosicao(j, v.pos) - v.nota));

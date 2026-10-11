@@ -169,7 +169,13 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 
 // ---------- ferramentas do administrador (passo I) ----------
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
-export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil" })[g] || "Grupo " + g;
+// Outros países (77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
+export const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
+export const paisDoGrupo = g => PAISES[g] || "Brasil";
+// grupos em ordem de tela: os do Brasil primeiro (A a E), depois os países
+export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
+export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil",
+  ARG: "Campeonato Argentino", URU: "Campeonato Uruguaio", COL: "Campeonato Colombiano", CHI: "Campeonato Chileno" })[g] || "Grupo " + g;
 // Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
 export const FASES_DA_COPA = ["Supercopa", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
 export const PREMIOS_DA_COPA = { fases: [0, 0, 50, 150, 300, 500], vice: 800, campeao: 2000 };
@@ -184,7 +190,7 @@ export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p
 // V2: virada de temporada (supabase/16_virada_de_temporada.sql)
 export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
 // Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
-export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, divisao, posicao, pontos").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
+export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, grupo, divisao, posicao, pontos").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
 export const partidasDaCopa = ligaId => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).eq("fase", "copa").order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
