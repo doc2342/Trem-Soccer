@@ -378,7 +378,7 @@ async function tela(aviso = "") {
       const rng = criarRng(Date.now() % 2147483647), lista = [];
       let folha = 0, clubesComFolha = 0;
       for (let i = 0; i < clubes.length; i += 10) await Promise.all(clubes.slice(i, i + 10).map(async c => {
-        const elenco = await elencoDoClube(c.id), novos = elenco.filter(j => j.salario == null);
+        const elenco = await elencoDoClube(c.id), novos = elenco.filter(j => j.salario == null && !j.juvenil); // juvenil não tem salário nem contrato
         novos.forEach(j => lista.push({ id: j.id, ...contratoInicial(rng, j, liga.temporada) }));
         if (novos.length) { clubesComFolha++; folha += novos.reduce((s, j) => s + lista.find(x => x.id === j.id).salario, 0); }
       }));
