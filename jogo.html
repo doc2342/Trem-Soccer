@@ -66,6 +66,13 @@
   .mural > div { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
   .mural > div:last-child { border-bottom:0; }
   .mural .ic { flex:none; width:20px; text-align:center; }
+  .mural > div.urg { border-left:3px solid var(--ac); padding-left:8px; }
+  .mural > div[data-aba-ir] { cursor:pointer; }
+  .mural > div[data-aba-ir]:hover { background:rgba(255,255,255,.05); }
+  .mural .vai { margin-left:auto; padding-left:6px; opacity:.6; font-size:18px; line-height:1; }
+  .mural > div.rot { border-bottom:0; padding:8px 0 2px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; opacity:.6; }
+  .mural > div.rot:first-child { padding-top:0; }
+  .mural summary .ic { display:inline-block; margin-right:4px; }
   .mini td, .mini th { padding:4px 6px; }
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
@@ -175,6 +182,8 @@ import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// nome do jogador com link para a página dele (jogador.html); sem id, só o nome
+const lj = (id, nome) => { const n = String(id == null ? "" : id).replace(/\D/g, ""); return n ? `<a class="lk" href="jogador.html?id=${n}" onclick="event.stopPropagation()" title="Abrir a página do jogador">${esc(nome || "")}</a>` : esc(nome || ""); };
 const f1 = v => v.toFixed(1).replace(".", ",");
 const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4);
 let usuario = null, versao = 0;
@@ -477,7 +486,7 @@ async function telaClube(liga, clube) {
     }[lista];
     const linhas = d[lista] || [];
     $("tabela").innerHTML = (linhas.length ? `<table class="mini" style="width:100%;table-layout:fixed"><tr><th style="width:26px"></th><th class="esq">Jogador</th>${COLUNAS.map(([t, dica], k) => `<th style="width:${k ? 40 : 58}px" title="${dica}">${t}</th>`).join("")}</tr>
-        ${linhas.map((x, i) => `<tr><td>${i + 1}</td><td class="esq" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="${x.clube === clube.id ? "nota" : ""}">${pp(x.pos || "")} ${esc(x.nome || "")}</span><span class="m-clube mut" style="display:block;font-size:11.5px">${lk(x.clube)}</span></td>${COLUNAS.map(([, , f]) => `<td>${f(x)}</td>`).join("")}</tr>`).join("")}</table>`
+        ${linhas.map((x, i) => `<tr><td>${i + 1}</td><td class="esq" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span class="${x.clube === clube.id ? "nota" : ""}">${pp(x.pos || "")} ${lj(x.id, x.nome)}</span><span class="m-clube mut" style="display:block;font-size:11.5px">${lk(x.clube)}</span></td>${COLUNAS.map(([, , f]) => `<td>${f(x)}</td>`).join("")}</tr>`).join("")}</table>`
         : `<span class="mut">Ninguém nessa lista ainda.</span>`)
       + `<div class="mut" style="margin-top:6px;font-size:12px">${d.jogos} ${d.jogos === 1 ? "partida encerrada" : "partidas encerradas"}${lista === "notas" ? ` · entra quem tem pelo menos ${d.minimo} jogos com 30 minutos ou mais` : ""}${lista === "goleiros" ? " · ordenado por jogos sem sofrer gol" : ""} · os 20 primeiros. O clube é o do último jogo do jogador na competição.</div>`;
     const R = d.recordes || {}, placar = r => `${lk(r.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(r.fora)}`, ver = r => temp ? "" : ` <a class="lk" href="aovivo.html?id=${r.id}">ver</a>`;
@@ -574,7 +583,7 @@ async function telaClube(liga, clube) {
   const ordemNaTatica = j => naTatica[j.id] ? (naTatica[j.id].titular ? 0 : 1) : 2;
   const selo = j => !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva, jogando de ${sg(naTatica[j.id].pos)}">${sg(naTatica[j.id].pos)}</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
   const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${selo(j)}</td><td>${pp(j.pos)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
-    <td class="esq">${esc(j.nome)}${situacao(j)}${j.juvenil ? ` <span class="tag" title="Juvenil: sem contrato, treina mas não joga partida oficial. Clique para profissionalizar.">🌱 juvenil</span>` : ""}${j.aposentaEm != null ? ` <span class="tag aviso" title="Anunciou a aposentadoria: joga até o fim da temporada e para. Não pode ser vendido nem renovar.">🏁 se aposenta</span>` : ""}${j.preContrato === liga.temporada ? ` <span class="tag aviso" title="Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar com ele.">✍️ assediado</span>` : ""}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
+    <td class="esq">${lj(j.id, j.nome)}${situacao(j)}${j.juvenil ? ` <span class="tag" title="Juvenil: sem contrato, treina mas não joga partida oficial. Clique para profissionalizar.">🌱 juvenil</span>` : ""}${j.aposentaEm != null ? ` <span class="tag aviso" title="Anunciou a aposentadoria: joga até o fim da temporada e para. Não pode ser vendido nem renovar.">🏁 se aposenta</span>` : ""}${j.preContrato === liga.temporada ? ` <span class="tag aviso" title="Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar com ele.">✍️ assediado</span>` : ""}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
     <td>${j.idade}</td><td class="mut c-pais" title="${esc(j.pais || "")}">${esc(String(j.pais || "").slice(0, 3).toUpperCase())}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${temMomento ? momento(j.forma) + momento(j.moral) : ""}<td class="c-sal mut">${Math.round(experienciaDe(j))}</td>${temTeto ? `<td class="c-sal mut">${tetoDe[j.id] ? tetoDe[j.id].minimo + "–" + tetoDe[j.id].maximo : "—"}</td>` : ""}
     <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
   const zonaDoElenco = ([titulo, linhas]) => {
@@ -770,9 +779,11 @@ async function telaClube(liga, clube) {
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
     const temTorcida = clube.torcida != null, lugares = lugaresDoEstadio(clube.estadio_nivel);
     const publico = temTorcida ? Math.min(lugares, Math.round(clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida))) : 0;
-    const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000), bil = Math.round(porJogo / 2);
+    // 10% da bilheteria vão para o fundo da liga (53_fundo_da_liga.sql)
+    const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000 * 0.9), bil = Math.round(porJogo / 2);
+    const com = Math.round((comissaoToda || []).reduce((t, x) => t + x.salario, 0) / n), man = Math.round(manutencaoDoClube() / n);
     const humor = clube.humor < 3 ? "revoltada" : clube.humor < 6 ? "nervosa" : clube.humor < 10 ? "calma" : clube.humor < 13 ? "animada" : "eufórica";
-    const saldo = tv + pat + bil - sal, cor = v => v < 0 ? "bad" : v > 0 ? "ok" : "mut", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
+    const fora = tv + pat - sal - com - man, emCasa = fora + porJogo, saldo = fora + bil, cor = v => v < 0 ? "bad" : v > 0 ? "ok" : "mut", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
     const grupos = []; // do mais novo para o mais antigo
     for (const l of extrato) { const k = l.temporada + "-" + l.rodada; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, temporada: l.temporada, rodada: l.rodada, itens: [], total: 0 }); g.itens.push(l); g.total += l.valor; }
     // períodos: última rodada calculada, esta temporada e a anterior
@@ -814,8 +825,9 @@ async function telaClube(liga, clube) {
           ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.c).toFixed(1)}" r="2.6" fill="var(--ac)"><title>${p.rot ? p.rot + ": " : ""}${dinheiro(p.c)}</title></circle>`).join("")}</svg></div>`;
     }
     const previsao = `<div style="margin-top:12px"><b>Previsão por rodada</b>
-      <div class="mut" style="margin-top:2px">TV ${sinal(tv)} · patrocínio ${sinal(pat)}${temTorcida ? ` · bilheteria ${sinal(bil)} em média` : ""} · salários ${sinal(-sal)} · <b class="${cor(saldo)}">saldo ${sinal(saldo)}</b>
-        ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
+      <div class="mut" style="margin-top:2px">TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)}${com ? ` · comissão técnica ${sinal(-com)}` : ""}${man ? ` · manutenção ${sinal(-man)}` : ""}
+        <br>${temTorcida ? `Rodada em casa (bilheteria ${sinal(porJogo)}): <b class="${cor(emCasa)}">${sinal(emCasa)}</b> · rodada fora: <b class="${cor(fora)}">${sinal(fora)}</b> · média: ` : "Saldo: "}<b class="${cor(saldo)}">${sinal(saldo)}</b>
+        ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa, já sem os 10% do fundo da liga${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
         <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>`;
     const detalhe = grupos.length ? `<details style="margin-top:12px"><summary style="cursor:pointer"><b>Extrato rodada a rodada</b> <span class="mut">(${extrato.length} lançamentos)</span></summary>
       <div style="max-height:320px;overflow:auto;margin-top:6px"><table class="mini" style="width:100%"><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq" style="white-space:nowrap">T${g.temporada} · ${g.rodada == null ? "fora de rodada" : rotRodada(g.rodada)}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}" style="white-space:nowrap"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div></details>`
@@ -851,17 +863,18 @@ async function telaClube(liga, clube) {
   let telaDePc = false; try { telaDePc = localStorage.getItem("mo_tela") === "pc"; } catch (e) {}
   const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820;
   // murais da Central
-  const item = (ic, texto, classe = "") => `<div><span class="ic">${ic}</span><span class="${classe}">${texto}</span></div>`;
+  // ir: aba (ou "aba:interna") que a linha abre ao ser clicada
+  const item = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
   const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
   const muralDoClube = () => {
     const l = [];
-    if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso"));
-    if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso"));
-    if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad"));
+    if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
+    if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
+    if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
     const recebidas = (propostas || []).filter(p => p.vendedor === clube.id && p.estado === "pendente");
-    if (recebidas.length) l.push(item("💬", `${recebidas.length} ${recebidas.length === 1 ? "proposta esperando" : "propostas esperando"} a sua resposta, na aba Mercado.`, "aviso"));
+    if (recebidas.length) l.push(item("💬", `${recebidas.length} ${recebidas.length === 1 ? "proposta esperando" : "propostas esperando"} a sua resposta, na aba Mercado.`, "aviso", "mercado"));
     const contra = (propostas || []).filter(p => p.comprador === clube.id && p.estado === "contra");
-    if (contra.length) l.push(item("💬", `${contra.length} ${contra.length === 1 ? "contraproposta" : "contrapropostas"} para você decidir, na aba Mercado.`, "aviso"));
+    if (contra.length) l.push(item("💬", `${contra.length} ${contra.length === 1 ? "contraproposta" : "contrapropostas"} para você decidir, na aba Mercado.`, "aviso", "mercado"));
     elenco.filter(j => j.fora > 0 && j.motivo === "lesão").forEach(j => l.push(item("🩹", `${esc(j.nome)} (${sg(j.pos)}) lesionado: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     const pendurados = elenco.filter(j => j.amarelos === 3 && !(j.fora > 0)); // a suspensão vem no quarto amarelo
@@ -874,21 +887,23 @@ async function telaClube(liga, clube) {
       const travados = elenco.filter(j => j.copaClube != null && j.copaClube !== clube.id);
       if (travados.length) l.push(item("🔒", `Não podem jogar a copa por você (já jogaram por outro clube nesta temporada): ${travados.map(j => esc(j.nome)).join(", ")}.`));
     }
-    elenco.forEach(j => { const d = degrauRecente(j); if (d) l.push(item("🎓", `${esc(j.nome)} agora é ${d.para === "N" ? "natural" : "competente"} como ${POSICOES[d.pos].nome.toLowerCase()} (${sg(d.pos)}).`, "ok")); });
+    const aprenderam = elenco.map(j => { const d = degrauRecente(j); return d && `${esc(j.nome)} (${d.para === "N" ? "natural" : "competente"}, ${sg(d.pos)})`; }).filter(Boolean);
+    if (aprenderam.length) l.push(item("🎓", `Posição nova aprendida: ${aprenderam.join(", ")}.`, "ok"));
     elenco.filter(j => j.aVenda && janela && j.botsViram === liga.temporada + ":" + janela).forEach(j => { const teto = CONFIG_MERCADO_BOTS.precoEmSalarios * salarioDeMercado(j);
       l.push(item("🏷️", `${esc(j.nome)} (${sg(j.pos)}) segue na lista por ${dinheiro(j.precoPedido)}: nenhum clube sem dirigente comprou. ${j.idade > CONFIG_MERCADO_BOTS.idadeMaxima ? `Eles não compram quem tem mais de ${CONFIG_MERCADO_BOTS.idadeMaxima} anos.` : j.precoPedido > teto ? `Eles pagam até ${dinheiro(teto)} por ele: baixando o preço, olham de novo.` : "O preço cabia, mas ele não reforça o time titular de nenhum que tenha caixa."}`)); });
     const saindo = elenco.filter(j => j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil);
-    if (saindo.length) l.push(item("🌱", `${saindo.length === 1 ? "Juvenil" : "Juvenis"} com ${CONFIG_BASE.idadeDeJuvenil} anos: ${saindo.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}. Sem contrato até a virada, ${saindo.length === 1 ? "fica livre" : "ficam livres"}. Profissionalize em Clube, Elenco.`, "aviso"));
+    if (saindo.length) l.push(item("🌱", `${saindo.length === 1 ? "Juvenil" : "Juvenis"} com ${CONFIG_BASE.idadeDeJuvenil} anos: ${saindo.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}. Sem contrato até a virada, ${saindo.length === 1 ? "fica livre" : "ficam livres"}. Profissionalize em Clube, Elenco.`, "aviso", "elenco"));
     const veteranos = (comissaoToda || []).filter(t => t.idade >= IDADE_DE_APOSENTAR_DA_COMISSAO - 1);
-    if (veteranos.length) l.push(item("👴", `${veteranos.length === 1 ? "Se aposenta" : "Se aposentam"} no fim da temporada (chegam aos ${IDADE_DE_APOSENTAR_DA_COMISSAO} anos): ${veteranos.map(t => `${esc(t.nome)} (${(t.funcao || "treinador") === "treinador" ? "treinador" : (FUNCOES_DE_SAUDE[t.funcao] || t.funcao).toLowerCase()}, ${t.idade})`).join(", ")}. Procure um substituto na lista de candidatos.`, "aviso"));
+    if (veteranos.length) l.push(item("👴", `${veteranos.length === 1 ? "Se aposenta" : "Se aposentam"} no fim da temporada (chegam aos ${IDADE_DE_APOSENTAR_DA_COMISSAO} anos): ${veteranos.map(t => `${esc(t.nome)} (${(t.funcao || "treinador") === "treinador" ? "treinador" : (FUNCOES_DE_SAUDE[t.funcao] || t.funcao).toLowerCase()}, ${t.idade})`).join(", ")}. Procure um substituto na lista de candidatos.`, "aviso", "estruturas:treino"));
     const param = elenco.filter(j => j.aposentaEm != null);
-    if (param.length) l.push(item("🏁", `${param.length === 1 ? "Anunciou" : "Anunciaram"} a aposentadoria para o fim da temporada: ${param.map(j => `${esc(j.nome)} (${j.idade})`).join(", ")}. Não podem mais ser vendidos nem renovar.`, "aviso"));
+    if (param.length) l.push(item("🏁", `${param.length === 1 ? "Anunciou" : "Anunciaram"} a aposentadoria para o fim da temporada: ${param.map(j => `${esc(j.nome)} (${j.idade})`).join(", ")}. Não podem mais ser vendidos nem renovar.`, "aviso", "elenco"));
     const vencem = elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada);
-    if (vencem.length) l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato termina" : "contratos terminam"} no fim desta temporada: ${vencem.slice(0, 6).map(j => esc(j.nome)).join(", ")}${vencem.length > 6 ? " e outros" : ""}.`, livres != null ? "aviso" : ""));
+    if (vencem.length) l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato termina" : "contratos terminam"} no fim desta temporada: ${vencem.slice(0, 6).map(j => esc(j.nome)).join(", ")}${vencem.length > 6 ? " e outros" : ""}.`, livres != null ? "aviso" : "", "elenco"));
     if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
     if (clube.carne != null && clube.carne_temporada !== liga.temporada && transferencias && janela === "inicio") l.push(item("🎟️", "O Sócio-Torcedor desta temporada ainda não foi aberto (Clube, Finanças). Só dá para abrir antes da primeira rodada."));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
-    return l.join("") || item("✅", "Sem novidades: ninguém lesionado, suspenso ou com contrato no fim.", "mut");
+    const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
+    return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}${resto.length ? `<div class="rot">Para saber</div>` : ""}` : "") + resto.join("") || item("✅", "Sem novidades: ninguém lesionado, suspenso ou com contrato no fim.", "mut");
   };
   const muralDaLiga = () => {
     const l = [];
@@ -908,9 +923,10 @@ async function telaClube(liga, clube) {
     if (doClube.length) l.push(item("🏅", `Premiados do seu clube na temporada ${liga.temporada - 1}: ${doClube.map(p => `${esc(p.jogador || "")} (${esc(nomeDoPremio(p))})`).join(", ")}.`));
     safra.forEach(s => l.push(item(s.nivel >= 43 ? "🌟" : "✨", `A base do ${lk(s.clube_id)} revelou ${s.nivel >= 43 ? "uma joia rara" : "uma grande promessa"}: ${esc(s.jogador)} (${esc(sg(s.pos || ""))}, ${s.idade} anos).`)));
     if (livres && livres.length) l.push(item("✍️", `${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"} na aba Mercado${livres.some(j => new Date(j.livre_ate) > new Date()) ? ", com leilão aberto" : ""}.`));
-    (transferencias || []).slice(0, 8).forEach(t => l.push(item(t.tipo === "livre" ? "✍️" : "🔁",
-      t.tipo === "livre" ? `${esc(t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
-        : `${esc(t.jogador)} (${esc(sg(t.pos || ""))}) trocou ${lk(t.de_clube)} por ${lk(t.para_clube)} por ${dinheiro(t.valor)}${t.tipo === "multa" ? ", pela multa rescisória" : t.tipo === "divida" ? ", em oferta de clube no vermelho" : ""}.`)));
+    const negocios = (transferencias || []).slice(0, 8).map(t => item(t.tipo === "livre" ? "✍️" : "🔁",
+      t.tipo === "livre" ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
+        : `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) trocou ${lk(t.de_clube)} por ${lk(t.para_clube)} por ${dinheiro(t.valor)}${t.tipo === "multa" ? ", pela multa rescisória" : t.tipo === "divida" ? ", em oferta de clube no vermelho" : ""}.`));
+    if (negocios.length) l.push(`<div><details style="flex:1"><summary style="cursor:pointer"><span class="ic">🔁</span> ${negocios.length === 1 ? "1 transferência recente" : `${negocios.length} transferências recentes`}</summary><div class="mural">${negocios.join("")}</div></details></div>`);
     return l.join("") || item("📰", "Nenhuma transferência ainda. As principais notícias da liga aparecem aqui.", "mut");
   };
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
@@ -1052,7 +1068,7 @@ async function telaClube(liga, clube) {
       <div id="ofertaPainel" style="margin-top:10px"></div></div>`}
     </div><div data-msecao="hist">
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
-      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
+      ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </div>
     </section>
     <section data-secao="clube">
