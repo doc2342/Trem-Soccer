@@ -238,7 +238,7 @@ async function tela(aviso = "") {
       // ordem das datas: rodadas da liga, copa depois das rodadas 2, 5, 8, 11, 14 e 17 e Libertadores depois das rodadas 7, 10, 13 e 16
       const ordem = [];
       for (let r = 1; r <= 60; r++) { ordem.push("r" + r); if (comCopa && r % 3 === 2 && r <= 17) ordem.push("c" + (r + 1) / 3); if (comLib && r % 3 === 1 && r >= 7 && r <= 16) ordem.push("l" + (r - 4) / 3); }
-      const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k); // k: fase da copa, de 1 a 6
+      const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k), espacoDaLib = k => ordem.indexOf("l" + k); // k: fase da copa, de 1 a 6; data da Libertadores, de 1 a 4
       const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
       const linhas = [];
       for (const g of gruposDe(clubes)) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
@@ -274,7 +274,7 @@ async function tela(aviso = "") {
         let lib;
         if (comLib) {
           const s = rng.embaralhar(libFora), jogos = [...libBrasil.map((id, k) => [id, s[k]]), ...s.slice(libBrasil.length).reduce((l, id, k, a) => k % 2 ? l : [...l, [id, a[k + 1]]], [])];
-          lib = { datas: [1, 2, 3, 4].map(k => { const t = hora(ordem.indexOf("l" + k)); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
+          lib = { datas: [1, 2, 3, 4].map(k => { const t = hora(espacoDaLib(k)); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
           for (let [a, b] of jogos) {
             if (nivel[b] > nivel[a]) [a, b] = [b, a];
             linhas.push({ liga_id: liga.id, grupo: "LIB", rodada: 203, fase: "lib", copa_fase: 3, casa: a, fora: b, inicio: lib.datas[0].inicio, fim: lib.datas[0].fim });
