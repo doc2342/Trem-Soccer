@@ -4,7 +4,7 @@
 // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
 // As constantes saíram da calibragem (calibragem.html).
 import { limitar } from "./rng.js";
-import { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } from "./modelo.js";
+import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
@@ -68,6 +68,10 @@ export const CONFIG = {
   comunicacaoGoleiro: 0.002, // por ponto de Comunicação do goleiro acima de 25: defesa do centro
   excentricidade: 0.1, // desvio da defesa do goleiro por ponto de Excentricidade
 
+  calor: 0.2, // calor forte: fração a mais de energia gasta por minuto
+  // Entrosamento: recém-chegado (j.entrosar = jogos do clube que faltam, de 8 a 0) tira rendimento do setor inteiro em que joga;
+  // perda = o que o setor perde se todos os titulares dele acabaram de chegar
+  entrosamento: { jogos: 8, perda: 0.10 },
   // energia
   gastoEnergia: 0.55, // por minuto, para Resistência 25
   gastoGoleiro: 0.3,
@@ -175,6 +179,15 @@ export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, man
 // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
 const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
+// Entrosamento de cada setor (D defesa com o goleiro, M meio, A ataque), de 1 - perda a 1. lista: [{ j, pos }]
+const SETOR = { gol: "D", defesa: "D", ala: "D", volante: "M", meio: "M", meia: "M", ataque: "A" };
+export const setorDaPosicao = pos => SETOR[POSICOES[pos].linha];
+export function entrosamento(lista) {
+  const falta = { D: 0, M: 0, A: 0 }, n = { D: 0, M: 0, A: 0 }, C = CONFIG.entrosamento;
+  for (const { j, pos } of lista) { const s = setorDaPosicao(pos); n[s]++; falta[s] += Math.min(1, (j.entrosar || 0) / C.jogos); }
+  return { D: 1 - C.perda * falta.D / (n.D || 1), M: 1 - C.perda * falta.M / (n.M || 1), A: 1 - C.perda * falta.A / (n.A || 1) };
+}
+
 // Estado do time durante a partida.
 function iniciar(time, rng = null, grande = false) {
   return {
@@ -204,10 +217,11 @@ function recalcular(t, saldo) {
   const mAtk = { D: 1, M: 1 + CONFIG.mentalidadeAtaque * I.mentalidade, A: 1 + CONFIG.mentalidadeAtaque * I.mentalidade };
   const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = I.mentalidade > 0 ? 1 - CONFIG.mentalidadeDefesa * I.mentalidade : 1 - CONFIG.mentalidadeRetranca * I.mentalidade;
   const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
+  const ent = entrosamento(t.emCampo);
   t.goleiro = null; t.temLibero = false;
   for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
   for (const jog of t.emCampo) {
-    const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
+    const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
     const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
     if (pe) for (const k in pe) jog.at[k] *= pe[k];
@@ -361,9 +375,9 @@ const novaEstatistica = () => ({
 // minutos em que a bola volta ao centro: segundo tempo e os dois tempos da prorrogação
 const reinicio = min => min === 46 || min === 91 || min === 106;
 // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
-// opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
+// opcoes.calor: calor forte, todos cansam mais rápido. opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
 export function simularPartida(rng, casa, fora, opcoes = {}) {
-  const chuva = opcoes.chuva || 0, grande = !!opcoes.jogoGrande;
+  const chuva = opcoes.chuva || 0, calor = opcoes.calor ? 1 + CONFIG.calor : 1, grande = !!opcoes.jogoGrande;
   const times = [iniciar(casa, rng, grande), iniciar(fora, rng, grande)], estat = [novaEstatistica(), novaEstatistica()];
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
   const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
@@ -665,7 +679,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   const jogar = (de, ate) => { for (min = de; min <= ate; min++) {
     ordensESubstituicoes(0); ordensESubstituicoes(1);
     for (const t of times) for (const jog of t.emCampo) {
-      const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1);
+      const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
       jog.energia = Math.max(0, jog.energia - gasto);
     }
     const ritmo = CONFIG.ataquesPorMinuto * (1 + CONFIG.ritmoPorMentalidade * (times[0].instr.mentalidade + times[1].instr.mentalidade));

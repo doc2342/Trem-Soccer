@@ -334,7 +334,7 @@ const __motor = (() => {
   // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
   // As constantes saíram da calibragem (calibragem.html).
   const { limitar } = __rng;
-  const { IDX, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
+  const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
     ataquesPorMinuto: 0.84, /* era 0,9; baixou quando o embalo entrou, para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
@@ -397,6 +397,10 @@ const __motor = (() => {
     comunicacaoGoleiro: 0.002, // por ponto de Comunicação do goleiro acima de 25: defesa do centro
     excentricidade: 0.1, // desvio da defesa do goleiro por ponto de Excentricidade
 
+    calor: 0.2, // calor forte: fração a mais de energia gasta por minuto
+    // Entrosamento: recém-chegado (j.entrosar = jogos do clube que faltam, de 8 a 0) tira rendimento do setor inteiro em que joga;
+    // perda = o que o setor perde se todos os titulares dele acabaram de chegar
+    entrosamento: { jogos: 8, perda: 0.10 },
     // energia
     gastoEnergia: 0.55, // por minuto, para Resistência 25
     gastoGoleiro: 0.3,
@@ -504,6 +508,15 @@ const __motor = (() => {
   // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
   const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
+  // Entrosamento de cada setor (D defesa com o goleiro, M meio, A ataque), de 1 - perda a 1. lista: [{ j, pos }]
+  const SETOR = { gol: "D", defesa: "D", ala: "D", volante: "M", meio: "M", meia: "M", ataque: "A" };
+  const setorDaPosicao = pos => SETOR[POSICOES[pos].linha];
+  function entrosamento(lista) {
+    const falta = { D: 0, M: 0, A: 0 }, n = { D: 0, M: 0, A: 0 }, C = CONFIG.entrosamento;
+    for (const { j, pos } of lista) { const s = setorDaPosicao(pos); n[s]++; falta[s] += Math.min(1, (j.entrosar || 0) / C.jogos); }
+    return { D: 1 - C.perda * falta.D / (n.D || 1), M: 1 - C.perda * falta.M / (n.M || 1), A: 1 - C.perda * falta.A / (n.A || 1) };
+  }
+
   // Estado do time durante a partida.
   function iniciar(time, rng = null, grande = false) {
     return {
@@ -533,10 +546,11 @@ const __motor = (() => {
     const mAtk = { D: 1, M: 1 + CONFIG.mentalidadeAtaque * I.mentalidade, A: 1 + CONFIG.mentalidadeAtaque * I.mentalidade };
     const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = I.mentalidade > 0 ? 1 - CONFIG.mentalidadeDefesa * I.mentalidade : 1 - CONFIG.mentalidadeRetranca * I.mentalidade;
     const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
+    const ent = entrosamento(t.emCampo);
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
     for (const jog of t.emCampo) {
-      const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1); // forma e moral do jogador (1 quando as duas estão em 50)
+      const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
       const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
       if (pe) for (const k in pe) jog.at[k] *= pe[k];
@@ -690,9 +704,9 @@ const __motor = (() => {
   // minutos em que a bola volta ao centro: segundo tempo e os dois tempos da prorrogação
   const reinicio = min => min === 46 || min === 91 || min === 106;
   // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
-  // opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
+  // opcoes.calor: calor forte, todos cansam mais rápido. opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
   function simularPartida(rng, casa, fora, opcoes = {}) {
-    const chuva = opcoes.chuva || 0, grande = !!opcoes.jogoGrande;
+    const chuva = opcoes.chuva || 0, calor = opcoes.calor ? 1 + CONFIG.calor : 1, grande = !!opcoes.jogoGrande;
     const times = [iniciar(casa, rng, grande), iniciar(fora, rng, grande)], estat = [novaEstatistica(), novaEstatistica()];
     const jogadores = {}, lances = [], eventos = [], lesoes = [];
     const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
@@ -994,7 +1008,7 @@ const __motor = (() => {
     const jogar = (de, ate) => { for (min = de; min <= ate; min++) {
       ordensESubstituicoes(0); ordensESubstituicoes(1);
       for (const t of times) for (const jog of t.emCampo) {
-        const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1);
+        const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
         jog.energia = Math.max(0, jog.energia - gasto);
       }
       const ritmo = CONFIG.ataquesPorMinuto * (1 + CONFIG.ritmoPorMentalidade * (times[0].instr.mentalidade + times[1].instr.mentalidade));
@@ -1047,7 +1061,7 @@ const __motor = (() => {
     Object.values(porMinuto).forEach(g => g.forEach((l, k) => { l.s = Math.floor((k + 0.5) / g.length * 60); }));
     return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
   }
-  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, avaliarZonas, simularPartida };
+  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, avaliarZonas, simularPartida };
 })();
 
 const __bot = (() => {
@@ -1371,11 +1385,13 @@ const __rodada = (() => {
   // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
   const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
   // O clima sai do número da partida, para a previsão poder aparecer antes do jogo e ser a mesma no servidor e na tela.
-  // chuva: 0, 1 (fraca) ou 2 (forte); é o que o motor lê (CONFIG.chuva em motor.js).
+  // chuva: 0, 1 (fraca) ou 2 (forte) e calor (calor forte): é o que o motor lê (CONFIG.chuva e CONFIG.calor em motor.js).
+  // efeitoDoClima: a frase da previsão, ou "" quando o clima não mexe no jogo.
   function climaDaPartida(id) {
     const rng = criarRng((id >>> 0) * 7919 + 13), c = rng.pick(CLIMAS);
-    return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0 };
+    return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0, calor: c[0] === "Calor forte" };
   }
+  const efeitoDoClima = c => c.chuva > 1 ? "campo pesado: o passe curto sofre bastante, o misto um pouco, a bola longa nada" : c.chuva ? "campo molhado: o passe curto sofre um pouco" : c.calor ? "todo mundo cansa 20% mais rápido" : "";
   // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
   const jogoGrande = p => ["lib", "semi", "final", "acesso"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
   // Copa do Brasil: regras próprias da partida de copa.
@@ -1427,7 +1443,7 @@ const __rodada = (() => {
       const t = taticas[i];
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
     });
-    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, jogoGrande: jogoGrande(partida) });
+    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
     // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
     const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
     const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
@@ -1544,7 +1560,7 @@ const __rodada = (() => {
     }
     return { fase: semis.length ? "final" : "semi", jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
@@ -2226,7 +2242,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -2261,6 +2277,9 @@ Deno.serve(async (req) => {
           for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novoC[j.id]) { j.amarelosCopa = novoC[j.id].amarelos; j.foraCopa = novoC[j.id].fora; j.copaClube = novoC[j.id].clube; }
         }
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
+        // recém-chegados: um jogo a menos para entrosar (sem efeito antes do 86_entrosamento.sql)
+        await sb.rpc("entrosar_partida", { p_partida: p.id });
+        for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (j.entrosar > 0) j.entrosar--;
         // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
         if (momento.length) {
           efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral, exp: m.exp }));

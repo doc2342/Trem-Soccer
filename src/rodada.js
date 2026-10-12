@@ -126,11 +126,13 @@ export function aplicarSituacao(elenco, mudancas) {
 // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
 const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
 // O clima sai do número da partida, para a previsão poder aparecer antes do jogo e ser a mesma no servidor e na tela.
-// chuva: 0, 1 (fraca) ou 2 (forte); é o que o motor lê (CONFIG.chuva em motor.js).
+// chuva: 0, 1 (fraca) ou 2 (forte) e calor (calor forte): é o que o motor lê (CONFIG.chuva e CONFIG.calor em motor.js).
+// efeitoDoClima: a frase da previsão, ou "" quando o clima não mexe no jogo.
 export function climaDaPartida(id) {
   const rng = criarRng((id >>> 0) * 7919 + 13), c = rng.pick(CLIMAS);
-  return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0 };
+  return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0, calor: c[0] === "Calor forte" };
 }
+export const efeitoDoClima = c => c.chuva > 1 ? "campo pesado: o passe curto sofre bastante, o misto um pouco, a bola longa nada" : c.chuva ? "campo molhado: o passe curto sofre um pouco" : c.calor ? "todo mundo cansa 20% mais rápido" : "";
 // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
 export const jogoGrande = p => ["lib", "semi", "final", "acesso"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
 // Copa do Brasil: regras próprias da partida de copa.
@@ -182,7 +184,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const t = taticas[i];
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
-  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, jogoGrande: jogoGrande(partida) });
+  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
   const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));

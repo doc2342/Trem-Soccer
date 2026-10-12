@@ -48,7 +48,7 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok)
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
-    fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0,
+    fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql

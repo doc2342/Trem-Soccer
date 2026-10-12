@@ -5,8 +5,8 @@ import { experienciaDe } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
-import { foraDaCopa, climaDaPartida, jogoGrande } from "./rodada.js";
-import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
+import { foraDaCopa, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
+import { prepararTime, simularPartida, avaliarZonas, entrosamento, setorDaPosicao, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
@@ -135,7 +135,7 @@ async function previaDoAdversario(B) {
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + (jogo.fase === "lib" ? " da Libertadores" : " da copa") : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>
-    <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${clima.chuva ? ` <span class="aviso">· ${clima.chuva > 1 ? "campo pesado: o passe curto sofre bastante, o misto um pouco, a bola longa nada" : "campo molhado: o passe curto sofre um pouco"}</span>` : ""}</div>
+    <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${efeitoDoClima(clima) ? ` <span class="aviso">· ${efeitoDoClima(clima)}</span>` : ""}</div>
     ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
   if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
   const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
@@ -249,6 +249,8 @@ function validar() {
   esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
   esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${sg(x.pos)} (rende 80%).`));
   if (E.banco.length && !E.banco.some(id => (jogDe(id) || {}).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
+  const ent = entrosamento(esc11), NOME_SETOR = { D: "a defesa", M: "o meio", A: "o ataque" };
+  for (const s of ["D", "M", "A"]) if (ent[s] < 0.999) avisos.push(`Entrosamento: ${NOME_SETOR[s]} rende ${(100 * (1 - ent[s])).toFixed(1).replace(".", ",")}% menos por causa de ${esc11.filter(x => x.j.entrosar > 0 && setorDaPosicao(x.pos) === s).map(x => `${x.j.nome} (faltam ${x.j.entrosar} ${x.j.entrosar === 1 ? "jogo" : "jogos"})`).join(", ")}.`);
   return { erros, avisos, cob, esc11 };
 }
 
