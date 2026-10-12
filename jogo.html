@@ -511,7 +511,7 @@ async function telaClube(liga, clube) {
     // prêmios da copa desta temporada que ainda vão sair: fases de 32 a semifinal ainda não pagas, mais a final
     const clubesNaFase = [0, 0, 32, 16, 8, 4], pagas = (atual && atual.copa && atual.copa.pagas) || [];
     const aPagar = atual && atual.copa ? [2, 3, 4, 5].filter(f => !pagas.includes(f)).reduce((t, f) => t + P.fases[f] * clubesNaFase[f], 0) + (pagas.includes(6) ? 0 : P.campeao + P.vice) : null;
-    const TIPOS = [["bilheteria", "10% das bilheterias"], ["imposto", "Metade do imposto sobre o lucro"], ["taxas", "Metade das taxas de transferência"], ["copa", "Prêmios da Copa do Brasil"], ["lib", "Prêmios da Libertadores"], ["merito", "Bônus de mérito da Série C"], ["premios", "Prêmios individuais"], ["devolucao", "Taxas devolvidas (transferência anulada)"]];
+    const TIPOS = [["bilheteria", "10% das bilheterias"], ["imposto", "Metade do imposto sobre o lucro"], ["taxas", "Metade das taxas de transferência"], ["copa", "Prêmios da Copa do Brasil"], ["lib", "Prêmios da Libertadores"], ["merito", "Bônus de mérito da Série C"], ["premios", "Prêmios individuais"], ["devolucao", "Taxas devolvidas (transferência anulada)"], ["doacao", "Doação generosa do América - RN"]];
     const temporadas = [...new Set((resumo || []).map(x => x.temporada))].sort((a, b) => b - a);
     const valor = (t, k) => ((resumo || []).find(x => x.temporada === t && x.tipo === k) || {}).valor || 0;
     const sinal = v => `<td class="${v > 0 ? "ok" : v < 0 ? "bad" : "mut"}">${v > 0 ? "+" : v < 0 ? "−" : ""}${v ? dinheiro(Math.abs(v)) : "—"}</td>`;
