@@ -6,6 +6,7 @@
 // depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
 // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto } from "./modelo.js";
+import { criarRng } from "./rng.js";
 
 export const CONFIG_TREINO = {
   pontosPorNivel: 100,
@@ -17,6 +18,7 @@ export const CONFIG_TREINO = {
   teto: [23, 0.20],           // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
   // caminho: os pontos da sessão são multiplicados por (teto − partida) / divisor. Sem saber o teto (tela sem olheiro), vale o teto típico.
   caminho: { partida: 15, divisor: 26, minimo: 6, tetoTipico: 36 },
+  folga: [1 / 3, 1 / 18],     // teto que cede: fração dos jogadores que passa do teto em 1 ponto ou mais, e em 2
   // freio: fração do caminho que o melhor caso tem feito em cada idade; quem passa dela treina mais devagar (até o piso), nunca mais rápido
   freio: { curva: [[16, 0.05], [18, 0.36], [20, 0.62], [22, 0.82], [24, 0.96], [25, 1.03], [31, 1.06]], forca: 6, piso: 0.3 },
   // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
@@ -132,6 +134,13 @@ export function prazoDaPosicao(j, pos, pts = 0) {
   return { proximo: Math.max(1, Math.ceil((custo - pts) / porSessao)), natural: Math.max(1, Math.ceil((custo * degraus - pts) / porSessao)) };
 }
 
+// Teto que cede: um em cada três jogadores passa 1 ponto do teto do talento, e um em cada dezoito passa 2 (CONFIG_TREINO.folga).
+// A sorte é do jogador e não muda: sai do número dele misturado com o talento, que só o servidor conhece.
+export function folgaDoTeto(id, tal) {
+  if (tal == null || id == null) return 0;
+  const r = criarRng((+String(id).replace(/\D/g, "") || 0) * 101 + tal).n(), F = CONFIG_TREINO.folga;
+  return r < F[1] ? 2 : r < F[0] ? 1 : 0;
+}
 export const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
 
 // Fração do caminho que o melhor caso tem feito na idade (interpolação da curva do freio). A idade é contada no meio da temporada.
@@ -177,7 +186,7 @@ export function partilha(j) {
 // fator: fração de uma sessão (a liga de base dá um bônus de 20% de sessão a quem jogou).
 export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
   const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
-  if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal)) return null;
+  if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal) + folgaDoTeto(j.id, tal)) return null;
   const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
     if (at[i] >= ATR_MAX) continue;
