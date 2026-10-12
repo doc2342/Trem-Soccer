@@ -23,8 +23,10 @@ const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaDoMomento(x.j
 const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
 
 // elenco: jogadores disponíveis (sem lesionados e suspensos). forcaAdversario: nota média do onze do adversário, se conhecida.
-export function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null } = {}) {
-  const estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
+// chuva: 0, 1 ou 2 (previsão do jogo). Com chuva forte, o bot de passe curto joga com passe misto.
+export function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null, chuva = 0 } = {}) {
+  let estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
+  if (chuva >= 2 && estilo.passe === "curto") estilo = {};
   // formação: a que dá a maior nota somada ao melhor onze disponível
   let melhor = null;
   for (const nome of FORMACOES_BOT) {

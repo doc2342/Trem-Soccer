@@ -125,6 +125,14 @@ export function aplicarSituacao(elenco, mudancas) {
 // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
 // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
 const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
+// O clima sai do número da partida, para a previsão poder aparecer antes do jogo e ser a mesma no servidor e na tela.
+// chuva: 0, 1 (fraca) ou 2 (forte); é o que o motor lê (CONFIG.chuva em motor.js).
+export function climaDaPartida(id) {
+  const rng = criarRng((id >>> 0) * 7919 + 13), c = rng.pick(CLIMAS);
+  return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0 };
+}
+// Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
+export const jogoGrande = p => ["lib", "semi", "final", "acesso"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
 // Copa do Brasil: regras próprias da partida de copa.
 export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
 // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
@@ -158,6 +166,7 @@ function situacaoDaCopa(elenco, p, clubeId, fase, medico = null) {
 
 export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
   const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
+  const clima = climaDaPartida(partida.id == null ? semente : partida.id);
   const lados = [casa, fora].map(l => {
     const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
     // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
@@ -168,19 +177,19 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const disponiveis = elenco.filter(j => !(j.fora > 0));
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
   });
-  const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil }));
+  const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
   const times = lados.map((l, i) => {
     const t = taticas[i];
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
-  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa });
+  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, jogoGrande: jogoGrande(partida) });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
   const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
-  // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
-  const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);
+  // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)
+  const extra = criarRng((semente >>> 0) + 7919);
   lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
-    n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima[0], temp: extra.int(clima[1], clima[2]) },
+    n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
     escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
   } });
   // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis

@@ -5,7 +5,7 @@ import { experienciaDe } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
-import { foraDaCopa } from "./rodada.js";
+import { foraDaCopa, climaDaPartida, jogoGrande } from "./rodada.js";
 import { prepararTime, simularPartida, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
@@ -131,12 +131,14 @@ async function previaDoAdversario(B) {
   const jogo = proximoJogo, copa = B.ehCopa(jogo);
   el.hidden = false;
   if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
-  const emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
+  const clima = climaDaPartida(jogo.id), emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + (jogo.fase === "lib" ? " da Libertadores" : " da copa") : jogo.fase === "liga" ? "rodada " + jogo.rodada : "playoff"} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
-    <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>`;
+    <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>
+    <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${clima.chuva ? ` <span class="aviso">· ${clima.chuva > 1 ? "campo pesado: o passe curto sofre bastante, o misto um pouco, a bola longa nada" : "campo molhado: o passe curto sofre um pouco"}</span>` : ""}</div>
+    ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
   if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
-  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil }), I = t.instrucoes, sk = analista.skill || 0;
+  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
   const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
   const forca = media(t.escalacao), minha = media(meu);

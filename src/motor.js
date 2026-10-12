@@ -55,6 +55,8 @@ export const CONFIG = {
     misto: [{ D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }],
     longo: [{ D: 0, M: 0.05, A: -0.3 }, { D: 0.1, M: 0.2, A: -0.05 }, { D: 0.25, M: 0.3, A: 0.15 }],
   },
+  // Chuva (1 fraca, 2 forte): logit somado, por nível, aos duelos do ataque construído conforme o passe; e as perdas por domínio e passe errado aparecem mais
+  chuva: { curto: -0.09, misto: -0.04, longo: 0, erros: 0.5 },
   estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
   estiloCurto: { area: 1.2, longe: 0.8 },
   // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
@@ -171,14 +173,14 @@ export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, man
 }
 
 // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
-const novoJog = (j, pos, rng = null) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j) });
+const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
 // Estado do time durante a partida.
-function iniciar(time, rng = null) {
+function iniciar(time, rng = null, grande = false) {
   return {
     nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
     instr: { ...time.instrucoes },
-    emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng)),
+    emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
     banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
     goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
   };
@@ -359,8 +361,10 @@ const novaEstatistica = () => ({
 // minutos em que a bola volta ao centro: segundo tempo e os dois tempos da prorrogação
 const reinicio = min => min === 46 || min === 91 || min === 106;
 // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
+// opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
 export function simularPartida(rng, casa, fora, opcoes = {}) {
-  const times = [iniciar(casa, rng), iniciar(fora, rng)], estat = [novaEstatistica(), novaEstatistica()];
+  const chuva = opcoes.chuva || 0, grande = !!opcoes.jogoGrande;
+  const times = [iniciar(casa, rng, grande), iniciar(fora, rng, grande)], estat = [novaEstatistica(), novaEstatistica()];
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
   const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
   times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
@@ -435,7 +439,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} recupera a bola ${onde}.`)); return true; }
     const p = d.pivo, m = d.marcador;
     recebe(p);
-    const causas = [["dominio", 60 - p.at[A.dom]], ["passe", 60 - p.at[A.pas]]];
+    const molhado = 1 + CONFIG.chuva.erros * chuva, causas = [["dominio", (60 - p.at[A.dom]) * molhado], ["passe", (60 - p.at[A.pas]) * molhado]];
     if (m) causas.push(["desarme", 20 + m.at[A.des]], ["corte", 20 + m.at[A.pos]]);
     // os sorteios seguem a ordem antiga (quando só parte das perdas era narrada), para a mesma semente continuar dando o mesmo jogo
     const causa = rng.chance(CONFIG.narrarPerda[zona[0]]) ? sortearPeso(rng, causas, c => c[1])[0] : causas[seq % causas.length][0];
@@ -455,7 +459,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     sujo = true;
   }
   function entrar(i, j, pos) {
-    const t = times[i], jog = novoJog(j, pos, rng);
+    const t = times[i], jog = novoJog(j, pos, rng, grande);
     t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
     ficha(jog, i).entrou = min; sujo = true;
     return jog;
@@ -519,7 +523,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
     // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
     const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
-    const tatico = (contra ? 0 : CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
+    const tatico = (contra ? 0 : chuva * CONFIG.chuva[atk.instr.passe] + CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
       + (ensaiado && zona[0] !== "D" ? CONFIG.ensaio : 0);
     // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
     // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.

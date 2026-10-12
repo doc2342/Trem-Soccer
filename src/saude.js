@@ -47,13 +47,21 @@ export function saudeDoClube(equipe, clube) {
 // Experiência (0 a 100): sobe jogando e deixa o desempenho mais estável. Sem valor gravado, vale a estimativa pela idade.
 // Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
 // bonus: além de estabilizar, a experiência rende um pouco mais em campo, de 0% (experiência 0) a 3% (experiência 100)
-export const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03 };
+export const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03,
+  // jogo grande (final, playoff, Libertadores): o inexperiente oscila mais (desvio dele multiplicado) e sente o jogo (até 3% a menos, com experiência 0);
+  // com experiência 100 nada muda
+  jogoGrande: { desvio: 1.6, nervosismo: 0.03 } };
 // vale a maior entre a gravada e a estimativa pela idade: quem demora a estrear não fica para trás de quem nunca jogou
 const experienciaPelaIdade = j => Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
 export const experienciaDe = j => j.exp != null ? Math.max(+j.exp, experienciaPelaIdade(j)) : experienciaPelaIdade(j);
 export const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
 // multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
-export const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.limiteDoDia, Math.min(1 + CONFIG_EXPERIENCIA.limiteDoDia, 1 + rng.normal(0, desvioDoDia(experienciaDe(j))))) : 1;
+export function diaDoJogador(rng, j, grande = false) {
+  if (!rng) return 1;
+  const C = CONFIG_EXPERIENCIA, exp = experienciaDe(j), falta = 1 - Math.max(0, Math.min(100, exp)) / 100;
+  const desvio = desvioDoDia(exp) * (grande ? 1 + (C.jogoGrande.desvio - 1) * falta : 1), centro = grande ? 1 - C.jogoGrande.nervosismo * falta : 1;
+  return Math.max(1 - C.limiteDoDia, Math.min(1 + C.limiteDoDia, centro + rng.normal(0, desvio)));
+}
 // experiência depois de uma partida oficial (guarda uma casa decimal)
 // peso: 1 na liga e nos playoffs; 1,5 nos jogos de copa
 export const experienciaDepois = (j, minutos, peso = 1) => Math.min(100, Math.round((experienciaDe(j) + peso * (minutos >= CONFIG_SAUDE.minutosDeJogo ? CONFIG_EXPERIENCIA.jogou : minutos > 0 ? CONFIG_EXPERIENCIA.entrou : 0)) * 10) / 10);

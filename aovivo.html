@@ -136,7 +136,7 @@ function htmlEstadio(pre) {
   return `<div class="card"><h2>Estádio</h2><table class="estat">
     <tr><td class="esq">Público pagante</td><td>${partida.publico != null ? milhar(partida.publico) : "–"}</td></tr>
     <tr><td class="esq">Renda da partida${ehCopa(partida) ? " (meio a meio)" : ""}</td><td>${renda != null ? (renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil") : "–"}</td></tr>
-    ${pre && pre.clima ? `<tr><td class="esq">Clima</td><td>${esc(pre.clima.nome)} (${pre.clima.temp} °C)</td></tr>` : ""}</table></div>`;
+    ${pre && pre.clima ? `<tr><td class="esq">Clima</td><td>${esc(pre.clima.nome)} (${pre.clima.temp} °C)</td></tr>` : ""}${pre && pre.grande ? `<tr><td class="esq">Jogo grande</td><td>a experiência pesa mais</td></tr>` : ""}</table></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
 function htmlEstatisticas(narracao) {

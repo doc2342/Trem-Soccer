@@ -252,13 +252,21 @@ const __saude = (() => {
   // Experiência (0 a 100): sobe jogando e deixa o desempenho mais estável. Sem valor gravado, vale a estimativa pela idade.
   // Cada jogador tem um "dia" em cada partida: um multiplicador sorteado em torno de 1. Quanto mais experiente, menos ele varia.
   // bonus: além de estabilizar, a experiência rende um pouco mais em campo, de 0% (experiência 0) a 3% (experiência 100)
-  const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03 };
+  const CONFIG_EXPERIENCIA = { jogou: 1, entrou: 0.5, porIdade: [17, 8], desvio: [0.05, 0.01], limiteDoDia: 0.12, bonus: 0.03,
+    // jogo grande (final, playoff, Libertadores): o inexperiente oscila mais (desvio dele multiplicado) e sente o jogo (até 3% a menos, com experiência 0);
+    // com experiência 100 nada muda
+    jogoGrande: { desvio: 1.6, nervosismo: 0.03 } };
   // vale a maior entre a gravada e a estimativa pela idade: quem demora a estrear não fica para trás de quem nunca jogou
   const experienciaPelaIdade = j => Math.max(0, Math.min(100, (j.idade - CONFIG_EXPERIENCIA.porIdade[0]) * CONFIG_EXPERIENCIA.porIdade[1]));
   const experienciaDe = j => j.exp != null ? Math.max(+j.exp, experienciaPelaIdade(j)) : experienciaPelaIdade(j);
   const desvioDoDia = exp => CONFIG_EXPERIENCIA.desvio[0] + (CONFIG_EXPERIENCIA.desvio[1] - CONFIG_EXPERIENCIA.desvio[0]) * Math.max(0, Math.min(100, exp)) / 100;
   // multiplicador do jogador nesta partida; sem sorteio (rng nulo), 1
-  const diaDoJogador = (rng, j) => rng ? Math.max(1 - CONFIG_EXPERIENCIA.limiteDoDia, Math.min(1 + CONFIG_EXPERIENCIA.limiteDoDia, 1 + rng.normal(0, desvioDoDia(experienciaDe(j))))) : 1;
+  function diaDoJogador(rng, j, grande = false) {
+    if (!rng) return 1;
+    const C = CONFIG_EXPERIENCIA, exp = experienciaDe(j), falta = 1 - Math.max(0, Math.min(100, exp)) / 100;
+    const desvio = desvioDoDia(exp) * (grande ? 1 + (C.jogoGrande.desvio - 1) * falta : 1), centro = grande ? 1 - C.jogoGrande.nervosismo * falta : 1;
+    return Math.max(1 - C.limiteDoDia, Math.min(1 + C.limiteDoDia, centro + rng.normal(0, desvio)));
+  }
   // experiência depois de uma partida oficial (guarda uma casa decimal)
   // peso: 1 na liga e nos playoffs; 1,5 nos jogos de copa
   const experienciaDepois = (j, minutos, peso = 1) => Math.min(100, Math.round((experienciaDe(j) + peso * (minutos >= CONFIG_SAUDE.minutosDeJogo ? CONFIG_EXPERIENCIA.jogou : minutos > 0 ? CONFIG_EXPERIENCIA.entrou : 0)) * 10) / 10);
@@ -376,6 +384,8 @@ const __motor = (() => {
       misto: [{ D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }, { D: 0, M: 0, A: 0 }],
       longo: [{ D: 0, M: 0.05, A: -0.3 }, { D: 0.1, M: 0.2, A: -0.05 }, { D: 0.25, M: 0.3, A: 0.15 }],
     },
+    // Chuva (1 fraca, 2 forte): logit somado, por nível, aos duelos do ataque construído conforme o passe; e as perdas por domínio e passe errado aparecem mais
+    chuva: { curto: -0.09, misto: -0.04, longo: 0, erros: 0.5 },
     estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
     estiloCurto: { area: 1.2, longe: 0.8 },
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
@@ -492,14 +502,14 @@ const __motor = (() => {
   }
 
   // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
-  const novoJog = (j, pos, rng = null) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j) });
+  const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
   // Estado do time durante a partida.
-  function iniciar(time, rng = null) {
+  function iniciar(time, rng = null, grande = false) {
     return {
       nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
       instr: { ...time.instrucoes },
-      emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng)),
+      emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
       banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
       goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
     };
@@ -680,8 +690,10 @@ const __motor = (() => {
   // minutos em que a bola volta ao centro: segundo tempo e os dois tempos da prorrogação
   const reinicio = min => min === 46 || min === 91 || min === 106;
   // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
+  // opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
   function simularPartida(rng, casa, fora, opcoes = {}) {
-    const times = [iniciar(casa, rng), iniciar(fora, rng)], estat = [novaEstatistica(), novaEstatistica()];
+    const chuva = opcoes.chuva || 0, grande = !!opcoes.jogoGrande;
+    const times = [iniciar(casa, rng, grande), iniciar(fora, rng, grande)], estat = [novaEstatistica(), novaEstatistica()];
     const jogadores = {}, lances = [], eventos = [], lesoes = [];
     const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
     times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
@@ -756,7 +768,7 @@ const __motor = (() => {
       if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} recupera a bola ${onde}.`)); return true; }
       const p = d.pivo, m = d.marcador;
       recebe(p);
-      const causas = [["dominio", 60 - p.at[A.dom]], ["passe", 60 - p.at[A.pas]]];
+      const molhado = 1 + CONFIG.chuva.erros * chuva, causas = [["dominio", (60 - p.at[A.dom]) * molhado], ["passe", (60 - p.at[A.pas]) * molhado]];
       if (m) causas.push(["desarme", 20 + m.at[A.des]], ["corte", 20 + m.at[A.pos]]);
       // os sorteios seguem a ordem antiga (quando só parte das perdas era narrada), para a mesma semente continuar dando o mesmo jogo
       const causa = rng.chance(CONFIG.narrarPerda[zona[0]]) ? sortearPeso(rng, causas, c => c[1])[0] : causas[seq % causas.length][0];
@@ -776,7 +788,7 @@ const __motor = (() => {
       sujo = true;
     }
     function entrar(i, j, pos) {
-      const t = times[i], jog = novoJog(j, pos, rng);
+      const t = times[i], jog = novoJog(j, pos, rng, grande);
       t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
       ficha(jog, i).entrou = min; sujo = true;
       return jog;
@@ -840,7 +852,7 @@ const __motor = (() => {
       const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
       // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
       const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
-      const tatico = (contra ? 0 : CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
+      const tatico = (contra ? 0 : chuva * CONFIG.chuva[atk.instr.passe] + CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
         + (ensaiado && zona[0] !== "D" ? CONFIG.ensaio : 0);
       // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
       // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
@@ -1063,8 +1075,10 @@ const __bot = (() => {
   const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
 
   // elenco: jogadores disponíveis (sem lesionados e suspensos). forcaAdversario: nota média do onze do adversário, se conhecida.
-  function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null } = {}) {
-    const estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
+  // chuva: 0, 1 ou 2 (previsão do jogo). Com chuva forte, o bot de passe curto joga com passe misto.
+  function taticaBot(elenco, { mandante = false, forcaAdversario = null, perfil = null, chuva = 0 } = {}) {
+    let estilo = (ESTILO_DO_PERFIL[perfil] || ESTILO_DO_PERFIL.equilibrado).instrucoes;
+    if (chuva >= 2 && estilo.passe === "curto") estilo = {};
     // formação: a que dá a maior nota somada ao melhor onze disponível
     let melhor = null;
     for (const nome of FORMACOES_BOT) {
@@ -1356,6 +1370,14 @@ const __rodada = (() => {
   // Cada jogador do elenco pode trazer fora (jogos que ainda fica fora), motivo e amarelos.
   // Devolve as linhas de lances, o resultado a gravar e a situação nova dos jogadores que mudaram.
   const CLIMAS = [["Ensolarado", 24, 34], ["Céu limpo", 18, 28], ["Nublado", 16, 26], ["Chuva fraca", 14, 24], ["Chuva forte", 12, 22], ["Frio de doer", 4, 12], ["Calor forte", 32, 38]];
+  // O clima sai do número da partida, para a previsão poder aparecer antes do jogo e ser a mesma no servidor e na tela.
+  // chuva: 0, 1 (fraca) ou 2 (forte); é o que o motor lê (CONFIG.chuva em motor.js).
+  function climaDaPartida(id) {
+    const rng = criarRng((id >>> 0) * 7919 + 13), c = rng.pick(CLIMAS);
+    return { nome: c[0], temp: rng.int(c[1], c[2]), chuva: c[0] === "Chuva forte" ? 2 : c[0] === "Chuva fraca" ? 1 : 0 };
+  }
+  // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
+  const jogoGrande = p => ["lib", "semi", "final", "acesso"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
   // Copa do Brasil: regras próprias da partida de copa.
   const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
   // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
@@ -1389,6 +1411,7 @@ const __rodada = (() => {
 
   function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
     const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
+    const clima = climaDaPartida(partida.id == null ? semente : partida.id);
     const lados = [casa, fora].map(l => {
       const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
       // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
@@ -1399,19 +1422,19 @@ const __rodada = (() => {
       const disponiveis = elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
-    const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil }));
+    const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
     const times = lados.map((l, i) => {
       const t = taticas[i];
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
     });
-    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa });
+    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, jogoGrande: jogoGrande(partida) });
     // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
     const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
     const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
-    // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (clima e moeda ainda não mexem no jogo)
-    const extra = criarRng((semente >>> 0) + 7919), clima = extra.pick(CLIMAS);
+    // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)
+    const extra = criarRng((semente >>> 0) + 7919);
     lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
-      n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima[0], temp: extra.int(clima[1], clima[2]) },
+      n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
       escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
     } });
     // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis
@@ -1521,7 +1544,7 @@ const __rodada = (() => {
     }
     return { fase: semis.length ? "final" : "semi", jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
