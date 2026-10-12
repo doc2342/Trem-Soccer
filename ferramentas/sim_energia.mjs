@@ -20,7 +20,7 @@ function medir(instA, instB, opcoes = {}, mudaA = x => x) {
   const saldo = (ga_ - gb_) / N;
   return `${(pts / N).toFixed(2)} pts | gols ${(ga_ / N).toFixed(2)}:${(gb_ / N).toFixed(2)} | saldo 1ºT ${(t1 / N).toFixed(2)}, 2ºT ${(saldo - t1 / N).toFixed(2)}`;
 }
-const P = { pressao: 2 }, linha = (nome, ...a) => console.log(nome.padEnd(34), medir(...a));
+const P = { pressao: 2 }, linha = (nome, ...a) => console.log(nome.padEnd(44), medir(...a));
 linha("misto x misto", {}, {});
 linha("pressão alta x misto", P, {});
 linha("pressão média x misto", { pressao: 1 }, {});
@@ -32,3 +32,7 @@ linha("Resistência +10 x normal", {}, {}, {}, comRes(10));
 linha("Resistência -10 x normal", {}, {}, {}, comRes(-10));
 linha("calor: misto x misto", {}, {}, { calor: true });
 linha("calor: pressão alta x misto", P, {}, { calor: true });
+// pressão alta que afrouxa no meio do jogo, contra a que pressiona até o fim (medido: não compensa, a energia gasta não volta)
+const afrouxa = (min, cond, pressao) => ({ ...P, ordens: [{ min, cond, muda: { pressao } }] });
+for (const [min, cond, pr] of [[60, "ganhando", 0], [46, "sempre", 0], [46, "sempre", 1], [30, "sempre", 0]]) for (const [nome, b] of [["misto", {}], ["bola longa", { passe: "longo" }]])
+  linha(`pressão alta, ${cond} aos ${min}' → ${pr} x ${nome}`, afrouxa(min, cond, pr), b);
