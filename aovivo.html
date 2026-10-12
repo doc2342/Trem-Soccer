@@ -68,10 +68,10 @@ function estadoDaRodada(T, meu) {
   }
   return { antes: classificacao(rodada.clubes, rodada.ps, res), agora: classificacao(rodada.clubes, rodada.ps, [...res, ...vivos]), placares };
 }
-// zona da tabela pela posição (0 = líder): A cai 3; nas outras sobe o campeão, do 2º ao 5º é playoff, e na B caem 2
+// zona da tabela pela posição (0 = líder): A cai 3; nas outras sobe o campeão, do 2º ao 4º é playoff, e na B caem 2
 const divisaoDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BC".includes(g) ? 2 : 3; // 0: país de uma divisão só
 function zonaDaPosicao(i, n) { const d = divisaoDoGrupo(partida.grupo);
-  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 4 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
+  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
 const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";

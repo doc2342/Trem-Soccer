@@ -30,6 +30,7 @@ import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, notaBruta, notaNaP
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
 import { sg } from "./src/siglas.js";
+import { bandeira } from "./src/bandeiras.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const id = +new URLSearchParams(location.search).get("id");
@@ -71,7 +72,7 @@ async function carregar() {
   const situacao = [j.juvenil ? "🌱 juvenil, sem contrato" : "", j.fora_jogos > 0 ? `${j.fora_motivo === "lesão" ? "🩹 lesionado" : "🟥 suspenso"}: fora por ${j.fora_jogos} ${j.fora_jogos === 1 ? "jogo" : "jogos"}` : "",
     j.emprestado_de ? `emprestado pelo ${nomeDe(j.emprestado_de)}` : "", j.aposenta_em != null ? "🏁 anunciou a aposentadoria" : "", j.a_venda ? `🏷️ à venda por ${dinheiro(j.preco_pedido)}` : ""].filter(Boolean);
   const topo = `<div class="card cabeca">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
-    <div><h2>${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
+    <div><h2>${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
       <div class="mut">${clube ? nomeDe(j.clube_id) : "Sem clube (jogador livre)"}${j.formador ? ` · formado no ${nomeDe(j.formador)}` : ""}</div>
       ${situacao.length ? `<div class="aviso" style="margin-top:4px">${situacao.join(" · ")}</div>` : ""}</div>
     <div class="nota"><b>${um(nota)}</b><span class="mut">nota</span></div></div>`;

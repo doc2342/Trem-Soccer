@@ -257,7 +257,8 @@ export function classificacao(clubes, partidas, resultados) {
   return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
 }
 
-// ---------- playoffs de acesso: 2º x 5º e 3º x 4º, depois a final; jogo único na casa do mais bem colocado ----------
+// ---------- playoffs de acesso: 3º x 4º, e o vencedor visita o 2º na final; jogo único na casa do mais bem colocado ----------
+// (Até a temporada 12 eram duas semifinais, 2º x 5º e 3º x 4º; grupo com duas semifinais ainda é resolvido do jeito antigo.)
 export const RODADA_SEMI = 19;
 export const RODADA_FINAL = 20;
 // Final do acesso: os vencedores dos playoffs dos dois grupos da segunda divisão jogam pela terceira vaga na primeira.
@@ -290,13 +291,14 @@ export function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
   for (const g of grupos) {
     const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);
     if (!semis.length) {
-      if (t.length < 5) continue;
-      jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[1], fora: t[4] }, { grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
+      if (t.length < 4) continue;
+      jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
     } else {
       const doGrupo = semis.filter(p => p.grupo === g);
       if (doGrupo.some(p => !res[p.id])) return { erro: "As semifinais ainda não terminaram." };
       const v = doGrupo.map(p => vencedorDoPlayoff(p, res[p.id])).sort((a, b) => t.indexOf(a) - t.indexOf(b));
-      if (v.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: v[0], fora: v[1] });
+      const lados = v.length === 1 ? [t[1], v[0]] : v; // uma semifinal só: o 2º colocado espera o vencedor
+      if (lados.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: lados[0], fora: lados[1] });
     }
   }
   return { fase: semis.length ? "final" : "semi", jogos };
