@@ -337,7 +337,7 @@ const __motor = (() => {
   const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
-    ataquesPorMinuto: 0.84, /* era 0,9; baixou quando o embalo entrou, para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
+    ataquesPorMinuto: 0.9, /* 0,84 com o embalo; voltou a 0,9 quando a energia passou a pesar (time cansado finaliza pior), para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
     mando: 1.04, // multiplicador da força do mandante
     expoentePosse: 1,
     expoenteCorredor: 1.5,
@@ -372,7 +372,7 @@ const __motor = (() => {
     ritmoPorMentalidade: 0.03, // por nível, somando os dois times: jogo mais aberto tem mais ataques
     mentalidadePosse: 0.02,
     agressividadeDefesa: 0.07, // por nível: força nos duelos defensivos
-    pressaoDefesa: 0.09, // por nível: força na marcação do meio para a frente
+    pressaoDefesa: 0.15, // por nível: força na marcação do meio para a frente (paga o cansaço: a pressão rende no 1º tempo e cobra no 2º)
     pressaoGasto: 0.25, // por nível: energia gasta a mais
     ladoPreferido: 2.5, ladosPreferidos: 1.8, // quanto a instrução de lado concentra os ataques
     ensaio: 0.05, // logit a favor de quem ataca pelo lado que treinou (a instrução de lado)
@@ -404,7 +404,7 @@ const __motor = (() => {
     // energia
     gastoEnergia: 0.55, // por minuto, para Resistência 25
     gastoGoleiro: 0.3,
-    energiaPiso: 0.8, // eficácia de um jogador com energia zero
+    energiaPiso: 0.6, // eficácia de um jogador com energia zero (era 0,8 e o cansaço não mudava nada: ver ferramentas/sim_energia.mjs)
     limiarCansado: 55,
     // Embalo: quem vence um duelo em que tinha folga (vantagem acima do normal naquela zona) leva parte dela para o lance seguinte.
     //   parte: fração da folga que segue adiante; teto: limite, em logit (0,28 dá uns 7 pontos percentuais);
