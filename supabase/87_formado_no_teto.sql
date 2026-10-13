@@ -85,6 +85,11 @@ begin
     insert into lancamentos (clube_id, temporada, rodada, tipo, valor, descricao)
       values (v_c.id, v_l.temporada, null, 'luvas', -v_luvas, 'Luvas: ' || v_j.nome || ' (' || p_temporadas || case when p_temporadas = 1 then ' temporada)' else ' temporadas)' end);
   end if;
+  update jogadores set salario = p_salario,
+    contrato_ate = case when p_temporadas > 0 then v_l.temporada + p_temporadas else contrato_ate end
+  where id = p_jogador;
+  if v_luvas > 0 then perform set_config('trem.luvas', '', true); end if;
+end $$;
 
 -- ---------- primeiro contrato do juvenil: igual ao do 83, com o salário dele pesando 85% se foi formado aqui ----------
 create or replace function public.profissionalizar_jogador(p_user uuid, p_jogador bigint, p_mercado int, p_temporadas int) returns text
