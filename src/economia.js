@@ -3,6 +3,7 @@ import { melhorPosicao } from "./modelo.js";
 
 export const MULTIPLO_DA_CLAUSULA = 5;   // cláusula de saída = 5 vezes o salário da temporada
 export const MAXIMO_INDIVIDUAL = 0.15;   // um jogador ganha no máximo 15% do teto de folha
+export const PESO_DO_FORMADO = 0.85;    // jogador formado no clube conta 85% do salário no teto (87_formado_no_teto.sql); o salário pago é cheio
 export const MAXIMO_DE_TEMPORADAS = 3;
 
 // O mínimo que o jogador aceita: cresce 12% a cada ponto de nota; jovem pede 20% menos e veterano 10% menos.

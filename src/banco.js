@@ -319,7 +319,7 @@ export const fazerProposta = (jogadorId, valor, salario, temporadas) => sb.rpc("
 // para clube sem dirigente, o dono oferece e a resposta vem na hora.
 export const pedirEmprestimo = jogadorId => sb.rpc("pedir_emprestimo", { p_jogador: numero(jogadorId) }).then(ok);
 export const emprestarABot = (jogadorId, clubeId) => sb.rpc("emprestar_a_bot", { p_jogador: numero(jogadorId), p_clube: clubeId }).then(ok);
-export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, nome, pos, idade, salario, clube_id, pais").eq("emprestado_de", clubeId).order("id").then(({ data, error }) => error ? [] : data);
+export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, nome, pos, idade, salario, clube_id, pais, formador").eq("emprestado_de", clubeId).order("id").then(({ data, error }) => error ? [] : data);
 export const responderProposta = (id, acao, valor = null) => sb.rpc("responder_proposta", { p_id: id, p_acao: acao, p_valor: valor }).then(ok);
 export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraproposta", { p_id: id, p_aceitar: aceitar }).then(ok);
 export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
