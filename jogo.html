@@ -1200,9 +1200,10 @@ async function telaClube(liga, clube) {
       if (porque) $("mLista").insertAdjacentHTML("beforeend", `<div class="mut" style="margin-top:8px">Fora da lista, por não poderem ser comprados pela multa agora: ${porque}. Desmarque "só quem pode ser comprado" para vê-los${propostas != null ? "; aos de clube com dirigente dá para fazer proposta" : ""}.</div>`);
     };
     const buscar = async () => {
-      $("mLista").className = "mut"; $("mLista").textContent = "Buscando…"; $("mPainel").innerHTML = "";
-      try { daPosicao = (await jogadoresDoMercado()).map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
-      catch (err) { $("mLista").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+      const lista = $("mLista"); // se a tela for trocada (redesenho, sair) enquanto a busca está a caminho, a resposta é descartada
+      lista.className = "mut"; lista.textContent = "Buscando…"; $("mPainel").innerHTML = "";
+      try { const achados = await jogadoresDoMercado(); if (!lista.isConnected) return; daPosicao = achados.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
+      catch (err) { if (lista.isConnected) lista.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     IDS_DOS_FILTROS.forEach(id => { if ($(id) && id in filtrosDoMercado) { if ($(id).type === "checkbox") $(id).checked = filtrosDoMercado[id]; else $(id).value = filtrosDoMercado[id]; } });
     ["mGrupo", "mSoMulta", "mSoVenda"].forEach(id => { if ($(id)) $(id).onchange = desenhar; });
