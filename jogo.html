@@ -185,6 +185,16 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // nome do jogador com link para a página dele (jogador.html); sem id, só o nome
 const lj = (id, nome) => { const n = String(id == null ? "" : id).replace(/\D/g, ""); return n ? `<a class="lk" href="jogador.html?id=${n}" onclick="event.stopPropagation()" title="Abrir a página do jogador">${esc(nome || "")}</a>` : esc(nome || ""); };
+// a página do jogador abre por cima desta, num quadro: fechar volta na hora, sem recarregar o clube (ctrl+clique segue abrindo em outra aba)
+const quadro = document.body.appendChild(Object.assign(document.createElement("dialog"), { id: "quadroJogador" }));
+document.addEventListener("click", e => {
+  const a = e.target.closest && e.target.closest('a[href^="jogador.html"]');
+  if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
+  e.preventDefault(); quadro.innerHTML = `<iframe title="Jogador" src="${a.href}"></iframe>`; quadro.showModal(); history.pushState({ jogador: 1 }, "");
+}, true);
+// fecha pelo link da ficha, pelo Esc (close) ou pelo botão de voltar do aparelho (popstate); chamada mais de uma vez, só a primeira age
+const fecharJogador = window.fecharJogador = () => { if (!quadro.innerHTML) return; quadro.innerHTML = ""; if (quadro.open) quadro.close(); if (history.state && history.state.jogador) history.back(); };
+quadro.addEventListener("close", fecharJogador); addEventListener("popstate", fecharJogador);
 const f1 = v => v.toFixed(1).replace(".", ",");
 const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4);
 let usuario = null, versao = 0;

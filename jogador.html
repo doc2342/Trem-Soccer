@@ -20,7 +20,7 @@
 </head>
 <body>
 <main>
-  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><span class="relogio" style="margin-left:auto" title="Hora deste aparelho"></span></div>
+  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)" onclick="if (parent !== window) { parent.setTimeout(parent.fecharJogador); return false; }">← Voltar ao clube</a><span class="relogio" style="margin-left:auto" title="Hora deste aparelho"></span></div>
   <div id="corpo"><div class="card mut">Carregando…</div></div>
 </main>
 
