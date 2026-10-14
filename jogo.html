@@ -293,48 +293,55 @@ async function telaCriar(liga, recusado) {
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
-  const [elenco, clubes, tatica, admin, extrato, comissaoToda] = await Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]);
+  // Todas as consultas saem juntas (antes iam em fila, uma leva depois da outra). Só o mercado espera os leilões e ofertas vencidos fecharem, e os lances dos livres esperam a lista deles.
+  const mercadoP = resolverLeiloes(liga.id).then(() => Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]));
+  const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], copinha,
+    [baseJogos, baseCampeoes, premiosTodos, revelados], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, finalistas, trofeus] = await Promise.all([
+    Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]),
+    Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]),
+    mercadoP,
+    // olheiro: faixa de teto do meu elenco (vazia sem olheiro contratado) e relatórios que comprei de outros jogadores; nulos antes do 36_olheiro.sql
+    Promise.all([relatorioDoElenco(), meusRelatorios(), periodoDePreAcordo(liga.id), meusPreContratos(), cotacaoDoAgente(liga.id)]),
+    jogosDaCopinha(liga.id, liga.temporada), // nula antes do 70_copinha.sql
+    Promise.all([jogosDaBase(liga.id, liga.temporada, clube.grupo), campeoesDaBase(liga.id), premiosDaLiga(liga.id), reveladosDoClube(clube.id)]),
+    safraDaTemporada(liga.id, liga.temporada), // talentos raros revelados nesta temporada em clubes com dirigente
+    clube.peneira_temporada === undefined ? null : rodadasCompletas(liga.id), // base e peneira: só depois do 35_base_e_dispensa.sql
+    mercadoP.then(m => m[3] ? lancesDosLivres(m[3].map(j => j.id)) : []),
+    liga.copa === undefined ? [] : partidasDaCopa(liga.id),
+    partidasDoClube(liga.id, clube.id).catch(() => []),
+    liga.copa === undefined ? [] : finalistasDaCopa(liga.id), // campeões e vices das temporadas anteriores
+    trofeusDaLiga(liga.id).catch(() => []),
+  ]);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
   const comissao = comissaoToda && comissaoToda.filter(t => (t.funcao || "treinador") === "treinador"), equipeDeSaude = (comissaoToda || []).filter(t => t.funcao && t.funcao !== "treinador");
   const saude = saudeDoClube(equipeDeSaude, clube);
   const adultos = elenco.filter(j => j.idade > CONFIG_TREINO.idadeSemContar).length; // os que contam no limite de 35 do elenco e nos 7 por treinador
   const areasDoTreino = qualidadeDoTreino(comissao, adultos);
-  const [caixa, obra] = await Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]);
-  await resolverLeiloes(liga.id); // fecha leilões e ofertas que já venceram
-  const [janela, transferencias, propostas, livres, ofertas] = await Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]);
-  // olheiro: faixa de teto do meu elenco (vazia sem olheiro contratado) e relatórios que comprei de outros jogadores; nulos antes do 36_olheiro.sql
-  const [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao] = await Promise.all([relatorioDoElenco(), meusRelatorios(), periodoDePreAcordo(liga.id), meusPreContratos(), cotacaoDoAgente(liga.id)]);
-  const copinha = await jogosDaCopinha(liga.id, liga.temporada); // nula antes do 70_copinha.sql
-  const [baseJogos, baseCampeoes, premiosTodos, revelados] = await Promise.all([jogosDaBase(liga.id, liga.temporada, clube.grupo), campeoesDaBase(liga.id), premiosDaLiga(liga.id), reveladosDoClube(clube.id)]);
   // nome de um prêmio individual: "Bola de Ouro", "Artilheiro da Série B1", "Seleção da Série A"…
   const NOMES_DE_PREMIO = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque" };
   const ehSelecao = p => String(p.premio).startsWith("sel");
   const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
     return ehSelecao(p) ? `Seleção ${serie}` : p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : `${NOMES_DE_PREMIO[p.premio] || p.premio} ${serie}`; };
   const premiosDoJogador = id => premiosTodos.filter(p => p.jogador_id != null && String(p.jogador_id).replace(/\D/g, "") === String(id).replace(/\D/g, "")); // liga de base: nula antes do 61_liga_de_base.sql
-  const safra = await safraDaTemporada(liga.id, liga.temporada); // talentos raros revelados nesta temporada em clubes com dirigente
   const tetoDe = Object.fromEntries((tetosDoElenco || []).map(t => ["j" + t.jogador_id, t]));
   const relatorioDe = id => (relatorios || []).filter(r => r.jogador_id === +String(id).replace(/^\D+/, "")).sort((a, b) => b.nivel - a.nivel)[0] || null;
   // janela de saídas (79_janela_de_saidas.sql): entre a última rodada e a virada, 2 vendas pelo agente além das da temporada
   const SAIDAS = 2, janelaDeSaidas = !janela && !!prePeriodo, doAgente = (transferencias || []).filter(t => t.tipo === "agente" && t.de_clube === clube.id && t.temporada === liga.temporada);
   const vendasDeSaida = doAgente.filter(t => t.janela === "saida").length, vendasPeloAgente = doAgente.length - vendasDeSaida;
-  const rodadasFeitas = clube.peneira_temporada === undefined ? null : await rodadasCompletas(liga.id); // base e peneira: só depois do 35_base_e_dispensa.sql
-  const lancesLivres = livres ? await lancesDosLivres(livres.map(j => j.id)) : [];
   const duracaoDoLeilao = liga.horas_leilao == null ? "48 horas" : +liga.horas_leilao >= 1 ? +liga.horas_leilao + " horas" : Math.round(liga.horas_leilao * 60) + " minutos";
   const meusLeiloes = new Set(lancesLivres.filter(l => l.clube_id === clube.id).map(l => l.jogador_id)).size;
   const ateQuando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
   // Copa do Brasil: jogos e resultados liberados (sem a coluna ligas.copa, antes do 47_copa_calendario_e_chave.sql, não há copa)
-  const copaTodos = liga.copa === undefined ? [] : (await partidasDaCopa(liga.id) || []).filter(p => cPor[p.casa] && cPor[p.fora]);
+  const copaTodos = (copaBruta || []).filter(p => cPor[p.casa] && cPor[p.fora]);
   const supercopa = copaTodos.find(p => p.fase !== "lib" && p.copa_fase === 0) || null, copaJogos = copaTodos.filter(p => p.fase !== "lib" && p.copa_fase > 0), libJogos = copaTodos.filter(p => p.fase === "lib"); // a Supercopa é um jogo de copa com fase 0, fora da chave (76_emprestimo_e_supercopa.sql)
-  const copaRes = Object.fromEntries((await resultadosDaCopa(copaTodos.map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r]));
+  const meusJogos = meusBrutos.filter(p => cPor[p.casa] && cPor[p.fora]);
+  const [resCopa, resLiga] = await Promise.all([resultadosDaCopa(copaTodos.map(p => p.id)).catch(() => []), resultadosDe(meusJogos.filter(p => !ehCopa(p)).map(p => p.id)).catch(() => [])]);
+  const copaRes = Object.fromEntries(resCopa.map(r => [r.partida_id, r]));
   // calendário do clube: jogos de liga, playoff e copa, com os resultados já liberados (os de copa trazem pênaltis)
-  const meusJogos = (await partidasDoClube(liga.id, clube.id).catch(() => [])).filter(p => cPor[p.casa] && cPor[p.fora]);
-  const resDosMeus = { ...Object.fromEntries((await resultadosDe(meusJogos.filter(p => !ehCopa(p)).map(p => p.id)).catch(() => [])).map(r => [r.partida_id, r])), ...copaRes };
-  const finalistas = liga.copa === undefined ? [] : await finalistasDaCopa(liga.id); // campeões e vices das temporadas anteriores
+  const resDosMeus = { ...Object.fromEntries(resLiga.map(r => [r.partida_id, r])), ...copaRes };
   // sala de troféus: títulos de liga (1º do grupo) e da copa, por clube; e o quadro dos maiores campeões
-  const trofeus = await trofeusDaLiga(liga.id).catch(() => []);
   const TIPOS_DE_TROFEU = [["lib", "🌎", "Libertadores"], ["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["super", "⭐", "Supercopa"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["D", "🏆", "Brasileiro Série C1"], ["E", "🏆", "Brasileiro Série C2"], ["vice", "🥈", "Vice da Copa do Brasil"]];
   const tiposDe = x => [...(x.posicao === 1 ? [x.grupo] : []), ...(x.copa === "campeão" ? ["copa"] : x.copa === "vice" ? ["vice"] : []), ...(x.supercopa ? ["super"] : []), ...(x.lib === "campeão" ? ["lib"] : [])];
   const trofeusDe = id => { const m = {}; trofeus.filter(x => x.clube_id === id).forEach(x => tiposDe(x).forEach(k => (m[k] = m[k] || []).push(x.temporada))); return m; };
