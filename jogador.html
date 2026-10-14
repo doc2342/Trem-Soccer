@@ -53,20 +53,21 @@ function grafico(pts) {
 }
 
 async function carregar() {
-  const { data: j } = await sb.from("jogadores").select("*").eq("id", id).maybeSingle();
-  if (!j) { document.getElementById("corpo").innerHTML = `<div class="card">Jogador não encontrado.</div>`; return; }
-  const [transf, premios, revelado, historico, numeros] = await Promise.all([
+  // tudo o que só depende do id sai junto; os números da temporada (a consulta demorada) preenchem o cartão deles quando chegarem
+  const numerosP = sb.rpc("estatisticas_do_jogador", { p_jogador: id }).then(({ data, error }) => error ? null : data, () => null);
+  const [{ data: j }, transf, premios, revelado, historico] = await Promise.all([
+    sb.from("jogadores").select("*").eq("id", id).maybeSingle(),
     lista(sb.from("transferencias").select("temporada, tipo, de_clube, para_clube, valor").eq("jogador_id", id).order("id")),
     lista(sb.from("premios_individuais").select("temporada, comp, premio, numero").in("jogador_id", ["j" + id, String(id)]).order("temporada")),
     lista(sb.from("revelados").select("temporada, idade, pos, at, clube_id").eq("jogador_id", id).limit(1)),
     lista(sb.from("jogadores_historico").select("*").eq("jogador_id", id).order("temporada")),
-    sb.rpc("estatisticas_do_jogador", { p_jogador: id }).then(({ data, error }) => error ? null : data),
   ]);
+  if (!j) { document.getElementById("corpo").innerHTML = `<div class="card">Jogador não encontrado.</div>`; return; }
   const ids = [...new Set([j.clube_id, j.emprestado_de, j.formador, ...transf.flatMap(t => [t.de_clube, t.para_clube]), ...historico.map(h => h.clube_id), ...revelado.map(r => r.clube_id)].filter(Boolean))];
-  const clubes = ids.length ? await lista(sb.from("clubes").select("id, nome, sigla, escudo, liga_id").in("id", ids)) : [];
+  const clubes = ids.length ? await lista(sb.from("clubes").select("id, nome, sigla, escudo, liga_id, ligas!clubes_liga_id_fkey(temporada)").in("id", ids)) : [];
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), nomeDe = c => cPor[c] ? esc(cPor[c].nome) : "—";
-  const clube = cPor[j.clube_id], ligaId = clube ? clube.liga_id : j.livre_liga;
-  const liga = ligaId ? (await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle()).data : null, temporada = liga ? liga.temporada : null;
+  const clube = cPor[j.clube_id];
+  const liga = clube ? clube.ligas : j.livre_liga ? (await sb.from("ligas").select("temporada").eq("id", j.livre_liga).maybeSingle()).data : null, temporada = liga ? liga.temporada : null;
   const jog = { ...j, fam: j.fam || {} }, nota = notaBruta(j.at, j.pos);
 
   const situacao = [j.juvenil ? "🌱 juvenil, sem contrato" : "", j.fora_jogos > 0 ? `${j.fora_motivo === "lesão" ? "🩹 lesionado" : "🟥 suspenso"}: fora por ${j.fora_jogos} ${j.fora_jogos === 1 ? "jogo" : "jogos"}` : "",
@@ -88,7 +89,7 @@ async function carregar() {
     <div style="margin-top:10px"><b>Posições</b> <span class="mut">${posicoes.map(p => `${sg(p)} ${NOME_FAMILIARIDADE[jog.fam[p]].toLowerCase()} (${um(notaNaPosicao(jog, p))})`).join(" · ") || sg(j.pos)}</span></div></div>`;
 
   const cel = (rot, v) => `<div><span class="mut">${rot}</span><b>${v == null ? "—" : v}</b></div>`;
-  const daTemporada = !numeros ? "" : `<div class="card"><b>Temporada ${temporada == null ? "atual" : temporada}</b> <span class="mut">liga e copas</span>
+  const daTemporada = numeros => !numeros ? "" : `<div class="card"><b>Temporada ${temporada == null ? "atual" : temporada}</b> <span class="mut">liga e copas</span>
     <div class="num" style="margin-top:6px">${cel("Jogos", numeros.jogos)}${cel("Minutos", numeros.minutos)}${cel("Gols", numeros.gols)}${cel("Assistências", numeros.ass)}${cel("Nota média", numeros.nota == null ? null : String(numeros.nota).replace(".", ","))}</div></div>`;
 
   // pontos do gráfico: a chegada pela base (se houver), cada temporada guardada e hoje
@@ -103,7 +104,8 @@ async function carregar() {
     ${premios.length ? `<div style="margin-top:10px"><b>Prêmios</b>${premios.slice().reverse().map(p => `<div>🏅 T${p.temporada} · ${esc(p.premio)} (${esc(p.comp)})${p.numero == null ? "" : ` · ${String(p.numero).replace(".", ",")}`}</div>`).join("")}</div>` : ""}</div>`;
 
   document.title = `Trem Soccer · ${j.nome}`;
-  document.getElementById("corpo").innerHTML = topo + daTemporada + `<div class="grade" style="margin-top:12px">${atributos}</div>` + contrato + evolucao + carreira;
+  document.getElementById("corpo").innerHTML = topo + `<div id="temp"><div class="card mut" style="min-height:74px">Temporada ${temporada == null ? "atual" : temporada}: carregando os números…</div></div>` + `<div class="grade" style="margin-top:12px">${atributos}</div>` + contrato + evolucao + carreira;
+  numerosP.then(n => { document.getElementById("temp").innerHTML = daTemporada(n); });
 }
 if (id) carregar(); else document.getElementById("corpo").innerHTML = `<div class="card">Jogador não informado.</div>`;
 </script>
