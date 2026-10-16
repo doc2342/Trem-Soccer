@@ -1590,7 +1590,7 @@ const __treino = (() => {
     freio: { curva: [[16, 0.05], [18, 0.36], [20, 0.62], [22, 0.82], [24, 0.96], [25, 1.03], [31, 1.06]], forca: 6, piso: 0.3 },
     // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
     treinador: [0.9, 0.25],     // área sem treinador, 90%; qualidade 50, 115%
-    parteDoGeral: 0.4,          // treinador "geral" vale 40% de cada skill nas quatro áreas com treinador designado
+    parteDoGeral: 0.4,          // treinador "geral" soma 40% de cada skill nas quatro áreas com treinador designado, por cima do designado
     coletivas: ["fis", "tat"], divisorDaSoma: 2.5, // físico e tática: soma da skill de TODOS os treinadores, dividida por 2,5 (teto 50)
     // perdaPorExcesso em 0: a punição por elenco inflado (mais de 7 jogadores acima de 21 anos por treinador) foi desligada
     // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
@@ -1621,7 +1621,8 @@ const __treino = (() => {
     const excesso = capacidade && jogadores > capacidade ? 1 - C.perdaPorExcesso * Math.min(1, (jogadores - capacidade) / capacidade) : 1;
     for (const k in AREAS) {
       const q = C.coletivas.includes(k) ? lista.reduce((s, t) => s + (t.skills[k] || 0), 0) / C.divisorDaSoma
-        : lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0);
+        // o melhor treinador designado da área, mais 40% da skill de cada treinador geral (sempre soma); teto 50
+        : Math.min(50, lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : 0), 0) + lista.reduce((s, t) => s + (t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0));
       areas[k] = C.treinador[0] + (multDaQualidade(q) - C.treinador[0]) * excesso;
     }
     return areas;
@@ -1863,6 +1864,7 @@ const __economia = (() => {
   const { melhorPosicao } = __modelo;
   const MULTIPLO_DA_CLAUSULA = 5;   // cláusula de saída = 5 vezes o salário da temporada
   const MAXIMO_INDIVIDUAL = 0.15;   // um jogador ganha no máximo 15% do teto de folha
+  const PESO_DO_FORMADO = 0.85;    // jogador formado no clube conta 85% do salário no teto (87_formado_no_teto.sql); o salário pago é cheio
   const MAXIMO_DE_TEMPORADAS = 3;
 
   // O mínimo que o jogador aceita: cresce 12% a cada ponto de nota; jovem pede 20% menos e veterano 10% menos.
@@ -1915,7 +1917,7 @@ const __economia = (() => {
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __mercadobots = (() => {

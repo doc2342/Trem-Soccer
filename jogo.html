@@ -736,17 +736,24 @@ async function telaClube(liga, clube) {
   const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção do estádio
   // manutenção por temporada, a mesma conta do manutencao_por_temporada (68_economia.sql)
   const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
+  // resultado de um lance meu em leilão de livre: frente / coberto (em andamento), venceu, perdeu (para e.clube) ou livre (ninguém levou)
+  const estadoDoLance = h => {
+    const ofertas = (lancesLivres || []).filter(o => o.jogador_id === h.jogador_id);
+    if (ofertas.some(o => o.clube_id === clube.id)) { const maior = ofertas.sort((a, b) => b.salario - a.salario)[0]; return { tipo: maior.clube_id === clube.id ? "frente" : "coberto", maior }; }
+    if (negociosDoClube.some(t => t.jogador_id === h.jogador_id && t.para_clube === clube.id && new Date(t.criada_em) >= new Date(h.criada_em))) return { tipo: "venceu" };
+    const j = h.jogadores || {};
+    return j.clube_id ? { tipo: "perdeu", clube: j.clube_id, salario: j.salario } : { tipo: "livre" };
+  };
   // Clube, Transferências: o resultado dos meus lances nos leilões de livres e todas as entradas e saídas do clube
   const abaTransferencias = () => {
     const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     const TIPO = { livre: "livre (leilão)", multa: "multa rescisória", negociada: "negociação", divida: "clube no vermelho", agente: "venda pelo agente", agente_vermelho: "venda pelo agente (vermelho)", bot: "negócio com bot", pre: "pré-acordo", emprestimo: "empréstimo" };
-    const abertos = new Set((lancesLivres || []).filter(o => o.clube_id === clube.id).map(o => o.jogador_id));
-    const situacao = h => {
-      if (abertos.has(h.jogador_id)) { const maior = (lancesLivres || []).filter(o => o.jogador_id === h.jogador_id).sort((a, b) => b.salario - a.salario)[0];
-        return maior && maior.clube_id === clube.id ? `<span class="aviso">⏳ em andamento · você está na frente</span>` : `<span class="bad">⏳ em andamento · coberto por ${lk(maior && maior.clube_id)} (${dinheiro(maior ? maior.salario : 0)})</span>`; }
-      if (negociosDoClube.some(t => t.jogador_id === h.jogador_id && t.para_clube === clube.id && new Date(t.criada_em) >= new Date(h.criada_em))) return `<span class="ok">✅ venceu</span>`;
-      const j = h.jogadores || {};
-      return j.clube_id ? `<span class="bad">❌ perdeu para ${lk(j.clube_id)}</span>${j.salario ? ` <span class="mut">(hoje ganha ${dinheiro(j.salario)})</span>` : ""}` : `<span class="mut">sem acordo · segue livre</span>`;
+    const situacao = h => { const e = estadoDoLance(h);
+      if (e.tipo === "frente") return `<span class="aviso">⏳ em andamento · você está na frente</span>`;
+      if (e.tipo === "coberto") return `<span class="bad">⏳ em andamento · coberto por ${lk(e.maior.clube_id)} (${dinheiro(e.maior.salario)})</span>`;
+      if (e.tipo === "venceu") return `<span class="ok">✅ venceu</span>`;
+      if (e.tipo === "perdeu") return `<span class="bad">❌ perdeu para ${lk(e.clube)}</span>${e.salario ? ` <span class="mut">(hoje ganha ${dinheiro(e.salario)})</span>` : ""}`;
+      return `<span class="mut">sem acordo · segue livre</span>`;
     };
     const lances = historicoLances == null ? `<div class="mut">O histórico dos lances aparece depois que o administrador rodar o 88_historico_de_lances.sql.</div>`
       : historicoLances.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th>Seu lance</th><th class="esq">Resultado</th><th>Quando</th></tr>${historicoLances.map(h => { const j = h.jogadores || {};
@@ -933,6 +940,11 @@ async function telaClube(liga, clube) {
     if (recebidas.length) l.push(item("💬", `${recebidas.length} ${recebidas.length === 1 ? "proposta esperando" : "propostas esperando"} a sua resposta, na aba Mercado.`, "aviso", "mercado"));
     const contra = (propostas || []).filter(p => p.comprador === clube.id && p.estado === "contra");
     if (contra.length) l.push(item("💬", `${contra.length} ${contra.length === 1 ? "contraproposta" : "contrapropostas"} para você decidir, na aba Mercado.`, "aviso", "mercado"));
+    // leilões: perdidos nos últimos 3 dias e lances cobertos que ainda dá para subir
+    const recentes = (historicoLances || []).filter(h => Date.now() - new Date(h.criada_em) < 3 * 864e5).map(h => [h, estadoDoLance(h)]);
+    const perdidos = recentes.filter(([, e]) => e.tipo === "perdeu"), cobertos = recentes.filter(([, e]) => e.tipo === "coberto");
+    if (cobertos.length) l.push(item("⏳", `O seu lance foi coberto: ${cobertos.map(([h]) => esc((h.jogadores || {}).nome || "")).join(", ")}. Ainda dá para subir, na aba Mercado.`, "aviso", "mercado"));
+    if (perdidos.length) l.push(item("❌", `Você perdeu ${perdidos.length === 1 ? "o leilão de" : "os leilões de"} ${perdidos.map(([h, e]) => `${esc((h.jogadores || {}).nome || "")} (para ${lk(e.clube)})`).join(", ")}. Detalhes em Clube, Transferências.`, "", "clube:transf"));
     elenco.filter(j => j.fora > 0 && j.motivo === "lesão").forEach(j => l.push(item("🩹", `${esc(j.nome)} (${sg(j.pos)}) lesionado: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     const pendurados = elenco.filter(j => j.amarelos === 3 && !(j.fora > 0)); // a suspensão vem no quarto amarelo
@@ -1185,7 +1197,7 @@ async function telaClube(liga, clube) {
         No teto, o treino para de render. Atributo que chega a 50 passa os pontos para os outros do foco. Lesionado não treina.
         A coluna "Por rodada" é uma estimativa: usa o teto visto pelo olheiro (o meio da faixa) ou, sem olheiro, um teto típico de ${CONFIG_TREINO.caminho.tetoTipico}.</div>
       ${comissao == null ? "" : `<div class="card" style="margin:10px 0 0"><b>Treinadores</b> <span class="mut">${comissao.length} de ${CONFIG_TREINO.maximoDeTreinadores} · comissão técnica toda: ${dinheiro(comissaoToda.reduce((t, x) => t + x.salario, 0))} por temporada, fora do teto de folha</span>
-        <div class="mut" style="margin:4px 0">Cada atributo pertence a uma área de treino. Em goleiros, defesa, meio e ataque vale a skill inteira do treinador designado para a área (ou 40% da skill de um treinador geral). Físico e tática são de todos: soma-se a skill de cada treinador do clube e divide-se por 2,5. Área sem ninguém treina a ${Math.round(CONFIG_TREINO.treinador[0] * 100)}%; com qualidade 50, a ${Math.round((CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1]) * 100)}%.</div>
+        <div class="mut" style="margin:4px 0">Cada atributo pertence a uma área de treino. Em goleiros, defesa, meio e ataque vale a skill inteira do treinador designado para a área, e cada treinador geral soma 40% da skill dele por cima (até 50). Físico e tática são de todos: soma-se a skill de cada treinador do clube e divide-se por 2,5. Área sem ninguém treina a ${Math.round(CONFIG_TREINO.treinador[0] * 100)}%; com qualidade 50, a ${Math.round((CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1]) * 100)}%.</div>
         <div class="chips" style="margin:6px 0">${Object.entries(AREAS).map(([k, a]) => `<span class="tag" title="${a.at.map(x => ATRIBUTOS.find(y => y.k === x).nome).join(", ")}" style="border:1px solid var(--line);border-radius:6px;padding:2px 7px">${a.nome} <b class="${areasDoTreino[k] >= 1 ? "ok" : "aviso"}">${Math.round(areasDoTreino[k] * 100)}%</b></span>`).join("")}</div>
         ${comissao.length ? `<table class="mini ctab" style="width:100%"><tr><th class="esq c-nome">Treinador</th>${Object.keys(AREAS).map(k => `<th title="${AREAS[k].nome}">${AREAS[k].nome.slice(0, 3)}</th>`).join("")}<th class="c-sal">Salário</th><th class="esq">Área</th><th></th></tr>
           ${comissao.map(t => `<tr class="c-linha"><td colspan="10" class="esq"><b>${esc(t.nome)}</b> <span class="mut">${t.idade} anos · ${dinheiro(t.salario)} por temporada</span></td></tr><tr><td class="esq c-nome">${esc(t.nome)} <span class="mut">${t.idade}</span></td>${Object.keys(AREAS).map(k => `<td class="${t.area === k && !CONFIG_TREINO.coletivas.includes(k) ? "nota" : CONFIG_TREINO.coletivas.includes(k) || t.area === "geral" ? "" : "mut"}">${t.skills[k] || 0}</td>`).join("")}<td class="c-sal">${dinheiro(t.salario)}</td>
