@@ -6,7 +6,7 @@ import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, no
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
 import { foraDaCopa, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
-import { prepararTime, simularPartida, avaliarZonas, entrosamento, setorDaPosicao, COBERTURA, ZONAS, CONFIG } from "./motor.js";
+import { prepararTime, simularPartida, entrosamento, setorDaPosicao, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
@@ -36,14 +36,13 @@ const HTML = `  <div id="cabecalho"></div>
       <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; arrastando um titular aparecem as outras posições: solte numa delas para mudar a posição dele</span></h2><div class="gramado" id="gramado"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
-      <details class="card dobra" open><summary><h2>Cobertura das zonas <span class="tag">o time ataca para cima; ataque · defesa</span></h2></summary><div class="campo" id="zonas" style="max-width:none"></div></details>
+      <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
     </div>
     <div>
       <div class="card" id="escolha"></div>
-      <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
-      <details class="card dobra" open><summary><h2>Capitão, armador e cobradores</h2></summary><div id="papeis"></div></details>
-      <details class="card dobra" open><summary><h2>Substituições <span class="tag">até 5</span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
-      <details class="card dobra" open><summary><h2>Ordens condicionais <span class="tag">até 3</span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
+      <details class="card dobra"><summary><h2>Capitão, armador e cobradores <span class="tag" id="nPapeis"></span></h2></summary><div id="papeis"></div></details>
+      <details class="card dobra"><summary><h2>Substituições <span class="tag" id="nSubs"></span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
+      <details class="card dobra"><summary><h2>Ordens condicionais <span class="tag" id="nOrdens"></span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
       <div class="card"><h2>Escalações salvas</h2><div class="row"><input id="nomeSalva" placeholder="Nome da escalação" style="flex:1;min-width:140px"><button class="sec" id="salvar">Salvar</button></div><div class="chips" id="salvas" style="margin-top:8px"></div></div>
     </div>
   </div>
@@ -280,9 +279,6 @@ function render() {
   // validação
   $("validacao").innerHTML = [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
-  // zonas
-  const z9 = V.esc11.length ? avaliarZonas(V.esc11) : null;
-  $("zonas").innerHTML = ["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = l + s; return `<div><b>${f1(V.cob[z])}</b> <span class="tag">jogadores</span><br>${z9 ? `${Math.round(z9.atk[z])} · ${Math.round(z9.def[z])}` : "—"}</div>`; }).join("")).join("");
   renderEscolha();
   // instruções
   $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
@@ -308,6 +304,11 @@ function render() {
   $("maisSub").disabled = E.subs.length >= CONFIG.maxSubstituicoes || !reservas.length || !tit.length;
   $("ordens").innerHTML = E.ordens.map((o, i) => `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button class="sec" data-tiraordem="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
   $("maisOrdem").disabled = E.ordens.length >= 3;
+  // resumo no título das seções fechadas
+  const nPapeis = ["capitao", "vice", "armador", "alvo"].filter(k => E.instr[k]).length + Object.values(E.instr.cobradores).flat().filter(Boolean).length;
+  $("nPapeis").textContent = nPapeis ? `${nPapeis} de 15 escolhidos` : "tudo automático";
+  $("nSubs").textContent = `${E.subs.length} de ${CONFIG.maxSubstituicoes}`;
+  $("nOrdens").textContent = `${E.ordens.length} de 3`;
   // salvas
   const salvas = ler("mo_salvas_" + chaveElenco()) || {};
   $("salvas").innerHTML = Object.keys(salvas).map(n => `<span class="chip" data-carrega="${esc(n)}">${esc(n)} <b data-apaga="${esc(n)}" title="Apagar">×</b></span>`).join("") || `<span class="mut">Nenhuma escalação salva para este elenco.</span>`;
@@ -373,9 +374,6 @@ async function jogar() {
   if (online) $("rel").scrollIntoView({ behavior: "smooth", block: "start" });
   return { r, partida };
 }
-
-// no celular, as seções secundárias começam fechadas para a página não ficar comprida
-if (window.matchMedia && matchMedia("(max-width:620px)").matches) raiz.querySelectorAll("details.dobra").forEach(d => d.removeAttribute("open"));
 
 // arrastar e soltar, com mouse ou dedo: de uma vaga, do banco ou da lista para uma vaga ou para o banco
 let arrasto = null, ignorarClique = false;
