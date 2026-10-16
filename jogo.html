@@ -165,7 +165,7 @@ import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
-import { sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
+import { meusLances, transferenciasDoClube, sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
@@ -307,7 +307,7 @@ async function telaClube(liga, clube) {
   // Todas as consultas saem juntas (antes iam em fila, uma leva depois da outra). Só o mercado espera os leilões e ofertas vencidos fecharem, e os lances dos livres esperam a lista deles.
   const mercadoP = resolverLeiloes(liga.id).then(() => Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], copinha,
-    [baseJogos, baseCampeoes, premiosTodos, revelados], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, finalistas, trofeus] = await Promise.all([
+    [baseJogos, baseCampeoes, premiosTodos, revelados], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, finalistas, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
     Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]),
     Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]),
     mercadoP,
@@ -322,6 +322,7 @@ async function telaClube(liga, clube) {
     partidasDoClube(liga.id, clube.id).catch(() => []),
     liga.copa === undefined ? [] : finalistasDaCopa(liga.id), // campeões e vices das temporadas anteriores
     trofeusDaLiga(liga.id).catch(() => []),
+    Promise.all([meusLances(clube.id), transferenciasDoClube(clube.id)]),
   ]);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
@@ -735,6 +736,29 @@ async function telaClube(liga, clube) {
   const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção do estádio
   // manutenção por temporada, a mesma conta do manutencao_por_temporada (68_economia.sql)
   const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
+  // Clube, Transferências: o resultado dos meus lances nos leilões de livres e todas as entradas e saídas do clube
+  const abaTransferencias = () => {
+    const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const TIPO = { livre: "livre (leilão)", multa: "multa rescisória", negociada: "negociação", divida: "clube no vermelho", agente: "venda pelo agente", agente_vermelho: "venda pelo agente (vermelho)", bot: "negócio com bot", pre: "pré-acordo", emprestimo: "empréstimo" };
+    const abertos = new Set((lancesLivres || []).filter(o => o.clube_id === clube.id).map(o => o.jogador_id));
+    const situacao = h => {
+      if (abertos.has(h.jogador_id)) { const maior = (lancesLivres || []).filter(o => o.jogador_id === h.jogador_id).sort((a, b) => b.salario - a.salario)[0];
+        return maior && maior.clube_id === clube.id ? `<span class="aviso">⏳ em andamento · você está na frente</span>` : `<span class="bad">⏳ em andamento · coberto por ${lk(maior && maior.clube_id)} (${dinheiro(maior ? maior.salario : 0)})</span>`; }
+      if (negociosDoClube.some(t => t.jogador_id === h.jogador_id && t.para_clube === clube.id && new Date(t.criada_em) >= new Date(h.criada_em))) return `<span class="ok">✅ venceu</span>`;
+      const j = h.jogadores || {};
+      return j.clube_id ? `<span class="bad">❌ perdeu para ${lk(j.clube_id)}</span>${j.salario ? ` <span class="mut">(hoje ganha ${dinheiro(j.salario)})</span>` : ""}` : `<span class="mut">sem acordo · segue livre</span>`;
+    };
+    const lances = historicoLances == null ? `<div class="mut">O histórico dos lances aparece depois que o administrador rodar o 88_historico_de_lances.sql.</div>`
+      : historicoLances.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th>Seu lance</th><th class="esq">Resultado</th><th>Quando</th></tr>${historicoLances.map(h => { const j = h.jogadores || {};
+          return `<tr><td class="esq">${pp(j.pos || "")} ${lj(h.jogador_id, j.nome)} <span class="mut">(${j.idade ?? "?"})</span></td><td>${dinheiro(h.salario)} · ${h.temporadas} temp.</td><td class="esq">${situacao(h)}</td><td class="mut">${quando(h.criada_em)}</td></tr>`; }).join("")}</table></div>`
+      : `<div class="mut">Você ainda não deu lance em nenhum leilão (contando a partir de quando o histórico foi ligado).</div>`;
+    const negocios = negociosDoClube.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Jogador</th><th class="esq">De / para</th><th>Valor</th><th class="esq">Como</th><th>Quando</th></tr>${negociosDoClube.map(t => { const entrou = t.para_clube === clube.id;
+        return `<tr><td title="${entrou ? "chegou" : "saiu"}">${entrou ? "⬅️" : "➡️"}</td><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${entrou ? (t.de_clube ? "de " + lk(t.de_clube) : `<span class="mut">estava livre</span>`) : t.para_clube ? "para " + lk(t.para_clube) : `<span class="mut">dispensado</span>`}</td><td class="${entrou ? "bad" : "ok"}">${t.valor ? dinheiro(t.valor) : "—"}</td><td class="esq mut">${TIPO[t.tipo] || esc(t.tipo || "")}</td><td class="mut">T${t.temporada} · ${quando(t.criada_em)}</td></tr>`; }).join("")}</table></div>`
+      : `<div class="mut">Nenhuma entrada ou saída ainda.</div>`;
+    return `<div class="card"><h2>Meus lances em leilões <span class="tag">jogadores livres · leva quem oferecer o maior salário</span></h2>${lances}</div>
+      <div class="card"><h2>Entradas e saídas <span class="tag">todas as transferências do clube</span></h2>${negocios}</div>
+      <div class="mut" style="font-size:12px;margin-top:6px">As propostas a outros dirigentes (enviadas e recebidas) ficam em Mercado, Negociações.</div>`;
+  };
   // Resumo das estruturas: as cinco numa tela só, com o que cada uma faz hoje, o que ganha no próximo nível e o botão de ampliar
   const resumoDasEstruturas = () => {
     if (caixa == null || clube.ct_nivel == null) return `<div class="card mut">As estruturas aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>`;
@@ -757,23 +781,26 @@ async function telaClube(liga, clube) {
   };
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
+  // ficha de um profissional: função em destaque, nome e skill grandes, o efeito numa linha própria
+  const fichaProf = (funcao, t, efeito, vazio) => t
+    ? `<div class="prof"><div class="pf-topo"><span class="pf-func">${esc(funcao)}</span><button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button></div>
+        <div><b class="pf-nome">${esc(t.nome)}</b> <span class="mut">skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} por temporada</span></div><div class="pf-efeito">${efeito}</div></div>`
+    : `<div class="prof vazio"><div class="pf-topo"><span class="pf-func">${esc(funcao)}</span><span class="aviso">vaga aberta</span></div><div class="pf-efeito">${vazio}</div></div>`;
   // comissão por estrutura: cada profissional aparece (e é contratado) na aba da estrutura em que trabalha
   const profissional = f => { const nome = FUNCOES_DE_SAUDE[f]; const t = equipeDeSaude.find(x => x.funcao === f);
             const efeito = f === "forma" ? (t ? `dá ${Math.round(ganhoDeForma(t.skill))} pontos de forma, a cada rodada, aos ${atendidosNaForma(clube.fisio_nivel)} jogadores de pior forma (fisioterapia nível ${clube.fisio_nivel || 0})` : "sem preparador, a forma depende só de jogar e jogar bem; a fisioterapia só aumenta quantos ele atende")
               : f === "psicologo" ? (t ? `corta ${Math.round(corteDoPsicologo(t.skill) * 100)}% das quedas de moral do elenco` : "sem psicólogo, a moral cai inteira com derrota e banco")
               : f === "medico" ? (t ? `as lesões duram ${Math.round(reducaoDoMedico(t.skill) * 100)}% menos (mínimo de 1 jogo fora); cuida de ${atendidosPeloMedico(clube.medico_nivel)} ${atendidosPeloMedico(clube.medico_nivel) === 1 ? "lesionado" : "lesionados"} ao mesmo tempo (departamento médico nível ${clube.medico_nivel || 0})` : "sem médico, as lesões duram o tempo todo; o departamento médico só aumenta de quantos ele cuida ao mesmo tempo")
               : (t ? `reduz em ${Math.round(reducaoDeLesao(t.skill) * 100)}% a chance de lesão do elenco` : "sem preparador, a chance de lesão é a normal");
-            return `<div style="margin-top:4px">${t ? `<b>${esc(t.nome)}</b> <span class="mut">${nome.toLowerCase()} · skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} · ${efeito}</span> <button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button>` : `<span class="aviso">${nome}: ninguém.</span> <span class="mut">${efeito[0].toUpperCase() + efeito.slice(1)}.</span>`}</div>`; };
-  const blocoOlheiro = () => relatorios == null ? "" : (t => `<div style="margin-top:10px"><b>Olheiro</b> <span class="mut">mostra o teto de cada jogador do seu elenco</span>
-          <div style="margin-top:4px">${t ? `<b>${esc(t.nome)}</b> <span class="mut">skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} · faixa de ${Math.round(16 - 13 * Math.min(50, t.skill) / 50)} pontos de nota; o teto aparece no botão i de cada jogador e na coluna Teto do elenco</span> <button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button>` : `<span class="aviso">Ninguém.</span> <span class="mut">Sem olheiro, você não sabe até onde cada jogador pode evoluir.</span>`}</div></div>`)(equipeDeSaude.find(x => x.funcao === "olheiro"));
-  const blocoAnalista = () => relatorios == null ? "" : (t => `<div style="margin-top:10px"><b>Analista</b> <span class="mut">comenta as suas partidas e prepara a prévia do próximo adversário, em Clube, Tática</span>
-          <div style="margin-top:4px">${t ? `<b>${esc(t.nome)}</b> <span class="mut">skill</span> <b class="nota">${t.skill}</b> <span class="mut">· ${dinheiro(t.salario)} · comentário ${nivelDoAnalista(t.skill) >= 3 ? "completo (resultado, zonas, jogadores e bolas paradas)" : "médio (resultado e zonas; com skill 25 entram jogadores e bolas paradas)"} · prévia com ${t.skill >= 35 ? "formação, estilo e como enfrentar" : t.skill >= 20 ? "formação e estilo (com skill 35, como enfrentar)" : "formação (com skill 20, o estilo de jogo)"}</span> <button class="sec" data-tdispensar="${t.id}" style="padding:2px 8px" title="Dispensar">✕</button>` : `<span class="aviso">Ninguém.</span> <span class="mut">Sem analista, o comentário depois do jogo traz só o básico e não há prévia do adversário.</span>`}</div></div>`)(equipeDeSaude.find(x => x.funcao === "analista"));
+            return fichaProf(nome, t, efeito, efeito[0].toUpperCase() + efeito.slice(1) + "."); };
+  const blocoOlheiro = () => relatorios == null ? "" : (t => `<div style="margin-top:10px">${fichaProf("Olheiro", t, t ? `mostra o teto de cada jogador com faixa de ${Math.round(16 - 13 * Math.min(50, t.skill) / 50)} pontos de nota; o teto aparece no botão i de cada jogador e na coluna Teto do elenco` : "", "Sem olheiro, você não sabe até onde cada jogador pode evoluir.")}</div>`)(equipeDeSaude.find(x => x.funcao === "olheiro"));
+  const blocoAnalista = () => relatorios == null ? "" : (t => `<div style="margin-top:10px">${fichaProf("Analista", t, t ? `comentário ${nivelDoAnalista(t.skill) >= 3 ? "completo (resultado, zonas, jogadores e bolas paradas)" : "médio (resultado e zonas; com skill 25 entram jogadores e bolas paradas)"} · prévia do adversário (em Clube, Tática) com ${t.skill >= 35 ? "formação, estilo e como enfrentar" : t.skill >= 20 ? "formação e estilo (com skill 35, como enfrentar)" : "formação (com skill 20, o estilo de jogo)"}` : "", "Sem analista, o comentário depois do jogo traz só o básico e não há prévia do adversário.")}</div>`)(equipeDeSaude.find(x => x.funcao === "analista"));
   // botão e lista de candidatos de uma ou mais funções ("treinador", "medico,prevencao"…)
   const candidatos = (tipos, rotulo) => `<div class="row" style="margin-top:10px"><button class="sec" data-candidatos="${tipos}">Ver candidatos a ${rotulo}</button><span class="mut" data-cand-aviso="${tipos}"></span></div><div data-cand-lista="${tipos}" style="margin-top:8px"></div>`;
   const comissaoDa = k => comissao == null ? "" : {
     ct: relatorios == null ? "" : blocoAnalista() + candidatos("analista", "analista"),
-    medico: `<div style="margin-top:10px"><b>Profissionais</b> <span class="mut">um por função</span>${profissional("medico")}${profissional("prevencao")}</div>${candidatos("medico,prevencao", "médico e preparador de prevenção")}`,
-    fisio: `<div style="margin-top:10px"><b>Profissionais</b> <span class="mut">um por função</span>${profissional("forma")}${profissional("psicologo")}</div>${candidatos("forma,psicologo", "preparador de forma e psicólogo")}`,
+    medico: `<div style="margin-top:10px"><b>Profissionais</b> <span class="mut">um por função</span><div class="profs">${profissional("medico")}${profissional("prevencao")}</div></div>${candidatos("medico,prevencao", "médico e preparador de prevenção")}`,
+    fisio: `<div style="margin-top:10px"><b>Profissionais</b> <span class="mut">um por função</span><div class="profs">${profissional("forma")}${profissional("psicologo")}</div></div>${candidatos("forma,psicologo", "preparador de forma e psicólogo")}`,
     base: relatorios == null ? "" : blocoOlheiro() + candidatos("olheiro", "olheiro"),
     estadio: "",
   }[k];
@@ -1128,7 +1155,7 @@ async function telaClube(liga, clube) {
     </div>
     </section>
     <section data-secao="clube">
-    ${subAbas("clube", [["elenco", "👥 Elenco", "Elenco"], ["trofeus", "🏆 Troféus", "Troféus"], ["financas", "💰 Finanças", "Finanças"], ["calendario", "📅 Calendário", "Jogos"], ["tatica", "📋 Tática", "Tática"]])}
+    ${subAbas("clube", [["elenco", "👥 Elenco", "Elenco"], ["trofeus", "🏆 Troféus", "Troféus"], ["financas", "💰 Finanças", "Finanças"], ["calendario", "📅 Calendário", "Jogos"], ["tatica", "📋 Tática", "Tática"], ["transf", "🔁 Transferências", "Transf."]])}
     <div data-parte="clube:elenco">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · ${temJuvenis ? `${elenco.filter(j => !j.juvenil).length} de ${LIMITE_DE_CONTRATADOS} com contrato · ${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS} juvenis` : `${adultos} de 35 com mais de 21 anos`}${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
@@ -1143,6 +1170,7 @@ async function telaClube(liga, clube) {
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
     </div>
     <div data-parte="clube:tatica"></div>
+    <div data-parte="clube:transf">${abaTransferencias()}</div>
     </section>
     <section data-secao="estruturas">
     <div id="obraAviso"></div>

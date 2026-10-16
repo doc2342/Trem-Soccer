@@ -174,7 +174,10 @@ async function atualizar() {
   let res = null;
   if (m.fim || agora >= proximaBusca) {
     let novos; [novos, res] = await Promise.all([lancesDaPartida(id, ultima), m.fim ? relatorioDaPartida(id) : null]);
-    baixados.push(...novos);
+    // duas buscas podem correr juntas (volta à aba + relógio de 10 s) e trazer os mesmos lances: só entra ordem nova
+    const tem = new Set(baixados.map(l => l.ordem));
+    baixados.push(...novos.filter(l => !tem.has(l.ordem)));
+    baixados.sort((a, b) => a.ordem - b.ordem);
     const ultimo = Math.max(0, ...baixados.map(l => new Date(l.libera_em || 0).getTime()));
     adiante = ultimo > agora; proximaBusca = adiante ? Math.max(agora + 60000, ultimo - 60000) : 0; // volta a buscar um minuto antes de acabar o que já tem
   }
