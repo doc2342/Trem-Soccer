@@ -8,6 +8,14 @@
 <script src="atualiza.js"></script>
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
+  @media (max-width:620px) {
+    .topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; }
+    .topo > svg:first-child { width:52px; height:52px; } .topo > svg:nth-child(2) { width:38px; height:38px; }
+    .topo h2 { font-size:18px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
+    .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
+    .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
+  }
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
@@ -53,6 +61,9 @@
   .central { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:12px; }
   .central > .card { margin:0; }
   .central h2 { text-transform:uppercase; letter-spacing:.04em; font-size:15px; }
+  .c-chegada-box { grid-column:span 12; } .c-chegada-box:empty { display:none; } .c-chegada { margin:0; border-color:var(--ac); }
+  .barra-passos { height:6px; border-radius:3px; background:rgba(255,255,255,.08); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
+  .passos { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 12px; } .passos > div.feito { opacity:.55; } .passos > div.feito b { text-decoration:line-through; }
   .c-jogos { grid-column:span 7; } .c-destaque { grid-column:span 5; } .c-mural, .c-liga, .c-tabela { grid-column:span 4; }
   @media (max-width:980px) { .c-jogos, .c-destaque, .c-mural, .c-liga, .c-tabela { grid-column:span 12; } }
   .faixa { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
@@ -925,6 +936,30 @@ async function telaClube(liga, clube) {
     const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
     return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}${resto.length ? `<div class="rot">Para saber</div>` : ""}` : "") + resto.join("") || item("✅", "Sem novidades: ninguém lesionado, suspenso ou com contrato no fim.", "mut");
   };
+  // painel de chegada: primeiros passos do dirigente novo; some quando tudo foi feito ou quando ele esconde
+  const CHAVE_CHEGADA = "mo_chegada_" + clube.id;
+  const chegadaVista = () => { try { return JSON.parse(localStorage.getItem(CHAVE_CHEGADA)) || {}; } catch (e) { return {}; } };
+  const marcarChegada = k => { const v = chegadaVista(); if (v[k]) return; v[k] = 1; try { localStorage.setItem(CHAVE_CHEGADA, JSON.stringify(v)); } catch (e) {} redesenharChegada(); };
+  const chegada = () => {
+    const v = chegadaVista(); if (v.fechado) return "";
+    const seg = liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900, prazo = seg >= 60 ? `${Math.round(seg / 60)} min antes do apito` : "no apito inicial";
+    const passos = [
+      clube.dirigente !== undefined && [!!clube.dirigente, "🪪", "Dê o seu nome de dirigente", "É o nome que os outros veem na tabela e nas notícias.", "config:geral"],
+      [!!tatica, "📋", "Salve a escalação e a tática", `Até salvar, o bot escala o seu time. A tática fecha ${prazo} de cada jogo e vale para todos os seguintes até você mudar.`, "tatica"],
+      treinoLigado && [elenco.some(j => j.treino), "🏋️", "Escolha o treino", "Cada jogador evolui nos focos que você escolher; os jovens são os que mais crescem.", "treino"],
+      [!!v.elenco, "👥", "Conheça o elenco", "Clique num jogador para ver atributos, contrato, multa e as ações de mercado.", "elenco"],
+      caixa != null && [!!v.financas, "💰", "Entenda o caixa e o teto da folha", `A soma dos salários não pode passar de ${dinheiro(teto)}. O dinheiro entra e sai a cada rodada.`, "financas"],
+      [!!v.escudo, "🛡️", "Personalize escudo e uniformes", "Desenhe ou envie uma imagem do escudo.", "config:escudo"],
+      [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
+    ].filter(Boolean);
+    const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
+    return `<div class="card c-chegada"><h2>Primeiros passos <span class="tag">${feitos} de ${passos.length}</span>
+        <button class="sec" id="chegadaFechar" style="float:right;padding:2px 10px;font-size:12.5px">Esconder</button></h2>
+      <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Os clubes sem dirigente são do bot.</div>
+      <div class="barra-passos"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
+      <div class="mural passos">${passos.map(([ok, ic, t, d, ir]) => `<div data-aba-ir="${ir}" class="${ok ? "feito" : ""}" title="Clique para abrir"><span class="ic">${ok ? "✅" : ic}</span><span><b>${t}</b><br><span class="mut">${d}</span></span><span class="vai">›</span></div>`).join("")}</div></div>`;
+  };
+  const redesenharChegada = () => { const el = $("chegada"); if (el) el.innerHTML = chegada(); };
   const muralDaLiga = () => {
     const l = [];
     // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
@@ -961,6 +996,7 @@ async function telaClube(liga, clube) {
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
     <div class="central">
+    <div id="chegada" class="c-chegada-box">${chegada()}</div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" class="mut" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
@@ -1391,6 +1427,7 @@ async function telaClube(liga, clube) {
     if (g === "clube") mostrarTatica(abaAtual === "clube" && k === "tatica"); // a tática fica fora de #app e aparece embaixo das abas internas
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral";
     if (g === "comp" && compPronta) mostrarCompeticao(k);
+    if (g === "clube" && (k === "elenco" || k === "financas") || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
   const abrir = (k, sub) => {
     if (ATALHOS[k]) [k, sub] = ATALHOS[k];
@@ -1406,7 +1443,14 @@ async function telaClube(liga, clube) {
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
-  document.querySelectorAll("[data-aba-ir]").forEach(a => { a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
+  document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
+  // o painel de chegada é redesenhado, então os cliques dele vão por delegação
+  $("chegada").onclick = e => {
+    if (e.target.id === "chegadaFechar") { marcarChegada("fechado"); return; }
+    const a = e.target.closest("[data-aba-ir]"); if (!a) return;
+    if (a.dataset.abaIr === "amistoso") { $("amJogar").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub);
+  };
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
   // qualquer nome de clube com atalho abre a página dele (o próprio clube leva a Clube, Elenco)
   $("app").addEventListener("click", e => {
@@ -1588,7 +1632,7 @@ async function telaClube(liga, clube) {
       const rival = proximo ? cPor[proximo.casa === clube.id ? proximo.fora : proximo.casa] : null, ultimo = meus.filter(p => res[p.id]).pop();
       $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
         return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${ehCopa(p) ? nomeDaCopa(p) : `${p.rodada === 19 ? "Semifinal" : p.rodada === 20 ? "Final" : p.rodada === 21 ? "Final do acesso" : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
-        : `<div class="mut" style="grid-column:1/-1">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</div>`;
+        : `<div class="mut" style="grid-column:1/-1">${!partidas.length ? "O calendário ainda não foi gerado." : (k => k < 0 ? "Não há mais jogos nesta temporada." : `Temporada encerrada: você terminou em <b>${k + 1}º lugar</b>, com ${tabG[k].pts} pontos. A próxima começa depois da virada, feita pelo administrador.`)(tabG.findIndex(t => t.clube.id === clube.id))}</div>`;
       $("proximo").innerHTML = (ultimo ? `Último jogo: <a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora} ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` (${nomeDaCopa(ultimo)})` : ""}. ` : "")
         + (rival ? (rival.dono ? `Próximo adversário: ${lk(rival.id)} tem dirigente, e a tática dele é segredo.` : `Próximo adversário: ${lk(rival.id)} é comandado pelo bot e joga com ${estiloDe(rival)}.`) : "")
         + (proximo ? (c => ` Previsão do tempo: ${c.nome.toLowerCase()}, ${c.temp} °C${efeitoDoClima(c) ? ` (${efeitoDoClima(c)})` : ""}.`)(climaDaPartida(proximo.id))
@@ -1755,7 +1799,7 @@ async function telaClube(liga, clube) {
   // amistoso: tática salva contra a tática de bot do adversário; nada é gravado
   const guardados = {};
   $("amJogar").onclick = async () => {
-    $("amJogar").disabled = true;
+    $("amJogar").disabled = true; marcarChegada("amistoso");
     try {
       const id = +$("amAdv").value, adv = cPor[id], casa = $("amMando").value === "casa";
       guardados[id] = guardados[id] || await elencoDoClube(id);
