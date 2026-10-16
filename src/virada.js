@@ -107,7 +107,7 @@ export const CONFIG_SAFRA = {
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
 export const ELENCO_MINIMO_DO_BOT = 18;
 // safras: { clubeId: última temporada em que o clube recebeu um talento raro }
-export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {} }) {
+export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {}, semMovimentos = false }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
   const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
@@ -126,7 +126,9 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   // acesso e descenso (só quando há mais de uma divisão), só entre os clubes do Brasil: o campeonato de outro país não sobe nem cai ninguém
   const doBrasil = clubes.filter(c => !PAISES[c.grupo]);
   for (const [g, linhas] of Object.entries(resumo.grupos)) if (PAISES[g]) linhas.forEach(l => { l.destino = plano.classificacao.find(x => x.clube_id === l.clube_id).destino = l.posicao === 1 ? "campeão" : "ficou"; });
-  if (new Set(doBrasil.map(c => c.divisao)).size > 1) {
+  // semMovimentos: temporada sem acesso e descenso (todo mundo fica na divisão e no grupo; playoffs não contam)
+  if (semMovimentos) Object.values(resumo.grupos).flat().concat(plano.classificacao).forEach(l => { if (!PAISES[l.grupo]) l.destino = l.posicao === 1 && l.divisao === 1 ? "campeão" : "ficou"; });
+  else if (new Set(doBrasil.map(c => c.divisao)).size > 1) {
     const m = movimentos({ rng, clubes: doBrasil, grupos: Object.fromEntries(Object.entries(resumo.grupos).filter(([g]) => !PAISES[g])), partidas, resultados });
     plano.movimentos = m.lista;
     m.lista.forEach(x => { grupoNovo[x.clube_id] = x.grupo; });
