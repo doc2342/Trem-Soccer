@@ -47,12 +47,14 @@ const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedido
 async function pedidos(aviso = "") {
   const el = $("pedidos"); if (!el) return;
   const [l, extras] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes()]);
+  const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada 30 s: guarda o que o admin já escolheu
+  const bots = extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
   nPedidos = l.length + extras.length; titulo();
   el.innerHTML = `<h2>Pedidos de clube: ${l.length} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
-      <span class="xg"><button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
+      <span class="xg"><select id="extraClube-${p.user_id}" title="Qual clube sem dono vira o clube extra"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["extraClube-" + p.user_id] == c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select> <button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
     ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
   el.onclick = async e => {
     const ae = e.target.dataset.aprovaExtra, re = e.target.dataset.recusaExtra;
@@ -60,7 +62,7 @@ async function pedidos(aviso = "") {
       const motivo = re ? prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):") : null;
       if (re && motivo === null) return;
       e.target.disabled = true;
-      try { if (re) await recusarPedidoExtra(re, motivo); else await aprovarExtra(extras.find(p => p.user_id === ae)); await pedidos(re ? "Pedido recusado." : "Pedido aprovado: o clube extra já está com o dirigente, com elenco novo."); dirigentes().catch(() => {}); }
+      try { if (re) await recusarPedidoExtra(re, motivo); else await aprovarExtra(extras.find(p => p.user_id === ae), +$("extraClube-" + ae).value || null); await pedidos(re ? "Pedido recusado." : "Pedido aprovado: o clube extra já está com o dirigente, com elenco novo."); dirigentes().catch(() => {}); }
       catch (err) { await pedidos("Não deu: " + err.message); }
       return;
     }
@@ -76,7 +78,7 @@ async function pedidos(aviso = "") {
 
 // Clube extra: elenco novo na média do país (nota média dos 16 melhores de cada clube sem dono de lá), com salários e contratos.
 // O banco sorteia o bot e troca tudo numa transação só (aprovar_pedido_extra).
-async function aprovarExtra(p) {
+async function aprovarExtra(p, clubeId) {
   const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === p.pais);
   if (!bots.length) throw new Error("Esse país não tem clube sem dono.");
@@ -87,7 +89,7 @@ async function aprovarExtra(p) {
     const { mercado, ...contrato } = contratoInicial(rng, j, liga.temporada);
     return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
   });
-  return aprovarPedidoExtra(p.user_id, elenco);
+  return aprovarPedidoExtra(p.user_id, elenco, clubeId);
 }
 
 // Clubes com dirigente, do mais recente para o mais antigo. Atualiza sozinho e põe o número no título da aba.

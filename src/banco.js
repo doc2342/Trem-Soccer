@@ -40,7 +40,8 @@ export const decidirPedido = (id, aprovar, motivo) => sb.rpc("decidir_pedido", {
 export const meuPedidoExtra = userId => sb.from("pedidos_extra").select("*").eq("user_id", userId).maybeSingle().then(({ data, error }) => error ? null : data);
 export const pedirClubeExtra = (pais, nome, sigla, escudo, uniforme) => sb.rpc("pedir_clube_extra", { p_pais: pais, p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 export const pedidosExtraPendentes = () => sb.from("pedidos_extra").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
-export const aprovarPedidoExtra = (userId, elenco) => sb.rpc("aprovar_pedido_extra", { p_user: userId, p_elenco: elenco }).then(ok);
+// clubeId: o bot escolhido pelo administrador (98_escolher_clube_extra.sql); null = sorteio
+export const aprovarPedidoExtra = (userId, elenco, clubeId = null) => sb.rpc("aprovar_pedido_extra", clubeId ? { p_user: userId, p_elenco: elenco, p_clube: clubeId } : { p_user: userId, p_elenco: elenco }).then(ok);
 export const recusarPedidoExtra = (userId, motivo) => sb.rpc("recusar_pedido_extra", { p_user: userId, p_motivo: motivo || null }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 // escudo enviado como imagem (51_escudo_enviado.sql): sobe ao Storage, passa a valer e apaga a imagem anterior
