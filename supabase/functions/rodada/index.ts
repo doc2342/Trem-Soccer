@@ -357,7 +357,7 @@ const __motor = (() => {
     zonaVazia: 6, // força mínima de uma zona, para zona sem ninguém não virar divisão por zero
     inclinacaoDuelo: 1.2, // quanto a diferença de força pesa no duelo; mais alto, o melhor time vence mais
     baseDuelo: { D: 1.6, M: 0.25, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 83%, 56% e 52%
-    ajudaAoCentro: 0.5, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
+    ajudaAoCentro: 0.65, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
     continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
     pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
     vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
@@ -376,7 +376,7 @@ const __motor = (() => {
     ajusteGol: { cruzamento: 0.97, corte: 1.28, profundidade: 0.93, area: 0.89, longe: 1.26, escanteio: 0.99, falta: 1, penalti: 0.98 }, // acerto fino para o xG de cada tipo bater com os gols
     xgMaximo: 0.75,
     // chance pelo lado multiplicada por (ataque na ponta / defesa daquele lado) / referência, elevado ao expoente, entre min e max (ver ferramentas/sim_formacoes.mjs)
-    flancoAberto: { referencia: 0.42, expoente: 0.7, min: 0.7, max: 2.2 },
+    flancoAberto: { referencia: 0.38, expoente: 0.7, min: 0.7, max: 2.2 },
     chuteForcado: 0.14, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
     fatorChuteForcado: 0.7,
     // chute em etapas: bloqueado pela zaga; senão vai no gol com a chance `alvo` (para quem chuta no nível do goleiroReferencia, sobe com o pé dele);
@@ -491,7 +491,7 @@ const __motor = (() => {
     MC: { MC: 0.6, ME: 0.1, MD: 0.1, DC: 0.08, AC: 0.12 },
     AMC: { AC: 0.45, MC: 0.4, AE: 0.075, AD: 0.075 },
     MR: { MD: 0.5, AD: 0.3, MC: 0.1, DD: 0.1 },
-    AMR: { AD: 0.45, MD: 0.35, AC: 0.2 },
+    AMR: { AD: 0.62, MD: 0.33, AC: 0.05 }, // meia de lado fica na ponta (o 4-2-3-1 não vira um meio fechado)
     RW: { AD: 0.7, AC: 0.2, MD: 0.1 },
     FC: { AC: 0.7, AE: 0.1, AD: 0.1, MC: 0.1 },
     SC: { AC: 0.9, MC: 0.1 },
@@ -1120,7 +1120,7 @@ const __bot = (() => {
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
   const { FORMACOES, escalar } = __escalacao;
   const { avaliarZonas } = __motor;
-  const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"];
+  const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
   // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
   const ESTILO_DO_PERFIL = {
     equilibrado: { nome: "sem estilo marcado", instrucoes: {} },
@@ -1826,7 +1826,7 @@ const __ligabase = (() => {
   const { ATRIBUTOS, LISTA_POSICOES, notaBruta, notaNaPosicao } = __modelo;
   const { limitar } = __rng;
   const { FORMACOES } = __escalacao;
-  const { taticaBot } = __bot;
+  const { taticaBot, FORMACOES_BOT } = __bot;
   const CONFIG_LIGA_DE_BASE = {
     escolinha: [13, 1.2], // nota do garoto da escolinha: 13 + 1,2 por nível da base (o juvenil de verdade chega com 15 + 1,5 por nível e treina)
     nivelDoBot: 2,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 2
@@ -1839,7 +1839,7 @@ const __ligabase = (() => {
     estudo: 10,           // pontos de nota a mais, na escolha da vaga, para a posição que o jogador está aprendendo (jogar nela acelera o estudo)
     rodizio: 10,          // pontos de nota a menos, na escolha de quem começa, por partida inteira (90 minutos) já jogada na base
   };
-  const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
+  const FORMACOES_DA_BASE = FORMACOES_BOT; // as mesmas que o bot usa
 
   function garotoDaEscolinha(rng, pos, nivel, id) {
     const at = ATRIBUTOS.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));

@@ -16,7 +16,7 @@ export const CONFIG = {
   zonaVazia: 6, // força mínima de uma zona, para zona sem ninguém não virar divisão por zero
   inclinacaoDuelo: 1.2, // quanto a diferença de força pesa no duelo; mais alto, o melhor time vence mais
   baseDuelo: { D: 1.6, M: 0.25, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 83%, 56% e 52%
-  ajudaAoCentro: 0.5, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
+  ajudaAoCentro: 0.65, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
   continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
   pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
   vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
@@ -35,7 +35,7 @@ export const CONFIG = {
   ajusteGol: { cruzamento: 0.97, corte: 1.28, profundidade: 0.93, area: 0.89, longe: 1.26, escanteio: 0.99, falta: 1, penalti: 0.98 }, // acerto fino para o xG de cada tipo bater com os gols
   xgMaximo: 0.75,
   // chance pelo lado multiplicada por (ataque na ponta / defesa daquele lado) / referência, elevado ao expoente, entre min e max (ver ferramentas/sim_formacoes.mjs)
-  flancoAberto: { referencia: 0.42, expoente: 0.7, min: 0.7, max: 2.2 },
+  flancoAberto: { referencia: 0.38, expoente: 0.7, min: 0.7, max: 2.2 },
   chuteForcado: 0.14, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
   fatorChuteForcado: 0.7,
   // chute em etapas: bloqueado pela zaga; senão vai no gol com a chance `alvo` (para quem chuta no nível do goleiroReferencia, sobe com o pé dele);
@@ -150,7 +150,7 @@ const COBERTURA_BASE = {
   MC: { MC: 0.6, ME: 0.1, MD: 0.1, DC: 0.08, AC: 0.12 },
   AMC: { AC: 0.45, MC: 0.4, AE: 0.075, AD: 0.075 },
   MR: { MD: 0.5, AD: 0.3, MC: 0.1, DD: 0.1 },
-  AMR: { AD: 0.45, MD: 0.35, AC: 0.2 },
+  AMR: { AD: 0.62, MD: 0.33, AC: 0.05 }, // meia de lado fica na ponta (o 4-2-3-1 não vira um meio fechado)
   RW: { AD: 0.7, AC: 0.2, MD: 0.1 },
   FC: { AC: 0.7, AE: 0.1, AD: 0.1, MC: 0.1 },
   SC: { AC: 0.9, MC: 0.1 },
