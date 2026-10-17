@@ -4,7 +4,7 @@
 // e quem jogou 45 minutos ganha um bônus de treino. Módulo puro: usado pela função do servidor.
 // Rodízio: quem jogou menos minutos na temporada da base tem a preferência para começar, e os juvenis que não começam entram no intervalo
 // (até cinco), no lugar dos garotos da escolinha, depois dos profissionais e depois de quem mais jogou. Assim até 16 juvenis jogam 45 minutos.
-import { ATRIBUTOS, notaBruta, notaNaPosicao } from "./modelo.js";
+import { ATRIBUTOS, LISTA_POSICOES, notaBruta, notaNaPosicao } from "./modelo.js";
 import { limitar } from "./rng.js";
 import { FORMACOES } from "./escalacao.js";
 import { taticaBot } from "./bot.js";
@@ -32,8 +32,11 @@ export function garotoDaEscolinha(rng, pos, nivel, id) {
 // e só então garoto da escolinha. Entre os esquemas, vale o que encaixa mais juvenis, depois mais profissionais, depois a maior soma de notas.
 // Quem está aprendendo uma posição joga nela sempre que o esquema tiver a vaga: conta como posição conhecida e tem a preferência.
 // minutos: { id: minutos já jogados na base nesta temporada }, para o rodízio (o juvenil que jogou menos tem a preferência para começar).
-// Devolve { nome, vagas: [{ pos, j }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra }] no intervalo, fora: [juvenis sem jogo] }.
-export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
+// Tática da base (100_tatica_da_base.sql): formacao = as 11 posições do time principal (sem ela, vale o esquema que melhor encaixa);
+// fixos = { índice da vaga: id do jogador } que o dirigente pôs na vaga (só não vale goleiro na linha nem jogador de linha no gol);
+// as vagas abertas são preenchidas como sempre, e o fixado não sai no intervalo.
+// Devolve { nome, vagas: [{ pos, j, fixo }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra }] no intervalo, fora: [juvenis sem jogo] }.
+export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { formacao = null, fixos = null } = {}) {
   const C = CONFIG_LIGA_DE_BASE, jogou = j => minutos[j.id] || 0;
   const estuda = (j, pos) => !!j.aprende && j.aprende.pos === pos && (j.fam || {})[pos] !== "N";
   const valor = (j, pos) => notaNaPosicao(j, pos) + (estuda(j, pos) ? C.estudo : 0) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
@@ -50,15 +53,23 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
     }
     return [n, soma, [...livres]];
   };
+  const doClube = Array.isArray(formacao) && formacao.length === 11 && formacao.every(p => LISTA_POSICOES.includes(p)) && formacao.filter(p => p === "GK").length === 1;
+  const esquemas = doClube ? [["do time principal", formacao]] : FORMACOES_DA_BASE.map(nome => [nome, FORMACOES[nome]]);
+  const mesmoId = (j, id) => String(j.id).replace(/^j/, "") === String(id);
   let melhor = null;
-  for (const nome of FORMACOES_DA_BASE) {
-    const vagas = FORMACOES[nome].map(pos => ({ pos, j: null })), [nJ, somaJ, fora] = encaixar(vagas, juvenis);
+  for (const [nome, posicoes] of esquemas) {
+    const vagas = posicoes.map(pos => ({ pos, j: null })), fixados = new Set();
+    for (const [i, id] of Object.entries(fixos || {})) {
+      const v = vagas[i], j = [...juvenis, ...profissionais].find(x => mesmoId(x, id));
+      if (v && !v.j && j && !fixados.has(j) && (v.pos === "GK") === (j.pos === "GK")) { v.j = j; v.fixo = true; fixados.add(j); }
+    }
+    const [nJ, somaJ, fora] = encaixar(vagas, juvenis.filter(j => !fixados.has(j)));
     for (const j of fora.slice().sort((a, b) => valor(b, b.pos) - valor(a, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
       if (j.pos === "GK") continue;
       const v = vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
       if (v) { v.j = j; fora.splice(fora.indexOf(j), 1); }
     }
-    const [nP, somaP] = encaixar(vagas, profissionais), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
+    const [nP, somaP] = encaixar(vagas, profissionais.filter(j => !fixados.has(j))), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
     if (!melhor || pontos > melhor.pontos) melhor = { nome, vagas, fora, pontos };
   }
   // intervalo: os que ficaram de fora entram, primeiro quem jogou menos; cada um na vaga de um garoto, depois na de um profissional e por fim
@@ -68,7 +79,7 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
   for (const j of reservas) {
     if (trocas.length >= C.trocas) break;
     const conhece = pos => estuda(j, pos) ? 2 : +["N", "C"].includes((j.fam || {})[pos]), tipo = v => !v.j ? 0 : v.j.juvenil ? 2 : 1;
-    const cand = melhor.vagas.map((v, i) => ({ v, i })).filter(({ v, i }) => !usadas.has(i) && (v.pos === "GK") === (j.pos === "GK"))
+    const cand = melhor.vagas.map((v, i) => ({ v, i })).filter(({ v, i }) => !usadas.has(i) && !v.fixo && (v.pos === "GK") === (j.pos === "GK"))
       .sort((a, b) => conhece(b.v.pos) - conhece(a.v.pos) || tipo(a.v) - tipo(b.v) || (a.v.j && b.v.j ? jogou(b.v.j) - jogou(a.v.j) : 0) || notaNaPosicao(j, b.v.pos) - notaNaPosicao(j, a.v.pos));
     if (!cand.length) continue;
     usadas.add(cand[0].i); trocas.push({ vaga: cand[0].i, entra: j });
@@ -79,11 +90,24 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}) {
 
 // juvenis e profissionais: os de verdade, no formato do motor. Devolve a tática pronta da partida: { escalacao: [{ j, pos }], banco, instrucoes },
 // com um garoto da escolinha em cada vaga que sobrou e as trocas do intervalo.
-export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivelDaBase = 0, prefixo = "", minutos = {}, perfil = null } = {}) {
+export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivelDaBase = 0, prefixo = "", minutos = {}, perfil = null, formacao = null, tatica = null } = {}) {
   const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);
-  const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos);
+  const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos, { formacao, fixos: tatica && tatica.fixos });
   const escalacao = e.vagas.map((v, i) => ({ j: v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i), pos: v.pos }));
-  const instrucoes = taticaBot(escalacao.map(x => x.j), { perfil }).instrucoes; // capitão, cobradores e estilo, como o bot faria com estes onze
+  const instrucoes = { ...taticaBot(escalacao.map(x => x.j), { perfil }).instrucoes, ...instrucoesDaBase(tatica && tatica.instr) }; // capitão, cobradores e estilo, como o bot faria com estes onze; o estilo escolhido pelo dirigente vale por cima
   instrucoes.substituicoes = e.trocas.map(x => ({ min: 45, sai: escalacao[x.vaga].j.id, entra: x.entra.id, pos: escalacao[x.vaga].pos, cond: "sempre" }));
   return { escalacao, banco: e.trocas.map(x => x.entra), instrucoes };
+}
+
+// Instruções que o dirigente pode escolher para a base, com as opções de cada uma (as mesmas da tática principal).
+export const INSTRUCOES_DA_BASE = {
+  mentalidade: [-2, -1, 0, 1, 2], agressividade: [-2, -1, 0, 1, 2], pressao: [0, 1, 2],
+  passe: ["misto", "curto", "longo"], lado: ["misto", "E", "C", "D", "lados"], finalizar: ["misto", "longe", "area"],
+  contraAtaque: [false, true], impedimento: [false, true],
+};
+// Só o que é válido passa; o que faltar fica como o bot faria.
+export function instrucoesDaBase(instr) {
+  const r = {};
+  for (const [k, opcoes] of Object.entries(INSTRUCOES_DA_BASE)) if (instr && opcoes.includes(instr[k])) r[k] = instr[k];
+  return r;
 }

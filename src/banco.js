@@ -232,6 +232,9 @@ export const historicoDaLigaDeBase = (ligaId, grupo, antesDe) => sb.from("base_j
 export const historicoDaCopinha = (ligaId, antesDe) => sb.from("base_jogos").select("temporada, copinha_fase, casa, fora, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("grupo", "COPINHA").lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).order("copinha_fase", { ascending: false }).order("id").then(({ data, error }) => error ? [] : data);
 // teto de folha que o banco aplica ao clube (o administrador usa para saber se o 80_virada_com_paises.sql já foi executado)
 export const tetoDoClube = clubeId => sb.rpc("teto_do_clube", { p_clube: clubeId }).then(({ data, error }) => error ? null : data);
+// tática da base (100_tatica_da_base.sql): undefined antes do SQL, null se o clube ainda não salvou
+export const minhaTaticaDaBase = clubeId => sb.from("taticas_base").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error ? undefined : data);
+export const salvarTaticaDaBase = (clubeId, dados) => sb.from("taticas_base").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // prazos (leilão, oferta, candidatos, espera dos bots) no ritmo do calendário: 73_prazos_e_comissao.sql; sem efeito antes dele
 export const ajustarPrazos = ligaId => sb.rpc("ajustar_prazos", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);

@@ -141,6 +141,12 @@ async function jogarBase(sb) {
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
   for (const x of (await sb.from("treinadores").select("*").eq("contratado", true).in("clube_id", ids)).data || []) if ((x.funcao || "treinador") === "treinador") (comissoes[x.clube_id] = comissoes[x.clube_id] || []).push(x);
+  // tática da base (100_tatica_da_base.sql): o esquema do time principal e o que o dirigente fixou; sem a tabela, a leitura falha e tudo segue automático
+  const donos = ids.filter(id => (clubes[id] || {}).dono), formacoes = {}, taticasDaBase = {};
+  if (donos.length) {
+    for (const t of (await sb.from("taticas").select("clube_id, dados").in("clube_id", donos)).data || []) formacoes[t.clube_id] = t.dados && t.dados.vagas;
+    for (const t of (await sb.from("taticas_base").select("clube_id, dados").in("clube_id", donos)).data || []) taticasDaBase[t.clube_id] = t.dados;
+  }
   // rodízio: minutos que cada um já jogou na base nesta temporada
   const minutosNaBase = {}, chave = (liga, t) => liga + ":" + t;
   for (const k of new Set(jogos.map(p => chave(p.liga_id, p.temporada)))) {
@@ -156,7 +162,7 @@ async function jogarBase(sb) {
       const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
       const jaJogou = minutosNaBase[chave(p.liga_id, p.temporada)];
       const lado = id => { const c = clubes[id] || {};
-        const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil });
+        const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil, formacao: formacoes[id], tatica: taticasDaBase[id] });
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
