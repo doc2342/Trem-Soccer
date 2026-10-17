@@ -1,6 +1,6 @@
 // Mede o peso do duelo finalizador x goleiro: gols/xG do time mais fraco e do mais forte por diferença de nível (campo neutro).
 // O xG publicado já inclui esse duelo, então gols/xG deve ficar perto de 1 para os dois lados em qualquer diferença.
-// Uso: node ferramentas/sim_inclinacao.mjs [jogos por linha]. CFG='{"inclinacaoFinalizacao":1}' troca os valores para teste.
+// Uso: node ferramentas/sim_inclinacao.mjs [jogos por linha]. CFG='{"finalizacao":{"chute":1,"goleiro":1,"penalti":0.6}}' troca os valores para teste.
 import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js"; import { gerarOnze } from "../src/gerador.js"; import { FORMACOES } from "../src/escalacao.js";
 import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";

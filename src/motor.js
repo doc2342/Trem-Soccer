@@ -22,7 +22,9 @@ export const CONFIG = {
   vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
   xgBase: { cruzamento: 0.095, corte: 0.08, profundidade: 0.27, area: 0.15, longe: 0.045, escanteio: 0.075, falta: 0.06, penalti: 0.76 },
   inclinacaoXg: 1.2,
-  inclinacaoFinalizacao: 1, // peso do duelo finalizador x goleiro (era 1,5: o time forte convertia muito acima do xG; ver ferramentas/sim_inclinacao.mjs)
+  // peso de quem chuta e do goleiro na chance de gol, os dois em volta do goleiroReferencia; a média dos dois é a inclinação antiga (1),
+  // então forte x fraco não muda, mas o goleiro pesa o dobro (no Dugout ele pesa 3 a 4 vezes: ferramentas/dugout_rev/RELATORIO.md)
+  finalizacao: { chute: 2 / 3, goleiro: 4 / 3, penalti: 0.6 },
   goleiroReferencia: 38, // defesa de um goleiro titular típico: a nota do goleiro compara os gols sofridos com o xG que esse goleiro enfrentaria
   fatorLibero: 0.8, // o líbero reduz o xG das bolas em profundidade
   // quem chuta mal prefere cruzar ou tocar: o peso do corte e do chute de longe depende do pé de quem venceu o duelo,
@@ -36,7 +38,12 @@ export const CONFIG = {
   flancoAberto: { referencia: 0.42, expoente: 0.7, min: 0.7, max: 2.2 },
   chuteForcado: 0.14, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
   fatorChuteForcado: 0.7,
-  semGol: { defesa: 0.33, fora: 0.47, trave: 0.04, bloqueado: 0.16 }, // destino das finalizações que não viram gol
+  // chute em etapas: bloqueado pela zaga; senão vai no gol com a chance `alvo` (para quem chuta no nível do goleiroReferencia, sobe com o pé dele);
+  // no gol, o que sobra da chance de gol decide entre gol e defesa (aí só contam a chance e o goleiro). Fora: `trave` é a parte que bate na trave.
+  semGol: {
+    area: { bloqueado: 0.16, alvo: 0.46 }, longe: { bloqueado: 0.18, alvo: 0.4 }, corte: { bloqueado: 0.16, alvo: 0.4 }, cruzamento: { bloqueado: 0.12, alvo: 0.4 },
+    escanteio: { bloqueado: 0.14, alvo: 0.4 }, falta: { bloqueado: 0.16, alvo: 0.38 }, profundidade: { bloqueado: 0.1, alvo: 0.55 }, penalti: { bloqueado: 0, alvo: 0.88 }, trave: 0.08,
+  },
 
   // instruções
   mentalidadeAtaque: 0.075, // por nível de mentalidade: força no meio e no ataque
@@ -592,11 +599,13 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
     }
     const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
-    const k = c.tipo === "penalti" ? 0.6 : CONFIG.inclinacaoFinalizacao;
-    const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * mod(c.chute + CONFIG.vantagemFinalizador, defesa, k), 0.005, 0.92);
+    const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
+    const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
+    const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
     const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
-    let resultado = rng.chance(pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
-    if (c.tipo === "penalti" && resultado === "bloqueado") resultado = "defesa"; // pênalti não tem zagueiro na frente
+    const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
+    const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
+      : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
     e.chances++; e.xg += xg; e.finalizacoes++;
     if (resultado === "gol" || resultado === "defesa") e.noGol++;
     if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }

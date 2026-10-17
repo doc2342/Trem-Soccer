@@ -36,10 +36,12 @@ const nomes = await (await fetch("./dados/nomes.json")).json();
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 
 // Monta um time sob medida. x.instrucoes pode ser um objeto ou uma função (escalacao, banco) => instruções; x.banco: gerar 7 reservas.
+// nível dos onzes: o da liga (o goleiro titular típico é o CONFIG.goleiroReferencia); os gols dependem do nível porque o goleiro pesa mais que quem chuta
+const NIVEL = 38;
 const BANCO = ["GK", "DC", "DR", "MC", "MR", "FC", "SC"];
 function montar(rng, x, prefixo, mandante) {
-  const escalacao = gerarOnze(rng, FORMACOES[x.formacao || "4-4-2"], { nivel: x.nivel || 30, perfil: x.perfil, nomes, prefixoId: prefixo });
-  const banco = x.banco ? gerarOnze(rng, BANCO, { nivel: (x.nivel || 30) - 3, nomes, prefixoId: prefixo + "b" }).map(o => o.j) : [];
+  const escalacao = gerarOnze(rng, FORMACOES[x.formacao || "4-4-2"], { nivel: x.nivel || NIVEL, perfil: x.perfil, nomes, prefixoId: prefixo });
+  const banco = x.banco ? gerarOnze(rng, BANCO, { nivel: (x.nivel || NIVEL) - 3, nomes, prefixoId: prefixo + "b" }).map(o => o.j) : [];
   const instrucoes = typeof x.instrucoes === "function" ? x.instrucoes(escalacao, banco) : x.instrucoes;
   return prepararTime({ nome: prefixo.toUpperCase(), mandante, escalacao, banco, instrucoes });
 }
@@ -90,7 +92,7 @@ function matriz({ pares = 8, jogos = 25 } = {}) {
   return { ppj, tabela };
 }
 
-function niveis(dif) { return confronto({ nivel: 30 + dif }, { nivel: 30 }, { pares: 24, neutro: true, semente: 50 + dif }); }
+function niveis(dif) { return confronto({ nivel: NIVEL + dif }, { nivel: NIVEL }, { pares: 24, neutro: true, semente: 50 + dif }); }
 function perfis() {
   const ks = Object.keys(PERFIS), ppj = Object.fromEntries(ks.map(k => [k, 0]));
   let semente = 300;
