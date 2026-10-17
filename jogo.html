@@ -58,7 +58,18 @@
   /* próximo jogo: rótulo à esquerda, informação à direita */
   .pj { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:8px; padding:4px 0; border-top:1px solid var(--line); font-size:13.5px; } .pj > span:first-child { color:var(--mut); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; padding-top:2px; }
   .pj:first-child { border-top:0; }
-  .colunas .card { display:inline-block; width:100%; } height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
+  .colunas .card { display:inline-block; width:100%; }
+  /* chave do mata-mata */
+  .chave { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; }
+  .ch-col { flex:0 0 158px; display:flex; flex-direction:column; }
+  .ch-f { font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); text-align:center; margin-bottom:6px; }
+  .ch-jogos { flex:1; display:flex; flex-direction:column; justify-content:space-around; gap:6px; }
+  .ch-j { display:block; border:1px solid var(--line); border-radius:8px; background:var(--campo); padding:4px 8px; font-size:12.5px; text-decoration:none; color:inherit; }
+  a.ch-j:hover { border-color:var(--ac); }
+  .ch-t { display:flex; justify-content:space-between; gap:6px; color:var(--mut); } .ch-t span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ch-v { color:var(--tx); font-weight:600; } .ch-eu span { color:var(--ac); } .ch-p { font-size:11px; color:var(--mut); text-align:right; }
+  .ch-vazio { border-style:dashed; color:var(--mut); text-align:center; padding:12px 8px; font-size:11.5px; }
+  .fbarra { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
   .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
   @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
   /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
@@ -507,6 +518,7 @@ async function telaClube(liga, clube) {
     const premio = f => f === 6 ? `${dinheiro(P_COPA.campeao)} <span class="mut">(vice ${dinheiro(P_COPA.vice)})</span>` : P_COPA.fases[f] ? dinheiro(P_COPA.fases[f]) : "—";
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
       return !l.length ? `<span class="mut" title="O sorteio sai quando a fase anterior terminar">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
+    $("compChave").innerHTML = chaveDaCopa(copaJogos, [1, 2, 3, 4, 5, 6]);
     $("tituloTabela").innerHTML = "🏆 Copa do Brasil · fases";
     $("tabela").className = "";
     $("tabela").innerHTML = `${supercopa ? (r => `<div style="margin-bottom:8px">⭐ <b>Supercopa</b> <span class="mut">· campeão da Série A x campeão da Copa do Brasil ·</span> <a class="lk" href="aovivo.html?id=${supercopa.id}">${esc(cPor[supercopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[supercopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(supercopa))}</b>` : ` · ${new Date(supercopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(supercopa.inicio)}`}</div>`)(copaRes[supercopa.id]) : ""}
@@ -527,6 +539,21 @@ async function telaClube(liga, clube) {
     $("copaFase").onchange = mostrar;
     mostrar();
   }
+  // Chave do mata-mata: uma coluna por fase. Como o sorteio sai a cada fase, cada jogo é posto na altura de onde vieram os seus clubes,
+  // e assim quem passa fica alinhado com o jogo seguinte. Fase ainda não sorteada aparece com as vagas tracejadas.
+  // jogos: lista; fase(p): número da fase; res(p): placar (gols_casa, gols_fora, penaltis) ou null; venc(p): id de quem passou
+  const desenharChave = (jogos, fases, fase, res, venc) => {
+    const por = Object.fromEntries(fases.map(f => [f, jogos.filter(p => fase(p) === f)]));
+    for (let k = 1; k < fases.length; k++) { const ant = por[fases[k - 1]], de = id => { const i = ant.findIndex(p => p.casa === id || p.fora === id); return i < 0 ? 999 : i; };
+      por[fases[k]].sort((a, b) => Math.min(de(a.casa), de(a.fora)) - Math.min(de(b.casa), de(b.fora))); }
+    const caixa = p => { const r = res(p), v = venc(p);
+      const lado = (id, g) => `<div class="ch-t ${v === id ? "ch-v" : ""} ${id === clube.id ? "ch-eu" : ""}"><span>${esc((cPor[id] || {}).nome || "—")}</span><b>${r ? g : ""}</b></div>`;
+      return `<a class="ch-j" href="aovivo.html?id=${p.id}">${lado(p.casa, r && r.gols_casa)}${lado(p.fora, r && r.gols_fora)}${r && r.penaltis ? `<div class="ch-p">pên. ${r.penaltis[0]} x ${r.penaltis[1]}</div>` : ""}</a>`; };
+    return `<div class="chave">${fases.map(f => `<div class="ch-col"><div class="ch-f">${FASES_DA_COPA[f]}</div><div class="ch-jogos">${por[f].length ? por[f].map(caixa).join("")
+      : Array.from({ length: 2 ** (6 - f) }, () => `<div class="ch-j ch-vazio">a sortear</div>`).join("")}</div></div>`).join("")}</div>`;
+  };
+  const chaveDaCopa = (jogos, todas) => { const fases = todas.filter(f => f > 1 || jogos.some(p => p.copa_fase === 1)); // a preliminar só aparece se existir
+    return jogos.length ? `<div class="card"><h2>Chave <span class="tag">clique num jogo para abrir · o sorteio de cada fase sai quando a anterior termina</span></h2>${desenharChave(jogos, fases, p => p.copa_fase, p => copaRes[p.id], quemPassou)}</div>` : ""; };
   // um jogo de mata-mata na lista da fase (Copa do Brasil e Libertadores): em negrito, quem passou
   const linhaDeCopa = p => { const r = copaRes[p.id], v = quemPassou(p), aoVivo = !r && new Date(p.inicio).getTime() <= Date.now(), meu = p.casa === clube.id || p.fora === clube.id;
       const nome = id => v === id ? `<b>${esc(cPor[id].nome)}</b>` : esc(cPor[id].nome);
@@ -548,6 +575,7 @@ async function telaClube(liga, clube) {
     const premio = f => f === 6 ? `${dinheiro(P.campeao)} <span class="mut">(vice ${dinheiro(P.vice)})</span>` : P.fases[f] ? dinheiro(P.fases[f]) : "—";
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
       return !l.length ? `<span class="mut">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
+    $("compChave").innerHTML = chaveDaCopa(libJogos, [3, 4, 5, 6]);
     $("tituloTabela").innerHTML = "🌎 Libertadores · fases";
     $("tabela").className = "";
     $("tabela").innerHTML = `${campeao ? `<div style="font-size:16px;margin-bottom:8px">🌎 Campeão: <b>${lk(campeao)}</b></div>` : ""}
@@ -765,7 +793,8 @@ async function telaClube(liga, clube) {
       : ult.vencedor === clube.id ? `Seu clube passou ${ult.copinha_fase === 3 ? "das" : "da"} ${FASES_DA_COPA[ult.copinha_fase].toLowerCase()} e espera o sorteio.` : `Seu clube caiu ${ult.copinha_fase === 3 ? "nas" : "na"} ${FASES_DA_COPA[ult.copinha_fase].toLowerCase()}.`;
     return `<div class="card"><h2>${titulo} <span class="tag">${FASES_DA_COPA[ultima]}</span></h2><div>${situacao}</div>
       ${meus.length ? `<div style="margin-top:8px"><b>Seu caminho</b>${meus.map(p => `<div style="margin-top:3px"><span class="mut">${FASES_DA_COPA[p.copinha_fase]}:</span> ${linhaC(p).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}</div>`).join("")}</div>` : ""}
-      <details style="margin-top:8px"><summary style="cursor:pointer"><b>Chave completa</b> <span class="mut">· ${jogos.length} ${jogos.length === 1 ? "jogo" : "jogos"}</span></summary>${fases.slice().reverse().map(f => `<div style="margin:6px 0 0 4px"><b>${FASES_DA_COPA[f]}</b>${jogos.filter(p => p.copinha_fase === f).map(linhaC).join("")}</div>`).join("")}</details>${comoFunciona(regras)}</div>`;
+      <details style="margin-top:8px" ${meus.length && !final ? "" : "open"}><summary style="cursor:pointer"><b>Chave</b> <span class="mut">· ${jogos.length} ${jogos.length === 1 ? "jogo" : "jogos"}</span></summary>
+        ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor)}</details>${comoFunciona(regras)}</div>`;
   };
   const cartaoDaCopinha = () => cartaoDeMataMata(copinha, "Copinha", "O sorteio sai quando o calendário da temporada for gerado.", liga.copa && liga.copa.copinha_diretos);
   const cartaoDaLibJuvenil = () => cartaoDeMataMata(libJuvenil, "Libertadores Juvenil", "Sai com o calendário da temporada, nas datas da Libertadores (se ela tiver saído).", [],
@@ -1499,6 +1528,7 @@ ${historicoDaBase()}
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
+    <div id="compChave"></div>
     </section>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
@@ -1906,7 +1936,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral";
-    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compKpis").hidden = k !== "liga"; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compChave").hidden = k !== "copa" && k !== "lib"; $("compKpis").hidden = k !== "liga"; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
