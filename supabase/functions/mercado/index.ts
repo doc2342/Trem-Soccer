@@ -178,6 +178,10 @@ const __modelo = (() => {
 
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+  // Teto da nota = 23 + 0,20 × talento (1 a 100). Talento mínimo para o teto não ficar abaixo da nota de hoje: ninguém nasce acima do próprio teto.
+  const TETO_DO_TALENTO = [23, 0.20];
+  const talentoMinimo = j => Math.max(1, Math.min(100, Math.ceil((notaDeTeto(j) - TETO_DO_TALENTO[0]) / TETO_DO_TALENTO[1])));
+
   // Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
   // Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
   function notaDeTeto(j) {
@@ -198,14 +202,14 @@ const __modelo = (() => {
   // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
   const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
   const paisDoGrupo = g => PAISES[g] || "Brasil";
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __gerador = (() => {
   // Gerador de jogadores e de elencos iniciais.
   // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
   const { limitar } = __rng;
-  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta } = __modelo;
+  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } = __modelo;
   // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
   // para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
   const VAGAS_TITULARES = ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC", "DC", "DMC", "AMC", "RW", "LW"];
@@ -295,7 +299,7 @@ const __gerador = (() => {
     const at = sortearAtributos(rng, pos, alvo);
     aplicarPerfil(rng, at, pos, perfil);
     ajustarNota(rng, at, pos, alvo);
-    return {
+    const j = {
       id,
       nome: sortearNome(rng, nomes, pais, usados),
       pais,
@@ -306,6 +310,8 @@ const __gerador = (() => {
       tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
       pe: sortearPe(rng, pos),
     };
+    j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
+    return j;
   }
 
   // Desvios em torno do alvo que somam zero, para todo elenco ter a mesma média.

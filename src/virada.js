@@ -1,6 +1,6 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, PAISES, paisDoGrupo } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
@@ -147,6 +147,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
     const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados });
     jovem.tal = limitar(jovem.tal + (fora ? REGUA_DE_FORA.talento : TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
+    // o teto nunca fica abaixo da nota com que ele chega: a reposição de um craque nascia com nota 43 e teto 31 (106_teto_acima_da_nota.sql)
+    jovem.tal = Math.max(jovem.tal, talentoMinimo(jovem)); // depois do deslocamento da divisão, que pode baixar o talento de novo
     const mercado = salarioDeMercado(jovem);
     const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };

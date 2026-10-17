@@ -179,6 +179,10 @@ const __modelo = (() => {
 
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+  // Teto da nota = 23 + 0,20 × talento (1 a 100). Talento mínimo para o teto não ficar abaixo da nota de hoje: ninguém nasce acima do próprio teto.
+  const TETO_DO_TALENTO = [23, 0.20];
+  const talentoMinimo = j => Math.max(1, Math.min(100, Math.ceil((notaDeTeto(j) - TETO_DO_TALENTO[0]) / TETO_DO_TALENTO[1])));
+
   // Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
   // Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
   function notaDeTeto(j) {
@@ -199,7 +203,7 @@ const __modelo = (() => {
   // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
   const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
   const paisDoGrupo = g => PAISES[g] || "Brasil";
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __saude = (() => {
@@ -1605,7 +1609,7 @@ const __treino = (() => {
   // o centro de treinamento, o trabalho em equipe, ter jogado e os treinadores (cada atributo pertence a uma área de treino, e a qualidade da área
   // depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
   // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
-  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto } = __modelo;
+  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto, TETO_DO_TALENTO } = __modelo;
   const { criarRng } = __rng;
   const CONFIG_TREINO = {
     pontosPorNivel: 100,
@@ -1614,7 +1618,7 @@ const __treino = (() => {
     ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
     equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe
     bonusPorJogar: 0.1, minutosParaBonus: 45,
-    teto: [23, 0.20],           // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
+    teto: TETO_DO_TALENTO,      // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
     // caminho: os pontos da sessão são multiplicados por (teto − partida) / divisor. Sem saber o teto (tela sem olheiro), vale o teto típico.
     caminho: { partida: 15, divisor: 26, minimo: 6, tetoTipico: 36 },
     folga: [1 / 3, 1 / 18],     // teto que cede: fração dos jogadores que passa do teto em 1 ponto ou mais, e em 2

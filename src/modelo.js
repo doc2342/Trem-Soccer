@@ -136,6 +136,10 @@ export const peNaPosicao = (pe, pos) => { const p = POSICOES[pos]; return !p || 
 
 export const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+// Teto da nota = 23 + 0,20 × talento (1 a 100). Talento mínimo para o teto não ficar abaixo da nota de hoje: ninguém nasce acima do próprio teto.
+export const TETO_DO_TALENTO = [23, 0.20];
+export const talentoMinimo = j => Math.max(1, Math.min(100, Math.ceil((notaDeTeto(j) - TETO_DO_TALENTO[0]) / TETO_DO_TALENTO[1])));
+
 // Nota que conta para o teto do treino: a maior entre as posições em que o jogador é natural.
 // Assim, aprender uma posição nova ou trocar a principal não abre um teto novo.
 export function notaDeTeto(j) {

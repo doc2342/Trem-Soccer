@@ -5,7 +5,7 @@
 // o centro de treinamento, o trabalho em equipe, ter jogado e os treinadores (cada atributo pertence a uma área de treino, e a qualidade da área
 // depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
 // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto, TETO_DO_TALENTO } from "./modelo.js";
 import { criarRng } from "./rng.js";
 
 export const CONFIG_TREINO = {
@@ -15,7 +15,7 @@ export const CONFIG_TREINO = {
   ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
   equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe
   bonusPorJogar: 0.1, minutosParaBonus: 45,
-  teto: [23, 0.20],           // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
+  teto: TETO_DO_TALENTO,      // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
   // caminho: os pontos da sessão são multiplicados por (teto − partida) / divisor. Sem saber o teto (tela sem olheiro), vale o teto típico.
   caminho: { partida: 15, divisor: 26, minimo: 6, tetoTipico: 36 },
   folga: [1 / 3, 1 / 18],     // teto que cede: fração dos jogadores que passa do teto em 1 ponto ou mais, e em 2

@@ -1,7 +1,7 @@
 // Gerador de jogadores e de elencos iniciais.
 // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
 import { limitar } from "./rng.js";
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } from "./modelo.js";
 
 // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
 // para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
@@ -92,7 +92,7 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
   const at = sortearAtributos(rng, pos, alvo);
   aplicarPerfil(rng, at, pos, perfil);
   ajustarNota(rng, at, pos, alvo);
-  return {
+  const j = {
     id,
     nome: sortearNome(rng, nomes, pais, usados),
     pais,
@@ -103,6 +103,8 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
     tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
     pe: sortearPe(rng, pos),
   };
+  j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
+  return j;
 }
 
 // Desvios em torno do alvo que somam zero, para todo elenco ter a mesma média.
