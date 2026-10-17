@@ -361,7 +361,8 @@ const __motor = (() => {
     vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
     xgBase: { cruzamento: 0.095, corte: 0.08, profundidade: 0.27, area: 0.15, longe: 0.045, escanteio: 0.075, falta: 0.06, penalti: 0.76 },
     inclinacaoXg: 1.2,
-    inclinacaoFinalizacao: 1.5,
+    inclinacaoFinalizacao: 1, // peso do duelo finalizador x goleiro (era 1,5: o time forte convertia muito acima do xG; ver ferramentas/sim_inclinacao.mjs)
+    goleiroReferencia: 38, // defesa de um goleiro titular típico: a nota do goleiro compara os gols sofridos com o xG que esse goleiro enfrentaria
     fatorLibero: 0.8, // o líbero reduz o xG das bolas em profundidade
     // quem chuta mal prefere cruzar ou tocar: o peso do corte e do chute de longe depende do pé de quem venceu o duelo,
     // e o chute forçado (ataque emperrado) sai do pé de quem chuta melhor entre ele e os atacantes da área (null desliga)
@@ -931,16 +932,17 @@ const __motor = (() => {
       }
       const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
       const k = c.tipo === "penalti" ? 0.6 : CONFIG.inclinacaoFinalizacao;
-      const pGol = limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * mod(c.chute + CONFIG.vantagemFinalizador, c.defesa + ruido, k), 0.005, 0.92);
+      const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * mod(c.chute + CONFIG.vantagemFinalizador, defesa, k), 0.005, 0.92);
+      const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
       let resultado = rng.chance(pGol) ? "gol" : sortearPeso(rng, Object.entries(CONFIG.semGol), o => o[1])[0];
       if (c.tipo === "penalti" && resultado === "bloqueado") resultado = "defesa"; // pênalti não tem zagueiro na frente
-      e.chances++; e.xg += c.xg; e.finalizacoes++;
+      e.chances++; e.xg += xg; e.finalizacoes++;
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
       if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
       const sf = jogadores[c.finalizador.j.id];
-      sf.finalizacoes++; sf.xg += c.xg; if (resultado === "gol") sf.gols++;
+      sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg: c.xg, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
+      empurrar(lances, { n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
     }
 
@@ -1219,7 +1221,7 @@ const __relatorio = (() => {
         const g = de(l.goleiro);
         if (l.resultado === "defesa") g.defesas++;
         if (l.resultado === "gol") g.sofridos++;
-        if (l.resultado === "gol" || l.resultado === "defesa") g.xgContra += l.xg;
+        if (l.resultado === "gol" || l.resultado === "defesa") g.xgContra += l.xgGk ?? l.xg;
       }
     }
     return Object.entries(partida.jogadores).map(([id, j]) => {

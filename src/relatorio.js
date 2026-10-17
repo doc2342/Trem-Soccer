@@ -33,7 +33,7 @@ function notas(partida) {
       const g = de(l.goleiro);
       if (l.resultado === "defesa") g.defesas++;
       if (l.resultado === "gol") g.sofridos++;
-      if (l.resultado === "gol" || l.resultado === "defesa") g.xgContra += l.xg;
+      if (l.resultado === "gol" || l.resultado === "defesa") g.xgContra += l.xgGk ?? l.xg;
     }
   }
   return Object.entries(partida.jogadores).map(([id, j]) => {
