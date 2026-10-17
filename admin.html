@@ -99,12 +99,15 @@ async function dirigentes() {
   const liga = await ligaAtual(); if (!liga) return;
   const [clubes, emails] = await Promise.all([clubesDaLiga(liga.id), emailsDosDirigentes()]);
   const ePor = Object.fromEntries(emails.map(e => [e.clube_id, e.email]));
-  const l = clubes.filter(c => c.dono).sort((a, b) => new Date(b.assumido_em) - new Date(a.assumido_em));
+  // clube extra (96_seletor_de_clubes.sql) vem logo abaixo do principal do mesmo dirigente; a ordem é a do principal
+  const comDono = clubes.filter(c => c.dono), maisNovo = (a, b) => new Date(b.assumido_em) - new Date(a.assumido_em);
+  const principais = comDono.filter(c => !c.extra || !comDono.some(x => x.dono === c.dono && !x.extra)).sort(maisNovo);
+  const l = principais.flatMap(c => [c, ...comDono.filter(x => x.dono === c.dono && x !== c && x.extra).sort(maisNovo).map(x => ({ ...x, de: c }))]);
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
-  nDirigentes = l.length; titulo();
-  el.innerHTML = `<h2>Dirigentes: ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada 30 segundos · o número também aparece no título da aba</span></h2>
+  nDirigentes = new Set(comDono.map(c => c.dono)).size; titulo();
+  el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada 30 segundos · o número também aparece no título da aba</span></h2>
     ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
-      ${l.map(c => `<tr><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
+      ${l.map(c => `<tr${c.de ? ` style="font-size:.94em"` : ""}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${c.de ? `<span class="mut">↳</span> ` : ""}${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}${c.de ? ` <span class="mut">· clube extra de ${esc(c.de.nome)}</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
   el.onclick = async e => {
     const id = e.target.dataset.libera; if (!id) return;
     if (!confirm(`Liberar o clube "${e.target.dataset.nome}"? O dirigente perde o clube, que volta para o bot, e a tática dele é apagada. Não dá para desfazer.`)) return;
