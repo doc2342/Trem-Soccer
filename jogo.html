@@ -36,6 +36,7 @@
   .janela.aberta { border-color:var(--ok); background:rgba(63,178,127,.12); } .janela.aberta .jl { color:var(--ok); }
   .janela.pre { border-color:var(--ac); background:rgba(242,193,78,.10); } .janela.pre .jl { color:var(--ac); }
   .janela.fechada { border-color:var(--bad); background:rgba(229,100,107,.10); } .janela.fechada .jl { color:var(--bad); }
+  .janela.fechada { border-color:var(--bad) !important; background:rgba(229,100,107,.10) !important; } .janela.fechada .jl { display:inline; font-weight:700; } /* fechada: o aviso vem no topo e a busca fica recolhida */
   /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
   .ctab select { padding:3px 4px; max-width:110px; } .ctab .c-linha { display:none; }
   @media (max-width:620px) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
@@ -1633,11 +1634,6 @@ ${historicoDaBase()}
     <section data-secao="clubeVisto"><div id="cvCorpo"></div></section>
     <section data-secao="mercado">
     ${janela === undefined ? "" : kpisDoMercado()}
-    <div class="subabas" id="mSub">${[["busca", "🔎 Buscar jogadores", "Busca", 0],
-        ...(propostas == null ? [] : [["neg", "🤝 Negociações", "Propostas", propostas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length]]),
-        ...(livres == null ? [] : [["livres", "✍️ Livres e ofertas", "Livres", livres.length + ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length]]),
-        ["hist", "📜 Transferências", "Feitas", 0]]
-      .map(([k, n, curto, q]) => `<button class="sub" data-msub="${k}"><span class="sl">${n}</span><span class="sc">${curto}</span>${q ? `<span class="qt">${q}</span>` : ""}</button>`).join("")}</div>
     ${janela === undefined ? "" : (() => {
       const dataHora = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
       if (janela) { const fim = janela === "meio" ? liga.janela_meio_fecha : liga.janela_inicio_fecha;
@@ -1646,9 +1642,15 @@ ${historicoDaBase()}
       const abre = liga.janela_meio_abre && new Date(liga.janela_meio_abre) > new Date() ? `A próxima abre em <b>${dataHora(liga.janela_meio_abre)}</b> e vai até ${dataHora(liga.janela_meio_fecha)}.` : "A próxima abre na virada da temporada.";
       return `<div class="janela fechada"><span class="jl">🔴 Janela fechada</span><span>Compras pela multa, vendas pelo agente e propostas só com a janela aberta. ${abre} Jogadores livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo.</span></div>`;
     })()}
+    <div class="subabas" id="mSub">${[["busca", "🔎 Buscar jogadores", "Busca", 0],
+        ...(propostas == null ? [] : [["neg", "🤝 Negociações", "Propostas", propostas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length]]),
+        ...(livres == null ? [] : [["livres", "✍️ Livres e ofertas", "Livres", livres.length + ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length]]),
+        ["hist", "📜 Transferências", "Feitas", 0]]
+      .map(([k, n, curto, q]) => `<button class="sub" data-msub="${k}"><span class="sl">${n}</span><span class="sc">${curto}</span>${q ? `<span class="qt">${q}</span>` : ""}</button>`).join("")}</div>
     <div id="mRecado"></div>
     <div data-msecao="busca">
     ${janela === undefined ? `<div class="card mut">O mercado aparece aqui quando o administrador ligar (SQL 19 e a função "mercado").</div>` : `
+    ${janela || prePeriodo ? "" : `<details id="mVerFechada" style="margin-top:12px" ${(() => { try { return localStorage.getItem("mo_mercado_fechado_ver") === "1" ? "open" : ""; } catch (e) { return ""; } })()}><summary style="cursor:pointer"><b>Mesmo com a janela fechada, quer ver os jogadores?</b> <span class="mut">· a compra pela multa e as propostas voltam quando ela abrir</span></summary>`}
     <div class="card"><h2>Mercado</h2>
       <div class="mut">Quem paga a multa rescisória (5 vezes o salário) leva o jogador na hora. Não têm multa: os protegidos de cada clube (até 7) e quem está na primeira temporada de contrato. O jogador não desce de divisão pela multa.</div>
       <div class="row" style="margin-top:10px"><div class="chips" id="mLinhas" style="flex-basis:100%"><b>Posição</b>${(formatoDasSiglas() === "pt"
@@ -1668,7 +1670,7 @@ ${historicoDaBase()}
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="mSoMulta" checked> só quem pode ser comprado pela multa agora</label>
         ${propostas == null ? "" : `<label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="mSoVenda"> só quem está à venda</label>`}</div>
       <div id="mPainel" style="margin-top:10px"></div>
-      <div id="mLista" class="mut" style="margin-top:10px">Carregando os jogadores…</div></div>
+      <div id="mLista" class="mut" style="margin-top:10px">Carregando os jogadores…</div></div>${janela || prePeriodo ? "" : "</details>"}
     </div><div data-msecao="neg">
     ${propostas == null ? "" : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
       const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
@@ -1797,6 +1799,7 @@ ${historicoDaBase()}
   let paginaDoClube = null; // definida abaixo, quando o mercado está ligado
   let empurrei = false; // a página do clube pôs #clube=ID no histórico (o Voltar volta por ele)
   // mercado: lista por posição, filtros e compra pela multa rescisória
+  if ($("mVerFechada")) $("mVerFechada").ontoggle = e => { try { localStorage.setItem("mo_mercado_fechado_ver", e.target.open ? "1" : ""); } catch (x) {} };
   if ($("mLinhas")) {
     const DIVISAO = serieDoGrupo;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
@@ -2056,7 +2059,13 @@ ${historicoDaBase()}
   let compPronta = false; // as telas de Competições só desenham depois de os dados da liga estarem carregados
   const subGuardada = g => { let k = null; try { k = localStorage.getItem("mo_sub_" + g); } catch (e) {}
     return document.querySelector(`[data-sub="${g}:${k}"]`) ? k : document.querySelector(`[data-grupo="${g}"] [data-sub]`).dataset.sub.split(":")[1]; };
+  // endereço: a aba e a aba interna ficam no hash (#comp:copa, #mercado), para o Voltar do navegador, o F5 e os links mandados no grupo
+  const ABA_DO_GRUPO = Object.fromEntries(Object.entries(GRUPO_DA_ABA).map(([a, g]) => [g, a]));
+  const doEndereco = h => { const m = h.match(/^#(\w+)(?::(\w+))?$/); return m ? [ABA_DO_GRUPO[m[1]] || m[1], m[2]] : []; };
+  const marcarEndereco = (alvo, empurra) => { if (location.hash === alvo) return; if (empurra) history.pushState(null, "", alvo); else history.replaceState(history.state, "", alvo); };
+  let enderecoParado = false; // na volta da recarga com a página de um clube aberta, o endereço fica com o #clube=ID
   const abrirSubAba = (g, k) => {
+    if (!enderecoParado && GRUPO_DA_ABA[abaAtual] === g) marcarEndereco("#" + g + ":" + k, false);
     document.querySelectorAll(`[data-parte^="${g}:"]`).forEach(x => { x.hidden = x.dataset.parte !== g + ":" + k; });
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
@@ -2065,18 +2074,22 @@ ${historicoDaBase()}
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
-  const abrir = (k, sub) => {
+  // historico: undefined = clique (troca de aba entra no histórico); "substitui" = volta do histórico ou abertura da página
+  const abrir = (k, sub, historico) => {
     if (VELHOS[k + ":" + sub]) [k, sub] = VELHOS[k + ":" + sub];
     else if (ATALHOS[k] && !document.querySelector(`[data-secao="${k}"]`)) [k, sub] = ATALHOS[k];
+    const g = GRUPO_DA_ABA[k]; if (g && !(sub && document.querySelector(`[data-sub="${g}:${sub}"]`))) sub = subGuardada(g);
     if (abaAtual !== "clubeVisto") abaAnterior = abaAtual;
-    else if (k !== "clubeVisto" && /^#clube=/.test(location.hash)) { history.replaceState(null, "", location.pathname + location.search); empurrei = false; }
+    else if (k !== "clubeVisto" && /^#clube=/.test(location.hash)) { historico = "substitui"; empurrei = false; }
+    // nova aba principal entra no histórico; a mesma aba (ou a volta do histórico) só troca o endereço
+    if (k !== "clubeVisto" && !enderecoParado) marcarEndereco("#" + (g ? g + ":" + sub : k), !historico && doEndereco(location.hash)[0] !== k);
     abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
     if (k === "mercado" && mercadoAoAbrir) { const f = mercadoAoAbrir; mercadoAoAbrir = null; f(); }
-    const g = GRUPO_DA_ABA[k]; if (g) abrirSubAba(g, sub || subGuardada(g));
+    if (g) abrirSubAba(g, sub);
   };
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
@@ -2129,13 +2142,22 @@ ${historicoDaBase()}
     const nome = prompt("Seu nome de dirigente (de 2 a 24 caracteres):", clube.dirigente || ""); if (nome == null) return;
     try { await definirDirigente(nome); await carregar({ user: usuario }); } catch (err) { alert(err.message); }
   };
-  let inicial = "inicio"; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
+  // a aba de abertura vem do endereço (F5, link, recarga automática); sem ele, a última aberta neste aparelho
+  let inicial = "inicio", subInicial; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
+  const existe = k => ATALHOS[k] || document.querySelector(`[data-secao="${k}"]`);
+  const [abaDoEnd, subDoEnd] = doEndereco(location.hash);
+  if (abaDoEnd && abaDoEnd !== "clubeVisto" && existe(abaDoEnd)) [inicial, subInicial] = [abaDoEnd, subDoEnd];
   const clubeDoEndereco = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
   const clubeAberto = verClube || (clubeDoEndereco && clubeDoEndereco !== clube.id ? clubeDoEndereco : null);
-  // voltar e avançar do navegador entre a página de um clube e o resto
+  // voltar e avançar do navegador: a página de um clube ou a aba (e aba interna) do endereço, com os dados já carregados
   window.onpopstate = () => { const id = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
-    if (id && id !== clube.id && paginaDoClube) { if (id !== verClube) paginaDoClube(id); } else if (abaAtual === "clubeVisto") { empurrei = false; abrir(abaAnterior); } };
-  abrir(ATALHOS[inicial] || document.querySelector(`[data-secao="${inicial}"]`) ? inicial : "inicio");
+    if (id && id !== clube.id && paginaDoClube) { if (id !== verClube) paginaDoClube(id); return; }
+    const [k, sub] = doEndereco(location.hash);
+    if (k && existe(k)) { if (abaAtual === "clubeVisto") empurrei = false; if (k !== abaAtual || (GRUPO_DA_ABA[k] && sub !== subGuardada(GRUPO_DA_ABA[k]))) abrir(k, sub, "substitui"); }
+    else if (abaAtual === "clubeVisto") { empurrei = false; abrir(abaAnterior, undefined, "substitui"); } };
+  enderecoParado = !!clubeAberto;
+  abrir(existe(inicial) ? inicial : "inicio", subInicial, "substitui");
+  enderecoParado = false;
   if ($("peneira")) $("peneira").onclick = async () => {
     $("peneira").disabled = true; $("peneiraAviso").textContent = "Olhando a garotada…";
     try { const msg = await fazerPeneira(); alert(msg); await carregar({ user: usuario }); }

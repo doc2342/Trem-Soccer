@@ -112,6 +112,10 @@ let editaSub = null, editaOrdem = null; // índice da substituição/ordem abert
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
+// a prévia do adversário compara o onze deles com o seu; render() refaz essa parte a cada mudança na escalação
+let forcaAdv = null;
+const comparaOnze = () => { const l = escalacaoAtual(), minha = l.length ? l.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / l.length : 0;
+  return `· o seu onze de agora: ${f1(minha)} (${minha >= forcaAdv + 0.5 ? "você é mais forte" : minha <= forcaAdv - 0.5 ? "eles são mais fortes" : "times parelhos"})`; };
 
 function daTatica(t) {
   const I = t.instrucoes;
@@ -153,10 +157,10 @@ async function previaDoAdversario(B) {
   const t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
   const onze = obs ? obs.vagas : t.escalacao;
   const conta = linhas => onze.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
-  const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
-  const forca = media(onze), minha = media(meu);
+  const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0;
+  forcaAdv = media(onze); const forca = forcaAdv;
   let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${onze.map(x => sg(x.pos)).join(" · ")})</span></div>${onzeVisto}
-    <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut">· o seu onze de agora: ${f1(minha)} (${minha >= forca + 0.5 ? "você é mais forte" : minha <= forca - 0.5 ? "eles são mais fortes" : "times parelhos"})</span></div>`;
+    <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut" id="comparaOnze">${comparaOnze()}</span></div>`;
   // estilo: o que eles mostraram nos mesmos jogos (relatório público e narração); sem jogos ainda, o que o bot faria com esse elenco
   const est = sk >= 20 && partidasAdv ? await B.estiloObservado(partidasAdv, adv.id, nivelDoAnalista(sk)).catch(() => null) : null;
   if (est) {
@@ -347,6 +351,7 @@ function render() {
   // instruções
   $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
+  if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
   // papéis
   const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
   const ficha = (k, i) => {
