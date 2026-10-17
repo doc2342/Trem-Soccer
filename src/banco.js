@@ -22,6 +22,7 @@ export const clubesDaLiga = ligaId => comExtra(c => sb.from("clubes").select(c).
 // seletor de clubes (96_seletor_de_clubes.sql)
 export const meusClubes = userId => sb.from("clubes").select("id, nome, sigla, escudo, pais").eq("dono", userId).order("assumido_em").then(ok);
 export const ativarClube = id => sb.rpc("ativar_clube", { p_clube: id }).then(ok);
+export const entregarClubeExtra = id => sb.rpc("entregar_clube_extra", { p_clube: id }).then(ok); // 97_entregar_clube_extra.sql
 export const minhasPendencias = () => sb.rpc("minhas_pendencias").then(({ data, error }) => error ? {} : Object.fromEntries(data.map(x => [x.clube_id, x.n])));
 export const meuClube = () => sb.rpc("meu_clube").then(ok).then(id => id ? sb.from("clubes").select("*").eq("id", id).maybeSingle().then(ok) : null);
 export const assumirClube = (nome, sigla, escudo, uniforme) => sb.rpc("assumir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);

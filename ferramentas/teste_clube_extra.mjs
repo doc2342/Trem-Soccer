@@ -1,4 +1,4 @@
-// Testa o supabase/95_pedido_de_clube_extra.sql e o 96_seletor_de_clubes.sql num Postgres em memória (PGlite), com tabelas mínimas.
+// Testa o supabase/95_pedido_de_clube_extra.sql, o 96_seletor_de_clubes.sql e o 97_entregar_clube_extra.sql num Postgres em memória (PGlite), com tabelas mínimas.
 // Uso: npm i --no-save @electric-sql/pglite@0.2.17 && node ferramentas/teste_clube_extra.mjs
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
@@ -81,4 +81,18 @@ await caso('ativar o extra', `select ativar_clube(${id})`, false, async () => (a
 await db.exec(`insert into propostas (jogador_id, comprador, vendedor, estado) select id, 5, ${id}, 'pendente' from jogadores where clube_id = ${id} limit 2; insert into taticas values (1);`);
 await caso('pendências', `select * from minhas_pendencias() order by clube_id`, false, r => { const m = Object.fromEntries(r.rows.map(x => [x.clube_id, x.n]));
   return (m[1] === 0 && m[id] === 3) || JSON.stringify(m); });
+await db.exec(`create trigger clubes_sem_dono before update on clubes for each row execute function clube_sem_dono();`);
+await db.exec(fs.readFileSync(new URL('../supabase/97_entregar_clube_extra.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/97_entregar_clube_extra.sql', import.meta.url), 'utf8'));
+await caso('entregar o principal não vale', `select entregar_clube_extra(1)`, true);
+await caso('entregar o extra', `select entregar_clube_extra(${id})`, false, async () => { const c = (await db.query(`select dono, extra, dirigente from clubes where id = ${id}`)).rows[0];
+  const d = (await db.query(`select direitos, pode_pedir_desde from dirigentes`)).rows[0];
+  return (c.dono === null && c.extra === false && c.dirigente === null && d.direitos === 1 && d.pode_pedir_desde === 6) || JSON.stringify([c, d]); });
+await caso('meu_clube volta ao principal', `select coalesce((select c.id from dirigentes d join clubes c on c.id = d.clube_ativo and c.dono = d.user_id), 1) id`, false, r => r.rows[0].id == 1 || 'id ' + r.rows[0].id);
+await caso('pedir outro na mesma temporada', pedir('Uruguai', 'Outro'), true);
+await db.exec(`update ligas set temporada = 6`);
+await caso('pedir na temporada seguinte', pedir('Uruguai', 'Outro'), false);
+await como(U, 'sim');
+await db.exec(`update clubes set dono = null where id = 1`);
+await caso('admin libera o principal: espera, sem direito novo', `select direitos, pode_pedir_desde from dirigentes`, false, r => { const d = r.rows[0]; return (d.direitos === 1 && d.pode_pedir_desde === 7) || JSON.stringify(d); });
 console.log(falhas ? falhas + ' FALHAS' : 'tudo certo');

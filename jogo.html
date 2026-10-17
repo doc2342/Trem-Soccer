@@ -205,7 +205,7 @@ const recordesDaLiga = daLiga("recordesDaLiga", B.recordesDaLiga);
 const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, meusClubes, ativarClube, minhasPendencias, ultimaNovidade } from "./src/banco.js";
+import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, meusClubes, ativarClube, minhasPendencias, entregarClubeExtra, ultimaNovidade } from "./src/banco.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
@@ -1354,7 +1354,7 @@ async function telaClube(liga, clube) {
             <div id="cfgEnvio" class="mut" style="margin-top:6px"></div></div></div></div>
     <div data-parte="ajuste:titular"><div class="card"><h2>Uniforme casa</h2><div id="cfgTitular"></div></div></div>
     <div data-parte="ajuste:reserva"><div class="card"><h2>Uniforme visitante</h2><div id="cfgReserva"></div></div></div>
-    <div data-parte="ajuste:geral"><div class="card"><h2>Configurações</h2>
+    <div data-parte="ajuste:geral"><div class="card"><h2>Configurações</h2>${clube.extra ? `<div class="row" style="margin-bottom:10px;align-items:center"><button class="sec" id="cfgEntregar">Entregar este clube</button><span class="mut">Clube extra: volta para o bot do jeito que está (elenco, caixa e estruturas). Você pode pedir outro clube extra a partir da próxima temporada.</span></div>` : ""}
       <div class="duas">
         <div><b>Siglas das posições</b>
           <div class="mut" style="margin:4px 0 8px">Vale para as suas telas, neste aparelho. Por dentro o jogo não muda: táticas salvas e o resto continuam iguais.</div>
@@ -1793,6 +1793,12 @@ async function telaClube(liga, clube) {
   };
   if ($("cfgTirarEscudo")) $("cfgTirarEscudo").onclick = async () => {
     try { await tirarEscudoEnviado(); await carregar({ user: usuario }); } catch (err) { $("cfgEnvio").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+  };
+  if ($("cfgEntregar")) $("cfgEntregar").onclick = async () => {
+    if (!confirm(`Entregar o ${clube.nome}? Ele volta para o bot do jeito que está, e você só pode pedir outro clube extra a partir da próxima temporada. Não dá para desfazer.`)) return;
+    $("cfgEntregar").disabled = true;
+    try { await entregarClubeExtra(clube.id); try { localStorage.setItem("ts_clube_ativo", "entregue:" + Date.now()); } catch (x) {} location.reload(); }
+    catch (e) { $("cfgEntregar").disabled = false; alert("Não deu para entregar: " + e.message); }
   };
   if ($("cfgDirigente")) $("cfgDirigente").onclick = async () => {
     const nome = prompt("Seu nome de dirigente (de 2 a 24 caracteres):", clube.dirigente || ""); if (nome == null) return;
