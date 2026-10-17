@@ -1111,6 +1111,37 @@ async function telaClube(liga, clube) {
     return l.join("") || `<div data-vazio>${item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut")}</div>`;
   };
   // Notícias da liga: geradas na hora (nada gravado no banco) com os jogos dos grupos que têm dirigente, a artilharia e a última virada.
+  // Duelo de dirigentes: uma manchete pelo que o jogo teve de mais marcante (hat-trick, virada, gol no fim, revanche do turno, goleada, 0 x 0…),
+  // com o nome do dirigente e, se mudou, o efeito na tabela. A frase de cada tipo varia pela partida, para a rodada não repetir o mesmo molde.
+  const dirDe = id => { const d = (clubes.find(c => c.id === id) || {}).dirigente; return d ? esc(d) : null; };
+  const com = id => dirDe(id) ? `${lk(id)}, de ${dirDe(id)},` : lk(id);
+  const quem = id => dirDe(id) || "o " + lk(id), Quem = id => dirDe(id) || "O " + lk(id); // o dirigente pelo nome; sem nome, o clube
+  const comFim = id => dirDe(id) ? `${lk(id)}, de ${dirDe(id)}` : lk(id); // no fim da frase, sem a vírgula de fechamento
+  function noticiaDoDuelo(p, r, x) {
+    const um = lista => lista[(p.id * 7 + x.rodada) % lista.length], pl = `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`, R = `na rodada ${x.rodada}`;
+    const dif = r.gols_casa - r.gols_fora, v = dif > 0 ? p.casa : dif < 0 ? p.fora : null, d = v === p.casa ? p.fora : p.casa, ladoV = v === p.casa ? 0 : 1;
+    const conta = {}; x.gols.forEach(g => { if (g.quem) conta[g.quem] = (conta[g.quem] || 0) + 1; });
+    const [heroi, nh] = Object.entries(conta).sort((a, b) => b[1] - a[1])[0] || [], ult = x.gols[x.gols.length - 1];
+    const tr = x.turno && x.turno.r, venceuTurno = tr ? (tr.gols_casa > tr.gols_fora ? x.turno.p.casa : tr.gols_casa < tr.gols_fora ? x.turno.p.fora : null) : undefined;
+    let ic = "⚔️", txt;
+    if (nh >= 3) { ic = "⚽"; txt = um([`Noite de ${esc(heroi)}: ${nh} gols no duelo de dirigentes ${R}, ${pl}.`, `Hat-trick de ${esc(heroi)} no confronto entre dirigentes: ${pl}.`, `${esc(heroi)} pede música: ${nh} gols em ${pl}.`]); }
+    else if (x.virou) { ic = "🔄"; txt = um([`${com(v)} estava perdendo e virou para cima do ${lk(d)}: ${pl}.`, `Virada no duelo de dirigentes ${R}! ${pl}, com o ${lk(v)} saindo de trás.`, `O ${lk(d)} saiu na frente, mas o ${lk(v)} buscou a virada: ${pl}.`]); }
+    else if (v && Math.abs(dif) === 1 && ult && ult.t === ladoV && ult.min >= 85) { ic = "⏱️"; txt = um([`Gol aos ${ult.min} e vitória do ${comFim(v)} sobre o ${lk(d)}: ${pl}.`, `${esc(ult.quem || "Um gol")} aos ${ult.min} minutos decide o duelo de dirigentes: ${pl}.`, `Coração na boca até o fim: ${pl}, com o gol da vitória aos ${ult.min}.`]); }
+    else if (!v && r.gols_casa > 0 && ult && ult.min >= 85) { ic = "⏱️"; txt = um([`Empate arrancado aos ${ult.min}: ${pl}.`, `${esc(ult.quem || "Alguém")} empata aos ${ult.min} e salva um ponto no duelo de dirigentes: ${pl}.`]); }
+    else if (v && venceuTurno === d) { ic = "🔁"; txt = um([`${com(v)} devolve a derrota do turno e vence o ${lk(d)}: ${pl}.`, `Revanche servida ${R}: ${pl}. No turno, quem tinha vencido era o ${lk(d)}.`]); }
+    else if (v && venceuTurno === v && Math.abs(dif) >= 1) { txt = um([`Freguesia: o ${lk(v)} vence o ${lk(d)} de novo, agora por ${pl}.`, `${com(v)} repete a vitória do turno sobre o ${lk(d)}: ${pl}.`]); }
+    else if (Math.abs(dif) >= 3) { ic = "💥"; txt = um([`Passeio do ${comFim(v)} no duelo de dirigentes: ${pl}.`, `${dirDe(d) ? `Dia para ${dirDe(d)} esquecer` : `Dia para esquecer no ${lk(d)}`}: ${pl}.`, `O ${lk(v)} não tomou conhecimento do ${lk(d)}: ${pl}.`]); }
+    else if (!v && !r.gols_casa) { ic = "🧱"; txt = um([`Xadrez entre dirigentes ${R}: ${pl}, ninguém achou o caminho do gol.`, `Duelo travado e sem gols: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} se estudaram o jogo todo: ${pl}.`, `${pl}: os dois dirigentes se anularam ${R}.`]); }
+    else if (!v && r.gols_casa >= 2) txt = um([`Jogo aberto e ninguém vence: ${pl}.`, `Chuva de gols e empate no duelo de dirigentes: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} abriram o jogo e ninguém venceu: ${pl}.`]);
+    else if (!v) txt = um([`Empate no duelo de dirigentes ${R}: ${pl}.`, `Cada um leva um ponto: ${pl}.`, `Ninguém cede ${R}: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} não saem do empate: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} dividem os pontos ${R}: ${pl}.`]);
+    else if (Math.abs(dif) === 1) txt = um([`Vitória apertada do ${comFim(v)} no duelo de dirigentes: ${pl}.`, `Por um gol: ${pl}, e o ${lk(v)} leva a melhor.`, `${Quem(v)} ganha a queda de braço com ${quem(d)}: ${pl}.`, `${Quem(v)} leva a melhor sobre ${quem(d)} por um gol: ${pl}.`]);
+    else txt = um([`${com(v)} vence o duelo de dirigentes com sobra: ${pl}.`, `Sem sustos para o ${lk(v)} ${R}: ${pl}.`, `${Quem(v)} supera ${quem(d)} com tranquilidade: ${pl}.`]);
+    // o que o resultado fez na tabela
+    if (v && x.posDepois(v) === 1 && x.posAntes(v) !== 1) txt += ` Com a vitória, o ${lk(v)} assume a liderança.`;
+    else if (v && x.posAntes(d) === 1 && x.posDepois(d) !== 1) txt += ` O ${lk(d)} perde a liderança.`;
+    if (v && x.posDepois(d) === x.n && x.posAntes(d) !== x.n) txt += ` O ${lk(d)} cai para a lanterna.`;
+    return [ic, txt];
+  }
   async function noticiasDaLiga() {
     const humanos = new Set(clubes.filter(c => c.dono).map(c => c.id)), l = [], placar = (p, r) => `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`;
     const grupos = [...new Set([clube.grupo, ...clubes.filter(c => humanos.has(c.id)).map(c => c.grupo)])];
@@ -1125,12 +1156,15 @@ async function telaClube(liga, clube) {
       if (!feitas.length) continue;
       const ultima = Math.max(...feitas.map(p => p.rodada)), daRodada = feitas.filter(p => p.rodada === ultima);
       jogadas = Math.max(jogadas, ultima);
-      const golsSeq = {}; (await golsDasPartidas(daRodada.filter(p => humanos.has(p.casa) || humanos.has(p.fora)).map(p => p.id))).sort((a, b) => a.libera_em.localeCompare(b.libera_em)).forEach(x => (golsSeq[x.partida_id] = golsSeq[x.partida_id] || []).push(+x.time));
+      const golsSeq = {}; (await golsDasPartidas(daRodada.filter(p => humanos.has(p.casa) || humanos.has(p.fora)).map(p => p.id))).sort((a, b) => a.libera_em.localeCompare(b.libera_em)).forEach(x => (golsSeq[x.partida_id] = golsSeq[x.partida_id] || []).push({ t: +x.time, min: x.min, quem: x.quem }));
+      const doG = clubes.filter(c => c.grupo === g), antes = classificacao(doG, ps.filter(p => p.rodada < ultima), rs), depois = classificacao(doG, ps, rs);
+      const ctx = { rodada: ultima, n: doG.length, posAntes: id => antes.findIndex(t => t.clube.id === id) + 1, posDepois: id => depois.findIndex(t => t.clube.id === id) + 1 };
       for (const p of daRodada) {
         const r = res[p.id], dif = r.gols_casa - r.gols_fora, v = dif > 0 ? p.casa : dif < 0 ? p.fora : null, vLado = dif > 0 ? 0 : 1;
         // virada: o vencedor esteve atrás no placar em algum momento
-        let virou = false, a = 0, b = 0; if (v) for (const t of golsSeq[p.id] || []) { t === vLado ? a++ : b++; if (b > a) virou = true; }
-        if (humanos.has(p.casa) && humanos.has(p.fora)) l.push(item("⚔️", `Duelo de dirigentes na rodada ${ultima}: ${placar(p, r)}${v ? `, vitória ${virou ? "de virada " : ""}do ${lk(v)}` : ", ninguém sai na frente"}.`));
+        let virou = false, a = 0, b = 0; if (v) for (const x of golsSeq[p.id] || []) { x.t === vLado ? a++ : b++; if (b > a) virou = true; }
+        const turno = feitas.find(q => q.rodada < ultima && ((q.casa === p.casa && q.fora === p.fora) || (q.casa === p.fora && q.fora === p.casa)));
+        if (humanos.has(p.casa) && humanos.has(p.fora)) l.push(item(...noticiaDoDuelo(p, r, { ...ctx, gols: golsSeq[p.id] || [], virou, turno: turno && { p: turno, r: res[turno.id] } })));
         else if (virou) l.push(item("🔄", `Virada! ${lk(v)} sai perdendo e vence ${lk(v === p.casa ? p.fora : p.casa)}: ${placar(p, r)}.`));
         else if (Math.abs(dif) >= 3) l.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${placar(p, r)}.`));
       }

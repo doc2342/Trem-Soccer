@@ -27,6 +27,8 @@
 <script type="module">
 import { nomeDoGrupo, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
+import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
+import { metasDaTemporada } from "./src/banco.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens": a tabela só devolve as linhas do clube de quem está logado (e nada sem login ou sem o 90_ordens_privadas.sql)
 const ordensDaPartida = async partida => { const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => ((data || []).find(o => o.clube_id === id) || {}).itens || null; return [de(partida.casa), de(partida.fora)]; };
@@ -87,6 +89,29 @@ function htmlRodada(meu, T = Date.now()) {
   return `<div class="card"><h2>Rodada ${partida.rodada} ao vivo <span class="tag">${esc(nomeDoGrupo(partida.grupo))}</span></h2>${jogos}
     <table style="width:100%;margin-top:8px;font-size:13.5px"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>J</th><th>SG</th></tr>${tabela}</table>
     <div class="mut" style="margin-top:6px;font-size:12px">Classificação como ficaria com os placares deste momento. As setas comparam com o início da rodada.</div></div>`;
+}
+// Diretoria (91_diretoria.sql): confiança e frase do presidente de cada clube com dirigente; na liga, quanto a virada daria com a tabela de agora
+// (finanças e copa ficam fora da conta: o caixa é privado e a copa só entra no fim). Sem o SQL, a consulta falha e nada aparece.
+async function htmlDiretoria() {
+  const ids = [partida.casa, partida.fora].filter(c => clubes[c] && clubes[c].dono);
+  if (!ids.length) return "";
+  const conf = await sb.from("clubes").select("id, confianca").in("id", ids).then(({ data, error }) => error ? [] : data);
+  if (!conf.length) return "";
+  let tab = null, metas = [];
+  if (rodada) {
+    const liga = await ligaAtual();
+    const [rs, ms] = await Promise.all([resultadosDe(rodada.ps.map(p => p.id)), liga ? metasDaTemporada(liga.id, liga.temporada) : []]);
+    tab = classificacao(rodada.clubes, rodada.ps, rs); metas = ms;
+  }
+  const esp = tab ? posicaoPelosEsperados(tab) : {}, sinal = x => (x > 0 ? "+" : "") + x;
+  const linhas = conf.filter(c => clubes[c.id] && c.confianca != null).map(c => {
+    const meta = metas.find(m => m.clube_id === c.id), i = tab ? tab.findIndex(t => t.clube.id === c.id) : -1;
+    let conta = "";
+    if (meta && i >= 0 && tab[i].j) { const avaliada = (i + 1 + esp[c.id]) / 2, v = variacaoDaConfianca({ avaliada, faixa: [meta.faixa_min, meta.faixa_max] });
+      conta = ` Meta: ${meta.faixa_min === meta.faixa_max ? meta.faixa_min + "º" : `${meta.faixa_min}º a ${meta.faixa_max}º`}; com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.`; }
+    return `<div style="margin:3px 0"><b>${esc(clubes[c.id].nome)}</b>: confiança ${c.confianca}. <i>“${fraseDoPresidente(c.confianca)}”</i>${conta}</div>`;
+  });
+  return `<div class="card"><h2>Diretoria</h2>${linhas.join("")}</div>`;
 }
 // Notas de contexto dos gols desta partida: o que o gol muda na tabela e na artilharia. lances: os liberados, com a hora de cada um.
 function notasDosGols(lances) {
@@ -195,7 +220,7 @@ async function atualizar() {
       pre && pre.clima ? `${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C` : "",
       `${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}`].filter(Boolean);
     $("corpo").innerHTML = `<div class="card mut" style="font-size:13.5px">${resumo.join(" · ")}.</div>` + htmlRodada([res.gols_casa, res.gols_fora]) +
-      htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida) });
+      await htmlDiretoria() + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida) });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
@@ -224,7 +249,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { notasDosGols: () => notasDosGols(baixados), htmlRodada, rodada: () => rodada }; // para conferir pelo console
+window.__teste = { notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
 iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
 </body>
