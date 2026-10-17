@@ -17,7 +17,7 @@ const HTML = `  <div id="cabecalho"></div>
   <div class="mut soLocal">Monte o time nas 18 posições, escolha as instruções e jogue contra um clube comandado pelo bot.</div>
 
   <div class="card" id="online" hidden>
-    <div class="row"><b>Escalação e tática</b><b id="nomeOnline" hidden></b><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
+    <div class="row" style="align-items:center"><h2 style="margin:0">Escalação e tática</h2><b id="nomeOnline" hidden></b><button id="salvarOnline" style="margin-left:auto">Salvar para o próximo jogo</button></div>
     <div id="avisoOnline" class="mut" style="margin-top:6px"></div>
     <div class="mut" style="margin-top:4px">Para testar a tática, salve e jogue um amistoso na página do clube.</div>
   </div>
