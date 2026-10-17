@@ -23,6 +23,10 @@
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
     .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
   }
+  /* Central: o amistoso fica na coluna da esquerda, abaixo dos próximos jogos, e o último cartão de cada coluna estica até o fim da outra (sem buraco embaixo);
+     numa coluna só (até 900px) as duas colunas se desfazem e o amistoso volta para o fim da página */
+  @media (min-width:901px) { .g2-central { align-items:stretch; } .g2-central > div { display:flex; flex-direction:column; } .g2-central > div > .card:last-child { flex:1; } }
+  @media (max-width:900px) { .g2-central > div { display:contents; } .g2-central .c-amistoso { order:1; } }
   /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba .ai, .aba .at-c { display:none; }
   .m-clube { display:none; }
@@ -1404,38 +1408,42 @@ async function telaClube(liga, clube) {
   // Duelo de dirigentes: uma manchete pelo que o jogo teve de mais marcante (hat-trick, virada, gol no fim, revanche do turno, goleada, 0 x 0…),
   // com o nome do dirigente e, se mudou, o efeito na tabela. A frase de cada tipo varia pela partida, para a rodada não repetir o mesmo molde.
   const dirDe = id => { const d = (clubes.find(c => c.id === id) || {}).dirigente; return d ? esc(d) : null; };
-  const com = id => dirDe(id) ? `${lk(id)}, de ${dirDe(id)},` : lk(id);
-  const quem = id => dirDe(id) || "o " + lk(id), Quem = id => dirDe(id) || "O " + lk(id); // o dirigente pelo nome; sem nome, o clube
-  const comFim = id => dirDe(id) ? `${lk(id)}, de ${dirDe(id)}` : lk(id); // no fim da frase, sem a vírgula de fechamento
+  const Quem = id => dirDe(id) || lk(id); // o dirigente pelo nome; sem nome, o clube
+  // Manchete de jornal: curta, cada clube citado uma vez só (ou o placar com os dois nomes, ou os nomes e o placar "3 a 0"), moldes diferentes.
   function noticiaDoDuelo(p, r, x) {
-    const um = lista => lista[(p.id * 7 + x.rodada) % lista.length], pl = `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`, R = `na rodada ${x.rodada}`;
+    const um = lista => lista[(p.id * 7 + x.rodada) % lista.length], pl = `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`;
     const dif = r.gols_casa - r.gols_fora, v = dif > 0 ? p.casa : dif < 0 ? p.fora : null, d = v === p.casa ? p.fora : p.casa, ladoV = v === p.casa ? 0 : 1;
+    const V = lk(v), D = lk(d), A = lk(p.casa), B = lk(p.fora), s = `${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}`; // placar com o vencedor na frente
     const conta = {}; x.gols.forEach(g => { if (g.quem) conta[g.quem] = (conta[g.quem] || 0) + 1; });
     const [heroi, nh] = Object.entries(conta).sort((a, b) => b[1] - a[1])[0] || [], ult = x.gols[x.gols.length - 1];
     const tr = x.turno && x.turno.r, venceuTurno = tr ? (tr.gols_casa > tr.gols_fora ? x.turno.p.casa : tr.gols_casa < tr.gols_fora ? x.turno.p.fora : null) : undefined;
     let ic = "⚔️", txt;
-    if (nh >= 3) { ic = "⚽"; txt = um([`Noite de ${esc(heroi)}: ${nh} gols ${R}, ${pl}.`, `Hat-trick de ${esc(heroi)}: ${pl}.`, `${esc(heroi)} pede música: ${nh} gols em ${pl}.`]); }
-    else if (x.virou) { ic = "🔄"; txt = um([`${com(v)} estava perdendo e virou para cima do ${lk(d)}: ${pl}.`, `Virada ${R}! ${pl}, com o ${lk(v)} saindo de trás.`, `O ${lk(d)} saiu na frente, mas o ${lk(v)} buscou a virada: ${pl}.`]); }
-    else if (v && Math.abs(dif) === 1 && ult && ult.t === ladoV && ult.min >= 85) { ic = "⏱️"; txt = um([`Gol aos ${ult.min} e vitória do ${comFim(v)} sobre o ${lk(d)}: ${pl}.`, `${esc(ult.quem || "Um gol")} aos ${ult.min} minutos decide o jogo: ${pl}.`, `Coração na boca até o fim: ${pl}, com o gol da vitória aos ${ult.min}.`]); }
-    else if (!v && r.gols_casa > 0 && ult && ult.min >= 85) { ic = "⏱️"; txt = um([`Empate arrancado aos ${ult.min}: ${pl}.`, `${esc(ult.quem || "Alguém")} empata aos ${ult.min} e salva um ponto: ${pl}.`]); }
-    else if (v && venceuTurno === d) { ic = "🔁"; txt = um([`${com(v)} devolve a derrota do turno e vence o ${lk(d)}: ${pl}.`, `Revanche servida ${R}: ${pl}. No turno, quem tinha vencido era o ${lk(d)}.`]); }
-    else if (v && venceuTurno === v && Math.abs(dif) >= 1) { txt = um([`Freguesia: o ${lk(v)} vence o ${lk(d)} de novo, agora por ${pl}.`, `${com(v)} repete a vitória do turno sobre o ${lk(d)}: ${pl}.`]); }
-    else if (Math.abs(dif) >= 3) { ic = "💥"; txt = um([`Passeio do ${comFim(v)}: ${pl}.`, `${dirDe(d) ? `Dia para ${dirDe(d)} esquecer` : `Dia para esquecer no ${lk(d)}`}: ${pl}.`, `O ${lk(v)} não tomou conhecimento do ${lk(d)}: ${pl}.`]); }
-    else if (!v && !r.gols_casa) { ic = "🧱"; txt = um([`Xadrez tático ${R}: ${pl}, ninguém achou o caminho do gol.`, `Duelo travado e sem gols: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} se estudaram o jogo todo: ${pl}.`, `${pl}: os dois dirigentes se anularam ${R}.`]); }
-    else if (!v && r.gols_casa >= 2) txt = um([`Jogo aberto e ninguém vence: ${pl}.`, `Chuva de gols e empate: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} abriram o jogo e ninguém venceu: ${pl}.`]);
-    else if (!v) txt = um([`Empate no clássico ${R}: ${pl}.`, `Cada um leva um ponto: ${pl}.`, `Ninguém cede ${R}: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} não saem do empate: ${pl}.`, `${Quem(p.casa)} e ${quem(p.fora)} dividem os pontos ${R}: ${pl}.`]);
-    else if (Math.abs(dif) === 1) txt = um([`Vitória apertada do ${comFim(v)}: ${pl}.`, `Por um gol: ${pl}, e o ${lk(v)} leva a melhor.`, `${Quem(v)} ganha a queda de braço com ${quem(d)}: ${pl}.`, `${Quem(v)} leva a melhor sobre ${quem(d)} por um gol: ${pl}.`]);
-    else txt = um([`${com(v)} vence com sobra: ${pl}.`, `Sem sustos para o ${lk(v)} ${R}: ${pl}.`, `${Quem(v)} supera ${quem(d)} com tranquilidade: ${pl}.`]);
+    if (nh >= 3) { ic = "⚽"; const h = esc(heroi), ladoH = (x.gols.find(g => g.quem === heroi) || {}).t, H = ladoH === 1 ? p.fora : p.casa, O = lk(H === p.casa ? p.fora : p.casa), feito = nh === 3 ? "hat-trick" : `${nh} gols`;
+      txt = H === v ? um([`Com ${feito} de ${h}, ${lk(H)} bate ${O} por ${s}.`, `${h} faz ${nh} e decide: ${pl}.`, `Noite de ${h}: ${nh} gols no ${s} do ${lk(H)} sobre ${O}.`])
+        : !v ? `${h} faz ${nh}, mas ${lk(H)} só empata com ${O}: ${s}.` : `${h} faz ${nh}, mas ${lk(H)} perde para ${O} por ${s}.`; }
+    else if (x.virou) { ic = "🔄"; txt = um([`De virada, ${V} vence ${D} por ${s}.`, `${V} sai atrás e vira em cima de ${D}: ${s}.`, `Virada na rodada ${x.rodada}: ${pl}.`]); }
+    else if (v && Math.abs(dif) === 1 && ult && ult.t === ladoV && ult.min >= 85) { ic = "⏱️"; const g = ult.quem ? esc(ult.quem) : null;
+      txt = um([`No fim, ${V} vence ${D} por ${s}${g ? `, gol de ${g} aos ${ult.min}` : ""}.`, g ? `${g} marca aos ${ult.min} e decide: ${pl}.` : `Gol aos ${ult.min} decide: ${pl}.`, `No apagar das luzes, ${V} bate ${D}: ${s}.`]); }
+    else if (!v && r.gols_casa > 0 && ult && ult.min >= 85) { ic = "⏱️"; const E = lk(ult.t === 1 ? p.fora : p.casa), O = lk(ult.t === 1 ? p.casa : p.fora);
+      txt = um([`${E} arranca o empate com ${O} aos ${ult.min}: ${s}.`, `${ult.quem ? esc(ult.quem) : "Gol"} aos ${ult.min} salva um ponto: ${pl}.`]); }
+    else if (v && venceuTurno === d) { ic = "🔁"; txt = um([`${V} devolve a derrota do turno e bate ${D} por ${s}.`, `Troco dado: ${pl}.`]); }
+    else if (v && venceuTurno === v) txt = um([`Freguesia: ${V} vence ${D} de novo, agora por ${s}.`, `${V} repete o turno e bate ${D}: ${s}.`]);
+    else if (Math.abs(dif) >= 3) { ic = "💥"; txt = um([`${V} atropela ${D}: ${s}.`, `Goleada: ${pl}.`, dirDe(d) ? `Noite para ${dirDe(d)} esquecer: ${pl}.` : `${V} passeia sobre ${D} e faz ${s}.`]); }
+    else if (!v && !r.gols_casa) { ic = "🧱"; txt = um([`${A} e ${B} ficam no 0 a 0.`, `Jogo travado: ${pl}.`, `${Quem(p.casa)} e ${Quem(p.fora)} se anulam no 0 a 0.`]); }
+    else if (!v && r.gols_casa >= 2) txt = um([`${A} e ${B} empatam em ${s} num jogo aberto.`, `Chuva de gols e ninguém vence: ${pl}.`]);
+    else if (!v) txt = um([`${A} e ${B} ficam no ${s}.`, `Cada um com seu ponto: ${pl}.`, `${Quem(p.casa)} e ${Quem(p.fora)} dividem os pontos no ${s}.`]);
+    else if (Math.abs(dif) === 1) txt = um([`${V} vence ${D} por ${s}.`, `Por um gol: ${pl}.`, `${V} supera ${D} no detalhe: ${s}.`, `Apertado, mas vale três pontos: ${pl}.`]);
+    else txt = um([`Sem sustos, ${V} bate ${D} por ${s}.`, `Vitória tranquila: ${pl}.`, `${V} controla ${D} e vence por ${s}.`]);
     // o que o resultado fez na tabela
-    if (v && x.posDepois(v) === 1 && x.posAntes(v) !== 1) txt += ` Com a vitória, o ${lk(v)} assume a liderança.`;
-    else if (v && x.posAntes(d) === 1 && x.posDepois(d) !== 1) txt += ` O ${lk(d)} perde a liderança.`;
-    if (v && x.posDepois(d) === x.n && x.posAntes(d) !== x.n) txt += ` O ${lk(d)} cai para a lanterna.`;
+    if (v && x.posDepois(v) === 1 && x.posAntes(v) !== 1) txt += ` ${V} assume a liderança.`;
+    else if (v && x.posAntes(d) === 1 && x.posDepois(d) !== 1) txt += ` ${D} perde a liderança.`;
+    if (v && x.posDepois(d) === x.n && x.posAntes(d) !== x.n) txt += ` ${D} cai para a lanterna.`;
     return [ic, txt];
   }
   async function noticiasDaLiga() {
-    const humanos = new Set(clubes.filter(c => c.dono).map(c => c.id)), l = [], placar = (p, r) => `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`;
+    const humanos = new Set(clubes.filter(c => c.dono).map(c => c.id)), l = [];
     const grupos = [...new Set([clube.grupo, ...clubes.filter(c => humanos.has(c.id)).map(c => c.grupo)])];
-    const [porGrupo, stats, passada] = await Promise.all([
+    const [porGrupo, stats, passada, doGrupo] = await Promise.all([
       // resultados: o grupo do clube com a mesma chave da tabela da Central (uma leitura serve às duas) e os outros grupos numa leitura só
       Promise.all(grupos.map(g => partidasDoGrupo(liga.id, g))).then(async pss => {
         const rs = (await Promise.all([resultadosDe(pss[0].map(p => p.id)), resultadosDe(pss.slice(1).flat().map(p => p.id))])).flat();
@@ -1443,6 +1451,8 @@ async function telaClube(liga, clube) {
       }),
       estatisticasDaLiga(liga.id, "TODOS").catch(() => null),
       liga.temporada > 1 ? campanhasDaTemporada(liga.id, liga.temporada - 1) : [],
+      // artilheiro da divisão do clube ("TODOS" mistura as séries: o líder podia ser de outra divisão)
+      estatisticasDaLiga(liga.id, clube.grupo).catch(() => null),
     ]);
     let jogadas = 0;
     const res = Object.fromEntries((porGrupo.length ? porGrupo[0].rs : []).map(r => [r.partida_id, r]));
@@ -1461,8 +1471,8 @@ async function telaClube(liga, clube) {
         let virou = false, a = 0, b = 0; if (v) for (const x of golsSeq[p.id] || []) { x.t === vLado ? a++ : b++; if (b > a) virou = true; }
         const turno = feitas.find(q => q.rodada < ultima && ((q.casa === p.casa && q.fora === p.fora) || (q.casa === p.fora && q.fora === p.casa)));
         if (humanos.has(p.casa) && humanos.has(p.fora)) l.push(item(...noticiaDoDuelo(p, r, { ...ctx, gols: golsSeq[p.id] || [], virou, turno: turno && { p: turno, r: res[turno.id] } })));
-        else if (virou) l.push(item("🔄", `Virada! ${lk(v)} sai perdendo e vence ${lk(v === p.casa ? p.fora : p.casa)}: ${placar(p, r)}.`));
-        else if (Math.abs(dif) >= 3) l.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${placar(p, r)}.`));
+        else if (virou) l.push(item("🔄", `De virada, ${lk(v)} vence ${lk(v === p.casa ? p.fora : p.casa)} por ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
+        else if (Math.abs(dif) >= 3) l.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
       }
       // séries dos clubes com dirigente, do último jogo para trás
       for (const c of clubes.filter(c => c.grupo === g && humanos.has(c.id))) {
@@ -1476,9 +1486,9 @@ async function telaClube(liga, clube) {
       if (tab[0] && tab[0].j >= 3) l.push(item(fim ? "🏆" : "🥇", fim ? `${lk(tab[0].clube.id)} é campeão do ${nomeDoGrupo(g)} com ${tab[0].pts} pontos.`
         : `${lk(tab[0].clube.id)} lidera o ${nomeDoGrupo(g)} com ${tab[0].pts} pontos${tab[1] && tab[0].pts > tab[1].pts ? `, ${tab[0].pts - tab[1].pts} à frente do ${lk(tab[1].clube.id)}` : ", empatado em pontos com o vice"}.`));
     }
-    const art = (stats && stats.artilheiros) || [];
-    if (art[0]) l.push(item("⚽", `${lj(art[0].id, art[0].nome)} (${lk(art[0].clube)}) lidera a artilharia da liga com ${art[0].gols} gols.`));
-    art.slice(1).filter(x => humanos.has(x.clube) && x.gols >= 10).slice(0, 3).forEach(x => l.push(item("⚽", `${lj(x.id, x.nome)} chega a ${x.gols} gols pelo ${lk(x.clube)} na temporada.`)));
+    const art = (stats && stats.artilheiros) || [], art1 = ((doGrupo && doGrupo.artilheiros) || [])[0];
+    if (art1) l.push(item("⚽", `${lj(art1.id, art1.nome)} (${lk(art1.clube)}) lidera a artilharia do ${esc(nomeDoGrupo(clube.grupo))} com ${art1.gols} gols.`));
+    art.filter(x => !art1 || x.id !== art1.id).filter(x => humanos.has(x.clube) && x.gols >= 10).slice(0, 3).forEach(x => l.push(item("⚽", `${lj(x.id, x.nome)} chega a ${x.gols} gols pelo ${lk(x.clube)} na temporada.`)));
     // começo de temporada: o que a última virada fez com os clubes de dirigente
     if (jogadas <= 3) confPassada.filter(x => humanos.has(x.clube_id)).forEach(x => {
       if (x.depois >= CONFIG_DIRETORIA.segundoClube && x.antes < CONFIG_DIRETORIA.segundoClube) l.push(item("🏛️", `A diretoria do ${lk(x.clube_id)} está encantada (confiança ${x.depois}): o dirigente ganhou o direito a um segundo clube em outro país.`));
@@ -1536,11 +1546,16 @@ async function telaClube(liga, clube) {
     ${kpisDaCentral()}
     <div id="desdeVisita" class="c-chegada-box"></div>
     <div id="chegada" class="c-chegada-box">${chegada()}</div>
-    <div class="g2">
+    <div class="g2 g2-central">
     <div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
+    <div class="card c-amistoso"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
+      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
+        <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
+      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
+      <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
     </div>
     <div>
@@ -1565,11 +1580,6 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
     </div>
     </div>
-    <div class="card" style="margin-top:12px"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
-      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
-        <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
-      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
-      <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
