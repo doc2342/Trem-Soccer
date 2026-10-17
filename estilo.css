@@ -53,6 +53,7 @@ th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-
 .campo div { border:1px solid var(--line); border-radius:6px; padding:8px 4px; text-align:center; font-size:12px; }
 .pp { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; background:var(--pp); font-weight:600; font-size:12px; text-align:center; }
 .nota { font-weight:700; color:var(--ac); }
+.pp.s-gk { background:#c9781a; color:#1f1100; } .pp.s-df { background:#2d6cc0; color:#fff; } .pp.s-md { background:#357f3c; color:#fff; } .pp.s-fw { background:#c0332e; color:#fff; }
 ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .rolagem { overflow-x:auto; }
 
