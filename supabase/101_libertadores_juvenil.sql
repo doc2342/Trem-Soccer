@@ -4,7 +4,7 @@
 --
 -- 16 clubes, jogo único, nas quatro datas da Libertadores (ligas.copa->'lib'->'datas'): oitavas, quartas, semifinal e final.
 -- Vagas pela temporada anterior. Brasil (8): os campeões dos grupos da liga de base e o campeão da Copinha; se algum se repetir,
--- completam as melhores campanhas da liga de base. Fora (8): os 2 primeiros do campeonato principal de cada país (lá não há liga de base).
+-- completam as melhores campanhas do grupo A da liga de base (102). Fora (8): os 2 primeiros do campeonato principal de cada país (lá não há liga de base).
 -- Oitavas sempre Brasil x estrangeiro, por sorteio; depois, sorteio livre. Sem mando; empate vai direto aos pênaltis.
 -- Regras da Copinha (juvenis + profissionais formados no clube de até 21 anos, sem lesão nem cartão, bônus de treino); os clubes de fora
 -- sem dirigente jogam com garotos de escolinha nível 4 (só nela). Prêmio do fundo da liga: 300 mil ao campeão e 150 mil ao vice.
