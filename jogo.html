@@ -117,7 +117,7 @@
   /* elenco por zonas */
   .elenco2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
   @media (max-width:1000px) { .elenco2 { grid-template-columns:1fr; } }
-  .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; }
+  .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-family:var(--display); font-weight:600; font-size:16px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); }
   .zona table { width:100%; font-size:13px; } .zona td, .zona th { padding:5px 4px; white-space:nowrap; } .zona td.esq { white-space:normal; }
   .zona .pp, .zona .act { min-width:34px; padding:1px 4px; }
   /* celular: só o essencial (posição colorida pela tática, atributos, nome, idade, nota e contrato); o resto está no botão i */
@@ -1385,6 +1385,21 @@ async function telaClube(liga, clube) {
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
+  // Elenco: tamanho, folha, força do onze e quem está fora
+  const kpisDoElenco = () => {
+    const ids = tatica && tatica.dados && Array.isArray(tatica.dados.jog) ? tatica.dados.jog.map(String) : [];
+    const onze = ids.length ? tatica.dados.jog.map((id, i) => ({ j: elenco.find(x => String(x.id).replace(/^j/, "") === String(id).replace(/^j/, "")), pos: tatica.dados.vagas[i] })).filter(x => x.j).map(x => notaNaPosicao(x.j, x.pos))
+      : elenco.filter(j => !j.juvenil).map(j => notaNaPosicao(j, j.pos)).sort((a, b) => b - a).slice(0, 11);
+    const media = onze.length ? onze.reduce((t, x) => t + x, 0) / onze.length : null;
+    const idade = elenco.length ? elenco.reduce((t, j) => t + j.idade, 0) / elenco.length : 0;
+    const lesao = elenco.filter(j => j.fora > 0 && j.motivo === "lesão").length, susp = elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").length;
+    const fim = elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length, copa = elenco.filter(j => j.foraCopa > 0).length;
+    return `<div class="kpis">${temJuvenis ? kpi("Com contrato", `${elenco.filter(j => !j.juvenil).length}<small> de ${LIMITE_DE_CONTRATADOS}</small>`, `${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS} juvenis · idade média ${f1(idade)}`)
+        : kpi("Elenco", `${adultos}<small> de 35</small>`, `com mais de 21 anos · idade média ${f1(idade)}`)}
+      ${temContratos && teto ? kpi("Folha", `<span class="${folha > teto ? "bad" : folha / teto > 0.95 ? "aviso" : ""}">${Math.round(folha / teto * 100)}%</span><small> do teto</small>`, `${dinheiro(folha)} de ${dinheiro(teto)}${fim ? ` · ${fim} ${fim === 1 ? "contrato acaba" : "contratos acabam"} nesta temporada` : ""}`) : ""}
+      ${media == null ? "" : kpi("Força do onze", f1(media), ids.length ? "média do time da tática salva" : "11 melhores (sem tática salva)")}
+      ${kpi("Desfalques na liga", lesao + susp, (lesao + susp ? `${lesao} ${lesao === 1 ? "lesionado" : "lesionados"} · ${susp} ${susp === 1 ? "suspenso" : "suspensos"}` : "todos disponíveis") + (copa ? ` · ${copa} ${copa === 1 ? "suspenso" : "suspensos"} na copa` : ""))}</div>`;
+  };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
     ${kpi("Próximo jogo", `<span id="kpiProx">—</span>`, `<span id="kpiProxD">carregando…</span>`)}
     ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
@@ -1558,21 +1573,22 @@ ${historicoDaBase()}
     <section data-secao="elenco">
     ${subAbas("elenco", [["lista", "👥 Elenco", "Elenco"], ["treino", "🏋️ Treino", "Treino"]])}
     <div data-parte="elenco:lista">
-    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · ${temJuvenis ? `${elenco.filter(j => !j.juvenil).length} de ${LIMITE_DE_CONTRATADOS} com contrato · ${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS} juvenis` : `${adultos} de 35 com mais de 21 anos`}${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
+    ${kpisDoElenco()}
+    <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · clique num jogador para mexer no contrato, na proteção ou na venda</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="lugarPainelElenco"><div id="contratoPainel"></div></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
       ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
-      <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
+      ${comoFunciona(`<div class="mut" style="font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div>`)}</div>
     </div>
     <div data-parte="elenco:treino">
     ${treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
-      <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
+      <div>Escolha os focos de cada jogador e salve; o treino vale a partir da próxima rodada.</div>${comoFunciona(`<div class="mut" style="font-size:12.5px">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
         Cada jogador tem um teto de nota, definido pelo talento, que você não vê, e treina na medida do caminho que tem até lá: quem tem teto alto ganha mais pontos por rodada, de modo que todos chegam ao teto mais ou menos na mesma idade (por volta dos 24 anos num clube bem estruturado, dos 28 num clube sem estrutura). O teto vale para a melhor posição em que ele é natural.
         <b>Posição nova:</b> abrindo o jogador (▾), dá para mandá-lo aprender uma posição além das que ele já tem. Enquanto aprende, o treino de atributos rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos; jogar na posição acelera e a idade freia. Cada jogador guarda uma posição aprendida: escolher outra faz a anterior cair para competente.
         O ritmo depende ainda da idade (cheio até os 23 anos, caindo até parar depois dos 30), do centro de treinamento (o seu está no nível ${clube.ct_nivel || 0}: ${Math.round((CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * (clube.ct_nivel || 0)) * 100)}%), do Trabalho em equipe do jogador e de ele ter jogado pelo menos ${CONFIG_TREINO.minutosParaBonus} minutos na rodada (+${Math.round(CONFIG_TREINO.bonusPorJogar * 100)}%).
         No teto, o treino para de render. Atributo que chega a 50 passa os pontos para os outros do foco. Lesionado não treina.
-        A coluna "Por rodada" é uma estimativa: usa o teto visto pelo olheiro (o meio da faixa) ou, sem olheiro, um teto típico de ${CONFIG_TREINO.caminho.tetoTipico}.</div>
+        A coluna "Por rodada" é uma estimativa: usa o teto visto pelo olheiro (o meio da faixa) ou, sem olheiro, um teto típico de ${CONFIG_TREINO.caminho.tetoTipico}.</div>`)}
       ${comissao == null ? "" : `<div class="card" style="margin:10px 0 0"><b>Treinadores</b> <span class="mut">${comissao.length} de ${CONFIG_TREINO.maximoDeTreinadores} · comissão técnica toda: ${dinheiro(comissaoToda.reduce((t, x) => t + x.salario, 0))} por temporada, fora do teto de folha</span>
         <div class="mut" style="margin:4px 0">Cada atributo pertence a uma área de treino. Em goleiros, defesa, meio e ataque vale a skill inteira do treinador designado para a área, e cada treinador geral soma 40% da skill dele por cima (até 50). Físico e tática são de todos: soma-se a skill de cada treinador do clube e divide-se por 2,5. Área sem ninguém treina a ${Math.round(CONFIG_TREINO.treinador[0] * 100)}%; com qualidade 50, a ${Math.round((CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1]) * 100)}%.</div>
         <div class="chips" style="margin:6px 0">${Object.entries(AREAS).map(([k, a]) => `<span class="tag" title="${a.at.map(x => ATRIBUTOS.find(y => y.k === x).nome).join(", ")}" style="border:1px solid var(--line);border-radius:6px;padding:2px 7px">${a.nome} <b class="${areasDoTreino[k] >= 1 ? "ok" : "aviso"}">${Math.round(areasDoTreino[k] * 100)}%</b></span>`).join("")}</div>
