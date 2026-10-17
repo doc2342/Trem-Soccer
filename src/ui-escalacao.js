@@ -2,7 +2,7 @@
 // online: usa o elenco e a tática do clube no banco; sessao: { user } de quem está logado; cabecalho: desenha o topo com as abas (só na página sozinha).
 import { criarRng } from "./rng.js";
 import { experienciaDe, nivelDoAnalista } from "./saude.js";
-import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
+import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
 import { foraDaCopa, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
@@ -273,6 +273,15 @@ function limparReferencias() {
   E.subs = E.subs.filter(s => emCampo.has(s.sai) && noBanco.has(s.entra));
 }
 
+// Titular fora da posição natural (Improvisado ×0,8, Competente ×0,93): quanto perde e quem do elenco (fora do onze) renderia mais ali.
+function foraDePosicao(j, pos) {
+  const fam = familiaridade(j, pos);
+  if (fam === "N" || pos === "GK") return null;
+  const nota = notaNaPosicao(j, pos), perda = nota / FAMILIARIDADE[fam] - nota, usados = new Set(E.jog);
+  const melhor = elenco.filter(x => !usados.has(x.id) && !(x.fora > 0)).map(x => ({ x, n: notaDoMomento(x, pos) })).filter(o => o.n > notaDoMomento(j, pos)).sort((a, b) => b.n - a.n)[0];
+  return { fam, perda, melhor: melhor && melhor.x, ganho: melhor ? notaNaPosicao(melhor.x, pos) : 0 };
+}
+
 function validar() {
   const esc11 = escalacaoAtual(), erros = [], avisos = [];
   if (esc11.length < 11) erros.push(`Faltam ${11 - esc11.length} jogadores no time.`);
@@ -285,7 +294,7 @@ function validar() {
   if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
   esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
-  esc11.filter(x => familiaridade(x.j, x.pos) === "I").forEach(x => avisos.push(`${x.j.nome} está improvisado de ${sg(x.pos)} (rende 80%).`));
+  esc11.forEach(x => { const f = foraDePosicao(x.j, x.pos); if (f) avisos.push(`${x.j.nome} está ${f.fam === "I" ? "improvisado" : "competente (não natural)"} de ${sg(x.pos)} e perde ${f1(f.perda)} de nota (rende ${f.fam === "I" ? "80" : "93"}%).${f.melhor ? ` ${f.melhor.nome} renderia mais ali (${f1(f.ganho)}).` : ""}`); });
   if (E.banco.length && !E.banco.some(id => (jogDe(id) || {}).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   const ent = entrosamento(esc11), NOME_SETOR = { D: "a defesa", M: "o meio", A: "o ataque" };
   for (const s of ["D", "M", "A"]) if (ent[s] < 0.999) avisos.push(`Entrosamento: ${NOME_SETOR[s]} rende ${(100 * (1 - ent[s])).toFixed(1).replace(".", ",")}% menos por causa de ${esc11.filter(x => x.j.entrosar > 0 && setorDaPosicao(x.pos) === s).map(x => `${x.j.nome} (faltam ${x.j.entrosar} ${x.j.entrosar === 1 ? "jogo" : "jogos"})`).join(", ")}.`);
@@ -296,12 +305,13 @@ function validar() {
 const TIRAS = [[["LW", 1], ["FC", 4], ["SC", 6], ["RW", 9]], [["AML", 1], ["AMC", 5], ["AMR", 9]], [["ML", 1], ["MC", 5], ["MR", 9]], [["WBL", 1], ["DMC", 5], ["WBR", 9]], [["DL", 1], ["DC", 4], ["SW", 6], ["DR", 9]]];
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 // mapa: índice da vaga que está sendo arrastada (mostra as tiras de posições), ou null
+const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
 function htmlGramado(mapa = null) {
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos" title="${POSICOES[pos].nome}">${sg(pos)}</span><select data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>`) : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
