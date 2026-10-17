@@ -240,8 +240,9 @@ async function iniciar() {
   preco = await precoDoIngresso(partida.casa).catch(() => null);
   await carregarRodada().catch(() => { rodada = null; });
   await atualizar();
-  // a cada 10 segundos redesenha com o que o relógio já liberou (e busca lances novos só quando os baixados estão acabando); com a aba em segundo plano não busca nada, e ao voltar busca de uma vez o que aconteceu
-  const buscar = async () => { if (encerrada || document.hidden) return; if (!partida.processada || partida.publico == null) partida = await partidaPorId(id);
+  // a cada 10 segundos redesenha com o que o relógio já liberou (sem consultar o banco) (e busca lances novos só quando os baixados estão acabando); com a aba em segundo plano não busca nada, e ao voltar busca de uma vez o que aconteceu
+  let consultaDaPartida = 0; // a partida (calculada? público?) é conferida no máximo uma vez por minuto
+  const buscar = async () => { if (encerrada || document.hidden) return; if ((!partida.processada || partida.publico == null) && Date.now() - consultaDaPartida >= 60000) { consultaDaPartida = Date.now(); partida = await partidaPorId(id); }
     // os outros jogos do grupo: junto com a busca dos lances; no ritmo antigo, a cada 30 segundos
     if (adiante ? momento().fim || Date.now() >= proximaBusca : ++voltas % 3 === 0) await atualizarRodada().catch(() => {});
     atualizar().catch(() => {}); };
