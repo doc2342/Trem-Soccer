@@ -1,7 +1,7 @@
 // Tela de escalação e tática. Montada dentro de um elemento: na página escalacao.html (sozinha) e em Clube, Tática, de jogo.html.
 // online: usa o elenco e a tática do clube no banco; sessao: { user } de quem está logado; cabecalho: desenha o topo com as abas (só na página sozinha).
 import { criarRng } from "./rng.js";
-import { experienciaDe } from "./saude.js";
+import { experienciaDe, nivelDoAnalista } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
@@ -144,12 +144,17 @@ async function previaDoAdversario(B) {
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>
     <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${efeitoDoClima(clima) ? ` <span class="aviso">· ${efeitoDoClima(clima)}</span>` : ""}</div>
     ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
-  if (!analista) { el.innerHTML = topo + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia mostra a formação provável, o estilo de jogo e como enfrentar.</div>`; return; }
-  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0)), t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
-  const conta = linhas => t.escalacao.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
+  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0));
+  // o time que eles escalaram nos últimos jogos: 1 sem analista; 2 ou 3 com ele (nivelDoAnalista). Quem não pode jogar dá lugar a um substituto.
+  const obs = jogo.liga_id ? B.escalacaoObservada(await B.escalacoesRecentes(await B.partidasDoClube(jogo.liga_id, adv.id), adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
+  const onzeVisto = obs ? `<div style="margin-top:6px">Time provável <span class="mut">(${obs.jogos === 1 ? "o do último jogo" : `quem mais jogou nos últimos ${obs.jogos} jogos`})</span>: ${obs.vagas.map(v => `${esc(v.j.nome)} <span class="mut">${sg(v.pos)}${v.substituto ? ", substituto" : obs.jogos > 1 ? ` ${v.vezes}/${v.de}` : ""}</span>`).join(" · ")}</div>` : "";
+  if (!analista) { el.innerHTML = topo + onzeVisto + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe${obs ? ": o time do último jogo" : ""}. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia acompanha 2 ou 3 jogos e mostra o estilo de jogo e como enfrentar.</div>`; return; }
+  const t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
+  const onze = obs ? obs.vagas : t.escalacao;
+  const conta = linhas => onze.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0, meu = escalacaoAtual();
-  const forca = media(t.escalacao), minha = media(meu);
-  let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${t.escalacao.map(x => sg(x.pos)).join(" · ")})</span></div>
+  const forca = media(onze), minha = media(meu);
+  let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${onze.map(x => sg(x.pos)).join(" · ")})</span></div>${onzeVisto}
     <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut">· o seu onze de agora: ${f1(minha)} (${minha >= forca + 0.5 ? "você é mais forte" : minha <= forca - 0.5 ? "eles são mais fortes" : "times parelhos"})</span></div>`;
   if (sk >= 20) h += `<div>Estilo provável: pressão <b>${["baixa", "média", "alta"][I.pressao] || "média"}</b> · passe <b>${{ curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto"}</b> · mentalidade <b>${I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal"}</b>${I.contraAtaque ? " · joga no <b>contra-ataque</b>" : ""}${I.impedimento ? " · faz <b>linha de impedimento</b>" : ""}</div>`;
   if (sk >= 35) {
@@ -162,7 +167,7 @@ async function previaDoAdversario(B) {
     if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
     h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
   }
-  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${adv.dono ? "É o que o bot faria com esse elenco: o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
+  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação é a que eles usaram${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}; o estilo ainda é o que o bot faria com esse elenco.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
   el.innerHTML = h;
 }
 async function iniciarOnline(sessaoDeTeste) {
@@ -194,7 +199,7 @@ async function iniciarOnline(sessaoDeTeste) {
   elenco = (await B.elencoDoClube(clubeOnline.id)).filter(j => !j.juvenil); // juvenil não joga partida oficial
   // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
   // a suspensão da liga não vale na copa
-  proximoJogo = (await B.sb.from("partidas").select("id, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
+  proximoJogo = (await B.sb.from("partidas").select("id, liga_id, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
   if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
   if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));

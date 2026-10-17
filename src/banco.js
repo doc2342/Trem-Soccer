@@ -117,6 +117,39 @@ export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*"
 export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
 // todos os jogos de um clube na temporada (liga, playoff e copa), para o calendário do clube
 export const partidasDoClube = (ligaId, clubeId) => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, vencedor").eq("liga_id", ligaId).or(`casa.eq.${clubeId},fora.eq.${clubeId}`).order("inicio").order("id").then(ok);
+// Escalação observada: os titulares que o clube usou nos últimos n jogos já disputados, lidos do lance de abertura
+// (ordem -1, público desde o apito inicial). n vem do analista de quem olha: 1 sem analista, 2 ou 3 com ele.
+// partidas: as do clube (partidasDoClube), em ordem de início.
+export async function escalacoesRecentes(partidas, clubeId, n) {
+  const agora = Date.now(), jogos = partidas.filter(p => new Date(p.fim) < agora).slice(-n);
+  if (!jogos.length) return [];
+  const { data, error } = await sb.from("lances").select("partida_id, esc:dados->escalacoes").in("partida_id", jogos.map(p => p.id)).eq("ordem", -1);
+  if (error) return [];
+  const por = Object.fromEntries(data.map(x => [x.partida_id, x.esc]));
+  return jogos.filter(p => por[p.id]).map(p => por[p.id][p.casa === clubeId ? 0 : 1].titulares).reverse(); // do mais recente ao mais antigo
+}
+// Junta os jogos num onze: a formação mais usada (empate: a mais recente) e, em cada vaga, quem mais jogou nela (empate: quem jogou
+// mais recentemente). Quem saiu do clube ou está fora (lesão, suspensão) dá lugar ao melhor disponível pela nota (substituto: true).
+export function escalacaoObservada(titularesPorJogo, elenco, nota) {
+  if (!titularesPorJogo.length) return null;
+  const chave = t => t.map(x => x.pos).sort().join(), contagem = {};
+  titularesPorJogo.forEach(t => { contagem[chave(t)] = (contagem[chave(t)] || 0) + 1; });
+  const modelo = titularesPorJogo.find(t => contagem[chave(t)] === Math.max(...Object.values(contagem)));
+  const porNome = Object.fromEntries(elenco.map(j => [j.nome, j])), usados = new Set(), de = titularesPorJogo.length;
+  const vagas = modelo.map(({ pos }) => {
+    const vezes = {};
+    titularesPorJogo.forEach((t, k) => t.filter(x => x.pos === pos).forEach(x => { const v = vezes[x.nome] || (vezes[x.nome] = { n: 0, k }); v.n++; }));
+    const escolha = Object.entries(vezes).filter(([nome]) => porNome[nome] && !usados.has(nome) && !(porNome[nome].fora > 0)).sort((a, b) => b[1].n - a[1].n || a[1].k - b[1].k)[0];
+    if (escolha) { usados.add(escolha[0]); return { pos, j: porNome[escolha[0]], vezes: escolha[1].n, de }; }
+    return { pos, vezes: 0, de };
+  });
+  // vagas sem ninguém observado disponível: o melhor que sobrou para a posição
+  vagas.filter(v => !v.j).forEach(v => {
+    const j = elenco.filter(x => !usados.has(x.nome) && !(x.fora > 0) && (x.pos === "GK") === (v.pos === "GK")).sort((a, b) => nota(b, v.pos) - nota(a, v.pos))[0];
+    if (j) { usados.add(j.nome); v.j = j; v.substituto = true; }
+  });
+  return { jogos: de, vagas: vagas.filter(v => v.j) };
+}
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
 // resultados da copa, com os pênaltis e quem passou (só os já liberados pelo relógio)
 export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(liberados) : Promise.resolve([]);
