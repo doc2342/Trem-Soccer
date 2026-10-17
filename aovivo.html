@@ -17,7 +17,7 @@
   #topo { padding:16px 16px 12px; }
   .competicao { text-align:center; font-size:11.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--mut); }
   .cronometro { display:block; width:max-content; margin:10px auto 0; padding:3px 14px; border-radius:999px; border:1px solid var(--ac); color:var(--ac); font-family:var(--display); font-weight:600; font-size:18px; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
-  .estat td { font-variant-numeric:tabular-nums; } .estat td.casa, .estat td.fora { font-family:var(--display); font-weight:600; font-size:17px; width:22%; }
+  .estat td { font-variant-numeric:tabular-nums; } .dupla { display:flex; gap:2px; height:4px; margin-top:4px; } .dupla i { display:block; border-radius:2px; } .dupla i.casa { background:var(--casa); } .dupla i.fora { background:var(--fora); } .estat td.casa, .estat td.fora { font-family:var(--display); font-weight:600; font-size:17px; width:22%; }
   .aovivo { display:grid; grid-template-columns:minmax(0,2fr) minmax(240px,1fr); gap:12px; align-items:start; }
   @media (max-width:760px) { .aovivo { grid-template-columns:1fr; } }
   .estat { width:100%; } .estat td { text-align:center; padding:5px 4px; } .estat td.esq { text-align:left; }
@@ -187,7 +187,10 @@ function htmlEstatisticas(narracao) {
     ["Cartões amarelos", conta(l => l.tipo === "amarelo")], ["Cartões vermelhos", conta(l => l.tipo === "vermelho")],
     ["Impedimentos", conta(l => l.tipo === "impedimento")], ["Contra-ataques", conta(l => l.tipo === "contra")],
   ];
-  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat">${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
+  // barra dividida: a parte de cada time no total da linha (some quando os dois estão em zero ou sem número)
+  const barra = v => { const a = parseFloat(String(v[0]).replace(",", ".")), b = parseFloat(String(v[1]).replace(",", ".")); if (!(a + b > 0)) return "";
+    return `<div class="dupla"><i class="casa" style="width:${(100 * a / (a + b)).toFixed(1)}%"></i><i class="fora" style="width:${(100 * b / (a + b)).toFixed(1)}%"></i></div>`; };
+  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat">${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
 }
 // abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
 // cronologico: na reprise, depois do jogo, a abertura vem primeiro e na ordem em que aconteceu
