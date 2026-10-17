@@ -1919,7 +1919,7 @@ ${historicoDaBase()}
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu" };
         const competicao = p => p.grupo === "LIB" ? "Libertadores" : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
         $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
-            <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
+            <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
           ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
