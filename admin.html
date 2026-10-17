@@ -49,12 +49,12 @@ const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedido
 async function pedidos(aviso = "") {
   const el = $("pedidos"); if (!el) return;
   const [l, extras] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes()]);
-  const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada 30 s: guarda o que o admin já escolheu
-  const bots = extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
+  const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-], select[id^=pedClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada 30 s: guarda o que o admin já escolheu
+  const bots = l.length || extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
   nPedidos = l.length + extras.length; titulo();
   el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
-      <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
+      <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil").sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="extraClube-${p.user_id}" title="Qual clube sem dono vira o clube extra"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["extraClube-" + p.user_id] == c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select> <button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
     ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
@@ -73,7 +73,7 @@ async function pedidos(aviso = "") {
     let motivo = null;
     if (r) { motivo = prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):"); if (motivo === null) return; }
     e.target.disabled = true;
-    try { await decidirPedido(+(a || r), !!a, motivo); await pedidos(a ? "Pedido aprovado: o clube já está com o dirigente." : "Pedido recusado."); dirigentes().catch(() => {}); }
+    try { await decidirPedido(+(a || r), !!a, motivo, a ? +$("pedClube-" + a).value || null : null); await pedidos(a ? "Pedido aprovado: o clube já está com o dirigente." : "Pedido recusado."); dirigentes().catch(() => {}); }
     catch (err) { await pedidos("Não deu: " + err.message); }
   };
 }

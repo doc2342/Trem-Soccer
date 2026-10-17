@@ -35,7 +35,7 @@ export async function pedirClube(nome, sigla, escudo, uniforme) {
   throw new Error(error.message);
 }
 export const pedidosPendentes = () => sb.from("pedidos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
-export const decidirPedido = (id, aprovar, motivo) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null }).then(ok);
+export const decidirPedido = (id, aprovar, motivo, clube) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null, p_clube: clube || null }).then(ok);
 // clube extra (95_pedido_de_clube_extra.sql; antes dele as leituras voltam vazias)
 export const meuPedidoExtra = userId => sb.from("pedidos_extra").select("*").eq("user_id", userId).maybeSingle().then(({ data, error }) => error ? null : data);
 export const pedirClubeExtra = (pais, nome, sigla, escudo, uniforme) => sb.rpc("pedir_clube_extra", { p_pais: pais, p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
