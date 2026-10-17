@@ -1779,6 +1779,7 @@ ${historicoDaBase()}
   };
 
   let paginaDoClube = null; // definida abaixo, quando o mercado está ligado
+  let empurrei = false; // a página do clube pôs #clube=ID no histórico (o Voltar volta por ele)
   // mercado: lista por posição, filtros e compra pela multa rescisória
   if ($("mLinhas")) {
     const DIVISAO = serieDoGrupo;
@@ -1880,24 +1881,68 @@ ${historicoDaBase()}
       abrir("clubeVisto"); verClube = id;
       $("cvCorpo").innerHTML = `<div class="card mut">Carregando…</div>`;
       try {
-        const [c, lista] = await Promise.all([clubePorId(id), jogadoresDoClube(id)]);
+        if (location.hash !== "#clube=" + id) { history.pushState(null, "", "#clube=" + id); empurrei = true; }
+        const [c, lista, jogos, hist, negocios] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id)]);
+        if (verClube !== id) return; // trocou de página enquanto lia
         const l = lista.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || b.nota - a.nota);
-        const folhaDele = l.reduce((s, j) => s + (j.salario || 0), 0);
+        const doGrupo = clubes.filter(x => x.grupo === c.grupo), jogosDoGrupo = await partidasDoGrupo(liga.id, c.grupo);
+        const [resDele, resGrupo] = await Promise.all([resultadosDe(jogos.map(p => p.id)), resultadosDe(jogosDoGrupo.map(p => p.id))]);
+        if (verClube !== id) return;
+        const res = Object.fromEntries(resDele.map(r => [r.partida_id, r]));
+        const tab = classificacao(doGrupo, jogosDoGrupo, resGrupo), pos = tab.findIndex(t => t.clube.id === id), eu = tab[pos];
+        // resultado visto de um dos lados; na copa, empate vira V ou D pelo classificado
+        const placar = (p, lado) => { const r = res[p.id], g = p.casa === lado ? [r.gols_casa, r.gols_fora] : [r.gols_fora, r.gols_casa];
+          return { g, v: g[0] > g[1] ? "V" : g[0] < g[1] ? "D" : p.vencedor ? (+p.vencedor === lado ? "V" : "D") : "E" }; };
+        const feitos = jogos.filter(p => res[p.id] && res[p.id].gols_casa != null).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+        const bolas = (ps, lado) => ps.map(p => { const x = placar(p, lado); return `<span class="fbola f${x.v}" title="${esc((cPor[p.casa] || {}).nome || "")} ${res[p.id].gols_casa} x ${res[p.id].gols_fora} ${esc((cPor[p.fora] || {}).nome || "")}">${x.v}</span>`; }).join("");
+        // time provável: o melhor onze pelo elenco, como o bot escalaria (a tática do dirigente é só dele)
+        const provavel = l.length >= 11 ? taticaBot(l) : null, aVenda = l.filter(j => j.a_venda);
+        const campo = provavel ? `<div class="gramado" style="margin-top:8px">${filasDoCampo(provavel.escalacao, x => x.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) =>
+          `<div class="vaga clk" data-cvjog="${x.j.id}" style="${fila.grade && col ? `grid-column:${col} / span 2` : ""}">${pp(x.pos)}<div class="nome" title="${esc(x.j.nome)}"><span class="nc">${esc(x.j.nome)}</span><span class="ns">${esc(x.j.nome.split(" ").slice(-1)[0])}</span></div><div class="det">${f1(notaNaPosicao(x.j, x.pos))} · ${x.j.idade} anos${x.j.a_venda ? " · 🏷️" : ""}</div></div>`).join("")}</div>`).join("")}</div>` : `<div class="mut">Elenco curto demais para montar um time.</div>`;
+        const contra = jogos.filter(p => p.casa === clube.id || p.fora === clube.id), contraFeitos = contra.filter(p => feitos.includes(p));
+        const conta = k => contraFeitos.filter(p => placar(p, clube.id).v === k).length;
+        const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
+        const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu" };
+        const competicao = p => p.grupo === "LIB" ? "Libertadores" : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
         $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
-              <div class="mut">${esc(nomeDoGrupo(c.grupo))}${c.torcida != null ? ` · torcida de ${c.torcida.toLocaleString("pt-BR")} · estádio de ${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : ""} · ${l.length} jogadores · folha ${dinheiro(folhaDele)}</div></div>
+              <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
           ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
-          ${salaDeTrofeus(id, "Troféus")}
-          <div class="card"><h2>Elenco <span class="tag">clique num jogador para ver a multa rescisória${c.dono ? " ou fazer uma proposta" : ""} · o botão i abre os atributos</span></h2>
+          <div class="kpis" style="margin-bottom:12px">${kpi("Posição", eu && eu.j ? `${pos + 1}º<small> de ${tab.length}</small>` : "—", esc(nomeDoGrupo(c.grupo)))}
+            ${kpi("Campanha", eu && eu.j ? `${eu.pts}<small> pts</small>` : "—", eu && eu.j ? `${eu.j} jogos · ${eu.v}V ${eu.e}E ${eu.d}D` : "ninguém jogou ainda")}
+            ${kpi("Últimos jogos", feitos.length ? bolas(feitos.slice(-5), id) : "—", "liga e copas, do mais antigo ao mais recente")}
+            ${kpi("Contra você", contraFeitos.length ? `${conta("V")}V ${conta("E")}E ${conta("D")}D` : "—", `do ${esc(clube.nome)}, nesta temporada`)}</div>
+          <div class="g2"><div>
+            <div class="card"><h2>Time provável ${provavel ? `<span class="tag">${esc(provavel.formacao)}</span>` : ""} <span class="tag">o melhor onze pelo elenco</span></h2>${campo}</div>
+            ${aVenda.length ? `<div class="card" style="border-color:var(--ac)"><h2>🏷️ À venda <span class="tag">clique para fazer uma proposta</span></h2><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th></tr>
+              ${aVenda.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td><b>${dinheiro(j.preco_pedido)}</b></td></tr>`).join("")}</table></div>` : ""}
+          </div><div>
+            <div class="card"><h2>Estruturas</h2><div class="kpis" style="grid-template-columns:repeat(2, minmax(0, 1fr));margin-top:4px">
+              ${kpi("Estádio", c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "")}
+              ${kpi("Torcida", c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", "torcedores")}
+              ${kpi("CT", c.ct_nivel != null ? `nível ${c.ct_nivel}` : "—", "centro de treinamento")}
+              ${kpi("Base", c.base_nivel != null ? `nível ${c.base_nivel}` : "—", "categorias de base")}</div></div>
+            <div class="card"><h2>Contra o ${esc(clube.nome)} <span class="tag">nesta temporada</span></h2>${contra.length ? `<table class="mini" style="width:100%">${contra.map(p => { const x = feitos.includes(p) ? placar(p, clube.id) : null;
+              return `<tr><td class="mut esq">${competicao(p)}</td><td class="esq">${lk(p.casa)} ${x ? `<b>${res[p.id].gols_casa} x ${res[p.id].gols_fora}</b>` : "x"} ${lk(p.fora)}</td><td>${x ? `<span class="fbola f${x.v}" title="para o ${esc(clube.nome)}">${x.v}</span>` : `<span class="mut">${quando(p.inicio)}</span>`}</td></tr>`; }).join("")}</table>`
+              : `<div class="mut">Os dois clubes não se enfrentam nesta temporada.</div>`}</div>
+            ${salaDeTrofeus(id, "Títulos")}
+          </div></div>
+            <div class="card"><h2>Elenco <span class="tag">clique num jogador para ver a multa rescisória${c.dono ? " ou fazer uma proposta" : ""} · o botão i abre os atributos</span></h2>
             <div id="cvPainel"></div>
             <div class="elenco2" id="cvLista">${[ZONAS_DO_ELENCO.slice(0, 2), ZONAS_DO_ELENCO.slice(2)].map(metade => `<div>${metade.map(([titulo, linhas]) => { const z = l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota);
               return `<div class="zona"><h3>${titulo} <span class="tag">${z.length}</span></h3><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="c-sal">Salário</th><th>Multa</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
                 ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
-                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>`;
-        $("cvVoltar").onclick = () => abrir(abaAnterior);
+                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>
+          <div class="g2"><div>
+            <div class="card"><h2>Temporadas anteriores</h2>${hist.length ? `<table class="mini" style="width:100%"><tr><th>T</th><th class="esq">Divisão</th><th>Pos.</th><th>P</th><th>V-E-D</th><th class="esq"></th></tr>
+              ${hist.map(h => `<tr><td>${h.temporada}</td><td class="esq">${esc(nomeDoGrupo(h.grupo))}</td><td>${h.posicao}º</td><td>${h.pontos}</td><td>${h.vitorias}-${h.empates}-${h.derrotas}</td><td class="esq mut">${DESTINO[h.destino] || ""}${h.copa ? ` · copa: ${esc(h.copa)}` : ""}</td></tr>`).join("")}</table>` : `<div class="mut">Primeira temporada do clube na liga.</div>`}</div>
+          </div><div>
+            <div class="card"><h2>Maiores negócios</h2>${maiores.length ? `<table class="mini" style="width:100%">${maiores.map(t => `<tr><td>${t.para_clube === id ? "⬅️" : "➡️"}</td><td class="esq">${esc(t.jogador || "")} <span class="mut">${t.pos ? esc(sg(t.pos)) : ""}</span><br><span class="mut">${t.para_clube === id ? `veio do ${lk(t.de_clube)}` : `foi para o ${lk(t.para_clube)}`} · T${t.temporada}</span></td><td><b>${dinheiro(t.valor)}</b></td></tr>`).join("")}</table>` : `<div class="mut">Nenhuma compra ou venda com valor ainda.</div>`}</div>
+          </div></div>`;
+        $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
         if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
-        $("cvLista").onclick = e => { const tr = e.target.closest("tr[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
+        $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
       } catch (err) { $("cvCorpo").innerHTML = `<div class="card bad">${esc(err.message)}</div>`; }
     };
     mercadoAoAbrir = buscar; // a lista de todos os jogadores (duas leituras de 1.000) só é lida quando a aba Mercado abre
@@ -2003,6 +2048,7 @@ ${historicoDaBase()}
     if (VELHOS[k + ":" + sub]) [k, sub] = VELHOS[k + ":" + sub];
     else if (ATALHOS[k] && !document.querySelector(`[data-secao="${k}"]`)) [k, sub] = ATALHOS[k];
     if (abaAtual !== "clubeVisto") abaAnterior = abaAtual;
+    else if (k !== "clubeVisto" && /^#clube=/.test(location.hash)) { history.replaceState(null, "", location.pathname + location.search); empurrei = false; }
     abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
@@ -2063,7 +2109,11 @@ ${historicoDaBase()}
     try { await definirDirigente(nome); await carregar({ user: usuario }); } catch (err) { alert(err.message); }
   };
   let inicial = "inicio"; try { inicial = localStorage.getItem("mo_aba") || "inicio"; } catch (e) {}
-  const clubeAberto = verClube;
+  const clubeDoEndereco = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
+  const clubeAberto = verClube || (clubeDoEndereco && clubeDoEndereco !== clube.id ? clubeDoEndereco : null);
+  // voltar e avançar do navegador entre a página de um clube e o resto
+  window.onpopstate = () => { const id = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
+    if (id && id !== clube.id && paginaDoClube) { if (id !== verClube) paginaDoClube(id); } else if (abaAtual === "clubeVisto") { empurrei = false; abrir(abaAnterior); } };
   abrir(ATALHOS[inicial] || document.querySelector(`[data-secao="${inicial}"]`) ? inicial : "inicio");
   if ($("peneira")) $("peneira").onclick = async () => {
     $("peneira").disabled = true; $("peneiraAviso").textContent = "Olhando a garotada…";

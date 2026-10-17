@@ -383,6 +383,8 @@ export const livresDaLiga = async ligaId => {
 };
 // histórico dos meus lances em leilões de livres (nulo antes do 88_historico_de_lances.sql) e as transferências do clube, de qualquer temporada
 export const meusLances = clubeId => sb.from("historico_lances").select("jogador_id, salario, temporadas, criada_em, jogadores(nome, pos, idade, clube_id, salario)").eq("clube_id", clubeId).order("criada_em", { ascending: false }).limit(60).then(({ data, error }) => error ? null : data);
+// campanhas de um clube nas temporadas anteriores (página do clube)
+export const historicoDoClube = (ligaId, clubeId) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("clube_id", clubeId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 export const transferenciasDoClube = clubeId => sb.from("transferencias").select("*").or(`de_clube.eq.${clubeId},para_clube.eq.${clubeId}`).order("id", { ascending: false }).limit(100).then(({ data, error }) => error ? [] : data);
 export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);

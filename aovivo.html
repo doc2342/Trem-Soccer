@@ -159,12 +159,14 @@ function momento() {
   return { texto: "Fim de jogo", fim: true };
 }
 
+// escudo e nome do time abrem a página do clube em jogo.html (aba nova, como os links de jogador)
+const lkClube = (id, html, cls = "lkj") => `<a class="${cls}" href="jogo.html#clube=${id}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>`;
 function topo(gols, m, narracao = []) {
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   $("topo").innerHTML = `<div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}`}</div>
-    <div class="painel"><div class="time casa"><span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>${esc(c[0].nome)}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora"><span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>${esc(c[1].nome)}</div></div>
+    <div class="painel"><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}`;
 }
 
@@ -181,7 +183,7 @@ function htmlEstadio(pre) {
 function htmlEscalacoes(pre) {
   if (!pre || !pre.escalacoes) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
-  const time = (e, i) => `<div><b class="${COR[i]}">${esc(nomes[i])}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
+  const time = (e, i) => `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
     ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`;
   return `<div class="card"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
