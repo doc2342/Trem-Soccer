@@ -2239,8 +2239,8 @@ async function botsContratamLivres(sb, ligaId) {
 
 // Playoffs de acesso: quando a fase de liga (ou as semifinais) termina, a fase seguinte é criada sozinha, uma data depois, no intervalo do calendário.
 async function avancarPlayoffs(sb) {
-  for (const liga of (await sb.from("ligas").select("id, pausada, minutos_transmissao")).data || []) {
-    if (liga.pausada) continue;
+  for (const liga of (await sb.from("ligas").select("id, pausada, minutos_transmissao, copa")).data || []) {
+    if (liga.pausada || (liga.copa || {}).sem_playoffs) continue; // sem_playoffs: temporada sem playoffs (a virada zera ligas.copa)
     const conta = async f => (await f(sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id))).count || 0;
     if (await conta(q => q.eq("fase", "acesso")) || await conta(q => q.eq("fase", "liga").eq("processada", false))) continue; // já tem a final do acesso, ou a liga ainda está em jogo
     const partidas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio").eq("liga_id", liga.id).in("fase", ["liga", "semi", "final", "acesso"]).order("id").limit(2000)).data || [];
