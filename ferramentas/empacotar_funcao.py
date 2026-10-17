@@ -131,7 +131,7 @@ async function jogarBase(sb) {
   const r = await sb.from("base_jogos").select("*").eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").limit(25);
   if (r.error || !r.data || !r.data.length) return 0;
   const jogos = r.data, ids = [...new Set(jogos.flatMap(p => [p.casa, p.fora]))];
-  const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel").in("id", ids)).data || []).map(c => [c.id, c]));
+  const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel, pais").in("id", ids)).data || []).map(c => [c.id, c]));
   // jogam a base: os juvenis e, nos clubes com dirigente, o profissional formado no clube de até 21 anos que não esteja lesionado
   const juvenis = {}, profs = {};
   for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).lte("idade", CONFIG_LIGA_DE_BASE.idadeMaxima).order("id")).data || [])
@@ -162,13 +162,13 @@ async function jogarBase(sb) {
       const semente = Math.floor(Math.random() * 2147483647), rng = __rng.criarRng(semente);
       const jaJogou = minutosNaBase[chave(p.liga_id, p.temporada)];
       const lado = id => { const c = clubes[id] || {};
-        const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil, formacao: formacoes[id], tatica: taticasDaBase[id] });
+        const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : p.fase === "libjuv" && c.pais && c.pais !== "Brasil" ? CONFIG_LIGA_DE_BASE.nivelDeFora : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil, formacao: formacoes[id], tatica: taticasDaBase[id] });
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
-      // Copinha (70_copinha.sql): mata-mata; empate vai direto aos pênaltis
+      // Copinha (70_copinha.sql) e Libertadores Juvenil (101): mata-mata; empate vai direto aos pênaltis
       const extra = {};
-      if (p.fase === "copinha") {
+      if (p.fase === "copinha" || p.fase === "libjuv") {
         extra.vencedor = resultado.gols_casa > resultado.gols_fora ? p.casa : resultado.gols_fora > resultado.gols_casa ? p.fora : null;
         if (!extra.vencedor) { const pen = [0, 0];
           for (let k = 0; k < 5; k++) { if (rng.chance(0.76)) pen[0]++; if (rng.chance(0.76)) pen[1]++; }
@@ -196,6 +196,7 @@ async function jogarBase(sb) {
   }
   // Copinha: com a fase toda jogada, o banco sorteia a seguinte (ou paga o campeão)
   for (const liga of new Set(jogos.filter(p => p.fase === "copinha").map(p => p.liga_id))) await sb.rpc("copinha_avancar", { p_liga: liga });
+  for (const liga of new Set(jogos.filter(p => p.fase === "libjuv").map(p => p.liga_id))) await sb.rpc("libertadores_juvenil_avancar", { p_liga: liga });
   return n;
 }
 

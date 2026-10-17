@@ -12,6 +12,7 @@ import { taticaBot } from "./bot.js";
 export const CONFIG_LIGA_DE_BASE = {
   escolinha: [13, 1.2], // nota do garoto da escolinha: 13 + 1,2 por nível da base (o juvenil de verdade chega com 15 + 1,5 por nível e treina)
   nivelDoBot: 2,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 2
+  nivelDeFora: 4,       // na Libertadores Juvenil, o clube de fora sem dirigente joga com garotos de uma base de nível 4 (101_libertadores_juvenil.sql)
   bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou: equivale ao bônus de 10% por jogar em duas rodadas da liga
   minutos: 45,
   idadeMaxima: 21,      // profissional formado no clube joga a base até esta idade (só em clube com dirigente)
