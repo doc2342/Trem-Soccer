@@ -429,6 +429,7 @@ async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   // Carga numa chamada só (107_carga_do_clube.sql, que também fecha os leilões vencidos). Sem o SQL, ou para a parte que falhou lá dentro,
   // cada leitura é feita do jeito antigo: todas juntas, só o mercado esperando os leilões e ofertas vencidos fecharem, e os lances dos livres esperando a lista deles.
+  let mercadoAoAbrir = null;
   const carga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
   const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
   const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
@@ -1899,7 +1900,7 @@ ${historicoDaBase()}
         $("cvLista").onclick = e => { const tr = e.target.closest("tr[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
       } catch (err) { $("cvCorpo").innerHTML = `<div class="card bad">${esc(err.message)}</div>`; }
     };
-    buscar();
+    mercadoAoAbrir = buscar; // a lista de todos os jogadores (duas leituras de 1.000) só é lida quando a aba Mercado abre
   }
   // jogadores livres (lance no leilão) e ofertas de clubes no vermelho (compra por 75% da multa)
   // regras do leilão dos livres (supabase/25_regras_do_leilao.sql)
@@ -2007,6 +2008,7 @@ ${historicoDaBase()}
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
+    if (k === "mercado" && mercadoAoAbrir) { const f = mercadoAoAbrir; mercadoAoAbrir = null; f(); }
     const g = GRUPO_DA_ABA[k]; if (g) abrirSubAba(g, sub || subGuardada(g));
   };
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
