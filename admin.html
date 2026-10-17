@@ -50,7 +50,7 @@ async function pedidos(aviso = "") {
   const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada 30 s: guarda o que o admin já escolheu
   const bots = extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
   nPedidos = l.length + extras.length; titulo();
-  el.innerHTML = `<h2>Pedidos de clube: ${l.length} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
+  el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
