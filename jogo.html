@@ -1414,6 +1414,18 @@ async function telaClube(liga, clube) {
       ${media == null ? "" : kpi("Força do onze", f1(media), ids.length ? "média do time da tática salva" : "11 melhores (sem tática salva)")}
       ${kpi("Desfalques na liga", lesao + susp, (lesao + susp ? `${lesao} ${lesao === 1 ? "lesionado" : "lesionados"} · ${susp} ${susp === 1 ? "suspenso" : "suspensos"}` : "todos disponíveis") + (copa ? ` · ${copa} ${copa === 1 ? "suspenso" : "suspensos"} na copa` : ""))}</div>`;
   };
+  // Mercado: janela, caixa, compras pela multa e leilões
+  const kpisDoMercado = () => {
+    const dh = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), daTemp = t => t.temporada === liga.temporada && t.tipo === "multa";
+    const fim = janela === "meio" ? liga.janela_meio_fecha : liga.janela_inicio_fecha, abre = liga.janela_meio_abre && new Date(liga.janela_meio_abre) > new Date() ? liga.janela_meio_abre : null;
+    const comprei = transferencias.filter(t => daTemp(t) && t.para_clube === clube.id).length, perdi = transferencias.filter(t => daTemp(t) && t.de_clube === clube.id).length;
+    const limite = 4 + (clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? clube.multas_extra : 0);
+    const pendentes = (propostas || []).filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length;
+    return `<div class="kpis">${kpi("Janela", janela ? `<span class="ok">aberta</span>` : prePeriodo ? `<span class="aviso">pré-acordos</span>` : `<span class="bad">fechada</span>`, janela ? (fim ? `até ${dh(fim)}` : janela === "meio" ? "janela do meio" : "janela de início") : prePeriodo ? "a janela abre na virada" : abre ? `abre em ${dh(abre)}` : "abre na virada")}
+      ${caixa == null ? "" : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
+      ${kpi("Compras pela multa", `${comprei}<small> de ${limite}</small>`, `você perdeu ${perdi} de 3 nesta temporada`)}
+      ${livres == null ? "" : kpi("Leilões", `${meusLeiloes}<small> de 3</small>`, pendentes ? `${pendentes} ${pendentes === 1 ? "proposta espera" : "propostas esperam"} você` : "ao mesmo tempo")}</div>`;
+  };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
     ${kpi("Próximo jogo", `<span id="kpiProx">—</span>`, `<span id="kpiProxD">carregando…</span>`)}
     ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
@@ -1514,6 +1526,7 @@ ${historicoDaBase()}
     </section>
     <section data-secao="clubeVisto"><div id="cvCorpo"></div></section>
     <section data-secao="mercado">
+    ${janela === undefined ? "" : kpisDoMercado()}
     <div class="subabas" id="mSub">${[["busca", "🔎 Buscar jogadores", "Busca", 0],
         ...(propostas == null ? [] : [["neg", "🤝 Negociações", "Propostas", propostas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length]]),
         ...(livres == null ? [] : [["livres", "✍️ Livres e ofertas", "Livres", livres.length + ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length]]),
@@ -1531,7 +1544,7 @@ ${historicoDaBase()}
     <div data-msecao="busca">
     ${janela === undefined ? `<div class="card mut">O mercado aparece aqui quando o administrador ligar (SQL 19 e a função "mercado").</div>` : `
     <div class="card"><h2>Mercado</h2>
-      <div class="mut">Quem paga a multa rescisória (5 vezes o salário) leva o jogador na hora. Não têm multa: os protegidos de cada clube (até 7) e quem está na primeira temporada de contrato. O jogador não desce de divisão pela multa. Nesta temporada você fez <b>${transferencias.filter(t => t.para_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 4</b> compras e perdeu <b>${transferencias.filter(t => t.de_clube === clube.id && t.temporada === liga.temporada && t.tipo === "multa").length} de 3</b> jogadores pela multa. Caixa: <b>${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.</div>
+      <div class="mut">Quem paga a multa rescisória (5 vezes o salário) leva o jogador na hora. Não têm multa: os protegidos de cada clube (até 7) e quem está na primeira temporada de contrato. O jogador não desce de divisão pela multa.</div>
       <div class="row" style="margin-top:10px"><div class="chips" id="mLinhas" style="flex-basis:100%"><b>Posição</b>${(formatoDasSiglas() === "pt"
             ? [["gol", "GOL", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "MD", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "MA", "Meias-atacantes"], ["ataque", "A", "Atacantes e pontas"]]
             : [["gol", "GK", "Goleiros"], ["defesa", "D", "Defensores: zagueiros, líberos e laterais"], ["volante,ala", "DM", "Médios defensivos: volantes e alas"], ["meio", "M", "Meio-campistas"], ["meia", "AM", "Meias-atacantes"], ["ataque", "F", "Atacantes e pontas"]])
