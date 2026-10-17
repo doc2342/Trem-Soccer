@@ -87,6 +87,7 @@ async function aprovarExtra(p, clubeId) {
   const nivel = forcas.reduce((s, x) => s + x, 0) / forcas.length;
   const elenco = gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais: p.pais, nomes }).map(j => {
     const { mercado, ...contrato } = contratoInicial(rng, j, liga.temporada);
+    contrato.contrato_ate = liga.temporada + rng.int(1, 2); // clube assumido no meio do caminho: ninguém vence na temporada atual
     return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
   });
   return aprovarPedidoExtra(p.user_id, elenco, clubeId);
