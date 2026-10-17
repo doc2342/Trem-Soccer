@@ -170,7 +170,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
   const clima = climaDaPartida(partida.id == null ? semente : partida.id);
   const lados = [casa, fora].map(l => {
-    const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
+    const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
     // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
     // ponytail: a Libertadores não tem cartões próprios (só lesão tira do jogo; vermelho e amarelos não passam para o jogo seguinte).
     // Se fizer falta, dar a ela colunas próprias como as da copa (amarelos_copa, fora_copa).

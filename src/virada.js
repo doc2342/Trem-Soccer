@@ -164,7 +164,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
      resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
    }
    // clube com dirigente que entrou nos últimos 21 dias cuida dos próprios contratos; os demais renovam sozinhos
-   const cuida = comLivres && !!c.dono && !!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000;
+   const cuida = comLivres && !!c.dono && (!!c.extra || (!!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000)); // clube extra (96): sem inatividade
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
     // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 38; antes dele, vale o sorteio na virada

@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, divisao, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("*").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta

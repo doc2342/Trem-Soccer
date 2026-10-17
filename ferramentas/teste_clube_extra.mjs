@@ -1,4 +1,4 @@
-// Testa o supabase/95_pedido_de_clube_extra.sql num Postgres em memória (PGlite), com tabelas mínimas.
+// Testa o supabase/95_pedido_de_clube_extra.sql e o 96_seletor_de_clubes.sql num Postgres em memória (PGlite), com tabelas mínimas.
 // Uso: npm i --no-save @electric-sql/pglite@0.2.17 && node ferramentas/teste_clube_extra.mjs
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'fs';
@@ -18,7 +18,7 @@ create table clubes (id bigint primary key, liga_id bigint, grupo text, nome tex
 create table jogadores (id bigint generated always as identity primary key, clube_id bigint references clubes on delete cascade, nome text, pais text, idade smallint, pos text, fam jsonb, at smallint[], pe text,
   principal boolean default false, salario int, salario_mercado int, contrato_ate int, protegido_ate int, emprestado_de bigint);
 create table jogadores_ocultos (jogador_id bigint references jogadores on delete cascade, tal smallint);
-create table propostas (jogador_id bigint references jogadores on delete cascade, comprador bigint, estado text);
+create table propostas (jogador_id bigint references jogadores on delete cascade, comprador bigint, vendedor bigint, estado text);
 create table pre_contratos (jogador_id bigint references jogadores on delete cascade, clube_id bigint);
 create table taticas (clube_id bigint); create table obras (clube_id bigint); create table treinadores (clube_id bigint);
 create table financas (clube_id bigint primary key, caixa int);
@@ -34,7 +34,7 @@ insert into financas values (1,9000),(2,1000),(3,3000),(4,2000),(5,500);
 `);
 // cada bot com 3 jogadores; o primeiro de cada bot tem proposta de dirigente
 for (const c of [2, 3, 4, 5]) for (let k = 0; k < 3; k++) await db.exec(`insert into jogadores (clube_id, nome, pais, idade, pos, fam, at) values (${c}, 'J${c}${k}', 'Argentina', 25, 'FC', '{}', array_fill(20::smallint, array[22]))`);
-await db.exec(`insert into propostas select id, 1, 'pendente' from jogadores where nome like 'J_0'`);
+await db.exec(`insert into propostas (jogador_id, comprador, estado) select id, 1, 'pendente' from jogadores where nome like 'J_0'`);
 await db.exec(fs.readFileSync(new URL('../supabase/95_pedido_de_clube_extra.sql', import.meta.url), 'utf8'));
 let falhas = 0;
 const como = (uid, admin) => db.exec(`select set_config('t.uid', '${uid}', false), set_config('t.admin', '${admin}', false)`);
@@ -71,4 +71,14 @@ await caso('elenco: 22 novos + 1 em negociação, ocultos', `select count(*) fil
 await caso('direito gasto, pedido aprovado', `select d.direitos, p.estado, p.clube_id from dirigentes d, pedidos_extra p`, false, r => { const x = r.rows[0]; return (x.direitos == 0 && x.estado === 'aprovado' && x.clube_id == id) || JSON.stringify(x); });
 await como(U, 'nao');
 await caso('sem direito de novo', pedir('Uruguai', 'Outro'), true);
+await db.exec(fs.readFileSync(new URL('../supabase/96_seletor_de_clubes.sql', import.meta.url), 'utf8'));
+await db.exec(fs.readFileSync(new URL('../supabase/96_seletor_de_clubes.sql', import.meta.url), 'utf8')); // rodar duas vezes
+await caso('aprovado vira extra (pelo update do 96)', `select extra from clubes where id = ${id}`, false, r => r.rows[0].extra === true || 'extra = ' + r.rows[0].extra);
+await caso('aprovar_pedido_extra agora marca extra', `select prosrc like '%extra = true%' ok from pg_proc where proname = 'aprovar_pedido_extra'`, false, r => r.rows[0].ok || 'sem marca');
+await como(U, 'nao');
+await caso('ativar clube alheio', `select ativar_clube(5)`, true);
+await caso('ativar o extra', `select ativar_clube(${id})`, false, async () => (await db.query(`select clube_ativo from dirigentes`)).rows[0].clube_ativo == id || 'não ativou');
+await db.exec(`insert into propostas (jogador_id, comprador, vendedor, estado) select id, 5, ${id}, 'pendente' from jogadores where clube_id = ${id} limit 2; insert into taticas values (1);`);
+await caso('pendências', `select * from minhas_pendencias() order by clube_id`, false, r => { const m = Object.fromEntries(r.rows.map(x => [x.clube_id, x.n]));
+  return (m[1] === 0 && m[id] === 3) || JSON.stringify(m); });
 console.log(falhas ? falhas + ' FALHAS' : 'tudo certo');

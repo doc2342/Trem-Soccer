@@ -8,9 +8,13 @@
 <script src="atualiza.js"></script>
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
+  .meus-clubes { display:flex; gap:6px; align-items:center; } .meus-clubes:empty { display:none; }
+  .meus-clubes button { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; position:relative; }
+  .meus-clubes button.ativo { border-color:var(--ac); } .meus-clubes .ponto { position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:var(--bad); }
   /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
   @media (max-width:620px) {
-    .topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; }
+    .topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; } #meusClubes { grid-column:1/-1; }
     .topo > svg:first-child { width:52px; height:52px; } .topo > svg:nth-child(2) { width:38px; height:38px; }
     .topo h2 { font-size:18px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
@@ -148,7 +152,7 @@
 </head>
 <body>
 <main>
-  <div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" id="quem" style="margin-left:auto"></span><button class="sec" id="sair" hidden>Sair</button></div>
+  <div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" id="quem" style="margin-left:auto"></span><span id="meusClubes" class="meus-clubes"></span><button class="sec" id="sair" hidden>Sair</button></div>
   <div class="card" id="login"></div>
   <div id="app"></div>
   <!-- aba Tática: fica fora de #app para não ser desmontada quando a tela do clube é redesenhada -->
@@ -201,7 +205,7 @@ const recordesDaLiga = daLiga("recordesDaLiga", B.recordesDaLiga);
 const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, ultimaNovidade } from "./src/banco.js";
+import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, meusClubes, ativarClube, minhasPendencias, ultimaNovidade } from "./src/banco.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
@@ -268,7 +272,7 @@ async function carregar(s) {
   usuario = s ? s.user : null;
   $("quem").textContent = usuario ? usuario.email : "";
   $("sair").hidden = !usuario;
-  if (!usuario) { $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
+  if (!usuario) { $("meusClubes").innerHTML = ""; $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
   taticaVelha = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
   const redesenho = !!$("abas"), rolagem = scrollY; // a tela do clube já está aberta: troca o conteúdo sem piscar e fica onde estava
   if (!redesenho) $("app").innerHTML = `<div class="card mut">Carregando…</div>`;
@@ -278,7 +282,7 @@ async function carregar(s) {
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
     if (clube) { registrarAcesso().catch(() => {}); const novidadeP = ultimaNovidade(liga.id, clube.id); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
       // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
-      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await telaClube(liga, clube); carregadoEm = Date.now(); marca = { liga: liga.id, clube: clube.id, novidade: await novidadeP }; if (redesenho) scrollTo(0, rolagem); return; }
+      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await telaClube(liga, clube); desenharSeletor(clube).catch(() => {}); carregadoEm = Date.now(); marca = { liga: liga.id, clube: clube.id, novidade: await novidadeP }; if (redesenho) scrollTo(0, rolagem); return; }
     const pedido = await meuPedido(usuario.id);
     if (minha !== versao) return;
     if (pedido && pedido.estado === "pendente") telaEspera(pedido);
@@ -344,6 +348,25 @@ async function telaCriar(liga, recusado) {
   $("app").onclick = $("app").onchange = null;
   desenhar();
 }
+
+// ---------- seletor de clubes (96_seletor_de_clubes.sql) ----------
+// Só aparece para quem tem mais de um clube. Trocar grava o clube ativo no banco (toda ação vale para ele) e recarrega a página;
+// as outras abas abertas recebem o aviso pelo localStorage e recarregam também, para nenhuma agir pelo clube antigo.
+async function desenharSeletor(clube) {
+  const el = $("meusClubes");
+  const [meus, pend] = await Promise.all([meusClubes(usuario.id).catch(() => []), minhasPendencias()]);
+  if (meus.length < 2) { el.innerHTML = ""; return; }
+  el.innerHTML = meus.map(c => { const ativo = c.id === clube.id, p = !ativo && pend[c.id];
+    return `<button class="sec${ativo ? " ativo" : ""}" data-clube="${c.id}" title="${esc(c.nome)} (${esc(c.pais)})${ativo ? " · clube ativo" : p ? " · tem pendência" : " · trocar para este clube"}">${svgEscudo(c.escudo, c.sigla, 26)}${ativo ? `<b>${esc(c.sigla)}</b>` : ""}${p ? `<i class="ponto"></i>` : ""}</button>`; }).join("");
+  el.onclick = async e => {
+    const b = e.target.closest("[data-clube]");
+    if (!b || +b.dataset.clube === clube.id) return;
+    b.disabled = true;
+    try { await ativarClube(+b.dataset.clube); try { localStorage.setItem("ts_clube_ativo", b.dataset.clube + ":" + Date.now()); } catch (x) {} location.reload(); }
+    catch (err) { b.disabled = false; alert("Não deu para trocar de clube: " + err.message); }
+  };
+}
+addEventListener("storage", e => { if (e.key === "ts_clube_ativo" && usuario) location.reload(); });
 
 // ---------- pedir o clube extra (95_pedido_de_clube_extra.sql) ----------
 // Escolhe o país; o administrador aprova e o banco sorteia um clube sem dono de lá, refeito com elenco e estruturas novos na média do país.

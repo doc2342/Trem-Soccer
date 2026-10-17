@@ -1459,7 +1459,7 @@ const __rodada = (() => {
     const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
     const clima = climaDaPartida(partida.id == null ? semente : partida.id);
     const lados = [casa, fora].map(l => {
-      const inativo = !l.clube.dono || !l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000;
+      const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
       // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
       // ponytail: a Libertadores não tem cartões próprios (só lesão tira do jogo; vermelho e amarelos não passam para o jogo seguinte).
       // Se fizer falta, dar a ela colunas próprias como as da copa (amarelos_copa, fora_copa).
@@ -2282,7 +2282,7 @@ Deno.serve(async (req) => {
 
     const ids = [...new Set(pendentes.flatMap(p => [p.casa, p.fora]))];
     const ligas = Object.fromEntries(ok(await sb.from("ligas").select("*").in("id", [...new Set(pendentes.map(p => p.liga_id))])).map(l => [l.id, l]));
-    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("id, nome, dono, perfil, divisao, ultimo_acesso, ct_nivel, medico_nivel, fisio_nivel").in("id", ids)).map(c => [c.id, c]));
+    const clubes = Object.fromEntries(ok(await sb.from("clubes").select("*").in("id", ids)).map(c => [c.id, c]));
     const taticas = Object.fromEntries(ok(await sb.from("taticas").select("clube_id, dados").in("clube_id", ids)).map(t => [t.clube_id, t.dados]));
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta

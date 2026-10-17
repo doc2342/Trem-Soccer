@@ -15,8 +15,14 @@ export const sair = () => sb.auth.signOut();
 
 export const ehAdmin = () => sb.rpc("eh_admin").then(ok);
 export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok);
-export const clubesDaLiga = ligaId => sb.from("clubes").select("id, grupo, dono, dirigente, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso").eq("liga_id", ligaId).order("grupo").order("nome").then(ok);
+// extra (96_seletor_de_clubes.sql): antes dele a coluna não existe e a leitura é refeita sem ela
+const comExtra = (consulta, campos) => consulta(campos + ", extra").then(r => r.error ? consulta(campos) : r).then(ok);
+export const clubesDaLiga = ligaId => comExtra(c => sb.from("clubes").select(c).eq("liga_id", ligaId).order("grupo").order("nome"), "id, grupo, dono, dirigente, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso");
 // o clube ativo (92_clube_ativo.sql): com mais de um clube, a busca por dono traria os dois
+// seletor de clubes (96_seletor_de_clubes.sql)
+export const meusClubes = userId => sb.from("clubes").select("id, nome, sigla, escudo, pais").eq("dono", userId).order("assumido_em").then(ok);
+export const ativarClube = id => sb.rpc("ativar_clube", { p_clube: id }).then(ok);
+export const minhasPendencias = () => sb.rpc("minhas_pendencias").then(({ data, error }) => error ? {} : Object.fromEntries(data.map(x => [x.clube_id, x.n])));
 export const meuClube = () => sb.rpc("meu_clube").then(ok).then(id => id ? sb.from("clubes").select("*").eq("id", id).maybeSingle().then(ok) : null);
 export const assumirClube = (nome, sigla, escudo, uniforme) => sb.rpc("assumir_clube", { p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 // fila de aprovação (existe depois do 07_fila_de_aprovacao.sql; antes dele, meuPedido devolve null e o clube é assumido direto)
@@ -119,7 +125,7 @@ export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("pa
 export const golsDasPartidas = ids => ids.length ? sb.from("lances").select("partida_id, libera_em, min, time:dados->time, quem:dados->>quem").in("partida_id", ids).eq("dados->>resultado", "gol").then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 // depoisDe: só os lances de ordem maior que esta (a página ao vivo pede apenas os novos a cada consulta, para poupar tráfego)
 export const lancesDaPartida = (id, depoisDe = -100) => sb.from("lances").select("ordem, min, dados, libera_em").eq("partida_id", id).gt("ordem", depoisDe).order("ordem").then(ok);
-export const clubesPorIds = ids => sb.from("clubes").select("id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso").in("id", ids).then(ok);
+export const clubesPorIds = ids => comExtra(c => sb.from("clubes").select(c).in("id", ids), "id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso");
 
 // ---------- administração ----------
 // e-mail de quem assumiu cada clube; só responde para administrador e só existe depois do 05_dirigentes.sql
