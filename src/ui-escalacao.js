@@ -39,12 +39,12 @@ const HTML = `  <div id="cabecalho"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
+      <details class="card dobra" open><summary><h2>Ordens condicionais <span class="tag" id="nOrdens"></span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
     </div>
     <div>
       <div class="card" id="escolha"></div>
-      <details class="card dobra"><summary><h2>Capitão, armador e cobradores <span class="tag" id="nPapeis"></span></h2></summary><div id="papeis"></div></details>
-      <details class="card dobra"><summary><h2>Substituições <span class="tag" id="nSubs"></span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
-      <details class="card dobra"><summary><h2>Ordens condicionais <span class="tag" id="nOrdens"></span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
+      <details class="card dobra" open><summary><h2>Capitão, armador e cobradores <span class="tag" id="nPapeis"></span></h2></summary><div id="papeis"></div></details>
+      <details class="card dobra" open><summary><h2>Substituições <span class="tag" id="nSubs"></span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
     </div>
   </div>
 
@@ -84,6 +84,10 @@ const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["am
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
   ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"]];
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
+// papéis e cobradores: chave → [rótulo, só jogador de linha?, quantos]
+const PAPEIS = { capitao: ["Capitão", false, 1], vice: ["Vice", false, 1], armador: ["Armador", true, 1], alvo: ["Homem-alvo", true, 1], escanteio: ["Escanteios", true, 3], falta: ["Faltas", true, 3], penalti: ["Pênaltis", true, 5] };
+const ehCobranca = k => k in INSTR.cobradores;
+const curto = j => j ? j.nome.split(" ").slice(-1)[0] : "";
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
 // na Libertadores só a lesão tira do jogo (rodada.js): suspensão da liga ou da copa não vale
@@ -102,6 +106,7 @@ const jogDe = id => porId[id] || null;
 const momento = v => { const n = v == null ? 50 : v; return n >= 65 ? "ok" : n <= 35 ? "bad" : ""; }; // cor da forma e da moral
 const GRUPOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
 let skillsDe = null; // jogador com os atributos abertos na lista de escolha
+let editaSub = null, editaOrdem = null; // índice da substituição/ordem aberta para edição (as outras aparecem numa linha só)
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
@@ -285,25 +290,28 @@ function render() {
   $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   // papéis
   const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
-  const opJog = (lista, atual) => `<option value="">automático</option>${lista.map(j => `<option value="${j.id}" ${j.id === atual ? "selected" : ""}>${esc(j.nome)}</option>`).join("")}`;
-  // um grupo por linha: quem lidera, quem arma as jogadas e a ordem dos cobradores de cada bola parada
-  const papel = (k, n, lista) => `<label class="pl"><span>${n}</span><select data-papel="${k}">${opJog(lista, E.instr[k])}</select></label>`;
-  const cobradores = (k, q) => Array.from({ length: q }, (_, i) => `<label class="pl"><span>${i + 1}º</span><select data-cob="${k}" data-i="${i}">${opJog(linha, E.instr.cobradores[k][i])}</select></label>`).join("");
+  const ficha = (k, i) => {
+    const id = ehCobranca(k) ? E.instr.cobradores[k][i] : E.instr[k], j = jogDe(id), marcada = sel && sel.tipo === "papel" && sel.k === k && sel.i === i;
+    const rot = ehCobranca(k) ? `${i + 1}º` : PAPEIS[k][0];
+    return `<span class="chip ${j ? "" : "vazio"}" data-papslot="${k}:${i}" style="${marcada ? "border-color:var(--ac)" : ""}"><span class="mut">${rot}</span> ${j ? `${esc(curto(j))} <b data-tirapapel="${k}:${i}" title="Tirar">×</b>` : "auto"}</span>`;
+  };
+  const cobs = k => { const l = E.instr.cobradores[k]; return l.map((_, i) => ficha(k, i)).join("") + (l.length < PAPEIS[k][2] ? ficha(k, l.length).replace("auto", "+") : ""); };
   $("papeis").innerHTML = `<div class="papeis">
-    <b>Liderança</b><div>${papel("capitao", "Capitão", tit)}${papel("vice", "Vice", tit)}</div>
-    <b>Jogadas</b><div>${papel("armador", "Armador", linha)}${papel("alvo", "Homem-alvo", linha)}</div></div>
-    <div class="cobradores">
-      <div><b>Escanteios</b>${cobradores("escanteio", 3)}</div>
-      <div><b>Faltas</b>${cobradores("falta", 3)}</div>
-      <div><b>Pênaltis</b>${cobradores("penalti", 5)}</div></div>
-    <div class="mut" style="font-size:12px;margin-top:6px">Em automático, o jogo escolhe o melhor em campo para a função. Nos cobradores, vale a ordem: se o 1º não estiver em campo, cobra o 2º.</div>`;
+    <b>Liderança</b><div class="chips">${ficha("capitao", 0)}${ficha("vice", 0)}</div>
+    <b>Jogadas</b><div class="chips">${ficha("armador", 0)}${ficha("alvo", 0)}</div>
+    <b>Escanteios</b><div class="chips">${cobs("escanteio")}</div>
+    <b>Faltas</b><div class="chips">${cobs("falta")}</div>
+    <b>Pênaltis</b><div class="chips">${cobs("penalti")}</div></div>
+    <div class="mut" style="font-size:12px;margin-top:6px">Clique numa ficha e escolha o jogador, ou arraste um titular até ela. Em "auto" o jogo escolhe o melhor em campo; nos cobradores vale a ordem.</div>`;
   // substituições e ordens
   const reservas = E.banco.map(jogDe).filter(Boolean), posDe = id => E.vagas[E.jog.indexOf(id)] || null;
   const sele = (attr, ops, atual) => `<select ${attr}>${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(atual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
-  $("subs").innerHTML = E.subs.map((s, i) => `<div class="linhaSub">aos <input type="number" min="0" max="89" value="${s.min}" data-sub="${i}" data-campo="min"> min, sai ${sele(`data-sub="${i}" data-campo="sai"`, tit.map(j => [j.id, j.nome]), s.sai)} entra ${sele(`data-sub="${i}" data-campo="entra"`, reservas.map(j => [j.id, j.nome]), s.entra)} de ${sele(`data-sub="${i}" data-campo="pos" title="Posição em que o substituto entra"`, [["", "mesma posição" + (posDe(s.sai) ? " (" + sg(posDe(s.sai)) + ")" : "")], ...LISTA_POSICOES.filter(p => p !== "GK").map(p => [p, sg(p) + (jogDe(s.entra) ? " · " + f1(notaNaPosicao(jogDe(s.entra), p)) : "")])], s.pos || "")} ${sele(`data-sub="${i}" data-campo="cond"`, CONDICOES_SUB, s.cond)} <button class="sec" data-tirasub="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma. Jogador lesionado é trocado sozinho pelo melhor do banco para a posição.</div>`;
-  if (E.subs.length) $("subs").insertAdjacentHTML("beforeend", `<div class="mut" style="font-size:12px;margin-bottom:6px">Em "de", escolha a posição em que o substituto entra (ao lado, a nota dele ali). "Jogando mal" e "jogando bem" olham os duelos que ele venceu além do esperado e os gols até aquele minuto.</div>`);
+  const nomeCond = (lista, c) => (lista.find(x => x[0] === c) || [, c])[1];
+  const linhaCurta = (txt, k, i) => `<div class="linhaSub curta"><span>${txt}</span><button class="sec" data-edita${k}="${i}" title="Editar">✎</button><button class="sec" data-tira${k}="${i}" title="Tirar">×</button></div>`;
+  $("subs").innerHTML = E.subs.map((s, i) => editaSub !== i ? linhaCurta(`<b>${s.min}'</b> sai ${esc(curto(jogDe(s.sai)))} → entra ${esc(curto(jogDe(s.entra)))}${s.pos ? ` (${sg(s.pos)})` : ""} <span class="mut">${nomeCond(CONDICOES_SUB, s.cond)}</span>`, "sub", i) : `<div class="linhaSub">aos <input type="number" min="0" max="89" value="${s.min}" data-sub="${i}" data-campo="min"> min, sai ${sele(`data-sub="${i}" data-campo="sai"`, tit.map(j => [j.id, j.nome]), s.sai)} entra ${sele(`data-sub="${i}" data-campo="entra"`, reservas.map(j => [j.id, j.nome]), s.entra)} de ${sele(`data-sub="${i}" data-campo="pos" title="Posição em que o substituto entra"`, [["", "mesma posição" + (posDe(s.sai) ? " (" + sg(posDe(s.sai)) + ")" : "")], ...LISTA_POSICOES.filter(p => p !== "GK").map(p => [p, sg(p) + (jogDe(s.entra) ? " · " + f1(notaNaPosicao(jogDe(s.entra), p)) : "")])], s.pos || "")} ${sele(`data-sub="${i}" data-campo="cond"`, CONDICOES_SUB, s.cond)} <button data-editasub="${i}">ok</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma. Jogador lesionado é trocado sozinho pelo melhor do banco para a posição.</div>`;
+  if (editaSub !== null) $("subs").insertAdjacentHTML("beforeend", `<div class="mut" style="font-size:12px;margin-bottom:6px">Em "de", escolha a posição em que o substituto entra (ao lado, a nota dele ali). "Jogando mal" e "jogando bem" olham os duelos que ele venceu além do esperado e os gols até aquele minuto.</div>`);
   $("maisSub").disabled = E.subs.length >= CONFIG.maxSubstituicoes || !reservas.length || !tit.length;
-  $("ordens").innerHTML = E.ordens.map((o, i) => `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button class="sec" data-tiraordem="${i}">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
+  $("ordens").innerHTML = E.ordens.map((o, i) => editaOrdem !== i ? linhaCurta(`<b>${o.min}'</b> ${nomeCond(CONDICOES, o.cond)}: ${nomeCond(MUDANCAS, o.muda).toLowerCase()}`, "ordem", i) : `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button data-editaordem="${i}">ok</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
   $("maisOrdem").disabled = E.ordens.length >= 3;
   // resumo no título das seções fechadas
   const nPapeis = ["capitao", "vice", "armador", "alvo"].filter(k => E.instr[k]).length + Object.values(E.instr.cobradores).flat().filter(Boolean).length;
@@ -317,6 +325,7 @@ function render() {
 
 function renderEscolha() {
   const el = $("escolha");
+  if (sel && sel.tipo === "papel") return renderEscolhaPapel(el);
   const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null;
   const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
   const lista = elenco.filter(j => !sel || sel.tipo === "vaga" || !E.jog.includes(j.id)).sort((a, b) => nota(b) - nota(a));
@@ -335,8 +344,28 @@ function renderEscolha() {
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 
+// escolher quem faz um papel: só titulares (de linha, menos para capitão e vice), pela nota na posição em que jogam
+function renderEscolhaPapel(el) {
+  const [rot, linha] = PAPEIS[sel.k], lista = escalacaoAtual().filter(x => !linha || x.pos !== "GK").sort((a, b) => notaNaPosicao(b.j, b.pos) - notaNaPosicao(a.j, a.pos));
+  document.body.classList.add("escolhendo");
+  el.innerHTML = `<button class="sec fechaEscolha" data-fechaescolha="1">✕</button><h2>${ehCobranca(sel.k) ? `${rot}: ${sel.i + 1}º cobrador` : rot} <span class="tag">titulares · pela nota</span></h2>
+    <div class="lista" style="max-height:340px;overflow-y:auto">${lista.map(({ j, pos }) => `<div class="item" data-escolhe="${j.id}">${pp(pos)}<span class="nm">${esc(j.nome)}</span><span class="dir"><span class="nota">${f1(notaNaPosicao(j, pos))}</span></span></div>`).join("")}
+    <div class="item" data-escolhe=""><span class="mut">Automático</span></div></div>`;
+}
+function definirPapel(k, i, id) {
+  if (!ehCobranca(k)) { E.instr[k] = id || null; return; }
+  const l = E.instr.cobradores[k].slice();
+  if (id) l[i] = id; else l.splice(i, 1);
+  E.instr.cobradores[k] = l.filter(Boolean).filter((v, n, a) => a.indexOf(v) === n);
+}
+
 function escolher(id) {
   if (!sel) return;
+  if (sel.tipo === "papel") {
+    const x = escalacaoAtual().find(x => x.j.id === id);
+    if (id && (!x || (PAPEIS[sel.k][1] && x.pos === "GK"))) return; // só titular (e de linha, quando o papel pede)
+    definirPapel(sel.k, sel.i, id); sel = null; return render();
+  }
   if (sel.tipo === "vaga") {
     const antes = E.jog[sel.i], outra = id ? E.jog.indexOf(id) : -1;
     if (outra >= 0) E.jog[outra] = antes; // troca de vaga entre dois titulares
@@ -379,7 +408,7 @@ async function jogar() {
 // arrastar e soltar, com mouse ou dedo: de uma vaga, do banco ou da lista para uma vaga ou para o banco
 let arrasto = null, ignorarClique = false;
 const fimDoArrasto = () => { if (arrasto && arrasto.fantasma) arrasto.fantasma.remove(); document.querySelectorAll(".alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrasto = null; };
-const alvoEm = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-vaga], [data-banco], [data-novapos]"); };
+const alvoEm = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-vaga], [data-banco], [data-novapos], [data-papslot]"); };
 raiz.addEventListener("pointerdown", e => {
   const h = e.target.closest("[data-arrasta]");
   if (!h || !h.dataset.arrasta || e.target.closest("select, input, button") || (e.pointerType === "mouse" && e.button !== 0)) return;
@@ -408,6 +437,7 @@ window.addEventListener("pointerup", e => {
   ignorarClique = true; setTimeout(() => { ignorarClique = false; }, 0);
   if (!alvo) { if (mapa !== undefined) render(); return; }
   if (alvo.dataset.novapos !== undefined) { E.vagas[mapa] = alvo.dataset.novapos; limparReferencias(); sel = null; return render(); }
+  if (alvo.dataset.papslot) { const [k, i] = alvo.dataset.papslot.split(":"); sel = { tipo: "papel", k, i: +i }; return escolher(id); }
   sel = alvo.dataset.vaga !== undefined ? { tipo: "vaga", i: +alvo.dataset.vaga } : { tipo: "banco", i: Math.min(+alvo.dataset.banco, E.banco.length) };
   escolher(id);
 });
@@ -425,20 +455,22 @@ raiz.addEventListener("click", e => {
   if (d("escolhe") !== undefined) return escolher(d("escolhe"));
   if (d("vaga") !== undefined) { const i = +d("vaga"); sel = sel && sel.tipo === "vaga" && sel.i === i ? null : { tipo: "vaga", i }; return render(); }
   if (d("banco") !== undefined) { const i = +d("banco"); sel = sel && sel.tipo === "banco" && sel.i === i ? null : { tipo: "banco", i }; return render(); }
-  if (d("tirasub") !== undefined) { E.subs.splice(+d("tirasub"), 1); return render(); }
-  if (d("tiraordem") !== undefined) { E.ordens.splice(+d("tiraordem"), 1); return render(); }
+  if (d("tirapapel") !== undefined) { const [k, i] = d("tirapapel").split(":"); definirPapel(k, +i, null); sel = null; return render(); }
+  if (d("papslot") !== undefined) { const [k, i] = d("papslot").split(":"); sel = sel && sel.tipo === "papel" && sel.k === k && sel.i === +i ? null : { tipo: "papel", k, i: +i }; return render(); }
+  if (d("editasub") !== undefined) { editaSub = editaSub === +d("editasub") ? null : +d("editasub"); return render(); }
+  if (d("editaordem") !== undefined) { editaOrdem = editaOrdem === +d("editaordem") ? null : +d("editaordem"); return render(); }
+  if (d("tirasub") !== undefined) { E.subs.splice(+d("tirasub"), 1); editaSub = null; return render(); }
+  if (d("tiraordem") !== undefined) { E.ordens.splice(+d("tiraordem"), 1); editaOrdem = null; return render(); }
 });
 raiz.addEventListener("change", e => {
   const t = e.target, ds = t.dataset, conv = v => v === "true" ? true : v === "false" ? false : isNaN(+v) || v === "" ? v : +v;
   if (ds.pos !== undefined) { E.vagas[+ds.pos] = t.value; limparReferencias(); return render(); }
   if (ds.instr) { E.instr[ds.instr] = conv(t.value); return render(); }
-  if (ds.papel) { E.instr[ds.papel] = t.value || null; return render(); }
-  if (ds.cob) { const l = E.instr.cobradores[ds.cob]; l[+ds.i] = t.value || null; E.instr.cobradores[ds.cob] = l.filter(Boolean).filter((v, i, a) => a.indexOf(v) === i); return render(); }
   if (ds.sub !== undefined) { E.subs[+ds.sub][ds.campo] = ds.campo === "min" ? +t.value : t.value; return render(); }
   if (ds.ordem !== undefined) { E.ordens[+ds.ordem][ds.campo] = ds.campo === "min" ? +t.value : t.value; return render(); }
 });
-$("maisSub").onclick = () => { const tit = titulares(), usados = new Set(E.subs.map(s => s.entra)), livre = E.banco.find(id => !usados.has(id)) || E.banco[0]; const sai = tit.find(j => E.vagas[E.jog.indexOf(j.id)] !== "GK"); if (sai && livre) { E.subs.push({ min: 60, sai: sai.id, entra: livre, cond: "sempre" }); render(); } };
-$("maisOrdem").onclick = () => { E.ordens.push({ min: 70, cond: "perdendo", muda: "mentalidade:1" }); render(); };
+$("maisSub").onclick = () => { const tit = titulares(), usados = new Set(E.subs.map(s => s.entra)), livre = E.banco.find(id => !usados.has(id)) || E.banco[0]; const sai = tit.find(j => E.vagas[E.jog.indexOf(j.id)] !== "GK"); if (sai && livre) { E.subs.push({ min: 60, sai: sai.id, entra: livre, cond: "sempre" }); editaSub = E.subs.length - 1; render(); } };
+$("maisOrdem").onclick = () => { E.ordens.push({ min: 70, cond: "perdendo", muda: "mentalidade:1" }); editaOrdem = E.ordens.length - 1; render(); };
 $("salvar").onclick = () => { const n = $("nomeSalva").value.trim() || "Escalação " + (Object.keys(ler("mo_salvas_" + chaveElenco()) || {}).length + 1); const s = ler("mo_salvas_" + chaveElenco()) || {}; s[n] = JSON.parse(JSON.stringify(E)); guardar("mo_salvas_" + chaveElenco(), s); $("nomeSalva").value = ""; render(); };
 $("auto").onclick = () => { const disp = elenco.filter(j => !(j.fora > 0)), esc11 = escalar(disp, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id) && porId[id] && !(porId[id].fora > 0)); completarBanco(disp); limparReferencias(); render(); };
 // banco com 7: mantém quem já estava (disponível) e completa com os melhores que sobraram, com um goleiro reserva se houver
