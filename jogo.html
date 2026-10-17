@@ -92,6 +92,7 @@
   @media (max-width:620px) {
     .classif { font-size:13px; } .classif td, .classif th { padding:5px 3px; }
     .classif .c-gols, .classif .c-pe { display:none; }
+    .classif .fbola { width:13px; height:13px; font-size:0; margin-right:1px; }
     .classif .cl-nome { max-width:44vw; }
     .mini .lk { text-decoration:none; }
     #mLista .c-sal, #cvLista .c-sal { display:none; }
@@ -730,6 +731,19 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:8px;font-size:12px">O campeão da liga de base de cada série sai na virada da temporada; o da Copinha, depois da final.</div></div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
+  // faixa com as cores do uniforme no cabeçalho do clube (só aceita cor em hexadecimal)
+  const coresDoClube = c => { const u = c.uniforme || {}, cor = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = cor(u.cor1), b = cor(u.cor2) || a;
+    return a ? `border-top:4px solid ${a};background:linear-gradient(100deg, ${a}38, ${b}14 45%, transparent 75%), var(--card, #111a24)` : ""; };
+  // polígono com a média de cada grupo de atributos (1 a 50)
+  const poligonoDeAtributos = j => {
+    const grupos = (j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => { const v = ATRIBUTOS.map((a, k) => a.grupo === g ? j.at[k] : null).filter(x => x != null); return [nome, v.reduce((s, x) => s + x, 0) / v.length]; });
+    const n = grupos.length, R = 44, pt = (k, r) => { const ang = -Math.PI / 2 + 2 * Math.PI * k / n; return [110 + r * Math.cos(ang), 68 + r * Math.sin(ang)]; }, xy = p => p.map(x => x.toFixed(1)).join(",");
+    const aro = f => grupos.map((_, k) => xy(pt(k, R * f))).join(" ");
+    return `<svg viewBox="0 0 220 136" width="220" height="136" style="display:block;margin:0 auto 6px" role="img" aria-label="Médias: ${grupos.map(([g, v]) => g + " " + Math.round(v)).join(", ")}">
+      ${[0.25, 0.5, 0.75, 1].map(f => `<polygon points="${aro(f)}" fill="none" stroke="var(--line)" stroke-width="0.7"/>`).join("")}
+      <polygon points="${grupos.map(([, v], k) => xy(pt(k, R * Math.max(0.04, v / 50)))).join(" ")}" fill="var(--ac)" fill-opacity="0.3" stroke="var(--ac)" stroke-width="1.5"/>
+      ${grupos.map(([g, v], k) => { const [x, y] = pt(k, R + 8); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${x > 115 ? "start" : x < 105 ? "end" : "middle"}" dominant-baseline="middle" font-size="10" fill="var(--mut)">${g} <tspan font-weight="700" fill="currentColor">${Math.round(v)}</tspan></text>`; }).join("")}</svg>`;
+  };
   const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
   const fichas = new Map(); // chave do botão "i" → jogador (os do elenco pelo id; os de outros clubes com "m" na frente)
   elenco.forEach(j => fichas.set(String(j.id), j));
@@ -737,6 +751,7 @@ async function telaClube(liga, clube) {
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
     return `<div class="qa-topo"><span class="qa-nome">${esc(j.nome)}</span><span class="nota" style="margin-left:auto;flex:none">${f1(notaNaPosicao(j, j.pos))}</span><button class="sec" data-fecha-quadro style="padding:1px 8px;flex:none">✕</button></div>
       <div class="qa-sub">${pp(j.pos)} <span class="mut">${esc(POSICOES[j.pos].nome)} · ${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}</span></div>
+      ${poligonoDeAtributos(j)}
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(multaDe(j)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       ${(t => t ? `<div style="font-size:12.5px;margin-bottom:6px">🔭 Teto estimado pelo olheiro: nota entre <b>${t.minimo}</b> e <b>${t.maximo}</b></div>` : "")(tetoDe[j.id] || relatorioDe(j.id))}
       ${(l => l.length ? `<div style="font-size:12.5px;margin-bottom:6px">🏅 ${l.map(p => `${esc(nomeDoPremio(p))} <span class="mut">T${p.temporada}</span>`).join(" · ")}</div>` : "")(premiosDoJogador(j.id))}
@@ -1086,7 +1101,7 @@ async function telaClube(liga, clube) {
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
-  $("app").innerHTML = `<div class="card topo">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
+  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
@@ -1415,7 +1430,7 @@ async function telaClube(liga, clube) {
         const [c, lista] = await Promise.all([clubePorId(id), jogadoresDoClube(id)]);
         const l = lista.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || b.nota - a.nota);
         const folhaDele = l.reduce((s, j) => s + (j.salario || 0), 0);
-        $("cvCorpo").innerHTML = `<div class="card topo">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
+        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${esc(nomeDoGrupo(c.grupo))}${c.torcida != null ? ` · torcida de ${c.torcida.toLocaleString("pt-BR")} · estádio de ${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : ""} · ${l.length} jogadores · folha ${dinheiro(folhaDele)}</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
@@ -1705,14 +1720,18 @@ async function telaClube(liga, clube) {
     if (g === "STATS") return telaDasEstatisticas();
     const partidas = await partidasDoGrupo(liga.id, g), resultados = await resultadosDe(partidas.map(p => p.id));
     const res = Object.fromEntries(resultados.map(r => [r.partida_id, r])), agora = Date.now(), doGrupo = clubes.filter(c => c.grupo === g);
+    // forma: os últimos 5 jogos com resultado, do mais antigo ao mais recente, em bolinhas V/E/D
+    const formaDe = id => partidas.filter(p => (p.casa === id || p.fora === id) && res[p.id]).sort((a, b) => new Date(a.inicio) - new Date(b.inicio)).slice(-5).map(p => {
+      const r = res[p.id], meus = p.casa === id ? r.gols_casa : r.gols_fora, deles = p.casa === id ? r.gols_fora : r.gols_casa, v = meus > deles ? "V" : meus < deles ? "D" : "E";
+      return `<span class="fbola f${v}" title="${esc(cPor[p.casa] ? cPor[p.casa].nome : "")} ${r.gols_casa} x ${r.gols_fora} ${esc(cPor[p.fora] ? cPor[p.fora].nome : "")}">${v}</span>`; }).join("");
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
     const atual = rodadas.find(r => partidas.some(p => p.rodada === r && !res[p.id])) || rodadas[rodadas.length - 1]; // primeira rodada ainda sem todos os resultados
     $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
     $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
     const faixaG = i => !serieG ? (i <= 2 ? "lib" : "") : serieG === 1 ? (i <= 2 ? "lib" : i >= tabG.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : serieG === 2 && i >= tabG.length - 2 ? "cai" : "";
-    $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th></tr>
-      ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td></tr>`).join("")}</table>
+    $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th><th class="c-forma" title="Últimos 5 jogos">Forma</th></tr>
+      ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td><td class="c-forma">${formaDe(t.clube.id)}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span style="color:var(--ac)">▌</span> Libertadores · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span class="bad">▌</span> rebaixamento` : `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff${serieG === 2 ? ` · <span class="bad">▌</span> rebaixamento` : ""}`}</div>`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
@@ -1738,6 +1757,7 @@ async function telaClube(liga, clube) {
         : `<div class="mut" style="grid-column:1/-1">${!partidas.length ? "O calendário ainda não foi gerado." : (k => k < 0 ? "Não há mais jogos nesta temporada." : `Temporada encerrada: você terminou em <b>${k + 1}º lugar</b>, com ${tabG[k].pts} pontos. A próxima começa depois da virada, feita pelo administrador.`)(tabG.findIndex(t => t.clube.id === clube.id))}</div>`;
       $("proximo").innerHTML = (ultimo ? `Último jogo: <a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora} ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` (${nomeDaCopa(ultimo)})` : ""}. ` : "")
         + (rival ? (rival.dono ? `Próximo adversário: ${lk(rival.id)} tem dirigente, e a tática dele é segredo.` : `Próximo adversário: ${lk(rival.id)} é comandado pelo bot e joga com ${estiloDe(rival)}.`) : "")
+        + (rival && formaDe(rival.id) ? ` Últimos jogos dele: ${formaDe(rival.id)}.` : "")
         + (proximo ? (c => ` Previsão do tempo: ${c.nome.toLowerCase()}, ${c.temp} °C${efeitoDoClima(c) ? ` (${efeitoDoClima(c)})` : ""}.`)(climaDaPartida(proximo.id))
           + (jogoGrande(proximo) ? " Jogo grande: jogador sem experiência oscila mais e rende menos." : "") : "");
       // tabela resumida, com as faixas de acesso, playoff e descenso
