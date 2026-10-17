@@ -150,6 +150,23 @@ export function escalacaoObservada(titularesPorJogo, elenco, nota) {
   });
   return { jogos: de, vagas: vagas.filter(v => v.j) };
 }
+// Estilo observado nos mesmos jogos: médias do relatório público (posse, finalizações, contra-ataques, faltas, corredor) e a bola longa,
+// que a narração entrega ("prepara o lançamento" só sai com passe longo). Limites calibrados na liga (400 jogos, 17/10/2026):
+// posse 47–53% e contra-ataques 1–3 por jogo no miolo; faltas 7–11; finalizações 11–17; bola longa em 2 de 120 times.
+export const LIMITES_DO_ESTILO = { posse: [46, 54], finalizacoes: [10, 17], contra: 4, faltas: [6, 11], lado: 1.3, lancamentos: 2 };
+export async function estiloObservado(partidas, clubeId, n) {
+  const agora = Date.now(), jogos = partidas.filter(p => new Date(p.fim) < agora).slice(-n);
+  if (!jogos.length) return null;
+  const ids = jogos.map(p => p.id), lado = Object.fromEntries(jogos.map(p => [p.id, p.casa === clubeId ? 0 : 1]));
+  const [r, l] = await Promise.all([sb.from("resultados").select("partida_id, estat:relatorio->estat").in("partida_id", ids),
+    sb.from("lances").select("partida_id, time:dados->time").in("partida_id", ids).ilike("dados->>texto", "%prepara o lançamento%")]);
+  const meus = (r.data || []).filter(x => x.estat).map(x => x.estat[lado[x.partida_id]]);
+  if (r.error || !meus.length) return null;
+  const media = k => meus.reduce((s, e) => s + (+e[k] || 0), 0) / meus.length, corredor = { E: 0, C: 0, D: 0 };
+  meus.forEach(e => Object.entries(e.corredor || {}).forEach(([k, v]) => { corredor[k] = (corredor[k] || 0) + v; }));
+  const lancamentos = (l.data || []).filter(x => +x.time === lado[x.partida_id]).length / meus.length;
+  return { jogos: meus.length, posse: media("posse"), finalizacoes: media("finalizacoes"), contra: media("contraAtaques"), faltas: media("faltas"), corredor, lancamentos };
+}
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
 // resultados da copa, com os pênaltis e quem passou (só os já liberados pelo relógio)
 export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(liberados) : Promise.resolve([]);

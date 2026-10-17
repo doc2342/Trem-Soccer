@@ -146,7 +146,8 @@ async function previaDoAdversario(B) {
     ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
   const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0));
   // o time que eles escalaram nos últimos jogos: 1 sem analista; 2 ou 3 com ele (nivelDoAnalista). Quem não pode jogar dá lugar a um substituto.
-  const obs = jogo.liga_id ? B.escalacaoObservada(await B.escalacoesRecentes(await B.partidasDoClube(jogo.liga_id, adv.id), adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
+  const partidasAdv = jogo.liga_id ? await B.partidasDoClube(jogo.liga_id, adv.id) : null;
+  const obs = partidasAdv ? B.escalacaoObservada(await B.escalacoesRecentes(partidasAdv, adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
   const onzeVisto = obs ? `<div style="margin-top:6px">Time provável <span class="mut">(${obs.jogos === 1 ? "o do último jogo" : `quem mais jogou nos últimos ${obs.jogos} jogos`})</span>: ${obs.vagas.map(v => `${esc(v.j.nome)} <span class="mut">${sg(v.pos)}${v.substituto ? ", substituto" : obs.jogos > 1 ? ` ${v.vezes}/${v.de}` : ""}</span>`).join(" · ")}</div>` : "";
   if (!analista) { el.innerHTML = topo + onzeVisto + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe${obs ? ": o time do último jogo" : ""}. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia acompanha 2 ou 3 jogos e mostra o estilo de jogo e como enfrentar.</div>`; return; }
   const t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
@@ -156,18 +157,42 @@ async function previaDoAdversario(B) {
   const forca = media(onze), minha = media(meu);
   let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${onze.map(x => sg(x.pos)).join(" · ")})</span></div>${onzeVisto}
     <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut">· o seu onze de agora: ${f1(minha)} (${minha >= forca + 0.5 ? "você é mais forte" : minha <= forca - 0.5 ? "eles são mais fortes" : "times parelhos"})</span></div>`;
-  if (sk >= 20) h += `<div>Estilo provável: pressão <b>${["baixa", "média", "alta"][I.pressao] || "média"}</b> · passe <b>${{ curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto"}</b> · mentalidade <b>${I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal"}</b>${I.contraAtaque ? " · joga no <b>contra-ataque</b>" : ""}${I.impedimento ? " · faz <b>linha de impedimento</b>" : ""}</div>`;
-  if (sk >= 35) {
-    const dicas = [];
-    if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
-    if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
-    if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
-    if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
-    if (I.mentalidade > 0) dicas.push("time ofensivo deixa a área livre: trabalhar a bola até a área rende mais");
-    if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
-    h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
+  // estilo: o que eles mostraram nos mesmos jogos (relatório público e narração); sem jogos ainda, o que o bot faria com esse elenco
+  const est = sk >= 20 && partidasAdv ? await B.estiloObservado(partidasAdv, adv.id, nivelDoAnalista(sk)).catch(() => null) : null;
+  if (est) {
+    const L = B.LIMITES_DO_ESTILO, f = x => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 }), { E, D } = est.corredor;
+    const ladoForte = E > D * L.lado ? "esquerda" : D > E * L.lado ? "direita" : null, longa = est.lancamentos >= L.lancamentos;
+    const tracos = [
+      `posse de <b>${f(est.posse)}%</b>${est.posse >= L.posse[1] ? " (gosta de ficar com a bola)" : est.posse <= L.posse[0] ? " (abre mão da bola)" : ""}`,
+      `<b>${f(est.finalizacoes)}</b> finalizações por jogo${est.finalizacoes >= L.finalizacoes[1] ? " (ataca muito)" : est.finalizacoes <= L.finalizacoes[0] ? " (cria pouco)" : ""}`,
+      `<b>${f(est.contra)}</b> contra-ataques por jogo${est.contra >= L.contra ? " (<b>joga no contra-ataque</b>)" : ""}`,
+      `<b>${f(est.faltas)}</b> faltas por jogo${est.faltas >= L.faltas[1] ? " (marca duro)" : est.faltas <= L.faltas[0] ? " (marca leve)" : ""}`,
+      ladoForte ? `ataca mais pela <b>${ladoForte}</b>` : "ataca pelos dois lados", ...(longa ? ["usa a <b>bola longa</b> desde a defesa"] : [])];
+    h += `<div>${est.jogos === 1 ? "No último jogo" : `Nos últimos ${est.jogos} jogos`}: ${tracos.join(" · ")}</div>`;
+    if (sk >= 35) {
+      const dicas = [];
+      if (est.contra >= L.contra) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
+      if (longa) dicas.push("a linha de impedimento atrapalha a bola longa deles");
+      if (est.posse <= L.posse[0] && est.finalizacoes <= L.finalizacoes[0]) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
+      if (est.finalizacoes >= L.finalizacoes[1]) dicas.push("time que ataca muito deixa espaço atrás: o contra-ataque e a bola trabalhada até a área rendem mais");
+      if (ladoForte) dicas.push(`o ataque deles cai mais pela ${ladoForte}: é o seu lado ${ladoForte === "esquerda" ? "direito" : "esquerdo"} que vai ser mais exigido`);
+      if (est.faltas >= L.faltas[1]) dicas.push("eles fazem muita falta: bola parada pode decidir");
+      h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no jeito deles pede uma resposta especial: jogue o seu jogo."}</div>`;
+    }
+  } else {
+    if (sk >= 20) h += `<div>Estilo provável: pressão <b>${["baixa", "média", "alta"][I.pressao] || "média"}</b> · passe <b>${{ curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto"}</b> · mentalidade <b>${I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal"}</b>${I.contraAtaque ? " · joga no <b>contra-ataque</b>" : ""}${I.impedimento ? " · faz <b>linha de impedimento</b>" : ""}</div>`;
+    if (sk >= 35) {
+      const dicas = [];
+      if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
+      if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
+      if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
+      if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
+      if (I.mentalidade > 0) dicas.push("time ofensivo deixa a área livre: trabalhar a bola até a área rende mais");
+      if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
+      h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
+    }
   }
-  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação é a que eles usaram${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}; o estilo ainda é o que o bot faria com esse elenco.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
+  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação${est ? " e o estilo são o que eles mostraram em campo" : " é a que eles usaram"}${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}${est ? "" : "; o estilo ainda é o que o bot faria com esse elenco"}.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
   el.innerHTML = h;
 }
 async function iniciarOnline(sessaoDeTeste) {

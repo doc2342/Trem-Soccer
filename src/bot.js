@@ -7,7 +7,7 @@ const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 import { FORMACOES, escalar } from "./escalacao.js";
 import { avaliarZonas } from "./motor.js";
 
-export const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"];
+export const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
 // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
 export const ESTILO_DO_PERFIL = {
   equilibrado: { nome: "sem estilo marcado", instrucoes: {} },

@@ -2,8 +2,10 @@
 // Meta: nenhuma formação acima de ~1,50 pts/jogo na média (≈55% de aproveitamento) nem muito abaixo de 1,20.
 import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js"; import { gerarOnze } from "../src/gerador.js"; import { FORMACOES } from "../src/escalacao.js";
-import { prepararTime, simularPartida, avaliarZonas, CONFIG } from "../src/motor.js";
+import { prepararTime, simularPartida, avaliarZonas, CONFIG, COBERTURA } from "../src/motor.js";
 Object.assign(CONFIG, JSON.parse(process.env.CFG || "{}")); // teste de ajuste: CFG='{"ajudaAoCentro":0.8}'
+const ESP = { E: "D", D: "E", C: "C" }, COB = JSON.parse(process.env.COB || "{}"); // teste de cobertura: COB='{"AMR":{"AD":0.55,"MD":0.3,"AC":0.15}}' (o lado esquerdo vem espelhado)
+for (const [p, c] of Object.entries(COB)) { COBERTURA[p] = c; const e = p.replace(/R$/, "L"); if (e !== p) COBERTURA[e] = Object.fromEntries(Object.entries(c).map(([z, w]) => [z[0] + ESP[z[1]], w])); }
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url))), N = +process.argv[2] || 2000, PARES = 20;
 const fs = Object.keys(FORMACOES), curto = f => f.split(" ")[0] + (f.includes("losango") ? " los" : f.includes("pontas") ? " pon" : f.includes("Dugout") ? " DO" : "");
 const onze = (f, s) => gerarOnze(criarRng(s), FORMACOES[f], { nivel: 30, nomes, prefixoId: "p" + s + "_" });
@@ -21,7 +23,7 @@ for (let i = 0; i < fs.length; i++) for (let k = i + 1; k < fs.length; k++) {
   pts[a] += pa; pts[b] += pb; tab[a][b] = pa / N; tab[b][a] = pb / N;
 }
 const jogos = N * (fs.length - 1), f2 = v => v.toFixed(2), sd = Math.sqrt(fs.reduce((s, f) => s + (pts[f] / jogos - 1.37) ** 2, 0) / fs.length);
-console.log(`${N} jogos por confronto, CFG ${process.env.CFG || "-"}, gols/jogo ${f2(fs.reduce((s, f) => s + gols[f][0], 0) * 2 / jogos / fs.length)}, desvio dos pts ${f2(sd)}\n`);
+console.log(`${N} jogos por confronto, CFG ${process.env.CFG || "-"} COB ${process.env.COB || "-"}, gols/jogo ${f2(fs.reduce((s, f) => s + gols[f][0], 0) * 2 / jogos / fs.length)}, desvio dos pts ${f2(sd)}\n`);
 console.log("formação".padEnd(30) + "pts/j  GP/j  GC/j  pior confronto");
 for (const f of [...fs].sort((x, y) => pts[y] - pts[x])) {
   const pior = Object.entries(tab[f]).filter(([o]) => o !== f).sort((x, y) => x[1] - y[1])[0];

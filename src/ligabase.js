@@ -7,7 +7,7 @@
 import { ATRIBUTOS, LISTA_POSICOES, notaBruta, notaNaPosicao } from "./modelo.js";
 import { limitar } from "./rng.js";
 import { FORMACOES } from "./escalacao.js";
-import { taticaBot } from "./bot.js";
+import { taticaBot, FORMACOES_BOT } from "./bot.js";
 
 export const CONFIG_LIGA_DE_BASE = {
   escolinha: [13, 1.2], // nota do garoto da escolinha: 13 + 1,2 por nível da base (o juvenil de verdade chega com 15 + 1,5 por nível e treina)
@@ -21,7 +21,7 @@ export const CONFIG_LIGA_DE_BASE = {
   estudo: 10,           // pontos de nota a mais, na escolha da vaga, para a posição que o jogador está aprendendo (jogar nela acelera o estudo)
   rodizio: 10,          // pontos de nota a menos, na escolha de quem começa, por partida inteira (90 minutos) já jogada na base
 };
-const FORMACOES_DA_BASE = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1"]; // as mesmas que o bot usa
+const FORMACOES_DA_BASE = FORMACOES_BOT; // as mesmas que o bot usa
 
 export function garotoDaEscolinha(rng, pos, nivel, id) {
   const at = ATRIBUTOS.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));
