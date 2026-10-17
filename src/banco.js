@@ -413,6 +413,8 @@ export const apagarLiga = ligaId => sb.from("ligas").delete().eq("id", ligaId).t
 
 // ---------- diretoria e confiança (91_diretoria.sql; sem ele as leituras voltam vazias) ----------
 export const metasDaTemporada = (ligaId, temporada) => sb.from("metas").select("clube_id, grupo, faixa_min, faixa_max").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
+// direitos a clube extra ainda não usados (null antes do 93_mais_de_um_clube.sql)
+export const meusDireitos = () => sb.from("dirigentes").select("direitos").maybeSingle().then(({ data, error }) => error ? null : data ? data.direitos : 0);
 export const confiancaDaTemporada = (ligaId, temporada) => sb.from("confianca_historico").select("clube_id, antes, depois, detalhes, verba").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
 export const definirMetas = (ligaId, lista) => sb.rpc("definir_metas", { p_liga: ligaId, p_lista: lista }).then(ok);
 export const aplicarConfianca = (ligaId, lista) => sb.rpc("aplicar_confianca", { p_liga: ligaId, p_lista: lista }).then(ok);
