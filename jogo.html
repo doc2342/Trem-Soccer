@@ -1469,9 +1469,9 @@ async function telaClube(liga, clube) {
     </section>
     <section data-secao="classificacao">
     ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
-    <div data-parte="comp:liga"><div class="card row"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
+    <div data-parte="comp:liga"><div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div></div>
-    <div data-parte="comp:stats"><div class="card row">
+    <div data-parte="comp:stats"><div class="row" style="margin-top:4px">
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
       <label>Lista<select id="stLista"><option value="artilheiros">Artilharia</option><option value="assistencias">Assistências</option><option value="notas">Melhores notas</option><option value="goleiros">Goleiros</option><option value="cartoes">Cartões</option></select></label></div></div>
@@ -1481,7 +1481,8 @@ ${historicoDaBase()}
       ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
         <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</div>`}
     </div>
-    <div class="duas" id="compQuadros">
+    <div id="compKpis"></div>
+    <div class="g2" id="compQuadros">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
@@ -1887,7 +1888,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral";
-    if (g === "comp") { $("compQuadros").hidden = k === "base"; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compKpis").hidden = k !== "liga"; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
@@ -2081,6 +2082,13 @@ ${historicoDaBase()}
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
     const atual = rodadas.find(r => partidas.some(p => p.rodada === r && !res[p.id])) || rodadas[rodadas.length - 1]; // primeira rodada ainda sem todos os resultados
     $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
+    // números do campeonato: líder, rodada, gols por jogo e a posição do meu clube (ou quantos dirigentes há nele)
+    { const feitos = resultados.filter(r => r.gols_casa != null), lider = classificacao(doGrupo, partidas, resultados)[0], regulares = rodadas.filter(r => r < 19);
+      const minha = classificacao(doGrupo, partidas, resultados).findIndex(t => t.clube.id === clube.id), donos = doGrupo.filter(c => c.dono).length;
+      $("compKpis").innerHTML = `<div class="kpis">${kpi("Líder", lider && lider.j ? esc(lider.clube.nome) : "—", lider && lider.j ? `${lider.pts} pts em ${lider.j} jogos` : "ninguém jogou ainda")}
+        ${kpi("Rodada", regulares.length ? `${Math.min(atual, regulares[regulares.length - 1])}<small> de ${regulares[regulares.length - 1]}</small>` : "—", atual > 18 ? "playoff" : "turno e returno")}
+        ${kpi("Gols por jogo", feitos.length ? f1(feitos.reduce((t, r) => t + r.gols_casa + r.gols_fora, 0) / feitos.length) : "—", `${feitos.length} ${feitos.length === 1 ? "jogo" : "jogos"} disputados`)}
+        ${minha >= 0 ? kpi("Seu clube", `${minha + 1}º<small> de ${doGrupo.length}</small>`, esc(nomeDoGrupo(g))) : kpi("Dirigentes", donos, `de ${doGrupo.length} clubes`)}</div>`; }
     $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
     const faixaG = i => !serieG ? (i <= 2 ? "lib" : "") : serieG === 1 ? (i <= 2 ? "lib" : i >= tabG.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : serieG === 2 && i >= tabG.length - 2 ? "cai" : "";
