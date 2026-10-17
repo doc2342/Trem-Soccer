@@ -212,7 +212,9 @@ export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p
 export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
 // Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
 export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, grupo, divisao, posicao, pontos, destino").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
-export const partidasDaCopa = ligaId => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).in("fase", ["copa", "lib"]).order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
+// chave (103_chave_fixa.sql): posição do jogo na fase do mata-mata; antes do SQL a coluna não existe e a consulta é refeita sem ela
+const comChave = (consulta, colunas) => consulta(colunas + ", chave").then(r => r.error && /chave/.test(r.error.message) ? consulta(colunas) : r).then(({ data, error }) => error ? null : data);
+export const partidasDaCopa = ligaId => comChave(c => sb.from("partidas").select(c).eq("liga_id", ligaId).in("fase", ["copa", "lib"]).order("copa_fase").order("id"), "id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor");
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
 export const meusRelatorios = () => sb.from("relatorios").select("jogador_id, nivel, minimo, maximo").then(({ data, error }) => error ? null : data);
@@ -225,9 +227,9 @@ export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: 
 // Liga de base (61_liga_de_base.sql): partidas do grupo na temporada, campeões, e as duas chamadas do administrador
 export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").select("id, rodada, casa, fora, inicio, processada, gols_casa, gols_fora, dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("grupo", grupo).order("rodada").order("id").then(({ data, error }) => error ? null : data);
 // Copinha (70_copinha.sql): todos os jogos da temporada, com o placar dos pênaltis quando houve
-export const jogosDaCopinha = (ligaId, temporada) => sb.from("base_jogos").select("id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id").then(({ data, error }) => error ? null : data);
+export const jogosDaCopinha = (ligaId, temporada) => comChave(c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id"), "id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis");
 // Libertadores Juvenil (101_libertadores_juvenil.sql): os jogos da temporada; nula antes do SQL
-export const jogosDaLibJuvenil = (ligaId, temporada) => sb.from("base_jogos").select("id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "libjuv").order("copinha_fase").order("id").then(({ data, error }) => error ? null : data);
+export const jogosDaLibJuvenil = (ligaId, temporada) => comChave(c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "libjuv").order("copinha_fase").order("id"), "id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis");
 // histórico da base: jogos das temporadas anteriores, que a virada não apaga (a liga de base de um grupo, sem as escalações, e a Copinha)
 // ponytail: sem paginação; a Copinha tem 49 jogos por temporada e a resposta vai até 1.000 linhas (~20 temporadas). Paginar quando chegar lá.
 export const historicoDaLigaDeBase = (ligaId, grupo, antesDe) => sb.from("base_jogos").select("temporada, casa, fora, gols_casa, gols_fora").eq("liga_id", ligaId).eq("grupo", grupo).lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);

@@ -285,7 +285,7 @@ async function tela(aviso = "") {
       for (const g of gruposDe(clubes)) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
         const ini = hora(espacoDaRodada(j.rodada));
         // fase e copa_fase explícitas: num insert com linhas de copa junto, o campo que falta numa linha vira nulo (não vale o padrão do banco)
-        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, fase: "liga", copa_fase: null, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
+        linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, fase: "liga", copa_fase: null, chave: null, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
       }
       let copa = "";
       if (comCopa) {
@@ -301,32 +301,36 @@ async function tela(aviso = "") {
         for (let k = 0; k + 1 < sorteados.length; k += 2) {
           let [a, b] = [sorteados[k].id, sorteados[k + 1].id];
           if (nivel[b] > nivel[a]) [a, b] = [b, a]; // joga no estádio maior; iguais, vale a ordem do sorteio
-          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
+          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 101, fase: "copa", copa_fase: 1, chave: k / 2 + 1, casa: a, fora: b, inicio: datas[0].inicio, fim: datas[0].fim });
         }
+        // chave fixa (103_chave_fixa.sql): as 32 vagas da fase de 32 já saem sorteadas. -k = vencedor do jogo k da preliminar; positivo = clube direto
+        const chave32 = rng.embaralhar([...Array.from({ length: Math.floor(sorteados.length / 2) }, (_, k) => -(k + 1)), ...diretos]);
         // Supercopa, um intervalo antes da rodada 1: campeão da Série A x campeão da copa da temporada anterior (o mesmo clube: entra o vice da A)
         let [sa, sb2] = [daA(1), daCopa === daA(1) ? daA(2) : daCopa];
         if (sa && sb2 && nivel[sa] && nivel[sb2]) {
           if (nivel[sb2] > nivel[sa]) [sa, sb2] = [sb2, sa]; // joga no estádio maior
           const ini = Math.max(hora(-1), Date.now() + 60000);
-          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 100, fase: "copa", copa_fase: 0, casa: sa, fora: sb2, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
+          linhas.push({ liga_id: liga.id, grupo: "COPA", rodada: 100, fase: "copa", copa_fase: 0, chave: null, casa: sa, fora: sb2, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
           copa = ` Supercopa: ${clubes.find(c => c.id === sa).nome} x ${clubes.find(c => c.id === sb2).nome}.`;
         }
         // oitavas da Libertadores: cada clube do Brasil contra um de fora, por sorteio; os outros de fora entre si. Estádio maior, como na copa.
         let lib;
         if (comLib) {
-          const s = rng.embaralhar(libFora), jogos = [...libBrasil.map((id, k) => [id, s[k]]), ...s.slice(libBrasil.length).reduce((l, id, k, a) => k % 2 ? l : [...l, [id, a[k + 1]]], [])];
+          // a ordem dos jogos também é sorteada: ela é a chave (o vencedor do 1º pega o do 2º nas quartas, e assim por diante)
+          const s = rng.embaralhar(libFora), jogos = rng.embaralhar([...libBrasil.map((id, k) => [id, s[k]]), ...s.slice(libBrasil.length).reduce((l, id, k, a) => k % 2 ? l : [...l, [id, a[k + 1]]], [])]);
           lib = { datas: [1, 2, 3, 4].map(k => { const t = hora(espacoDaLib(k)); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
-          for (let [a, b] of jogos) {
+          for (let [k, [a, b]] of jogos.entries()) {
             if (nivel[b] > nivel[a]) [a, b] = [b, a];
-            linhas.push({ liga_id: liga.id, grupo: "LIB", rodada: 203, fase: "lib", copa_fase: 3, casa: a, fora: b, inicio: lib.datas[0].inicio, fim: lib.datas[0].fim });
+            linhas.push({ liga_id: liga.id, grupo: "LIB", rodada: 203, fase: "lib", copa_fase: 3, chave: k + 1, casa: a, fora: b, inicio: lib.datas[0].inicio, fim: lib.datas[0].fim });
           }
           copa += ` Libertadores: ${jogos.length} jogos nas oitavas.`;
         } else copa += " Libertadores: não saiu (faltam os 16 classificados da temporada anterior no histórico).";
         const fator = await fatorDaCopa(liga.id); // fundo acima da reserva: a copa desta temporada paga mais (até o dobro)
-        await atualizarLiga(liga.id, { copa: { datas, diretos, fator, ...(lib ? { lib } : {}) } });
+        await atualizarLiga(liga.id, { copa: { datas, diretos, chave32, fator, ...(lib ? { lib } : {}) } });
         copa = `${copa} Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
       }
-      await criarPartidas(linhas);
+      // sem o 103_chave_fixa.sql a coluna chave não existe: grava sem ela e a copa segue com o sorteio de cada fase
+      await criarPartidas(linhas).catch(e => { if (!/chave/.test(e.message)) throw e; return criarPartidas(linhas.map(({ chave, ...l }) => l)); });
       await ajustarPrazos(liga.id); // leilão, oferta, candidatos e espera dos bots acompanham o intervalo entre as rodadas
       await gerarLigaDeBase(liga.id); // liga de base: o primeiro turno espelhado, uma rodada a cada duas da liga (61_liga_de_base.sql)
       // janelas por data: a de início fecha na véspera da rodada 3; a do meio abre depois das oitavas da copa e fecha na véspera das quartas

@@ -513,12 +513,12 @@ async function telaClube(liga, clube) {
       campanha = v == null ? `Seu clube joga ${naFase(ult.copa_fase)} contra ${adv(ult)}, ${new Date(ult.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(ult.inicio)}.`
         : v !== clube.id ? `Seu clube caiu ${naFase(ult.copa_fase)}, diante de ${adv(ult)}.`
         : ult.copa_fase === 6 ? "🏆 <b>Seu clube é o campeão da Copa do Brasil!</b>"
-        : `Seu clube passou ${naFase(ult.copa_fase)} e está ${naFase(ult.copa_fase + 1)}: o sorteio sai quando a fase atual terminar.`; }
+        : `Seu clube passou ${naFase(ult.copa_fase)} e está ${naFase(ult.copa_fase + 1)}: ${copaJogos.some(p => p.chave != null) ? "o adversário é quem passar do jogo vizinho na chave" : "o sorteio sai quando a fase atual terminar"}.`; }
     const ganho = meus.reduce((t, p) => t + (P_COPA.fases[p.copa_fase] || 0), 0) + (final && campeao && meus.includes(final) ? (campeao === clube.id ? P_COPA.campeao : P_COPA.vice) : 0);
     const premio = f => f === 6 ? `${dinheiro(P_COPA.campeao)} <span class="mut">(vice ${dinheiro(P_COPA.vice)})</span>` : P_COPA.fases[f] ? dinheiro(P_COPA.fases[f]) : "—";
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
-      return !l.length ? `<span class="mut" title="O sorteio sai quando a fase anterior terminar">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
-    $("compChave").innerHTML = chaveDaCopa(copaJogos, [1, 2, 3, 4, 5, 6]);
+      return !l.length ? `<span class="mut">${copaJogos.some(p => p.chave != null) ? "a definir" : "a sortear"}</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
+    $("compChave").innerHTML = chaveDaCopa(copaJogos, [1, 2, 3, 4, 5, 6], liga.copa && liga.copa.chave32);
     $("tituloTabela").innerHTML = "🏆 Copa do Brasil · fases";
     $("tabela").className = "";
     $("tabela").innerHTML = `${supercopa ? (r => `<div style="margin-bottom:8px">⭐ <b>Supercopa</b> <span class="mut">· campeão da Série A x campeão da Copa do Brasil ·</span> <a class="lk" href="aovivo.html?id=${supercopa.id}">${esc(cPor[supercopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[supercopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(supercopa))}</b>` : ` · ${new Date(supercopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(supercopa.inicio)}`}</div>`)(copaRes[supercopa.id]) : ""}
@@ -542,18 +542,23 @@ async function telaClube(liga, clube) {
   // Chave do mata-mata: uma coluna por fase. Como o sorteio sai a cada fase, cada jogo é posto na altura de onde vieram os seus clubes,
   // e assim quem passa fica alinhado com o jogo seguinte. Fase ainda não sorteada aparece com as vagas tracejadas.
   // jogos: lista; fase(p): número da fase; res(p): placar (gols_casa, gols_fora, penaltis) ou null; venc(p): id de quem passou
-  const desenharChave = (jogos, fases, fase, res, venc) => {
+  // Com a chave fixa (103_chave_fixa.sql), cada jogo traz a posição (chave) e a fase de 32 da Copa e da Copinha tem as 32 vagas sorteadas (vagas32).
+  const desenharChave = (jogos, fases, fase, res, venc, vagas32) => {
     const por = Object.fromEntries(fases.map(f => [f, jogos.filter(p => fase(p) === f)]));
+    const temChave = l => l.length > 0 && l.every(p => p.chave != null), fixa = temChave(por[fases[0]]);
+    if (fixa) por[fases[0]].sort((a, b) => Array.isArray(vagas32) ? vagas32.indexOf(-a.chave) - vagas32.indexOf(-b.chave) : a.chave - b.chave);
     for (let k = 1; k < fases.length; k++) { const ant = por[fases[k - 1]], de = id => { const i = ant.findIndex(p => p.casa === id || p.fora === id); return i < 0 ? 999 : i; };
-      por[fases[k]].sort((a, b) => Math.min(de(a.casa), de(a.fora)) - Math.min(de(b.casa), de(b.fora))); }
+      if (temChave(por[fases[k]])) por[fases[k]].sort((a, b) => a.chave - b.chave);
+      else por[fases[k]].sort((a, b) => Math.min(de(a.casa), de(a.fora)) - Math.min(de(b.casa), de(b.fora))); }
     const caixa = p => { const r = res(p), v = venc(p);
       const lado = (id, g) => `<div class="ch-t ${v === id ? "ch-v" : ""} ${id === clube.id ? "ch-eu" : ""}"><span>${esc((cPor[id] || {}).nome || "—")}</span><b>${r ? g : ""}</b></div>`;
       return `<a class="ch-j" href="aovivo.html?id=${p.id}">${lado(p.casa, r && r.gols_casa)}${lado(p.fora, r && r.gols_fora)}${r && r.penaltis ? `<div class="ch-p">pên. ${r.penaltis[0]} x ${r.penaltis[1]}</div>` : ""}</a>`; };
     return `<div class="chave">${fases.map(f => `<div class="ch-col"><div class="ch-f">${FASES_DA_COPA[f]}</div><div class="ch-jogos">${por[f].length ? por[f].map(caixa).join("")
-      : Array.from({ length: 2 ** (6 - f) }, () => `<div class="ch-j ch-vazio">a sortear</div>`).join("")}</div></div>`).join("")}</div>`;
+      : Array.from({ length: 2 ** (6 - f) }, () => `<div class="ch-j ch-vazio">${fixa ? "a definir" : "a sortear"}</div>`).join("")}</div></div>`).join("")}</div>`;
   };
-  const chaveDaCopa = (jogos, todas) => { const fases = todas.filter(f => f > 1 || jogos.some(p => p.copa_fase === 1)); // a preliminar só aparece se existir
-    return jogos.length ? `<div class="card"><h2>Chave <span class="tag">clique num jogo para abrir · o sorteio de cada fase sai quando a anterior termina</span></h2>${desenharChave(jogos, fases, p => p.copa_fase, p => copaRes[p.id], quemPassou)}</div>` : ""; };
+  const chaveDaCopa = (jogos, todas, vagas32) => { const fases = todas.filter(f => f > 1 || jogos.some(p => p.copa_fase === 1)); // a preliminar só aparece se existir
+    const fixa = jogos.some(p => p.chave != null);
+    return jogos.length ? `<div class="card"><h2>Chave <span class="tag">clique num jogo para abrir · ${fixa ? "chave sorteada no início: quem passa já sabe o próximo adversário" : "o sorteio de cada fase sai quando a anterior termina"}</span></h2>${desenharChave(jogos, fases, p => p.copa_fase, p => copaRes[p.id], quemPassou, vagas32)}</div>` : ""; };
   // um jogo de mata-mata na lista da fase (Copa do Brasil e Libertadores): em negrito, quem passou
   const linhaDeCopa = p => { const r = copaRes[p.id], v = quemPassou(p), aoVivo = !r && new Date(p.inicio).getTime() <= Date.now(), meu = p.casa === clube.id || p.fora === clube.id;
       const nome = id => v === id ? `<b>${esc(cPor[id].nome)}</b>` : esc(cPor[id].nome);
@@ -570,11 +575,11 @@ async function telaClube(liga, clube) {
       : v == null ? `Seu clube joga ${naFase(ult.copa_fase)} contra ${adv}, ${new Date(ult.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(ult.inicio)}.`
       : v !== clube.id ? `Seu clube caiu ${naFase(ult.copa_fase)}, diante de ${adv}.`
       : ult.copa_fase === 6 ? "🌎 <b>Seu clube é o campeão da Libertadores!</b>"
-      : `Seu clube passou ${naFase(ult.copa_fase)}: o sorteio da fase seguinte sai quando a atual terminar.`;
+      : `Seu clube passou ${naFase(ult.copa_fase)}: ${libJogos.some(p => p.chave != null) ? "o adversário é quem passar do jogo vizinho na chave" : "o sorteio da fase seguinte sai quando a atual terminar"}.`;
     const ganho = meus.reduce((t, p) => t + (P.fases[p.copa_fase] || 0), 0) + (campeao && meus.includes(final) ? (campeao === clube.id ? P.campeao : P.vice) : 0);
     const premio = f => f === 6 ? `${dinheiro(P.campeao)} <span class="mut">(vice ${dinheiro(P.vice)})</span>` : P.fases[f] ? dinheiro(P.fases[f]) : "—";
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
-      return !l.length ? `<span class="mut">a sortear</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
+      return !l.length ? `<span class="mut">${libJogos.some(p => p.chave != null) ? "a definir" : "a sortear"}</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
     $("compChave").innerHTML = chaveDaCopa(libJogos, [3, 4, 5, 6]);
     $("tituloTabela").innerHTML = "🌎 Libertadores · fases";
     $("tabela").className = "";
@@ -582,7 +587,7 @@ async function telaClube(liga, clube) {
       <div style="margin-bottom:8px">${campanha}${ganho ? ` <span class="mut">Prêmios recebidos: <b>${dinheiro(ganho)}</b>.</span>` : ""}</div>
       <table class="mini" style="width:100%"><tr><th class="esq">Fase</th><th>Data</th><th class="esq">Prêmio</th><th>Jogos</th></tr>
       ${[3, 4, 5, 6].map(f => `<tr class="${ult && ult.copa_fase === f ? "e-tit" : ""}"><td class="esq">${FASES_DA_COPA[f]}</td><td>${datas[f - 3] ? dia(datas[f - 3].inicio) : "—"}</td><td class="esq">${premio(f)}</td><td>${andamento(f)}</td></tr>`).join("")}</table>
-      <div class="mut" style="margin-top:6px;font-size:12px">Vagas, pela temporada anterior: os 3 primeiros da Série A, o campeão da Copa do Brasil (ou o 4º da Série A, se o campeão já está entre os três) e os 3 primeiros de cada país. Nas oitavas, os clubes do Brasil enfrentam clubes de fora; depois o sorteio é livre. Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a quem entra na fase (o campeão soma ${dinheiro(P.fases[4] + P.fases[5] + P.campeao)}). A renda de cada jogo é dividida meio a meio. Cartões não passam de um jogo para o outro.</div>`;
+      <div class="mut" style="margin-top:6px;font-size:12px">Vagas, pela temporada anterior: os 3 primeiros da Série A, o campeão da Copa do Brasil (ou o 4º da Série A, se o campeão já está entre os três) e os 3 primeiros de cada país. Nas oitavas, os clubes do Brasil enfrentam clubes de fora; a chave inteira sai sorteada junto com o calendário. Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a quem entra na fase (o campeão soma ${dinheiro(P.fases[4] + P.fases[5] + P.campeao)}). A renda de cada jogo é dividida meio a meio. Cartões não passam de um jogo para o outro.</div>`;
     $("tituloJogos").textContent = "Libertadores · jogos";
     $("rodadas").className = "";
     if (!fases.length) { $("rodadas").innerHTML = `<div class="mut">A Libertadores ainda não foi sorteada.</div>`; return; }
@@ -794,7 +799,7 @@ async function telaClube(liga, clube) {
     return `<div class="card"><h2>${titulo} <span class="tag">${FASES_DA_COPA[ultima]}</span></h2><div>${situacao}</div>
       ${meus.length ? `<div style="margin-top:8px"><b>Seu caminho</b>${meus.map(p => `<div style="margin-top:3px"><span class="mut">${FASES_DA_COPA[p.copinha_fase]}:</span> ${linhaC(p).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}</div>`).join("")}</div>` : ""}
       <details style="margin-top:8px" ${meus.length && !final ? "" : "open"}><summary style="cursor:pointer"><b>Chave</b> <span class="mut">· ${jogos.length} ${jogos.length === 1 ? "jogo" : "jogos"}</span></summary>
-        ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor)}</details>${comoFunciona(regras)}</div>`;
+        ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor, titulo === "Copinha" && liga.copa ? liga.copa.copinha_chave32 : null)}</details>${comoFunciona(regras)}</div>`;
   };
   const cartaoDaCopinha = () => cartaoDeMataMata(copinha, "Copinha", "O sorteio sai quando o calendário da temporada for gerado.", liga.copa && liga.copa.copinha_diretos);
   const cartaoDaLibJuvenil = () => cartaoDeMataMata(libJuvenil, "Libertadores Juvenil", "Sai com o calendário da temporada, nas datas da Libertadores (se ela tiver saído).", [],
