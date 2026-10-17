@@ -621,7 +621,7 @@ async function telaClube(liga, clube) {
   // Recopa (112): campeão da Libertadores x campeão da Sul-Americana da temporada anterior, um jogo só, como a Supercopa
   const linhaDaRecopa = agora => recopa ? (r => `<div style="margin-bottom:8px">🏆 <b>Recopa</b> <span class="mut">· campeão da Libertadores x campeão da Sul-Americana · prêmio de ${dinheiro(PREMIO_DA_RECOPA)} ·</span> <a class="lk" href="aovivo.html?id=${recopa.id}">${esc(cPor[recopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[recopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(recopa))}</b>` : ` · ${new Date(recopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(recopa.inicio)}`}</div>`)(copaRes[recopa.id]) : "";
   function telaDaLib(g = "LIB") {
-    const sul = g === "SUL", jogos = sul ? sulJogos : jogos, [icone, nome] = CONTINENTAIS[g];
+    const sul = g === "SUL", jogos = sul ? sulJogos : libJogos, [icone, nome] = CONTINENTAIS[g];
     const agora = Date.now(), datas = (liga.copa && liga.copa[g.toLowerCase()] && liga.copa[g.toLowerCase()].datas) || [], P = sul ? PREMIOS_DA_SUL : PREMIOS_DA_LIB;
     const daFase = f => jogos.filter(p => p.copa_fase === f), fases = [3, 4, 5, 6].filter(f => daFase(f).length);
     const final = daFase(6)[0], campeao = final ? quemPassou(final) : null;
