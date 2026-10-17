@@ -1119,7 +1119,7 @@ const __bot = (() => {
   // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
   const { FORMACOES, escalar } = __escalacao;
-  const { avaliarZonas } = __motor;
+  const { avaliarZonas, setorDaPosicao } = __motor;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
   // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
   const ESTILO_DO_PERFIL = {
@@ -1151,9 +1151,15 @@ const __bot = (() => {
     if (!melhor) { const escalacao = escalar(elenco, FORMACOES["4-4-2"]); melhor = { formacao: "4-4-2", escalacao, forca: escalacao.length ? mediaNotas(escalacao) : 0 }; }
     const { formacao, escalacao, forca } = melhor;
 
-    // banco: um goleiro e os seis melhores que sobraram
+    // banco: um goleiro, os melhores reservas de cada setor (um para cada 4 titulares do setor, arredondando para cima)
+    // e os melhores que sobraram, até seis de linha
     const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
-    const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...fora.filter(j => j.pos !== "GK").slice(0, 6)];
+    const linhaFora = fora.filter(j => j.pos !== "GK");
+    const porSetor = ["D", "M", "A"].flatMap(s => {
+      const titulares = escalacao.filter(x => x.pos !== "GK" && setorDaPosicao(x.pos) === s).length;
+      return linhaFora.filter(j => setorDaPosicao(j.pos) === s).slice(0, Math.ceil(titulares / 4));
+    });
+    const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...porSetor, ...linhaFora.filter(j => !porSetor.includes(j)).slice(0, 6 - porSetor.length)];
 
     // mentalidade: normal; um nível acima se é favorito, um abaixo se é azarão (o mando já pesa no motor)
     const dif = forcaAdversario == null ? 0 : forca - forcaAdversario;
