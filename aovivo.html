@@ -16,6 +16,7 @@
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
   .competicao { text-align:center; font-size:11.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--mut); }
+  a.lkj { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; } a.lkj:hover { text-decoration-color:var(--ac); }
   .cronometro { display:block; width:max-content; margin:10px auto 0; padding:3px 14px; border-radius:999px; border:1px solid var(--ac); color:var(--ac); font-family:var(--display); font-weight:600; font-size:18px; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
   .esc { display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px; } .esc-j { padding:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .esc .pp { min-width:34px; font-size:11px; }
   .estat td { font-variant-numeric:tabular-nums; } .dupla { display:flex; gap:2px; height:4px; margin-top:4px; } .dupla i { display:block; border-radius:2px; } .dupla i.casa { background:var(--casa); } .dupla i.fora { background:var(--fora); } .estat td.casa, .estat td.fora { font-family:var(--display); font-weight:600; font-size:17px; width:22%; }
@@ -40,7 +41,7 @@ import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
-import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES } from "./src/ui-relatorio.js";
+import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
 import { svgEscudo, svgUniforme, uniformesDoJogo } from "./src/escudo.js";
 import { sg, pp } from "./src/siglas.js";
 
@@ -180,8 +181,8 @@ function htmlEstadio(pre) {
 function htmlEscalacoes(pre) {
   if (!pre || !pre.escalacoes) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
-  const time = (e, i) => `<div><b class="${COR[i]}">${esc(nomes[i])}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${esc(j.nome)}</div>`).join("")}
-    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${pp(j.pos)} ${esc(j.nome)}</div>`).join("")}` : ""}</div>`;
+  const time = (e, i) => `<div><b class="${COR[i]}">${esc(nomes[i])}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
+    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`;
   return `<div class="card"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
@@ -206,7 +207,7 @@ function htmlEstatisticas(narracao) {
 function htmlAbertura(pre, cronologico = false, semTimes = false) {
   if (!pre) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
-  const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.</span>` : ""}</span></div>`;
+  const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.</span>` : ""}</span></div>`;
   const partes = [...(semTimes ? [] : [time(pre.escalacoes[1], 1), time(pre.escalacoes[0], 0)]),
     `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ao estádio. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`,
     `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`];
@@ -232,6 +233,7 @@ async function atualizar() {
   }
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
+  narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") });
