@@ -256,3 +256,20 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   for (const g of Object.keys(PAISES)) { const doPais = clubes.filter(c => c.grupo === g); if (doPais.length) sortearSafra(doPais, SAFRA_DE_FORA); }
   return { plano, resumo };
 }
+
+// Vagas continentais pela temporada anterior (admin.html, ao gerar o calendário). campanhas = historico da temporada (clube_id, grupo,
+// posicao); campeao e vice = finalistas da Copa do Brasil (ou nulos). Só olha a posição no grupo "A", não o tamanho da Série A.
+// Libertadores: 1º a 3º da A + campeão da copa (já entre os três: o 4º) e 1º a 3º de cada país.
+// Sul-Americana: os 3 primeiros da A ainda sem vaga a partir do 4º + vice da copa (já classificado ou sem vice: o próximo da A sem vaga)
+// e 4º a 6º de cada país. Devolve listas de ids; quem chama confere se estão completas.
+export function vagasContinentais(campanhas, campeao, vice) {
+  const tabelaA = campanhas.filter(x => x.grupo === "A").sort((a, b) => a.posicao - b.posicao).map(x => x.clube_id);
+  const libBrasil = tabelaA.slice(0, 3);
+  const quarta = campeao && !libBrasil.includes(campeao) ? campeao : tabelaA[3];
+  if (quarta) libBrasil.push(quarta);
+  const semVaga = tabelaA.slice(3).filter(id => !libBrasil.includes(id)), sulBrasil = semVaga.slice(0, 3);
+  const ultima = vice && !libBrasil.includes(vice) && !sulBrasil.includes(vice) ? vice : semVaga[3];
+  if (ultima) sulBrasil.push(ultima);
+  const fora = (de, ate) => Object.keys(PAISES).flatMap(g => campanhas.filter(x => x.grupo === g && x.posicao >= de && x.posicao <= ate).map(x => x.clube_id));
+  return { libBrasil, libFora: fora(1, 3), sulBrasil, sulFora: fora(4, 6) };
+}

@@ -85,8 +85,8 @@ function estadoDaRodada(T, meu) {
 // zona da tabela pela posição (0 = líder): A cai 3; nas outras sobe o campeão, do 2º ao 4º é playoff, e na B caem 2
 const divisaoDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BC".includes(g) ? 2 : 3; // 0: país de uma divisão só
 function zonaDaPosicao(i, n) { const d = divisaoDoGrupo(partida.grupo);
-  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
-const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
+  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : i <= 5 ? "sul" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : i <= 5 ? "sul" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
+const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sul: "a zona da Sul-Americana", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";
   const e = estadoDaRodada(T, meu), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—"), posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;

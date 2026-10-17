@@ -1,4 +1,4 @@
-:root { --bg:#0a0e26; --card:#121842; --campo:#0d1235; --hover:#1b2457; --pp:#243066; --line:#262e62; --tx:#eaf1fb; --mut:#8d98c2; --ac:#f2c14e; --casa:#7fcdf0; --fora:#e58a5a; --ok:#3fcb82; --bad:#ff5c63;
+:root { --bg:#0a0e26; --card:#121842; --campo:#0d1235; --hover:#1b2457; --pp:#243066; --line:#262e62; --tx:#eaf1fb; --mut:#8d98c2; --ac:#f2c14e; --sul:#b48cf2; --casa:#7fcdf0; --fora:#e58a5a; --ok:#3fcb82; --bad:#ff5c63;
   --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif; --body:"Barlow",system-ui,"Segoe UI",Roboto,sans-serif; --sombra:0 1px 2px rgba(0,0,0,.3); }
 * { box-sizing:border-box; }
 #quadroJogador{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--bg)}#quadroJogador iframe{display:block;width:100%;height:100%;border:0}

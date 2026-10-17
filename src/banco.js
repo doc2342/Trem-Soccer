@@ -241,16 +241,19 @@ import { PAISES, paisDoGrupo } from "./modelo.js";
 export { PAISES, paisDoGrupo };
 // grupos em ordem de tela: os do Brasil primeiro (A a E), depois os países
 export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
-export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil", LIB: "Libertadores",
+export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série C1", E: "Brasileiro Série C2", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
   ARG: "Campeonato Argentino", URU: "Campeonato Uruguaio", COL: "Campeonato Colombiano", CHI: "Campeonato Chileno" })[g] || "Grupo " + g;
 // Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
 export const FASES_DA_COPA = ["Supercopa", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
 export const PREMIOS_DA_COPA = { fases: [0, 0, 50, 150, 300, 500], vice: 800, campeao: 2000 };
 // Libertadores (81_libertadores.sql): fase "lib", copa_fase 3 a 6 (oitavas a final, os mesmos números da copa). Prêmio, em mil, a quem entra na fase.
 export const PREMIOS_DA_LIB = { fases: [0, 0, 0, 0, 200, 300], vice: 700, campeao: 2500 };
+// Sul-Americana e Recopa (112_sulamericana_e_recopa.sql): também fase "lib", separadas pelo grupo "SUL" e "REC" (a Recopa é um jogo só, copa_fase 6)
+export const PREMIOS_DA_SUL = { fases: [0, 0, 0, 0, 70, 100], vice: 250, campeao: 850 }, PREMIO_DA_RECOPA = 500;
+export const CONTINENTAIS = { LIB: ["🌎", "Libertadores"], SUL: ["🌐", "Sul-Americana"], REC: ["🏆", "Recopa"] };
 // jogo de mata-mata em campo neutro: Copa do Brasil, Supercopa ou Libertadores
 export const ehCopa = p => !!p && (p.fase === "copa" || p.fase === "lib");
-export const nomeDaCopa = p => p.fase === "lib" ? `🌎 Libertadores · ${FASES_DA_COPA[p.copa_fase] || ""}` : p.copa_fase ? `🏆 Copa do Brasil · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
+export const nomeDaCopa = p => p.fase === "lib" ? (([ic, nome]) => p.grupo === "REC" ? `${ic} ${nome}` : `${ic} ${nome} · ${FASES_DA_COPA[p.copa_fase] || ""}`)(CONTINENTAIS[p.grupo] || CONTINENTAIS.LIB) : p.copa_fase ? `🏆 Copa do Brasil · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
   const { data: c } = await sb.from("clubes").select("liga_id, divisao").eq("id", clubeId).maybeSingle();
@@ -369,16 +372,19 @@ export const proporPreContrato = (jogadorId, salario, temporadas) => sb.rpc("pro
 export const meusPreContratos = () => sb.from("pre_contratos").select("jogador_id, clube_id, temporada, salario, temporadas, jogadores(nome, pos, idade)").then(({ data, error }) => error ? null : data);
 export const anunciarAposentadorias = ligaId => sb.rpc("anunciar_aposentadorias", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 // campeões e vices da copa nas temporadas anteriores (50_copa_no_historico.sql); vazio antes dele
+// campeões continentais de uma temporada (Recopa); antes do SQL 112 não há a coluna sul e volta vazio
+export const campeoesContinentais = (ligaId, temporada) => sb.from("historico").select("clube_id, lib, sul").eq("liga_id", ligaId).eq("temporada", temporada).or("lib.eq.campeão,sul.eq.campeão").then(({ data, error }) => error ? [] : data);
 export const finalistasDaCopa = ligaId => sb.from("historico").select("temporada, clube_id, copa").eq("liga_id", ligaId).in("copa", ["campeão", "vice"]).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // troféus: campeões de cada grupo (1º lugar) e finalistas da copa, de todas as temporadas guardadas na virada
 export async function trofeusDaLiga(ligaId) {
-  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão").order("temporada");
+  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib, sul, recopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão,sul.eq.campeão,recopa.is.true").order("temporada");
+  if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão").order("temporada");
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true").order("temporada"); // antes do SQL 81
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada"); // antes do SQL 76
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
   return r.error ? [] : filtrarTrofeus(r.data);
 }
-export const filtrarTrofeus = l => l.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib);
+export const filtrarTrofeus = l => l.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
