@@ -246,7 +246,7 @@ async function atualizar() {
   topo(gols, m, narracao);
   const notas = notasDosGols(lances), comNota = l => htmlLance(l) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
-    ? `<div class="card aviso">A partida ainda não foi calculada pelo servidor. Os lances aparecem assim que o cálculo rodar.</div>`
+    ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
     : `${htmlEstadio(pre)}<div class="aovivo"><div class="card"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
        <div>${htmlRodada(gols)}${htmlEstatisticas(narracao)}${htmlEscalacoes(pre)}</div></div>`;
