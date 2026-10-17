@@ -65,14 +65,9 @@
     .aba .at-l { display:none; } .aba .at-c { display:block; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   }
   /* Central: blocos lado a lado, no espírito do modo carreira */
-  .central { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:12px; }
-  .central > .card { margin:0; }
-  .central h2 { text-transform:uppercase; letter-spacing:.04em; font-size:15px; }
   .c-chegada-box { grid-column:span 12; } .c-chegada-box:empty { display:none; } .c-chegada { margin:0; border-color:var(--ac); }
   .barra-passos { height:6px; border-radius:3px; background:rgba(255,255,255,.08); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
   .passos { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 12px; } .passos > div.feito { opacity:.55; } .passos > div.feito b { text-decoration:line-through; }
-  .c-jogos { grid-column:span 7; } .c-destaque { grid-column:span 5; } .c-mural, .c-liga, .c-tabela { grid-column:span 4; } .c-dir { grid-column:span 12; }
-  @media (max-width:980px) { .c-jogos, .c-destaque, .c-mural, .c-liga, .c-tabela { grid-column:span 12; } }
   .faixa { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
   @media (max-width:620px) { .faixa { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
   .tile { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:inherit; text-align:center; min-width:0; }
@@ -1390,6 +1385,11 @@ async function telaClube(liga, clube) {
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
+  const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
+    ${kpi("Próximo jogo", `<span id="kpiProx">—</span>`, `<span id="kpiProxD">carregando…</span>`)}
+    ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
+    ${clube.confianca != null ? kpi("Confiança", `<span class="${clube.confianca < 30 ? "bad" : clube.confianca >= 70 ? "ok" : ""}">${clube.confianca}</span><small> de 100</small>`, "da diretoria")
+      : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
@@ -1399,17 +1399,19 @@ async function telaClube(liga, clube) {
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
-    <div class="central">
+    ${kpisDaCentral()}
     <div id="desdeVisita" class="c-chegada-box"></div>
     <div id="chegada" class="c-chegada-box">${chegada()}</div>
+    <div class="g2">
+    <div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" class="mut" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
-    ${clube.torcida == null ? `<div class="card c-destaque"><h2>Clube</h2><div class="mut">Torcida e estádio aparecem aqui quando a economia da liga for ligada.</div></div>` : `<div class="card c-destaque"><h2>Torcida</h2><div class="row" style="gap:22px;align-items:center">
-      <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
-      <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
-      <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${lugaresDoEstadio(clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
-      <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
+    <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
+    <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
+    </div>
+    <div>
+    <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
     ${clube.confianca == null ? "" : (() => { const c = clube.confianca, C = CONFIG_DIRETORIA, d = minhaVirada && minhaVirada.detalhes || null, sinal = x => (x > 0 ? "+" : "") + x;
       const faixa = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `${minhaMeta.faixa_min}º lugar` : `entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º lugar`) : null;
       return `<div class="card c-dir"><h2>Diretoria</h2><div class="row" style="gap:22px;align-items:flex-start">
@@ -1422,9 +1424,12 @@ async function telaClube(liga, clube) {
         <div style="flex:1;min-width:220px" class="mut">Com ${C.verba[1][0]}+ na virada, a diretoria paga uma verba de ${Math.round(C.verba[1][1] * 100)}% do teto da folha${teto ? ` (${dinheiro(Math.round(teto * C.verba[1][1]))})` : ""}; com ${C.verba[0][0]}+, ${Math.round(C.verba[0][1] * 100)}% e mais uma compra pela multa.
           ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div style="margin-top:4px">⏳ Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="ok" style="margin-top:4px">✅ Clube extra em outro país liberado. <button class="sec" id="pedirExtra">Escolher o país e pedir</button></div>${pedidoExtra && pedidoExtra.estado === "recusado" ? `<div class="aviso" style="margin-top:4px">O pedido anterior (${esc(pedidoExtra.nome)}) foi recusado${pedidoExtra.motivo ? `: ${esc(pedidoExtra.motivo)}` : "."}</div>` : ""}` : `<div style="margin-top:4px">Clube extra em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo (quem já tem dois clubes precisa dos dois no ${C.segundoClube}).</div>`}
           ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></div>`; })()}
-    <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
-    <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
-    <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
+    ${clube.torcida == null ? `<div class="card c-destaque"><h2>Clube</h2><div class="mut">Torcida e estádio aparecem aqui quando a economia da liga for ligada.</div></div>` : `<div class="card c-destaque"><h2>Torcida</h2><div class="row" style="gap:22px;align-items:center">
+      <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
+      <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
+      <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${lugaresDoEstadio(clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
+      <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
+    </div>
     </div>
     <div class="card" style="margin-top:12px"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
@@ -2083,6 +2088,10 @@ ${historicoDaBase()}
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
       resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
       const eu = tab.find(t => t.clube.id === clube.id);
+      if (eu && $("kpiPos")) { $("kpiPos").innerHTML = `${tab.indexOf(eu) + 1}º<small> de ${tab.length}</small>`; $("kpiPosD").textContent = `${eu.pts} pts em ${eu.j} jogos · ${nomeDoGrupo(g)}`; }
+      if ($("kpiProx")) { const d = proximo && new Date(proximo.inicio);
+        $("kpiProx").textContent = d ? d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—";
+        $("kpiProxD").textContent = d ? `${proximo.casa === clube.id ? "em casa" : "fora"} x ${rival.nome} · ${d.toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "nenhum jogo marcado"; }
       if ($("termometro") && minhaMeta && eu && eu.j) { const avaliada = (tab.indexOf(eu) + 1 + posicaoPelosEsperados(tab)[clube.id]) / 2, sinal = x => (x > 0 ? "+" : "") + x;
         const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
         $("termometro").innerHTML = `Se a temporada terminasse hoje: <b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${sinal(v.total)}</b> (liga ${sinal(v.liga)} pela posição média entre a tabela e os pontos esperados, ${String(avaliada).replace(".", ",")}º; finanças ${sinal(v.financas)}). A copa entra no fim.`; }
