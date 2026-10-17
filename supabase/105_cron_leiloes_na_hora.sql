@@ -1,3 +1,4 @@
+-- OBSOLETO: NÃO RODAR. Quebrou o agendamento (segundo "where" depois do tarefas_do_minuto() do 67). Use o 108_cron_volta_ao_67.sql.
 -- 105: com o 104, leilões e ofertas à liga podiam fechar até 4 minutos atrasados fora dos horários de jogo.
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run. Não exige republicar função.
 -- Pode ser executado mais de uma vez. Precisa do 104_cron_economico.sql.

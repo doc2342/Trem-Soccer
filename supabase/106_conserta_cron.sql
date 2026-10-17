@@ -1,3 +1,4 @@
+-- OBSOLETO: NÃO RODAR. Quebrou o agendamento (segundo "where" depois do tarefas_do_minuto() do 67). Use o 108_cron_volta_ao_67.sql.
 -- 106: conserta o agendamento trem-rodada quebrado pelo 104/105 ("syntax error at or near where").
 -- O comando antigo terminava em ";" + quebra de linha; o 104 só tirava espaços, o ";" ficou antes do "where" acrescentado.
 -- Como usar: SQL Editor, colar este arquivo inteiro e Run. Pode rodar mais de uma vez. Não exige republicar função.

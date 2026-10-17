@@ -1,3 +1,4 @@
+-- OBSOLETO: NÃO RODAR. Quebrou o agendamento (segundo "where" depois do tarefas_do_minuto() do 67). Use o 108_cron_volta_ao_67.sql.
 -- 104: o agendamento da rodada (trem-rodada) para de chamar a função à toa, para gastar menos log.
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run. Não exige republicar função.
 -- Pode ser executado mais de uma vez (só altera o agendamento uma vez). Mantém a URL e o segredo que já estão no agendamento.
