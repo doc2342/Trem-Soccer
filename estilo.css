@@ -41,6 +41,8 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .rolagem { overflow-x:auto; }
 
 /* tela de escalação */
+.minimapa { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; width:120px; aspect-ratio:3/4; padding:5px; border-radius:8px; background:#17402c; border:1px solid #2b5a41; }
+.minimapa div { border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; }
 .gramado { background:linear-gradient(#17402c,#12331f); border:1px solid #2b5a41; border-radius:10px; padding:10px 6px; display:flex; flex-direction:column; gap:8px; }
 .fila { display:flex; justify-content:space-around; gap:6px; min-height:10px; }
 .fila.grade { display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); justify-content:normal; }

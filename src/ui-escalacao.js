@@ -6,7 +6,7 @@ import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, NOME_FAMILIARIDADE, no
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
 import { foraDaCopa, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
-import { prepararTime, simularPartida, entrosamento, setorDaPosicao, COBERTURA, ZONAS, CONFIG } from "./motor.js";
+import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
@@ -39,6 +39,7 @@ const HTML = `  <div id="cabecalho"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
+      <div class="card"><h2>Mapa do time <span class="tag" title="Força do time em cada zona do campo, com os jogadores e a mentalidade escolhidos. Mais claro = mais gente e mais qualidade ali.">força por zona</span></h2><div id="minimapa"></div></div>
       <details class="card dobra" open><summary><h2>Ordens condicionais <span class="tag" id="nOrdens"></span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
     </div>
     <div>
@@ -69,12 +70,13 @@ const nomes = await (await fetch("./dados/nomes.json")).json();
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 
-const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
+const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
 const OPCOES = {
   mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
   pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
   agressividade: ["Agressividade", [[-2, "Muito baixa"], [-1, "Baixa"], [0, "Normal"], [1, "Alta"], [2, "Muito alta"]]],
   passe: ["Passe", [["misto", "Misto"], ["curto", "Curto"], ["longo", "Bola longa"]]],
+  finalizar: ["Finalização", [["misto", "Misto"], ["longe", "Arriscar de longe"], ["area", "Trabalhar até a área"]]],
   lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
@@ -82,7 +84,7 @@ const OPCOES = {
 const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"]];
 const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"], ["mal", "só se ele estiver jogando mal"], ["naoBem", "a não ser que ele esteja jogando bem"]];
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
-  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"]];
+  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Arriscar de longe"], ["finalizar:area", "Trabalhar até a área"]];
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 // papéis e cobradores: chave → [rótulo, só jogador de linha?, quantos]
 const PAPEIS = { capitao: ["Capitão", false, 1], vice: ["Vice", false, 1], armador: ["Armador", true, 1], alvo: ["Homem-alvo", true, 1], escanteio: ["Escanteios", true, 3], falta: ["Faltas", true, 3], penalti: ["Pênaltis", true, 5] };
@@ -155,7 +157,8 @@ async function previaDoAdversario(B) {
     if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
     if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
     if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
-    if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho");
+    if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
+    if (I.mentalidade > 0) dicas.push("time ofensivo deixa a área livre: trabalhar a bola até a área rende mais");
     if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
     h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
   }
@@ -275,6 +278,21 @@ function htmlGramado(mapa = null) {
   const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
+// Mapa do time: força de ataque e de defesa em cada uma das 9 zonas, e as zonas em que o time está acima ou abaixo de um 4-4-2
+// (comparando a fatia de cada zona na força total, para o nível do elenco não importar).
+const ORDEM_MAPA = ["AE", "AC", "AD", "ME", "MC", "MD", "DE", "DC", "DD"];
+const PERFIL_442 = (() => { const c = Object.fromEntries(ZONAS.map(z => [z, 0])); FORMACOES["4-4-2"].forEach(p => { for (const [z, w] of Object.entries(COBERTURA[p])) c[z] += w; }); const t = ZONAS.reduce((s, z) => s + c[z], 0); return Object.fromEntries(ZONAS.map(z => [z, c[z] / t])); })();
+function htmlMiniMapa(esc11) {
+  if (esc11.length < 11) return `<div class="mut">Complete o time para ver o mapa.</div>`;
+  const I = instrucoesParaOMotor(), { atk, def } = avaliarZonas(esc11, { mentalidade: +I.mentalidade || 0, pressao: +I.pressao || 0, agressividade: +I.agressividade || 0 });
+  const topo = Math.max(...ZONAS.map(z => Math.max(atk[z], def[z]))) || 1;
+  const campo = (o, rot) => `<div><div class="mut" style="font-size:12px;margin-bottom:4px">${rot}</div><div class="minimapa">${ORDEM_MAPA.map(z => { const t = o[z] / topo; return `<div title="${NOME_ZONA[z]}" style="background:rgba(255,255,255,${(0.08 + 0.8 * t).toFixed(2)});color:${t > 0.5 ? "#12331f" : "#dfe9e2"}">${Math.round(o[z])}</div>`; }).join("")}</div></div>`;
+  const total = ZONAS.reduce((s, z) => s + atk[z] + def[z], 0), dif = ZONAS.map(z => [z, (atk[z] + def[z]) / total - PERFIL_442[z]]).sort((a, b) => b[1] - a[1]);
+  const nomes = l => l.map(d => NOME_ZONA[d[0]]).join(", ");
+  return `<div class="row" style="align-items:flex-start;gap:16px">${campo(atk, "Com a bola")}${campo(def, "Sem a bola")}
+    <div style="flex:1;min-width:150px"><div><span class="ok">Forte:</span> ${nomes(dif.slice(0, 2))}</div><div><span class="bad">Exposto:</span> ${nomes(dif.slice(-2).reverse())}</div>
+    <div class="mut" style="font-size:12px;margin-top:6px">Comparado a um 4-4-2. O ataque fica no alto do mapa.</div></div></div>`;
+}
 function render() {
   guardar("mo_trabalho_" + chaveElenco(), E);
   const V = validar();
@@ -288,6 +306,7 @@ function render() {
   renderEscolha();
   // instruções
   $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
+  $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
   // papéis
   const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
   const ficha = (k, i) => {

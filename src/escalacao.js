@@ -11,6 +11,12 @@ export const FORMACOES = {
   "3-5-2 com alas": ["GK", "DC", "DC", "DC", "WBR", "WBL", "DMC", "MC", "MC", "FC", "SC"],
   "4-5-1": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "DMC", "MC", "ML", "SC"],
   "4-3-3 do Dugout (1 MC, 3 FC)": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "ML", "FC", "FC", "FC"],
+  "4-1-4-1": ["GK", "DR", "DC", "DC", "DL", "DMC", "MR", "MC", "MC", "ML", "SC"],
+  "4-4-1-1": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "AMC", "SC"],
+  "4-3-2-1 (árvore de Natal)": ["GK", "DR", "DC", "DC", "DL", "MC", "MC", "MC", "AMC", "AMC", "SC"],
+  "5-4-1": ["GK", "DC", "DC", "DC", "WBR", "WBL", "MR", "MC", "MC", "ML", "SC"],
+  "5-3-2": ["GK", "DC", "DC", "DC", "WBR", "WBL", "MC", "MC", "MC", "FC", "SC"],
+  "4-4-2 losango": ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMC", "FC", "SC"],
 };
 
 // Preenche as vagas pegando sempre o par (vaga, jogador) de maior nota entre os que sobraram.

@@ -304,6 +304,12 @@ const __escalacao = (() => {
     "3-5-2 com alas": ["GK", "DC", "DC", "DC", "WBR", "WBL", "DMC", "MC", "MC", "FC", "SC"],
     "4-5-1": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "DMC", "MC", "ML", "SC"],
     "4-3-3 do Dugout (1 MC, 3 FC)": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "ML", "FC", "FC", "FC"],
+    "4-1-4-1": ["GK", "DR", "DC", "DC", "DL", "DMC", "MR", "MC", "MC", "ML", "SC"],
+    "4-4-1-1": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "AMC", "SC"],
+    "4-3-2-1 (árvore de Natal)": ["GK", "DR", "DC", "DC", "DL", "MC", "MC", "MC", "AMC", "AMC", "SC"],
+    "5-4-1": ["GK", "DC", "DC", "DC", "WBR", "WBL", "MR", "MC", "MC", "ML", "SC"],
+    "5-3-2": ["GK", "DC", "DC", "DC", "WBR", "WBL", "MC", "MC", "MC", "FC", "SC"],
+    "4-4-2 losango": ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMC", "FC", "SC"],
   };
 
   // Preenche as vagas pegando sempre o par (vaga, jogador) de maior nota entre os que sobraram.
@@ -360,6 +366,8 @@ const __motor = (() => {
     variacaoChance: { profundidade: 0.4, area: 0.55, cruzamento: 0.45, corte: 0.35, longe: 0.35 }, // dispersão da qualidade de cada chance (0 = todas parecidas); a média não muda
     ajusteGol: { cruzamento: 0.97, corte: 1.28, profundidade: 0.93, area: 0.89, longe: 1.26, escanteio: 0.99, falta: 1, penalti: 0.98 }, // acerto fino para o xG de cada tipo bater com os gols
     xgMaximo: 0.75,
+    // chance pelo lado multiplicada por (ataque na ponta / defesa daquele lado) / referência, elevado ao expoente, entre min e max (ver ferramentas/sim_formacoes.mjs)
+    flancoAberto: { referencia: 0.42, expoente: 0.7, min: 0.7, max: 2.2 },
     chuteForcado: 0.14, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
     fatorChuteForcado: 0.7,
     semGol: { defesa: 0.33, fora: 0.47, trave: 0.04, bloqueado: 0.16 }, // destino das finalizações que não viram gol
@@ -388,6 +396,11 @@ const __motor = (() => {
     chuva: { curto: -0.09, misto: -0.04, longo: 0, erros: 0.5 },
     estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
     estiloCurto: { area: 1.2, longe: 0.8 },
+    // Finalização: arriscar de longe dá mais chutes (e o duelo perdido no ataque vira chute mais vezes), mas piores;
+    //   trabalhar até a área dá menos chutes e melhores, e o ataque emperrado perde a bola em vez de chutar. longe/outros: peso dos tipos de chance
+    finalizar: { longe: { longe: 2.2, outros: 0.85, forcado: 1.8, qualidade: 1.5 }, area: { longe: 0.35, outros: 1.1, forcado: 0.4 } },
+    // por nível de mentalidade de quem defende (só para quem escolheu a instrução): chute de longe contra retranca; área contra retranca e contra time aberto
+    finalizarXmentalidade: { longe: 0.15, areaRetranca: 0.1, areaAberto: 0.08 },
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
     contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.85, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
     // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
@@ -436,6 +449,7 @@ const __motor = (() => {
     pressao: 0, // 0, 1 ou 2
     lado: "misto", // misto, E, C, D ou lados
     passe: "misto", // misto, curto ou longo
+    finalizar: "misto", // misto, longe (arriscar de fora) ou area (trabalhar a bola até a área)
     contraAtaque: false,
     impedimento: false,
     capitao: null, vice: null, armador: null, alvo: null, // ids de jogadores
@@ -573,8 +587,8 @@ const __motor = (() => {
   }
 
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
-  function avaliarZonas(escalacao) {
-    const t = iniciar(prepararTime({ nome: "", escalacao }));
+  function avaliarZonas(escalacao, instrucoes = {}) {
+    const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
     recalcular(t, 0);
     return { atk: t.atk, def: t.def };
   }
@@ -629,6 +643,8 @@ const __motor = (() => {
     const espaco = Math.max(0.3, 1 + CONFIG.espacoPorMentalidade * def.instr.mentalidade); // linha recuada tira o espaço nas costas
     const jeito = I.passe === "longo" ? CONFIG.estiloLongo : I.passe === "curto" ? CONFIG.estiloCurto : {};
     const estilo = { profundidade: (jeito.profundidade || 1) * (contra ? 2 : 1) * espaco, area: jeito.area || 1, longe: jeito.longe || 1, cruzamento: jeito.cruzamento || 1, corte: 1 };
+    const fin = CONFIG.finalizar[I.finalizar]; // chutar de longe ou trabalhar até a área: muda a mistura dos tipos de chance
+    if (fin) for (const t in estilo) estilo[t] *= t === "longe" ? fin.longe : fin.outros;
     const D = CONFIG.decisaoDoChute, pe = v => D ? mod(v, D.referencia, D.inclinacao) : 1; // vontade de chutar, pelo pé
     const opcoes = lado === "C"
       ? [["profundidade", pt.profundidade * alvoVeloz * estilo.profundidade], ["area", pt.area * presenca * estilo.area], ["longe", pt.longe * estilo.longe * pe(pivo.at[A.lon])]]
@@ -669,6 +685,10 @@ const __motor = (() => {
     // nem toda chance do mesmo tipo vale o mesmo: umas saem limpas, outras apertadas
     const v = CONFIG.variacaoChance[tipo] || 0;
     if (v) c.xg *= Math.exp(rng.normal(0, v) - v * v / 2);
+    // confronto da finalização com a postura de quem defende: retranca congestiona a área e dá espaço fora dela; time aberto deixa a área livre
+    const FM = CONFIG.finalizarXmentalidade, m = def.instr.mentalidade;
+    if (I.finalizar === "longe" && tipo === "longe") c.xg *= (1 + FM.longe * Math.max(0, -m)) * mod(c.chute, 25, CONFIG.finalizar.longe.qualidade); // time treinado para chutar de fora: o bom chutador rende ainda mais
+    if (I.finalizar === "area" && (tipo === "area" || tipo === "profundidade")) c.xg *= m < 0 ? 1 + FM.areaRetranca * m : 1 + FM.areaAberto * m;
     c.xg = limitar(c.xg, 0.01, CONFIG.xgMaximo);
     return c;
   }
@@ -1000,10 +1020,12 @@ const __motor = (() => {
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
       const forcado = !d.venceu;
       if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
-      if (forcado && !rng.chance(CONFIG.chuteForcado)) { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
+      if (forcado && !rng.chance(CONFIG.chuteForcado * ((CONFIG.finalizar[atk.instr.finalizar] || {}).forcado || 1))) { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
       const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra });
       // duelo do ataque vencido com folga: a finalização sai em melhor condição
       if (!forcado && chance && chance.xg) chance.xg = limitar(chance.xg * (1 + CONFIG.embalo.chance * embalo(d) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo);
+      // flanco aberto: a chance pelo lado vale mais quando quem ataca tem gente e qualidade na ponta, contra a defesa daquele lado
+      if (lado !== "C" && chance && chance.xg) { const F = CONFIG.flancoAberto, r = atk.atk["A" + lado] / (dz["A" + lado] + CONFIG.zonaVazia); chance.xg = limitar(chance.xg * limitar(Math.pow(r / F.referencia, F.expoente), F.min, F.max), 0.01, CONFIG.xgMaximo); }
       finalizar(i, chance);
     }
 
@@ -1333,7 +1355,7 @@ const __rodada = (() => {
       const condicoes = ["sempre", "ganhando", "empatando", "perdendo", "cansado", "amarelo", "mal", "naoBem"];
       const instrucoes = {
         mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
-        passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"),
+        passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"),
         contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true,
         capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
         cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
@@ -1341,7 +1363,7 @@ const __rodada = (() => {
           .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre"), ...(LISTA_POSICOES.includes(s.pos) && s.pos !== "GK" ? { pos: s.pos } : {}) })), // pos: onde o substituto entra (sem ela, na posição de quem sai)
         ordens: (dados.ordens || []).slice(0, 3).map(o => {
           const [k, v] = String(o.muda || "").split(":");
-          if (!["mentalidade", "pressao", "contraAtaque", "passe"].includes(k)) return null;
+          if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar"].includes(k)) return null;
           return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 4), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
