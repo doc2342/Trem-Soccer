@@ -4,7 +4,7 @@
 // - O talento sobe: o bot só compra de clubes da mesma divisão ou de uma abaixo, e as divisões de cima escolhem primeiro.
 // - Quem vende tem critério: só reserva com mais de 21 anos, e primeiro o que sobra (posição com reservas de sobra, veterano).
 // - Bot no vermelho vende mais barato e para quem ganha menos com o reforço, até dois jogadores por janela.
-import { notaNaPosicao, POSICOES } from "./modelo.js";
+import { notaNaPosicao, notaComPe, POSICOES } from "./modelo.js";
 import { taticaBot } from "./bot.js";
 import { salarioDeMercado } from "./economia.js";
 
@@ -23,6 +23,7 @@ export const CONFIG_MERCADO_BOTS = {
   elencoMinimo: 19,       // quem vende fica com pelo menos 19 jogadores profissionais
   divisoesAbaixo: 1,      // compra da mesma divisão ou de até uma abaixo
   estrangeiros: 5,        // jogadores de outra nacionalidade por clube (82_mercado_entre_paises.sql)
+  livresPorJanela: 8,     // livres contratados por bots por janela na liga inteira (113_bots_contratam_livres.sql): o resto fica para os dirigentes
 };
 
 // quantos jogadores do elenco têm nacionalidade diferente do país do clube, e se este jogador seria mais um
@@ -115,4 +116,39 @@ export function comprasDeListados({ clubes, elencos, listados, jaCompraram = [] 
     compras.push({ jogador: +String(j.id).replace(/^\D+/, ""), para: b.id, valor: preco, salario, ganho: +melhor.ganho.toFixed(1) });
   }
   return compras;
+}
+
+// Bots tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql). Buraco: titular sem reserva no elenco com 85% da nota
+// dele na posição (a mesma régua das trocas do bot). O livre precisa ter essa nota; o maior buraco escolhe primeiro, um livre por bot por janela.
+// O banco só entrega em `livres` quem está livre há o prazo, sem leilão; quem contrata (e confere tudo de novo) é bot_contrata_livre.
+// livres: [{ j (formato do motor), salario }]; jaContrataram: ids dos bots que já contrataram livre nesta janela.
+// Devolve [{ jogador (id numérico), para, salario, buraco, fica }] (buraco e fica: reserva antes e depois, em fração da nota do titular).
+export function livresParaOsBots({ clubes, elencos, livres, jaContrataram = [] }, C = CONFIG_MERCADO_BOTS) {
+  const usados = new Set(jaContrataram), pedidos = [];
+  for (const b of clubes) {
+    const el = (elencos[b.id] || []).filter(j => !j.juvenil);
+    if (usados.has(b.id) || el.length < 11 || el.length >= 30 || (b.caixa || 0) < C.reserva * b.teto) continue;
+    const t = taticaBot(el), naEscalacao = new Set(t.escalacao.map(x => x.j.id)), reservas = el.filter(j => !naEscalacao.has(j.id));
+    const folha = el.reduce((s, j) => s + (j.salario || 0), 0), estr = estrangeirosDe(b, elencos[b.id]);
+    for (const x of t.escalacao) {
+      const titular = notaComPe(x.j, x.pos), goleiro = x.pos === "GK";
+      const buraco = Math.max(0, ...reservas.filter(r => (r.pos === "GK") === goleiro).map(r => notaComPe(r, x.pos))) / titular;
+      if (buraco >= 0.85) continue;
+      for (const { j, salario } of livres) {
+        if ((j.pos === "GK") !== goleiro || j.aposentaEm != null || folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
+        if (estrangeiroEm(j, b) && estr >= C.estrangeiros) continue;
+        const fica = notaComPe(j, x.pos) / titular;
+        if (fica >= 0.85) pedidos.push({ b, j, salario, buraco, fica });
+      }
+    }
+  }
+  // o maior buraco escolhe primeiro (e, nele, o melhor livre); quem perdeu o preferido fica com a opção seguinte
+  const tomados = new Set(), contratos = [];
+  for (const p of pedidos.sort((a, b) => a.buraco - b.buraco || b.fica - a.fica)) {
+    if (jaContrataram.length + contratos.length >= C.livresPorJanela) break;
+    if (tomados.has(p.j.id) || usados.has(p.b.id)) continue;
+    tomados.add(p.j.id); usados.add(p.b.id);
+    contratos.push({ jogador: +String(p.j.id).replace(/^\D+/, ""), para: p.b.id, salario: p.salario, buraco: +p.buraco.toFixed(2), fica: +p.fica.toFixed(2) });
+  }
+  return contratos;
 }

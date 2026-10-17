@@ -2015,7 +2015,7 @@ const __mercadobots = (() => {
   // - O talento sobe: o bot só compra de clubes da mesma divisão ou de uma abaixo, e as divisões de cima escolhem primeiro.
   // - Quem vende tem critério: só reserva com mais de 21 anos, e primeiro o que sobra (posição com reservas de sobra, veterano).
   // - Bot no vermelho vende mais barato e para quem ganha menos com o reforço, até dois jogadores por janela.
-  const { notaNaPosicao, POSICOES } = __modelo;
+  const { notaNaPosicao, notaComPe, POSICOES } = __modelo;
   const { taticaBot } = __bot;
   const { salarioDeMercado } = __economia;
   const CONFIG_MERCADO_BOTS = {
@@ -2033,6 +2033,7 @@ const __mercadobots = (() => {
     elencoMinimo: 19,       // quem vende fica com pelo menos 19 jogadores profissionais
     divisoesAbaixo: 1,      // compra da mesma divisão ou de até uma abaixo
     estrangeiros: 5,        // jogadores de outra nacionalidade por clube (82_mercado_entre_paises.sql)
+    livresPorJanela: 8,     // livres contratados por bots por janela na liga inteira (113_bots_contratam_livres.sql): o resto fica para os dirigentes
   };
 
   // quantos jogadores do elenco têm nacionalidade diferente do país do clube, e se este jogador seria mais um
@@ -2126,14 +2127,49 @@ const __mercadobots = (() => {
     }
     return compras;
   }
-  return { CONFIG_MERCADO_BOTS, negociosEntreBots, comprasDeListados };
+
+  // Bots tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql). Buraco: titular sem reserva no elenco com 85% da nota
+  // dele na posição (a mesma régua das trocas do bot). O livre precisa ter essa nota; o maior buraco escolhe primeiro, um livre por bot por janela.
+  // O banco só entrega em `livres` quem está livre há o prazo, sem leilão; quem contrata (e confere tudo de novo) é bot_contrata_livre.
+  // livres: [{ j (formato do motor), salario }]; jaContrataram: ids dos bots que já contrataram livre nesta janela.
+  // Devolve [{ jogador (id numérico), para, salario, buraco, fica }] (buraco e fica: reserva antes e depois, em fração da nota do titular).
+  function livresParaOsBots({ clubes, elencos, livres, jaContrataram = [] }, C = CONFIG_MERCADO_BOTS) {
+    const usados = new Set(jaContrataram), pedidos = [];
+    for (const b of clubes) {
+      const el = (elencos[b.id] || []).filter(j => !j.juvenil);
+      if (usados.has(b.id) || el.length < 11 || el.length >= 30 || (b.caixa || 0) < C.reserva * b.teto) continue;
+      const t = taticaBot(el), naEscalacao = new Set(t.escalacao.map(x => x.j.id)), reservas = el.filter(j => !naEscalacao.has(j.id));
+      const folha = el.reduce((s, j) => s + (j.salario || 0), 0), estr = estrangeirosDe(b, elencos[b.id]);
+      for (const x of t.escalacao) {
+        const titular = notaComPe(x.j, x.pos), goleiro = x.pos === "GK";
+        const buraco = Math.max(0, ...reservas.filter(r => (r.pos === "GK") === goleiro).map(r => notaComPe(r, x.pos))) / titular;
+        if (buraco >= 0.85) continue;
+        for (const { j, salario } of livres) {
+          if ((j.pos === "GK") !== goleiro || j.aposentaEm != null || folha + salario > b.teto || salario > C.maximoIndividual * b.teto) continue;
+          if (estrangeiroEm(j, b) && estr >= C.estrangeiros) continue;
+          const fica = notaComPe(j, x.pos) / titular;
+          if (fica >= 0.85) pedidos.push({ b, j, salario, buraco, fica });
+        }
+      }
+    }
+    // o maior buraco escolhe primeiro (e, nele, o melhor livre); quem perdeu o preferido fica com a opção seguinte
+    const tomados = new Set(), contratos = [];
+    for (const p of pedidos.sort((a, b) => a.buraco - b.buraco || b.fica - a.fica)) {
+      if (jaContrataram.length + contratos.length >= C.livresPorJanela) break;
+      if (tomados.has(p.j.id) || usados.has(p.b.id)) continue;
+      tomados.add(p.j.id); usados.add(p.b.id);
+      contratos.push({ jogador: +String(p.j.id).replace(/^\D+/, ""), para: p.b.id, salario: p.salario, buraco: +p.buraco.toFixed(2), fica: +p.fica.toFixed(2) });
+    }
+    return contratos;
+  }
+  return { CONFIG_MERCADO_BOTS, negociosEntreBots, comprasDeListados, livresParaOsBots };
 })();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
-const { negociosEntreBots, comprasDeListados } = __mercadobots;
+const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
 // Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
 async function mercadoDosBots(sb, ligaId) {
@@ -2177,6 +2213,22 @@ async function botsCompramListados(sb, ligaId) {
     .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
   const compras = comprasDeListados({ clubes, elencos, listados: fila.map(l => ({ j: jogadorDoMercado(l), preco: l.preco_pedido })), jaCompraram });
   for (const c of compras) await sb.rpc("bot_compra_listado", { p_jogador: c.jogador, p_para: c.para, p_valor: c.valor, p_salario: c.salario }); // o que esbarra numa regra é pulado
+  await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
+}
+
+// Bots tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql): o banco entrega a fila (livres sem leilão há 48 h),
+// cada livre é olhado uma vez por janela e quem contrata (conferindo tudo de novo) é bot_contrata_livre. Sem efeito antes do SQL 113.
+async function botsContratamLivres(sb, ligaId) {
+  const { data: fila, error } = await sb.rpc("livres_para_os_bots", { p_liga: ligaId });
+  if (error || !fila || !fila.length) return;
+  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
+  const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
+  if (!janela || !liga) return;
+  const { clubes, elencos } = await botsDaLiga(sb, ligaId);
+  const jaContrataram = ((await sb.from("transferencias").select("para_clube").eq("liga_id", ligaId).eq("temporada", liga.temporada).eq("janela", janela).eq("tipo", "livre")
+    .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
+  const contratos = livresParaOsBots({ clubes, elencos, livres: fila.map(l => ({ j: jogadorDoMercado(l), salario: l.salario_mercado || 0 })), jaContrataram });
+  for (const c of contratos) await sb.rpc("bot_contrata_livre", { p_jogador: c.jogador, p_para: c.para, p_salario: c.salario }); // o que esbarra numa regra é pulado
   await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
 }
 
@@ -2332,7 +2384,7 @@ Deno.serve(async (req) => {
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
     // bots: obras rumo aos níveis da divisão e, uma vez por janela, negócios entre clubes sem dono (sem efeito antes do 66_multa_e_bots.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); } } catch (e) { /* segue */ }
+    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); await botsContratamLivres(sb, l.id); } } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())

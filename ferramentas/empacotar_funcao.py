@@ -56,7 +56,7 @@ const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
-const { negociosEntreBots, comprasDeListados } = __mercadobots;
+const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
 // Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
 async function mercadoDosBots(sb, ligaId) {
@@ -100,6 +100,22 @@ async function botsCompramListados(sb, ligaId) {
     .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
   const compras = comprasDeListados({ clubes, elencos, listados: fila.map(l => ({ j: jogadorDoMercado(l), preco: l.preco_pedido })), jaCompraram });
   for (const c of compras) await sb.rpc("bot_compra_listado", { p_jogador: c.jogador, p_para: c.para, p_valor: c.valor, p_salario: c.salario }); // o que esbarra numa regra é pulado
+  await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
+}
+
+// Bots tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql): o banco entrega a fila (livres sem leilão há 48 h),
+// cada livre é olhado uma vez por janela e quem contrata (conferindo tudo de novo) é bot_contrata_livre. Sem efeito antes do SQL 113.
+async function botsContratamLivres(sb, ligaId) {
+  const { data: fila, error } = await sb.rpc("livres_para_os_bots", { p_liga: ligaId });
+  if (error || !fila || !fila.length) return;
+  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
+  const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
+  if (!janela || !liga) return;
+  const { clubes, elencos } = await botsDaLiga(sb, ligaId);
+  const jaContrataram = ((await sb.from("transferencias").select("para_clube").eq("liga_id", ligaId).eq("temporada", liga.temporada).eq("janela", janela).eq("tipo", "livre")
+    .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
+  const contratos = livresParaOsBots({ clubes, elencos, livres: fila.map(l => ({ j: jogadorDoMercado(l), salario: l.salario_mercado || 0 })), jaContrataram });
+  for (const c of contratos) await sb.rpc("bot_contrata_livre", { p_jogador: c.jogador, p_para: c.para, p_salario: c.salario }); // o que esbarra numa regra é pulado
   await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
 }
 
@@ -255,7 +271,7 @@ Deno.serve(async (req) => {
     // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
     try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
     // bots: obras rumo aos níveis da divisão e, uma vez por janela, negócios entre clubes sem dono (sem efeito antes do 66_multa_e_bots.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); } } catch (e) { /* segue */ }
+    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); await botsContratamLivres(sb, l.id); } } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
