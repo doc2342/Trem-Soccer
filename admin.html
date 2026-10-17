@@ -18,7 +18,9 @@
 import { criarRng } from "./src/rng.js";
 import { notaBruta } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
-import { gerarTabela, calcularPartida, aplicarSituacao } from "./src/rodada.js";
+import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./src/rodada.js";
+import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
+import { metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
@@ -162,6 +164,10 @@ async function tela(aviso = "") {
         <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
       <div class="mut" style="margin-top:6px">Ordem: 18 rodadas → semifinal (3º x 4º da segunda e da terceira) → final (2º x vencedor) → virada. Jogo único na casa do mais bem colocado; no empate, passa o mandante.</div>
       <div id="previaVirada" style="margin-top:10px"></div></div>` : ""}
+    ${liga ? `<div class="card"><h2>Diretoria</h2>
+      <div class="mut" style="margin-bottom:10px">Metas da temporada ${liga.temporada}: <span id="metasInfo">…</span>. A meta de cada clube com dirigente é a faixa central de posições em várias simulações da temporada (todos com tática de bot). Calcule depois de gerar o calendário e antes da primeira rodada; cada grupo leva cerca de meio minuto com 100 simulações. Sem meta, a virada usa a posição pela força do elenco, com uma de folga para cada lado. A confiança é aplicada sozinha na virada.</div>
+      <div class="row"><button id="calcMetas" ${partidas.length ? "" : "disabled"}>Calcular as metas da temporada ${liga.temporada}</button><label>Simulações<input type="number" id="nSim" value="${CONFIG_DIRETORIA.simulacoes}" min="10" style="width:90px"></label></div>
+      <div id="avisoMetas" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${liga ? `<div class="card" id="transfAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Outros países</h2>
       <div class="mut" style="margin-bottom:10px">${Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length} clubes`).join(" · ")}. Cada país é um campeonato de ${POR_GRUPO} clubes sem dirigente, com uma divisão só, nas mesmas datas do Brasil (precisa do SQL 77 e da função rodada republicada). Com o calendário já gerado, os jogos deles entram nas datas que existem; os de datas passadas são calculados em seguida. Por enquanto jogador não troca de clube entre países.</div>
@@ -322,6 +328,23 @@ async function tela(aviso = "") {
       await tela(`Playoffs: ${r.jogos.length} jogos criados (${r.fase === "semi" ? "semifinais" : r.fase === "acesso" ? "final do acesso" : "finais"}).`);
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)} (o 17_acesso_e_descenso.sql já foi executado?)</span>`; }
   });
+  // diretoria: metas da temporada por simulação, só dos grupos com dirigente
+  if (liga) metasDaTemporada(liga.id, liga.temporada).then(m => { if ($("metasInfo")) $("metasInfo").innerHTML = m.length ? `<b>${m.length} clubes com meta</b>` : "ainda não calculadas"; });
+  em("calcMetas", async () => {
+    const gruposLiga = [...new Set(partidas.filter(p => !p.fase || p.fase === "liga").map(p => p.grupo))].filter(g => clubes.some(c => c.grupo === g && c.dono));
+    if (!gruposLiga.length) return alert("Nenhum grupo com dirigente no calendário desta temporada.");
+    $("calcMetas").disabled = true; $("avisoMetas").textContent = "Lendo os elencos…";
+    try {
+      const grupos = Object.fromEntries(gruposLiga.map(g => [g, clubes.filter(c => c.grupo === g)])), lista = Object.values(grupos).flat(), elencos = {};
+      for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
+      const metas = await simularMetas({ grupos, elencos, rng: criarRng(Date.now() % 2147483647), n: Math.max(10, +$("nSim").value || CONFIG_DIRETORIA.simulacoes),
+        aoProgresso: (f, g) => { $("avisoMetas").textContent = `Simulando: ${nomeDoGrupo(g)}… ${Math.round(f * 100)}% do total.`; } });
+      const n = await definirMetas(liga.id, metas), nome = Object.fromEntries(lista.map(c => [c.id, c]));
+      $("metasInfo").innerHTML = `<b>${n} clubes com meta</b>`;
+      $("avisoMetas").innerHTML = `Metas gravadas. Clubes com dirigente: ${metas.filter(m => nome[m.clube_id].dono).map(m => `${esc(nome[m.clube_id].nome)} ${m.faixa_min === m.faixa_max ? m.faixa_min + "º" : `${m.faixa_min}º a ${m.faixa_max}º`}`).join(" · ")}.`;
+    } catch (e) { $("avisoMetas").textContent = "Não deu: " + e.message + " (o 91_diretoria.sql já foi executado?)"; }
+    finally { $("calcMetas").disabled = false; }
+  });
   em("prepararVirada", async () => {
     // com outros países na liga, o banco precisa do 80 (teto de 24 mi lá fora, Copinha e liga de base só do Brasil) antes da virada
     const deFora = clubes.find(c => PAISES[c.grupo]);
@@ -371,6 +394,24 @@ async function tela(aviso = "") {
             const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
             return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
           }));
+          // diretoria: confiança de cada clube com dirigente (meta da temporada, ou a força do elenco sem meta), antes de a virada apagar as partidas
+          let confianca = "";
+          try {
+            const metas = Object.fromEntries((await metasDaTemporada(liga.id, liga.temporada)).map(m => [m.clube_id, m])), doLista = Object.fromEntries(lista.map(c => [c.id, c]));
+            const forcaDe = Object.fromEntries(lista.map(c => [c.id, forcaDoElenco(elencos[c.id])])), copa = campanhaNaCopa(partidas, forcaDe);
+            const caixas = Object.fromEntries((await caixasDaLiga(lista.filter(c => c.dono).map(c => c.id))).map(x => [x.clube_id, x.caixa])), conf = [];
+            for (const g of new Set(plano.classificacao.map(x => x.grupo))) {
+              const l = plano.classificacao.filter(x => x.grupo === g); if (!l.some(x => (doLista[x.clube_id] || {}).dono)) continue;
+              const peloEsp = posicaoPelosEsperados(classificacao(l.map(x => doLista[x.clube_id]).filter(Boolean), partidas.filter(p => p.grupo === g), resultados));
+              const pelaForca = Object.fromEntries([...l].sort((a, b) => forcaDe[b.clube_id] - forcaDe[a.clube_id]).map((x, i) => [x.clube_id, i + 1]));
+              for (const x of l.filter(x => (doLista[x.clube_id] || {}).dono)) {
+                const m = metas[x.clube_id], faixa = m ? [m.faixa_min, m.faixa_max] : metaPelaForca(pelaForca[x.clube_id], l.length), vermelho = (caixas[x.clube_id] || 0) < 0;
+                const v = variacaoDaConfianca({ avaliada: (x.posicao + peloEsp[x.clube_id]) / 2, faixa, copa: copa[x.clube_id] || null, vermelho });
+                conf.push({ clube_id: x.clube_id, delta: v.total, detalhes: { ...v, faixa, posicao: x.posicao, esperados: peloEsp[x.clube_id], copa: copa[x.clube_id] || null, vermelho, semMeta: !m } });
+              }
+            }
+            confianca = " " + await aplicarConfianca(liga.id, conf);
+          } catch (e) { confianca = " Confiança da diretoria não aplicada: " + e.message + " (o 91_diretoria.sql já foi executado?)"; }
           const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou
           if (plano.safra && plano.safra.length) await registrarSafra(liga.id, plano.safra); // talentos raros: mural da liga e peso do próximo sorteio
           await atualizarTorcidas(liga.id); // prestígio de cada clube, pela campanha que acabou de ir para o histórico
@@ -379,7 +420,7 @@ async function tela(aviso = "") {
           let livres = ""; // contratos vencidos: os jogadores saem dos clubes e entram em leilão
           if (comLivres) { try { livres = ` ${await liberarJogadores(liga.id, plano.livres)} jogadores ficaram livres.`; } catch (e) { livres = " Não consegui liberar os jogadores de contrato vencido: " + e.message; } }
           const pre = await executarPreAcordos(liga.id); if (pre) livres += " " + pre; // pré-acordos e pré-contratos fechados antes da virada
-          await tela(feito + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
+          await tela(feito + confianca + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
         }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
       };
@@ -389,7 +430,7 @@ async function tela(aviso = "") {
   em("reiniciar", async () => {
     if (!confirm("Reiniciar o teste? Calendário, resultados, extratos, obras e histórico serão apagados, e os jogadores voltam ao estado inicial. Não dá para desfazer.")) return;
     $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
-    try { const feito = await reiniciarTeste(liga.id, $("sortear").checked); await limparTreinadores(liga.id); await tela(feito + " Agora gere o calendário."); }
+    try { const feito = await reiniciarTeste(liga.id, $("sortear").checked); await limparTreinadores(liga.id); await zerarConfianca(liga.id); await tela(feito + " Agora gere o calendário."); }
     catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; $("reiniciar").disabled = false; }
   });
   em("guardarEstado", async () => {

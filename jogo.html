@@ -64,7 +64,7 @@
   .c-chegada-box { grid-column:span 12; } .c-chegada-box:empty { display:none; } .c-chegada { margin:0; border-color:var(--ac); }
   .barra-passos { height:6px; border-radius:3px; background:rgba(255,255,255,.08); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
   .passos { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 12px; } .passos > div.feito { opacity:.55; } .passos > div.feito b { text-decoration:line-through; }
-  .c-jogos { grid-column:span 7; } .c-destaque { grid-column:span 5; } .c-mural, .c-liga, .c-tabela { grid-column:span 4; }
+  .c-jogos { grid-column:span 7; } .c-destaque { grid-column:span 5; } .c-mural, .c-liga, .c-tabela { grid-column:span 4; } .c-dir { grid-column:span 12; }
   @media (max-width:980px) { .c-jogos, .c-destaque, .c-mural, .c-liga, .c-tabela { grid-column:span 12; } }
   .faixa { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
   @media (max-width:620px) { .faixa { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
@@ -168,6 +168,8 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { meusLances, transferenciasDoClube, sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, golsDasPartidas, campanhasDaTemporada, recordesDaLiga, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
+import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
+import { metasDaTemporada, confiancaDaTemporada } from "./src/banco.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
@@ -306,6 +308,7 @@ async function telaCriar(liga, recusado) {
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   // Todas as consultas saem juntas (antes iam em fila, uma leva depois da outra). Só o mercado espera os leilões e ofertas vencidos fecharem, e os lances dos livres esperam a lista deles.
+  const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], []]) : Promise.all([metasDaTemporada(liga.id, liga.temporada), liga.temporada > 1 ? confiancaDaTemporada(liga.id, liga.temporada - 1) : []]);
   const mercadoP = resolverLeiloes(liga.id).then(() => Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], copinha,
     [baseJogos, baseCampeoes, premiosTodos, revelados], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, finalistas, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
@@ -325,6 +328,7 @@ async function telaClube(liga, clube) {
     trofeusDaLiga(liga.id).catch(() => []),
     Promise.all([meusLances(clube.id), transferenciasDoClube(clube.id)]),
   ]);
+  const [metasDaLiga, confPassada] = await diretoriaP, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
   const comissao = comissaoToda && comissaoToda.filter(t => (t.funcao || "treinador") === "treinador"), equipeDeSaude = (comissaoToda || []).filter(t => t.funcao && t.funcao !== "treinador");
@@ -1038,7 +1042,7 @@ async function telaClube(liga, clube) {
   const fotoDoClube = pos => ({ t: Date.now(), temporada: liga.temporada, pos, caixa,
     fora: Object.fromEntries(elenco.filter(j => j.fora > 0).map(j => [j.id, j.motivo === "lesão" ? "l" : "s"])),
     notas: Object.fromEntries(elenco.map(j => [j.id, Math.round(notaNaPosicao(j, j.pos) * 10)])),
-    obra: obra ? obra.estrutura + ":" + obra.nivel_alvo : null, rel: relatorios ? relatorios.length : null });
+    obra: obra ? obra.estrutura + ":" + obra.nivel_alvo : null, rel: relatorios ? relatorios.length : null, conf: clube.confianca });
   const guardarVisita = pos => { try { localStorage.setItem(CHAVE_VISITA, JSON.stringify(fotoDoClube(pos))); } catch (e) {} };
   function resumoDaVisita(pos, res, meus) {
     const el = $("desdeVisita"); if (!el) return;
@@ -1072,6 +1076,7 @@ async function telaClube(liga, clube) {
     if (caixa != null && f.caixa != null && caixa !== f.caixa) l.push(item("💰", `Caixa ${caixa > f.caixa ? "subiu" : "caiu"} ${dinheiro(Math.abs(caixa - f.caixa))}: agora ${dinheiro(caixa)}.`, caixa < 0 ? "bad" : "", "financas"));
     const obraAgora = obra ? obra.estrutura + ":" + obra.nivel_alvo : null;
     if (f.obra && f.obra !== obraAgora) { const [k, nv] = f.obra.split(":"); l.push(item("🏗️", `Obra concluída: ${esc((ESTRUTURAS.find(x => x[0] === k) || [])[1] || k)} no nível ${nv}.`, "ok", "estruturas")); }
+    if (clube.confianca != null && f.conf != null && clube.confianca !== f.conf) l.push(item("🏛️", `Confiança da diretoria: ${f.conf} → ${clube.confianca}. ${fraseDoPresidente(clube.confianca)}`, clube.confianca > f.conf ? "ok" : "aviso"));
     if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; l.push(item("🔍", `${n === 1 ? "1 relatório novo" : n + " relatórios novos"} do olheiro.`, "", "mercado")); }
     el.innerHTML = l.length ? `<div class="card c-chegada"><h2>Desde a sua última visita <span class="tag">${desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
         <button class="sec" id="visitaOk" style="float:right;padding:2px 10px;font-size:12.5px">Entendi</button></h2><div class="mural">${l.join("")}</div></div>` : "";
@@ -1145,6 +1150,11 @@ async function telaClube(liga, clube) {
     if (art[0]) l.push(item("⚽", `${lj(art[0].id, art[0].nome)} (${lk(art[0].clube)}) lidera a artilharia da liga com ${art[0].gols} gols.`));
     art.slice(1).filter(x => humanos.has(x.clube) && x.gols >= 10).slice(0, 3).forEach(x => l.push(item("⚽", `${lj(x.id, x.nome)} chega a ${x.gols} gols pelo ${lk(x.clube)} na temporada.`)));
     // começo de temporada: o que a última virada fez com os clubes de dirigente
+    if (jogadas <= 3) confPassada.filter(x => humanos.has(x.clube_id)).forEach(x => {
+      if (x.depois >= CONFIG_DIRETORIA.segundoClube && x.antes < CONFIG_DIRETORIA.segundoClube) l.push(item("🏛️", `A diretoria do ${lk(x.clube_id)} está encantada (confiança ${x.depois}): o dirigente ganhou o direito a um segundo clube em outro país.`));
+      else if (x.depois < 30 && x.depois < x.antes) l.push(item("🏛️", `A diretoria do ${lk(x.clube_id)} perde a paciência: a confiança caiu para ${x.depois}.`));
+      else if (x.depois - x.antes >= 12) l.push(item("🏛️", `A diretoria do ${lk(x.clube_id)} aplaude a temporada: confiança de ${x.antes} para ${x.depois}.`));
+    });
     if (jogadas <= 3) passada.filter(x => humanos.has(x.clube_id) && x.destino && x.destino !== "ficou").forEach(x => l.push(item(x.destino === "caiu" ? "⬇️" : x.destino === "subiu" ? "⬆️" : "🏆",
       x.destino === "caiu" ? `${lk(x.clube_id)} foi rebaixado na temporada ${liga.temporada - 1} (${x.posicao}º do ${nomeDoGrupo(x.grupo)}).` : x.destino === "subiu" ? `${lk(x.clube_id)} conquistou o acesso na temporada ${liga.temporada - 1}.` : `${lk(x.clube_id)} foi campeão do ${nomeDoGrupo(x.grupo)} na temporada ${liga.temporada - 1}.`)));
     return l;
@@ -1171,6 +1181,18 @@ async function telaClube(liga, clube) {
       <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
       <div><div class="mut">Estádio</div><div style="font-size:22px;font-weight:800">${lugaresDoEstadio(clube.estadio_nivel).toLocaleString("pt-BR")} <span class="mut" style="font-size:14px;font-weight:400">lugares · nível ${clube.estadio_nivel}</span></div></div></div>
       <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
+    ${clube.confianca == null ? "" : (() => { const c = clube.confianca, C = CONFIG_DIRETORIA, d = minhaVirada && minhaVirada.detalhes || null, sinal = x => (x > 0 ? "+" : "") + x;
+      const faixa = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `${minhaMeta.faixa_min}º lugar` : `entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º lugar`) : null;
+      return `<div class="card c-dir"><h2>Diretoria</h2><div class="row" style="gap:22px;align-items:flex-start">
+        <div style="min-width:170px"><div class="mut">Confiança</div><div style="font-size:22px;font-weight:800" class="${c < 30 ? "bad" : c >= 70 ? "ok" : ""}">${c} <span class="mut" style="font-size:14px;font-weight:400">de 100</span></div>
+          <div class="barra-passos" style="margin:4px 0 0"><i style="width:${c}%"></i></div></div>
+        <div style="flex:1;min-width:220px"><div style="font-style:italic">“${fraseDoPresidente(c)}”</div>
+          <div style="margin-top:4px">${faixa ? `Meta da temporada: terminar <b>${faixa}</b> no ${esc(nomeDoGrupo(clube.grupo))}.` : `<span class="mut">A meta da temporada aparece quando o administrador calcular. Sem ela, vale a posição pela força do elenco, com uma de folga para cada lado.</span>`}</div>
+          <div id="termometro" class="mut" style="margin-top:4px"></div>
+          ${d ? `<div class="mut" style="margin-top:4px">Na última virada: ${minhaVirada.antes} → ${minhaVirada.depois} (liga ${sinal(d.liga)}, copa ${sinal(d.copa)}, finanças ${sinal(d.financas)})${minhaVirada.verba ? `, verba de ${dinheiro(minhaVirada.verba)}` : ""}.</div>` : ""}</div>
+        <div style="flex:1;min-width:220px" class="mut">Com ${C.verba[1][0]}+ na virada, a diretoria paga uma verba de ${Math.round(C.verba[1][1] * 100)}% do teto da folha${teto ? ` (${dinheiro(Math.round(teto * C.verba[1][1]))})` : ""}; com ${C.verba[0][0]}+, ${Math.round(C.verba[0][1] * 100)}% e mais uma compra pela multa.
+          ${clube.segundo_clube ? `<div class="ok" style="margin-top:4px">✅ Segundo clube em outro país liberado. A escolha dele chega numa próxima versão.</div>` : `<div style="margin-top:4px">Segundo clube em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo.</div>`}
+          ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></div>`; })()}
     <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
     <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
@@ -1814,6 +1836,10 @@ async function telaClube(liga, clube) {
       // tabela resumida, com as faixas de acesso, playoff e descenso
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
       resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
+      const eu = tab.find(t => t.clube.id === clube.id);
+      if ($("termometro") && minhaMeta && eu && eu.j) { const avaliada = (tab.indexOf(eu) + 1 + posicaoPelosEsperados(tab)[clube.id]) / 2, sinal = x => (x > 0 ? "+" : "") + x;
+        const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
+        $("termometro").innerHTML = `Se a temporada terminasse hoje: <b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${sinal(v.total)}</b> (liga ${sinal(v.liga)} pela posição média entre a tabela e os pontos esperados, ${String(avaliada).replace(".", ",")}º; finanças ${sinal(v.financas)}). A copa entra no fim.`; }
       const faixa = i => !serie ? (i <= 2 ? "lib" : "") : serie === 1 ? (i <= 2 ? "lib" : i >= tab.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : serie === 2 && i >= tab.length - 2 ? "cai" : "";
       $("miniTabela").className = "";
       $("miniTabela").innerHTML = `<table class="mini" style="width:100%"><tr><th></th><th class="esq">${esc(nomeDoGrupo(g))}</th><th>J</th><th>SG</th><th>PTS</th></tr>
