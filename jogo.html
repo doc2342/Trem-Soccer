@@ -44,7 +44,16 @@
     .ttab select { width:100%; font-size:12.5px; padding:4px 2px; } .tdet td { white-space:normal; } .tdet .row { flex-direction:column; align-items:stretch; gap:4px; } }
   /* finanças: quadros da visão geral, barra da folha e tabela por categoria */
   .fgrade { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
-  .fq { border:1px solid var(--line); border-radius:10px; padding:8px 10px; min-width:0; } .fv { font-size:20px; font-weight:800; } .fd { font-size:12.5px; }
+  .fgrade { margin-top:12px; gap:12px !important; }
+  .fq { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 14px; min-width:0; box-shadow:var(--sombra); }
+  .fq > .mut:first-child { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
+  .fv { font-family:var(--display); font-size:28px; font-weight:600; line-height:1.15; font-variant-numeric:tabular-nums; } .fd { font-size:12.5px; color:var(--mut); }
+  /* fichas das estruturas: nome, bolinhas de nível, efeito e o botão de obra embaixo */
+  .estrs { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; }
+  .estr { display:flex; flex-direction:column; gap:6px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--campo); min-width:0; }
+  .estr.em-obra { border-color:var(--ac); }
+  .estr-topo { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .niveis { display:inline-flex; gap:3px; } .niveis i { width:9px; height:9px; border-radius:50%; background:var(--line); } .niveis i.on { background:var(--ac); }
   .fbarra { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
   .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
   @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
@@ -991,16 +1000,20 @@ async function telaClube(liga, clube) {
       : k === "fisio" ? `preparador de forma atende ${atendidosNaForma(n)} por rodada`
       : k === "base" ? `${fx(faixaDeJovens(n, "promocao"))} jovens na virada, ${fx(faixaDeJovens(n, "peneira"))} na peneira`
       : `${mil(lugaresDoEstadio(n))} lugares`;
-    const manut = manutencaoDoClube();
-    return `<div class="card"><h2>Estruturas <span class="tag">caixa de ${dinheiro(caixa)} · manutenção de ${dinheiro(manut)} por temporada · uma obra por vez</span></h2>
-      ${obra ? `<div class="aviso" style="margin-bottom:8px">Obra em andamento: ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)} para o nível ${obra.nivel_alvo}, faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas de liga.</div>` : ""}
-      ${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
-        return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)">
-          <div style="flex:1 1 220px;min-width:0"><a class="lk" ${k === "base" ? `data-aba-ir="base"` : `href="#estr-${k}"`}><b>${nome}</b></a> <span class="tag">nível ${n} de ${maximo}</span>
-            <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div></div>
-          ${emObra ? `<span class="aviso">em obra</span>` : custo == null ? "" : `<div style="text-align:right"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
+    const manut = manutencaoDoClube(), nomeObra = obra && ((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura);
+    const total = ESTRUTURAS.reduce((t, [, , campo]) => t + (clube[campo] || 0), 0), maxTotal = ESTRUTURAS.reduce((t, [k]) => t + (k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5), 0);
+    return `<div class="kpis">${kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, "o valor da obra sai na hora")}
+      ${kpi("Manutenção", dinheiro(manut), "por temporada")}
+      ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> rodadas</small>` : "nenhuma", obra ? `${esc(nomeObra)} para o nível ${obra.nivel_alvo}` : "uma por vez")}
+      ${kpi("Níveis", `${total}<small> de ${maxTotal}</small>`, "somando as cinco")}</div>
+    <div class="card"><h2>Estruturas <span class="tag">uma obra por vez</span></h2>
+      <div class="estrs">${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
+        return `<div class="estr ${emObra ? "em-obra" : ""}">
+          <div class="estr-topo"><a class="lk" ${k === "base" ? `data-aba-ir="base"` : `href="#estr-${k}"`}><b>${nome}</b></a><span class="niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span></div>
+            <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div>
+          ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
-      <div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>`;
+      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>`;
   };
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
@@ -1080,7 +1093,7 @@ async function telaClube(liga, clube) {
       ${quadro(`Temporada ${liga.temporada - 1}`, temAnterior ? fluxo(PERIODOS[2]) : null, "sem registro")}</div>`;
     // folha e teto
     const pct = teto ? folha / teto : 0, maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
-    const folhaHtml = !temContratos ? "" : `<div class="card" style="margin:10px 0 0"><b>Folha salarial</b>
+    const folhaHtml = !temContratos ? "" : `<div class="card"><h2>Folha salarial</h2>
       <div class="row" style="align-items:baseline;gap:14px;margin-top:4px"><div><span class="fv">${dinheiro(folha)}</span> <span class="mut">de ${dinheiro(teto)} por temporada${folhaPaga > folha ? `, contando o desconto de ${dinheiro(folhaPaga - folha)} dos formados no clube (o salário pago soma ${dinheiro(folhaPaga)})` : ""}</span></div><div class="${teto - folha < 0 ? "bad" : "ok"}"><b>${teto - folha < 0 ? "acima do teto em " + dinheiro(folha - teto) : "sobram " + dinheiro(teto - folha)}</b></div></div>
       <div class="fbarra"><div style="width:${Math.min(100, Math.round(pct * 100))}%;background:${pct > 1 ? "var(--bad, #e5484d)" : pct > 0.9 ? "var(--ac)" : "var(--ok)"}"></div></div>
       <div class="mut" style="margin-top:4px">${Math.round(pct * 100)}% do teto de folha da sua divisão${liga.paraquedas ? " (com o paraquedas do rebaixamento, vale o teto da divisão de cima nesta temporada)" : ""} · ${elenco.length} jogadores · ${estrangeiros} de 5 estrangeiros · ${dinheiro(sal)} por rodada · um jogador pode ganhar no máximo ${dinheiro(maximo)} (15% do teto) · formado no clube conta ${Math.round(PESO_DO_FORMADO * 100)}% do salário no teto. Os salários de cada um estão em Clube, Elenco.</div></div>`;
@@ -1089,7 +1102,7 @@ async function telaClube(liga, clube) {
     const outros = PERIODOS.map(f => soma(f) - CATEGORIAS.reduce((t, [, tipos]) => t + soma(f, tipos), 0));
     if (outros.some(Boolean)) linhas.push({ nome: "Outros", v: outros });
     const cel = v => `<td class="${cor(v)}">${v ? sinal(v) : "—"}</td>`;
-    const resumo = linhas.length ? `<div style="margin-top:12px"><b>Resumo por categoria</b><table class="mini ftab" style="width:100%;margin-top:4px"><tr><th class="esq">Categoria</th><th>Última rodada</th><th>Temp. ${liga.temporada}</th><th>Temp. ${liga.temporada - 1}</th></tr>
+    const resumo = linhas.length ? `<div><b>Por categoria</b><table class="mini ftab" style="width:100%;margin-top:4px"><tr><th class="esq">Categoria</th><th>Última rodada</th><th>Temp. ${liga.temporada}</th><th>Temp. ${liga.temporada - 1}</th></tr>
       ${linhas.map(c => `<tr><td class="esq">${c.nome}</td>${c.v.map(cel).join("")}</tr>`).join("")}
       <tr class="ftotal"><td class="esq"><b>Saldo</b></td>${PERIODOS.map(f => `<td class="${cor(soma(f))}"><b>${sinal(soma(f))}</b></td>`).join("")}</tr></table></div>` : "";
     // evolução do caixa: do saldo de hoje para trás, descontando cada rodada
@@ -1105,22 +1118,23 @@ async function telaClube(liga, clube) {
           <polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map((p, k) => `${x(k).toFixed(1)},${y(p.c).toFixed(1)}`).join(" ")}"/>
           ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.c).toFixed(1)}" r="2.6" fill="var(--ac)"><title>${p.rot ? p.rot + ": " : ""}${dinheiro(p.c)}</title></circle>`).join("")}</svg></div>`;
     }
-    const previsao = `<div style="margin-top:12px"><b>Previsão por rodada</b>
-      <div class="mut" style="margin-top:2px">TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)}${com ? ` · comissão técnica ${sinal(-com)}` : ""}${man ? ` · manutenção ${sinal(-man)}` : ""}
+    const previsao = `<div class="card"><h2>Previsão por rodada</h2>
+      <div class="mut">TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)}${com ? ` · comissão técnica ${sinal(-com)}` : ""}${man ? ` · manutenção ${sinal(-man)}` : ""}
         <br>${temTorcida ? `Rodada em casa (bilheteria ${sinal(porJogo)}): <b class="${cor(emCasa)}">${sinal(emCasa)}</b> · rodada fora: <b class="${cor(fora)}">${sinal(fora)}</b> · média: ` : "Saldo: "}<b class="${cor(saldo)}">${sinal(saldo)}</b>
         ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa, já sem os 10% do fundo da liga${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
         <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>`;
     const detalhe = grupos.length ? `<details style="margin-top:12px"><summary style="cursor:pointer"><b>Extrato rodada a rodada</b> <span class="mut">(${extrato.length} lançamentos)</span></summary>
       <div style="max-height:320px;overflow:auto;margin-top:6px"><table class="mini" style="width:100%"><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq" style="white-space:nowrap">T${g.temporada} · ${g.rodada == null ? "fora de rodada" : rotRodada(g.rodada)}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}" style="white-space:nowrap"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div></details>`
       : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`;
-    return `${geral}${folhaHtml}${vermelho()}${carne()}${resumo}${grafico}${previsao}${detalhe}`;
+    return `${geral}${vermelho()}<div class="g2"><div><div class="card"><h2>Movimento <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${resumo}${grafico}${detalhe}</div></div>
+      <div>${folhaHtml}${previsao}${carne()}</div></div>`;
   };
   // clube no vermelho: caixa negativo bloqueia aumentos, renovações e obras; abaixo do limite, corre o prazo para escolher uma saída
   const vermelho = () => {
     if (caixa == null || caixa >= 0) return "";
     const limite = -Math.round(teto * LIMITE_DA_DIVIDA), grave = caixa < limite, usadas = clube.vermelho_rodadas || 0;
     const base = PREMIO_MINIMO[clube.divisao] || PREMIO_MINIMO[2], jaAntecipou = clube.antecipou_temporada != null && clube.antecipou_temporada === liga.temporada;
-    return `<div class="card" style="margin:10px 0 0;border-color:var(--bad, #e5484d)"><b class="bad">Clube no vermelho</b>
+    return `<div class="card" style="border-color:var(--bad, #e5484d)"><h2 class="bad">Clube no vermelho</h2>
       <div class="mut" style="margin:4px 0">Com o caixa negativo, aumentos de salário, renovações e obras ficam bloqueados.
         ${grave ? `A dívida passou de ${dinheiro(-limite)} (10% do teto de folha): você tem <b>${Math.max(0, RODADAS_DE_PRAZO - usadas)} ${RODADAS_DE_PRAZO - usadas === 1 ? "rodada" : "rodadas"}</b> para sair dessa faixa. Depois disso, o jogo vende pelo agente o maior salário fora dos 11 da sua tática, e repete até zerar.`
           : `Se a dívida passar de ${dinheiro(-limite)} (10% do teto de folha), começa um prazo de ${RODADAS_DE_PRAZO} rodadas para resolver.`}</div>
@@ -1134,7 +1148,7 @@ async function telaClube(liga, clube) {
     const vendido = clube.carne_temporada != null && clube.carne_temporada === liga.temporada;
     const lugares = lugaresDoEstadio(clube.estadio_nivel), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round((liga.rodadas_por_temporada || 18) / 2);
     const valor = n => Math.round(n * (liga.preco_ingresso || 0) * 0.8 * jogos / 1000);
-    return `<div class="card" style="margin:10px 0 0"><b>Sócio-Torcedor</b>
+    return `<div class="card"><h2>Sócio-Torcedor</h2>
       ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles já pagaram e vão a todos os jogos em casa.` : "Você não abriu vagas de sócio-torcedor nesta temporada."}</div>`
         : `<div class="mut" style="margin:4px 0">Só antes da primeira rodada. Até um terço da torcida (${maximo.toLocaleString("pt-BR")} lugares) vira sócio-torcedor e paga os ${jogos} jogos em casa de uma vez, com 20% de desconto. Você recebe tudo agora e garante esse público mesmo com a torcida de mau humor; em troca, esses lugares rendem 20% menos do que o ingresso avulso.</div>
           <div class="row"><label>Vagas de sócio-torcedor<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Abrir o Sócio-Torcedor</button></div>
@@ -1622,7 +1636,7 @@ ${historicoDaBase()}
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
-    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
+    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : financas()}
     </div>
     <div data-parte="clube:transf">${abaTransferencias()}</div>
     </section>
