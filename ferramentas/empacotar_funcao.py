@@ -400,7 +400,8 @@ Deno.serve(async (req) => {
     const pedido = await req.json().catch(() => ({}));
     // peneira da base: os jovens são gerados aqui, conforme o nível da base do clube, e gravados pelo banco (35_base_e_dispensa.sql)
     if (pedido.acao === "peneira") {
-      const { data: meu } = await sb.from("clubes").select("id, perfil, liga_id, base_nivel").eq("dono", quem.user.id).maybeSingle();
+      const { data: ativo } = await sb.rpc("meu_clube_de", { p_user: quem.user.id }); // o clube ativo (100_clube_ativo_no_servidor.sql): com dois clubes, a busca por dono traria os dois
+      const { data: meu } = ativo ? await sb.from("clubes").select("id, perfil, liga_id, base_nivel").eq("id", ativo).maybeSingle() : { data: null };
       if (!meu) return json({ erro: "Você não tem clube." });
       const { data: lg } = await sb.from("ligas").select("temporada").eq("id", meu.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
