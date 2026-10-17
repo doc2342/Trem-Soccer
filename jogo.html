@@ -166,7 +166,39 @@ import { escalacaoDaBase, CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
-import { meusLances, transferenciasDoClube, sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, golsDasPartidas, campanhasDaTemporada, recordesDaLiga, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
+import { meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
+import * as B from "./src/banco.js";
+// Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
+// entre as recargas causadas por ações (contratar, propor, comprar relatório…). A entrada na página e a recarga automática com novidade
+// limpam a memória e leem tudo de novo. Erro não fica guardado.
+const memoriaDaLiga = new Map();
+const daLiga = (nome, f) => (...args) => { const k = nome + JSON.stringify(args);
+  if (!memoriaDaLiga.has(k)) memoriaDaLiga.set(k, f(...args).catch(e => { memoriaDaLiga.delete(k); throw e; }));
+  return memoriaDaLiga.get(k); };
+const partidasDoGrupo = daLiga("partidasDoGrupo", B.partidasDoGrupo);
+const resultadosDe = daLiga("resultadosDe", B.resultadosDe);
+const historicoDoGrupo = daLiga("historicoDoGrupo", B.historicoDoGrupo);
+const estatisticasDaLiga = daLiga("estatisticasDaLiga", B.estatisticasDaLiga);
+const estatisticasGuardadas = daLiga("estatisticasGuardadas", B.estatisticasGuardadas);
+const campanhasDaTemporada = daLiga("campanhasDaTemporada", B.campanhasDaTemporada);
+const golsDasPartidas = daLiga("golsDasPartidas", B.golsDasPartidas);
+const temporadasComEstatisticas = daLiga("temporadasComEstatisticas", B.temporadasComEstatisticas);
+const premiosDaLiga = daLiga("premiosDaLiga", B.premiosDaLiga);
+const premiosIndividuais = daLiga("premiosIndividuais", B.premiosIndividuais);
+const trofeusDaLiga = daLiga("trofeusDaLiga", B.trofeusDaLiga);
+const partidasDaCopa = daLiga("partidasDaCopa", B.partidasDaCopa);
+const resultadosDaCopa = daLiga("resultadosDaCopa", B.resultadosDaCopa);
+const finalistasDaCopa = daLiga("finalistasDaCopa", B.finalistasDaCopa);
+const jogosDaBase = daLiga("jogosDaBase", B.jogosDaBase);
+const campeoesDaBase = daLiga("campeoesDaBase", B.campeoesDaBase);
+const jogosDaCopinha = daLiga("jogosDaCopinha", B.jogosDaCopinha);
+const historicoDaLigaDeBase = daLiga("historicoDaLigaDeBase", B.historicoDaLigaDeBase);
+const historicoDaCopinha = daLiga("historicoDaCopinha", B.historicoDaCopinha);
+const safraDaTemporada = daLiga("safraDaTemporada", B.safraDaTemporada);
+const rodadasCompletas = daLiga("rodadasCompletas", B.rodadasCompletas);
+const partidasDoClube = daLiga("partidasDoClube", B.partidasDoClube);
+const recordesDaLiga = daLiga("recordesDaLiga", B.recordesDaLiga);
+const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { metasDaTemporada, confiancaDaTemporada, meusDireitos, ultimaNovidade } from "./src/banco.js";
@@ -231,6 +263,7 @@ const filtrosDoMercado = {};
 const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
 
 async function carregar(s) {
+  if (!s || !usuario || s.user.id !== usuario.id) memoriaDaLiga.clear();
   const minha = ++versao; // evita desenhar duas vezes quando a sessão muda rápido
   usuario = s ? s.user : null;
   $("quem").textContent = usuario ? usuario.email : "";
@@ -268,6 +301,7 @@ async function talvezAtualizar(idade) {
     try { const agora = await ultimaNovidade(marca.liga, marca.clube); if (agora !== undefined && agora === marca.novidade) { carregadoEm = Date.now(); return; } }
     finally { conferindo = false; }
   }
+  memoriaDaLiga.clear();
   carregar({ user: usuario });
 }
 document.addEventListener("visibilitychange", () => talvezAtualizar(300000));
