@@ -28,7 +28,7 @@
   .m-clube { display:none; }
   /* aviso da janela de transferências, no topo do mercado */
   .janela { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 0; padding:10px 14px; border-radius:10px; border:1px solid; font-size:13.5px; }
-  .janela .jl { font-weight:800; font-size:15px; white-space:nowrap; }
+  .janela .jl { display:none; } .janela { border-color:var(--line) !important; background:transparent !important; color:var(--mut); font-size:12.5px; padding:6px 12px; }
   .janela.aberta { border-color:var(--ok); background:rgba(63,178,127,.12); } .janela.aberta .jl { color:var(--ok); }
   .janela.pre { border-color:var(--ac); background:rgba(242,193,78,.10); } .janela.pre .jl { color:var(--ac); }
   .janela.fechada { border-color:var(--bad); background:rgba(229,100,107,.10); } .janela.fechada .jl { color:var(--bad); }
@@ -54,7 +54,11 @@
   .estr.em-obra { border-color:var(--ac); }
   .estr-topo { display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .niveis { display:inline-flex; gap:3px; } .niveis i { width:9px; height:9px; border-radius:50%; background:var(--line); } .niveis i.on { background:var(--ac); }
-  .fbarra { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
+  .colunas { columns:2 380px; column-gap:12px; } .colunas > div { break-inside:avoid; } .colunas > div > .card:first-child { margin-top:12px; }
+  /* próximo jogo: rótulo à esquerda, informação à direita */
+  .pj { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:8px; padding:4px 0; border-top:1px solid var(--line); font-size:13.5px; } .pj > span:first-child { color:var(--mut); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; padding-top:2px; }
+  .pj:first-child { border-top:0; }
+  .colunas .card { display:inline-block; width:100%; } height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
   .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
   @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
   /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
@@ -1446,12 +1450,12 @@ async function telaClube(liga, clube) {
     <div class="g2">
     <div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
-      <div id="proximo" class="mut" style="margin-top:8px"></div>
+      <div id="proximo" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
-    <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
     </div>
     <div>
+    <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
     <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
     ${clube.confianca == null ? "" : (() => { const c = clube.confianca, C = CONFIG_DIRETORIA, d = minhaVirada && minhaVirada.detalhes || null, sinal = x => (x > 0 ? "+" : "") + x;
       const faixa = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `${minhaMeta.faixa_min}º lugar` : `entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º lugar`) : null;
@@ -1489,9 +1493,6 @@ async function telaClube(liga, clube) {
       <label>Lista<select id="stLista"><option value="artilheiros">Artilharia</option><option value="assistencias">Assistências</option><option value="notas">Melhores notas</option><option value="goleiros">Goleiros</option><option value="cartoes">Cartões</option></select></label></div></div>
     <div data-parte="comp:base">${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>
 ${historicoDaBase()}
-    ${revelados == null ? "" : `<div class="card"><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
-      ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
-        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</div>`}
     </div>
     <div id="compKpis"></div>
     <div class="g2" id="compQuadros">
@@ -1640,13 +1641,17 @@ ${historicoDaBase()}
       return `<div class="card"><h2>Base <span class="tag">nível ${n}</span></h2>
         <div>Na virada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>.${temJuvenis ? ` Juvenis: <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>.` : ""}</div>
         <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div>${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam mas não jogam partida oficial. Você tem <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>. Para usar um deles, profissionalize-o (na aba Juvenis ou em Clube, Elenco, clicando no jogador); quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`; })()}
-      ${estrutura("base")}</div>
+      ${estrutura("base")}
+    ${revelados == null ? "" : `<details class="card"><summary><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2></summary>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
+      ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
+        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</details>`}
+      </div>
     </div>
     </section>
     <section data-secao="clube">
     ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."]])}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
-      <div class="duas">${["ct", "medico", "fisio", "estadio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
+      <div class="colunas">${["ct", "medico", "fisio", "estadio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
@@ -2130,11 +2135,12 @@ ${historicoDaBase()}
       $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
         return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${ehCopa(p) ? nomeDaCopa(p) : `${p.rodada === 19 ? "Semifinal" : p.rodada === 20 ? "Final" : p.rodada === 21 ? "Final do acesso" : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
         : `<div class="mut" style="grid-column:1/-1">${!partidas.length ? "O calendário ainda não foi gerado." : (k => k < 0 ? "Não há mais jogos nesta temporada." : `Temporada encerrada: você terminou em <b>${k + 1}º lugar</b>, com ${tabG[k].pts} pontos. A próxima começa depois da virada, feita pelo administrador.`)(tabG.findIndex(t => t.clube.id === clube.id))}</div>`;
-      $("proximo").innerHTML = (ultimo ? `Último jogo: <a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora} ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` (${nomeDaCopa(ultimo)})` : ""}. ` : "")
-        + (rival ? (rival.dono ? `Próximo adversário: ${lk(rival.id)} tem dirigente, e a tática dele é segredo.` : `Próximo adversário: ${lk(rival.id)} é comandado pelo bot e joga com ${estiloDe(rival)}.`) : "")
-        + (rival && formaDe(rival.id) ? ` Últimos jogos dele: ${formaDe(rival.id)}.` : "")
-        + (proximo ? (c => ` Previsão do tempo: ${c.nome.toLowerCase()}, ${c.temp} °C${efeitoDoClima(c) ? ` (${efeitoDoClima(c)})` : ""}.`)(climaDaPartida(proximo.id))
-          + (jogoGrande(proximo) ? " Jogo grande: jogador sem experiência oscila mais e rende menos." : "") : "");
+      const linha = (rot, v) => `<div class="pj"><span>${rot}</span><span>${v}</span></div>`;
+      $("proximo").innerHTML = (ultimo ? linha("Último jogo", `<a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` <span class="mut">· ${nomeDaCopa(ultimo)}</span>` : ""}`) : "")
+        + (rival ? linha("Adversário", `${lk(rival.id)} <span class="mut">· ${rival.dono ? "tem dirigente: a tática é segredo" : `bot, joga com ${estiloDe(rival)}`}</span>`) : "")
+        + (rival && formaDe(rival.id) ? linha("Forma dele", formaDe(rival.id)) : "")
+        + (proximo ? (c => linha("Previsão", `${c.nome.toLowerCase()}, ${c.temp} °C${efeitoDoClima(c) ? ` <span class="mut">(${efeitoDoClima(c)})</span>` : ""}`))(climaDaPartida(proximo.id))
+          + (jogoGrande(proximo) ? linha("Jogo grande", `<span class="aviso">jogador sem experiência oscila mais e rende menos</span>`) : "") : "");
       // tabela resumida, com as faixas de acesso, playoff e descenso
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
       resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
