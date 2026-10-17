@@ -1031,6 +1031,56 @@ async function telaClube(liga, clube) {
       <div class="mural passos">${passos.map(([ok, ic, t, d, ir]) => `<div data-aba-ir="${ir}" class="${ok ? "feito" : ""}" title="Clique para abrir"><span class="ic">${ok ? "✅" : ic}</span><span><b>${t}</b><br><span class="mut">${d}</span></span><span class="vai">›</span></div>`).join("")}</div></div>`;
   };
   const redesenharChegada = () => { const el = $("chegada"); if (el) el.innerHTML = chegada(); };
+  // "Desde a sua última visita": compara uma foto do clube guardada neste aparelho (mo_visita_<id>) com o estado de agora.
+  // A foto só é trocada no "Entendi", então recarregar a página não apaga o resumo. Sem foto (primeira vez ou outro aparelho): tira a foto e não mostra nada.
+  // ponytail: foto no localStorage, por aparelho; levar para o banco se a turma reclamar de ver o resumo de novo no celular
+  const CHAVE_VISITA = "mo_visita_" + clube.id;
+  const fotoDoClube = pos => ({ t: Date.now(), temporada: liga.temporada, pos, caixa,
+    fora: Object.fromEntries(elenco.filter(j => j.fora > 0).map(j => [j.id, j.motivo === "lesão" ? "l" : "s"])),
+    notas: Object.fromEntries(elenco.map(j => [j.id, Math.round(notaNaPosicao(j, j.pos) * 10)])),
+    obra: obra ? obra.estrutura + ":" + obra.nivel_alvo : null, rel: relatorios ? relatorios.length : null });
+  const guardarVisita = pos => { try { localStorage.setItem(CHAVE_VISITA, JSON.stringify(fotoDoClube(pos))); } catch (e) {} };
+  function resumoDaVisita(pos, res, meus) {
+    const el = $("desdeVisita"); if (!el) return;
+    let f = null; try { f = JSON.parse(localStorage.getItem(CHAVE_VISITA)); } catch (e) {}
+    if (!f) { guardarVisita(pos); el.innerHTML = ""; return; }
+    const desde = new Date(f.t), depois = d => d && new Date(d) > desde, l = [], nomes = js => js.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ");
+    // por ordem de importância: quem saiu, quem chegou, jogos, tabela, lesões e suspensões, evolução, caixa, obra, olheiro
+    negociosDoClube.filter(t => depois(t.criada_em)).forEach(t => l.push(t.para_clube === clube.id
+      ? item("⬅️", `Chegou ${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))})${t.de_clube ? `, vindo do ${lk(t.de_clube)}` : ", que estava livre"}.`, "ok", "clube:transf")
+      : item("➡️", `Saiu ${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))})${t.para_clube ? ` para o ${lk(t.para_clube)}` : ""}${t.valor ? ` por ${dinheiro(t.valor)}` : ""}${t.tipo === "multa" ? ", pela multa rescisória" : ""}.`, "aviso", "clube:transf")));
+    const jogados = meus.filter(p => res[p.id] && depois(res[p.id].libera_em || p.fim || p.inicio));
+    if (jogados.length) {
+      const placar = p => { const r = res[p.id], casa = p.casa === clube.id, gm = casa ? r.gols_casa : r.gols_fora, gs = casa ? r.gols_fora : r.gols_casa;
+        const k = gm > gs ? "V" : gm < gs ? "D" : ehCopa(p) && (r.penaltis || r.vencedor) ? (quemPassou(p) === clube.id ? "V" : "D") : "E";
+        return { k, txt: `<a class="lk" href="aovivo.html?id=${p.id}">${esc(cPor[p.casa].nome)} ${r.gols_casa} x ${r.gols_fora} ${esc(cPor[p.fora].nome)}${penais(r)}</a>` }; };
+      const ps = jogados.map(placar), n = k => ps.filter(x => x.k === k).length;
+      l.push(item("⚽", `${jogados.length === 1 ? "1 jogo" : jogados.length + " jogos"}: ${n("V")} ${n("V") === 1 ? "vitória" : "vitórias"}, ${n("E")} ${n("E") === 1 ? "empate" : "empates"}, ${n("D")} ${n("D") === 1 ? "derrota" : "derrotas"}. ${ps.slice(-5).map(x => `<span class="${x.k === "V" ? "ok" : x.k === "D" ? "bad" : ""}">${x.k}</span> ${x.txt}`).join(" · ")}`));
+    }
+    if (pos && f.pos && f.temporada === liga.temporada && pos !== f.pos) l.push(item(pos < f.pos ? "📈" : "📉", `Na tabela, ${pos < f.pos ? "subiu" : "caiu"} do ${f.pos}º para o ${pos}º lugar.`, pos < f.pos ? "ok" : "", "classificacao"));
+    const antes = f.fora || {}, agora = elenco.filter(j => j.fora > 0);
+    const lesionados = agora.filter(j => j.motivo === "lesão" && antes[j.id] !== "l"), suspensos = agora.filter(j => j.motivo !== "lesão" && antes[j.id] !== "s");
+    const voltaram = elenco.filter(j => antes[j.id] && !(j.fora > 0));
+    if (lesionados.length) l.push(item("🩹", `${lesionados.length === 1 ? "Lesionou-se" : "Lesionaram-se"}: ${lesionados.map(j => `${esc(j.nome)} (${sg(j.pos)}, fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"})`).join(", ")}.`, "aviso", "elenco"));
+    if (suspensos.length) l.push(item("🟥", `${suspensos.length === 1 ? "Suspenso" : "Suspensos"}: ${nomes(suspensos)}.`, "aviso", "tatica"));
+    if (voltaram.length) l.push(item("✅", `${voltaram.length === 1 ? "Voltou a ficar disponível" : "Voltaram a ficar disponíveis"}: ${nomes(voltaram)}.`, "ok"));
+    const mudou = elenco.map(j => [j, f.notas && f.notas[j.id] != null ? Math.round(notaNaPosicao(j, j.pos) * 10) - f.notas[j.id] : 0]);
+    const subiram = mudou.filter(([, d]) => d >= 2).sort((a, b) => b[1] - a[1]), cairam = mudou.filter(([, d]) => d <= -2).sort((a, b) => a[1] - b[1]);
+    const lista = xs => xs.slice(0, 5).map(([j, d]) => `${esc(j.nome)} (${d > 0 ? "+" : ""}${f1(d / 10)})`).join(", ") + (xs.length > 5 ? ` e mais ${xs.length - 5}` : "");
+    if (subiram.length) l.push(item("📈", `Evoluíram no treino: ${lista(subiram)}.`, "ok", "treino"));
+    if (cairam.length) l.push(item("📉", `Caíram de nota: ${lista(cairam)}.`, "", "elenco"));
+    if (caixa != null && f.caixa != null && caixa !== f.caixa) l.push(item("💰", `Caixa ${caixa > f.caixa ? "subiu" : "caiu"} ${dinheiro(Math.abs(caixa - f.caixa))}: agora ${dinheiro(caixa)}.`, caixa < 0 ? "bad" : "", "financas"));
+    const obraAgora = obra ? obra.estrutura + ":" + obra.nivel_alvo : null;
+    if (f.obra && f.obra !== obraAgora) { const [k, nv] = f.obra.split(":"); l.push(item("🏗️", `Obra concluída: ${esc((ESTRUTURAS.find(x => x[0] === k) || [])[1] || k)} no nível ${nv}.`, "ok", "estruturas")); }
+    if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; l.push(item("🔍", `${n === 1 ? "1 relatório novo" : n + " relatórios novos"} do olheiro.`, "", "mercado")); }
+    el.innerHTML = l.length ? `<div class="card c-chegada"><h2>Desde a sua última visita <span class="tag">${desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+        <button class="sec" id="visitaOk" style="float:right;padding:2px 10px;font-size:12.5px">Entendi</button></h2><div class="mural">${l.join("")}</div></div>` : "";
+    el.onclick = e => {
+      if (e.target.id === "visitaOk") { guardarVisita(pos); el.innerHTML = ""; return; }
+      const a = e.target.closest("[data-aba-ir]"); if (!a) return;
+      const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub);
+    };
+  }
   const muralDaLiga = () => {
     const l = [];
     // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
@@ -1111,6 +1161,7 @@ async function telaClube(liga, clube) {
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
     <div class="central">
+    <div id="desdeVisita" class="c-chegada-box"></div>
     <div id="chegada" class="c-chegada-box">${chegada()}</div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" class="mut" style="margin-top:8px"></div>
@@ -1762,6 +1813,7 @@ async function telaClube(liga, clube) {
           + (jogoGrande(proximo) ? " Jogo grande: jogador sem experiência oscila mais e rende menos." : "") : "");
       // tabela resumida, com as faixas de acesso, playoff e descenso
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
+      resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
       const faixa = i => !serie ? (i <= 2 ? "lib" : "") : serie === 1 ? (i <= 2 ? "lib" : i >= tab.length - 3 ? "cai" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : serie === 2 && i >= tab.length - 2 ? "cai" : "";
       $("miniTabela").className = "";
       $("miniTabela").innerHTML = `<table class="mini" style="width:100%"><tr><th></th><th class="esq">${esc(nomeDoGrupo(g))}</th><th>J</th><th>SG</th><th>PTS</th></tr>
