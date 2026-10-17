@@ -4,17 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trem Soccer · Jogador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="estilo.css">
 <script src="atualiza.js"></script>
 <style>
   .cabeca { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
-  .cabeca h2 { margin:0; font-size:22px; }
-  .nota { margin-left:auto; text-align:center; } .nota b { display:block; font-size:34px; line-height:1; color:var(--ac); }
+  .cabeca { padding:16px 18px; border-top:4px solid var(--ac); }
+  .cabeca h2 { margin:0; font-size:34px !important; line-height:1; font-weight:700 !important; }
+  .nota { margin-left:auto; text-align:center; } .nota b { display:block; font-family:var(--display); font-size:56px; font-weight:700; line-height:1; color:var(--ac); }
+  .nota span { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
+  .kpis.k5 { grid-template-columns:repeat(5, minmax(0, 1fr)); } @media (max-width:620px) { .kpis.k5 { grid-template-columns:repeat(2, minmax(0, 1fr)); } .cabeca h2 { font-size:26px !important; } .nota b { font-size:44px; } }
   .grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; }
   .grade .card { margin-top:0; }
   .atr { display:grid; grid-template-columns:1fr 26px 80px; gap:6px; align-items:center; font-size:13.5px; padding:2px 0; }
   .atr i { display:block; height:6px; border-radius:3px; background:var(--line); overflow:hidden; } .atr i b { display:block; height:100%; background:var(--ac); }
-  .num { display:flex; gap:22px; flex-wrap:wrap; } .num b { display:block; font-size:22px; }
+  .num { display:flex; gap:22px; flex-wrap:wrap; } .num b { display:block; font-family:var(--display); font-weight:600; font-size:24px; } .num .mut { font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; }
   a.lk { color:var(--ac); text-decoration:none; }
 </style>
 </head>
@@ -64,7 +69,7 @@ async function carregar() {
   ]);
   if (!j) { document.getElementById("corpo").innerHTML = `<div class="card">Jogador não encontrado.</div>`; return; }
   const ids = [...new Set([j.clube_id, j.emprestado_de, j.formador, ...transf.flatMap(t => [t.de_clube, t.para_clube]), ...historico.map(h => h.clube_id), ...revelado.map(r => r.clube_id)].filter(Boolean))];
-  const clubes = ids.length ? await lista(sb.from("clubes").select("id, nome, sigla, escudo, liga_id, ligas!clubes_liga_id_fkey(temporada)").in("id", ids)) : [];
+  const clubes = ids.length ? await lista(sb.from("clubes").select("id, nome, sigla, escudo, uniforme, liga_id, ligas!clubes_liga_id_fkey(temporada)").in("id", ids)) : [];
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), nomeDe = c => cPor[c] ? esc(cPor[c].nome) : "—";
   const clube = cPor[j.clube_id];
   const liga = clube ? clube.ligas : j.livre_liga ? (await sb.from("ligas").select("temporada").eq("id", j.livre_liga).maybeSingle()).data : null, temporada = liga ? liga.temporada : null;
@@ -72,39 +77,40 @@ async function carregar() {
 
   const situacao = [j.juvenil ? "🌱 juvenil, sem contrato" : "", j.fora_jogos > 0 ? `${j.fora_motivo === "lesão" ? "🩹 lesionado" : "🟥 suspenso"}: fora por ${j.fora_jogos} ${j.fora_jogos === 1 ? "jogo" : "jogos"}` : "",
     j.emprestado_de ? `emprestado pelo ${nomeDe(j.emprestado_de)}` : "", j.aposenta_em != null ? "🏁 anunciou a aposentadoria" : "", j.a_venda ? `🏷️ à venda por ${dinheiro(j.preco_pedido)}` : ""].filter(Boolean);
-  const topo = `<div class="card cabeca">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
+  const u = (clube && clube.uniforme) || {}, tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, c1 = tinta(u.cor1), c2 = tinta(u.cor2) || c1;
+  const topo = `<div class="card cabeca" style="${c1 ? `border-top-color:${c1};background:linear-gradient(100deg, ${c1}38, ${c2}14 45%, transparent 75%), var(--card)` : ""}">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
     <div><h2>${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
       <div class="mut">${clube ? nomeDe(j.clube_id) : "Sem clube (jogador livre)"}${j.formador ? ` · formado no ${nomeDe(j.formador)}` : ""}</div>
       ${situacao.length ? `<div class="aviso" style="margin-top:4px">${situacao.join(" · ")}</div>` : ""}</div>
-    <div class="nota"><b>${um(nota)}</b><span class="mut">nota</span></div></div>`;
+    <div class="nota"><b>${um(nota)}</b><span class="mut">nota · ${sg(j.pos)}</span></div></div>`;
 
-  const atributos = Object.entries(GRUPOS).filter(([g]) => g !== "gol" || j.pos === "GK").map(([g, nome]) => `<div class="card"><b>${nome}</b>
+  const atributos = Object.entries(GRUPOS).filter(([g]) => g !== "gol" || j.pos === "GK").map(([g, nome]) => `<div class="card"><h2>${nome}</h2>
     ${ATRIBUTOS.map((a, i) => a.grupo !== g ? "" : `<div class="atr"><span>${a.nome}</span><b>${j.at[i]}</b><i><b style="width:${j.at[i] * 2}%"></b></i></div>`).join("")}</div>`).join("");
 
   const posicoes = Object.keys(jog.fam).filter(p => jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
-  const contrato = `<div class="card"><b>Contrato</b><div class="num" style="margin-top:6px">
+  const contrato = `<div class="card"><h2>Contrato</h2><div class="num">
       ${j.salario == null ? `<div class="mut">Sem contrato.</div>` : `<div><span class="mut">Salário por temporada</span><b>${dinheiro(j.salario)}</b></div>
       <div><span class="mut">Contrato até</span><b>temporada ${j.contrato_ate == null ? "—" : j.contrato_ate}</b></div>
       <div><span class="mut">Multa rescisória</span><b>${dinheiro(multaDe(jog))}</b></div>`}</div>
     <div style="margin-top:10px"><b>Posições</b> <span class="mut">${posicoes.map(p => `${sg(p)} ${NOME_FAMILIARIDADE[jog.fam[p]].toLowerCase()} (${um(notaNaPosicao(jog, p))})`).join(" · ") || sg(j.pos)}</span></div></div>`;
 
   const cel = (rot, v) => `<div><span class="mut">${rot}</span><b>${v == null ? "—" : v}</b></div>`;
-  const daTemporada = numeros => !numeros ? "" : `<div class="card"><b>Temporada ${temporada == null ? "atual" : temporada}</b> <span class="mut">liga e copas</span>
-    <div class="num" style="margin-top:6px">${cel("Jogos", numeros.jogos)}${cel("Minutos", numeros.minutos)}${cel("Gols", numeros.gols)}${cel("Assistências", numeros.ass)}${cel("Nota média", numeros.nota == null ? null : String(numeros.nota).replace(".", ","))}</div></div>`;
+  const kpi = (rot, v) => `<div class="kpi"><div class="kl">${rot}</div><div class="kv">${v == null ? "—" : v}</div></div>`, rotT = `T${temporada == null ? "" : temporada} · `;
+  const daTemporada = numeros => !numeros ? "" : `<div class="kpis k5">${kpi(rotT + "Jogos", numeros.jogos)}${kpi("Minutos", numeros.minutos)}${kpi("Gols", numeros.gols)}${kpi("Assistências", numeros.ass)}${kpi("Nota média", numeros.nota == null ? null : String(numeros.nota).replace(".", ","))}</div>`;
 
   // pontos do gráfico: a chegada pela base (se houver), cada temporada guardada e hoje
   const pts = [...revelado.filter(r => r.at && !historico.some(h => h.temporada === r.temporada)).map(r => ({ t: r.temporada - 0.5, rot: `chegou (${r.idade})`, nota: notaBruta(r.at, r.pos || j.pos) })),
     ...historico.filter(h => h.at && h.temporada !== temporada).map(h => ({ t: h.temporada, rot: "T" + h.temporada, nota: notaBruta(h.at, h.pos || j.pos) })),
     { t: temporada == null ? 1e9 : temporada, rot: "hoje", nota }].sort((a, b) => a.t - b.t);
-  const evolucao = `<div class="card"><b>Evolução da nota</b> <span class="mut">pelos atributos, na posição principal, ao fim de cada temporada</span><div style="margin-top:6px">${grafico(pts)}</div>
+  const evolucao = `<div class="card"><h2>Evolução da nota <span class="tag">pelos atributos, na posição principal, ao fim de cada temporada</span></h2><div style="margin-top:6px">${grafico(pts)}</div>
     ${historico.length ? `<table class="mini" style="width:100%;margin-top:8px"><tr><th>Temp.</th><th>Idade</th><th class="esq">Clube</th><th>Nota</th><th>Jogos</th><th>Gols</th><th>Assist.</th><th>Média</th></tr>
       ${historico.slice().reverse().map(h => `<tr><td>${h.temporada}</td><td>${h.idade}</td><td class="esq">${nomeDe(h.clube_id)}</td><td>${h.at ? um(notaBruta(h.at, h.pos || j.pos)) : "—"}</td><td>${h.jogos}</td><td>${h.gols}</td><td>${h.ass}</td><td>${h.nota == null ? "—" : String(h.nota).replace(".", ",")}</td></tr>`).join("")}</table>` : ""}</div>`;
 
-  const carreira = `<div class="card"><b>Transferências</b>${transf.length ? transf.slice().reverse().map(t => `<div style="padding:4px 0;border-bottom:1px solid var(--line)">T${t.temporada} · ${t.de_clube ? nomeDe(t.de_clube) : "livre"} → ${nomeDe(t.para_clube)}${t.valor ? ` · ${dinheiro(t.valor)}` : ""} <span class="mut">(${TIPOS[t.tipo] || esc(t.tipo)})</span></div>`).join("") : `<div class="mut">Nenhuma registrada.</div>`}
+  const carreira = `<div class="card"><h2>Transferências</h2>${transf.length ? transf.slice().reverse().map(t => `<div style="padding:4px 0;border-bottom:1px solid var(--line)">T${t.temporada} · ${t.de_clube ? nomeDe(t.de_clube) : "livre"} → ${nomeDe(t.para_clube)}${t.valor ? ` · ${dinheiro(t.valor)}` : ""} <span class="mut">(${TIPOS[t.tipo] || esc(t.tipo)})</span></div>`).join("") : `<div class="mut">Nenhuma registrada.</div>`}
     ${premios.length ? `<div style="margin-top:10px"><b>Prêmios</b>${premios.slice().reverse().map(p => `<div>🏅 T${p.temporada} · ${esc(p.premio)} (${esc(p.comp)})${p.numero == null ? "" : ` · ${String(p.numero).replace(".", ",")}`}</div>`).join("")}</div>` : ""}</div>`;
 
   document.title = `Trem Soccer · ${j.nome}`;
-  document.getElementById("corpo").innerHTML = topo + `<div id="temp"><div class="card mut" style="min-height:74px">Temporada ${temporada == null ? "atual" : temporada}: carregando os números…</div></div>` + `<div class="grade" style="margin-top:12px">${atributos}</div>` + contrato + evolucao + carreira;
+  document.getElementById("corpo").innerHTML = topo + `<div id="temp"><div class="card mut" style="min-height:60px">Temporada ${temporada == null ? "atual" : temporada}: carregando os números…</div></div>` + `<div class="grade" style="margin-top:12px">${atributos}</div>` + `<div class="g2"><div>${evolucao}</div><div>${contrato}${carreira}</div></div>`;
   numerosP.then(n => { document.getElementById("temp").innerHTML = daTemporada(n); });
 }
 if (id) carregar(); else document.getElementById("corpo").innerHTML = `<div class="card">Jogador não informado.</div>`;
