@@ -16,11 +16,11 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { notaBruta } from "./src/modelo.js";
+import { notaBruta, paisDoGrupo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga } from "./src/banco.js";
+import { metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
@@ -46,13 +46,24 @@ let nPedidos = 0, nDirigentes = 0;
 const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedidos === 1 ? "pedido" : "pedidos") + " · " : ""}${nDirigentes}) Trem Soccer · Administração`; };
 async function pedidos(aviso = "") {
   const el = $("pedidos"); if (!el) return;
-  const l = await pedidosPendentes();
-  nPedidos = l.length; titulo();
+  const [l, extras] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes()]);
+  nPedidos = l.length + extras.length; titulo();
   el.innerHTML = `<h2>Pedidos de clube: ${l.length} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
-      <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : `<div class="mut">Nenhum pedido esperando.</div>`}
+      <span class="xg"><button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
+    ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
+      <span class="xg"><button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
     ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
   el.onclick = async e => {
+    const ae = e.target.dataset.aprovaExtra, re = e.target.dataset.recusaExtra;
+    if (ae || re) {
+      const motivo = re ? prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):") : null;
+      if (re && motivo === null) return;
+      e.target.disabled = true;
+      try { if (re) await recusarPedidoExtra(re, motivo); else await aprovarExtra(extras.find(p => p.user_id === ae)); await pedidos(re ? "Pedido recusado." : "Pedido aprovado: o clube extra já está com o dirigente, com elenco novo."); dirigentes().catch(() => {}); }
+      catch (err) { await pedidos("Não deu: " + err.message); }
+      return;
+    }
     const a = e.target.dataset.aprova, r = e.target.dataset.recusa;
     if (!a && !r) return;
     let motivo = null;
@@ -61,6 +72,22 @@ async function pedidos(aviso = "") {
     try { await decidirPedido(+(a || r), !!a, motivo); await pedidos(a ? "Pedido aprovado: o clube já está com o dirigente." : "Pedido recusado."); dirigentes().catch(() => {}); }
     catch (err) { await pedidos("Não deu: " + err.message); }
   };
+}
+
+// Clube extra: elenco novo na média do país (nota média dos 16 melhores de cada clube sem dono de lá), com salários e contratos.
+// O banco sorteia o bot e troca tudo numa transação só (aprovar_pedido_extra).
+async function aprovarExtra(p) {
+  const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
+  const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === p.pais);
+  if (!bots.length) throw new Error("Esse país não tem clube sem dono.");
+  const forca = el => { const n = el.filter(j => !j.juvenil).map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 16); return n.reduce((s, x) => s + x, 0) / (n.length || 1); };
+  const forcas = await Promise.all(bots.map(async c => forca(await elencoDoClube(c.id))));
+  const nivel = forcas.reduce((s, x) => s + x, 0) / forcas.length;
+  const elenco = gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais: p.pais, nomes }).map(j => {
+    const { mercado, ...contrato } = contratoInicial(rng, j, liga.temporada);
+    return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
+  });
+  return aprovarPedidoExtra(p.user_id, elenco);
 }
 
 // Clubes com dirigente, do mais recente para o mais antigo. Atualiza sozinho e põe o número no título da aba.

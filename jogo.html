@@ -201,7 +201,7 @@ const recordesDaLiga = daLiga("recordesDaLiga", B.recordesDaLiga);
 const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { metasDaTemporada, confiancaDaTemporada, meusDireitos, ultimaNovidade } from "./src/banco.js";
+import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, ultimaNovidade } from "./src/banco.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
@@ -345,11 +345,38 @@ async function telaCriar(liga, recusado) {
   desenhar();
 }
 
+// ---------- pedir o clube extra (95_pedido_de_clube_extra.sql) ----------
+// Escolhe o país; o administrador aprova e o banco sorteia um clube sem dono de lá, refeito com elenco e estruturas novos na média do país.
+function telaPedidoExtra() {
+  const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { pais: Object.values(PAISES)[0], nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
+  const desenhar = (aviso = "") => {
+    $("app").innerHTML = `<div class="card"><h2>Pedir o clube extra</h2>
+      <div class="mut" style="margin-bottom:10px">Você escolhe o país, o nome, a sigla e as cores. Quando o administrador aprovar, um clube sem dono desse país é sorteado e vira o seu, com elenco, estruturas e caixa novos, na média do país. Os dois clubes não podem fazer negócio entre si.</div>
+      <div class="duas"><div>
+        <div class="row"><label>País<select id="xPais">${Object.values(PAISES).map(p => `<option ${p === F.pais ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></label></div>
+        <div class="row" style="margin-top:8px"><label style="flex:1;min-width:160px">Nome do clube<input id="xNome" maxlength="30" value="${esc(F.nome)}"></label><label>Sigla (3 letras)<input id="xSigla" maxlength="3" style="width:90px;text-transform:uppercase" value="${esc(F.sigla)}"></label></div>
+      </div><div><div id="xVisual"></div>
+        <div class="row" style="margin-top:12px"><button id="xEnviar" style="flex:1">Enviar o pedido</button><button class="sec" id="xVoltar">Voltar</button></div>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div></div>`;
+    $("xPais").onchange = e => { F.pais = e.target.value; };
+    $("xNome").oninput = e => { F.nome = e.target.value; };
+    const ed = editorVisual($("xVisual"), F, { sigla: () => F.sigla });
+    $("xSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); ed.atualizarPrevia(); };
+    $("xVoltar").onclick = () => carregar({ user: usuario });
+    $("xEnviar").onclick = async () => {
+      $("xEnviar").disabled = true; $("xEnviar").textContent = "Enviando…";
+      try { await pedirClubeExtra(F.pais, F.nome, F.sigla, F.escudo, F.uniforme); await carregar({ user: usuario }); }
+      catch (e) { desenhar(e.message); }
+    };
+  };
+  $("app").onclick = $("app").onchange = null;
+  desenhar();
+}
+
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   // Todas as consultas saem juntas (antes iam em fila, uma leva depois da outra). Só o mercado espera os leilões e ofertas vencidos fecharem, e os lances dos livres esperam a lista deles.
-  const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null]) : Promise.all([metasDaTemporada(liga.id, liga.temporada), liga.temporada > 1 ? confiancaDaTemporada(liga.id, liga.temporada - 1) : [], meusDireitos()]);
+  const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([metasDaTemporada(liga.id, liga.temporada), liga.temporada > 1 ? confiancaDaTemporada(liga.id, liga.temporada - 1) : [], meusDireitos(), meuPedidoExtra(usuario.id)]);
   const mercadoP = resolverLeiloes(liga.id).then(() => Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], copinha,
     [baseJogos, baseCampeoes, premiosTodos, revelados], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, finalistas, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
@@ -369,7 +396,7 @@ async function telaClube(liga, clube) {
     trofeusDaLiga(liga.id).catch(() => []),
     Promise.all([meusLances(clube.id), transferenciasDoClube(clube.id)]),
   ]);
-  const [metasDaLiga, confPassada, direitos] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
+  const [metasDaLiga, confPassada, direitos, pedidoExtra] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
   const comissao = comissaoToda && comissaoToda.filter(t => (t.funcao || "treinador") === "treinador"), equipeDeSaude = (comissaoToda || []).filter(t => t.funcao && t.funcao !== "treinador");
@@ -1266,7 +1293,7 @@ async function telaClube(liga, clube) {
           <div id="termometro" class="mut" style="margin-top:4px"></div>
           ${d ? `<div class="mut" style="margin-top:4px">Na última virada: ${minhaVirada.antes} → ${minhaVirada.depois} (liga ${sinal(d.liga)}, copa ${sinal(d.copa)}, finanças ${sinal(d.financas)})${minhaVirada.verba ? `, verba de ${dinheiro(minhaVirada.verba)}` : ""}.</div>` : ""}</div>
         <div style="flex:1;min-width:220px" class="mut">Com ${C.verba[1][0]}+ na virada, a diretoria paga uma verba de ${Math.round(C.verba[1][1] * 100)}% do teto da folha${teto ? ` (${dinheiro(Math.round(teto * C.verba[1][1]))})` : ""}; com ${C.verba[0][0]}+, ${Math.round(C.verba[0][1] * 100)}% e mais uma compra pela multa.
-          ${extraLiberado ? `<div class="ok" style="margin-top:4px">✅ Clube extra em outro país liberado. A escolha dele chega numa próxima versão.</div>` : `<div style="margin-top:4px">Clube extra em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo (quem já tem dois clubes precisa dos dois no ${C.segundoClube}).</div>`}
+          ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div style="margin-top:4px">⏳ Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="ok" style="margin-top:4px">✅ Clube extra em outro país liberado. <button class="sec" id="pedirExtra">Escolher o país e pedir</button></div>${pedidoExtra && pedidoExtra.estado === "recusado" ? `<div class="aviso" style="margin-top:4px">O pedido anterior (${esc(pedidoExtra.nome)}) foi recusado${pedidoExtra.motivo ? `: ${esc(pedidoExtra.motivo)}` : "."}</div>` : ""}` : `<div style="margin-top:4px">Clube extra em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo (quem já tem dois clubes precisa dos dois no ${C.segundoClube}).</div>`}
           ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></div>`; })()}
     <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
@@ -2074,6 +2101,7 @@ async function telaClube(liga, clube) {
 
   // amistoso: tática salva contra a tática de bot do adversário; nada é gravado
   const guardados = {};
+  if ($("pedirExtra")) $("pedirExtra").onclick = () => telaPedidoExtra();
   $("amJogar").onclick = async () => {
     $("amJogar").disabled = true; marcarChegada("amistoso");
     try {
