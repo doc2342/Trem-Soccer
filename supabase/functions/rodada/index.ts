@@ -2165,7 +2165,7 @@ const __mercadobots = (() => {
   return { CONFIG_MERCADO_BOTS, negociosEntreBots, comprasDeListados, livresParaOsBots };
 })();
 // <<< motor embutido
-const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs } = __rodada;
+const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
@@ -2188,8 +2188,13 @@ const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, ida
 
 const PAIS_DO_GRUPO = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" }; // o mesmo de src/banco.js
 // clubes sem dono da liga, com caixa e teto, e os elencos deles
-async function botsDaLiga(sb, ligaId) {
-  const cs = (await sb.from("clubes").select("id, divisao, grupo").eq("liga_id", ligaId).is("dono", null)).data || [];
+// inativos: inclui os clubes de dirigente sem acesso há DIAS_PARA_BOT dias (menos o clube extra), que também jogam com a tática de bot
+async function botsDaLiga(sb, ligaId, inativos = false) {
+  const limite = Date.now() - DIAS_PARA_BOT * 86400000;
+  const cs = inativos
+    ? ((await sb.from("clubes").select("id, divisao, grupo, dono, extra, ultimo_acesso").eq("liga_id", ligaId)).data || [])
+        .filter(c => !c.dono || (!c.extra && (!c.ultimo_acesso || new Date(c.ultimo_acesso).getTime() < limite)))
+    : (await sb.from("clubes").select("id, divisao, grupo").eq("liga_id", ligaId).is("dono", null)).data || [];
   const tetos = Object.fromEntries(((await sb.from("divisoes").select("divisao, teto_folha").eq("liga_id", ligaId)).data || []).map(d => [d.divisao, d.teto_folha]));
   const caixas = Object.fromEntries(((await sb.from("financas").select("clube_id, caixa").in("clube_id", cs.map(c => c.id))).data || []).map(f => [f.clube_id, f.caixa]));
   const elencos = {};
@@ -2216,7 +2221,7 @@ async function botsCompramListados(sb, ligaId) {
   await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
 }
 
-// Bots tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql): o banco entrega a fila (livres sem leilão há 48 h),
+// Bots (e clubes de dirigente inativo) tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql): o banco entrega a fila (livres sem leilão há 48 h),
 // cada livre é olhado uma vez por janela e quem contrata (conferindo tudo de novo) é bot_contrata_livre. Sem efeito antes do SQL 113.
 async function botsContratamLivres(sb, ligaId) {
   const { data: fila, error } = await sb.rpc("livres_para_os_bots", { p_liga: ligaId });
@@ -2224,7 +2229,7 @@ async function botsContratamLivres(sb, ligaId) {
   const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
   const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
   if (!janela || !liga) return;
-  const { clubes, elencos } = await botsDaLiga(sb, ligaId);
+  const { clubes, elencos } = await botsDaLiga(sb, ligaId, true); // só contratar: o clube inativo de dirigente entra aqui, não nas vendas
   const jaContrataram = ((await sb.from("transferencias").select("para_clube").eq("liga_id", ligaId).eq("temporada", liga.temporada).eq("janela", janela).eq("tipo", "livre")
     .in("para_clube", clubes.map(c => c.id))).data || []).map(t => t.para_clube);
   const contratos = livresParaOsBots({ clubes, elencos, livres: fila.map(l => ({ j: jogadorDoMercado(l), salario: l.salario_mercado || 0 })), jaContrataram });

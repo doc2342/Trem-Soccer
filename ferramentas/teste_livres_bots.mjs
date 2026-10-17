@@ -39,7 +39,7 @@ await db.exec(`
 create role anon; create role authenticated; create role service_role;
 create schema auth; create function auth.role() returns text language sql as $$ select current_setting('teste.papel', true) $$;
 create table ligas (id bigint primary key, temporada int, pausada boolean, janela text);
-create table clubes (id bigint primary key, liga_id bigint, dono uuid);
+create table clubes (id bigint primary key, liga_id bigint, dono uuid, extra boolean, ultimo_acesso timestamptz);
 create table financas (clube_id bigint, caixa int);
 create table jogadores (id bigint primary key, nome text, pos text, idade int, clube_id bigint, livre_liga bigint, livre_ate timestamptz, salario_mercado int, bots_viram text);
 create table ofertas_livres (jogador_id bigint, clube_id bigint);
@@ -53,8 +53,9 @@ create function contratar_livre(p_j bigint, p_c bigint, p_s int, p_t int) return
   update jogadores set clube_id = p_c, livre_liga = null where id = p_j;
   insert into transferencias select 1, 1, 'inicio', 'livre', p_c $$;
 insert into ligas values (1, 1, false, 'inicio');
-insert into clubes values (10, 1, null), (11, 1, null), (12, 1, '00000000-0000-0000-0000-000000000001');
-insert into financas values (10, 9000), (11, 9000), (12, 9000);
+insert into clubes values (10, 1, null, false, null), (11, 1, null, false, null), (12, 1, '00000000-0000-0000-0000-000000000001', false, now()),
+  (13, 1, '00000000-0000-0000-0000-000000000002', false, now() - interval '22 days'), (14, 1, '00000000-0000-0000-0000-000000000003', true, now() - interval '60 days');
+insert into financas values (10, 9000), (11, 9000), (12, 9000), (13, 9000), (14, 9000);
 `);
 await db.exec(fs.readFileSync(new URL("../supabase/113_bots_contratam_livres.sql", import.meta.url), "utf8"));
 // o gatilho anota a hora ao soltar e apaga ao contratar
@@ -77,6 +78,10 @@ assert.deepStrictEqual(await q(`select clube_id::int, livre_desde from jogadores
 // o mesmo bot não contrata dois na janela; janela fechada barra
 await q(`insert into jogadores (id, nome, pos, idade, livre_liga, salario_mercado) values (4, 'D', 'SC', 25, 1, 500)`);
 await assert.rejects(q(`select bot_contrata_livre(4, 10, 500)`), /já contratou/);
+// dirigente inativo há 22 dias contrata; o clube extra, mesmo parado, não
+await assert.rejects(q(`select bot_contrata_livre(4, 14, 500)`), /inválida/);
+assert.strictEqual((await q(`select bot_contrata_livre(4, 13, 500) r`))[0].r, "ok");
+await q(`update jogadores set livre_liga = 1, clube_id = null where id = 4`);
 await q(`update ligas set janela = null`);
 await assert.rejects(q(`select bot_contrata_livre(4, 11, 500)`), /fechado/);
 // solto de novo: hora nova e bots_viram zerado

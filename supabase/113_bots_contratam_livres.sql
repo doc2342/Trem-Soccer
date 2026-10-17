@@ -1,4 +1,4 @@
--- Trem Soccer · clubes sem dirigente contratam jogadores livres para tapar buracos no banco.
+-- Trem Soccer · clubes sem dirigente (e os de dirigente inativo há 21 dias) contratam jogadores livres para tapar buracos no banco.
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run. Depois, republicar a função "rodada".
 -- Precisa do 25_regras_do_leilao.sql, do 72_bots_compram_listados.sql e do 82_mercado_entre_paises.sql. Pode ser executado mais de uma vez.
 --
@@ -8,6 +8,8 @@
 --   livresParaOsBots). O maior buraco escolhe primeiro; um livre por bot por janela, 8 por janela na liga inteira.
 -- - Contrato de 1 temporada pelo salário de mercado, com as travas de um lance de dirigente: teto da folha, 15% do teto por jogador,
 --   30 contratados, 5 estrangeiros. O caixa do bot precisa estar acima de 25% do teto de folha.
+-- - Clube de dirigente sem acesso há 21 dias (DIAS_PARA_BOT de src/rodada.js; o clube extra nunca) também contrata: ele já joga
+--   com a tática de bot. Só contrata: não entra no mercado entre bots nem vende.
 -- - Sem mudança no agendamento: a função "rodada" olha a fila sempre que é chamada (partidas, efeitos, negócios dos bots).
 --
 -- Para testar com o calendário compacto:  update ligas set bots_livres_horas = 0.05;  (3 minutos)
@@ -43,6 +45,15 @@ $$;
 revoke execute on function public.livres_para_os_bots(bigint) from public, anon, authenticated;
 grant execute on function public.livres_para_os_bots(bigint) to service_role;
 
+-- Clube que o bot cuida no mercado de livres: sem dono, ou dirigente sem acesso há 21 dias (o mesmo prazo de src/rodada.js).
+create or replace function public.clube_do_bot(p_clube bigint) returns boolean
+language sql stable security definer set search_path = public as $$
+  select c.dono is null or (not coalesce(c.extra, false) and (c.ultimo_acesso is null or c.ultimo_acesso < now() - interval '21 days'))
+  from clubes c where c.id = p_clube
+$$;
+revoke execute on function public.clube_do_bot(bigint) from public, anon, authenticated;
+grant execute on function public.clube_do_bot(bigint) to service_role;
+
 -- Fecha a contratação escolhida pela função "rodada". Confere de novo o que pode ter mudado (um dirigente pode ter aberto leilão).
 create or replace function public.bot_contrata_livre(p_jogador bigint, p_para bigint, p_salario int) returns text
 language plpgsql security definer set search_path = public as $$
@@ -51,7 +62,7 @@ begin
   if coalesce(auth.role(), '') <> 'service_role' then raise exception 'Sem permissão.'; end if;
   select * into v_j from jogadores where id = p_jogador for update;
   select * into v_para from clubes where id = p_para;
-  if v_j.id is null or v_para.id is null or v_para.dono is not null or v_j.clube_id is not null or v_j.livre_liga is distinct from v_para.liga_id then
+  if v_j.id is null or v_para.id is null or not clube_do_bot(p_para) or v_j.clube_id is not null or v_j.livre_liga is distinct from v_para.liga_id then
     raise exception 'Contratação inválida.';
   end if;
   if v_j.livre_ate is not null or exists (select 1 from ofertas_livres where jogador_id = p_jogador) then raise exception 'Há leilão de dirigente.'; end if;
@@ -61,8 +72,8 @@ begin
   if exists (select 1 from transferencias where liga_id = v_l.id and temporada = v_l.temporada and janela = v_janela and tipo = 'livre' and para_clube = p_para) then
     raise exception 'Esse clube já contratou um livre nesta janela.';
   end if;
-  if (select count(*) from transferencias t join clubes c on c.id = t.para_clube
-       where t.liga_id = v_l.id and t.temporada = v_l.temporada and t.janela = v_janela and t.tipo = 'livre' and c.dono is null) >= 8 then
+  if (select count(*) from transferencias t
+       where t.liga_id = v_l.id and t.temporada = v_l.temporada and t.janela = v_janela and t.tipo = 'livre' and clube_do_bot(t.para_clube)) >= 8 then
     raise exception 'Os bots já contrataram 8 livres nesta janela.';
   end if;
   if coalesce((select caixa from financas where clube_id = p_para), 0) < 0.25 * teto_do_clube(p_para) then raise exception 'O caixa do bot não comporta.'; end if;
