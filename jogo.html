@@ -169,7 +169,7 @@ import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { meusLances, transferenciasDoClube, sair, ligaAtual, jogosDaCopinha, reveladosDoClube, premiosDaLiga, jogosDaBase, campeoesDaBase, profissionalizar, definirPosicaoNova, tornarPrincipal, safraDaTemporada, premiosIndividuais, RESERVA_DO_FUNDO, COPA_BASE, estatisticasDaLiga, estatisticasGuardadas, golsDasPartidas, campanhasDaTemporada, recordesDaLiga, temporadasComEstatisticas, resumoDoFundo, divisoesDaLiga, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, rodadasCompletas, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, partidasDoGrupo, resultadosDe, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, historicoDoGrupo, historicoDaLigaDeBase, historicoDaCopinha, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, partidasDaCopa, resultadosDaCopa, partidasDoClube, finalistasDaCopa, trofeusDaLiga, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { metasDaTemporada, confiancaDaTemporada } from "./src/banco.js";
+import { metasDaTemporada, confiancaDaTemporada, ultimaNovidade } from "./src/banco.js";
 import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
@@ -243,9 +243,9 @@ async function carregar(s) {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
-    if (clube) { registrarAcesso().catch(() => {}); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
+    if (clube) { registrarAcesso().catch(() => {}); const novidadeP = ultimaNovidade(liga.id, clube.id); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
       // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
-      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await telaClube(liga, clube); carregadoEm = Date.now(); if (redesenho) scrollTo(0, rolagem); return; }
+      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await telaClube(liga, clube); carregadoEm = Date.now(); marca = { liga: liga.id, clube: clube.id, novidade: await novidadeP }; if (redesenho) scrollTo(0, rolagem); return; }
     const pedido = await meuPedido(usuario.id);
     if (minha !== versao) return;
     if (pedido && pedido.estado === "pendente") telaEspera(pedido);
@@ -254,17 +254,24 @@ async function carregar(s) {
 }
 
 // Atualização discreta dos dados (resultados, leilões, propostas): não mexe na tela se o dirigente está com um painel aberto ou digitando.
-function talvezAtualizar(idade) {
+// Antes de refazer as ~51 consultas da página, pergunta ao banco a hora da última novidade: se não mudou desde a carga, só adia.
+let marca = null, conferindo = false;
+async function talvezAtualizar(idade) {
   if (document.hidden || !usuario || !$("abas") || Date.now() - carregadoEm < idade) return;
   const foco = document.activeElement;
   if (foco && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
   if (!$("taticaFora").hidden) return; // escalando: não mexe na tela
   if ($("cfgSalvarVisual") && !$("cfgSalvarVisual").disabled) return; // escudo ou uniforme mudado sem salvar
   if (document.querySelector('#app [id$="Painel"]:not(:empty)') || ($("quadroAtr") && !$("quadroAtr").hidden)) return;
+  if (marca && marca.novidade !== undefined && !conferindo) {
+    conferindo = true;
+    try { const agora = await ultimaNovidade(marca.liga, marca.clube); if (agora !== undefined && agora === marca.novidade) { carregadoEm = Date.now(); return; } }
+    finally { conferindo = false; }
+  }
   carregar({ user: usuario });
 }
-document.addEventListener("visibilitychange", () => talvezAtualizar(60000));
-setInterval(() => talvezAtualizar(180000), 30000);
+document.addEventListener("visibilitychange", () => talvezAtualizar(300000));
+setInterval(() => talvezAtualizar(600000), 30000);
 
 // ---------- pedido esperando aprovação ----------
 function telaEspera(p) {
@@ -2055,7 +2062,7 @@ async function telaClube(liga, clube) {
 
 $("sair").onclick = () => sair();
 await montarLogin($("login"), carregar);
-window.__teste = { carregar };
+window.__teste = { carregar, talvezAtualizar };
 </script>
 </body>
 </html>

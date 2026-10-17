@@ -418,3 +418,5 @@ export const definirMetas = (ligaId, lista) => sb.rpc("definir_metas", { p_liga:
 export const aplicarConfianca = (ligaId, lista) => sb.rpc("aplicar_confianca", { p_liga: ligaId, p_lista: lista }).then(ok);
 export const zerarConfianca = ligaId => sb.rpc("zerar_confianca", { p_liga: ligaId }).then(({ error }) => !error);
 export const caixasDaLiga = ids => ids.length ? sb.from("financas").select("clube_id, caixa").in("clube_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
+// conferência leve antes de a página do clube se recarregar (92_ultima_novidade.sql); undefined = sem o SQL, recarrega como antes
+export const ultimaNovidade = (ligaId, clubeId) => sb.rpc("ultima_novidade", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => error ? undefined : data);
