@@ -4,10 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trem Soccer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="estilo.css">
 <script src="atualiza.js"></script>
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } main > .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
   /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
   .meus-clubes { display:flex; gap:6px; align-items:center; } .meus-clubes:empty { display:none; }
   .meus-clubes button { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; position:relative; }
@@ -16,7 +19,7 @@
   @media (max-width:620px) {
     .topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; } #meusClubes { grid-column:1/-1; }
     .topo > svg:first-child { width:52px; height:52px; } .topo > svg:nth-child(2) { width:38px; height:38px; }
-    .topo h2 { font-size:18px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
+    .card.topo h2 { font-size:24px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
     .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
   }
@@ -51,15 +54,15 @@
   .chipf.ligado { color:var(--ac); border-color:var(--ac); }
   .subabas { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 0; }
   .sub { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:600; }
-  .sub.ativa { color:var(--ac); border-color:var(--ac); } .sub .sc { display:none; }
+  .sub.ativa { color:var(--tx); background:var(--hover); border-color:var(--ac); } .sub .sc { display:none; }
   .sub .qt { background:var(--ac); color:#1a1300; border-radius:999px; padding:0 6px; font-size:12px; margin-left:4px; }
   @media (max-width:620px) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
   .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
   @media (max-width:620px) {
-    .abas { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:2px; }
-    .aba { padding:6px 1px 5px; border-radius:8px 8px 0 0; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
+    .abas { display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:0; overflow:visible; }
+    .aba { padding:6px 0 5px; letter-spacing:0; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
     .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; }
-    .aba .at-l { display:none; } .aba .at-c { display:block; font-size:10.5px; font-weight:600; white-space:nowrap; }
+    .aba .at-l { display:none; } .aba .at-c { display:block; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   }
   /* Central: blocos lado a lado, no espírito do modo carreira */
   .central { display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:12px; }
@@ -113,7 +116,7 @@
   .cores span { width:24px; height:24px; border-radius:6px; border:2px solid var(--line); cursor:pointer; }
   .cores span.sel { border-color:var(--ac); }
   .ev-parte .previa { align-self:start; min-height:150px; }
-  .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:#0f1720; border-radius:10px; border:1px solid var(--line); }
+  .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:var(--campo); border-radius:10px; border:1px solid var(--line); }
   .a0 { color:#5d6b7c; } .a1 { color:#9fb0c3; } .a3 { color:#7fd4a6; font-weight:600; } .a4 { color:#3fe08f; font-weight:700; }
   tr.sep td { border-top:2px solid var(--line); }
   /* elenco por zonas */
@@ -798,7 +801,7 @@ async function telaClube(liga, clube) {
       <div id="jFiltro" style="margin-top:8px"><span class="tag" data-jfiltro="" style="margin:2px;cursor:pointer;outline:1px solid currentColor">todas <b>${lista.length}</b></span>${LISTA_POSICOES.map(chip).join("")}</div>
       <div class="lugarDoPainel" style="margin-top:8px"></div>
       ${lista.length ? `<div class="rolagem" style="margin-top:6px"><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th>${temTeto ? `<th title="Faixa de teto pelo olheiro">Teto</th>` : ""}<th title="Jogos na liga de base">J</th><th title="Minutos na liga de base">Min</th><th>Gols</th><th title="Nota média na liga de base">Média</th><th title="Posição que está aprendendo">Estuda</th><th>Contra o titular</th></tr>
-        ${lista.map(linha).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Nenhum jovem no clube. Eles chegam na virada da temporada e na peneira (aba Painel).</div>`}</div>`;
+        ${lista.map(linha).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Nenhum jovem no clube. Eles chegam na virada da temporada e na peneira (cartão Base, ao lado).</div>`}</div>`;
   };
   // Escalação da base: o campinho com o esquema do time principal; em cada vaga, quem joga hoje e a escolha do dirigente
   const abaEscalacao = () => {
@@ -818,11 +821,25 @@ async function telaClube(liga, clube) {
     const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
     const aviso = taticaBase === undefined ? `<div class="mut" style="margin-top:6px">A tática da base ainda não está ligada no servidor: a escalação é automática.</div>`
       : !formacaoDaBase ? `<div class="aviso" style="margin-top:6px">Salve a tática do time principal: a base joga no mesmo esquema e só então dá para escolher quem joga onde. Até lá vale o esquema que melhor encaixa os juvenis (${esc(prevista.nome)}).</div>` : "";
-    return `<div class="card"><h2>Escalação da base <span class="tag">${formacaoDaBase ? "esquema do time principal" : esc(prevista.nome)}</span>${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2>
+    return `<details class="card" id="baseEsc"><summary><h2>Escalação da base <span class="tag">${formacaoDaBase ? "esquema do time principal" : esc(prevista.nome)}</span>${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2></summary>
       <div class="mut" style="font-size:12px">Em cada vaga, quem joga a próxima partida. Escolha um jogador para fixá-lo (📌): ele começa jogando e não sai no intervalo. Em "automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos.</div>
       ${aviso}${campo}${intervalo}${fora}
       <div style="margin-top:10px"><b>Estilo</b> <span class="mut" style="font-size:12px">· em "como o bot", fica o que o bot escolheria</span></div><div>${Object.keys(INSTRUCOES_DA_BASE).map(opcao).join("")}</div>
-      ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar">Salvar a escalação da base</button><span id="tbAviso"></span></div>` : ""}</div>`;
+      ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar">Salvar a escalação da base</button><span id="tbAviso"></span></div>` : ""}</details>`;
+  };
+  const kpi = (rot, v, d) => `<div class="kpi"><div class="kl">${rot}</div><div class="kv">${v}</div>${d ? `<div class="kd">${d}</div>` : ""}</div>`;
+  // Base: os números do alto da página
+  const kpisDaBase = () => {
+    const n = clube.base_nivel || 0, fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`, meu = p => p.casa === clube.id || p.fora === clube.id;
+    const proximos = [...(baseJogos || []), ...(copinha || []), ...(libJuvenil || [])].filter(p => meu(p) && !p.processada).sort((a, b) => new Date(a.inicio) - new Date(b.inicio)), p = proximos[0];
+    const comp = !p ? "" : !p.copinha_fase ? `Liga de base, rodada ${p.rodada}` : `${(libJuvenil || []).includes(p) ? "Lib. Juvenil" : "Copinha"}, ${FASES_DA_COPA[p.copinha_fase].toLowerCase()}`;
+    const dia = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit" }), hora = d => new Date(d).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const peneira = rodadasFeitas == null ? null : clube.peneira_temporada === liga.temporada ? ["feita", "volta na próxima temporada"]
+      : rodadasFeitas < CONFIG_BASE.rodadaDaPeneira ? [`rodada ${CONFIG_BASE.rodadaDaPeneira}`, `estamos na ${rodadasFeitas}`] : ["liberada", `${fx(faixaDeJovens(n, "peneira"))} jovens`];
+    return `<div class="kpis">${kpi("Juvenis", `${meusJuvenis.length}<small> de ${LIMITE_DE_JUVENIS}</small>`, `${meusProfs.length} ${meusProfs.length === 1 ? "formado" : "formados"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos também jogam`)}
+      ${kpi("Base", `nível ${n}`, `${fx(faixaDeJovens(n, "promocao"))} jovens na virada`)}
+      ${kpi("Próximo jogo", p ? dia(p.inicio) : "—", p ? `${comp} · ${hora(p.inicio)} · ${esc((cPor[p.casa === clube.id ? p.fora : p.casa] || {}).nome || "—")}` : "nenhum marcado")}
+      ${peneira ? kpi("Peneira", peneira[0], peneira[1]) : ""}</div>`;
   };
   // Painel da base: os próximos jogos de cada competição e o que pede atenção
   const painelDaBase = () => {
@@ -834,9 +851,9 @@ async function telaClube(liga, clube) {
     const semJovem = [...new Set((formacaoDaBase || []).filter(pos => !elenco.some(j => (j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil) && j.pos === pos)))];
     if (semJovem.length) avisos.push(`🔍 Nenhum jovem para ${semJovem.map(x => esc(sg(x))).join(", ")}, posições da sua tática.`);
     if (prevista && prevista.fora.length) avisos.push(`⏸️ Sem jogo na próxima rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")}.`);
-    if (prevista && taticaBase === null && formacaoDaBase) avisos.push(`📐 A escalação da base está automática. <a class="lk" data-sub-ir="base:escalacao">Escolher quem joga onde</a>.`);
+    if (prevista && taticaBase === null && formacaoDaBase) avisos.push(`📐 A escalação da base está automática. <a class="lk" data-abre="baseEsc">Escolher quem joga onde</a>.`);
     return `<div class="card"><h2>Próximos jogos da base</h2>${prox(baseJogos, "Liga de base")}${prox(copinha, "Copinha")}${prox(libJuvenil, "Libertadores Juvenil")}
-      <div style="margin-top:6px"><a class="lk" data-sub-ir="base:escalacao">Ver a escalação</a> · <a class="lk" data-sub-ir="base:comp">Ver as competições</a></div>
+      <div style="margin-top:6px"><a class="lk" data-abre="baseEsc">Ver a escalação</a> · <a class="lk" data-aba-ir="classificacao:base">Tabelas e chaves em Competições</a></div>
       ${avisos.length ? `<div style="margin-top:10px"><b>Atenção</b>${avisos.map(x => `<div style="margin-top:4px">${x}</div>`).join("")}</div>` : ""}</div>`;
   };
   // Liga de base: próximo jogo, resultados do meu time, tabela e artilheiros do grupo
@@ -984,11 +1001,11 @@ async function telaClube(liga, clube) {
       ${obra ? `<div class="aviso" style="margin-bottom:8px">Obra em andamento: ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)} para o nível ${obra.nivel_alvo}, faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas de liga.</div>` : ""}
       ${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
         return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)">
-          <div style="flex:1 1 220px;min-width:0"><a class="lk" data-sub-ir="estr:${k}"><b>${nome}</b></a> <span class="tag">nível ${n} de ${maximo}</span>
+          <div style="flex:1 1 220px;min-width:0"><a class="lk" ${k === "base" ? `data-aba-ir="base"` : `href="#estr-${k}"`}><b>${nome}</b></a> <span class="tag">nível ${n} de ${maximo}</span>
             <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div></div>
           ${emObra ? `<span class="aviso">em obra</span>` : custo == null ? "" : `<div style="text-align:right"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
-      <div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Toque no nome para ver os detalhes e a equipe de cada estrutura.</div></div>`;
+      <div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>`;
   };
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
@@ -1379,7 +1396,7 @@ async function telaClube(liga, clube) {
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
         ${telaPequena ? `<button class="sec" id="modoTela" style="padding:3px 10px;font-size:12.5px" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div></div>
-    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["clube", "Clube", "👥"], ["mercado", "Mercado", "🛒"], ["classificacao", "Competições", "🏆", "Compet."], ["estruturas", "Estruturas", "🏗️", "Obras"], ["config", "Ajustes", "⚙️"]]
+    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
     <div class="central">
@@ -1417,14 +1434,20 @@ async function telaClube(liga, clube) {
     <div id="amRel"></div>
     </section>
     <section data-secao="classificacao">
-    ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"]])}
+    ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
     <div data-parte="comp:liga"><div class="card row"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div></div>
     <div data-parte="comp:stats"><div class="card row">
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
       <label>Lista<select id="stLista"><option value="artilheiros">Artilharia</option><option value="assistencias">Assistências</option><option value="notas">Melhores notas</option><option value="goleiros">Goleiros</option><option value="cartoes">Cartões</option></select></label></div></div>
-    <div class="duas">
+    <div data-parte="comp:base">${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>
+${historicoDaBase()}
+    ${revelados == null ? "" : `<div class="card"><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
+      ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
+        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</div>`}
+    </div>
+    <div class="duas" id="compQuadros">
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
@@ -1527,9 +1550,9 @@ async function telaClube(liga, clube) {
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}
     </div>
     </section>
-    <section data-secao="clube">
-    ${subAbas("clube", [["elenco", "👥 Elenco", "Elenco"], ["trofeus", "🏆 Troféus", "Troféus"], ["financas", "💰 Finanças", "Finanças"], ["calendario", "📅 Calendário", "Jogos"], ["tatica", "📋 Tática", "Tática"], ["transf", "🔁 Transferências", "Transf."]])}
-    <div data-parte="clube:elenco">
+    <section data-secao="elenco">
+    ${subAbas("elenco", [["lista", "👥 Elenco", "Elenco"], ["treino", "🏋️ Treino", "Treino"]])}
+    <div data-parte="elenco:lista">
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · ${temJuvenis ? `${elenco.filter(j => !j.juvenil).length} de ${LIMITE_DE_CONTRATADOS} com contrato · ${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS} juvenis` : `${adultos} de 35 com mais de 21 anos`}${temContratos ? ` · folha ${dinheiro(folha)} de ${dinheiro(teto)} por temporada (${Math.round(folha / teto * 100)}% do teto) · clique num jogador para mexer no contrato, na proteção ou na venda` : ""}</span></h2>
       ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
       <div id="lugarPainelElenco"><div id="contratoPainel"></div></div>
@@ -1537,19 +1560,7 @@ async function telaClube(liga, clube) {
       ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
       <div class="mut" style="margin-top:8px;font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div></div>
     </div>
-    <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
-    <div data-parte="clube:calendario">${calendarioDoClube()}</div>
-    <div data-parte="clube:financas">
-    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
-    </div>
-    <div data-parte="clube:tatica"></div>
-    <div data-parte="clube:transf">${abaTransferencias()}</div>
-    </section>
-    <section data-secao="estruturas">
-    <div id="obraAviso"></div>
-    ${subAbas("estr", [["resumo", "📋 Resumo", "Resumo"], ["treino", "🏋️ Treinamento", "Treino"], ["ct", "🏟️ Centro de treinamento", "CT"], ["medico", "🩺 Departamento médico", "Médico"], ["fisio", "💆 Fisioterapia", "Fisio"], ["base", "🌱 Base", "Base"], ["estadio", "🏟️ Estádio", "Estádio"]])}
-    <div data-parte="estr:resumo">${resumoDasEstruturas()}</div>
-    <div data-parte="estr:treino">
+    <div data-parte="elenco:treino">
     ${treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
       <div class="mut">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
         Cada jogador tem um teto de nota, definido pelo talento, que você não vê, e treina na medida do caminho que tem até lá: quem tem teto alto ganha mais pontos por rodada, de modo que todos chegam ao teto mais ou menos na mesma idade (por volta dos 24 anos num clube bem estruturado, dos 28 num clube sem estrutura). O teto vale para a melhor posição em que ele é natural.
@@ -1568,34 +1579,33 @@ async function telaClube(liga, clube) {
       <div class="row" style="margin-top:10px"><button id="tSalvar" disabled>Salvar o treino</button><button class="sec" id="tSugerir">Sugerir focos para todos</button><span id="tAviso" class="mut"></span></div>
       <div id="treinoCorpo" style="margin-top:10px"></div></div>` : `<div class="card mut">O treino ainda não foi ligado na liga.</div>`}
     </div>
-    <div data-parte="estr:ct">${estrutura("ct")}</div>
-    <div data-parte="estr:medico">${estrutura("medico")}</div>
-    <div data-parte="estr:fisio">${estrutura("fisio")}</div>
-    <div data-parte="estr:base">
-    ${subAbas("base", [["painel", "📋 Painel", "Painel"], ["juvenis", "🧒 Juvenis", "Juvenis"], ["escalacao", "📐 Escalação", "Escalação"], ["comp", "🏆 Competições", "Competições"]])}
-    <div data-parte="base:painel">${estrutura("base")}
-    ${baseJogos == null ? "" : painelDaBase()}
+    </section>
+    <section data-secao="tatica"></section>
+    <section data-secao="base">
+    ${kpisDaBase()}
+    <div class="g2">
+      <div>${abaJuvenis()}${abaEscalacao()}</div>
+      <div>${baseJogos == null ? "" : painelDaBase()}
     ${rodadasFeitas == null ? "" : (() => { const n = clube.base_nivel || 0, pr = faixaDeJovens(n, "promocao"), pe = faixaDeJovens(n, "peneira"), feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
       const quantos = ([a, b]) => a === b ? (a === 0 ? "nenhum jovem" : a === 1 ? "1 jovem" : a + " jovens") : `${a} a ${b} jovens`;
       return `<div class="card"><h2>Base <span class="tag">nível ${n}</span></h2>
         <div>Na virada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>.${temJuvenis ? ` Juvenis: <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>.` : ""}</div>
         <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div>${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam mas não jogam partida oficial. Você tem <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>. Para usar um deles, profissionalize-o (na aba Juvenis ou em Clube, Elenco, clicando no jogador); quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`; })()}
+      ${estrutura("base")}</div>
     </div>
-    <div data-parte="base:juvenis">${abaJuvenis()}</div>
-    <div data-parte="base:escalacao">${abaEscalacao()}</div>
-    <div data-parte="base:comp">
-    ${subAbas("bcomp", [["liga", "Liga de base"], ["copinha", "Copinha"], ["lib", "Libertadores Juvenil", "Lib. Juvenil"], ["galeria", "Galeria"]])}
-    <div data-parte="bcomp:liga">${ligaDeBase()}</div>
-    <div data-parte="bcomp:copinha">${cartaoDaCopinha()}</div>
-    <div data-parte="bcomp:lib">${cartaoDaLibJuvenil()}</div>
-    <div data-parte="bcomp:galeria">${historicoDaBase()}
-    ${revelados == null ? "" : `<div class="card"><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
-      ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
-        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</div>`}
-    </div></div>
+    </section>
+    <section data-secao="clube">
+    ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."]])}
+    <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
+      <div class="duas">${["ct", "medico", "fisio", "estadio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
+    <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
+    <div data-parte="clube:calendario">${calendarioDoClube()}</div>
+    <div data-parte="clube:financas">
+    ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : `<div class="card"><h2>Finanças <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${financas()}</div>`}
     </div>
-    <div data-parte="estr:estadio">${estrutura("estadio")}</div>
-    </section>`;
+    <div data-parte="clube:transf">${abaTransferencias()}</div>
+    </section>
+`;
 
   // sócio-torcedor e antecipação do prêmio
   if ($("carneVender")) {
@@ -1831,8 +1841,9 @@ async function telaClube(liga, clube) {
   // abas: mostra uma seção por vez e lembra a última aberta
   let abaAnterior = "inicio", abaAtual = "inicio";
   // abas internas de Clube, Estruturas e Ajustes; os nomes antigos (elenco, tatica, financas, treino) levam à aba interna nova
-  const ATALHOS = { elenco: ["clube", "elenco"], tatica: ["clube", "tatica"], financas: ["clube", "financas"], trofeus: ["clube", "trofeus"], treino: ["estruturas", "treino"] };
-  const GRUPO_DA_ABA = { clube: "clube", estruturas: "estr", config: "ajuste", classificacao: "comp" };
+  const ATALHOS = { financas: ["clube", "financas"], trofeus: ["clube", "trofeus"], treino: ["elenco", "treino"], estruturas: ["clube", "estruturas"] };
+  const VELHOS = { "clube:elenco": ["elenco", "lista"], "clube:tatica": ["tatica"], "estruturas:treino": ["elenco", "treino"], "estruturas:base": ["base"] }; // endereços de antes da barra nova
+  const GRUPO_DA_ABA = { elenco: "elenco", clube: "clube", config: "ajuste", classificacao: "comp" };
   let compPronta = false; // as telas de Competições só desenham depois de os dados da liga estarem carregados
   const subGuardada = g => { let k = null; try { k = localStorage.getItem("mo_sub_" + g); } catch (e) {}
     return document.querySelector(`[data-sub="${g}:${k}"]`) ? k : document.querySelector(`[data-grupo="${g}"] [data-sub]`).dataset.sub.split(":")[1]; };
@@ -1840,23 +1851,23 @@ async function telaClube(liga, clube) {
     document.querySelectorAll(`[data-parte^="${g}:"]`).forEach(x => { x.hidden = x.dataset.parte !== g + ":" + k; });
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
-    if (g === "clube") mostrarTatica(abaAtual === "clube" && k === "tatica"); // a tática fica fora de #app e aparece embaixo das abas internas
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral";
-    if (g === "comp" && compPronta) mostrarCompeticao(k);
-    if (g === "clube" && (k === "elenco" || k === "financas") || g === "ajuste" && k === "escudo") marcarChegada(k);
+    if (g === "comp") { $("compQuadros").hidden = k === "base"; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "elenco" && k === "lista") marcarChegada("elenco");
+    if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
   const abrir = (k, sub) => {
-    if (ATALHOS[k]) [k, sub] = ATALHOS[k];
+    if (VELHOS[k + ":" + sub]) [k, sub] = VELHOS[k + ":" + sub];
+    else if (ATALHOS[k] && !document.querySelector(`[data-secao="${k}"]`)) [k, sub] = ATALHOS[k];
     if (abaAtual !== "clubeVisto") abaAnterior = abaAtual;
     abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
     document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
-    if (k !== "clube") mostrarTatica(false);
+    mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
     const g = GRUPO_DA_ABA[k]; if (g) abrirSubAba(g, sub || subGuardada(g));
   };
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
-  for (const g of ["base", "bcomp"]) if (document.querySelector(`[data-grupo="${g}"]`)) abrirSubAba(g, subGuardada(g)); // abinhas dentro de Estruturas → Base
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(l => { const m = $("muralLiga"); if (!l.length || !m) return; m.querySelector("[data-vazio]")?.remove(); m.insertAdjacentHTML("afterbegin", l.join("")); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
@@ -1976,7 +1987,7 @@ async function telaClube(liga, clube) {
     // treinadores: área de cada um, dispensa e lista de candidatos
   }
   // comissão: contratar, dispensar, área do treinador e candidatos de cada estrutura (Estruturas)
-  const secaoEstr = document.querySelector('[data-secao="estruturas"]');
+  for (const secaoEstr of document.querySelectorAll('[data-secao="elenco"], [data-secao="clube"], [data-secao="base"]')) {
   const avisoComissao = (alvo, msg) => { const card = alvo.closest(".card"), a = card && card.querySelector("[data-cand-aviso]"); if (a) a.innerHTML = `<span class="bad">${esc(msg)}</span>`; else alert(msg); };
   secaoEstr.addEventListener("change", async e => {
     if (!e.target.dataset.tarea) return;
@@ -2006,6 +2017,7 @@ async function telaClube(liga, clube) {
       }
     } catch (err) { avisoComissao(e.target, err.message); if (c) c.disabled = false; }
   });
+  }
   // sub-abas do mercado: uma parte por vez, lembrando a última
   const abrirSub = k => {
     document.querySelectorAll("[data-msecao]").forEach(x => { x.hidden = x.dataset.msecao !== k; });
@@ -2096,6 +2108,7 @@ async function telaClube(liga, clube) {
 
   // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
   $("app").onclick = e => {
+    const ab = e.target.closest("[data-abre]"); if (ab) { const d = $(ab.dataset.abre); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); } return; }
     const ir = e.target.closest("[data-sub-ir]"); if (ir) { const [g, k] = ir.dataset.subIr.split(":"); abrirSubAba(g, k); return; }
     const qual = e.target.dataset.obra;
     if (qual) {
@@ -2108,7 +2121,7 @@ async function telaClube(liga, clube) {
     if (e.target.closest("[data-info]")) return; // o botão de atributos tem o seu próprio quadro
     const tr = e.target.closest("tr[data-jog]"); if (!tr || !(temContratos || temJuvenis)) return;
     // o mesmo painel do jogador serve ao elenco e à aba Juvenis da base: ele vai para onde o clique aconteceu
-    const lugar = (tr.closest("[data-parte]") && tr.closest("[data-parte]").querySelector(".lugarDoPainel")) || $("lugarPainelElenco");
+    const lugar = (tr.closest("[data-parte], [data-secao]") && tr.closest("[data-parte], [data-secao]").querySelector(".lugarDoPainel")) || $("lugarPainelElenco");
     if ($("contratoPainel").parentNode !== lugar) lugar.appendChild($("contratoPainel"));
     const j = elenco.find(x => x.id === tr.dataset.jog), protegido = j.protegidoAte != null && j.protegidoAte >= liga.temporada;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL), sobra = teto - folha;
