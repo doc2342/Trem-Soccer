@@ -218,13 +218,15 @@ const __saude = (() => {
     medico: 0.01,            // a skill do médico é o corte na duração da lesão: skill 50, metade do tempo (mínimo de 1 jogo fora)
     atendidos: [1, 1],       // o médico cuida de 1 lesionado ao mesmo tempo, mais 1 por nível do departamento médico
     efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
-    // jogou: por jogar 45 minutos ou mais; porNota: por ponto de nota acima (ou abaixo) da nota típica da posição (notaTipica). Titular que joga mal fica perto de 50, quem joga bem passa de 80
-    forma: { jogou: 1, porNota: 4, entrou: 1, parado: -1, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
+    // jogou: por jogar 45 minutos ou mais; porNota: por ponto de nota acima (ou abaixo) da nota típica da posição (notaTipica). Titular que joga mal fica perto de 50, quem joga bem fica por volta de 65 a 75
+    // volta: quanto puxa de volta para 50 a cada rodada. Era 0,1: em T13 o campeão chegou a forma 93 e moral 81 (+7% em campo) e a vantagem
+    // se realimentava; com 0,2 o ganho de equilíbrio (bom jogo, preparador, vitória) vale a metade.
+    forma: { jogou: 1, porNota: 4, entrou: 1, parado: -1, lesionado: -4, volta: 0.2 },
     // Nota típica de quem joga em cada posição (média de 300 partidas da T10, 45 minutos ou mais). A forma compara a nota do jogador com a da
     // posição dele: quando todos eram comparados com 6, o centroavante titular (nota média 7,15) estacionava em forma ~100 e o zagueiro em ~58,
     // o ataque ganhava uns 4% sobre a defesa e os gols por jogo subiam temporada a temporada (ferramentas/sim_forma.mjs).
     notaTipica: { GK: 6.0, DC: 6.0, SW: 5.9, DR: 5.9, DL: 5.9, WBR: 6.0, WBL: 6.0, DMC: 5.9, MC: 6.0, MR: 6.2, ML: 6.2, AMC: 6.5, AMR: 6.3, AML: 6.3, RW: 6.35, LW: 6.35, FC: 6.8, SC: 7.1 },
-    moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
+    moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.2 },
     preparador: [2, 6],      // o preparador de forma dá de 2 a 8 pontos de forma a cada jogador atendido
     atendidosNaForma: [2, 2],// atende 2 jogadores por rodada, mais 2 por nível da fisioterapia (os de pior forma)
     psicologo: [0.2, 0.4],   // o psicólogo corta de 20% a 60% das quedas de moral
@@ -1984,12 +1986,15 @@ const __economia = (() => {
   const VENDAS_PELO_AGENTE = 4;                                // por temporada, fora do vermelho
   // O agente paga com o caixa dos clubes sem dono. cotacao (0 a 1) diz quanto do preço cheio dá para pagar: de 1 vez o salário de mercado
   // (caixa vazio) a 2,5 vezes (caixa folgado); para clube no vermelho, de 1 a 3 vezes.
-  const valorNoAgente = (mercado, vermelho = false, cotacao = 1) => Math.round((mercado || 0) * (1 + (vermelho ? 2 : 1.5) * Math.max(0, Math.min(1, cotacao == null ? 1 : cotacao))));
+  // vendidas: vendas pelo agente já feitas na temporada; o extra cai na 3ª e na 5ª (109_agente_decrescente.sql). O vermelho não muda.
+  const AGENTE_POR_VENDA = [1.5, 1.5, 1, 1, 0.5];
+  const extraDoAgente = (vendidas = 0, vermelho = false) => vermelho ? 2 : AGENTE_POR_VENDA[Math.min(vendidas, AGENTE_POR_VENDA.length - 1)];
+  const valorNoAgente = (mercado, vermelho = false, cotacao = 1, vendidas = 0) => Math.round((mercado || 0) * (1 + extraDoAgente(vendidas, vermelho) * Math.max(0, Math.min(1, cotacao == null ? 1 : cotacao))));
   // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, valorNoAgente, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __mercadobots = (() => {

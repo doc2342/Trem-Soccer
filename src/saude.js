@@ -9,13 +9,15 @@ export const CONFIG_SAUDE = {
   medico: 0.01,            // a skill do médico é o corte na duração da lesão: skill 50, metade do tempo (mínimo de 1 jogo fora)
   atendidos: [1, 1],       // o médico cuida de 1 lesionado ao mesmo tempo, mais 1 por nível do departamento médico
   efeitoDaForma: 0.06, efeitoDaMoral: 0.03,
-  // jogou: por jogar 45 minutos ou mais; porNota: por ponto de nota acima (ou abaixo) da nota típica da posição (notaTipica). Titular que joga mal fica perto de 50, quem joga bem passa de 80
-  forma: { jogou: 1, porNota: 4, entrou: 1, parado: -1, lesionado: -4, volta: 0.1 },   // volta: quanto puxa de volta para 50 a cada rodada
+  // jogou: por jogar 45 minutos ou mais; porNota: por ponto de nota acima (ou abaixo) da nota típica da posição (notaTipica). Titular que joga mal fica perto de 50, quem joga bem fica por volta de 65 a 75
+  // volta: quanto puxa de volta para 50 a cada rodada. Era 0,1: em T13 o campeão chegou a forma 93 e moral 81 (+7% em campo) e a vantagem
+  // se realimentava; com 0,2 o ganho de equilíbrio (bom jogo, preparador, vitória) vale a metade.
+  forma: { jogou: 1, porNota: 4, entrou: 1, parado: -1, lesionado: -4, volta: 0.2 },
   // Nota típica de quem joga em cada posição (média de 300 partidas da T10, 45 minutos ou mais). A forma compara a nota do jogador com a da
   // posição dele: quando todos eram comparados com 6, o centroavante titular (nota média 7,15) estacionava em forma ~100 e o zagueiro em ~58,
   // o ataque ganhava uns 4% sobre a defesa e os gols por jogo subiam temporada a temporada (ferramentas/sim_forma.mjs).
   notaTipica: { GK: 6.0, DC: 6.0, SW: 5.9, DR: 5.9, DL: 5.9, WBR: 6.0, WBL: 6.0, DMC: 5.9, MC: 6.0, MR: 6.2, ML: 6.2, AMC: 6.5, AMR: 6.3, AML: 6.3, RW: 6.35, LW: 6.35, FC: 6.8, SC: 7.1 },
-  moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.1 },
+  moral: { vitoria: 3, derrota: -3, jogou: 2, entrou: 1, banco: -2, volta: 0.2 },
   preparador: [2, 6],      // o preparador de forma dá de 2 a 8 pontos de forma a cada jogador atendido
   atendidosNaForma: [2, 2],// atende 2 jogadores por rodada, mais 2 por nível da fisioterapia (os de pior forma)
   psicologo: [0.2, 0.4],   // o psicólogo corta de 20% a 60% das quedas de moral

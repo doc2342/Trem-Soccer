@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Fim de temporada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="atualiza.js"></script>
+<style>
+  td, th { padding:5px 8px; text-align:right; white-space:nowrap; } tr.meu td { color:var(--ac); font-weight:600; }
+  .dicas li { margin:6px 0; } select { font:inherit; }
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>
+  <h1>Relatório de fim de temporada</h1>
+  <div class="mut">Onde cada dirigente ficou em relação ao campeão da Série A: campo, base, mercado e estrutura. Classificação e mercado são da temporada escolhida; elenco, forma e estrutura são de hoje.</div>
+  <div class="card" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <label>Temporada <select id="selTemp"></select></label>
+    <label>Clube <select id="selClube"></select></label>
+  </div>
+  <div id="corpo"><div class="card mut">Carregando…</div></div>
+</main>
+
+<script type="module">
+import { sb, ligaAtual, meuClube, sessao } from "./src/banco.js";
+import { notaBruta } from "./src/modelo.js";
+import { dinheiro } from "./src/economia.js";
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const um = v => v == null || isNaN(v) ? "—" : v.toFixed(1).replace(".", ",");
+const media = v => v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN;
+async function tudo(tabela, campos, filtro) { // lê em páginas de 1000 linhas
+  const saida = [];
+  for (let de = 0; ; de += 1000) {
+    const { data, error } = await filtro(sb.from(tabela).select(campos)).range(de, de + 999);
+    if (error) return saida; // tabela ainda não criada: segue sem ela
+    saida.push(...data);
+    if (data.length < 1000) return saida;
+  }
+}
+
+const liga = await ligaAtual();
+const [clubes, hist, transf, safras] = await Promise.all([
+  tudo("clubes", "id, nome, divisao, grupo, estadio_nivel, torcida, ct_nivel, medico_nivel, fisio_nivel, base_nivel", q => q.eq("liga_id", liga.id).not("dono", "is", null)),
+  tudo("historico", "temporada, clube_id, divisao, grupo, posicao, pontos, copa", q => q.eq("liga_id", liga.id)),
+  tudo("transferencias", "temporada, tipo, de_clube, para_clube, valor", q => q.eq("liga_id", liga.id)),
+  tudo("safras", "temporada, clube_id, nivel", q => q.eq("liga_id", liga.id)),
+]);
+const jog = await tudo("jogadores", "clube_id, pos, at, juvenil, formador, forma, moral", q => q.in("clube_id", clubes.map(c => c.id)));
+const meu = await sessao() ? await meuClube().catch(() => null) : null;
+
+// melhor onze: melhor goleiro + 10 melhores de linha, pela nota na posição principal (como em ferramentas/saude.mjs)
+for (const c of clubes) {
+  const l = jog.filter(j => j.clube_id === c.id && !j.juvenil).map(j => ({ ...j, nota: notaBruta(j.at, j.pos) })).sort((a, b) => b.nota - a.nota);
+  const onze = [l.find(j => j.pos === "GK"), ...l.filter(j => j.pos !== "GK").slice(0, 10)].filter(Boolean);
+  Object.assign(c, { onze: media(onze.map(j => j.nota)), forma: media(onze.map(j => j.forma ?? 50)), moral: media(onze.map(j => j.moral ?? 50)),
+    formados: l.filter(j => j.formador === c.id).length, juvenis: jog.filter(j => j.clube_id === c.id && j.juvenil).length });
+}
+
+const temporadas = [...new Set(hist.map(h => h.temporada))].sort((a, b) => b - a);
+if (!temporadas.length) { document.getElementById("corpo").innerHTML = `<div class="card mut">O relatório aparece depois da primeira virada de temporada.</div>`; throw 0; }
+const qs = new URLSearchParams(location.search);
+selTemp.innerHTML = temporadas.map(t => `<option value="${t}">T${t}</option>`).join("");
+selTemp.value = qs.get("t") || temporadas[0];
+clubes.sort((a, b) => a.nome.localeCompare(b.nome));
+selClube.innerHTML = clubes.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join("");
+selClube.value = qs.get("clube") || meu?.id || clubes[0].id;
+
+// cada linha da comparação: rótulo, valor, formato e o conselho quando o clube fica atrás do campeão por mais que "folga"
+const METRICAS = [
+  ["Pontos na liga", c => c.h?.pontos, v => v ?? "—", 0, null],
+  ["Onze (nota média, hoje)", c => c.onze, um, 0.5, "o onze titular é mais fraco: os ganhos de nota vêm de treino (jovens até 23 anos), base e contratações"],
+  ["Forma do onze (hoje)", c => c.forma, v => Math.round(v), 8, "a forma pesa até 6% em campo: o preparador de forma (fisioterapia) atende mais jogadores por rodada a cada nível"],
+  ["Moral do onze (hoje)", c => c.moral, v => Math.round(v), 8, "a moral sobe com vitórias e minutos; banco demais derruba. O psicólogo segura as quedas"],
+  ["Nível da base", c => c.base_nivel, v => v ?? "—", 0, "a base forma jogadores melhores e mais numerosos a cada nível; o campeão investiu mais nela"],
+  ["Formados no elenco", c => c.formados, v => v, 3, "o campeão usa mais jogadores da casa: saem mais baratos e chegam a notas altas"],
+  ["Safras 42+ (todas)", c => c.safras, v => v, 0, "safras de 42 ou 43 aparecem nas bases de nível mais alto"],
+  ["Vendas na temporada", c => c.vendas, dinheiro, 1000, "o campeão vendeu mais: vender o excedente (pelo agente ou negociando) financia base e estádio"],
+  ["Compras na temporada", c => c.compras, dinheiro, 1000, null],
+  ["Livres contratados", c => c.livres, v => v, 0, "os leilões de livres trazem jogadores prontos sem custo de compra, só o salário"],
+  ["Saldo no mercado (todas)", c => c.saldo, dinheiro, 3000, "no acumulado, o campeão ganhou mais vendendo do que gastou comprando"],
+  ["Estádio", c => c.estadio_nivel, v => v ?? "—", 0, "estádio maior rende mais bilheteria a cada jogo em casa"],
+  ["Torcida", c => c.torcida, v => v == null ? "—" : Math.round(v / 1000) + " mil", 5000, "torcida cresce com títulos e boas campanhas e enche o estádio"],
+  ["CT", c => c.ct_nivel, v => v ?? "—", 0, "o CT acelera o treino de todo o elenco"],
+  ["Fisioterapia", c => c.fisio_nivel, v => v ?? "—", 0, "a fisioterapia aumenta quantos jogadores o preparador de forma atende por rodada"],
+];
+
+function mostrar() {
+  const T = +selTemp.value, id = +selClube.value;
+  history.replaceState(null, "", `?t=${T}&clube=${id}`);
+  for (const c of clubes) {
+    const t = transf.filter(x => x.temporada === T);
+    c.h = hist.find(h => h.temporada === T && h.clube_id === c.id);
+    c.vendas = t.filter(x => x.de_clube === c.id).reduce((s, x) => s + (x.valor || 0), 0);
+    c.nVendas = t.filter(x => x.de_clube === c.id).length; c.nAgente = t.filter(x => x.de_clube === c.id && x.tipo === "agente").length;
+    c.compras = t.filter(x => x.para_clube === c.id).reduce((s, x) => s + (x.valor || 0), 0);
+    c.livres = t.filter(x => x.para_clube === c.id && x.tipo === "livre").length;
+    c.saldo = transf.filter(x => x.temporada <= T).reduce((s, x) => s + (x.de_clube === c.id ? x.valor || 0 : 0) - (x.para_clube === c.id ? x.valor || 0 : 0), 0);
+    c.safras = safras.filter(s => s.clube_id === c.id && s.temporada <= T).length;
+  }
+  const ch = hist.find(h => h.temporada === T && h.grupo === "A" && h.posicao === 1); // Série A do Brasil (as ligas de fora também têm divisão 1)
+  const campeao = clubes.find(c => c.id === ch?.clube_id), eu = clubes.find(c => c.id === id);
+  const serieA = clubes.filter(c => c.h?.grupo === "A");
+  const pos = c => c.h ? `${c.h.grupo === "A" ? "Série A" : "Grupo " + c.h.grupo} · ${c.h.posicao}º` : "—";
+
+  const atras = campeao && eu !== campeao ? METRICAS.filter(([, f, , folga, dica]) => dica && f(campeao) != null && f(eu) != null && f(campeao) - f(eu) > folga) : [];
+  const dicas = !campeao ? `<div class="mut">O campeão da Série A desta temporada não tem dirigente: a comparação fica só com a média.</div>`
+    : eu === campeao ? `<div class="ok">Você é o campeão desta temporada. A tabela abaixo mostra quem chegou mais perto.</div>`
+    : atras.length ? `<ul class="dicas">${atras.map(([r, f, fmt, , dica]) => `<li><b>${r}</b>: ${fmt(f(eu))} contra ${fmt(f(campeao))} do campeão. ${dica.charAt(0).toUpperCase() + dica.slice(1)}.</li>`).join("")}</ul>`
+    : `<div class="mut">Você não ficou atrás do campeão em nada que dependa de investimento: a diferença foi no campo.</div>`;
+
+  document.getElementById("corpo").innerHTML = `
+  <div class="card"><h2>Onde ${esc(eu.nome)} ficou atrás do campeão <span class="mut">· T${T}${campeao ? ` · campeão: ${esc(campeao.nome)}` : ""}</span></h2>${dicas}</div>
+  <div class="card"><h2>Lado a lado</h2><div class="rolagem"><table>
+    <tr><th class="esq"></th><th>${esc(eu.nome)}</th>${campeao && campeao !== eu ? `<th>${esc(campeao.nome)} (campeão)</th>` : ""}<th>Média da Série A</th></tr>
+    <tr><td class="esq">Classificação</td><td>${pos(eu)}</td>${campeao && campeao !== eu ? `<td>${pos(campeao)}</td>` : ""}<td></td></tr>
+    ${METRICAS.map(([r, f, fmt]) => `<tr><td class="esq">${r}</td><td>${fmt(f(eu))}</td>${campeao && campeao !== eu ? `<td>${fmt(f(campeao))}</td>` : ""}<td>${serieA.length ? (m => Number.isInteger(fmt(m)) || typeof fmt(m) !== "number" ? fmt(m) : um(m))(media(serieA.map(f).filter(v => v != null))) : "—"}</td></tr>`).join("")}
+  </table></div></div>
+  <div class="card"><h2>Todos os dirigentes <span class="mut">· T${T}</span></h2><div class="rolagem"><table>
+    <tr><th class="esq">Clube</th><th>Posição</th><th>Pts</th><th>Onze</th><th>Forma</th><th>Base</th><th>Formados</th><th>Juvenis</th><th>Vendas (agente)</th><th>Vendido</th><th>Comprado</th><th>Livres</th><th>Estádio</th><th>Fisio</th></tr>
+    ${clubes.slice().sort((a, b) => (a.h?.divisao ?? 9) - (b.h?.divisao ?? 9) || String(a.h?.grupo).localeCompare(String(b.h?.grupo)) || (a.h?.posicao ?? 99) - (b.h?.posicao ?? 99)).map(c => `<tr class="${c === eu ? "meu" : ""}">
+      <td class="esq">${c === campeao ? "🏆 " : ""}${esc(c.nome)}</td><td>${pos(c)}</td><td>${c.h?.pontos ?? "—"}</td><td>${um(c.onze)}</td><td>${Math.round(c.forma)}</td><td>${c.base_nivel ?? "—"}</td>
+      <td>${c.formados}</td><td>${c.juvenis}</td><td>${c.nVendas} (${c.nAgente})</td><td>${dinheiro(c.vendas)}</td><td>${dinheiro(c.compras)}</td><td>${c.livres}</td><td>${c.estadio_nivel ?? "—"}</td><td>${c.fisio_nivel ?? "—"}</td></tr>`).join("")}
+  </table></div></div>`;
+}
+selTemp.onchange = selClube.onchange = mostrar;
+mostrar();
+</script>
+</body>
+</html>
