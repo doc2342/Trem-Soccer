@@ -230,6 +230,15 @@ export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").s
 export const jogosDaCopinha = (ligaId, temporada) => comChave(c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "copinha").order("copinha_fase").order("id"), "id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis");
 // Libertadores Juvenil (101_libertadores_juvenil.sql): os jogos da temporada; nula antes do SQL
 export const jogosDaLibJuvenil = (ligaId, temporada) => comChave(c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).eq("fase", "libjuv").order("copinha_fase").order("id"), "id, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis");
+// Os três de uma vez (a carga da página lia base_jogos três vezes): [liga de base do grupo, Copinha, Libertadores Juvenil].
+// Se a leitura junta falhar (algum SQL da base ainda não executado), refaz as três separadas, com as voltas de cada uma.
+export async function jogosDaBaseNaTemporada(ligaId, temporada, grupo) {
+  const ler = c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).or(`grupo.eq.${grupo},fase.in.(copinha,libjuv)`).order("id");
+  const todos = await comChave(ler, "id, fase, rodada, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, dados");
+  if (!todos) return Promise.all([jogosDaBase(ligaId, temporada, grupo), jogosDaCopinha(ligaId, temporada), jogosDaLibJuvenil(ligaId, temporada)]);
+  const mataMata = f => todos.filter(p => p.fase === f).map(({ dados, ...p }) => ({ ...p, penaltis: dados && dados.penaltis !== undefined ? dados.penaltis : null })).sort((a, b) => a.copinha_fase - b.copinha_fase || a.id - b.id);
+  return [todos.filter(p => p.fase !== "copinha" && p.fase !== "libjuv").sort((a, b) => a.rodada - b.rodada || a.id - b.id), mataMata("copinha"), mataMata("libjuv")];
+}
 // histórico da base: jogos das temporadas anteriores, que a virada não apaga (a liga de base de um grupo, sem as escalações, e a Copinha)
 // ponytail: sem paginação; a Copinha tem 49 jogos por temporada e a resposta vai até 1.000 linhas (~20 temporadas). Paginar quando chegar lá.
 export const historicoDaLigaDeBase = (ligaId, grupo, antesDe) => sb.from("base_jogos").select("temporada, casa, fora, gols_casa, gols_fora").eq("liga_id", ligaId).eq("grupo", grupo).lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
