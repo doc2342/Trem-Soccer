@@ -58,6 +58,7 @@ export async function tirarEscudoEnviado() {
   if (antes) await sb.storage.from("escudos").remove([antes]).catch(() => {});
 }
 export const pedirTrocaDeEscudo = clubeId => sb.rpc("pedir_troca_de_escudo", { p_clube: clubeId }).then(ok);
+export const marcarNaoRenovar = (id, marcar) => sb.rpc("marcar_nao_renovar", { p_jogador: numero(id), p_marcar: marcar }).then(ok); // 99_renovacao_automatica.sql
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
@@ -65,7 +66,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
   .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
-    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
+    contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,

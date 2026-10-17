@@ -110,7 +110,7 @@ export const ELENCO_MINIMO_DO_BOT = 18;
 export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {}, semMovimentos = false }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
-  const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
+  const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], renovadosDono: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
   const grupoNovo = {}; // grupo em que cada clube que sobe ou cai vai jogar
 
   for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
@@ -195,25 +195,27 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     else if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
     else ficam++;
    }
-   // contratos vencidos: nos clubes sem dono (ou com dirigente ausente) renovam sozinhos por uma temporada, pelo maior entre o
-   // salário atual e o de mercado; nos demais o jogador fica livre, a não ser que o elenco fosse ficar com menos de 16
+   // contratos vencidos renovam sozinhos por uma temporada, pelo maior entre o salário atual e o de mercado (99_renovacao_automatica.sql);
+   // só fica livre quem o dirigente marcou "não renovar", a não ser que o elenco fosse ficar com menos de 16
    vencidos.sort((a, b) => b.mercado - a.mercado);
    for (const v of vencidos) {
-    if (!cuida || ficam < ELENCO_MINIMO) {
+    if (!(cuida && v.j.naoRenovar) || ficam < ELENCO_MINIMO) {
       v.reg.salario = Math.max(v.reg.salario, v.mercado); v.reg.salario_mercado = v.mercado; v.reg.contrato_ate = nova; ficam++; resumo.renovados++; renovadosAqui.push(v);
+      if (c.dono) resumo.renovadosDono.push({ clube: c.nome, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
     } else {
       plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
       resumo.livres.push({ clube: c.nome, dono: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
     }
    }
-   // Clube sem dono (ou com dirigente ausente) também respeita o teto de folha: se a folha renovada passa do teto da divisão em que ele vai
-   // jogar, os renovados mais caros ficam livres e vão a leilão, até caber ou até o elenco chegar a 18.
-   if (!cuida && comLivres) {
+   // A renovação respeita o teto de folha: se a folha renovada passa do teto da divisão em que o clube vai jogar, os renovados mais caros
+   // ficam livres e vão a leilão, até caber ou até o elenco chegar a 18 (clube sem dono ou com dirigente ausente) ou 16 (dirigente ativo).
+   if (comLivres) {
     const g = grupoNovo[c.id], teto = PAISES[c.grupo] ? REGUA_DE_FORA.teto : tetos[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || Infinity;
     let folha = regs.reduce((s, r) => s + (r.salario || 0), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
     for (const v of renovadosAqui.sort((a, b) => b.reg.salario - a.reg.salario)) {
-      if (folha <= teto || ficam <= ELENCO_MINIMO_DO_BOT) break;
+      if (folha <= teto || ficam <= (cuida ? ELENCO_MINIMO : ELENCO_MINIMO_DO_BOT)) break;
       folha -= v.reg.salario; ficam--; resumo.renovados--;
+      resumo.renovadosDono = resumo.renovadosDono.filter(x => !(x.clube === c.nome && x.nome === v.j.nome));
       plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
       resumo.livres.push({ clube: c.nome, dono: !!c.dono, peloTeto: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
     }
