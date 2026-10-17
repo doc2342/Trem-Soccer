@@ -179,3 +179,4 @@ details.card[open] > summary { margin-bottom:8px; }
 .fbola { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; font-size:10px; font-weight:700; color:#0b1118; margin-right:2px; vertical-align:middle; }
 .fbola.fV { background:var(--ok, #3fb950); } .fbola.fE { background:#8b9bb0; } .fbola.fD { background:var(--bad, #f85149); }
 .c-forma { white-space:nowrap; }
+.bnd { vertical-align:-2px; border-radius:2px; overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,.15); }

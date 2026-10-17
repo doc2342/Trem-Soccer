@@ -78,11 +78,14 @@ async function carregar() {
   const situacao = [j.juvenil ? "🌱 juvenil, sem contrato" : "", j.fora_jogos > 0 ? `${j.fora_motivo === "lesão" ? "🩹 lesionado" : "🟥 suspenso"}: fora por ${j.fora_jogos} ${j.fora_jogos === 1 ? "jogo" : "jogos"}` : "",
     j.emprestado_de ? `emprestado pelo ${nomeDe(j.emprestado_de)}` : "", j.aposenta_em != null ? "🏁 anunciou a aposentadoria" : "", j.a_venda ? `🏷️ à venda por ${dinheiro(j.preco_pedido)}` : ""].filter(Boolean);
   const u = (clube && clube.uniforme) || {}, tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, c1 = tinta(u.cor1), c2 = tinta(u.cor2) || c1;
+  const [doElenco, comprados] = await Promise.all([sb.rpc("relatorio_do_elenco").then(r => r.data || []), lista(sb.from("relatorios").select("jogador_id, minimo, maximo"))]);
+  const teto = [...doElenco, ...comprados].find(t => +t.jogador_id === j.id);
   const topo = `<div class="card cabeca" style="${c1 ? `border-top-color:${c1};background:linear-gradient(100deg, ${c1}38, ${c2}14 45%, transparent 75%), var(--card)` : ""}">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
     <div><h2>${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
       <div class="mut">${clube ? nomeDe(j.clube_id) : "Sem clube (jogador livre)"}${j.formador ? ` · formado no ${nomeDe(j.formador)}` : ""}</div>
       ${situacao.length ? `<div class="aviso" style="margin-top:4px">${situacao.join(" · ")}</div>` : ""}</div>
-    <div class="nota"><b>${um(nota)}</b><span class="mut">nota · ${sg(j.pos)}</span></div></div>`;
+    ${teto ? `<div class="nota" title="Teto de nota estimado pelo olheiro: até onde o treino pode levar o jogador"><b style="color:var(--tx)">${teto.minimo}–${teto.maximo}</b><span class="mut">teto · olheiro</span></div>` : ""}
+    <div class="nota"${teto ? ' style="margin-left:18px"' : ""}><b>${um(nota)}</b><span class="mut">nota · ${sg(j.pos)}</span></div></div>`;
 
   const atributos = Object.entries(GRUPOS).filter(([g]) => g !== "gol" || j.pos === "GK").map(([g, nome]) => `<div class="card"><h2>${nome}</h2>
     ${ATRIBUTOS.map((a, i) => a.grupo !== g ? "" : `<div class="atr"><span>${a.nome}</span><b>${j.at[i]}</b><i><b style="width:${j.at[i] * 2}%"></b></i></div>`).join("")}</div>`).join("");
