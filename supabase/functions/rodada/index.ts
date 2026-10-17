@@ -524,6 +524,8 @@ const __motor = (() => {
       instr: { ...time.instrucoes },
       emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
       banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
+      cumpridas: {}, // "s0", "o1"…: { aos } (minuto) quando a troca/ordem aconteceu, { motivo } quando foi descartada
+      nomes: Object.fromEntries([...time.escalacao.map(x => x.j), ...time.banco].map(j => [j.id, j.nome])),
       goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
     };
   }
@@ -824,15 +826,15 @@ const __motor = (() => {
       const t = times[i];
       t.instr.ordens.forEach((o, k) => {
         if (t.ordensFeitas.has(k) || min < (o.min || 0) || !condicao(i, o.cond)) return;
-        t.ordensFeitas.add(k); Object.assign(t.instr, o.muda); sujo = true;
+        t.ordensFeitas.add(k); t.cumpridas["o" + k] = { aos: min }; Object.assign(t.instr, o.muda); sujo = true;
         evento(i, "ordem", `${tm(i)} muda a forma de jogar.`);
       });
       t.instr.substituicoes.forEach((s, k) => {
         if (t.subsFeitas.has(k) || min < (s.min || 0) || t.subs >= CONFIG.maxSubstituicoes) return;
         const sai = t.emCampo.find(x => x.j.id === s.sai), entra = t.banco.find(x => x.id === s.entra);
-        if (!sai || !entra) { if (!sai && min >= (s.min || 0)) t.subsFeitas.add(k); return; }
+        if (!sai || !entra) { if (!sai && min >= (s.min || 0)) { t.subsFeitas.add(k); t.cumpridas["s" + k] = { motivo: "ele já não estava em campo" }; } return; }
         if (!condicao(i, s.cond, sai)) return;
-        t.subsFeitas.add(k); sair(i, sai); entrar(i, entra, s.pos || sai.pos);
+        t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos);
         evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
       });
     }
@@ -1059,7 +1061,13 @@ const __motor = (() => {
     const porMinuto = {};
     narracao.forEach(l => (porMinuto[l.min] = porMinuto[l.min] || []).push(l));
     Object.values(porMinuto).forEach(g => g.forEach((l, k) => { l.s = Math.floor((k + 0.5) / g.length * 60); }));
-    return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
+    // o que aconteceu com cada substituição e ordem planejada (só para as telas do próprio dirigente: não vai para o relatório público)
+    const motivoSub = (t, s) => t.subs >= CONFIG.maxSubstituicoes ? `o time já tinha feito ${CONFIG.maxSubstituicoes} trocas` : !t.banco.some(j => j.id === s.entra) ? "o reserva já tinha entrado" : "a condição não chegou a valer";
+    const ordens = times.map(t => ({
+      subs: t.instr.substituicoes.map((s, k) => ({ ...s, saiNome: t.nomes[s.sai] || "?", entraNome: t.nomes[s.entra] || "?", ...(t.cumpridas["s" + k] || { motivo: motivoSub(t, s) }) })),
+      ordens: t.instr.ordens.map((o, k) => ({ ...o, ...(t.cumpridas["o" + k] || { motivo: "a condição não chegou a valer" }) })),
+    }));
+    return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
   }
   return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, avaliarZonas, simularPartida };
 })();
@@ -1491,6 +1499,8 @@ const __rodada = (() => {
         pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
         relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
       },
+      // "Suas ordens" de cada clube com dirigente: tabela privada (90_ordens_privadas.sql), o relatório é público
+      ordens: [casa, fora].map((l, i) => lados[i].humana && l.clube.dono ? { partida_id: partida.id, clube_id: l.clube.id, libera_em: fimReal, itens: p.ordens[i] } : null).filter(Boolean),
       ...(() => { // na copa, cartões e suspensões vão para os campos da copa, e sai também quem passou de fase
         if (!copa) return { situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)] };
         const fase = lib ? 0 : partida.copa_fase; // Libertadores: como a Supercopa (fase 0), não mexe nos cartões nem na trava de clube da copa
@@ -2275,12 +2285,13 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor, ordens } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
+        if (ordens && ordens.length) await sb.from("ordens_partida").upsert(ordens); // sem o 90_ordens_privadas.sql só falha em silêncio
         // lesões, suspensões e amarelos para os próximos jogos
         const efeitos = { situacao: situacao.map(m => ({ id: +String(m.id).slice(1), fora: m.fora, motivo: m.motivo, amarelos: m.amarelos })), momento: [], treinos: [] };
         // copa: cartões e suspensões próprios, a trava de clube e quem passou de fase (só aparecem no apito final)

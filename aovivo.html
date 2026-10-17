@@ -27,6 +27,9 @@
 <script type="module">
 import { nomeDoGrupo, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
+import { sb } from "./src/banco.js";
+// "Suas ordens": a tabela só devolve as linhas do clube de quem está logado (e nada sem login ou sem o 90_ordens_privadas.sql)
+const ordensDaPartida = async partida => { const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => ((data || []).find(o => o.clube_id === id) || {}).itens || null; return [de(partida.casa), de(partida.fora)]; };
 import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES } from "./src/ui-relatorio.js";
 import { svgEscudo, svgUniforme, uniformesDoJogo } from "./src/escudo.js";
 import { sg } from "./src/siglas.js";
@@ -192,7 +195,7 @@ async function atualizar() {
       pre && pre.clima ? `${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C` : "",
       `${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}`].filter(Boolean);
     $("corpo").innerHTML = `<div class="card mut" style="font-size:13.5px">${resumo.join(" · ")}.</div>` + htmlRodada([res.gols_casa, res.gols_fora]) +
-      htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true) });
+      htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida) });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);

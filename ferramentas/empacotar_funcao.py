@@ -286,12 +286,13 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor, ordens } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
+        if (ordens && ordens.length) await sb.from("ordens_partida").upsert(ordens); // sem o 90_ordens_privadas.sql só falha em silêncio
         // lesões, suspensões e amarelos para os próximos jogos
         const efeitos = { situacao: situacao.map(m => ({ id: +String(m.id).slice(1), fora: m.fora, motivo: m.motivo, amarelos: m.amarelos })), momento: [], treinos: [] };
         // copa: cartões e suspensões próprios, a trava de clube e quem passou de fase (só aparecem no apito final)

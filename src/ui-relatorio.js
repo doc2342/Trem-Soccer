@@ -54,7 +54,7 @@ function htmlOrdens(o, nome, cor) {
   const itens = [...o.subs.map(s => item(`aos ${s.min}' ${COND[s.cond] || s.cond}: sai ${esc(s.saiNome)}, entra ${esc(s.entraNome)}`, s)), ...o.ordens.map(x => item(`a partir dos ${x.min}' ${COND[x.cond] || x.cond}: ${esc(textoMuda(x.muda))}`, x))];
   return `<div class="card"><h2 class="${cor}">Suas ordens: ${nome}</h2>${itens.length ? `<ul>${itens.join("")}</ul>` : `<div class="mut">Nenhuma substituição ou ordem planejada.</div>`}</div>`;
 }
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null } = {}) { // ordens: partida.ordens, só nas telas do próprio dirigente (amistoso) // semPlacar: a página já mostra o placar grande em cima
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null } = {}) { // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
@@ -63,7 +63,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     <div class="barra"><div style="width:${E.vitoria * 100}%;background:var(--casa)">${pc(E.vitoria)}</div><div style="width:${E.empate * 100}%;background:#8b9bb0">empate ${pc(E.empate)}</div><div style="width:${E.derrota * 100}%;background:var(--fora)">${pc(E.derrota)}</div></div>
     ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${esc(r.melhor.nome)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}</div>`;
   const analise = `<div class="duas">${analistas.map(i => `<div class="card"><h2 class="${COR[i]}">Analista: ${n[i]}</h2><ul>${r.analise[i].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`).join("")}</div>`
-    + (ordens ? analistas.map(i => htmlOrdens(ordens[i], n[i], COR[i])).join("") : "");
+    + (ordens ? analistas.filter(i => ordens[i]).map(i => htmlOrdens(ordens[i], n[i], COR[i])).join("") : "");
   const lances = LEGENDA_LANCES + abertura + r.narracao.map(htmlLance).join("");
   const linha = (t, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${t}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
   const estat = `<table>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}

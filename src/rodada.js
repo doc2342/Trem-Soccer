@@ -232,6 +232,8 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
       pts_esp_casa: r.esperado.pontos[0], pts_esp_fora: r.esperado.pontos[1],
       relatorio: { ...semNarracao, comandados: lados.map(l => l.humana ? "dirigente" : "bot") },
     },
+    // "Suas ordens" de cada clube com dirigente: tabela privada (90_ordens_privadas.sql), o relatório é público
+    ordens: [casa, fora].map((l, i) => lados[i].humana && l.clube.dono ? { partida_id: partida.id, clube_id: l.clube.id, libera_em: fimReal, itens: p.ordens[i] } : null).filter(Boolean),
     ...(() => { // na copa, cartões e suspensões vão para os campos da copa, e sai também quem passou de fase
       if (!copa) return { situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)] };
       const fase = lib ? 0 : partida.copa_fase; // Libertadores: como a Supercopa (fase 0), não mexe nos cartões nem na trava de clube da copa
