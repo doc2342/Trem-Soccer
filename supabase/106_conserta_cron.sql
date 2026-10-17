@@ -4,7 +4,7 @@
 -- Mantém a URL e o segredo: pega o comando até o "where" do 104, tira ";" e espaços/quebras do fim e põe as condições de novo.
 
 select cron.alter_job(jobid, command :=
-  regexp_replace(split_part(command, 'where exists (select 1 from public.partidas', 1), '[\s;]+$', '') || '
+  regexp_replace(split_part(command, 'where exists (select 1 from public.partidas', 1), '[[:space:];]+$', '') || '
   where exists (select 1 from public.partidas where not processada and inicio <= now())
      or exists (select 1 from public.base_jogos where not processada and inicio <= now())
      or exists (select 1 from public.resultados where efeitos is not null and libera_em <= now())

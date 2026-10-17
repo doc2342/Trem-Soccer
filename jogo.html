@@ -199,6 +199,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
+import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, liberados } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
 // entre as recargas causadas por ações (contratar, propor, comprar relatório…). A entrada na página e a recarga automática com novidade
 // limpam a memória e leem tudo de novo. Erro não fica guardado.
@@ -206,6 +207,7 @@ const memoriaDaLiga = new Map();
 const daLiga = (nome, f) => (...args) => { const k = nome + JSON.stringify(args);
   if (!memoriaDaLiga.has(k)) memoriaDaLiga.set(k, f(...args).catch(e => { memoriaDaLiga.delete(k); throw e; }));
   return memoriaDaLiga.get(k); };
+const guardar = (nome, args, valor) => { const k = nome + JSON.stringify(args); if (!memoriaDaLiga.has(k)) memoriaDaLiga.set(k, Promise.resolve(valor)); };
 const partidasDoGrupo = daLiga("partidasDoGrupo", B.partidasDoGrupo);
 const resultadosDe = daLiga("resultadosDe", B.resultadosDe);
 const historicoDoGrupo = daLiga("historicoDoGrupo", B.historicoDoGrupo);
@@ -316,7 +318,7 @@ async function carregar(s) {
 }
 
 // Atualização discreta dos dados (resultados, leilões, propostas): não mexe na tela se o dirigente está com um painel aberto ou digitando.
-// Antes de refazer as ~51 consultas da página, pergunta ao banco a hora da última novidade: se não mudou desde a carga, só adia.
+// Antes de refazer a carga da página (uma chamada com o 107_carga_do_clube.sql, ~40 consultas sem ele), pergunta ao banco a hora da última novidade: se não mudou desde a carga, só adia.
 let marca = null, conferindo = false;
 async function talvezAtualizar(idade) {
   if (document.hidden || !usuario || !$("abas") || Date.now() - carregadoEm < idade) return;
@@ -425,26 +427,35 @@ function telaPedidoExtra() {
 // ---------- meu clube ----------
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
-  // Todas as consultas saem juntas (antes iam em fila, uma leva depois da outra). Só o mercado espera os leilões e ofertas vencidos fecharem, e os lances dos livres esperam a lista deles.
-  const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([metasDaTemporada(liga.id, liga.temporada), liga.temporada > 1 ? confiancaDaTemporada(liga.id, liga.temporada - 1) : [], meusDireitos(), meuPedidoExtra(usuario.id)]);
-  const mercadoP = resolverLeiloes(liga.id).then(() => Promise.all([janelaDoMercado(liga.id), transferenciasDaLiga(liga.id), minhasPropostas(clube.id), livresDaLiga(liga.id), ofertasDaLiga()]));
+  // Carga numa chamada só (107_carga_do_clube.sql, que também fecha os leilões vencidos). Sem o SQL, ou para a parte que falhou lá dentro,
+  // cada leitura é feita do jeito antigo: todas juntas, só o mercado esperando os leilões e ofertas vencidos fecharem, e os lances dos livres esperando a lista deles.
+  const carga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
+  const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
+  const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], [baseJogos, copinha, libJuvenil],
     [baseCampeoes, premiosTodos, revelados, taticaBase], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
-    Promise.all([elencoDoClube(clube.id), clubesDaLiga(liga.id), minhaTatica(clube.id), ehAdmin().catch(() => false), extratoDoClube(clube.id), treinadoresDoClube(clube.id)]),
-    Promise.all([caixaDoClube(clube.id), obraAtiva(clube.id)]),
+    Promise.all([da("elenco", () => elencoDoClube(clube.id), l => l.map(doElenco)), da("clubes", () => clubesDaLiga(liga.id)), da("tatica", () => minhaTatica(clube.id)), da("admin", () => ehAdmin().catch(() => false)), da("extrato", () => extratoDoClube(clube.id)), da("comissao", () => treinadoresDoClube(clube.id))]),
+    Promise.all([da("caixa", () => caixaDoClube(clube.id)), da("obra", () => obraAtiva(clube.id))]),
     mercadoP,
     // olheiro: faixa de teto do meu elenco (vazia sem olheiro contratado) e relatórios que comprei de outros jogadores; nulos antes do 36_olheiro.sql
-    Promise.all([relatorioDoElenco(), meusRelatorios(), periodoDePreAcordo(liga.id), meusPreContratos(), cotacaoDoAgente(liga.id)]),
-    jogosDaBaseNaTemporada(liga.id, liga.temporada, clube.grupo), // nulas antes do 70_copinha.sql e do 101_libertadores_juvenil.sql
-    Promise.all([campeoesDaBase(liga.id), premiosDaLiga(liga.id), reveladosDoClube(clube.id), minhaTaticaDaBase(clube.id)]),
-    safraDaTemporada(liga.id, liga.temporada), // talentos raros revelados nesta temporada em clubes com dirigente
-    clube.peneira_temporada === undefined ? null : rodadasCompletas(liga.id), // base e peneira: só depois do 35_base_e_dispensa.sql
-    mercadoP.then(m => m[3] ? lancesDosLivres(m[3].map(j => j.id)) : []),
-    liga.copa === undefined ? [] : partidasDaCopa(liga.id),
-    partidasDoClube(liga.id, clube.id).catch(() => []),
-    trofeusDaLiga(liga.id).catch(() => []),
-    Promise.all([meusLances(clube.id), transferenciasDoClube(clube.id)]),
+    Promise.all([da("tetos", relatorioDoElenco), da("relatorios", meusRelatorios), da("prePeriodo", () => periodoDePreAcordo(liga.id), x => !!x), da("preContratos", meusPreContratos), da("cotacao", () => cotacaoDoAgente(liga.id), x => x == null ? 1 : +x)]),
+    da("base", () => jogosDaBaseNaTemporada(liga.id, liga.temporada, clube.grupo), separarBase), // nulas antes do 70_copinha.sql e do 101_libertadores_juvenil.sql
+    Promise.all([da("baseCampeoes", () => campeoesDaBase(liga.id)), da("premios", () => premiosDaLiga(liga.id)), da("revelados", () => reveladosDoClube(clube.id)), da("taticaBase", () => minhaTaticaDaBase(clube.id))]),
+    da("safra", () => safraDaTemporada(liga.id, liga.temporada)), // talentos raros revelados nesta temporada em clubes com dirigente
+    clube.peneira_temporada === undefined ? null : da("rodadasFeitas", () => rodadasCompletas(liga.id)), // base e peneira: só depois do 35_base_e_dispensa.sql
+    mercadoP.then(m => da("lancesLivres", () => m[3] ? lancesDosLivres(m[3].map(j => j.id)) : [])),
+    liga.copa === undefined ? [] : da("copa", () => partidasDaCopa(liga.id)),
+    da("meusJogos", () => partidasDoClube(liga.id, clube.id).catch(() => [])),
+    da("trofeus", () => trofeusDaLiga(liga.id).catch(() => []), filtrarTrofeus),
+    Promise.all([da("meusLances", () => meusLances(clube.id)), da("negocios", () => transferenciasDoClube(clube.id))]),
   ]);
+  // o que a carga trouxe para a Central (tabela do grupo, notícias) fica guardado como se tivesse sido lido sozinho
+  if (carga) {
+    if (carga.partidasDoGrupo) { guardar("partidasDoGrupo", [liga.id, clube.grupo], carga.partidasDoGrupo);
+      if (carga.resultados) { const ids = carga.partidasDoGrupo.map(p => p.id), doGrupo = new Set(ids); guardar("resultadosDe", [ids], liberados(carga.resultados).filter(r => doGrupo.has(r.partida_id))); } }
+    if ("estatisticas" in carga) guardar("estatisticasDaLiga", [liga.id, "TODOS"], carga.estatisticas);
+    if (carga.campanhas && liga.temporada > 1) guardar("campanhasDaTemporada", [liga.id, liga.temporada - 1], carga.campanhas);
+  }
   // campeões e vices da copa das temporadas anteriores, da mais recente para a mais antiga
   const finalistas = liga.copa === undefined ? [] : trofeus.filter(x => x.copa === "campeão" || x.copa === "vice").reverse();
   desenharSeletor(clube, clubes).catch(() => {});
@@ -474,7 +485,9 @@ async function telaClube(liga, clube) {
   const copaTodos = (copaBruta || []).filter(p => cPor[p.casa] && cPor[p.fora]);
   const supercopa = copaTodos.find(p => p.fase !== "lib" && p.copa_fase === 0) || null, copaJogos = copaTodos.filter(p => p.fase !== "lib" && p.copa_fase > 0), libJogos = copaTodos.filter(p => p.fase === "lib"); // a Supercopa é um jogo de copa com fase 0, fora da chave (76_emprestimo_e_supercopa.sql)
   const meusJogos = meusBrutos.filter(p => cPor[p.casa] && cPor[p.fora]);
-  const [resCopa, resLiga] = await Promise.all([resultadosDaCopa(copaTodos.map(p => p.id)).catch(() => []), resultadosDe(meusJogos.filter(p => !ehCopa(p)).map(p => p.id)).catch(() => [])]);
+  const idsDaCopa = copaTodos.map(p => p.id), idsDaLiga = meusJogos.filter(p => !ehCopa(p)).map(p => p.id), daCarga = carga && carga.resultados && liberados(carga.resultados);
+  const dentre = ids => { const s = new Set(ids); return daCarga.filter(r => s.has(r.partida_id)); };
+  const [resCopa, resLiga] = daCarga ? [dentre(idsDaCopa), dentre(idsDaLiga)] : await Promise.all([resultadosDaCopa(idsDaCopa).catch(() => []), resultadosDe(idsDaLiga).catch(() => [])]);
   const copaRes = Object.fromEntries(resCopa.map(r => [r.partida_id, r]));
   // calendário do clube: jogos de liga, playoff e copa, com os resultados já liberados (os de copa trazem pênaltis)
   const resDosMeus = { ...Object.fromEntries(resLiga.map(r => [r.partida_id, r])), ...copaRes };
@@ -784,7 +797,7 @@ async function telaClube(liga, clube) {
   const contratados = elenco.filter(j => !j.juvenil).length; // o mínimo de 16 vale para quem tem contrato
   const temJuvenis = elenco.some(j => j.juvenil !== undefined); // juvenis sem contrato: depois do 60_juvenis_e_formador.sql
   // empréstimo (76_emprestimo_e_supercopa.sql): quem veio emprestado conta metade na folha, e quem saiu emprestado também
-  const temEmprestimo = elenco.some(j => j.emprestadoDe !== undefined), emprestados = temEmprestimo ? await emprestadosDoClube(clube.id) : [];
+  const temEmprestimo = elenco.some(j => j.emprestadoDe !== undefined), emprestados = temEmprestimo ? await da("emprestados", () => emprestadosDoClube(clube.id)) : [];
   // estrangeiro = nacionalidade diferente do país do clube; o emprestado a outro clube segue contando (82_mercado_entre_paises.sql)
   const meuPais = paisDoGrupo(clube.grupo), estrangeiros = [...elenco, ...emprestados].filter(j => j.pais && j.pais !== meuPais).length;
   const temContratos = elenco.some(j => j.salario != null), teto = liga.teto_folha || 0;

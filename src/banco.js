@@ -62,8 +62,8 @@ export const marcarNaoRenovar = (id, marcar) => sb.rpc("marcar_nao_renovar", { p
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
-export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok)
-  .then(linhas => linhas.map(l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
+export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok).then(linhas => linhas.map(doElenco));
+export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
@@ -72,7 +72,7 @@ export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clu
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, emprestadoDe: l.emprestado_de === undefined ? undefined : l.emprestado_de, // indefinido: antes do 76_emprestimo_e_supercopa.sql
      preContrato: l.pre_contrato || null,
-    amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube }))); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
+    amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube }); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
 export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);
@@ -119,10 +119,11 @@ export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga
 export const partidasDoClube = (ligaId, clubeId) => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, vencedor").eq("liga_id", ligaId).or(`casa.eq.${clubeId},fora.eq.${clubeId}`).order("inicio").order("id").then(ok);
 export const partidaPorId = id => sb.from("partidas").select("*").eq("id", id).maybeSingle().then(ok);
 // resultados da copa, com os pênaltis e quem passou (só os já liberados pelo relógio)
-export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(l => l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
+export const resultadosDaCopa = ids => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, libera_em, penaltis:relatorio->penaltis, vencedor:relatorio->vencedor, prorrogacao:relatorio->prorrogacao").in("partida_id", ids).then(ok).then(liberados) : Promise.resolve([]);
 // só voltam os resultados e os lances que o relógio já liberou
 // tudo = false: só o que o relógio já liberou, mesmo para o administrador (que lê tudo no banco)
-export const resultadosDe = (ids, tudo = false) => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, libera_em").in("partida_id", ids).then(ok).then(l => tudo ? l : l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now())) : Promise.resolve([]);
+export const resultadosDe = (ids, tudo = false) => ids.length ? sb.from("resultados").select("partida_id, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, libera_em").in("partida_id", ids).then(ok).then(l => tudo ? l : liberados(l)) : Promise.resolve([]);
+export const liberados = l => l.filter(x => !x.libera_em || new Date(x.libera_em).getTime() <= Date.now());
 export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("partida_id", id).maybeSingle().then(ok);
 // gols já liberados de várias partidas (a rodada ao vivo na página da transmissão): só a partida, o lado e a hora em que o gol apareceu
 export const golsDasPartidas = ids => ids.length ? sb.from("lances").select("partida_id, libera_em, min, time:dados->time, quem:dados->>quem").in("partida_id", ids).eq("dados->>resultado", "gol").then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
@@ -236,6 +237,9 @@ export async function jogosDaBaseNaTemporada(ligaId, temporada, grupo) {
   const ler = c => sb.from("base_jogos").select(c).eq("liga_id", ligaId).eq("temporada", temporada).or(`grupo.eq.${grupo},fase.in.(copinha,libjuv)`).order("id");
   const todos = await comChave(ler, "id, fase, rodada, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, dados");
   if (!todos) return Promise.all([jogosDaBase(ligaId, temporada, grupo), jogosDaCopinha(ligaId, temporada), jogosDaLibJuvenil(ligaId, temporada)]);
+  return separarBase(todos);
+}
+export function separarBase(todos) {
   const mataMata = f => todos.filter(p => p.fase === f).map(({ dados, ...p }) => ({ ...p, penaltis: dados && dados.penaltis !== undefined ? dados.penaltis : null })).sort((a, b) => a.copinha_fase - b.copinha_fase || a.id - b.id);
   return [todos.filter(p => p.fase !== "copinha" && p.fase !== "libjuv").sort((a, b) => a.rodada - b.rodada || a.id - b.id), mataMata("copinha"), mataMata("libjuv")];
 }
@@ -322,8 +326,9 @@ export async function trofeusDaLiga(ligaId) {
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true").order("temporada"); // antes do SQL 81
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada"); // antes do SQL 76
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
-  return r.error ? [] : r.data.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib);
+  return r.error ? [] : filtrarTrofeus(r.data);
 }
+export const filtrarTrofeus = l => l.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
@@ -452,5 +457,13 @@ export const definirMetas = (ligaId, lista) => sb.rpc("definir_metas", { p_liga:
 export const aplicarConfianca = (ligaId, lista) => sb.rpc("aplicar_confianca", { p_liga: ligaId, p_lista: lista }).then(ok);
 export const zerarConfianca = ligaId => sb.rpc("zerar_confianca", { p_liga: ligaId }).then(({ error }) => !error);
 export const caixasDaLiga = ids => ids.length ? sb.from("financas").select("clube_id, caixa").in("clube_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
+// Carga da página do clube numa chamada só (107_carga_do_clube.sql). null antes do SQL (a página lê do jeito antigo);
+// uma chave que falta é uma leitura que falhou lá dentro, e a página refaz só ela do jeito antigo.
+// Sem a função no banco, as recargas seguintes da página nem tentam.
+let semCarga = false;
+export const cargaDoClube = (ligaId, clubeId) => semCarga ? Promise.resolve(null) : sb.rpc("carga_do_clube", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => {
+  if (error && (error.code === "PGRST202" || /could not find the function/i.test(error.message || ""))) semCarga = true;
+  return error || !data ? null : data;
+}, () => null);
 // conferência leve antes de a página do clube se recarregar (92_ultima_novidade.sql); undefined = sem o SQL, recarrega como antes
 export const ultimaNovidade = (ligaId, clubeId) => sb.rpc("ultima_novidade", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => error ? undefined : data);
