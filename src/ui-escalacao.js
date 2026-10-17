@@ -29,11 +29,13 @@ const HTML = `  <div id="cabecalho"></div>
     <label>Formação pronta<select id="formacao"></select></label>
     <button class="sec" id="auto">Escalar os melhores</button>
     <button class="sec" id="bot">Deixar o bot montar tudo</button>
+    <span class="row" style="margin-left:auto"><input id="nomeSalva" placeholder="Nome da escalação" style="width:150px"><button class="sec" id="salvar">Salvar</button></span>
+    <div class="chips" id="salvas" style="flex-basis:100%"></div>
   </div>
 
   <div class="duas">
     <div>
-      <div class="card"><h2>Time <span class="tag">arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher; arrastando um titular aparecem as outras posições: solte numa delas para mudar a posição dele</span></h2><div class="gramado" id="gramado"></div>
+      <div class="card"><h2>Time <span class="tag" title="Arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher. Arrastando um titular aparecem as outras posições: solte numa delas para mudar a posição dele.">arraste ou clique na vaga</span></h2><div class="gramado" id="gramado"></div>
         <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
@@ -43,7 +45,6 @@ const HTML = `  <div id="cabecalho"></div>
       <details class="card dobra"><summary><h2>Capitão, armador e cobradores <span class="tag" id="nPapeis"></span></h2></summary><div id="papeis"></div></details>
       <details class="card dobra"><summary><h2>Substituições <span class="tag" id="nSubs"></span></h2></summary><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></details>
       <details class="card dobra"><summary><h2>Ordens condicionais <span class="tag" id="nOrdens"></span></h2></summary><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></details>
-      <div class="card"><h2>Escalações salvas</h2><div class="row"><input id="nomeSalva" placeholder="Nome da escalação" style="flex:1;min-width:140px"><button class="sec" id="salvar">Salvar</button></div><div class="chips" id="salvas" style="margin-top:8px"></div></div>
     </div>
   </div>
 
@@ -311,7 +312,7 @@ function render() {
   $("nOrdens").textContent = `${E.ordens.length} de 3`;
   // salvas
   const salvas = ler("mo_salvas_" + chaveElenco()) || {};
-  $("salvas").innerHTML = Object.keys(salvas).map(n => `<span class="chip" data-carrega="${esc(n)}">${esc(n)} <b data-apaga="${esc(n)}" title="Apagar">×</b></span>`).join("") || `<span class="mut">Nenhuma escalação salva para este elenco.</span>`;
+  $("salvas").innerHTML = Object.keys(salvas).map(n => `<span class="chip" data-carrega="${esc(n)}">${esc(n)} <b data-apaga="${esc(n)}" title="Apagar">×</b></span>`).join("") || "";
 }
 
 function renderEscolha() {
@@ -322,7 +323,7 @@ function renderEscolha() {
   const onde = j => { const i = E.jog.indexOf(j.id); return i >= 0 ? `joga de ${sg(E.vagas[i])}` : E.banco.includes(j.id) ? "banco" : ""; };
   const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
   document.body.classList.toggle("escolhendo", !!sel);
-  el.innerHTML = `${sel ? `<button class="sec fechaEscolha" data-fechaescolha="1">✕</button>` : ""}<h2>${pos ? `Quem joga de ${sg(pos)} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique para escolher ou arraste" : "arraste para uma vaga ou para o banco"} · ordenado pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
+  el.innerHTML = `${sel ? `<button class="sec fechaEscolha" data-fechaescolha="1">✕</button>` : ""}<h2>${pos ? `Quem joga de ${sg(pos)} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique ou arraste" : "arraste para a vaga"} · pela nota ${pos ? "na posição" : "na posição natural"}</span></h2>
     ${pos ? `<label class="posDaVaga">Posição <select data-pos="${sel.i}">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)} · ${POSICOES[p].nome}</option>`).join("")}</select></label>` : ""}
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
     <div class="cabl"><span>forma</span><span>moral</span><span>nota</span><span style="width:24px"></span></div>
