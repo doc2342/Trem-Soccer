@@ -23,7 +23,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -364,6 +364,13 @@ async function tela(aviso = "") {
           for (const m of plano.movimentos.filter(m => !m.caiu)) { const x = plano.classificacao.find(c => c.clube_id === m.clube_id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: m.clube_id, valor: 600, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
           const premiosDoFundo = [await premiarTemporada(liga.id, merito), await premiarLigaDeBase(liga.id)].filter(Boolean).join(" ");
           await selecaoDaTemporada(liga.id); // os onze de melhor nota de cada série, só de honra
+          // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
+          const forca = id => { const n = (elencos[id] || []).map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 11); return n.length ? n.reduce((s, x) => s + x, 0) / n.length : 0; };
+          await premiarTecnicos(liga.id, [...new Set(plano.classificacao.map(x => x.grupo))].map(g => {
+            const l = plano.classificacao.filter(x => x.grupo === g), esperada = Object.fromEntries([...l].sort((a, b) => forca(b.clube_id) - forca(a.clube_id)).map((x, i) => [x.clube_id, i + 1]));
+            const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
+            return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
+          }));
           const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou
           if (plano.safra && plano.safra.length) await registrarSafra(liga.id, plano.safra); // talentos raros: mural da liga e peso do próximo sorteio
           await atualizarTorcidas(liga.id); // prestígio de cada clube, pela campanha que acabou de ir para o histórico

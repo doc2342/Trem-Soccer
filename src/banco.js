@@ -195,7 +195,7 @@ export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p
 // V2: virada de temporada (supabase/16_virada_de_temporada.sql)
 export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
 // Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
-export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, grupo, divisao, posicao, pontos").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
+export const campanhasDaTemporada = (ligaId, temporada) => sb.from("historico").select("clube_id, grupo, divisao, posicao, pontos, destino").eq("liga_id", ligaId).eq("temporada", temporada).then(({ data, error }) => error ? [] : data);
 export const partidasDaCopa = ligaId => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor").eq("liga_id", ligaId).in("fase", ["copa", "lib"]).order("copa_fase").order("id").then(({ data, error }) => error ? null : data);
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
@@ -270,6 +270,9 @@ export const RESERVA_DO_FUNDO = 25000, COPA_BASE = 11200; // mil: acima da reser
 // todos os prêmios individuais e seleções da liga (ficha do jogador, sala de troféus e mural); seleção da temporada: 62_selecao_safra_e_devolucao.sql
 export const premiosDaLiga = ligaId => sb.from("premios_individuais").select("temporada, comp, premio, jogador_id, jogador, pos, clube_id, numero").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 export const selecaoDaTemporada = ligaId => sb.rpc("selecao_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
+// técnico do ano ([{ grupo, clube_id, numero }], só de honra) e recordes de todas as temporadas, da liga ou de um clube (89_tecnico_e_recordes.sql; null antes dele)
+export const premiarTecnicos = (ligaId, lista) => sb.rpc("premiar_tecnicos", { p_liga: ligaId, p_lista: lista }).then(({ data, error }) => error ? 0 : data);
+export const recordesDaLiga = (ligaId, clubeId = null) => sb.rpc("recordes_da_liga", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => error ? null : data);
 // Federação: resumo do fundo da liga por temporada e tipo (53_fundo_da_liga.sql; null antes dele) e os valores das três divisões
 export const resumoDoFundo = ligaId => sb.from("fundo_resumo").select("temporada, tipo, valor").eq("liga_id", ligaId).then(({ data, error }) => error ? null : data);
 export const divisoesDaLiga = ligaId => sb.from("divisoes").select("divisao, teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).order("divisao").then(({ data, error }) => error ? [] : data);
