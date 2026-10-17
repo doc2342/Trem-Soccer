@@ -51,13 +51,18 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
   const lado = atk.AE > atk.AD * 1.25 ? "E" : atk.AD > atk.AE * 1.25 ? "D" : "misto";
 
   const linha = escalacao.filter(x => x.pos !== "GK");
-  // até três trocas, aos 60, 70 e 80: saem os de menor Resistência que tenham reserva à altura para a posição
+  // até três trocas, aos 60, 70 e 80: saem os de menor Resistência que tenham reserva à altura para a posição.
+  // "À altura" compara a qualidade sem forma e moral: o reserva que não joga perde moral e, pela nota do momento, nunca entraria.
+  // Primeiro as de reserva com 85% da nota (entram sempre); depois, com 75%, só se o titular estiver cansado
+  // (energia < 55 rende ~0,82 no motor e cai até ~0,7).
   const livres = banco.filter(j => j.pos !== "GK"), substituicoes = [];
-  for (const x of linha.slice().sort((a, b) => a.j.at[A.res] - b.j.at[A.res])) {
+  const porResistencia = linha.slice().sort((a, b) => a.j.at[A.res] - b.j.at[A.res]);
+  for (const [minimo, cond] of [[0.85, "sempre"], [0.75, "cansado"]]) for (const x of porResistencia) {
     if (substituicoes.length === 3 || !livres.length) break;
-    livres.sort((a, b) => notaDoMomento(b, x.pos) - notaDoMomento(a, x.pos));
-    if (notaDoMomento(livres[0], x.pos) < 0.85 * notaDoMomento(x.j, x.pos)) continue; // sem reserva à altura para a posição
-    substituicoes.push({ min: 60 + 10 * substituicoes.length, sai: x.j.id, entra: livres.shift().id, cond: "sempre" });
+    if (substituicoes.some(s => s.sai === x.j.id)) continue;
+    livres.sort((a, b) => notaComPe(b, x.pos) - notaComPe(a, x.pos));
+    if (notaComPe(livres[0], x.pos) < minimo * notaComPe(x.j, x.pos)) continue; // sem reserva à altura para a posição
+    substituicoes.push({ min: 60 + 10 * substituicoes.length, sai: x.j.id, entra: livres.shift().id, cond });
   }
 
   const porInfluencia = melhores(escalacao, x => x.j.at[A.inf], 2);
