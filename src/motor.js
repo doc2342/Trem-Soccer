@@ -195,6 +195,8 @@ function iniciar(time, rng = null, grande = false) {
     instr: { ...time.instrucoes },
     emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
     banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
+    cumpridas: {}, // "s0", "o1"…: { aos } (minuto) quando a troca/ordem aconteceu, { motivo } quando foi descartada
+    nomes: Object.fromEntries([...time.escalacao.map(x => x.j), ...time.banco].map(j => [j.id, j.nome])),
     goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
   };
 }
@@ -495,15 +497,15 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const t = times[i];
     t.instr.ordens.forEach((o, k) => {
       if (t.ordensFeitas.has(k) || min < (o.min || 0) || !condicao(i, o.cond)) return;
-      t.ordensFeitas.add(k); Object.assign(t.instr, o.muda); sujo = true;
+      t.ordensFeitas.add(k); t.cumpridas["o" + k] = { aos: min }; Object.assign(t.instr, o.muda); sujo = true;
       evento(i, "ordem", `${tm(i)} muda a forma de jogar.`);
     });
     t.instr.substituicoes.forEach((s, k) => {
       if (t.subsFeitas.has(k) || min < (s.min || 0) || t.subs >= CONFIG.maxSubstituicoes) return;
       const sai = t.emCampo.find(x => x.j.id === s.sai), entra = t.banco.find(x => x.id === s.entra);
-      if (!sai || !entra) { if (!sai && min >= (s.min || 0)) t.subsFeitas.add(k); return; }
+      if (!sai || !entra) { if (!sai && min >= (s.min || 0)) { t.subsFeitas.add(k); t.cumpridas["s" + k] = { motivo: "ele já não estava em campo" }; } return; }
       if (!condicao(i, s.cond, sai)) return;
-      t.subsFeitas.add(k); sair(i, sai); entrar(i, entra, s.pos || sai.pos);
+      t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos);
       evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
     });
   }
@@ -730,5 +732,11 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   const porMinuto = {};
   narracao.forEach(l => (porMinuto[l.min] = porMinuto[l.min] || []).push(l));
   Object.values(porMinuto).forEach(g => g.forEach((l, k) => { l.s = Math.floor((k + 0.5) / g.length * 60); }));
-  return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes };
+  // o que aconteceu com cada substituição e ordem planejada (só para as telas do próprio dirigente: não vai para o relatório público)
+  const motivoSub = (t, s) => t.subs >= CONFIG.maxSubstituicoes ? `o time já tinha feito ${CONFIG.maxSubstituicoes} trocas` : !t.banco.some(j => j.id === s.entra) ? "o reserva já tinha entrado" : "a condição não chegou a valer";
+  const ordens = times.map(t => ({
+    subs: t.instr.substituicoes.map((s, k) => ({ ...s, saiNome: t.nomes[s.sai] || "?", entraNome: t.nomes[s.entra] || "?", ...(t.cumpridas["s" + k] || { motivo: motivoSub(t, s) }) })),
+    ordens: t.instr.ordens.map((o, k) => ({ ...o, ...(t.cumpridas["o" + k] || { motivo: "a condição não chegou a valer" }) })),
+  }));
+  return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
 }

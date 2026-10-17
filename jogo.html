@@ -1851,7 +1851,7 @@ async function telaClube(liga, clube) {
       const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
       const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);
       $("amInfo").textContent = `${adv.nome} (tática de bot, ${estiloDe(adv)}): ${dele.formacao}, nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
-      $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1] });
+      $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1], ordens: partida.ordens });
       $("amRel").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { $("amInfo").innerHTML = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }
     $("amJogar").disabled = false;

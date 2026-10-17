@@ -400,7 +400,7 @@ async function jogar() {
   const partida = casa ? simularPartida(criarRng(n), meu, bot) : simularPartida(criarRng(n), bot, meu);
   const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel]);
   $("infoAdv").textContent = `${nomeAdv} (tática de bot): ${t.formacao}, nota média ${f1(t.forca)}. ${nomeMeu}: nota média ${f1(minhaForca)}.`;
-  $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? [nomeMeu, nomeAdv] : [nomeAdv, nomeMeu], analistas: [eu] });
+  $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? [nomeMeu, nomeAdv] : [nomeAdv, nomeMeu], analistas: [eu], ordens: partida.ordens });
   if (online) $("rel").scrollIntoView({ behavior: "smooth", block: "start" });
   return { r, partida };
 }
