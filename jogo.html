@@ -124,7 +124,6 @@
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
   .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--bd, #2a2f55); }
   .rod-tit { margin-bottom:4px; }
-  .hist-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:8px 14px; align-items:start; }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
   .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
   .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
@@ -1718,10 +1717,9 @@ ${historicoDaBase()}
     <div id="compKpis"></div>
     <div id="compChave"></div>
     <div class="g2" id="compQuadros">
-      <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
+      <div><div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div><div id="compHist"></div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
-    <div id="compHist"></div>
     </section>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
@@ -2471,7 +2469,7 @@ ${historicoDaBase()}
     if (compAberta()) historicoDoGrupo(liga.id, g).then(h => {
       if (!h.length || !$("rodadas") || !$("compHist") || $("tituloJogos").textContent !== `${nomeDoGrupo(g)} · jogos`) return; // a leitura chegou depois de trocar de aba (ex.: Copa)
       const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), temporadas = [...new Set(h.map(x => x.temporada))];
-      $("compHist").innerHTML = `<div class="card"><h2>Temporadas anteriores</h2><div class="hist-grade">` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
+      $("compHist").innerHTML = `<div class="card"><h2>Temporadas anteriores</h2><div>` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
         ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}${x.copa === "campeão" ? ` <span class="mut" title="Campeão da Copa do Brasil">🥇 copa</span>` : x.copa === "vice" ? ` <span class="mut" title="Vice-campeão da Copa do Brasil">vice copa</span>` : ""}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join("") + `</div></div>`;
     }).catch(() => {});
     const mostrar = () => { if (!$("rodada")) return; const i = rodadas.indexOf(+$("rodada").value);
