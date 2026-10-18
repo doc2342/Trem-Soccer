@@ -3,10 +3,11 @@
 //   plantaEstadio(config)         planta baixa em SVG, com a hachura do que falta construir
 // config = { modelo, nivel (1–8), obra (0–1), nomeEstadio, mosaico, padrao (setor|listras|sigla), cores[1–3], corEscadas,
 //            cobertura (só Caldeirão: "", "N", "NS", "NSEW"), muralha (só Caldeirão: fundo oeste numa arquibancada única, com o mosaico), reforma (troca de modelo: tudo é novo),
-//            clube (texto do carimbo da planta), custo e prazo (carimbo; padrão = obra do nível), marca (patrocinador master nas placas) }
+//            clube (texto do carimbo da planta), custo e prazo (carimbo; padrão = obra do nível), marca (patrocinador master nas placas),
+//            ocupacao (0–1, público estimado do jogo em casa: enche o estacionamento) }
 // Fixos para todos: placas, bancos, túnel, telão e alambrado. Refletores e estacionamento seguem o nível (src/economia.js).
 // Medidas em metros; x = leste, z = sul.
-import { temRefletores, estacionamentoDoEstadio } from "./economia.js";
+import { temRefletores, estacionamentoDoEstadio, lugaresDoEstadio, bonusDoEstadio } from "./economia.js";
 import { MARCAS, placasDoJogo, ANUNCIE } from "./patrocinio.js";
 export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira", laterais: "Estádio do Braga", inflavel: "Allianz Arena", sansiro: "San Siro", wembley: "Wembley", maracana: "Maracanã" };
 export const PADROES_DO_ESTADIO = { setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
@@ -21,19 +22,21 @@ const M = { tradicional: { nome: "Tradicional", a0: 96, b0: 66, pista: 1 }, cald
   laterais: { nome: "Estádio do Braga", a0: 57, b0: 38.5, R: 1.5, cantos: 1, laterais: 1 }, inflavel: { nome: "Allianz Arena", a0: 59.5, b0: 41, R: 20, teto: "arena", pele: 1 },
   // 18/10 San Siro, Wembley e Maracanã (protótipo em prototipos/teste_sansiro_wembley_maracana.html, SQL 129); folga = metros a mais em volta (esplanada, lote, barracas)
   sansiro: { nome: "San Siro", a0: 58, b0: 40, R: 6, teto: "arena", torres: 1, tetoIn: 0.1, folga: 12, fachada: ["#bdb4a0", "#ddd5c3", "#cfc6b2"] },
-  wembley: { nome: "Wembley", a0: 59.5, b0: 41, R: 16, teto: "arena", arco: 1, tetoIn: 0.22, corTeto: "#a3a8ab", folga: 12, fachada: ["#2f3d47", "#4d5f6b", "#3e4f5b"] },
-  maracana: { nome: "Maracanã", a0: 86, b0: 63, geral: 6, marquise: 1, fachada: ["#5f666b", "#7d8489", "#6e757a"] } };
+  wembley: { nome: "Wembley", a0: 59.5, b0: 41, R: 16, teto: "arena", arco: 1, via: 1, tetoIn: 0.22, corTeto: "#a3a8ab", folga: 12, fachada: ["#2f3d47", "#4d5f6b", "#3e4f5b"] },
+  maracana: { nome: "Maracanã", a0: 86, b0: 63, geral: 6, marquise: 1, rampas: 1, fachada: ["#5f666b", "#7d8489", "#6e757a"] } };
 const FACHADA = ["#8f8b82", "#d6d2c8", "#c4c0b5"]; // m.fachada troca as 3 cores das placas da fachada
 const ROWS = [12, 12, 18, 24, 28, 41, 47, 53], CUSTO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000], PRAZO = [0, 1, 3, 6, 11, 18, 22, 27, 36]; // os mesmos de custo_da_obra e prazo_da_obra (55)
 const lug = l => l < 1 ? 0 : l <= 5 ? 5000 + 5000 * l : [40000, 50000, 60000][l - 6];
 const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " mil";
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const lotacao = () => C.ocupacao == null ? 0.62 : 0.1 + 0.88 * C.ocupacao; // fração das vagas com carro
 
 // Config a partir do clube (clubes.estadio_visual, 116_estadio_visual.sql) e da obra de nível em andamento.
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null };
+    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null,
+    ocupacao: c.torcida == null ? null : Math.min(1, c.torcida * (0.95 + 0.3 * (c.humor ?? 8) / 16) * bonusDoEstadio(c.estadio_nivel) / lugaresDoEstadio(c.estadio_nivel)) }; // a conta do público em finanças (jogo.html)
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
 }
@@ -393,11 +396,13 @@ function construir() {
       nv.push([(ox + ix) / 2, yM + 0.75, (oz + iz) / 2, yaw, 0, L, 0.3, 0.3], [ox, yM - 0.3, oz, yaw, Math.PI / 2, 1.8, 0.3, 0.3]); }
     barras(nv, lam("#dcdad3")); }
   barracas(aM, bM, topH, dunas, nb, hx);
+  if (obra < 1) canteiro(aM, bM, hx, dunas, esp, ext0);
+  if (m.rampas && niv >= 2) rampas();
   if (nb) { const zc = L.z0 + L.D / 2; bloco(L.W + 6, 0.02, L.D + 6, lam("#d8d4ca"), 0, 0.01, zc);
     const lt = plano(new T.PlaneGeometry(L.W, L.D), new T.MeshLambertMaterial({ map: loteTex(L) }), 0.04); lt.position.z = zc; grp.add(lt);
     const ac0 = bM + (dunas ? 31 : 8); bloco(10, 0.05, L.z0 - ac0, lam("#5a5955"), 0, 0.03, (ac0 + L.z0) / 2);
     const pal = ["#e8e6e0", "#2c2c2a", "#a32d2d", "#185fa5", "#888780", "#c9c6bd", "#3b6d11", "#e8e6e0", "#444441"].map(c => new T.Color(c)), carros = [];
-    rng = 11; for (const v of L.v) if (rnd() < 0.62) carros.push({ ...v, c: pal[(rnd() * pal.length) | 0] });
+    rng = 11; for (const v of L.v) if (rnd() < lotacao()) carros.push({ ...v, c: pal[(rnd() * pal.length) | 0] });
     inst(carros, (v, i, im) => put(im, i, v.x, 0.65, v.z + v.dir * 0.2, Math.PI / 2, 4.3, 0.9, 1.8, v.c));
     inst(carros, (v, i, im) => put(im, i, v.x, 1.35, v.z - v.dir * 0.2, Math.PI / 2, 2.2, 0.65, 1.6, new T.Color("#3a4652")));
     const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64"))); }
@@ -433,6 +438,10 @@ function entorno(cx, zN, zS) {
   if (tipo === "litoral") { const zm = zMar = zN - 60 - r() * 20, praia = plano(new T.PlaneGeometry(2 * E + 800, 30), areia, -0.04); praia.position.z = zm + 15; grp.add(praia);
     const mar = plano(new T.PlaneGeometry(2 * E + 800, E + 400), azul, -0.02); mar.position.z = zm - (E + 400) / 2; grp.add(mar);
     naAgua = (x, z) => z < zm + 36; perto = (x, z) => z - zm - 30; }
+  // áreas sem casas: as rampas do Maracanã (naRampa) e a Wembley Way (avenida no eixo leste, à vista da câmera, mais comprida a cada nível, até a água)
+  const livres = []; let via = null;
+  if (m.via) { const x0 = cx - 14; let x1 = x0; while (x1 < x0 + 50 + 30 * niv && !naAgua(x1 + 4, 0)) x1 += 4; via = { x0, x1, w: 22 }; livres.push([x0, x1 + 10, -22, 22]); }
+  const livre = (x, z, f = 12) => !naRampa(x, z, f) && !livres.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
   // ruas: o anel em volta da esplanada e avenidas a cada 96 m para fora
   const ruasX = [], ruasZ = [], M = 96;
   for (let x = cx + 6; x < E; x += M) ruasX.push(x, -x);
@@ -450,7 +459,7 @@ function entorno(cx, zN, zS) {
   const arvore = (x, z, t) => { const h = t * (5 + r() * 4); troncos.push([x, z, h * 0.35]); copas.push([x, z, h, cor(FOLHA)]); };
   for (let x = -E; x <= E; x += L) for (let z = zc - E; z <= zc + E; z += L) {
     const jx = x + (r() - 0.5) * 3, jz = z + (r() - 0.5) * 3, d = Math.hypot(jx, jz - zc) / E;
-    if (d > 1 || (jx > -cx - 6 && jx < cx + 6 && jz > zN - 6 && jz < zS + 6) || naAgua(jx, jz) || naRua(jx, jz, 7)) continue;
+    if (d > 1 || (jx > -cx - 6 && jx < cx + 6 && jz > zN - 6 && jz < zS + 6) || naAgua(jx, jz) || naRua(jx, jz, 7) || !livre(jx, jz)) continue;
     const u = r(), beira = perto(jx, jz) < 45, dc = Math.max(Math.abs(jx) - cx, zN - jz, jz - zS), baixo = dc < 45; // perto da esplanada, nada alto tampa o estádio
     if (u < (tipo === "bairro" ? 0.1 : 0.14)) { for (let k = 0; k < 5; k++) arvore(jx + (r() - 0.5) * 16, jz + (r() - 0.5) * 16, 1); continue; } // praça
     if (u > 0.94) continue; // terreno vazio
@@ -462,7 +471,13 @@ function entorno(cx, zN, zS) {
       if (r() < 0.5) arvore(jx + (r() - 0.5) * 18, jz + (r() - 0.5) * 18, 0.8); }
   }
   // árvores na beira da água e em volta da esplanada
-  for (let i = 0; i < 160; i++) { const t = r() * 2 * Math.PI, rr = 1 + r() * 0.15, x = Math.cos(t) * (cx + 14) * rr, z = zc + Math.sin(t) * ((zS - zN) / 2 + 14) * rr; if (!naRua(x, z, 2)) arvore(x, z, 0.9); }
+  for (let i = 0; i < 160; i++) { const t = r() * 2 * Math.PI, rr = 1 + r() * 0.15, x = Math.cos(t) * (cx + 14) * rr, z = zc + Math.sin(t) * ((zS - zN) / 2 + 14) * rr; if (!naRua(x, z, 2) && livre(x, z, 3)) arvore(x, z, 0.9); }
+  if (via) { const Lv = via.x1 - via.x0, xm = (via.x0 + via.x1) / 2, c1 = C.cores[0], c2 = C.cores[1] || "#ffffff", postes = [], bandeiras = [];
+    const pv = plano(new T.PlaneGeometry(Lv, via.w), new T.MeshLambertMaterial({ color: "#d3ccbc" }), 0.1); pv.position.x = xm; grp.add(pv); // 0,1: por cima das ruas que cruzam
+    for (const s of [-1, 1]) { const f = plano(new T.PlaneGeometry(Lv, 1.4), new T.MeshLambertMaterial({ color: c1 }), 0.13); f.position.x = xm; f.position.z = s * (via.w / 2 - 2.5); grp.add(f); }
+    for (let x = via.x0 + 6, i = 0; x < via.x1 - 2; x += 12, i++) for (const s of [-1, 1]) { postes.push([x, s * (via.w / 2 - 0.8)]); bandeiras.push([x + 1.2, s * (via.w / 2 - 0.8), new T.Color(i % 2 ? c2 : c1)]); }
+    add(geoUp(new T.BoxGeometry(1, 1, 1)), postes, ([x, z], k, im) => pos(im, k, x, 0, z, 0, 0.3, 8.5, 0.3, new T.Color("#5f5e5a")));
+    add(geoUp(new T.BoxGeometry(1, 1, 1)), bandeiras, ([x, z, c], k, im) => pos(im, k, x, 4, z, 0, 2.2, 4, 0.1, c)); }
   add(geoUp(new T.BoxGeometry(1, 1, 1)), predios, ([x, z, , w, h, d, c], i, im) => pos(im, i, x, 0, z, 0, w, h, d, c));
   add(geoUp(new T.BoxGeometry(1, 1, 1)), casas, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, 0, z, rot, w, h, d, c));
   const tel = new T.ConeGeometry(0.75, 1, 4); tel.rotateY(Math.PI / 4); tel.translate(0, 0.5, 0);
@@ -476,7 +491,7 @@ function entorno(cx, zN, zS) {
 function barracas(aM, bM, topH, dunas, nb, hx) {
   const off = dunas ? 25 : m.pele ? 13 : m.folga ? m.folga + 4 : 5.5, ring = walk(contorno(m, aM + off, bM + off), 1), n = 4 + 2 * niv, fila = Math.round(5 * Math.min(16, Math.max(0, C.humor ?? 8)) / 16);
   const f = m.R == null ? 0.75 : 0.97, torres = C.refletores && !m.teto ? [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (aM + 7) * f, sz * (bM + 7) * f]) : m.torres ? torresSS().filter(t => t.c).map(t => [t.x, t.z]) : [];
-  const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > (m.torres ? 9 : 6));
+  const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && !naRampa(p.x, p.z, 4) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > (m.torres ? 9 : 6));
   const pts = []; for (let i = 0; i < n; i++) { const p = ring[Math.floor((i + 0.5) * ring.length / n)]; if (!p) continue; if (m.muralha && p.x < -aM && Math.abs(p.z) < FB + 6) p.x -= rows * DEP * (m.muralha - 1); if (livre(p)) pts.push(p); }
   const fora = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
   const toldo = [hx[0], "#f2c200", hx[1], "#e8742a"].map(c => new T.Color(c)), gente = [], pal = [...toldo, new T.Color("#f1efe8"), new T.Color("#2c2c2a"), new T.Color("#888780")];
@@ -485,6 +500,35 @@ function barracas(aM, bM, topH, dunas, nb, hx) {
   rng = 23; for (const p of pts) { const [nx, nz] = fora(p), tx = Math.cos(p.ang), tz = Math.sin(p.ang);
     for (let k = 0; k < fila; k++) { const d = 2.6 + 1.1 * k, lat = (rnd() - 0.5) * 1.6; gente.push({ x: p.x + nx * d + tx * lat, z: p.z + nz * d + tz * lat, c: pal[(rnd() * pal.length) | 0] }); } }
   if (gente.length) inst(gente, (g, i, im) => put(im, i, g.x, 1, g.z, 0, 0.8, 2, 0.8, g.c)); }
+
+// Obra em andamento: tapume na cor do clube em volta da arquibancada (portões nos quatro eixos) e canteiro com contêineres e material no gramado a oeste, à vista da câmera
+function canteiro(aM, bM, hx, dunas, esp, ext0) {
+  const o = dunas ? 16 : m.pele ? 10 : m.folga ? m.folga * 0.6 : m.marquise ? 3.6 : 2.5; // por dentro das barracas
+  const tp = walk(contorno(m, aM + o, bM + o), 2.4).filter(p => Math.abs(p.x) > 6 && Math.abs(p.z) > 6 && !naRampa(p.x, p.z, 1) && !(m.muralha && p.x < 0 && Math.abs(p.z) < FB + 4));
+  inst(tp, (p, i, im) => put(im, i, p.x, 1.25, p.z, p.ang, 2.45, 2.5, 0.12, new T.Color(hx[0])));
+  inst(tp, (p, i, im) => put(im, i, p.x, 2.3, p.z, p.ang, 2.46, 0.3, 0.14, new T.Color("#f1efe8")));
+  const xIn = aM + (dunas ? 15 : esp) + 0.5, D = Math.min(12, aM + ext0 + (dunas ? 12 : 22) + 1.5 - xIn), g0 = grp, xc = 0, zc = 0, zf = -D / 2 + 1.6; grp = new T.Group(); // montado de lado (x = comprimento, -z = para fora) e girado para o oeste
+  bloco(30, 0.04, D, lam("#b59a74"), xc, 0.02, zc);
+  const bra = lam("#eeece6"); bloco(6.1, 2.6, 2.4, bra, xc - 9, 1.3, zf); bloco(6.1, 2.6, 2.4, bra, xc - 2.7, 1.3, zf); bloco(6.1, 2.6, 2.4, lam("#185fa5"), xc - 5.9, 3.9, zf); // contêineres
+  const vg = []; for (let c = 0; c < 3; c++) for (let k = 0; k < 4 - c; k++) vg.push([xc + 8, 0.25 + c * 0.5, zc + 1 + k * 0.6 + c * 0.3, 0, 0, 9, 0.45, 0.45]); barras(vg, lam("#8a8f94")); // vigas
+  for (let k = 0; k < 4; k++) bloco(1.2, 1, 1.2, lam("#9d998f"), xc + 1 + k * 1.6, 0.5, zc + D / 2 - 1.4); // paletes de bloco
+  const ar = new T.Mesh(new T.ConeGeometry(2.6, 2, 10), lam("#d8c08a")); ar.position.set(xc + 11, 1, zf + 0.6); ar.castShadow = true; grp.add(ar);
+  const g = grp; grp = g0; g.position.set(-(xIn + D / 2), 0, bM * 0.4); g.rotation.y = Math.PI / 2; grp.add(g); }
+// Maracanã: duas rampas monumentais (UERJ a oeste, Bellini a leste) do anel superior e quatro menores nas diagonais (B, C, E, F) do anel de baixo,
+// descendo até o chão sobre pilares; do nível 2 em diante. Cada rampa: ponto na fachada, direção para fora (normal da elipse), altura, comprimento e largura
+const rampaLista = () => { const aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, hT = hRow(rows - 1);
+  return [[0, 0.55, 9], [Math.PI, 0.55, 9], ...[1, 2, 4, 5].map(k => [k * Math.PI / 3, 0.3, 5])].map(([t, fh, W]) => { const H = hT * fh, nx = Math.cos(t) / aM, nz = Math.sin(t) / bM, n = Math.hypot(nx, nz);
+    return { x: Math.cos(t) * (aM + 0.5), z: Math.sin(t) * (bM + 0.5), nx: nx / n, nz: nz / n, H, L: Math.max(14, 3.2 * H), W }; }); };
+const naRampa = (x, z, f) => m.rampas && niv >= 2 && rampaLista().some(r => { const d = (x - r.x) * r.nx + (z - r.z) * r.nz, l = Math.abs((z - r.z) * r.nx - (x - r.x) * r.nz); return d > -4 && d < r.L + 11 + f && l < r.W / 2 + f; });
+function rampas() { const br = lam("#ebe9e3"), pil = lam("#dcdad3");
+  for (const r of rampaLista()) { const { H, L, W } = r, g = new T.Group(), inc = Math.atan2(H, L), Ls = Math.hypot(H, L), big = W > 6;
+    const bk = (w, h, d, mat, x, y, z, rz = 0) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); b.rotation.z = rz; b.castShadow = b.receiveShadow = true; g.add(b); };
+    bk(Ls, 0.6, W, br, L / 2, H / 2, 0, -inc);
+    for (const e of [-1, 1]) bk(Ls, 1.1, 0.25, br, L / 2, H / 2 + 0.85, e * (W / 2 - 0.12), -inc);
+    bk(2.4, 0.6, W + 2, br, 0, H, 0);
+    for (let d = 6; d < L - 3; d += 7) { const h = H * (1 - d / L) - 0.3; if (h > 1) for (const e of [-1, 1]) bk(0.9, h, 0.9, pil, d, h / 2, e * (W / 2 - 1)); }
+    bk(big ? 12 : 6, 0.3, big ? 16 : 8, br, L + (big ? 5 : 2.5), 0.15, 0);
+    g.position.set(r.x, 0, r.z); g.rotation.y = -Math.atan2(r.nz, r.nx); grp.add(g); } }
 
 function wire(pos, aM, bM, topH, L, DG) {
   const W = [], A = [], B = [], seg = (arr, p, q) => arr.push(p[0], p[1], p[2], q[0], q[1], q[2]), amb = (x, z, ld, r) => !pronto(x, z, ld, r);
@@ -536,7 +580,7 @@ export function plantaEstadio(config) {
   s += `<path d="${P(Co(rows * DEP + 8 + ex))}" fill="none" stroke="${LB}" stroke-width="0.6" stroke-dasharray="1 3"/>`;
   if (nb) { const x0 = -L.W / 2, vg = L.v.length; s += `<rect x="${X(-5)}" y="${Y(bO + 8 + ex)}" width="${(10 * k).toFixed(1)}" height="${(Math.max(0, L.z0 - bO - 8 - ex) * k).toFixed(1)}" fill="none" stroke="${LB}" stroke-width="0.6"/><rect x="${X(x0)}" y="${Y(L.z0)}" width="${(L.W * k).toFixed(1)}" height="${(L.D * k).toFixed(1)}" fill="#0a3d70" stroke="${LB}" stroke-width="0.8"/>`;
     rng = 11; for (const za of L.bands) { s += `<line x1="${X(x0)}" y1="${Y(L.z0 + za + 5)}" x2="${X(-x0)}" y2="${Y(L.z0 + za + 5)}" stroke="${LB}" stroke-width="0.5"/>`; for (let x = x0; x <= -x0 + 0.01; x += 2.5) s += `<line x1="${X(x)}" y1="${Y(L.z0 + za)}" x2="${X(x)}" y2="${Y(L.z0 + za + 10)}" stroke="${LB}" stroke-width="0.4"/>`; }
-    for (const v of L.v) if (rnd() < 0.62) s += `<rect x="${X(v.x - 0.85)}" y="${Y(v.z - 2.1)}" width="${(1.7 * k).toFixed(1)}" height="${(4.2 * k).toFixed(1)}" rx="1" fill="none" stroke="${LB}" stroke-width="0.5"/>`;
+    for (const v of L.v) if (rnd() < lotacao()) s += `<rect x="${X(v.x - 0.85)}" y="${Y(v.z - 2.1)}" width="${(1.7 * k).toFixed(1)}" height="${(4.2 * k).toFixed(1)}" rx="1" fill="none" stroke="${LB}" stroke-width="0.5"/>`;
     s += `<rect x="${CX - 100}" y="${+Y(L.z0 + L.D / 2) - 8}" width="200" height="16" fill="${BG}"/><text x="${CX}" y="${+Y(L.z0 + L.D / 2) + 4}" text-anchor="middle" font-size="11" fill="${BR}">ESTACIONAMENTO N${nb} · ${vg} vagas</text>`; }
   if (dunas) { const D = DG2(); s += `<path d="${P(D.O)}${P(Co(rows * DEP + 0.5))}" fill-rule="evenodd" fill="#0a3d70" stroke="${LB}" stroke-width="0.6"/>`;
     for (const r of D.rampas) { const cx = r.o[0] + r.d[0] * 7, cz = r.o[1] + r.d[1] * 7; s += `<g transform="translate(${X(cx)} ${Y(cz)}) rotate(${(Math.atan2(-r.d[0], r.d[1]) * 180 / Math.PI).toFixed(1)})"><rect x="${(-3.5 * k).toFixed(1)}" y="${(-7.5 * k).toFixed(1)}" width="${(7 * k).toFixed(1)}" height="${(15 * k).toFixed(1)}" fill="${BG}" stroke="${BR}" stroke-width="0.6"/>${[...Array(6)].map((_, i) => `<line x1="${(-3.5 * k).toFixed(1)}" x2="${(3.5 * k).toFixed(1)}" y1="${((-7.5 + 2.5 * (i + 0.5)) * k).toFixed(1)}" y2="${((-7.5 + 2.5 * (i + 0.5)) * k).toFixed(1)}" stroke="${LB}" stroke-width="0.4"/>`).join("")}</g>`; } }
