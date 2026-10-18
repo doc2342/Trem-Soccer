@@ -24,7 +24,7 @@ import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
-import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais } from "./src/virada.js";
+import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
@@ -35,7 +35,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const nomes = await (await fetch("./dados/nomes.json")).json();
 const GRUPOS = ["A", "B", "C", "D", "E"], POR_GRUPO = 10, NIVEL = 30;
-const gruposDe = clubes => ordenarGrupos([...new Set(clubes.map(c => c.grupo))]); // os do Brasil e os dos países que já existem
+const gruposDe = clubes => ordenarGrupos([...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO)); // os do Brasil e os dos países que já existem (sem os guardados)
 const PREFIXOS_DE_FORA = ["Club Atlético", "Deportivo", "Sportivo", "Unión", "Racing", "Nacional", "Real", "Independiente", "Defensores de", "Club Social"];
 // Régua provisória dos países: onze titular de 37,5 (o mais forte) a 34,5, que ainda cabe no teto de folha da Série A. A régua de verdade sai da simulação.
 const NIVEL_DE_FORA = k => 37.5 - k / 3;
@@ -195,9 +195,10 @@ async function tela(aviso = "") {
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
       <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>
-      <div class="row"><label>Playoffs de acesso: início dos jogos<input type="datetime-local" id="inicioPlayoff" value="${daqui}"></label><button class="sec" id="gerarPlayoffs" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Gerar a próxima fase dos playoffs</button><span class="mut">O servidor já cria as semifinais e as finais sozinho, uma data depois da fase anterior. Use o botão só para antecipar ou escolher outra hora.</span>
-        <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
-      <div class="mut" style="margin-top:6px">Ordem: 18 rodadas → semifinal (3º x 4º da segunda e da terceira) → final (2º x vencedor) → virada. Jogo único na casa do mais bem colocado; no empate, passa o mandante.</div>
+      <div class="row"><label>Playoffs de acesso: início dos jogos<input type="datetime-local" id="inicioPlayoff" value="${daqui}"></label><button class="sec" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase dos playoffs</button><span class="mut">O servidor já cria cada fase sozinho, nas datas reservadas no calendário, assim que a fase anterior do grupo termina. Use o botão só para antecipar ou escolher outra hora (sem datas reservadas, a ida fica na hora escolhida e a volta um intervalo depois).</span>
+        <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label>
+        <label title="Só na virada T13→T14: ninguém cai da A; sobem 2 das Bs (dirigente ativo primeiro, depois campeões); a Série B nova (3 grupos de 8) são os outros 18 das Bs e os 3 primeiros de cada C em serpentina pela força do onze; os outros 14 da C ficam guardados"><input type="checkbox" id="transicao"> Transição para A 12 + B 3×8</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
+      <div class="mut" style="margin-top:6px">Série B (cada grupo de 8): 14 rodadas → preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate, passa o mandante) → semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6 → final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado, passa a melhor campanha). O vencedor sobe; caem 3 da A, um para cada grupo.</div>
       <div id="previaVirada" style="margin-top:10px"></div></div>` : ""}
     ${liga ? `<div class="card"><h2>Diretoria</h2>
       <div class="mut" style="margin-bottom:10px">Metas da temporada ${liga.temporada}: <span id="metasInfo">…</span>. A meta de cada clube com dirigente é a faixa central de posições em várias simulações da temporada (todos com tática de bot). Calcule depois de gerar o calendário e antes da primeira rodada; cada grupo leva cerca de meio minuto com 100 simulações. Sem meta, a virada usa a posição pela força do elenco, com uma de folga para cada lado. A confiança é aplicada sozinha na virada.</div>
@@ -211,7 +212,7 @@ async function tela(aviso = "") {
       <div class="mut" style="margin-bottom:10px">Reiniciar apaga calendário, resultados, extratos, obras e histórico, e devolve jogadores (idade, atributos, salários, contratos), caixa, torcida, estádio e estruturas ao estado inicial. Os grupos viram a pirâmide: A é a primeira divisão, B e C a segunda, D e E a terceira. Dirigentes, clubes e táticas salvas ficam. Depois é preciso gerar o calendário de novo.</div>
       <div class="row"><button id="reiniciar">Reiniciar o teste</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="sortear" checked> sortear os dirigentes entre os grupos</label><button class="sec" id="guardarEstado">Guardar o elenco de agora como estado inicial</button></div>
       <div id="avisoTeste" class="mut" style="margin-top:8px"></div></div>` : ""}
-    ${gruposDe(clubes).map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>${nomeDoGrupo(g)}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
+    ${[...gruposDe(clubes), GUARDADO].map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>${nomeDoGrupo(g)}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
   dirigentes().catch(() => {}); pedidos().catch(() => {}); partidasAdmin().catch(() => {});
   // transferências: lista com o botão de anular (jogador e dinheiro voltam)
   const transf = async (aviso = "") => {
@@ -265,8 +266,11 @@ async function tela(aviso = "") {
     try {
       const inicio = new Date($("inicio").value).getTime(), intervalo = +$("intervalo").value * 60000, duracao = +$("duracao").value;
       await atualizarLiga(liga.id, { minutos_transmissao: duracao, prazo_escalacao_seg: +$("prazo").value });
-      // Calendário com a Copa do Brasil no meio: uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga.
-      // Cada data ocupa um "espaço" do calendário; os espaços ficam a um intervalo um do outro.
+      // Calendário (desde a T14, 22 datas de liga): Copa do Brasil depois das rodadas 2, 5, 9, 13, 17 e 21; Recopa depois da 3;
+      // Libertadores e Sul-Americana depois das 6, 11, 16 e 20. Cada data ocupa um "espaço" do calendário; os espaços ficam a um intervalo um do outro.
+      // Grupo com menos rodadas se espalha pelas datas: os países (18) pelas 22, a Série B (14) pelas 17 primeiras; as 5 últimas são do
+      // playoff da B (preliminar, semifinal ida e volta, final ida e volta), reservadas em ligas.copa.playoffs.
+      const COPA_DEPOIS = [2, 5, 9, 13, 17, 21], CONTINENTAL_DEPOIS = [6, 11, 16, 20], RECOPA_DEPOIS = 3, ETAPAS_DO_PLAYOFF = 5;
       const comCopa = $("comCopa") ? $("comCopa").checked : false;
       const [campanhas, dados] = comCopa ? await Promise.all([campanhasDaTemporada(liga.id, liga.temporada - 1), divisoesDosClubes(liga.id)]) : [[], []];
       const nivel = Object.fromEntries(dados.map(x => [x.id, x.estadio_nivel || 1]));
@@ -281,27 +285,35 @@ async function tela(aviso = "") {
       const cont = comCopa ? await campeoesContinentais(liga.id, liga.temporada - 1) : [];
       const recopa = [(cont.find(x => x.lib === "campeão") || {}).clube_id, (cont.find(x => x.sul === "campeão") || {}).clube_id];
       const comRec = comCopa && recopa.every(id => nivel[id]) && recopa[0] !== recopa[1];
-      // ordem das datas: rodadas da liga, copa depois das rodadas 2, 5, 8, 11, 14 e 17, Recopa depois da 3 e Libertadores/Sul-Americana depois das rodadas 7, 10, 13 e 16
+      // ordem das datas: rodadas da liga com a copa, a Recopa e as continentais nos espaços entre elas
       const ordem = [];
-      for (let r = 1; r <= 60; r++) { ordem.push("r" + r); if (comCopa && r % 3 === 2 && r <= 17) ordem.push("c" + (r + 1) / 3); if (comRec && r === 3) ordem.push("rec"); if ((comLib || comSul) && r % 3 === 1 && r >= 7 && r <= 16) ordem.push("l" + (r - 4) / 3); }
+      const tabelas = Object.fromEntries(gruposDe(clubes).map(g => [g, gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))]));
+      const rodadasDe = g => Math.max(0, ...tabelas[g].map(j => j.rodada)), nDatas = Math.max(0, ...Object.keys(tabelas).map(rodadasDe)); // 22: a Série A
+      for (let r = 1; r <= nDatas; r++) { ordem.push("r" + r); if (comCopa && COPA_DEPOIS.includes(r)) ordem.push("c" + (COPA_DEPOIS.indexOf(r) + 1)); if (comRec && r === RECOPA_DEPOIS) ordem.push("rec"); if ((comLib || comSul) && CONTINENTAL_DEPOIS.includes(r)) ordem.push("l" + (CONTINENTAL_DEPOIS.indexOf(r) + 1)); }
+      const comPlayoff = g => !PAISES[g] && divisaoDoGrupo(g) > 1, ateA = g => nDatas - (comPlayoff(g) ? ETAPAS_DO_PLAYOFF : 0);
+      // rodada r do grupo → data da liga: espalhada por igual entre a 1 e a última data do grupo
+      const dataDaRodada = (g, r) => rodadasDe(g) <= 1 ? r : Math.round((r - 1) * (ateA(g) - 1) / (rodadasDe(g) - 1)) + 1;
       const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k), espacoDaLib = k => ordem.indexOf("l" + k); // k: fase da copa, de 1 a 6; data da Libertadores, de 1 a 4
       const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
       const linhas = [];
-      for (const g of gruposDe(clubes)) for (const j of gerarTabela(clubes.filter(c => c.grupo === g).map(c => c.id))) {
-        const ini = hora(espacoDaRodada(j.rodada));
+      for (const g of gruposDe(clubes)) for (const j of tabelas[g]) {
+        const ini = hora(espacoDaRodada(dataDaRodada(g, j.rodada)));
         // fase e copa_fase explícitas: num insert com linhas de copa junto, o campo que falta numa linha vira nulo (não vale o padrão do banco)
         linhas.push({ liga_id: liga.id, grupo: g, rodada: j.rodada, fase: "liga", copa_fase: null, chave: null, casa: j.casa, fora: j.fora, inicio: iso(ini), fim: iso(ini + duracao * 60000) });
       }
       let copa = "";
+      // datas do playoff da Série B (o servidor cria os jogos nelas): as últimas 5 datas da liga
+      const playoffs = gruposDe(clubes).some(comPlayoff) ? Array.from({ length: ETAPAS_DO_PLAYOFF }, (_, k) => { const t = hora(espacoDaRodada(nDatas - ETAPAS_DO_PLAYOFF + 1 + k)); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) : null;
       if (comCopa) {
-        // preliminar: os 36 de pior campanha na temporada anterior, em sorteio livre; os outros 14 entram direto na fase de 32
+        // preliminar: os 2 × (n − 32) de pior campanha na temporada anterior, em sorteio livre (36 clubes: 8, em 4 jogos); os outros entram direto na fase de 32
         const camp = Object.fromEntries(campanhas.map(x => [x.clube_id, x])), divisao = Object.fromEntries(dados.map(x => [x.id, x.divisao]));
         const rng = criarRng(Date.now() % 2147483647);
         // ordem de força: divisão da temporada passada, posição e pontos; sem histórico (primeira temporada), divisão atual e sorteio
         const chave = c => { const h = camp[c.id]; return h ? [h.divisao, h.posicao, -h.pontos] : [divisao[c.id] || 9, 99, rng.n()]; };
-        const doBrasil = clubes.filter(c => !PAISES[c.grupo]); // a Copa do Brasil é só dos clubes do Brasil
+        const doBrasil = clubes.filter(c => !PAISES[c.grupo] && c.grupo !== GUARDADO); // a Copa do Brasil é só dos clubes do Brasil em atividade
         const ordem = doBrasil.slice().sort((a, b) => { const x = chave(a), y = chave(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
-        const diretos = ordem.slice(0, Math.max(0, doBrasil.length - 36)).map(c => c.id), sorteados = rng.embaralhar(ordem.slice(Math.max(0, doBrasil.length - 36)));
+        const naPreliminar = Math.min(doBrasil.length, 2 * Math.max(0, doBrasil.length - 32));
+        const diretos = ordem.slice(0, doBrasil.length - naPreliminar).map(c => c.id), sorteados = rng.embaralhar(ordem.slice(doBrasil.length - naPreliminar));
         const datas = [1, 2, 3, 4, 5, 6].map(k => ({ inicio: iso(hora(espacoDaCopa(k))), fim: iso(hora(espacoDaCopa(k)) + duracao * 60000) }));
         for (let k = 0; k + 1 < sorteados.length; k += 2) {
           let [a, b] = [sorteados[k].id, sorteados[k + 1].id];
@@ -344,9 +356,10 @@ async function tela(aviso = "") {
           copa += ` Recopa: ${clubes.find(c => c.id === a).nome} x ${clubes.find(c => c.id === b).nome}.`;
         }
         const fator = await fatorDaCopa(liga.id); // fundo acima da reserva: a copa desta temporada paga mais (até o dobro)
-        await atualizarLiga(liga.id, { copa: { datas, diretos, chave32, fator, ...(lib ? { lib } : {}), ...(sul ? { sul } : {}), ...(rec ? { rec } : {}) } });
+        await atualizarLiga(liga.id, { copa: { datas, diretos, chave32, fator, ...(lib ? { lib } : {}), ...(sul ? { sul } : {}), ...(rec ? { rec } : {}), ...(playoffs ? { playoffs } : {}) } });
         copa = `${copa} Copa do Brasil: ${Math.floor(sorteados.length / 2)} jogos na preliminar e ${diretos.length} clubes direto na fase de 32.${fator > 1 ? ` Com o fundo da liga acima da reserva, a copa paga ${String(fator).replace(".", ",")} vezes os prêmios normais.` : ""}`;
       }
+      else if (playoffs) await atualizarLiga(liga.id, { copa: { playoffs } }); // sem copa, só as datas do playoff da B
       // sem o 103_chave_fixa.sql a coluna chave não existe: grava sem ela e a copa segue com o sorteio de cada fase
       await criarPartidas(linhas).catch(e => { if (!/chave/.test(e.message)) throw e; return criarPartidas(linhas.map(({ chave, ...l }) => l)); });
       await ajustarPrazos(liga.id); // leilão, oferta, candidatos e espera dos bots acompanham o intervalo entre as rodadas
@@ -379,10 +392,13 @@ async function tela(aviso = "") {
       const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
       const r = proximaFaseDosPlayoffs({ clubes: lista, partidas, resultados: await resultadosDe(partidas.map(p => p.id), true) });
       if (r.erro) { $("previaVirada").innerHTML = `<span class="aviso">${esc(r.erro)}</span>`; return; }
-      const ini = new Date($("inicioPlayoff").value).getTime(), fim = ini + (liga.minutos_transmissao || 0) * 60000, nome = Object.fromEntries(clubes.map(c => [c.id, c.nome]));
-      if (!confirm(`Criar ${r.jogos.length} jogos (${r.fase === "semi" ? "semifinais" : r.fase === "acesso" ? "final do acesso" : "finais"}) para ${new Date(ini).toLocaleString("pt-BR")}?\n\n${r.jogos.map(j => `${nomeDoGrupo(j.grupo)}: ${nome[j.casa]} x ${nome[j.fora]}`).join("\n")}`)) return;
-      await criarPartidas(r.jogos.map(j => ({ liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(fim).toISOString() })));
-      await tela(`Playoffs: ${r.jogos.length} jogos criados (${r.fase === "semi" ? "semifinais" : r.fase === "acesso" ? "final do acesso" : "finais"}).`);
+      // a hora: a data reservada da etapa (ligas.copa.playoffs); sem ela, a hora escolhida, e a volta um intervalo depois da ida
+      const escolhida = new Date($("inicioPlayoff").value).getTime(), passo = (+$("intervalo").value || 0) * 60000, primeira = Math.min(...r.jogos.map(j => j.etapa));
+      const reservada = (liga.copa || {}).playoffs || [], hora = j => reservada[j.etapa] ? new Date(reservada[j.etapa].inicio).getTime() : escolhida + (j.etapa - primeira) * passo;
+      const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), FASE = { pre: "preliminar", semi: "semifinal", final: "final" };
+      if (!confirm(`Criar ${r.jogos.length} jogos?\n\n${r.jogos.map(j => `${nomeDoGrupo(j.grupo)}, ${FASE[j.fase]} (${new Date(hora(j)).toLocaleString("pt-BR")}): ${nome[j.casa]} x ${nome[j.fora]}`).join("\n")}`)) return;
+      await criarPartidas(r.jogos.map(j => ({ liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, casa: j.casa, fora: j.fora, inicio: new Date(hora(j)).toISOString(), fim: new Date(hora(j) + (liga.minutos_transmissao || 0) * 60000).toISOString() })));
+      await tela(`Playoffs: ${r.jogos.length} jogos criados.`);
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)} (o 17_acesso_e_descenso.sql já foi executado?)</span>`; }
   });
   // diretoria: metas da temporada por simulação, só dos grupos com dirigente
@@ -420,9 +436,9 @@ async function tela(aviso = "") {
       const comLivres = (await livresDaLiga(liga.id)) != null; // o SQL 21 já foi executado?
       const safras = {}; (await safrasRecentes(liga.id)).forEach(x => { safras[x.clube_id] = Math.max(safras[x.clube_id] || 0, x.temporada); }); // quem ganhou talento raro há pouco concorre com metade do peso
       const taticas = Object.fromEntries((await taticasDe(lista.filter(c => c.dono).map(c => c.id))).map(t => [t.clube_id, (t.dados || {}).vagas || []])); // a base puxa para as posições que o clube usa
-      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras, taticas, semMovimentos: $("semMovimentos").checked,
+      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras, taticas, semMovimentos: $("semMovimentos").checked, transicao: $("transicao").checked,
         juvenis: Object.values(elencos).flat().some(j => j.juvenil !== undefined) }); // jovens sem contrato só depois do 60_juvenis_e_formador.sql
-      const seta = x => x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : "";
+      const seta = x => x.destino === "guardado" ? `<span class="mut">⏸ guardado</span>` : x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : x.para ? `<span class="mut">→ ${nomeDoGrupo(x.para)}</span>` : "";
       const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
       const gente = l => l.filter(x => x.dono).map(x => `${esc(x.nome)} (${sg(x.pos)}, ${x.idade} anos, ${esc(x.clube)})`).join(" · ") || "nenhum em clube com dirigente";
       $("previaVirada").innerHTML = `<div class="duas">${Object.entries(resumo.grupos).map(([g, l]) => `<div><b>${nomeDoGrupo(g)}</b><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>Prêmio</th><th>Imposto</th><th class="esq">Destino</th></tr>${l.map(lugar).join("")}</table></div>`).join("")}</div>
@@ -441,7 +457,7 @@ async function tela(aviso = "") {
           // fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff) e prêmios individuais
           const BONUS_DA_C = [0, 800, 400, 300, 200], merito = [];
           for (const x of plano.classificacao.filter(x => x.divisao === 3 && x.posicao <= 4)) merito.push({ clube_id: x.clube_id, valor: BONUS_DA_C[x.posicao], descricao: `Fundo da liga: bônus pelo ${x.posicao}º lugar na Série C` });
-          for (const m of plano.movimentos.filter(m => !m.caiu)) { const x = plano.classificacao.find(c => c.clube_id === m.clube_id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: m.clube_id, valor: 600, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
+          if (!$("transicao").checked) for (const m of plano.movimentos.filter(m => !m.caiu)) { /* na transição a C não teve playoff */ const x = plano.classificacao.find(c => c.clube_id === m.clube_id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: m.clube_id, valor: 600, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
           const premiosDoFundo = [await premiarTemporada(liga.id, merito), await premiarLigaDeBase(liga.id)].filter(Boolean).join(" ");
           await selecaoDaTemporada(liga.id); // os onze de melhor nota de cada série, só de honra
           // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
