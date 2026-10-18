@@ -18,6 +18,18 @@
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
+  /* aviso de gol: cobre o placar por 4,5 s com a camisa (escudo e patrocínio) nas cores do uniforme; fica fora do #topo, que é redesenhado a cada 10 s */
+  .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
+    background:linear-gradient(110deg, var(--c1) 0 38%, var(--c2) 38% 41%, var(--c1) 41%); color:var(--txt-gol); animation:golEntra 4.5s cubic-bezier(.2,.8,.2,1) forwards; }
+  .aviso-gol .camisa { animation:golPula 4.5s ease-out forwards; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
+  .aviso-gol h3 { font-family:var(--display); font-size:58px; line-height:.9; margin:0; letter-spacing:.02em; text-transform:uppercase; }
+  .aviso-gol .quem { font-size:18px; margin-top:6px; }
+  .aviso-gol .marca { display:flex; align-items:center; gap:10px; margin-top:12px; padding:6px 12px 6px 6px; border-radius:999px; background:var(--pilula); width:max-content; max-width:100%; font-size:14px; color:#fff; }
+  .aviso-gol .marca b { font-family:var(--display); letter-spacing:.06em; text-transform:uppercase; }
+  @keyframes golEntra { 0% { clip-path:inset(0 100% 0 0); } 8% { clip-path:inset(0 0 0 0); } 88% { clip-path:inset(0 0 0 0); opacity:1; } 100% { clip-path:inset(0 0 0 0); opacity:0; } }
+  @keyframes golPula { 0%, 6% { transform:scale(.4) rotate(-12deg); } 16% { transform:scale(1.12) rotate(4deg); } 24%, 100% { transform:scale(1) rotate(0); } }
+  @media (max-width:620px) { .aviso-gol { gap:10px; } .aviso-gol .camisa svg { width:84px; height:101px; } .aviso-gol h3 { font-size:36px; } .aviso-gol .quem { font-size:14px; } .aviso-gol .marca { font-size:12px; } .aviso-gol .marca span span { display:none; } }
+  @media (prefers-reduced-motion:reduce) { .aviso-gol, .aviso-gol .camisa { animation:golSome 4.5s step-end forwards; } @keyframes golSome { to { opacity:0; } } }
   .competicao { text-align:center; font-size:11.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--mut); }
   a.lkj { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; } a.lkj:hover { text-decoration-color:var(--ac); }
   .cronometro { display:block; width:max-content; margin:10px auto 0; padding:3px 14px; border-radius:999px; border:1px solid var(--ac); color:var(--ac); font-family:var(--display); font-weight:600; font-size:18px; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
@@ -75,6 +87,7 @@ import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, 
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
+import { MARCAS, selo } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -120,9 +133,23 @@ botaoDoSom();
 // Só lance novo na tela faz barulho: o primeiro desenho marca tudo como visto em silêncio, e quem chega com a aba voltando de segundo plano
 // (liberado há mais de 30 s) entra calado. fase: muda de 1º tempo, intervalo, 2º tempo e fim pelo relógio.
 let vistos = null, fase = null;
+// aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
+function avisoDeGol(d) {
+  const lado = d.time ? 1 : 0, c = clubes[lado ? partida.fora : partida.casa], alvo = $("topo"); if (!c || !alvo) return;
+  const u = uniformesDoJogo(clubes[partida.casa].uniforme || {}, clubes[partida.fora].uniforme || {})[lado], hexa = (x, p) => /^#[0-9a-f]{6}$/i.test(x || "") ? x : p;
+  const c1 = hexa(u.cor1, "#0b3d91"), c2 = hexa(u.cor2, "#ffffff"), n = parseInt(c1.slice(1), 16), claro = 0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255) > 150, m = MARCAS[c.marca];
+  document.querySelectorAll(".aviso-gol").forEach(x => x.remove());
+  const r = alvo.getBoundingClientRect(), el = document.createElement("div"); el.className = "aviso-gol";
+  el.style.cssText = `left:${r.left + scrollX}px;top:${r.top + scrollY}px;width:${r.width}px;height:${r.height}px;--c1:${c1};--c2:${c2};--txt-gol:${claro ? "#111" : "#fff"};--pilula:${claro ? "rgba(0,0,0,.78)" : "rgba(0,0,0,.28)"}`;
+  el.innerHTML = `<div class="camisa">${svgUniforme({ ...u, escudo: c.escudo, sigla: c.sigla, marca: c.marca }, 150)}</div><div style="min-width:0"><h3>Gooool!</h3>
+    <div class="quem">${d.quem ? `<b>${esc(d.quem)}</b> · ` : ""}${d.min != null ? `${d.min}' · ` : ""}${esc(c.nome)}</div>
+    ${m ? `<div class="marca">${selo(c.marca, 34)}<span><b>${esc(m.nome)}</b><span> · “${esc(m.bordao)}”</span></span></div>` : ""}</div>`;
+  document.body.append(el); setTimeout(() => el.remove(), 4600);
+}
 function sonsDosLances(m, lances, agora) {
   const f = m.antes ? "antes" : m.fim ? "fim" : m.texto.includes("intervalo") ? "intervalo" : m.texto.includes("2º") ? "2t" : "1t";
   const novos = vistos ? lances.filter(l => !vistos.has(l.ordem) && agora - new Date(l.libera_em || agora).getTime() < 30000).map(l => l.dados) : [];
+  const golNovo = novos.filter(l => l.resultado === "gol").pop(); if (golNovo) avisoDeGol(golNovo);
   if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
   vistos = new Set(lances.map(l => l.ordem)); fase = f;
