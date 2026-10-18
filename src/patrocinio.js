@@ -38,15 +38,18 @@ export const placasDoJogo = (semente, n = 4) => criarRng((semente | 0) * 7919 + 
 // Chaves: A, B (B1 a B3), C (C1 e C2), COPA, LIB, SUL.
 export const NAMING = { A: "dobet", B: "gazeta_dugoutense", C: "dugout_dos_crias", COPA: "grupo_trem", LIB: "central_do_dobr", SUL: "central_do_mercado" };
 const DIVISAO_DO_GRUPO = { A: "A", B: "B", C: "B", F: "B", D: "C", E: "C" };
-// "Brasileiro Série B1" → "Brasileiro Gazeta Série B1"; "Copa do Brasil" → "Copa Grupo Trem do Brasil"; "Libertadores" → "Libertadores Central do DO-BR"
+// "Brasileiro Série B1" → "Brasileiro Gazeta Série B1"; "Copa do Brasil" → "Copa Grupo Trem do Brasil"; "Libertadores" → "Copa Central do DO-BR Libertadores"
 export function batizar(g, nome) {
   const m = MARCAS[NAMING[DIVISAO_DO_GRUPO[g] || g]]; if (!m) return nome;
   const n = m.curto || m.nome;
-  return DIVISAO_DO_GRUPO[g] ? nome.replace("Brasileiro ", `Brasileiro ${n} `) : g === "COPA" ? `Copa ${n} do Brasil` : `${nome} ${n}`;
+  return DIVISAO_DO_GRUPO[g] ? nome.replace("Brasileiro ", `Brasileiro ${n} `) : g === "COPA" ? `Copa ${n} do Brasil` : `Copa ${n} ${nome}`;
 }
-// Jogo patrocinado: um jogo de liga por grupo e rodada, com uma marca. lista = os jogos de liga daquele grupo e rodada; todo mundo sorteia o mesmo.
-export function jogoPatrocinado(lista) {
-  const ids = lista.map(p => p.id).sort((a, b) => a - b); if (!ids.length) return null;
-  const r = criarRng(ids[0] * 31 + ids.length), marca = r.pick(Object.keys(MARCAS));
-  return { id: r.pick(ids), marca, nome: `Jogo ${MARCAS[marca].curto || MARCAS[marca].nome} da rodada` };
+// Jogo patrocinado: o jogo de liga da rodada entre os mais bem colocados (menor soma das posições antes da rodada; empate: o de menor id),
+// com uma marca sorteada. lista = os jogos de liga daquele grupo e rodada; ordem = ids dos clubes na tabela antes da rodada.
+export function jogoPatrocinado(lista, ordem = []) {
+  if (!lista.length) return null;
+  const pos = id => { const k = ordem.indexOf(id); return k < 0 ? 99 : k; }, ids = lista.map(p => p.id).sort((a, b) => a - b);
+  const jogo = lista.slice().sort((a, b) => pos(a.casa) + pos(a.fora) - pos(b.casa) - pos(b.fora) || a.id - b.id)[0];
+  const marca = criarRng(ids[0] * 31 + ids.length).pick(Object.keys(MARCAS));
+  return { id: jogo.id, marca, nome: `Jogo ${MARCAS[marca].curto || MARCAS[marca].nome} da rodada` };
 }
