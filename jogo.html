@@ -1136,6 +1136,7 @@ async function telaClube(liga, clube) {
   };
   // quadro de atributos, aberto pelo botão "i"
   // faixa com as cores do uniforme no cabeçalho do clube (só aceita cor em hexadecimal)
+  const patroMaster = marca => MARCAS[marca] ? `<div class="mut">Patrocinador master</div>${seloMarca(marca, 64)}` : "";
   const coresDoClube = c => { const u = c.uniforme || {}, cor = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = cor(u.cor1), b = cor(u.cor2) || a;
     return a ? `border-top:4px solid ${a};background:linear-gradient(100deg, ${a}38, ${b}14 45%, transparent 75%), var(--card, #111a24)` : ""; };
   // polígono com a média de cada grupo de atributos (1 a 50)
@@ -1797,12 +1798,12 @@ async function telaClube(liga, clube) {
   if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
   let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
   const rotuloTema = () => document.documentElement.dataset.tema === "claro" ? "🌙 Tema escuro" : "☀️ Tema claro";
-  const seloDoTopo = () => patro && patro.escolha ? `<div class="mut">Patrocinador master</div>${seloMarca(patro.escolha.marca, 64)}` : "";
+  const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
-      <div id="seloTopo" class="patro-topo">${seloDoTopo()}</div>
+      <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
         <a href="temporada.html?clube=${clube.id}" style="color:var(--ac)">Relatório da temporada</a>
         <button class="sec" id="modoTema" style="padding:3px 10px;font-size:12.5px">${rotuloTema()}</button>
@@ -2236,6 +2237,7 @@ ${historicoDaBase()}
         $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
+            <div class="patro-topo">${patroMaster(marcas[id])}</div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
           ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
           <div class="kpis" style="margin-bottom:12px">${kpi("Posição", eu && eu.j ? `${pos + 1}º<small> de ${tab.length}</small>` : "—", esc(nomeDoGrupo(c.grupo)))}
