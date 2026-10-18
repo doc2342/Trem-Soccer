@@ -623,7 +623,6 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px;font-size:12px">Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a cada clube que entra na fase; a preliminar não paga. A renda de cada jogo é dividida meio a meio.</div>`;
     $("tituloJogos").textContent = "Copa do Brasil · jogos";
     $("rodadas").className = "";
-    const rotuloR = r => (p => p.fase !== "liga" ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
     if (!fases.length) { $("rodadas").innerHTML = `<div class="mut">A copa ainda não foi sorteada.</div>`; return; }
     const atual = fases.find(f => daFase(f).some(p => !copaRes[p.id])) || fases[fases.length - 1];
     $("rodadas").innerHTML = `<label>Fase<select id="copaFase">${fases.map(f => `<option value="${f}" ${f === atual ? "selected" : ""}>${FASES_DA_COPA[f]}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>
@@ -2450,6 +2449,7 @@ ${historicoDaBase()}
       <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span style="color:var(--ac)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span style="color:var(--sul)">▌</span> Sul-Americana (a 4ª vaga é do vice da copa; se ele já tiver vaga, do próximo da tabela) · <span class="bad">▌</span> rebaixamento` : LEGENDA_DA_B}</div>${playoffDoGrupo(partidas, res)}`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
+    const rotuloR = r => (p => p.fase !== "liga" ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
     $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${rotuloR(r)}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
     // temporadas anteriores deste grupo, guardadas na virada; só com a aba Competições aberta (na Central esta função só preenche a tabela e os jogos)
     if (compAberta()) historicoDoGrupo(liga.id, g).then(h => {
