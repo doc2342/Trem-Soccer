@@ -30,6 +30,15 @@
   .aovivo > .lan { grid-area:lan; } .aovivo > .lat-e { grid-area:e; } .aovivo > .lat-d { grid-area:d; }
   @media (max-width:1060px) { .aovivo { grid-template-columns:minmax(0,2fr) minmax(240px,1fr); grid-template-rows:auto 1fr; grid-template-areas:"lan e" "lan d"; } }
   @media (max-width:760px) { .aovivo { grid-template-columns:1fr; grid-template-rows:none; grid-template-areas:"lan" "e" "d"; } }
+  /* depois do apito (PC e celular): na reprise, só os lances principais até pedir todos; no ao vivo, todos sempre */
+  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.penaltis), #corpo:not(.todos) .legenda.lances { display:none; }
+  #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
+  /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
+  .abas.soCel { display:none; }
+  @media (max-width:760px) {
+    .abas.soCel { display:flex; } .abas .aba { font-size:15px; padding:8px 10px 6px; }
+    .fora-aba { display:none !important; }
+  }
   .estat th { font-size:13px; padding:0 4px 6px; overflow-wrap:anywhere; }
   .estat { width:100%; } .estat td { text-align:center; padding:5px 4px; } .estat td.esq { text-align:left; }
 </style>
@@ -137,12 +146,12 @@ const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sul
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";
   const e = estadoDaRodada(T, meu), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—"), posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;
-  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sul: "#4fc3f7", sobe: "var(--ok, #4caf50)", semi: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
+  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sul: "var(--sul)", sobe: "var(--ok, #4caf50)", semi: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
   const jogos = rodada.daRodada.map(p => { const x = e.placares[p.id];
     return `<div style="padding:3px 0;${p.id === id ? "font-weight:700" : ""}">${p.id === id ? "" : `<a href="aovivo.html?id=${p.id}" style="color:inherit;text-decoration:none">`}${nome(p.casa)} <b>${x.g ? x.g[0] + " x " + x.g[1] : "x"}</b> ${nome(p.fora)}${p.id === id ? "" : "</a>"} <span class="mut" style="font-weight:400;font-size:12px">${x.fim ? "encerrado" : x.g ? "ao vivo" : hora(p.inicio)}</span></div>`; }).join("");
   const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, z = zonaDaPosicao(i, n), nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
     return `<tr style="${nosso ? "font-weight:700" : ""}"><td style="border-left:3px solid ${COR_DA_ZONA[z] || "transparent"};padding-left:5px">${i + 1}</td><td style="width:22px;font-size:11px" class="${d > 0 ? "ok" : d < 0 ? "bad" : "mut"}">${d > 0 ? "▲" + d : d < 0 ? "▼" + (-d) : ""}</td><td class="esq" style="text-align:left">${esc(t.clube.nome)}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.gp - t.gc}</td></tr>`; }).join("");
-  return `<div class="card"><h2>Rodada ${partida.rodada}${encerrada ? "" : " ao vivo"} <span class="tag">${esc(nomeDoGrupo(partida.grupo))}</span></h2>${jogos}
+  return `<div class="card" data-aba="rodada"><h2>Rodada ${partida.rodada}${encerrada ? "" : " ao vivo"} <span class="tag">${esc(nomeDoGrupo(partida.grupo))}</span></h2>${jogos}
     <table style="width:100%;margin-top:8px;font-size:13.5px"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>J</th><th>SG</th></tr>${tabela}</table>
     <div class="mut" style="margin-top:6px;font-size:12px">Classificação como ficaria com os placares deste momento. As setas comparam com o início da rodada.</div></div>`;
 }
@@ -167,7 +176,7 @@ async function htmlDiretoria() {
       conta = ` Meta: ${meta.faixa_min === meta.faixa_max ? meta.faixa_min + "º" : `${meta.faixa_min}º a ${meta.faixa_max}º`}; com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.`; }
     return `<div style="margin:3px 0"><b>${esc(clubes[c.id].nome)}</b>: confiança ${c.confianca}. <i>“${fraseDoPresidente(c.confianca)}”</i>${conta}</div>`;
   });
-  return `<div class="card"><h2>Diretoria</h2>${linhas.join("")}</div>`;
+  return `<div class="card" data-aba="resumo"><h2>Diretoria</h2>${linhas.join("")}</div>`;
 }
 // Notas de contexto dos gols desta partida: o que o gol muda na tabela e na artilharia. lances: os liberados, com a hora de cada um.
 function notasDosGols(lances) {
@@ -217,6 +226,22 @@ function topo(gols, m, narracao = [], pre = null) {
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
 
+// abas do celular e o "ver todos os lances" do pós-jogo: a escolha sobrevive ao redesenho de 10 em 10 segundos
+const ABAS = { resumo: "Resumo", lances: "Lances", estat: "Estatísticas", esc: "Escalações", rodada: "Rodada", jog: "Jogadores" };
+let aba = null, todosLances = false;
+const BOTAO_TODOS = `<button class="sec" data-todos style="margin:0 0 8px;padding:4px 12px"><span class="v1">Ver todos os lances</span><span class="v2">Só os principais</span></button>`;
+function barraDeAbas(ids) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0];
+  return `<div class="abas soCel">${ids.map(k => `<button class="aba" data-ir="${k}">${ABAS[k]}</button>`).join("")}</div>`; }
+function aplicarAba() {
+  document.querySelectorAll("#corpo [data-aba]").forEach(e => e.classList.toggle("fora-aba", e.dataset.aba !== aba));
+  document.querySelectorAll("#corpo [data-ir]").forEach(b => b.classList.toggle("ativa", b.dataset.ir === aba));
+  $("corpo").classList.toggle("todos", todosLances || !encerrada);
+}
+$("corpo").addEventListener("click", e => {
+  const b = e.target.closest("[data-ir]"); if (b) { aba = b.dataset.ir; aplicarAba(); }
+  if (e.target.closest("[data-todos]")) { todosLances = !todosLances; aplicarAba(); }
+});
+
 const milhar = v => Math.round(v).toLocaleString("pt-BR");
 // público e renda: gravados pelo servidor logo depois do cálculo da partida
 function htmlEstadio(pre) {
@@ -232,7 +257,7 @@ function htmlEscalacoes(pre) {
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
   const time = (e, i) => `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
     ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`;
-  return `<div class="card"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
+  return `<div class="card" data-aba="esc"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
 function htmlEstatisticas(narracao) {
@@ -250,7 +275,7 @@ function htmlEstatisticas(narracao) {
   const barra = v => { const a = parseFloat(String(v[0]).replace(",", ".")), b = parseFloat(String(v[1]).replace(",", ".")); if (!(a + b > 0)) return "";
     return `<div class="dupla"><i class="casa" style="width:${(100 * a / (a + b)).toFixed(1)}%"></i><i class="fora" style="width:${(100 * b / (a + b)).toFixed(1)}%"></i></div>`; };
   const cab = [partida.casa, partida.fora].map((c, i) => `<th class="${COR[i]}">${lkClube(c, esc(clubes[c].nome))}</th>`);
-  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat"><tr>${cab[0]}<th></th>${cab[1]}</tr>${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
+  return `<div class="card" data-aba="estat"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat"><tr>${cab[0]}<th></th>${cab[1]}</tr>${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
 }
 // abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
 // cronologico: na reprise, depois do jogo, a abertura vem primeiro e na ordem em que aconteceu
@@ -292,7 +317,8 @@ async function atualizar() {
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
-    $("corpo").innerHTML = numeros + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "lances", "estat", "esc", rodada && "rodada", "jog"]) + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    aplicarAba();
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
@@ -300,9 +326,10 @@ async function atualizar() {
   const notas = notasDosGols(lances), comNota = l => htmlLance(l) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
-    : `<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
+    : `${barraDeAbas(["lances", "estat", pre && "esc", rodada && "rodada"])}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
        <div class="lat-d">${htmlEscalacoes(pre)}${htmlRodada(gols)}</div></div>`;
+  aplicarAba();
 }
 
 async function iniciar() {
