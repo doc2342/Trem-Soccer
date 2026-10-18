@@ -14,7 +14,7 @@ export const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
   const [topo, fundo] = fora ? REGUA_DE_FORA.premios : PREMIOS[divisao] || PREMIOS[2];
   return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));
 };
-export const chanceDeAposentar = idade => idade >= 38 ? 1 : idade < 34 ? 0 : (idade - 33) * 0.2; // 20% aos 34 … 80% aos 37
+export const chanceDeAposentar = idade => idade >= 40 ? 1 : idade < 35 ? 0 : (idade - 34) * 0.2; // 20% aos 35 … 80% aos 38
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
 export const REPOSICAO = { abaixoDoAposentado: 5 }; // o jovem que repõe o aposentado no bot chega até 5 pontos de nota abaixo dele
 // jovem que repõe o aposentado nos clubes sem dirigente: chega mais pronto nas divisões de cima
@@ -178,8 +178,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    const guardado = (grupoNovo[c.id] || c.grupo) === GUARDADO; // guardado envelhece e renova sozinho, mas não solta ninguém no mercado
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
-    // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 38; antes dele, vale o sorteio na virada
-    const para = j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 38) : rng.chance(chanceDeAposentar(idade));
+    // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 40; antes dele, vale o sorteio na virada
+    const para = j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 40) : rng.chance(chanceDeAposentar(idade));
     if (para) {
       plano.aposentados.push(numero(j.id));
       resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
