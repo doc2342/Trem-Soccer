@@ -1666,7 +1666,7 @@ const __treino = (() => {
     freio: { curva: [[16, 0.05], [18, 0.36], [20, 0.62], [22, 0.82], [24, 0.96], [25, 1.03], [31, 1.06]], forca: 6, piso: 0.3 },
     // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
     treinador: [0.9, 0.25],     // área sem treinador, 90%; qualidade 50, 115%
-    parteDoGeral: 0.4,          // treinador "geral" soma 40% de cada skill nas quatro áreas com treinador designado, por cima do designado
+    parteDoGeral: 0.6,          // treinador "geral" soma 60% de cada skill nas quatro áreas com treinador designado, por cima do designado
     coletivas: ["fis", "tat"], divisorDaSoma: 2.5, // físico e tática: soma da skill de TODOS os treinadores, dividida por 2,5 (teto 50)
     // perdaPorExcesso em 0: a punição por elenco inflado (mais de 7 jogadores acima de 21 anos por treinador) foi desligada
     // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
@@ -1697,7 +1697,7 @@ const __treino = (() => {
     const excesso = capacidade && jogadores > capacidade ? 1 - C.perdaPorExcesso * Math.min(1, (jogadores - capacidade) / capacidade) : 1;
     for (const k in AREAS) {
       const q = C.coletivas.includes(k) ? lista.reduce((s, t) => s + (t.skills[k] || 0), 0) / C.divisorDaSoma
-        // o melhor treinador designado da área, mais 40% da skill de cada treinador geral (sempre soma); teto 50
+        // o melhor treinador designado da área, mais 60% da skill de cada treinador geral (sempre soma); teto 50
         : Math.min(50, lista.reduce((m, t) => Math.max(m, t.area === k ? (t.skills[k] || 0) : 0), 0) + lista.reduce((s, t) => s + (t.area === "geral" ? C.parteDoGeral * (t.skills[k] || 0) : 0), 0));
       areas[k] = C.treinador[0] + (multDaQualidade(q) - C.treinador[0]) * excesso;
     }
