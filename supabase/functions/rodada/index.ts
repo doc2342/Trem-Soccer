@@ -376,7 +376,7 @@ const __motor = (() => {
     ajusteGol: { cruzamento: 0.97, corte: 1.28, profundidade: 0.93, area: 0.89, longe: 1.26, escanteio: 0.99, falta: 1, penalti: 0.98 }, // acerto fino para o xG de cada tipo bater com os gols
     xgMaximo: 0.75,
     // chance pelo lado multiplicada por (ataque na ponta / defesa daquele lado) / referência, elevado ao expoente, entre min e max (ver ferramentas/sim_formacoes.mjs)
-    flancoAberto: { referencia: 0.38, expoente: 0.7, min: 0.7, max: 2.2 },
+    flancoAberto: { referencia: 0.38, expoente: 0.7, min: 0.7, max: 1.4 }, // max era 2,2: o bônus premiava os times fortes e a média passou de 3,4 gols na liga (18/10/2026)
     chuteForcado: 0.14, // chance de sair um chute de longe, pior, quando o duelo no ataque é perdido
     fatorChuteForcado: 0.7,
     // chute em etapas: bloqueado pela zaga; senão vai no gol com a chance `alvo` (para quem chuta no nível do goleiroReferencia, sobe com o pé dele);
