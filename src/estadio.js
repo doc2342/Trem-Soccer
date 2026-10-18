@@ -514,20 +514,26 @@ function canteiro(aM, bM, hx, dunas, esp, ext0) {
   for (let k = 0; k < 4; k++) bloco(1.2, 1, 1.2, lam("#9d998f"), xc + 1 + k * 1.6, 0.5, zc + D / 2 - 1.4); // paletes de bloco
   const ar = new T.Mesh(new T.ConeGeometry(2.6, 2, 10), lam("#d8c08a")); ar.position.set(xc + 11, 1, zf + 0.6); ar.castShadow = true; grp.add(ar);
   const g = grp; grp = g0; g.position.set(-(xIn + D / 2), 0, bM * 0.4); g.rotation.y = Math.PI / 2; grp.add(g); }
-// Maracanã: duas rampas monumentais (UERJ a oeste, Bellini a leste) do anel superior e quatro menores nas diagonais (B, C, E, F) do anel de baixo,
-// descendo até o chão sobre pilares; do nível 2 em diante. Cada rampa: ponto na fachada, direção para fora (normal da elipse), altura, comprimento e largura
+// Maracanã: duas rampas monumentais (UERJ a oeste, Bellini a leste) saem do anel superior, descem até um patamar na ponta e voltam
+// paralelas, do lado sul, até o chão perto da fachada; as quatro menores (B, C, E, F, nas diagonais) descem retas do anel de baixo; do nível 2 em diante.
+// Cada rampa: ponto na fachada, direção para fora (normal da elipse), altura, comprimento e a área que ocupa (d para fora, l de lado, sentido sg)
 const rampaLista = () => { const aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, hT = hRow(rows - 1);
-  return [[0, 0.55, 9], [Math.PI, 0.55, 9], ...[1, 2, 4, 5].map(k => [k * Math.PI / 3, 0.3, 5])].map(([t, fh, W]) => { const H = hT * fh, nx = Math.cos(t) / aM, nz = Math.sin(t) / bM, n = Math.hypot(nx, nz);
-    return { x: Math.cos(t) * (aM + 0.5), z: Math.sin(t) * (bM + 0.5), nx: nx / n, nz: nz / n, H, L: Math.max(14, 3.2 * H), W }; }); };
-const naRampa = (x, z, f) => m.rampas && niv >= 2 && rampaLista().some(r => { const d = (x - r.x) * r.nx + (z - r.z) * r.nz, l = Math.abs((z - r.z) * r.nx - (x - r.x) * r.nz); return d > -4 && d < r.L + 11 + f && l < r.W / 2 + f; });
+  return [[0, 0.55, 9], [Math.PI, 0.55, 9], ...[1, 2, 4, 5].map(k => [k * Math.PI / 3, 0.3, 5])].map(([t, fh, W]) => { const H = hT * fh, n = Math.hypot(Math.cos(t) / aM, Math.sin(t) / bM), nx = Math.cos(t) / aM / n, nz = Math.sin(t) / bM / n;
+    const r = { x: Math.cos(t) * (aM + 0.5), z: Math.sin(t) * (bM + 0.5), nx, nz, H, W, vai: W > 6, sg: Math.sign(nx) || 1 };
+    if (r.vai) { r.L = Math.max(24, 3 * H); r.box = [-4, r.L + W + 4, -W / 2, 1.5 * W + 1]; } else { r.L = Math.max(14, 3.2 * H); r.box = [-4, r.L + 11, -W / 2, W / 2]; }
+    return r; }); };
+const naRampa = (x, z, f) => m.rampas && niv >= 2 && rampaLista().some(r => { const d = (x - r.x) * r.nx + (z - r.z) * r.nz, l = r.sg * ((z - r.z) * r.nx - (x - r.x) * r.nz), [d0, d1, l0, l1] = r.box; return d > d0 && d < d1 + f && l > l0 - f && l < l1 + f; });
 function rampas() { const br = lam("#ebe9e3"), pil = lam("#dcdad3");
-  for (const r of rampaLista()) { const { H, L, W } = r, g = new T.Group(), inc = Math.atan2(H, L), Ls = Math.hypot(H, L), big = W > 6;
+  for (const r of rampaLista()) { const { H, L, W, sg } = r, g = new T.Group();
     const bk = (w, h, d, mat, x, y, z, rz = 0) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); b.rotation.z = rz; b.castShadow = b.receiveShadow = true; g.add(b); };
-    bk(Ls, 0.6, W, br, L / 2, H / 2, 0, -inc);
-    for (const e of [-1, 1]) bk(Ls, 1.1, 0.25, br, L / 2, H / 2 + 0.85, e * (W / 2 - 0.12), -inc);
-    bk(2.4, 0.6, W + 2, br, 0, H, 0);
-    for (let d = 6; d < L - 3; d += 7) { const h = H * (1 - d / L) - 0.3; if (h > 1) for (const e of [-1, 1]) bk(0.9, h, 0.9, pil, d, h / 2, e * (W / 2 - 1)); }
-    bk(big ? 12 : 6, 0.3, big ? 16 : 8, br, L + (big ? 5 : 2.5), 0.15, 0);
+    const lance = (x0, x1, y0, y1, z) => { const Ls = Math.hypot(x1 - x0, y1 - y0), rz = Math.atan((y1 - y0) / (x1 - x0)), xm = (x0 + x1) / 2, ym = (y0 + y1) / 2; // um lance reto de rampa, com guarda-corpo e pilares
+      bk(Ls, 0.6, W, br, xm, ym, z, rz); for (const e of [-1, 1]) bk(Ls, 1.1, 0.25, br, xm, ym + 0.85, z + e * (W / 2 - 0.12), rz);
+      const n = Math.floor(Math.abs(x1 - x0) / 7); for (let k = 1; k <= n; k++) { const f = k / (n + 1), h = y0 + (y1 - y0) * f - 0.3; if (h > 1) for (const e of [-1, 1]) bk(0.8, h, 0.8, pil, x0 + (x1 - x0) * f, h / 2, z + e * (W / 2 - 1)); } };
+    bk(2.4, 0.6, W + 2, br, 0, H, 0); // saída do anel
+    if (!r.vai) { lance(0, L, H, 0, 0); bk(6, 0.3, 8, br, L + 2.5, 0.15, 0); }
+    else { const z2 = sg * (W + 1); lance(0, L, H, H / 2, 0); lance(L, 6, H / 2, 0, z2); // ida até a ponta e volta por fora
+      bk(W, 0.6, W + Math.abs(z2), br, L + W / 2, H / 2, z2 / 2); for (const zz of [0, z2]) bk(0.9, H / 2 - 0.3, 0.9, pil, L + W / 2, (H / 2 - 0.3) / 2, zz); // patamar da virada
+      bk(6, 0.3, W + 2, br, 3, 0.15, z2); }
     g.position.set(r.x, 0, r.z); g.rotation.y = -Math.atan2(r.nz, r.nx); grp.add(g); } }
 
 function wire(pos, aM, bM, topH, L, DG) {
