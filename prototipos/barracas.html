@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Barracas do estádio</title>
+<style>body{font-family:system-ui;margin:16px;max-width:900px;background:#fbfaf7} .g{display:grid;grid-template-columns:1fr;gap:12px} p{margin:4px 0 8px;font-size:13px}</style></head>
+<body>
+<p>Protótipo das barracas de comida (src/estadio.js): quantidade pelo nível, fila pelo humor. Arraste para girar.</p>
+<div class="g" id="g"></div>
+<script type="module">
+import { desenharEstadio, configDoClube } from "../src/estadio.js";
+import { comidaPorTorcedor } from "../src/economia.js";
+const base = { nome: "Trem", sigla: "TREM", escudo: { cor1: "#1a1a1a", cor2: "#c8102e" }, estadio_visual: { modelo: "tradicional", nomeEstadio: "Estádio do Trem", padrao: "setor", cobertura: "N" } };
+const casos = [[3, 2, "tradicional"], [3, 14, "tradicional"], [6, 16, "caldeirao"], [8, 8, "arena"]];
+const g = document.getElementById("g"), erros = []; window.onerror = e => erros.push(String(e));
+for (const [nivel, humor, modelo] of casos) {
+  const box = document.createElement("div"), cap = document.createElement("p"), el = document.createElement("div");
+  cap.textContent = `Nível ${nivel} · humor ${humor} · ${modelo} · R$ ${comidaPorTorcedor(nivel, humor).toFixed(2).replace(".", ",")} por torcedor`;
+  box.append(cap, el); g.append(box);
+  await desenharEstadio(el, configDoClube({ ...base, estadio_nivel: nivel, humor, estadio_visual: { ...base.estadio_visual, modelo } }, null));
+}
+window.TESTE = { ok: true, erros };
+</script></body></html>

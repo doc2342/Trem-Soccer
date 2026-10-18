@@ -35,7 +35,11 @@ export const EXTRAS_DO_ESTADIO = { nivelDosRefletores: 4, publicoRefletores: 0.0
 export const temRefletores = nivel => (nivel || 1) >= EXTRAS_DO_ESTADIO.nivelDosRefletores;
 export const estacionamentoDoEstadio = nivel => Math.floor((Math.min(8, Math.max(1, nivel || 1)) - 1) / 2);
 export const bonusDoEstadio = nivel => 1 + (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.publicoRefletores : 0) + EXTRAS_DO_ESTADIO.publicoPorEstacionamento * estacionamentoDoEstadio(nivel);
-export const manutencaoExtraDoEstadio = nivel => (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.manutRefletores : 0) + EXTRAS_DO_ESTADIO.manutPorEstacionamento * estacionamentoDoEstadio(nivel);
+// Comida e bebida em dia de jogo (118_comida_no_estadio.sql): R$ 4 + 0,50 por nível, vezes 0,8 a 1,2 pelo humor; todo o público, sem taxa do fundo; bares custam 20 mil por nível na manutenção
+export const COMIDA = { base: 4, porNivel: 0.5, manutPorNivel: 20 };
+const nivelDoEstadio = nivel => Math.min(8, Math.max(1, nivel || 1));
+export const comidaPorTorcedor = (nivel, humor = 8) => Math.round((COMIDA.base + COMIDA.porNivel * nivelDoEstadio(nivel)) * (0.8 + 0.4 * Math.min(16, Math.max(0, humor ?? 8)) / 16) * 100) / 100;
+export const manutencaoExtraDoEstadio = nivel => (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.manutRefletores : 0) + EXTRAS_DO_ESTADIO.manutPorEstacionamento * estacionamentoDoEstadio(nivel) + COMIDA.manutPorNivel * nivelDoEstadio(nivel);
 // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
 export const PRESTIGIO_MAXIMO = 2.15;
 // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões

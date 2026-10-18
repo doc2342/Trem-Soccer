@@ -22,7 +22,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "" };
+    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor };
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
 }
@@ -280,6 +280,7 @@ function construir() {
   inst(fp, (p, i, im) => put(im, i, p.x, 1.25, p.z, p.ang, 2.5, 2.5, 0.05), new T.MeshLambertMaterial({ color: "#7d8a90", transparent: true, opacity: .35, depthWrite: false }));
   inst(fp, (p, i, im) => put(im, i, p.x, 1.3, p.z, p.ang, 0.12, 2.6, 0.12, new T.Color("#5f5e5a")));
   inst(fp, (p, i, im) => put(im, i, p.x, 2.55, p.z, p.ang, 2.55, 0.1, 0.1, new T.Color("#5f5e5a")));
+  barracas(aM, bM, topH, dunas, nb, hx);
   if (nb) { const zc = L.z0 + L.D / 2; bloco(L.W + 6, 0.02, L.D + 6, lam("#d8d4ca"), 0, 0.01, zc);
     const lt = plano(new T.PlaneGeometry(L.W, L.D), new T.MeshLambertMaterial({ map: loteTex(L) }), 0.04); lt.position.z = zc; grp.add(lt);
     const ac0 = bM + (dunas ? 31 : 8); bloco(10, 0.05, L.z0 - ac0, lam("#5a5955"), 0, 0.03, (ac0 + L.z0) / 2);
@@ -289,6 +290,20 @@ function construir() {
     inst(carros, (v, i, im) => put(im, i, v.x, 1.35, v.z - v.dir * 0.2, Math.PI / 2, 2.2, 0.65, 1.6, new T.Color("#3a4652")));
     const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64"))); }
   cur.render(); }
+
+// Barracas de comida e bebida (118_comida_no_estadio.sql) na esplanada: 4 + 2 por nível; a fila em cada uma segue o humor da torcida (0 a 5 pessoas)
+function barracas(aM, bM, topH, dunas, nb, hx) {
+  const off = dunas ? 25 : 5.5, ring = walk(contorno(m, aM + off, bM + off), 1), n = 4 + 2 * niv, fila = Math.round(5 * Math.min(16, Math.max(0, C.humor ?? 8)) / 16);
+  const f = m.R == null ? 0.75 : 0.97, torres = C.refletores && !m.teto ? [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (aM + 7) * f, sz * (bM + 7) * f]) : [];
+  const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > 6);
+  const pts = []; for (let i = 0; i < n; i++) { const p = ring[Math.floor((i + 0.5) * ring.length / n)]; if (p && livre(p)) pts.push(p); }
+  const fora = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
+  const toldo = [hx[0], "#f2c200", hx[1], "#e8742a"].map(c => new T.Color(c)), gente = [], pal = [...toldo, new T.Color("#f1efe8"), new T.Color("#2c2c2a"), new T.Color("#888780")];
+  inst(pts, (p, i, im) => put(im, i, p.x, 1.6, p.z, p.ang, 5, 3.2, 3, new T.Color("#f1efe8")));
+  inst(pts, (p, i, im) => { const [nx, nz] = fora(p); put(im, i, p.x + nx * 0.6, 3.45, p.z + nz * 0.6, p.ang, 5.6, 0.5, 4.4, toldo[i % toldo.length]); });
+  rng = 23; for (const p of pts) { const [nx, nz] = fora(p), tx = Math.cos(p.ang), tz = Math.sin(p.ang);
+    for (let k = 0; k < fila; k++) { const d = 2.6 + 1.1 * k, lat = (rnd() - 0.5) * 1.6; gente.push({ x: p.x + nx * d + tx * lat, z: p.z + nz * d + tz * lat, c: pal[(rnd() * pal.length) | 0] }); } }
+  if (gente.length) inst(gente, (g, i, im) => put(im, i, g.x, 1, g.z, 0, 0.8, 2, 0.8, g.c)); }
 
 function wire(pos, aM, bM, topH, L, DG) {
   const W = [], A = [], B = [], seg = (arr, p, q) => arr.push(p[0], p[1], p[2], q[0], q[1], q[2]), amb = (x, z, ld, r) => !pronto(x, z, ld, r);

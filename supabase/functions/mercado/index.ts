@@ -381,6 +381,16 @@ const __economia = (() => {
   // Estádio: níveis 1 a 5 de 10 a 30 mil lugares; 6, 7 e 8 com 40, 50 e 60 mil (55_estadio_torcida_e_publico.sql)
   const NIVEL_MAXIMO_DO_ESTADIO = 8;
   const lugaresDoEstadio = nivel => { const n = Math.max(1, nivel || 1); return n <= 5 ? 5000 + 5000 * n : [40000, 50000, 60000][Math.min(8, n) - 6]; };
+  // Refletores (a partir do nível 4) e estacionamento (nível 0 a 3, a cada dois níveis do estádio): fixos, com bônus de público e manutenção (117_refletores_e_estacionamento.sql)
+  const EXTRAS_DO_ESTADIO = { nivelDosRefletores: 4, publicoRefletores: 0.03, publicoPorEstacionamento: 0.02, manutRefletores: 60, manutPorEstacionamento: 40 };
+  const temRefletores = nivel => (nivel || 1) >= EXTRAS_DO_ESTADIO.nivelDosRefletores;
+  const estacionamentoDoEstadio = nivel => Math.floor((Math.min(8, Math.max(1, nivel || 1)) - 1) / 2);
+  const bonusDoEstadio = nivel => 1 + (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.publicoRefletores : 0) + EXTRAS_DO_ESTADIO.publicoPorEstacionamento * estacionamentoDoEstadio(nivel);
+  // Comida e bebida em dia de jogo (118_comida_no_estadio.sql): R$ 4 + 0,50 por nível, vezes 0,8 a 1,2 pelo humor; todo o público, sem taxa do fundo; bares custam 20 mil por nível na manutenção
+  const COMIDA = { base: 4, porNivel: 0.5, manutPorNivel: 20 };
+  const nivelDoEstadio = nivel => Math.min(8, Math.max(1, nivel || 1));
+  const comidaPorTorcedor = (nivel, humor = 8) => Math.round((COMIDA.base + COMIDA.porNivel * nivelDoEstadio(nivel)) * (0.8 + 0.4 * Math.min(16, Math.max(0, humor ?? 8)) / 16) * 100) / 100;
+  const manutencaoExtraDoEstadio = nivel => (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.manutRefletores : 0) + EXTRAS_DO_ESTADIO.manutPorEstacionamento * estacionamentoDoEstadio(nivel) + COMIDA.manutPorNivel * nivelDoEstadio(nivel);
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
   // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
@@ -410,7 +420,7 @@ const __economia = (() => {
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, COMIDA, comidaPorTorcedor, manutencaoExtraDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __base = (() => {
