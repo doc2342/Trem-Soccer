@@ -1,4 +1,5 @@
 // Ligação com o Supabase. A URL e a chave abaixo são públicas por natureza: quem protege os dados são as regras do banco.
+import { batizar } from "./patrocinio.js";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 export const SUPABASE_URL = "https://gqsvsvrclyiroehymuot.supabase.co";
@@ -248,7 +249,8 @@ export { PAISES, paisDoGrupo };
 // jogos do playoff da Série B (desde a T14): preliminar em jogo único, semifinal e final em ida (rodada par) e volta (ímpar)
 export const nomeDoPlayoff = p => ({ pre: "Playoff · preliminar", semi: "Playoff · semifinal", final: "Playoff · final" })[p.fase] + (p.fase === "pre" ? "" : p.rodada % 2 ? " (volta)" : " (ida)");
 export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
-export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", F: "Brasileiro Série B3", D: "Brasileiro Série C1", E: "Brasileiro Série C2", X: "Clubes guardados", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
+export const nomeDoGrupo = g => batizar(g, nomeBaseDoGrupo(g)); // com o naming rights (src/patrocinio.js)
+export const nomeBaseDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", F: "Brasileiro Série B3", D: "Brasileiro Série C1", E: "Brasileiro Série C2", X: "Clubes guardados", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
   ARG: "Campeonato Argentino", URU: "Campeonato Uruguaio", COL: "Campeonato Colombiano", CHI: "Campeonato Chileno" })[g] || "Grupo " + g;
 // Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
 export const FASES_DA_COPA = ["Supercopa", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];
@@ -257,10 +259,10 @@ export const PREMIOS_DA_COPA = { fases: [0, 0, 50, 150, 300, 500], vice: 800, ca
 export const PREMIOS_DA_LIB = { fases: [0, 0, 0, 0, 200, 300], vice: 700, campeao: 2500 };
 // Sul-Americana e Recopa (112_sulamericana_e_recopa.sql): também fase "lib", separadas pelo grupo "SUL" e "REC" (a Recopa é um jogo só, copa_fase 6)
 export const PREMIOS_DA_SUL = { fases: [0, 0, 0, 0, 70, 100], vice: 250, campeao: 850 }, PREMIO_DA_RECOPA = 500;
-export const CONTINENTAIS = { LIB: ["🌎", "Libertadores"], SUL: ["🌐", "Sul-Americana"], REC: ["🏆", "Recopa"] };
+export const CONTINENTAIS = { LIB: ["🌎", nomeDoGrupo("LIB")], SUL: ["🌐", nomeDoGrupo("SUL")], REC: ["🏆", "Recopa"] };
 // jogo de mata-mata em campo neutro: Copa do Brasil, Supercopa ou Libertadores
 export const ehCopa = p => !!p && (p.fase === "copa" || p.fase === "lib");
-export const nomeDaCopa = p => p.fase === "lib" ? (([ic, nome]) => p.grupo === "REC" ? `${ic} ${nome}` : `${ic} ${nome} · ${FASES_DA_COPA[p.copa_fase] || ""}`)(CONTINENTAIS[p.grupo] || CONTINENTAIS.LIB) : p.copa_fase ? `🏆 Copa do Brasil · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
+export const nomeDaCopa = p => p.fase === "lib" ? (([ic, nome]) => p.grupo === "REC" ? `${ic} ${nome}` : `${ic} ${nome} · ${FASES_DA_COPA[p.copa_fase] || ""}`)(CONTINENTAIS[p.grupo] || CONTINENTAIS.LIB) : p.copa_fase ? `🏆 ${nomeDoGrupo("COPA")} · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
   const { data: c } = await sb.from("clubes").select("liga_id, divisao").eq("id", clubeId).maybeSingle();

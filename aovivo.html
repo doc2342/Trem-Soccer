@@ -108,7 +108,7 @@ import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, 
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
-import { MARCAS, selo, placasDoJogo, ANUNCIE } from "./src/patrocinio.js";
+import { MARCAS, selo, placasDoJogo, ANUNCIE, jogoPatrocinado } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -318,7 +318,7 @@ function topo(gols, m, narracao = [], pre = null) {
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
-  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>
+  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>${(jp => jp && jp.id === partida.id ? `<div class="competicao" style="color:var(--ac);margin-top:4px">${selo(jp.marca, 18)} ${esc(jp.nome)}</div>` : "")(rodada && !ehCopa(partida) ? jogoPatrocinado(rodada.daRodada) : null)}
     <div class="painel"><div class="uni-g">${svgUniforme(u[0], 88)}</div><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} <span class="uni-p">${svgUniforme(u[0], 26)}</span></span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} <span class="uni-p">${svgUniforme(u[1], 26)}</span></span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div><div class="uni-g">${svgUniforme(u[1], 88)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }

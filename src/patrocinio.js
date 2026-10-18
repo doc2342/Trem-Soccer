@@ -5,9 +5,9 @@ export const MARCAS = {
   dobet: { nome: "DObet", grande: true, bordao: "Aposte no seu faro." },
   central_do_dobr: { nome: "Central do DO-BR", grande: true, bordao: "A casa de quem vive de Dugout." },
   central_do_mercado: { nome: "Central do Mercado", bordao: "Quem compra primeiro, ri por último." },
-  gazeta_dugoutense: { nome: "Gazeta Dugoutense", bordao: "A notícia chega antes da bola." },
-  podcast_10min: { nome: "Podcast 10 min de Dugout Online", bordao: "Dez minutos, zero enrolação." },
-  dugout_dos_crias: { nome: "Dugout dos Crias", bordao: "Da base para o mundo." },
+  gazeta_dugoutense: { nome: "Gazeta Dugoutense", curto: "Gazeta", bordao: "A notícia chega antes da bola." },
+  podcast_10min: { nome: "Podcast 10 min de Dugout Online", curto: "Podcast 10 min", bordao: "Dez minutos, zero enrolação." },
+  dugout_dos_crias: { nome: "Dugout dos Crias", curto: "Crias", bordao: "Da base para o mundo." },
   mestres_do_dugout: { nome: "Mestres do Dugout", bordao: "Quem sabe, joga." },
 };
 export const selo = (marca, px = 40) => MARCAS[marca] ? `<img src="patrocinios/${marca}.png" width="${px}" height="${px}" alt="${MARCAS[marca].nome}" title="${MARCAS[marca].nome}" style="vertical-align:middle;object-fit:contain">` : "";
@@ -33,3 +33,20 @@ export const PLACAS = [
 export const ANUNCIE = { nome: "Anuncie aqui", bordao: "Sua marca no Trem Soccer. Fale com a administração.", cor: "#ffffff", txt: "#111111", convite: true };
 // as placas de um jogo (ou de um estádio): a mesma semente dá sempre as mesmas, para todo mundo
 export const placasDoJogo = (semente, n = 4) => criarRng((semente | 0) * 7919 + 13).embaralhar(PLACAS).slice(0, n);
+
+// Naming rights (18/10/2026): só cosméticos. Quem administra a liga escolhe a marca de cada competição aqui (null = nome puro).
+// Chaves: A, B (B1 a B3), C (C1 e C2), COPA, LIB, SUL.
+export const NAMING = { A: "dobet", B: "gazeta_dugoutense", C: "dugout_dos_crias", COPA: "grupo_trem", LIB: "central_do_dobr", SUL: "central_do_mercado" };
+const DIVISAO_DO_GRUPO = { A: "A", B: "B", C: "B", F: "B", D: "C", E: "C" };
+// "Brasileiro Série B1" → "Brasileiro Gazeta Série B1"; "Copa do Brasil" → "Copa Grupo Trem do Brasil"; "Libertadores" → "Libertadores Central do DO-BR"
+export function batizar(g, nome) {
+  const m = MARCAS[NAMING[DIVISAO_DO_GRUPO[g] || g]]; if (!m) return nome;
+  const n = m.curto || m.nome;
+  return DIVISAO_DO_GRUPO[g] ? nome.replace("Brasileiro ", `Brasileiro ${n} `) : g === "COPA" ? `Copa ${n} do Brasil` : `${nome} ${n}`;
+}
+// Jogo patrocinado: um jogo de liga por grupo e rodada, com uma marca. lista = os jogos de liga daquele grupo e rodada; todo mundo sorteia o mesmo.
+export function jogoPatrocinado(lista) {
+  const ids = lista.map(p => p.id).sort((a, b) => a - b); if (!ids.length) return null;
+  const r = criarRng(ids[0] * 31 + ids.length), marca = r.pick(Object.keys(MARCAS));
+  return { id: r.pick(ids), marca, nome: `Jogo ${MARCAS[marca].curto || MARCAS[marca].nome} da rodada` };
+}

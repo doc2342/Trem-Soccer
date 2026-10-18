@@ -649,7 +649,7 @@ async function telaClube(liga, clube) {
       return !l.length ? `<span class="mut">${copaJogos.some(p => p.chave != null) ? "a definir" : "a sortear"}</span>` : feitos === l.length ? "encerrada" : feitos ? `${feitos} de ${l.length} jogos` : l.some(p => new Date(p.inicio).getTime() <= agora) ? `<b class="aviso">ao vivo</b>` : `${l.length} ${l.length === 1 ? "jogo" : "jogos"}`; };
     $("compKpis").innerHTML = kpisDoMataMata(copaJogos, [1, 2, 3, 4, 5, 6], ult, ganho, diretos);
     $("compChave").innerHTML = chaveDaCopa(copaJogos, [1, 2, 3, 4, 5, 6], liga.copa && liga.copa.chave32);
-    $("tituloTabela").innerHTML = "🏆 Copa do Brasil · fases";
+    $("tituloTabela").innerHTML = `🏆 ${esc(nomeDoGrupo("COPA"))} · fases`;
     $("tabela").className = "";
     $("tabela").innerHTML = `${supercopa ? (r => `<div style="margin-bottom:8px">⭐ <b>Supercopa</b> <span class="mut">· campeão da Série A x campeão da Copa do Brasil ·</span> <a class="lk" href="aovivo.html?id=${supercopa.id}">${esc(cPor[supercopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[supercopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(supercopa))}</b>` : ` · ${new Date(supercopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(supercopa.inicio)}`}</div>`)(copaRes[supercopa.id]) : ""}
       ${campeao ? `<div style="font-size:16px;margin-bottom:8px">🏆 Campeão: <b>${lk(campeao)}</b></div>` : ""}
@@ -659,7 +659,7 @@ async function telaClube(liga, clube) {
       ${finalistas.some(x => x.copa === "campeão") ? `<div style="margin-top:12px"><b>Campeões</b>${[...new Set(finalistas.map(x => x.temporada))].map(t => { const c = finalistas.find(x => x.temporada === t && x.copa === "campeão"), v = finalistas.find(x => x.temporada === t && x.copa === "vice");
         return `<div>Temporada ${t}: 🏆 ${c ? lk(c.clube_id) : "—"}${v ? ` <span class="mut">· vice ${lk(v.clube_id)}</span>` : ""}</div>`; }).join("")}</div>` : ""}
       <div class="mut" style="margin-top:6px;font-size:12px">Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a cada clube que entra na fase; a preliminar não paga. A renda de cada jogo é dividida meio a meio.</div>`;
-    $("tituloJogos").textContent = "Copa do Brasil · jogos";
+    $("tituloJogos").textContent = `${nomeDoGrupo("COPA")} · jogos`;
     $("rodadas").className = "";
     if (!fases.length) { $("rodadas").innerHTML = `<div class="mut">A copa ainda não foi sorteada.</div>`; return; }
     const atual = fases.find(f => daFase(f).some(p => !copaRes[p.id])) || fases[fases.length - 1];
@@ -773,7 +773,7 @@ async function telaClube(liga, clube) {
   // Estatísticas: listas de jogadores, tabela de clubes e recordes, somados pelo banco (54_estatisticas_da_liga.sql)
   async function telaDasEstatisticas() {
     const comp = $("stComp").value, temp = $("stTemp").value, lista = $("stLista").value;
-    const nomeDaComp = comp === "TODOS" ? "Todas as séries" : comp === "COPA" ? "Copa do Brasil" : nomeDoGrupo(comp);
+    const nomeDaComp = comp === "TODOS" ? "Todas as séries" : comp === "COPA" ? nomeDoGrupo("COPA") : nomeDoGrupo(comp);
     $("tituloTabela").innerHTML = `📊 ${esc($("stLista").selectedOptions[0].text)} · ${esc(nomeDaComp)}`; $("tituloJogos").textContent = "Clubes e recordes";
     $("tabela").className = ""; $("rodadas").className = "";
     $("tabela").innerHTML = $("rodadas").innerHTML = `<span class="mut">Carregando…</span>`;
