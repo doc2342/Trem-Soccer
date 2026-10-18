@@ -1746,8 +1746,10 @@ const __treino = (() => {
   }
 
   // Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
-  // Cada sessão dá pontos de posição; o custo por degrau (improvisado → competente → natural) depende da distância até uma posição
-  // em que ele já é natural: vizinha 900 (natural em uma temporada de 18 sessões), vizinha de vizinha 1800, o resto 2700. Jogar na posição acelera; a idade freia. Goleiro não aprende posição de linha, nem o contrário.
+  // O custo por degrau (improvisado → competente → natural) depende da distância até uma posição em que ele já é natural: vizinha 900,
+  // vizinha de vizinha 1800, o resto 2700. Até competente, cada sessão de treino dá pontos e jogar na posição acelera; de competente a natural,
+  // só jogando: cada jogo de 45 minutos ou mais na posição (liga ou liga de base) dá os pontos de "treinou e jogou", e o treino não rende nada
+  // nem custa os 20%. A idade freia. Goleiro não aprende posição de linha, nem o contrário.
   const CONFIG_POSICAO = { custoDoTreino: 0.2, porSessao: 100, vizinha: 900, proxima: 1800, distante: 2700, bonusPorJogar: 0.5 };
   const ritmoDaPosicao = idade => idade <= 23 ? 1 : idade <= 27 ? 0.7 : 0.4;
   // posição que o jogador está aprendendo agora (nula quando não há, ou quando ele já virou natural nela)
@@ -1757,13 +1759,16 @@ const __treino = (() => {
     return naturais.some(p => perto(p, pos)) ? "vizinha" : naturais.some(p => (VIZINHAS[p] || []).some(v => perto(v, pos))) ? "proxima" : "distante";
   }
   const custoDaPosicao = (j, pos) => CONFIG_POSICAO[distanciaDaPosicao(j, pos)];
+  // treino de atributos paga os 20% só enquanto a sessão ainda ensina a posição (até competente)
+  const treinandoPosicao = j => { const p = posicaoEmEstudo(j); return !!p && (j.fam || {})[p] !== "C"; };
   const pontosDePosicao = (j, jogouNa = false) => Math.round(CONFIG_POSICAO.porSessao * ritmoDaPosicao(j.idade) * (jogouNa ? 1 + CONFIG_POSICAO.bonusPorJogar : 1));
   // Uma sessão de estudo da posição. Devolve { fam, aprende } ou null (não está aprendendo nada).
   // soBonus: só a parte de "jogou na posição", sem a sessão (jogo da liga de base).
   // subiu: { para: "C" ou "N", em: data } do último degrau conquistado, para o mural do clube avisar por AVISO_DE_DEGRAU_DIAS.
   function aprenderPosicao(j, { jogouNa = false, soBonus = false, em = new Date().toISOString() } = {}) {
     const pos = posicaoEmEstudo(j); if (!pos) return null;
-    const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + (soBonus ? pontosDePosicao(j, true) - pontosDePosicao(j) : pontosDePosicao(j, jogouNa));
+    const custo = custoDaPosicao(j, pos), fam = { ...j.fam }; let pts = (+j.aprende.pts || 0) + (fam[pos] === "C" ? (jogouNa || soBonus ? pontosDePosicao(j, true) : 0) // de competente a natural, só jogando
+      : soBonus ? pontosDePosicao(j, true) - pontosDePosicao(j) : pontosDePosicao(j, jogouNa));
     while (pts >= custo && fam[pos] !== "N") { pts -= custo; fam[pos] = fam[pos] === "C" ? "N" : "C"; }
     if (fam[pos] === "N") pts = 0;
     const subiu = fam[pos] !== (j.fam || {})[pos] ? { para: fam[pos], em } : j.aprende.subiu;
@@ -1772,10 +1777,10 @@ const __treino = (() => {
   const AVISO_DE_DEGRAU_DIAS = 3;
   // degrau de posição conquistado há pouco: { pos, para } ou null
   const degrauRecente = (j, agora = Date.now()) => { const s = j.aprende && j.aprende.subiu; return s && agora - Date.parse(s.em) < AVISO_DE_DEGRAU_DIAS * 864e5 ? { pos: j.aprende.pos, para: s.para } : null; };
-  // quantas sessões faltam para o próximo degrau e para virar natural (sem jogar na posição)
+  // competente: sessões de treino que faltam para virar competente (0 se já é; sem jogar na posição); jogos: jogos de 45 minutos na posição, depois disso, para virar natural
   function prazoDaPosicao(j, pos, pts = 0) {
-    const custo = custoDaPosicao(j, pos), porSessao = pontosDePosicao(j), degraus = (j.fam || {})[pos] === "C" ? 1 : 2;
-    return { proximo: Math.max(1, Math.ceil((custo - pts) / porSessao)), natural: Math.max(1, Math.ceil((custo * degraus - pts) / porSessao)) };
+    const custo = custoDaPosicao(j, pos), jaC = (j.fam || {})[pos] === "C", porJogo = pontosDePosicao(j, true);
+    return { competente: jaC ? 0 : Math.max(1, Math.ceil((custo - pts) / pontosDePosicao(j))), jogos: Math.max(1, Math.ceil((custo - (jaC ? pts : 0)) / porJogo)) };
   }
 
   // Teto que cede: um em cada três jogadores passa 1 ponto do teto do talento, e um em cada dezoito passa 2 (CONFIG_TREINO.folga).
@@ -1804,7 +1809,7 @@ const __treino = (() => {
   function pontosDaSessao(j, { ct = 0, jogou = false, tal = null, teto = null } = {}) {
     const C = CONFIG_TREINO, equ = (j.at[IDX.equ] - ATR_MIN) / (ATR_MAX - ATR_MIN);
     return C.pontosPorSessao * ritmoDaIdade(j.idade) * (C.ct[0] + C.ct[1] * (ct || 0)) * (C.equipe[0] + (C.equipe[1] - C.equipe[0]) * equ) * (jogou ? 1 + C.bonusPorJogar : 1)
-      * (posicaoEmEstudo(j) ? 1 - CONFIG_POSICAO.custoDoTreino : 1)
+      * (treinandoPosicao(j) ? 1 - CONFIG_POSICAO.custoDoTreino : 1)
       * fatorDoCaminho(j, teto != null ? teto : tal != null ? tetoDaNota(tal) : C.caminho.tetoTipico);
   }
   // Quanto de cada sessão vai para cada atributo: { índice: fração }. Atributo cheio (50) passa a vez aos outros do foco; com o foco todo cheio,
@@ -1840,7 +1845,7 @@ const __treino = (() => {
     }
     return { at, pts, subiu };
   }
-  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, distanciaDaPosicao, custoDaPosicao, pontosDePosicao, aprenderPosicao, AVISO_DE_DEGRAU_DIAS, degrauRecente, prazoDaPosicao, folgaDoTeto, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
+  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, distanciaDaPosicao, custoDaPosicao, treinandoPosicao, pontosDePosicao, aprenderPosicao, AVISO_DE_DEGRAU_DIAS, degrauRecente, prazoDaPosicao, folgaDoTeto, tetoDaNota, alvoDaIdade, fatorDoCaminho, pontosDaSessao, partilha, treinar };
 })();
 
 const __ligabase = (() => {
