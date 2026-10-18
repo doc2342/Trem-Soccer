@@ -12,6 +12,9 @@
   .painel { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:10px; text-align:center; max-width:560px; margin:6px auto 0; }
   .painel .time { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; overflow-wrap:anywhere; font-family:var(--display); font-weight:600; font-size:20px; letter-spacing:.04em; text-transform:uppercase; line-height:1.05; }
   .painel .gols { font-family:var(--display); font-size:64px; font-weight:700; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  /* uniformes: no PC, grandes nas pontas do placar; no celular, pequenos ao lado do escudo */
+  .painel .uni-g { display:none; }
+  @media (min-width:761px) { .painel { grid-template-columns:auto minmax(0, 1fr) auto minmax(0, 1fr) auto; max-width:760px; gap:18px; } .painel .uni-g { display:block; } .painel .uni-p { display:none; } }
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
@@ -240,7 +243,7 @@ function topo(gols, m, narracao = [], pre = null) {
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
   $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>
-    <div class="painel"><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div></div>
+    <div class="painel"><div class="uni-g">${svgUniforme(u[0], 88)}</div><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} <span class="uni-p">${svgUniforme(u[0], 26)}</span></span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} <span class="uni-p">${svgUniforme(u[1], 26)}</span></span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div><div class="uni-g">${svgUniforme(u[1], 88)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
 
