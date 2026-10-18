@@ -19,6 +19,7 @@ export const CONFIG = {
   ajudaAoCentro: 0.65, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
   continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
   pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
+  posseNumerica: 2, // controle × (em campo / 11)^isto: com 10 o time fica com ~44% da bola em vez de ~49% (sim10, 18/10/2026)
   vantagemFinalizador: 3, // somado ao atributo de quem chuta, na disputa com o goleiro
   xgBase: { cruzamento: 0.095, corte: 0.08, profundidade: 0.27, area: 0.15, longe: 0.045, escanteio: 0.075, falta: 0.06, penalti: 0.76 },
   inclinacaoXg: 1.2,
@@ -256,7 +257,7 @@ function recalcular(t, saldo) {
   const linha = t.zonas.DC, peso = linha.reduce((s, o) => s + o.w, 0);
   t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
   t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
-    * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + CONFIG.mentalidadePosse * I.mentalidade);
+    * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + CONFIG.mentalidadePosse * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
 }
 
 // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
