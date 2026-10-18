@@ -1,5 +1,13 @@
 :root { --bg:#0a0e26; --card:#121842; --campo:#0d1235; --hover:#1b2457; --pp:#243066; --line:#262e62; --tx:#eaf1fb; --mut:#8d98c2; --ac:#f2c14e; --sul:#b48cf2; --casa:#7fcdf0; --fora:#e58a5a; --ok:#3fcb82; --bad:#ff5c63;
-  --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif; --body:"Barlow",system-ui,"Segoe UI",Roboto,sans-serif; --sombra:0 1px 2px rgba(0,0,0,.3); }
+  --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif; --body:"Barlow",system-ui,"Segoe UI",Roboto,sans-serif; --sombra:0 1px 2px rgba(0,0,0,.3);
+  /* tons que dependem do fundo: no tema claro mudam junto com as cores acima */
+  --ac-tx:#1a1300; --vidro:rgba(255,255,255,.03); --trilho:rgba(255,255,255,.08); --vaga:rgba(10,14,38,.86); --sombra-alta:0 10px 30px rgba(0,0,0,.55);
+  --ac-fundo:color-mix(in srgb, var(--ac) 12%, transparent); --ok-fundo:color-mix(in srgb, var(--ok) 13%, transparent); --bad-fundo:color-mix(in srgb, var(--bad) 9%, transparent); }
+/* tema claro: o atualiza.js põe data-tema="claro" no <html> (escolha do jogador ou tema do aparelho); --ac e --ac-tx podem vir do escudo do clube */
+:root[data-tema=claro] { --bg:#eef1f8; --card:#ffffff; --campo:#f5f7fc; --hover:#e6ebf6; --pp:#dfe5f4; --line:#d5dcec; --tx:#121a3a; --mut:#5a6590;
+  --ac:#946a00; --ac-tx:#ffffff; --sul:#7447c9; --casa:#1c78b0; --fora:#c0531d; --ok:#1b8a52; --bad:#d3313a;
+  --sombra:0 1px 2px rgba(20,30,70,.07), 0 2px 8px rgba(20,30,70,.05); --vidro:rgba(18,26,58,.035); --trilho:rgba(18,26,58,.08); --vaga:rgba(255,255,255,.93); --sombra-alta:0 10px 30px rgba(20,30,70,.22); color-scheme:light; }
+:root[data-tema=claro] .fbola { color:#fff; }
 * { box-sizing:border-box; }
 #quadroJogador{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--bg)}#quadroJogador iframe{display:block;width:100%;height:100%;border:0}
 [hidden] { display:none !important; }
@@ -28,7 +36,7 @@ h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
 .duas > * { min-width:0; }
 label { display:flex; flex-direction:column; gap:3px; font-size:12px; color:var(--mut); }
 select, input, button { font:inherit; color:var(--tx); background:var(--campo); border:1px solid var(--line); border-radius:8px; padding:7px 10px; max-width:100%; }
-button { cursor:pointer; background:var(--ac); color:#1a1300; border-color:var(--ac); font-weight:600; }
+button { cursor:pointer; background:var(--ac); color:var(--ac-tx); border-color:var(--ac); font-weight:600; }
 button.sec { background:var(--campo); color:var(--tx); border-color:var(--line); font-weight:400; }
 button:disabled { opacity:.45; cursor:not-allowed; }
 table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; }
@@ -43,8 +51,8 @@ th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-
 .lance { padding:7px 0; border-bottom:1px solid var(--line); display:flex; gap:10px; font-size:14px; line-height:1.4; }
 .lance .min { width:44px; font-family:var(--display); font-weight:600; font-size:15px; font-variant-numeric:tabular-nums; color:var(--mut); flex:none; text-align:right; } .lance .xg { margin-left:auto; color:var(--mut); flex:none; font-size:12px; }
 .lance .ico { width:22px; flex:none; text-align:center; }
-.lance.gol { font-weight:700; background:rgba(242,193,78,.14); border-left:3px solid var(--ac); padding-left:6px; border-radius:4px; }
-.lance.amarelo, .lance.vermelho, .lance.lesao { background:rgba(229,100,107,.08); }
+.lance.gol { font-weight:700; background:var(--ac-fundo); border-left:3px solid var(--ac); padding-left:6px; border-radius:4px; }
+.lance.amarelo, .lance.vermelho, .lance.lesao { background:var(--bad-fundo); }
 .lance.substituicao, .lance.ordem, .lance.contra, .lance.impedimento { font-style:italic; }
 /* jogadas sem perigo ficam apagadas: o olho vai direto para chances, gols e cartões */
 .lance.posse, .lance.roda, .lance.falta, .lance.canto { font-size:12.5px; opacity:.55; padding:3px 0; } .lance.posse .nm, .lance.roda .nm { font-weight:500; }
@@ -72,7 +80,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 /* em tela estreita cabe só o sobrenome na ficha do campinho */
 .vaga .ns { display:none; }
 @media (max-width:620px) { .vaga .nc { display:none; } .vaga .ns { display:inline; } .fila.grade { gap:4px 2px; } .gramado .vaga { padding:4px 2px; } .gramado .pp { min-width:0; padding:1px 5px; } }
-.vaga { background:rgba(10,14,38,.86); border:1px solid var(--line); border-radius:8px; padding:5px; width:31%; max-width:170px; min-width:0; cursor:pointer; text-align:center; }
+.vaga { background:var(--vaga); border:1px solid var(--line); border-radius:8px; padding:5px; width:31%; max-width:170px; min-width:0; cursor:pointer; text-align:center; }
 .vaga.sel { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac); }
 .vaga.vazia { border-style:dashed; }
 .vaga select { padding:1px 4px; font-size:12px; font-weight:600; border-radius:6px; }
@@ -82,8 +90,8 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .lista .item:hover { background:var(--hover); }
 .lista .setor { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); padding:10px 4px 3px; border-bottom:1px solid var(--line); }
 .lista .item { border-left:4px solid transparent; }
-.lista .item.titular { border-left-color:var(--ok); background:rgba(63,178,127,.13); }
-.lista .item.reserva { border-left-color:var(--ac); background:rgba(242,193,78,.10); }
+.lista .item.titular { border-left-color:var(--ok); background:var(--ok-fundo); }
+.lista .item.reserva { border-left-color:var(--ac); background:var(--ac-fundo); }
 .relogio { font-variant-numeric:tabular-nums; font-weight:700; color:var(--ac); font-size:16px; }
 .legenda { display:flex; gap:12px; font-size:12px; color:var(--mut); margin-bottom:6px; }
 .legenda span { border-left:4px solid var(--line); padding-left:6px; }
@@ -94,13 +102,13 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .lista .item .info, .cabl .info { width:22px; height:22px; border-radius:50%; padding:0; font-size:12px; font-weight:700; background:transparent; color:var(--mut); border:1px solid var(--line); cursor:pointer; flex:none; }
 .lista { overflow-x:hidden; }
 /* titular ou reserva que não pode jogar a próxima partida (suspenso ou lesionado) */
-.vaga.fora { border-color:var(--bad) !important; background:rgba(229,100,107,.22); box-shadow:0 0 0 1px var(--bad); } .vaga.fora .nome { text-decoration:line-through; text-decoration-color:var(--bad); }
+.vaga.fora { border-color:var(--bad) !important; background:color-mix(in srgb, var(--bad) 18%, var(--vaga)); box-shadow:0 0 0 1px var(--bad); } .vaga.fora .nome { text-decoration:line-through; text-decoration-color:var(--bad); }
 .chip.fora { border-color:var(--bad); color:var(--bad); text-decoration:line-through; }
 .papeis { display:grid; grid-template-columns:auto minmax(0, 1fr); gap:6px 12px; align-items:center; } .papeis > b { font-size:13px; color:var(--mut); font-weight:600; }
 .papeis .chip b { margin-left:4px; color:var(--mut); }
 .linhaSub.curta { margin-bottom:4px; font-size:13px; } .linhaSub.curta > span { flex:1; min-width:0; } .linhaSub.curta button { padding:2px 8px; }
 .cabl { display:flex; gap:8px; justify-content:flex-end; font-size:11px; color:var(--mut); padding:0 4px 2px; } .cabl span { width:24px; text-align:right; } .cabl span:nth-child(3) { width:34px; }
-.skills { columns:4; column-gap:14px; padding:6px 8px 8px 14px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.03); font-size:12.5px; }
+.skills { columns:4; column-gap:14px; padding:6px 8px 8px 14px; border-bottom:1px solid var(--line); background:var(--vidro); font-size:12.5px; }
 .skills .grupo { break-inside:avoid; margin-bottom:6px; } .skills h4 { margin:0 0 2px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); border-bottom:1px solid var(--line); }
 .skills .grupo > div { display:flex; justify-content:space-between; gap:6px; color:var(--mut); } .skills .grupo > div.conta { color:var(--tx); font-weight:600; }
 @media (max-width:900px) { .skills { columns:2; } }
@@ -108,14 +116,14 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; background:var(--campo); }
 .chip.vazio { border-style:dashed; color:var(--mut); }
-#banco .chip:not(.vazio) { border-left:4px solid var(--ac); border-radius:6px; background:rgba(242,193,78,.10); } /* mesma marca de "no banco" da lista do elenco */
+#banco .chip:not(.vazio) { border-left:4px solid var(--ac); border-radius:6px; background:var(--ac-fundo); } /* mesma marca de "no banco" da lista do elenco */
 .linhaSub { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
 .linhaSub input { width:64px; }
 /* arrastar e soltar */
 [data-arrasta] { user-select:none; -webkit-user-select:none; }
 .vaga[data-arrasta], .chip[data-arrasta], .pega { touch-action:none; } /* a vaga inteira segura o dedo: tocar no selo da posição rolava a página e cancelava o arrasto */
 .pega { color:var(--mut); cursor:grab; padding:0 2px; }
-.fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:var(--ac); color:#1a1300; font-weight:600; font-size:12px; padding:4px 8px; border-radius:8px; white-space:nowrap; }
+.fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:var(--ac); color:var(--ac-tx); font-weight:600; font-size:12px; padding:4px 8px; border-radius:8px; white-space:nowrap; }
 .alvo { outline:2px solid var(--ac); outline-offset:1px; }
 body.arrastando { cursor:grabbing; } body.arrastando * { cursor:grabbing !important; }
 
@@ -134,14 +142,14 @@ tr.clk { cursor:pointer; } tr.clk:hover td { background:var(--hover); }
 .rbar label { flex-direction:row; cursor:pointer; padding:6px 14px; border:1px solid var(--line); border-radius:999px; font-size:13px; font-weight:600; color:var(--mut); }
 .rp1, .rp2 { display:none; }
 .rt1:checked ~ .rp1, .rt2:checked ~ .rp2 { display:block; }
-.rt1:checked ~ .rbar .l1, .rt2:checked ~ .rbar .l2 { background:var(--ac); border-color:var(--ac); color:#1a1300; }
+.rt1:checked ~ .rbar .l1, .rt2:checked ~ .rbar .l2 { background:var(--ac); border-color:var(--ac); color:var(--ac-tx); }
 
 /* ---------- tela de escalação e tática (src/ui-escalacao.js), usada em escalacao.html e na aba Tática de jogo.html ---------- */
 .vaga .vpos, .fechaEscolha, .posDaVaga { display:none; }
 /* ao arrastar um titular, cada faixa do campo ganha uma tira com as posições possíveis: soltar numa delas muda a posição da vaga */
 .fila.fant { display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); gap:4px; min-height:0; }
 .fant .gh { grid-column-end:span 2; border:1px dashed var(--ac); border-radius:6px; font-size:11.5px; font-weight:700; padding:4px 0; text-align:center; color:var(--ac); background:rgba(0,0,0,.28); }
-.fant .gh.alvo { background:var(--ac); color:#1a1300; }
+.fant .gh.alvo { background:var(--ac); color:var(--ac-tx); }
 .vaga.fam-C { border-color:#8a7a2e; } .vaga.fam-I { border-color:#a8474d; }
 details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
 details.card > summary h2 { display:inline; } details.card > summary::after { content:" ▾"; color:var(--mut); } details.card[open] > summary::after { content:" ▴"; }
@@ -155,7 +163,7 @@ details.card[open] > summary { margin-bottom:8px; }
   /* tocar numa vaga abre a lista de jogadores numa folha presa embaixo da tela */
   #escolha { display:none; }
   body.escolhendo #escolha { display:block; position:fixed; left:0; right:0; bottom:0; z-index:40; margin:0; border-radius:14px 14px 0 0; border-color:var(--ac);
-    box-shadow:0 -10px 30px rgba(0,0,0,.6); max-height:64vh; overflow-y:auto; overflow-x:hidden; padding:10px 12px; }
+    box-shadow:var(--sombra-alta); max-height:64vh; overflow-y:auto; overflow-x:hidden; padding:10px 12px; }
   body.escolhendo #escolha .lista { max-height:none !important; }
   body.escolhendo main { padding-bottom:66vh; }
   #escolha h2 { font-size:15px; margin-right:40px; } #escolha h2 .tag, #escolha .legenda { display:none; }
@@ -171,7 +179,7 @@ details.card[open] > summary { margin-bottom:8px; }
 
 /* ficha de profissional da comissão (médico, prevenção, forma, psicólogo, olheiro, analista) */
 .profs { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:8px; margin-top:6px; }
-.prof { border:1px solid var(--line); border-left:3px solid var(--ac); border-radius:10px; padding:8px 10px; background:rgba(255,255,255,.03); }
+.prof { border:1px solid var(--line); border-left:3px solid var(--ac); border-radius:10px; padding:8px 10px; background:var(--vidro); }
 .prof.vazio { border-left-color:var(--line); opacity:.85; }
 .pf-topo { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:2px; }
 .pf-func { font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ac); }
@@ -182,4 +190,4 @@ details.card[open] > summary { margin-bottom:8px; }
 .fbola { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; font-size:10px; font-weight:700; color:#0b1118; margin-right:2px; vertical-align:middle; }
 .fbola.fV { background:var(--ok, #3fb950); } .fbola.fE { background:#8b9bb0; } .fbola.fD { background:var(--bad, #f85149); }
 .c-forma { white-space:nowrap; }
-.bnd { vertical-align:-2px; border-radius:2px; overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,.15); }
+.bnd { vertical-align:-2px; border-radius:2px; overflow:hidden; box-shadow:0 0 0 1px color-mix(in srgb, var(--tx) 15%, transparent); }

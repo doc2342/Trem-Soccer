@@ -34,17 +34,17 @@
   /* aviso da janela de transferências, no topo do mercado */
   .janela { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 0; padding:10px 14px; border-radius:10px; border:1px solid; font-size:13.5px; }
   .janela .jl { display:none; } .janela { border-color:var(--line) !important; background:transparent !important; color:var(--mut); font-size:12.5px; padding:6px 12px; }
-  .janela.aberta { border-color:var(--ok); background:rgba(63,178,127,.12); } .janela.aberta .jl { color:var(--ok); }
-  .janela.pre { border-color:var(--ac); background:rgba(242,193,78,.10); } .janela.pre .jl { color:var(--ac); }
-  .janela.fechada { border-color:var(--bad); background:rgba(229,100,107,.10); } .janela.fechada .jl { color:var(--bad); }
-  .janela.fechada { border-color:var(--bad) !important; background:rgba(229,100,107,.10) !important; } .janela.fechada .jl { display:inline; font-weight:700; } /* fechada: o aviso vem no topo e a busca fica recolhida */
+  .janela.aberta { border-color:var(--ok); background:var(--ok-fundo); } .janela.aberta .jl { color:var(--ok); }
+  .janela.pre { border-color:var(--ac); background:var(--ac-fundo); } .janela.pre .jl { color:var(--ac); }
+  .janela.fechada { border-color:var(--bad); background:var(--bad-fundo); } .janela.fechada .jl { color:var(--bad); }
+  .janela.fechada { border-color:var(--bad) !important; background:var(--bad-fundo) !important; } .janela.fechada .jl { display:inline; font-weight:700; } /* fechada: o aviso vem no topo e a busca fica recolhida */
   /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
   .ctab select { padding:3px 4px; max-width:110px; } .ctab .c-linha { display:none; }
   @media (max-width:620px) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
   .ttab td { vertical-align:middle; } .ttab select { max-width:100%; padding:4px 6px; }
-  .tdet { background:rgba(255,255,255,.03); } .tdet .row { gap:8px; }
+  .tdet { background:var(--vidro); } .tdet .row { gap:8px; }
   .tprog { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 16px; margin-top:8px; }
-  .tprog .tb { height:6px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden; margin-top:2px; } .tprog .tb > div { height:100%; background:var(--ac); }
+  .tprog .tb { height:6px; border-radius:999px; background:var(--trilho); overflow:hidden; margin-top:2px; } .tprog .tb > div { height:100%; background:var(--ac); }
   @media (max-width:620px) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { display:none; }
     .ttab th:nth-child(1) { width:40px; } .ttab th:nth-child(4) { width:104px; } .ttab th:nth-child(5) { width:36px; } .ttab td:nth-child(2) { white-space:nowrap; }
     .ttab select { width:100%; font-size:12.5px; padding:4px 2px; } .tdet td { white-space:normal; } .tdet .row { flex-direction:column; align-items:stretch; gap:4px; } }
@@ -80,7 +80,7 @@
   .ch-meu { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac) inset; }
   .ch-prel { margin-top:12px; } .ch-prel summary { cursor:pointer; }
   .ch-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(158px, 1fr)); gap:6px; margin-top:8px; }
-  .fbarra { height:10px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
+  .fbarra { height:10px; border-radius:999px; background:var(--trilho); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
   .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
   @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
   /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
@@ -90,7 +90,7 @@
   .subabas { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 0; }
   .sub { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:600; }
   .sub.ativa { color:var(--tx); background:var(--hover); border-color:var(--ac); } .sub .sc { display:none; }
-  .sub .qt { background:var(--ac); color:#1a1300; border-radius:999px; padding:0 6px; font-size:12px; margin-left:4px; }
+  .sub .qt { background:var(--ac); color:var(--ac-tx); border-radius:999px; padding:0 6px; font-size:12px; margin-left:4px; }
   @media (max-width:620px) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
   .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
   @media (max-width:620px) {
@@ -101,12 +101,12 @@
   }
   /* Central: blocos lado a lado, no espírito do modo carreira */
   .c-chegada-box { grid-column:span 12; } .c-chegada-box:empty { display:none; } .c-chegada { margin:0; border-color:var(--ac); }
-  .barra-passos { height:6px; border-radius:3px; background:rgba(255,255,255,.08); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
+  .barra-passos { height:6px; border-radius:3px; background:var(--trilho); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
   .passos { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 12px; } .passos > div.feito { opacity:.55; } .passos > div.feito b { text-decoration:line-through; }
   .faixa { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
   @media (max-width:620px) { .faixa { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
   .tile { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:inherit; text-align:center; min-width:0; }
-  .tile.prox { border-color:var(--ac); background:rgba(242,193,78,.08); }
+  .tile.prox { border-color:var(--ac); background:var(--ac-fundo); }
   .tile .tl { font-size:11px; text-transform:uppercase; color:var(--mut); letter-spacing:.04em; }
   .tile .tn { font-size:12.5px; font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tile .td { font-size:11.5px; color:var(--mut); }
@@ -118,14 +118,14 @@
   .mural .ic { flex:none; width:20px; text-align:center; }
   .mural > div.urg { border-left:3px solid var(--ac); padding-left:8px; }
   .mural > div[data-aba-ir] { cursor:pointer; }
-  .mural > div[data-aba-ir]:hover { background:rgba(255,255,255,.05); }
+  .mural > div[data-aba-ir]:hover { background:var(--hover); }
   .mural .vai { margin-left:auto; padding-left:6px; opacity:.6; font-size:18px; line-height:1; }
   .mural > div.rot { border-bottom:0; padding:8px 0 2px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; opacity:.6; }
   .mural > div.rot:first-child { padding-top:0; }
   .mural summary .ic { display:inline-block; margin-right:4px; }
   .mini td, .mini th { padding:4px 6px; }
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); } .mini tr.camp td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.cai.lib td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--ac); } .mini tr.cai.sul td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--sul); }
-  .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--bd, #2a2f55); }
+  .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
   .rod-tit { margin-bottom:4px; }
   @media (max-width:900px) { #compQuadros .comp-esq { display:contents; } #compHist { order:1; } }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
@@ -153,6 +153,7 @@
   .ev-parte .previa { align-self:start; min-height:150px; }
   .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:var(--campo); border-radius:10px; border:1px solid var(--line); }
   .a0 { color:#5d6b7c; } .a1 { color:#9fb0c3; } .a3 { color:#7fd4a6; font-weight:600; } .a4 { color:#3fe08f; font-weight:700; }
+  :root[data-tema=claro] .a0 { color:#9aa2b8; } :root[data-tema=claro] .a1 { color:#5a6590; } :root[data-tema=claro] .a3 { color:#1f9a5c; } :root[data-tema=claro] .a4 { color:#0b7a40; }
   tr.sep td { border-top:2px solid var(--line); }
   /* elenco por zonas */
   .elenco2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
@@ -165,7 +166,7 @@
     .zona .c-tat, .zona .c-sal { display:none; }
     .zona table { font-size:12.5px; } .zona td, .zona th { padding:3px 3px; }
     .zona td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
-    .zona tr.e-tit td { background:rgba(63,203,130,.10); } .zona tr.e-res td { background:rgba(242,193,78,.08); }
+    .zona tr.e-tit td { background:var(--ok-fundo); } .zona tr.e-res td { background:var(--ac-fundo); }
     .zona .info { width:20px; height:20px; }
     .zona { margin-bottom:10px; }
   }
@@ -173,7 +174,7 @@
   .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; }
   .info { position:relative; width:22px; height:22px; padding:0; border-radius:50%; font-size:12px; font-weight:700; font-style:italic; line-height:1; background:#2a4a7a; color:#fff; border:0; cursor:pointer; }
   .info::after { content:""; position:absolute; inset:-6px -12px; } /* aumenta a área de toque sem mudar o desenho */
-  .quadro-atr { position:fixed; z-index:50; max-height:calc(100vh - 16px); overflow:auto; width:min(520px, calc(100vw - 16px)); background:var(--card); border:1px solid var(--ac); border-radius:10px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,.55); }
+  .quadro-atr { position:fixed; z-index:50; max-height:calc(100vh - 16px); overflow:auto; width:min(520px, calc(100vw - 16px)); background:var(--card); border:1px solid var(--ac); border-radius:10px; padding:12px; box-shadow:var(--sombra-alta); }
   .qa-topo { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
   .qa-topo .qa-nome { font-weight:700; font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .qa-sub { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
@@ -1022,7 +1023,7 @@ async function telaClube(liga, clube) {
     const campo = `<div class="gramado" style="margin-top:8px">${mapa === null ? filas.map(f => f.html).join("") : TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("")}</div>`;
     const ondeEsta = j => { const i = P.vagas.findIndex(v => v.j && semJ(v.j.id) === semJ(j.id)); return i < 0 ? "" : `${P.vagas[i].fixo ? "📌 " : ""}${esc(sg(P.vagas[i].pos))}`; };
     const jovens = editavel && candidatosBase.length ? `<div style="margin-top:8px"><b>Jovens</b> <span class="mut" style="font-size:12px">· arraste para uma vaga para fixá-lo nela</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${candidatosBase.map(j => `<div data-barrasta="j${semJ(j.id)}" data-brotulo="${esc(sg(j.pos))} ${esc(j.nome)}" title="${esc(j.nome)}" style="display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 7px;font-size:12px;cursor:grab;touch-action:none;user-select:none;background:rgba(10,14,38,.5)">${pp(j.pos)} ${esc(j.nome.split(" ").slice(-1)[0])} <b class="nota">${f1(notaNaPosicao(j, j.pos))}</b> <span class="mut">${ondeEsta(j) ? "→ " + ondeEsta(j) : "fora"}</span></div>`).join("")}</div>` : "";
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${candidatosBase.map(j => `<div data-barrasta="j${semJ(j.id)}" data-brotulo="${esc(sg(j.pos))} ${esc(j.nome)}" title="${esc(j.nome)}" style="display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 7px;font-size:12px;cursor:grab;touch-action:none;user-select:none;background:var(--campo)">${pp(j.pos)} ${esc(j.nome.split(" ").slice(-1)[0])} <b class="nota">${f1(notaNaPosicao(j, j.pos))}</b> <span class="mut">${ondeEsta(j) ? "→ " + ondeEsta(j) : "fora"}</span></div>`).join("")}</div>` : "";
     const intervalo = P.trocas.length ? `<div style="margin-top:8px"><b>No intervalo</b>: ${P.trocas.map(x => `<b>${esc(x.entra.nome)}</b> <span class="mut">no lugar ${P.vagas[x.vaga].j ? `de ${esc(P.vagas[x.vaga].j.nome)}` : "do garoto"} (${esc(sg(P.vagas[x.vaga].pos))})</span>`).join(" · ")}</div>` : "";
     const fora = P.fora.length ? `<div class="aviso" style="margin-top:4px">Sem jogo nesta rodada: ${P.fora.map(j => esc(j.nome)).join(", ")} (o rodízio dá a vez a eles nas próximas)</div>` : "";
     const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${R.instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
@@ -1782,7 +1783,7 @@ async function telaClube(liga, clube) {
         Quanto menos luvas, maior o bônus e mais difícil a meta. Na média as três propostas rendem o mesmo: o que muda é o risco.<br>
         Renovar com a mesma marca rende +5% por temporada seguida, até +20%. Você pode trocar até a 1ª rodada; nela a meta é calculada e o contrato fecha.`}</div></div>
       <div class="card"><h2>Marca</h2><div class="row" style="gap:10px;align-items:stretch">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
-        return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--bd, #2a3060);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
+        return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--line);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
           ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
       <div class="card"><h2>Proposta</h2><div class="row" style="gap:10px;align-items:stretch">${vis.map(([id, x]) => cartao(id, x)).join("")}</div>
         ${trava ? "" : `<div class="row" style="margin-top:12px"><button id="pConfirma" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP)}</span></div>`}</div>`; };
@@ -1791,12 +1792,16 @@ async function telaClube(liga, clube) {
     ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
     ${clube.confianca != null ? kpi("Confiança", `<span class="${clube.confianca < 30 ? "bad" : clube.confianca >= 70 ? "ok" : ""}">${clube.confianca}</span><small> de 100</small>`, "da diretoria")
       : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
+  if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
+  let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
+  const rotuloTema = () => document.documentElement.dataset.tema === "claro" ? "🌙 Tema escuro" : "☀️ Tema claro";
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)} <span id="seloTopo">${patro && patro.escolha ? seloMarca(patro.escolha.marca, 28) : ""}</span></h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
         <a href="temporada.html?clube=${clube.id}" style="color:var(--ac)">Relatório da temporada</a>
+        <button class="sec" id="modoTema" style="padding:3px 10px;font-size:12.5px">${rotuloTema()}</button>
         ${telaPequena ? `<button class="sec" id="modoTela" style="padding:3px 10px;font-size:12.5px" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
@@ -1880,6 +1885,8 @@ ${historicoDaBase()}
         <div><b>Dirigente</b>
           <div style="margin:4px 0 8px">${clube.dirigente === undefined ? `<span class="mut">O nome do dirigente aparece aqui quando o administrador ligar essa opção.</span>` : `${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">sem nome</span>`} <button class="sec" id="cfgDirigente">Mudar o nome</button>`}</div>
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
+          <div style="margin-top:12px"><b>Tema</b><div class="mut" style="margin:4px 0 8px">No automático, o jogo fica claro ou escuro junto com o celular ou o computador.</div>
+            ${[["", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]].map(([v, n]) => `<label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:4px"><input type="radio" name="cfgTema" value="${v}" ${temaEscolhido === v ? "checked" : ""}> ${n}</label>`).join("")}</div>
           ${telaPequena ? `<div style="margin-top:12px"><b>Tela</b><div class="mut" style="margin:4px 0 8px">No celular, dá para ver a página inteira de computador com o zoom reduzido, como no Dugout.</div><button class="sec" id="cfgTela">${telaDePc ? "📱 Usar a tela de celular" : "🖥️ Usar a tela de computador"}</button></div>` : ""}</div>
       </div></div></div>
     </section>
@@ -2407,6 +2414,9 @@ ${historicoDaBase()}
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
+  const trocarTema = t => { window.moTema(t); $("modoTema").textContent = rotuloTema(); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
+  $("modoTema").onclick = () => trocarTema(document.documentElement.dataset.tema === "claro" ? "escuro" : "claro");
+  document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.onchange = () => trocarTema(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
   document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });

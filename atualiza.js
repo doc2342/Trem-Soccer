@@ -5,7 +5,44 @@
   // "Tela de computador" no celular: a página é desenhada com 1100 px de largura e o aparelho reduz o zoom para caber, como no Dugout.
   try { if (localStorage.getItem("mo_tela") === "pc") { var mv = document.querySelector('meta[name="viewport"]'); if (mv) mv.setAttribute("content", "width=1100"); } } catch (e) {}
   window.moTela = function (pc) { try { localStorage.setItem("mo_tela", pc ? "pc" : "cel"); } catch (e) {} location.reload(); };
-  var ARQUIVOS = ["estilo.css", "jogo.html", "admin.html", "aovivo.html", "jogador.html", "escalacao.html", "index.html",
+
+  // Tema: "claro", "escuro" ou automático (segue o aparelho), em mo_tema. A cor de destaque vem do escudo do clube (mo_cor = "cor1,cor2"):
+  // a primeira cor viva, clareada no tema escuro e escurecida no claro. Vermelho fica de fora (é a cor de perda e de cartão): vale a cor2 ou o dourado.
+  function ler(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function gravar(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  var claroDoAparelho = window.matchMedia ? matchMedia("(prefers-color-scheme: light)") : null;
+  function hsl(hex) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return [0, 0, l];
+    var h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(h * 60 + 360) % 360, d / (1 - Math.abs(2 * l - 1)), l];
+  }
+  function luminancia(h, s, l) { // para decidir letra clara ou escura em cima do botão
+    var a = s * Math.min(l, 1 - l);
+    function f(n) { var k = (n + h / 30) % 12, c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); }
+    return .2126 * f(0) + .7152 * f(8) + .0722 * f(4);
+  }
+  function acento(cores, claro) {
+    for (var i = 0; i < cores.length; i++) {
+      if (!/^#[0-9a-f]{6}$/i.test(cores[i])) continue;
+      var c = hsl(cores[i]), h = c[0], s = c[1], l = c[2];
+      if (s <= .25 || l <= .1 || l >= .93 || h <= 20 || h >= 330) continue; // sem cor (preto, branco, cinza) ou vermelho
+      s = Math.max(s, .55); l = claro ? Math.min(Math.max(l, .28), .40) : Math.min(Math.max(l, .58), .70);
+      return ["hsl(" + Math.round(h) + " " + Math.round(s * 100) + "% " + Math.round(l * 100) + "%)", luminancia(h, s, l) > .4 ? "#1a1300" : "#ffffff"];
+    }
+    return null;
+  }
+  function aplicarTema() {
+    var raiz = document.documentElement, t = ler("mo_tema"), claro = t ? t === "claro" : !!(claroDoAparelho && claroDoAparelho.matches), a = acento(ler("mo_cor").split(","), claro);
+    raiz.setAttribute("data-tema", claro ? "claro" : "escuro");
+    if (a) { raiz.style.setProperty("--ac", a[0]); raiz.style.setProperty("--ac-tx", a[1]); } else { raiz.style.removeProperty("--ac"); raiz.style.removeProperty("--ac-tx"); }
+  }
+  window.moTema = function (t) { gravar("mo_tema", t); aplicarTema(); }; // "claro", "escuro" ou "" (automático)
+  window.moCor = function (escudo) { var c = escudo ? [escudo.cor1, escudo.cor2].join(",") : ""; if (c !== ler("mo_cor")) { gravar("mo_cor", c); aplicarTema(); } };
+  if (claroDoAparelho && claroDoAparelho.addEventListener) claroDoAparelho.addEventListener("change", aplicarTema);
+  aplicarTema();
+  var ARQUIVOS = ["atualiza.js", "estilo.css", "jogo.html", "admin.html", "aovivo.html", "jogador.html", "escalacao.html", "index.html",
     "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js", "src/economia.js", "src/virada.js", "src/siglas.js", "src/treino.js", "src/saude.js", "src/base.js",
     "src/banco.js", "src/escudo.js", "src/bandeiras.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-escalacao.js", "src/estadio.js"];
   var ja = sessionStorage.getItem("mo_recarregou");
