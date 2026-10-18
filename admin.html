@@ -27,7 +27,7 @@ import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
@@ -205,6 +205,7 @@ async function tela(aviso = "") {
       <div class="row"><button id="calcMetas" ${partidas.length ? "" : "disabled"}>Calcular as metas da temporada ${liga.temporada}</button><span class="mut">Recalcule logo antes da 1ª rodada: é com ela que o patrocínio de cada clube trava.</span><label>Simulações<input type="number" id="nSim" value="${CONFIG_DIRETORIA.simulacoes}" min="10" style="width:90px"></label></div>
       <div id="avisoMetas" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${liga ? `<div class="card" id="transfAdm"></div>` : ""}
+    ${liga ? `<div class="card" id="economiaAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Outros países</h2>
       <div class="mut" style="margin-bottom:10px">${Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length} clubes`).join(" · ")}. Cada país é um campeonato de ${POR_GRUPO} clubes sem dirigente, com uma divisão só, nas mesmas datas do Brasil (precisa do SQL 77 e da função rodada republicada). Com o calendário já gerado, os jogos deles entram nas datas que existem; os de datas passadas são calculados em seguida. Por enquanto jogador não troca de clube entre países.</div>
       <div class="row"><button id="criarPaises" ${clubes.filter(c => PAISES[c.grupo]).length >= Object.keys(PAISES).length * POR_GRUPO ? "disabled" : ""}>Criar os países que faltam</button></div></div>` : ""}
@@ -232,6 +233,23 @@ async function tela(aviso = "") {
     };
   };
   transf().catch(() => {});
+  // economia por grupo: a virada guarda a temporada que acabou; a atual sai ao vivo (sem prêmio e imposto, que só entram na virada)
+  const economia = async (temp = liga.temporada) => {
+    if (!$("economiaAdm")) return;
+    let guardadas = [], linhas = [], erro = "";
+    try { guardadas = await economiasGuardadas(liga.id); linhas = temp === liga.temporada ? await economiaDaTemporada(liga.id, temp) : guardadas.filter(x => x.temporada === temp).map(x => ({ grupo: x.grupo, ...x.dados })); }
+    catch (err) { erro = "Rode o supabase/121_economia_da_temporada.sql (" + err.message + ")"; }
+    const temps = [liga.temporada, ...new Set(guardadas.map(x => x.temporada))].filter((t, i, a) => a.indexOf(t) === i);
+    const t = (x, k) => (x.por_tipo || {})[k] || 0, quem = x => `${x.clubes}${x.dirigentes ? ` <span class="tag">${x.dirigentes} dir.</span>` : ""}`;
+    $("economiaAdm").innerHTML = `<h2>Economia por temporada <span class="tag">médias por clube · operacional = TV, patrocínio, bilheteria, Sócio-Torcedor e comida menos salários, manutenção e treinadores</span></h2>
+      <div class="row" style="margin-bottom:8px"><label>Temporada <select id="ecoTemp">${temps.map(x => `<option value="${x}" ${x === temp ? "selected" : ""}>T${x}${x === liga.temporada ? " (em andamento)" : ""}</option>`).join("")}</select></label></div>
+      ${erro ? `<div class="mut">${esc(erro)}</div>` : linhas.length ? `<div class="rolagem" style="overflow:auto"><table><tr><th class="esq">Grupo</th><th>Clubes</th><th>Caixa médio</th><th>Mín · máx</th><th>Folha</th><th>Operacional</th><th>Vendas − compras</th><th>Prêmio</th><th>Saldo</th><th>No vermelho</th><th title="caixa positivo, mas acaba em até 2 temporadas no ritmo desta">Vermelho em ≤ 2</th></tr>
+        ${linhas.map(x => `<tr><td class="esq">${esc(nomeDoGrupo(x.grupo))}</td><td>${quem(x)}</td><td>${dinheiro(x.caixa_media)}</td><td>${dinheiro(x.caixa_min)} · ${dinheiro(x.caixa_max)}</td><td>${dinheiro(x.folha_media)}</td>
+          <td class="${x.operacional < 0 ? "bad" : ""}">${dinheiro(x.operacional)}</td><td>${dinheiro(t(x, "venda") + t(x, "compra"))}</td><td>${dinheiro(x.premio)}</td><td class="${x.saldo < 0 ? "bad" : ""}">${dinheiro(x.saldo)}</td>
+          <td class="${x.no_vermelho ? "bad" : ""}">${x.no_vermelho}</td><td class="${x.vermelho_em_2 ? "aviso" : ""}">${x.vermelho_em_2}</td></tr>`).join("")}</table></div>` : `<div class="mut">Sem lançamentos nesta temporada.</div>`}`;
+    if ($("ecoTemp")) $("ecoTemp").onchange = e => economia(+e.target.value).catch(() => {});
+  };
+  economia().catch(() => {});
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
   em("criarPaises", async () => {

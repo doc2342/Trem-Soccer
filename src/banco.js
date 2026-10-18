@@ -397,6 +397,9 @@ export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
 export const venderAoBanco = jogadorId => sb.rpc("vender_ao_banco", { p_jogador: numero(jogadorId) }).then(ok);
 export const anteciparPremio = () => sb.rpc("antecipar_premio").then(ok);
+// Economia por grupo (121_economia_da_temporada.sql): a temporada pedida, ao vivo, e as que a virada guardou. Só admin.
+export const economiaDaTemporada = (ligaId, temporada) => sb.rpc("economia_da_temporada", { p_liga: ligaId, p_temporada: temporada }).then(ok);
+export const economiasGuardadas = ligaId => sb.from("economia_temporadas").select("temporada, grupo, dados").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(ok);
 export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
 // M1: mercado (supabase/19_mercado.sql e a função "mercado")
 export const janelaDoMercado = ligaId => sb.rpc("janela_do_mercado", { p_liga: ligaId }).then(({ data, error }) => error ? undefined : data); // undefined: mercado ainda não ligado
