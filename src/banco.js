@@ -379,14 +379,16 @@ export const campeoesContinentais = (ligaId, temporada) => sb.from("historico").
 export const finalistasDaCopa = ligaId => sb.from("historico").select("temporada, clube_id, copa").eq("liga_id", ligaId).in("copa", ["campeão", "vice"]).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // troféus: campeões de cada grupo (1º lugar) e finalistas da copa, de todas as temporadas guardadas na virada
 export async function trofeusDaLiga(ligaId) {
-  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib, sul, recopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão,sul.eq.campeão,recopa.is.true").order("temporada");
+  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, destino, copa, supercopa, lib, sul, recopa").eq("liga_id", ligaId).or("posicao.eq.1,destino.eq.subiu,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão,sul.eq.campeão,recopa.is.true").order("temporada");
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão").order("temporada");
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true").order("temporada"); // antes do SQL 81
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada"); // antes do SQL 76
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
   return r.error ? [] : filtrarTrofeus(r.data);
 }
-export const filtrarTrofeus = l => l.filter(x => x.posicao === 1 || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa);
+// título de série: o 1º do grupo; na Série B, desde a T14, o vencedor do playoff (o que subiu)
+export const campeaoDaSerie = x => x.divisao === 2 && x.temporada >= 14 && !PAISES[x.grupo] ? x.destino === "subiu" : x.posicao === 1;
+export const filtrarTrofeus = l => l.filter(x => campeaoDaSerie(x) || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
