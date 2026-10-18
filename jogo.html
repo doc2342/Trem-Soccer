@@ -1485,37 +1485,41 @@ async function telaClube(liga, clube) {
     };
   }
   const muralDaLiga = () => {
-    const l = [];
+    const l = [], copas = [], mercado = [], vejaJogo = p => ` <a class="lk" href="aovivo.html?id=${p.id}">Ver o jogo</a>`;
     // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
     if (copaJogos.length) {
       const fases = [...new Set(copaJogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => copaJogos.filter(p => p.copa_fase === f);
       const final = daFase(6)[0], campeao = final && copaRes[final.id] ? quemPassou(final) : null;
-      if (campeao) l.push(item("🏆", `${lk(campeao)} é o campeão da Copa do Brasil: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.`));
+      if (campeao) copas.push(item("🏆", `${lk(campeao)} é o campeão da Copa do Brasil: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.${vejaJogo(final)}`));
       else { const f = fases.find(k => daFase(k).some(p => !copaRes[p.id]));
-        if (f) l.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()} ${daFase(f).some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${daFase(f).length === 1 ? "o jogo" : daFase(f).length + " jogos"} em ${new Date(daFase(f)[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}. A chave está em Competições, Copa do Brasil.`)); }
+        if (f) { const js = daFase(f), um = js.length === 1 ? js[0] : null;
+          copas.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()}${um ? `, ${lk(um.casa)} x ${lk(um.fora)},` : ""} ${js.some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${um ? "o jogo" : js.length + " jogos"} em ${new Date(js[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}.${um ? vejaJogo(um) : ""} <a class="lk" data-aba-ir="classificacao:copa">Ver a chave</a>`)); } }
       const encerrada = fases.filter(k => daFase(k).every(p => copaRes[p.id])).pop();
       if (encerrada && encerrada < 6) daFase(encerrada).filter(p => copaRes[p.id].penaltis).slice(0, 4).forEach(p => { const v = quemPassou(p);
-        l.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da copa${penais(copaRes[p.id])}.`)); });
+        copas.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da copa${penais(copaRes[p.id])}.${vejaJogo(p)}`)); });
     }
     const passada = premiosTodos.filter(p => p.temporada === liga.temporada - 1 && !ehSelecao(p)), bola = passada.find(p => p.comp === "A" && p.premio === "melhor"), doClube = passada.filter(p => p.clube_id === clube.id);
     if (bola) l.push(item("🏅", `Bola de Ouro da temporada ${bola.temporada}: ${esc(bola.jogador || "")} (${lk(bola.clube_id)}). Todos os premiados em Competições, Estatísticas.`));
     if (doClube.length) l.push(item("🏅", `Premiados do seu clube na temporada ${liga.temporada - 1}: ${doClube.map(p => `${esc(p.jogador || "")} (${esc(nomeDoPremio(p))})`).join(", ")}.`));
     safra.forEach(s => l.push(item(s.nivel >= 43 ? "🌟" : "✨", `A base do ${lk(s.clube_id)} revelou ${s.nivel >= 43 ? "uma joia rara" : "uma grande promessa"}: ${esc(s.jogador)} (${esc(sg(s.pos || ""))}, ${s.idade} anos).`)));
-    if (livres && livres.length) l.push(item("✍️", `${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"} na aba Mercado${livres.some(j => new Date(j.livre_ate) > new Date()) ? ", com leilão aberto" : ""}.`));
+    if (livres && livres.length) mercado.push(item("✍️", `${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"} na aba Mercado${livres.some(j => new Date(j.livre_ate) > new Date()) ? ", com leilão aberto" : ""}.`));
     const negocios = (transferencias || []).slice(0, 8).map(t => item(t.tipo === "livre" ? "✍️" : "🔁",
       t.tipo === "livre" ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
         : `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) trocou ${lk(t.de_clube)} por ${lk(t.para_clube)} por ${dinheiro(t.valor)}${t.tipo === "multa" ? ", pela multa rescisória" : t.tipo === "divida" ? ", em oferta de clube no vermelho" : ""}.`));
-    if (negocios.length) l.push(`<div><details style="flex:1"><summary style="cursor:pointer"><span class="ic">🔁</span> ${negocios.length === 1 ? "1 transferência recente" : `${negocios.length} transferências recentes`}</summary><div class="mural">${negocios.join("")}</div></details></div>`);
-    return l;
+    mercado.push(...negocios);
+    return { copas, liga: l, mercado };
   };
   // o mural mostra só as manchetes (as de mais peso, com o seu clube na frente); o resto fica fechado em "Mais notícias"
   const PESO_DA_NOTICIA = { "🏆": 6, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
-  const desenharMural = itens => {
-    if (!itens.length) return item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut");
-    const peso = h => h.startsWith("<div><details") ? -1 : (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
-    const ord = itens.map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]), n = telaPequena ? 3 : 4;
-    return ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
-      + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n} ${ord.length - n === 1 ? "notícia" : "notícias"}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
+  const SECOES_DO_MURAL = [["jogos", "Últimos jogos", 3], ["liga", "Na liga", 3], ["copas", "Outras competições", 2], ["mercado", "Mercado", 2]];
+  const desenharMural = secoes => {
+    const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
+    const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
+      const ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
+      return `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
+        + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
+    }).join("");
+    return html || item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut");
   };
   // Notícias da liga: geradas na hora (nada gravado no banco) com os jogos dos grupos que têm dirigente, a artilharia e a última virada.
   // Duelo de dirigentes: uma manchete pelo que o jogo teve de mais marcante (hat-trick, virada, gol no fim, revanche do turno, goleada, 0 x 0…),
@@ -1554,7 +1558,7 @@ async function telaClube(liga, clube) {
     return [ic, txt];
   }
   async function noticiasDaLiga() {
-    const humanos = new Set(clubes.filter(c => c.dono).map(c => c.id)), l = [];
+    const humanos = new Set(clubes.filter(c => c.dono).map(c => c.id)), l = [], jogos = [];
     const grupos = [...new Set([clube.grupo, ...clubes.filter(c => humanos.has(c.id)).map(c => c.grupo)])];
     const [porGrupo, stats, passada, doGrupo] = await Promise.all([
       // resultados: o grupo do clube com a mesma chave da tabela da Central (uma leitura serve às duas) e os outros grupos numa leitura só
@@ -1583,9 +1587,9 @@ async function telaClube(liga, clube) {
         // virada: o vencedor esteve atrás no placar em algum momento
         let virou = false, a = 0, b = 0; if (v) for (const x of golsSeq[p.id] || []) { x.t === vLado ? a++ : b++; if (b > a) virou = true; }
         const turno = feitas.find(q => q.rodada < ultima && ((q.casa === p.casa && q.fora === p.fora) || (q.casa === p.fora && q.fora === p.casa)));
-        if (humanos.has(p.casa) && humanos.has(p.fora)) l.push(item(...noticiaDoDuelo(p, r, { ...ctx, gols: golsSeq[p.id] || [], virou, turno: turno && { p: turno, r: res[turno.id] } })));
-        else if (virou) l.push(item("🔄", `De virada, ${lk(v)} vence ${lk(v === p.casa ? p.fora : p.casa)} por ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
-        else if (Math.abs(dif) >= 3) l.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
+        if (humanos.has(p.casa) && humanos.has(p.fora)) jogos.push(item(...noticiaDoDuelo(p, r, { ...ctx, gols: golsSeq[p.id] || [], virou, turno: turno && { p: turno, r: res[turno.id] } })));
+        else if (virou) jogos.push(item("🔄", `De virada, ${lk(v)} vence ${lk(v === p.casa ? p.fora : p.casa)} por ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
+        else if (Math.abs(dif) >= 3) jogos.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
       }
       // séries dos clubes com dirigente, do último jogo para trás
       for (const c of clubes.filter(c => c.grupo === g && humanos.has(c.id))) {
@@ -1610,7 +1614,7 @@ async function telaClube(liga, clube) {
     });
     if (jogadas <= 3) passada.filter(x => humanos.has(x.clube_id) && x.destino && x.destino !== "ficou").forEach(x => l.push(item(x.destino === "caiu" ? "⬇️" : x.destino === "subiu" ? "⬆️" : "🏆",
       x.destino === "caiu" ? `${lk(x.clube_id)} foi rebaixado na temporada ${liga.temporada - 1} (${x.posicao}º do ${nomeDoGrupo(x.grupo)}).` : x.destino === "subiu" ? `${lk(x.clube_id)} conquistou o acesso na temporada ${liga.temporada - 1}.` : `${lk(x.clube_id)} foi campeão do ${nomeDoGrupo(x.grupo)} na temporada ${liga.temporada - 1}.`)));
-    return l;
+    return { jogos, liga: l };
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
@@ -2273,11 +2277,13 @@ ${historicoDaBase()}
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
-  noticiasDaLiga().then(l => { const m = $("muralLiga"); if (!l.length || !m) return; m.innerHTML = desenharMural([...l, ...muralDaLiga()]); }).catch(() => {});
+  noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
-  document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
+  // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
+  if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
+  document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
   // o painel de chegada é redesenhado, então os cliques dele vão por delegação
   $("chegada").onclick = e => {
     if (e.target.id === "chegadaFechar") { marcarChegada("fechado"); return; }
