@@ -1275,26 +1275,27 @@ async function telaClube(liga, clube) {
           <label>Cores <select id="evNCores">${[1, 2, 3].map(k => `<option ${k === v.cores.length ? "selected" : ""}>${k}</option>`).join("")}</select></label>
           ${[0, 1, 2].map(i => cor("evCor" + i, v.cores[i] || ["#0b3d91", "#ffffff", "#c8102e"][i], "Cor " + (i + 1))).join("")}
           <label>Escadas ${cor("evEscadas", v.corEscadas, "Cor das escadas")}</label>
-          <label id="evCobWrap">Cobertura <select id="evCob">${op(COBERTURAS, v.cobertura || "")}</select></label></div>
-        <div class="row" style="margin-top:10px;align-items:center"><button id="evSalvar">Salvar o visual</button><span class="mut" id="evAviso" style="font-size:12px">Nome, mosaico, padrão, cores e cobertura são de graça. O mosaico com o nome fica na arquibancada norte.</span></div>
+          <label id="evCobWrap">Cobertura <select id="evCob">${op(COBERTURAS, v.cobertura || "")}</select></label>
+          <label id="evMurWrap" title="O fundo oeste vira uma arquibancada única, com o mosaico nela"><input type="checkbox" id="evMuralha" ${v.muralha ? "checked" : ""}> Muralha no fundo oeste</label></div>
+        <div class="row" style="margin-top:10px;align-items:center"><button id="evSalvar">Salvar o visual</button><span class="mut" id="evAviso" style="font-size:12px">Nome, mosaico, padrão, cores, cobertura e muralha são de graça. O mosaico com o nome fica na arquibancada norte (ou na muralha).</span></div>
       </div></div></div>`;
   };
   // editor: cada mudança redesenha o 3D na hora (sem salvar); trocar o modelo mostra como ficaria
   const ligarEstadio = () => {
     if (!$("estadio3d")) return;
     const atual = () => ({ ...configDoClube(clube, null), modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
-      cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value, cidade: $("evCidade").value });
+      cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value, muralha: $("evMuralha").checked, cidade: $("evCidade").value });
     const gratis = !!(clube.estadio_visual || {}).reforma_gratis, cidadeDeHoje = cidadeDoEstadio(configDoClube(clube, null));
     const modeloDeHoje = (clube.estadio_visual || {}).modelo || "tradicional";
     const redesenhar = () => {
-      $("evCobWrap").hidden = $("evModelo").value !== "caldeirao";
+      $("evCobWrap").hidden = $("evMurWrap").hidden = $("evModelo").value !== "caldeirao";
       [1, 2].forEach(i => { $("evCor" + i).hidden = i >= +$("evNCores").value; });
       $("evReforma").disabled = (gratis ? obra && obra.estrutura === "estadio_modelo" : !!obra) || $("evModelo").value === modeloDeHoje;
       const cfg = $("evVista").value === "wire" ? { ...plantaDaObra().cfg, vista: "wire" } : atual();
       if (cenas.estadio3d) cenas.estadio3d.atualizar(cfg); else montarEstadio("estadio3d", cfg);
     };
     let t; const adiado = () => { clearTimeout(t); t = setTimeout(redesenhar, 250); };
-    ["evVista", "evModelo", "evPadrao", "evNCores", "evCor0", "evCor1", "evCor2", "evEscadas", "evCob", "evCidade"].forEach(id => $(id).addEventListener("change", redesenhar));
+    ["evVista", "evModelo", "evPadrao", "evNCores", "evCor0", "evCor1", "evCor2", "evEscadas", "evCob", "evMuralha", "evCidade"].forEach(id => $(id).addEventListener("change", redesenhar));
     ["evNome", "evMosaico"].forEach(id => $(id).addEventListener("input", adiado));
     if (cenas.estadio3d) { cenas.estadio3d.destruir(); delete cenas.estadio3d; }
     redesenhar();
@@ -1302,7 +1303,7 @@ async function telaClube(liga, clube) {
       const c = atual(), novaCidade = c.cidade !== cidadeDeHoje;
       if (novaCidade && !confirm(`Mudar o estádio para a cidade "${CIDADES[c.cidade]}"? A troca de cidade é grátis só uma vez: depois ela fica.`)) return;
       $("evSalvar").disabled = true;
-      try { await B.salvarEstadioVisual({ nomeEstadio: c.nomeEstadio, mosaico: c.mosaico, padrao: c.padrao, cores: c.cores, corEscadas: c.corEscadas, cobertura: c.cobertura, ...(novaCidade ? { cidade: c.cidade } : {}) }); await carregar({ user: usuario }); }
+      try { await B.salvarEstadioVisual({ nomeEstadio: c.nomeEstadio, mosaico: c.mosaico, padrao: c.padrao, cores: c.cores, corEscadas: c.corEscadas, cobertura: c.cobertura, muralha: c.muralha, ...(novaCidade ? { cidade: c.cidade } : {}) }); await carregar({ user: usuario }); }
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evSalvar").disabled = false; }
     };
     $("evReforma").onclick = async () => {
@@ -1785,9 +1786,11 @@ async function telaClube(liga, clube) {
         : `Escolha a marca que vai estampar a sua camisa e o formato do contrato. Valor de referência: <b>${dinheiro(patro.base)}</b>${patro.fidelidade ? `, já com +${patro.fidelidade * 5}% por fidelidade à marca` : ""}.<br>
         Quanto menos luvas, maior o bônus e mais difícil a meta. Na média as três propostas rendem o mesmo: o que muda é o risco.<br>
         Renovar com a mesma marca rende +5% por temporada seguida, até +20%. Você pode trocar até a 1ª rodada; nela a meta é calculada e o contrato fecha.`}</div></div>
-      <div class="card"><h2>Marca</h2><div class="row" style="gap:10px;align-items:stretch">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
+      <div class="card"><h2>Marca</h2><div class="row" style="gap:16px;align-items:flex-start">
+        <div style="text-align:center;flex:none">${svgUniforme({ ...clube.uniforme, marca: trava ? e.marca : selM }, 110)}<div class="mut" style="font-size:12px">${(trava ? e.marca : selM) ? "assim fica a camisa" : "escolha uma marca"}</div></div>
+        <div class="row" style="gap:10px;align-items:stretch;flex:1 1 300px;min-width:0">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
         return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--line);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
-          ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
+          ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div></div></div>
       <div class="card"><h2>Proposta</h2><div class="row" style="gap:10px;align-items:stretch">${vis.map(([id, x]) => cartao(id, x)).join("")}</div>
         ${trava ? "" : `<div class="row" style="margin-top:12px"><button id="pConfirma" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP)}</span></div>`}</div>`; };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}

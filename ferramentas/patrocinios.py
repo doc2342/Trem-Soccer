@@ -37,10 +37,11 @@ def em_disco(im, cor=(244, 239, 230, 255)):
     return out
 
 
-def tinta(im, cor):
-    """Versão de uma cor só, para estampar na camisa: quanto mais escuro o pixel, mais opaco."""
+def tinta(im, cor, claro=False, corte=0):
+    """Versão de uma cor só, para estampar na camisa: quanto mais escuro o pixel, mais opaco
+    (claro=True: quanto mais claro). Abaixo do corte some (tira a textura do fundo)."""
     im = im.convert('RGBA')
-    a = Image.eval(im.convert('L'), lambda v: 255 - v)
+    a = Image.eval(im.convert('L'), lambda v: max(0, min(255, ((v if claro else 255 - v) - corte) * 255 // (255 - corte))))
     a = Image.composite(a, Image.new('L', im.size, 0), im.getchannel('A'))
     out = Image.new('RGBA', im.size, cor + (255,))
     out.putalpha(a)
@@ -81,6 +82,11 @@ if __name__ == '__main__':
     trem = quadrado(sem_fundo_branco(abre('grupo_trem.png')))
     selos['grupo_trem_camisa_claro'] = tinta(trem, (255, 255, 255))
     selos['grupo_trem_camisa_escuro'] = tinta(trem, (17, 17, 17))
+    for k, im, claro, corte in [('gazeta_dugoutense', cantos(abre('gazeta.jpg')), False, 40),
+                                ('dugout_dos_crias', cantos(abre('dugout_crias.jpg').crop((90, 80, 550, 540))), True, 90)]:
+        selos[k + '_camisa_claro'] = tinta(im, (255, 255, 255), claro, corte)
+        selos[k + '_camisa_escuro'] = tinta(im, (17, 17, 17), claro, corte)
+    selos['dobet_camisa'] = quadrado(sem_fundo_branco(abre('dobet_fundo_branco.webp')))  # colorida: o contorno preto segura em qualquer camisa
     for nome, im in selos.items():
         im.save(SAIDA / f'{nome}.png')
     print('ok:', sorted(selos))
