@@ -494,6 +494,7 @@ async function telaClube(liga, clube) {
   const carga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
   const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
   const patroP = B.propostasDePatrocinio().catch(() => null); // 115_patrocinio.sql; sem ele vem null e a aba explica
+  const repatriarP = B.repatriaveis(clube.id).catch(() => []);
   const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], [baseJogos, copinha, libJuvenil],
     [baseCampeoes, premiosTodos, revelados, taticaBase], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
@@ -523,6 +524,7 @@ async function telaClube(liga, clube) {
   const finalistas = liga.copa === undefined ? [] : trofeus.filter(x => x.copa === "campeão" || x.copa === "vice").reverse();
   desenharSeletor(clube, clubes).catch(() => {});
   let patro = await patroP;
+  const repatriar = await repatriarP;
   const [metasDaLiga, confPassada, direitos, pedidoExtra] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
@@ -1469,6 +1471,7 @@ async function telaClube(liga, clube) {
   const muralDoClube = () => {
     const l = [];
     if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
+    for (const j of repatriar) l.push(item("🏠", `${esc(j.nome)} (${sg(j.pos)}), formado na sua base, voltou ao mercado como livre. Até ${new Date(j.repatriar_ate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} só você pode dar lance.`, "aviso", "mercado"));
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
     if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
