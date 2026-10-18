@@ -7,9 +7,9 @@ const { criarRng } = await imp("rng.js"), G = await imp("gerador.js"), E = await
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 
 // clube com dirigente ativo: 20 jogadores de 25 anos, 4 vencem nesta temporada (T5); folha folgada, a não ser que o teto aperte
-function rodar({ marcados = [], teto = 1e9, vencem = 4, total = 20 }) {
+function rodar({ marcados = [], teto = 1e9, vencem = 4, total = 20, formados = false }) {
   const rng = criarRng(11), el = G.gerarElenco(rng, { nivel: 30, nomes }).slice(0, total).map((j, i) => ({ ...j, id: "j" + (i + 1), idade: 25,
-    salario: 500 + 10 * i, mercado: E.salarioDeMercado(j), contratoAte: i < vencem ? 5 : 7, aposentaEm: null, naoRenovar: marcados.includes(i + 1) }));
+    salario: 500 + 10 * i, mercado: E.salarioDeMercado(j), contratoAte: i < vencem ? 5 : 7, aposentaEm: null, naoRenovar: marcados.includes(i + 1), formador: formados ? 1 : 2 }));
   const clube = { id: 1, grupo: "A", divisao: 1, dono: "u", ultimo_acesso: new Date().toISOString(), nome: "Trem", perfil: "equilibrado" };
   const { plano, resumo } = planejarVirada({ rng, liga: { temporada: 5 }, clubes: [clube], elencos: { 1: el }, talentos: {}, partidas: [], resultados: [], nomes,
     comLivres: true, tetos: { 1: teto, 2: teto, 3: teto }, semMovimentos: true });
@@ -34,4 +34,7 @@ const folhaSemOsRenovados = 20 * 500 + 10 * (20 * 19 / 2); // aproximação: o t
 r = rodar({ teto: folhaSemOsRenovados - 1500 });
 assert.ok(r.livres.size >= 1 && r.resumo.livres.every(x => x.peloTeto), "acima do teto, os renovados mais caros saem pelo teto");
 assert.equal(r.resumo.renovadosDono.length, r.renovados.length, "quem saiu pelo teto não fica no resumo de renovados");
+// formado no clube conta 85% no teto (87_formado_no_teto.sql): o mesmo teto que tira gente da folha cheia não tira ninguém da formada
+r = rodar({ teto: folhaSemOsRenovados - 1500, formados: true });
+assert.equal(r.livres.size, 0, "com todos formados no clube, a folha a 85% cabe no teto e ninguém sai");
 console.log("ok");

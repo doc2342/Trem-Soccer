@@ -1472,8 +1472,9 @@ async function telaClube(liga, clube) {
     const vencem = elenco.filter(j => !j.juvenil && j.salario != null && j.contratoAte != null && j.contratoAte <= liga.temporada && j.aposentaEm == null);
     const saem = vencem.filter(j => j.naoRenovar), renovam = vencem.filter(j => !j.naoRenovar).map(j => ({ j, s: Math.max(j.salario, j.mercado || 0) }));
     const ficam = elenco.filter(j => !j.juvenil && j.salario != null && !vencem.includes(j) && j.aposentaEm == null);
-    let folha = ficam.reduce((t, j) => t + j.salario, 0) + renovam.reduce((t, r) => t + r.s, 0), n = ficam.length + renovam.length;
-    const pelo = []; for (const r of [...renovam].sort((a, b) => b.s - a.s)) { if (folha <= (liga.teto_folha || Infinity) || n <= 16) break; folha -= r.s; n--; pelo.push(r.j); }
+    const peso = j => j.formador === clube.id ? PESO_DO_FORMADO : 1; // formado conta 85% no teto, como em src/virada.js
+    let folha = ficam.reduce((t, j) => t + j.salario * peso(j), 0) + renovam.reduce((t, r) => t + r.s * peso(r.j), 0), n = ficam.length + renovam.length;
+    const pelo = []; for (const r of [...renovam].sort((a, b) => b.s - a.s)) { if (folha <= (liga.teto_folha || Infinity) || n <= 16) break; folha -= r.s * peso(r.j); n--; pelo.push(r.j); }
     return { vencem, saem, renovam, pelo };
   };
   const muralDoClube = () => {

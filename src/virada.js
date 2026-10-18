@@ -4,7 +4,7 @@ import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, P
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
-import { salarioDeMercado, TETO_DE_FOLHA } from "./economia.js";
+import { salarioDeMercado, TETO_DE_FOLHA, PESO_DO_FORMADO } from "./economia.js";
 import { classificacao } from "./rodada.js";
 
 // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
@@ -222,10 +222,13 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    // ficam livres e vão a leilão, até caber ou até o elenco chegar a 18 (clube sem dono ou com dirigente ausente) ou 16 (dirigente ativo).
    if (comLivres && !guardado) {
     const g = grupoNovo[c.id], teto = PAISES[c.grupo] ? REGUA_DE_FORA.teto : tetos[g ? divisaoDoGrupo(g) : c.divisao] || Infinity;
-    let folha = regs.reduce((s, r) => s + (r.salario || 0), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
+    // formado no clube conta 85% no teto, como no banco (folha_no_teto, 87_formado_no_teto.sql)
+    const formados = new Set((elencos[c.id] || []).filter(j => j.formador != null && String(j.formador) === String(c.id)).map(j => numero(j.id)));
+    const pesa = r => (r.salario || 0) * (formados.has(r.id) ? PESO_DO_FORMADO : 1);
+    let folha = regs.reduce((s, r) => s + pesa(r), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
     for (const v of renovadosAqui.sort((a, b) => b.reg.salario - a.reg.salario)) {
       if (folha <= teto || ficam <= (cuida ? ELENCO_MINIMO : ELENCO_MINIMO_DO_BOT)) break;
-      folha -= v.reg.salario; ficam--; resumo.renovados--;
+      folha -= pesa(v.reg); ficam--; resumo.renovados--;
       resumo.renovadosDono = resumo.renovadosDono.filter(x => !(x.clube === c.nome && x.nome === v.j.nome));
       plano.livres.push({ id: v.reg.id, salario_mercado: v.mercado });
       resumo.livres.push({ clube: c.nome, dono: !!c.dono, peloTeto: true, nome: v.j.nome, pos: v.j.pos, idade: v.reg.idade });
