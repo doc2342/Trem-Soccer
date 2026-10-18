@@ -113,7 +113,10 @@ function torresSS() { const aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, oc =
   return [...cc, ...Array.from({ length: n }, (_, i) => ({ ...ring[Math.floor((i + 0.5) * ring.length / n)], r: 4 }))]; }
 // Wembley: o arco vai de um fundo ao outro, deitado 22° para o norte; perfil de meia elipse (sobe quase reto nos pés) e alto o bastante para passar 7 m acima da borda do teto
 function arcoPts(topH) { const aM = m.a0 + rows * DEP, X = aM + 12, inc = 0.38, sb = (aM + 4) / X, H = Math.max(30 + 2.2 * topH, (topH + 12.4) / Math.cos(inc) / Math.sqrt(1 - sb * sb)), p = [];
-  for (let i = 0; i <= 64; i++) { const s = Math.sin((-1 + 2 * i / 64) * Math.PI / 2), h = H * Math.sqrt(Math.max(0, 1 - s * s)); p.push([s * X, h * Math.cos(inc), -h * Math.sin(inc)]); } return p; }
+  for (let i = 0; i <= 64; i++) { const s = Math.sin((-1 + 2 * i / 64) * Math.PI / 2), h = H * Math.sqrt(Math.max(0, 1 - s * s)); p.push([s * X, h * Math.cos(inc), -h * Math.sin(inc)]); }
+  // o arco acompanha o nível: abaixo do 3 (sem teto) só os pés; a obra do nível 3 fecha o arco dos pés para o meio. p.trechos = o que já está de pé
+  const PE = 0.12, ini = C.reforma || niv == 1 ? 0 : niv > 3 ? 1 : PE, f = ini + ((niv >= 3 ? 1 : PE) - ini) * obra, n = Math.round(f * 32);
+  p.f = f; p.trechos = n >= 32 ? [p] : n < 1 ? [] : [p.slice(0, n + 1), p.slice(64 - n).reverse()]; return p; }
 let _dg = null; function DG2() { if (!_dg || _dg.k !== m.nome + rows) { _dg = dunasGeo(hRow(rows - 1)); _dg.k = m.nome + rows; } return _dg; }
 function mascara(txt, mr, meia, esc = 1) { const cw = 220, ch = Math.max(8, Math.round(cw * mr * esc / (2 * meia))), c = document.createElement("canvas"); c.width = cw; c.height = ch; const x = c.getContext("2d");
   x.font = "bold 100px sans-serif"; const w = x.measureText(txt).width || 1, fs = Math.min(ch * 0.92, 100 * cw * 0.94 / w); x.font = `bold ${fs}px sans-serif`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(txt, cw / 2, ch / 2 + fs * 0.06);
@@ -352,16 +355,27 @@ function construir() {
         tr({ x: -xr, z: sg * zI }, { x: xr, z: sg * zI }, ys, 2.5, 0.4); tr({ x: sg * xI, z: -zr }, { x: sg * xI, z: zr }, ys, 2.5, 0.4); }
       barras(mb, lam("#c8102e")); } }
   if (m.arco) { // Wembley: arco branco com anéis de treliça, sapatas nos fundos e cabos até a borda do teto
-    const ap = arcoPts(topH), curva = new T.CatmullRomCurve3(ap.map(p => new T.Vector3(...p))), br = lam("#f4f3ef");
-    const tubo = new T.Mesh(new T.TubeGeometry(curva, 160, 1.6, 10, false), br); tubo.castShadow = true; grp.add(tubo);
-    const an = new T.InstancedMesh(new T.TorusGeometry(2.2, 0.22, 6, 14), br, 90), zz = new T.Vector3(0, 0, 1);
-    for (let i = 0; i < 90; i++) { const t = (i + 0.5) / 90; dm.position.copy(curva.getPointAt(t)); dm.quaternion.setFromUnitVectors(zz, curva.getTangentAt(t)); dm.scale.set(1, 1, 1); dm.updateMatrix(); an.setMatrixAt(i, dm.matrix); }
-    an.castShadow = true; grp.add(an);
+    const ap = arcoPts(topH), br = lam("#f4f3ef"), zz = new T.Vector3(0, 0, 1);
+    for (const tp of ap.trechos) { const curva = new T.CatmullRomCurve3(tp.map(p => new T.Vector3(...p))), fr = (tp.length - 1) / 64, na = Math.max(1, Math.round(90 * fr));
+      const tubo = new T.Mesh(new T.TubeGeometry(curva, Math.max(8, Math.round(160 * fr)), 1.6, 10, false), br); tubo.castShadow = true; grp.add(tubo);
+      const an = new T.InstancedMesh(new T.TorusGeometry(2.2, 0.22, 6, 14), br, na);
+      for (let i = 0; i < na; i++) { const t = (i + 0.5) / na; dm.position.copy(curva.getPointAt(t)); dm.quaternion.setFromUnitVectors(zz, curva.getTangentAt(t)); dm.scale.set(1, 1, 1); dm.updateMatrix(); an.setMatrixAt(i, dm.matrix); }
+      an.castShadow = true; grp.add(an); }
     for (const s of [-1, 1]) bloco(8, 3, 8, lam("#bdb9ae"), s * ap[64][0], 1.5, 0);
+    if (ap.f < 1) { // arco por terminar: guindaste de torre amarelo ao lado do pé leste, lança sobre o arco
+      const am = lam("#f2b200"), w = 2, cx = ap[64][0] + 4, cz = 9, n = Math.round(ap.f * 32), Hg = Math.ceil(((ap.trechos[0] || ap)[n] || ap[0])[1] + 14), tre = [];
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) bloco(0.25, Hg, 0.25, am, cx + sx * w / 2, Hg / 2, cz + sz * w / 2);
+      for (let y = 1; y < Hg - 1; y += 2) for (const sg of [-1, 1]) { const tl = (y % 4 == 1 ? 1 : -1) * Math.atan2(2, w), L = Math.hypot(2, w);
+        tre.push([cx, y + 1, cz + sg * w / 2, 0, tl, L, 0.12], [cx + sg * w / 2, y + 1, cz, Math.PI / 2, tl, L, 0.12]); }
+      barras(tre, am);
+      const Lj = 30, Lc = 9; bloco(Lj + Lc, 1, 1, am, cx - (Lj - Lc) / 2, Hg + 0.5, cz); // lança (oeste) e contralança
+      bloco(3, 2.2, 1.8, lam("#8f8b82"), cx + Lc - 1.5, Hg - 0.6, cz); bloco(1.8, 1.6, 1.8, am, cx, Hg - 0.8, cz + 1.9); // contrapeso e cabine
+      bloco(1.6, 3, 1.6, am, cx, Hg + 2.5, cz); bloco(0.08, Hg * 0.45, 0.08, lam("#2c2c2a"), cx - Lj * 0.7, Hg - Hg * 0.225, cz); // topo e cabo do gancho
+      bloco(6, 1, 6, lam("#bdb9ae"), cx, 0.5, cz); }
     if (teto) { // teto cinza quase fechado, treliça branca em zigue-zague na borda de fora e cabos do arco só para o teto norte
       const zg = []; walk(contorno(m, aM + 1.2, bM + 1.2), 2.5).forEach((p, i) => { zg.push([p.x, yT + 2.4, p.z, p.ang, (i % 2 ? 1 : -1) * Math.atan2(3, 2.5), Math.hypot(3, 2.5), 0.25], [p.x, yT + 3.9, p.z, p.ang, 0, 2.6, 0.3]); }); barras(zg, br);
       const cO = contorno(m, aM + 1.5, bM + 1.5).filter(q => q[1] < 0), cab = [], borda = x => cO.reduce((b, q) => Math.abs(q[0] - x) < Math.abs(b[0] - x) ? q : b);
-      for (let i = 6; i <= 58; i += 3) { const [x, y, z] = ap[i]; if (Math.abs(x) > aM - 6) continue; const q = borda(x); cab.push(x, y, z, q[0], yT + 0.9, q[1]); }
+      if (ap.f == 1) for (let i = 6; i <= 58; i += 3) { const [x, y, z] = ap[i]; if (Math.abs(x) > aM - 6) continue; const q = borda(x); cab.push(x, y, z, q[0], yT + 0.9, q[1]); }
       const gc = new T.BufferGeometry(); gc.setAttribute("position", new T.Float32BufferAttribute(cab, 3)); grp.add(new T.LineSegments(gc, new T.LineBasicMaterial({ color: "#6f6c64" }))); } }
   if (m.geral) { // Maracanã: a geral é uma faixa de concreto rente ao campo, com gente em pé, atrás de um fosso
     const G = m.geral; anel(contorno(m, m.a0 + 0.2, m.b0 + 0.2), contorno(m, m.a0 - G, m.b0 - G), lam("#bdb9ae"), 0, 0.9);
@@ -562,7 +576,7 @@ export function plantaEstadio(config) {
     for (let x = -(FA + 1); x <= FA + 1; x += 7) s += `<line x1="${X(x)}" y1="${Y(-(m.b0 + rows * DEP * 0.28))}" x2="${X(x)}" y2="${Y(m.b0 + rows * DEP * 0.28)}" stroke="${LB}" stroke-width="0.4" ${DD}/>`; }
   if (m.torres) for (const t of torresSS()) s += `<circle cx="${X(t.x)}" cy="${Y(t.z)}" r="${(t.r * k).toFixed(1)}" fill="${BG}" stroke="${t.c ? AM : BR}" stroke-width="0.8"/><circle cx="${X(t.x)}" cy="${Y(t.z)}" r="${(1.5 * k).toFixed(1)}" fill="none" stroke="${LB}" stroke-width="0.5"/>`;
   if (m.torres && niv >= 3) { const c = torresSS().filter(t => t.c); s += `<path d="${P(c.map(t => [t.x, t.z]))}" fill="none" stroke="#e24b4a" stroke-width="1.2" ${DD}/>`; }
-  if (m.arco) { const ap = arcoPts(hRow(rows - 1)); s += `<path d="M${ap.map(p => X(p[0]) + " " + Y(p[2])).join("L")}" fill="none" stroke="${BR}" stroke-width="1.4" ${DD}/>` + [ap[0], ap[64]].map(p => `<rect x="${X(p[0] - 4)}" y="${Y(-4)}" width="${(8 * k).toFixed(1)}" height="${(8 * k).toFixed(1)}" fill="${BG}" stroke="${BR}" stroke-width="0.8"/>`).join(""); }
+  if (m.arco) { const ap = arcoPts(hRow(rows - 1)); s += ap.trechos.map(tp => `<path d="M${tp.map(p => X(p[0]) + " " + Y(p[2])).join("L")}" fill="none" stroke="${BR}" stroke-width="1.4" ${DD}/>`).join("") + [ap[0], ap[64]].map(p => `<rect x="${X(p[0] - 4)}" y="${Y(-4)}" width="${(8 * k).toFixed(1)}" height="${(8 * k).toFixed(1)}" fill="${BG}" stroke="${BR}" stroke-width="0.8"/>`).join(""); }
   if (m.geral) s += `<path d="${ring(-m.geral, 0)}" fill-rule="evenodd" fill="#185FA5" fill-opacity=".5" stroke="${BR}" stroke-width="0.6"/><path d="${P(Co(-m.geral - 2.4))}" fill="none" stroke="${LB}" stroke-width="0.5"/>`;
   if (m.marquise && niv >= 3) s += `<g fill="none" stroke="${LB}" stroke-width="0.9" ${DD}><path d="${P(Co(rows * DEP * 0.42))}"/><path d="${P(Co(rows * DEP + 2.6))}"/></g>`;
   if (dunas) { s += `<g fill="none" stroke="${LB}" stroke-width="0.8" ${DD}>`; for (const g of DG2().petalas) { const nu = g.length - 1, nv = g[0].length - 1, pts = []; for (let u = 0; u <= nu; u++) pts.push(g[u][0]); for (let v = 0; v <= nv; v++) pts.push(g[nu][v]); for (let u = nu; u >= 0; u--) pts.push(g[u][nv]); for (let v = nv; v >= 0; v--) pts.push(g[0][v]); s += `<path d="${P(pts.map(p => [p[0], p[2]]))}"/>`; } s += "</g>"; }
