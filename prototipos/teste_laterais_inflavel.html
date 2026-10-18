@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Braga e Allianz</title>
+<style>body{font-family:system-ui;margin:16px;max-width:1000px;background:#fbfaf7} .g{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px} h2{font-size:16px;margin:8px 0}</style></head>
+<body>
+<p>Protótipo do Estádio do Braga e da Allianz Arena (src/estadio.js). Níveis 3, 5 e 8, com a planta do nível 8 em obra.</p>
+<div id="g"></div>
+<script type="module">
+import { desenharEstadio, plantaEstadio, configDoClube } from "../src/estadio.js";
+const base = { nome: "Trem", sigla: "TREM", escudo: { cor1: "#0b3d91", cor2: "#f2c200" } };
+const visual = { laterais: { nomeEstadio: "Estádio das Laterais", padrao: "sigla", mosaico: "TREM" }, inflavel: { nomeEstadio: "Trem Arena", padrao: "setor" } };
+const g = document.getElementById("g");
+for (const [modelo, v] of Object.entries(visual)) {
+  const h = document.createElement("h2"), d = document.createElement("div"); h.textContent = modelo; d.className = "g"; g.append(h, d);
+  for (const nivel of [3, 5, 8]) { const el = document.createElement("div"); d.append(el); await desenharEstadio(el, configDoClube({ ...base, id: nivel, estadio_nivel: nivel, estadio_visual: { modelo, ...v } })); }
+  const p = document.createElement("div"); p.innerHTML = plantaEstadio({ ...configDoClube({ ...base, estadio_nivel: 8, estadio_visual: { modelo, ...v } }), nivel: 8, obra: 0.4 }); d.append(p);
+}
+</script>
+</body></html>

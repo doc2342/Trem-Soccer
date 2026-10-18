@@ -8,7 +8,7 @@
 // Medidas em metros; x = leste, z = sul.
 import { temRefletores, estacionamentoDoEstadio } from "./economia.js";
 import { MARCAS, placasDoJogo, ANUNCIE } from "./patrocinio.js";
-export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira" };
+export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira", laterais: "Estádio do Braga", inflavel: "Allianz Arena" };
 export const PADROES_DO_ESTADIO = { setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
 
@@ -16,9 +16,9 @@ const FA = 52.5, FB = 34, DEP = 0.85, RISE = 0.42, CELL = 1.0, LS = 42.195, RI =
 const M = { tradicional: { nome: "Tradicional", a0: 96, b0: 66, pista: 1 }, caldeirao: { nome: "Caldeirão", a0: 57, b0: 38.5, R: 1.5, cantos: 1 }, arena: { nome: "Arena moderna", a0: 59.5, b0: 41, R: 12, teto: "arena" }, dunas: { nome: "Arena Concha", a0: 60, b0: 44, R: 34, teto: "dunas" }, ferradura: { nome: "Ferradura", a0: 94, b0: 64, pista: 1, aberta: 1 },
   // Bomboneira (18/10): 3 anéis íngremes e um lado de palcos reto; a Muralha é opção do Caldeirão (config.muralha)
   bomboneira: { nome: "Bomboneira", a0: 55.5, b0: 37, R: 5, rise: 0.62, anel: 12, palcos: 6 },
-  // protótipos de 18/10 (fora de MODELOS até aprovar): Pedreira (Braga) = só as laterais, cobertas e ligadas por cabos, rocha atrás do gol oeste;
-  // Inflável (Allianz) = Arena com uma pele de almofadas em losango na cor do clube
-  pedreira: { nome: "Pedreira", a0: 57, b0: 38.5, R: 1.5, cantos: 1, laterais: 1 }, inflavel: { nome: "Inflável", a0: 59.5, b0: 41, R: 20, teto: "arena", pele: 1 } };
+  // 18/10: Estádio do Braga (sem a rocha) = só as laterais, cobertas e ligadas por cabos, fundos abertos;
+  // Allianz Arena = Arena com uma pele de almofadas em losango na cor do clube
+  laterais: { nome: "Estádio do Braga", a0: 57, b0: 38.5, R: 1.5, cantos: 1, laterais: 1 }, inflavel: { nome: "Allianz Arena", a0: 59.5, b0: 41, R: 20, teto: "arena", pele: 1 } };
 const ROWS = [12, 12, 18, 24, 28, 41, 47, 53], CUSTO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000], PRAZO = [0, 1, 3, 6, 11, 18, 22, 27, 36]; // os mesmos de custo_da_obra e prazo_da_obra (55)
 const lug = l => l < 1 ? 0 : l <= 5 ? 5000 + 5000 * l : [40000, 50000, 60000][l - 6];
 const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " mil";
@@ -284,7 +284,8 @@ function construir() {
     bloco(2 * xs(z0), 0.9, 0.3, lam(hx[0]), 0, Hb - 0.45, z0 - 0.1);
     if (nomeE && Hb > 7) { const { r } = nomeTex(nomeE, "#000"), w = Math.min(r * Math.min(8, Hb * 0.3), 2 * xs(z1) * 0.9), hh = w / r, y0 = Hb * 0.55, pts = []; for (let x = -w / 2; x <= w / 2 + 0.01; x += 1) pts.push(x);
       nome3D(nomeE, pts.map(x => [x, y0 - hh / 2, z1 + 0.2]), pts.map(x => [x, y0 + hh / 2, z1 + 0.2]), pts.map(x => (x + w / 2) / w), hx[0]); } }
-  if (m.aberta || m.laterais) telao(m.a0 + 4, 10, 0, -6);
+  if (m.aberta) telao(m.a0 + 4, 10, 0, -6);
+  else if (m.laterais) telao(-(m.a0 + 4), 10, 0, -6);
   else if (teto) telao(-(m.a0 + rows * DEP * 0.5) + 1, yT - 4.6, 0, 4.5);
   else if (dunas) telao(-(m.a0 + rows * DEP * 0.3) + 2, POD + DG.H - 9, 0, 5);
   else if (m.cantos) { const o = Math.min(rows, 28) * DEP * 0.45; telao(-(FA + 3 + o * 0.9), topH * 0.6 + 4, -(FB + 3 + o * 0.9), -(topH * 0.6)); }
@@ -302,19 +303,7 @@ function construir() {
   inst(fp, (p, i, im) => put(im, i, p.x, 1.25, p.z, p.ang, 2.5, 2.5, 0.05), new T.MeshLambertMaterial({ color: "#7d8a90", transparent: true, opacity: .35, depthWrite: false }));
   inst(fp, (p, i, im) => put(im, i, p.x, 1.3, p.z, p.ang, 0.12, 2.6, 0.12, new T.Color("#5f5e5a")));
   inst(fp, (p, i, im) => put(im, i, p.x, 2.55, p.z, p.ang, 2.55, 0.1, 0.1, new T.Color("#5f5e5a")));
-  if (m.laterais) { // Pedreira: paredão de granito atrás do gol oeste e cabos ligando as duas coberturas por cima do campo
-    // pedreira de granito em bancadas (degraus quase verticais), com o platô do alto coberto de mato; a frente fica de cara para o campo
-    rng = 31; const Hr = topH + 12, Zm = bM + 18, zs = [], mato = [];
-    const DEG = [[3.8, 0], [4.4, 0.36], [6.6, 0.4], [7.1, 0.7], [9.3, 0.73], [9.8, 1]], TOPO = [12, 16, 20, 24, 28, 32, 34, 37];
-    for (let z = -Zm - 8; z <= Zm + 8.01; z += 2) zs.push(z);
-    const queda = z => Math.abs(z) < Zm ? 1 : Math.max(0, Math.cos(Math.min(1, (Math.abs(z) - Zm) / 8) * Math.PI / 2)), onda = z => 1 + 0.06 * Math.sin(z * 0.12) + 0.03 * Math.sin(z * 0.37);
-    const ponto = (d, f, z) => { const w = 0.5 * Math.sin(z * 0.21); return [-(m.a0 + d + w), Hr * f * queda(z) * onda(z), z]; };
-    const pared = DEG.map(([d, f]) => zs.map(z => ponto(d, f, z))), plato = [[9.8, 1], ...TOPO.map(d => [d, d < 34 ? 1 : d < 37 ? 0.5 : 0])].map(([d, f]) => zs.map(z => ponto(d, f, z)));
-    malha(pared, new T.MeshLambertMaterial({ color: "#a6a197", flatShading: true, side: T.DoubleSide }));
-    malha(plato, new T.MeshLambertMaterial({ color: "#6f8a47", side: T.DoubleSide }));
-    for (let d = 11; d < 33; d += 2.2) for (const z of zs) if (rnd() < 0.4 && queda(z) > 0.9) mato.push([-(m.a0 + d + rnd() * 2), Hr * onda(z), z + rnd() * 2]);
-    const folha = ["#4f7130", "#5e7f3a", "#3f6228", "#6c8c42"].map(c => new T.Color(c)), im = new T.InstancedMesh(new T.IcosahedronGeometry(1, 0), new T.MeshLambertMaterial({ flatShading: true }), Math.max(1, mato.length));
-    mato.forEach(([x, h, z], i) => { const r = 1.4 + rnd() * 1.4; dm.position.set(x, h + r * 0.5, z); dm.rotation.set(0, rnd() * 6, 0); dm.scale.set(r, r * 0.9, r); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); im.setColorAt(i, folha[(rnd() * 4) | 0]); }); im.castShadow = true; grp.add(im);
+  if (m.laterais) { // Estádio do Braga: cabos ligando as duas coberturas por cima do campo (a rocha de Braga ficou estranha no meio da cidade)
     const ei = m.b0 + rows * DEP * 0.28, cab = []; for (let x = -(FA + 1); x <= FA + 1; x += 7) cab.push(x, yC + 0.6, -ei, x, yC + 0.6, ei);
     const gc = new T.BufferGeometry(); gc.setAttribute("position", new T.Float32BufferAttribute(cab, 3)); grp.add(new T.LineSegments(gc, new T.LineBasicMaterial({ color: "#3d3d3a" }))); }
   if (m.pele) { // Inflável: almofadas em losango em volta de tudo, na cor do clube; a pele estufa no meio da altura
@@ -412,7 +401,7 @@ function entorno(cx, zN, zS) {
 function barracas(aM, bM, topH, dunas, nb, hx) {
   const off = dunas ? 25 : m.pele ? 13 : 5.5, ring = walk(contorno(m, aM + off, bM + off), 1), n = 4 + 2 * niv, fila = Math.round(5 * Math.min(16, Math.max(0, C.humor ?? 8)) / 16);
   const f = m.R == null ? 0.75 : 0.97, torres = C.refletores && !m.teto ? [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (aM + 7) * f, sz * (bM + 7) * f]) : [];
-  const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && !(m.laterais && p.x < -m.a0) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > 6);
+  const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > 6);
   const pts = []; for (let i = 0; i < n; i++) { const p = ring[Math.floor((i + 0.5) * ring.length / n)]; if (!p) continue; if (m.muralha && p.x < -aM && Math.abs(p.z) < FB + 6) p.x -= rows * DEP * (m.muralha - 1); if (livre(p)) pts.push(p); }
   const fora = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
   const toldo = [hx[0], "#f2c200", hx[1], "#e8742a"].map(c => new T.Color(c)), gente = [], pal = [...toldo, new T.Color("#f1efe8"), new T.Color("#2c2c2a"), new T.Color("#888780")];
@@ -449,7 +438,7 @@ function wire(pos, aM, bM, topH, L, DG) {
 // Planta baixa (SVG em texto). Não precisa do three.js.
 export function plantaEstadio(config) {
   aplicar(config);
-  const aO = m.a0 + rows * DEP, bO = m.b0 + rows * DEP, nb = C.nb, L = lote(aO, bO, nb), dunas = m.teto == "dunas", ex = dunas ? 18 : m.muralha ? rows * DEP * (m.muralha - 1) : m.laterais ? Math.max(0, 34 - rows * DEP) : m.pele ? 9 : 0, zB = nb ? L.z1 : bO + ex;
+  const aO = m.a0 + rows * DEP, bO = m.b0 + rows * DEP, nb = C.nb, L = lote(aO, bO, nb), dunas = m.teto == "dunas", ex = dunas ? 18 : m.muralha ? rows * DEP * (m.muralha - 1) : m.pele ? 9 : 0, zB = nb ? L.z1 : bO + ex;
   const k = Math.min(390 / (2 * (aO + ex) + 40), 330 / (bO + ex + zB + 44)), CX = 246, CY = 258 - ((zB - bO - ex) / 2) * k;
   const X = x => (CX + x * k).toFixed(1), Y = z => (CY + z * k).toFixed(1);
   const P = pts => "M" + pts.map(p => X(p[0]) + " " + Y(p[1])).join("L") + "Z";
@@ -508,7 +497,7 @@ export function plantaEstadio(config) {
   s += vom(midN, (x, z, ld) => !pula(x, z, ld, niv) && (rows > prev || pula(x, z, ld, niv - 1)), AM);
   if (m.teto == "arena" && niv >= 3) s += `<g fill="none" stroke="${LB}" stroke-width="0.9" ${DD}><path d="${P(Co(rows * DEP * 0.5))}"/><path d="${P(Co(rows * DEP + 1.5))}"/></g>`;
   if (m.pele) s += `<path d="${P(Co(rows * DEP + 8))}${P(Co(rows * DEP + 3))}" fill-rule="evenodd" fill="#185FA5" fill-opacity=".5" stroke="${BR}" stroke-width="0.8"/>`;
-  if (m.laterais) { const bz = bO + 12; s += `<rect x="${X(-(m.a0 + 32))}" y="${Y(-bz)}" width="${(28 * k).toFixed(1)}" height="${(2 * bz * k).toFixed(1)}" fill="url(#${id}grade)" stroke="${LB}" stroke-width="0.8" stroke-dasharray="3 2"/><text font-size="11" fill="${BR}" text-anchor="middle" transform="translate(${X(-(m.a0 + 18))} ${Y(0)}) rotate(-90)">ROCHA</text>`;
+  if (m.laterais) {
     for (let x = -(FA + 1); x <= FA + 1; x += 7) s += `<line x1="${X(x)}" y1="${Y(-(m.b0 + rows * DEP * 0.28))}" x2="${X(x)}" y2="${Y(m.b0 + rows * DEP * 0.28)}" stroke="${LB}" stroke-width="0.4" ${DD}/>`; }
   if (dunas) { s += `<g fill="none" stroke="${LB}" stroke-width="0.8" ${DD}>`; for (const g of DG2().petalas) { const nu = g.length - 1, nv = g[0].length - 1, pts = []; for (let u = 0; u <= nu; u++) pts.push(g[u][0]); for (let v = 0; v <= nv; v++) pts.push(g[nu][v]); for (let u = nu; u >= 0; u--) pts.push(g[u][nv]); for (let v = nv; v >= 0; v--) pts.push(g[0][v]); s += `<path d="${P(pts.map(p => [p[0], p[2]]))}"/>`; } s += "</g>"; }
   if (cob.size) { const ps = assentos(niv); s += `<g fill="none" stroke="${LB}" stroke-width="0.9" ${DD}>`; for (const sd of cob) { const sp = ps.filter(p => p.ld == sd); if (!sp.length) continue; const ns = sd == "N" || sd == "S", sg = sd == "N" || sd == "W" ? -1 : 1, v = sp.map(p => ns ? p.x : p.z), mn = Math.min(...v) - 0.75, mx = Math.max(...v) + 0.75, eo = sg * ((ns ? bO : aO) + 0.9), ei = sg * ((ns ? m.b0 : m.a0) + rows * DEP * 0.28);
