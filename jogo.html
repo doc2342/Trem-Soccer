@@ -211,6 +211,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
+import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS } from "./src/estadio.js";
 import { MARCAS, selo as seloMarca, PROPOSTAS } from "./src/patrocinio.js";
 import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
@@ -273,6 +274,16 @@ import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Estádio 3D (src/estadio.js) num lugar da página: o three.js só carrega quando o lugar aparece na tela; a recarga destrói a cena anterior
+// (cada cena prende um contexto WebGL, e o navegador só dá uns poucos).
+const cenas = {};
+function montarEstadio(id, cfg) {
+  const el = document.getElementById(id); if (!el) return;
+  if (cenas[id]) { cenas[id].destruir(); delete cenas[id]; }
+  const ro = new ResizeObserver(() => { if (!el.clientWidth) return; ro.disconnect();
+    desenharEstadio(el, cfg).then(v => { if (cenas[id]) cenas[id].destruir(); cenas[id] = v; }).catch(e => { el.innerHTML = `<div class="mut" style="padding:10px">${esc(e.message)}</div>`; }); });
+  ro.observe(el);
+}
 // nome do jogador com link para a página dele (jogador.html); sem id, só o nome
 const lj = (id, nome) => { const n = String(id == null ? "" : id).replace(/\D/g, ""); return n ? `<a class="lk" href="jogador.html?id=${n}" onclick="event.stopPropagation()" title="Abrir a página do jogador">${esc(nome || "")}</a>` : esc(nome || ""); };
 // a página do jogador abre por cima desta, num quadro: fechar volta na hora, sem recarregar o clube (ctrl+clique segue abrindo em outra aba)
@@ -1190,10 +1201,11 @@ async function telaClube(liga, clube) {
       : k === "base" ? `${fx(faixaDeJovens(n, "promocao"))} jovens na virada, ${fx(faixaDeJovens(n, "peneira"))} na peneira`
       : `${mil(lugaresDoEstadio(n))} lugares`;
     const manut = manutencaoDoClube(), nomeObra = obra && ((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura);
+    const reforma = obra && obra.estrutura === "estadio_modelo";
     const total = ESTRUTURAS.reduce((t, [, , campo]) => t + (clube[campo] || 0), 0), maxTotal = ESTRUTURAS.reduce((t, [k]) => t + (k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5), 0);
     return `<div class="kpis">${kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, "o valor da obra sai na hora")}
       ${kpi("Manutenção", dinheiro(manut), "por temporada")}
-      ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> rodadas</small>` : "nenhuma", obra ? `${esc(nomeObra)} para o nível ${obra.nivel_alvo}` : "uma por vez")}
+      ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> rodadas</small>` : "nenhuma", obra ? (reforma ? "reforma do estádio" : `${esc(nomeObra)} para o nível ${obra.nivel_alvo}`) : "uma por vez")}
       ${kpi("Níveis", `${total}<small> de ${maxTotal}</small>`, "somando as cinco")}</div>
     <div class="card"><h2>Estruturas <span class="tag">uma obra por vez</span></h2>
       <div class="estrs">${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
@@ -1202,7 +1214,69 @@ async function telaClube(liga, clube) {
             <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div>
           ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
-      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>`;
+      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>
+    ${(p => `<div class="card" style="max-width:760px"><h2>Planta do estádio <span class="tag">${p.tag}</span></h2>${plantaEstadio(p.cfg)}</div>`)(plantaDaObra())}`;
+  };
+  // estádio: visual de hoje (3D) e o que a obra em andamento, ou a próxima ampliação, vai construir (planta e wireframe)
+  const CUSTO_DA_REFORMA = n => Math.max(250, Math.round(0.25 * (CUSTO.estadio[Math.max(1, n)] || 1000))), PRAZO_DA_REFORMA = n => Math.max(1, Math.floor(PRAZO[Math.min(8, Math.max(1, n))] / 2)); // os mesmos do 116
+  const plantaDaObra = () => {
+    const v = configDoClube(clube, obra), n = clube.estadio_nivel || 1, alvo = (clube.estadio_visual || {}).modelo_alvo;
+    if (obra && obra.estrutura === "estadio_modelo" && alvo) return { tag: `reforma para ${MODELOS[alvo] || alvo} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas`,
+      cfg: { ...v, modelo: alvo, reforma: true, obra: 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total), custo: obra.custo, prazo: obra.rodadas_total } };
+    if (obra && obra.estrutura === "estadio") return { tag: `obra para o nível ${obra.nivel_alvo} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas`, cfg: v };
+    if (n < NIVEL_MAXIMO_DO_ESTADIO) return { tag: `prévia da ampliação para o nível ${n + 1}`, cfg: { ...v, nivel: n + 1, obra: 0 } };
+    return { tag: "nível máximo", cfg: v };
+  };
+  const blocoDoEstadio = () => {
+    const v = configDoClube(clube, null), n = clube.estadio_nivel || 1, alvo = (clube.estadio_visual || {}).modelo_alvo;
+    const op = (lista, sel) => Object.entries(lista).map(([k, nome]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${nome}</option>`).join("");
+    const cor = (id, c, titulo) => `<input type="color" id="${id}" value="${c}" title="${titulo}" style="width:34px;height:30px;padding:0">`;
+    return `<div style="margin-top:12px">${v.nomeEstadio ? `<div><b>${esc(v.nomeEstadio)}</b> <span class="mut">· ${MODELOS[v.modelo] || ""}</span></div>` : ""}
+      <div class="row" style="margin:6px 0;align-items:center"><select id="evVista"><option value="3d">Estádio 3D</option><option value="wire">Wireframe da obra</option></select><span class="mut" style="font-size:12px">Arraste para girar.</span></div>
+      <div id="estadio3d" style="background:#fff;min-height:160px"></div></div>
+      <details style="margin-top:10px" id="evEditor"><summary style="cursor:pointer"><b>🎨 Visual do estádio</b> <span class="mut">só aparência: não muda lugares nem renda</span></summary>
+        <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
+          <button id="evReforma" disabled>Reformar</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}</span></div>
+        <div class="row" style="margin-top:8px"><label>Nome do estádio <input id="evNome" maxlength="32" value="${esc(v.nomeEstadio || "")}" style="width:220px"></label>
+          <label>Mosaico <input id="evMosaico" maxlength="14" value="${esc(v.mosaico || "")}" style="width:120px"></label></div>
+        <div class="row" style="margin-top:8px;align-items:center"><label>Padrão <select id="evPadrao">${op(PADROES_DO_ESTADIO, v.padrao)}</select></label>
+          <label>Cores <select id="evNCores">${[1, 2, 3].map(k => `<option ${k === v.cores.length ? "selected" : ""}>${k}</option>`).join("")}</select></label>
+          ${[0, 1, 2].map(i => cor("evCor" + i, v.cores[i] || ["#0b3d91", "#ffffff", "#c8102e"][i], "Cor " + (i + 1))).join("")}
+          <label>Escadas ${cor("evEscadas", v.corEscadas, "Cor das escadas")}</label>
+          <label id="evCobWrap">Cobertura <select id="evCob">${op(COBERTURAS, v.cobertura || "")}</select></label></div>
+        <div class="row" style="margin-top:10px;align-items:center"><button id="evSalvar">Salvar o visual</button><span class="mut" id="evAviso" style="font-size:12px">Nome, mosaico, padrão, cores e cobertura são de graça. O mosaico com o nome fica na arquibancada norte.</span></div>
+      </details>`;
+  };
+  // editor: cada mudança redesenha o 3D na hora (sem salvar); trocar o modelo mostra como ficaria
+  const ligarEstadio = () => {
+    if (!$("estadio3d")) return;
+    const atual = () => ({ ...configDoClube(clube, null), modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
+      cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value });
+    const modeloDeHoje = (clube.estadio_visual || {}).modelo || "tradicional";
+    const redesenhar = () => {
+      $("evCobWrap").hidden = $("evModelo").value !== "caldeirao";
+      [1, 2].forEach(i => { $("evCor" + i).hidden = i >= +$("evNCores").value; });
+      $("evReforma").disabled = !!obra || $("evModelo").value === modeloDeHoje;
+      const cfg = $("evVista").value === "wire" ? { ...plantaDaObra().cfg, vista: "wire" } : atual();
+      if (cenas.estadio3d) cenas.estadio3d.atualizar(cfg); else montarEstadio("estadio3d", cfg);
+    };
+    let t; const adiado = () => { clearTimeout(t); t = setTimeout(redesenhar, 250); };
+    ["evVista", "evModelo", "evPadrao", "evNCores", "evCor0", "evCor1", "evCor2", "evEscadas", "evCob"].forEach(id => $(id).addEventListener("change", redesenhar));
+    ["evNome", "evMosaico"].forEach(id => $(id).addEventListener("input", adiado));
+    if (cenas.estadio3d) { cenas.estadio3d.destruir(); delete cenas.estadio3d; }
+    redesenhar();
+    $("evSalvar").onclick = async () => {
+      const c = atual(); $("evSalvar").disabled = true;
+      try { await B.salvarEstadioVisual({ nomeEstadio: c.nomeEstadio, mosaico: c.mosaico, padrao: c.padrao, cores: c.cores, corEscadas: c.corEscadas, cobertura: c.cobertura }); await carregar({ user: usuario }); }
+      catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evSalvar").disabled = false; }
+    };
+    $("evReforma").onclick = async () => {
+      const m = $("evModelo").value, n = clube.estadio_nivel || 1;
+      if (!confirm(`Reformar o estádio para o modelo ${MODELOS[m]}? Custa ${dinheiro(CUSTO_DA_REFORMA(n))} agora, leva ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"} e ocupa a vaga de obra. Não dá para cancelar.`)) return;
+      $("evReforma").disabled = true;
+      try { await B.reformarEstadio(m); await carregar({ user: usuario }); }
+      catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evReforma").disabled = false; }
+    };
   };
   // abas internas: botões de um grupo; a parte visível é escolhida por abrirSubAba
   const subAbas = (grupo, itens) => `<div class="subabas" data-grupo="${grupo}" style="margin-bottom:12px">${itens.map(([k, n, curto]) => `<button class="sub" data-sub="${grupo}:${k}"><span class="sl">${n}</span><span class="sc">${curto || n}</span></button>`).join("")}</div>`;
@@ -1249,7 +1323,7 @@ async function telaClube(liga, clube) {
       ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
         : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button>
           <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
-      ${comissaoDa(k)}
+      ${comissaoDa(k)}${k === "estadio" ? blocoDoEstadio() : ""}
       <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada (${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do que foi gasto no estádio). O prazo da obra corre em rodadas de liga.</div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
@@ -1475,7 +1549,7 @@ async function telaClube(liga, clube) {
     if (cairam.length) l.push(item("📉", `Caíram de nota: ${lista(cairam)}.`, "", "elenco"));
     if (caixa != null && f.caixa != null && caixa !== f.caixa) l.push(item("💰", `Caixa ${caixa > f.caixa ? "subiu" : "caiu"} ${dinheiro(Math.abs(caixa - f.caixa))}: agora ${dinheiro(caixa)}.`, caixa < 0 ? "bad" : "", "financas"));
     const obraAgora = obra ? obra.estrutura + ":" + obra.nivel_alvo : null;
-    if (f.obra && f.obra !== obraAgora) { const [k, nv] = f.obra.split(":"); l.push(item("🏗️", `Obra concluída: ${esc((ESTRUTURAS.find(x => x[0] === k) || [])[1] || k)} no nível ${nv}.`, "ok", "estruturas")); }
+    if (f.obra && f.obra !== obraAgora) { const [k, nv] = f.obra.split(":"); l.push(item("🏗️", k === "estadio_modelo" ? "Obra concluída: reforma do estádio." : `Obra concluída: ${esc((ESTRUTURAS.find(x => x[0] === k) || [])[1] || k)} no nível ${nv}.`, "ok", "estruturas")); }
     if (clube.confianca != null && f.conf != null && clube.confianca !== f.conf) l.push(item("🏛️", `Confiança da diretoria: ${f.conf} → ${clube.confianca}. ${fraseDoPresidente(clube.confianca)}`, clube.confianca > f.conf ? "ok" : "aviso"));
     if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; const quem = (extrato || []).filter(x => x.tipo === "olheiro").slice(0, n).map(x => esc(String(x.descricao || "").replace(/^Relatório de olheiro: /, "")));
       l.push(item("🔍", `${n === 1 ? "1 relatório de olheiro comprado" : n + " relatórios de olheiro comprados"}${quem.length ? `: ${quem.join(", ")}` : ""}. Fica na ficha do jogador.`, "", "mercado")); }
@@ -2148,6 +2222,9 @@ ${historicoDaBase()}
           </div><div>
             ${salaDeTrofeus(id, "Títulos")}
           </div></div>`;
+        if (c.estadio_nivel != null) { const ev = configDoClube(c, null);
+          $("cvCorpo").insertAdjacentHTML("beforeend", `<div class="card"><h2>${esc(ev.nomeEstadio || "Estádio")} <span class="tag">${MODELOS[ev.modelo] || ""} · nível ${c.estadio_nivel} · ${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares</span></h2><div id="cvEstadio" style="background:#fff;min-height:160px"></div><div class="mut" style="font-size:12px;margin-top:4px">Arraste para girar.</div></div>`);
+          montarEstadio("cvEstadio", ev); }
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
         if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
         $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
@@ -2560,6 +2637,7 @@ ${historicoDaBase()}
   await grupo(clube.grupo).catch(e => { $("tabela").innerHTML = `<span class="bad">${esc(e.message)}</span>`; });
   if (compAberta() && subGuardada("comp") !== "liga") await mostrarCompeticao(subGuardada("comp"));
 
+  ligarEstadio();
   // contrato: clicar num jogador abre o painel para aumentar o salário ou renovar
   $("app").onclick = e => {
     const ab = e.target.closest("[data-abre]"); if (ab) { const d = $(ab.dataset.abre); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); } return; }
