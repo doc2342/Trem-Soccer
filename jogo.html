@@ -27,8 +27,8 @@
      numa coluna só (até 900px) as duas colunas se desfazem e o amistoso volta para o fim da página */
   @media (min-width:901px) { .g2-central { align-items:stretch; } .g2-central > div { display:flex; flex-direction:column; } .g2-central > div > .card:last-child { flex:1; } }
   @media (max-width:900px) { .g2-central > div { display:contents; } .g2-central .c-amistoso { order:1; } }
-  /* abas: no computador, texto (e só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
-  .aba .ai, .aba .at-c { display:none; }
+  /* abas: no computador, ícone e texto lado a lado (só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
+  .aba .at-c { display:none; } .aba .ai { margin-right:6px; } .aba[data-aba="config"] .ai { margin-right:0; }
   .m-clube { display:none; }
   /* aviso da janela de transferências, no topo do mercado */
   .janela { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:12px 0 0; padding:10px 14px; border-radius:10px; border:1px solid; font-size:13.5px; }
@@ -95,7 +95,7 @@
   @media (max-width:620px) {
     .abas { display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:0; overflow:visible; }
     .aba { padding:6px 0 5px; letter-spacing:0; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
-    .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; }
+    .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; margin:0; }
     .aba .at-l { display:none; } .aba .at-c { display:block; font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   }
   /* Central: blocos lado a lado, no espírito do modo carreira */
