@@ -37,6 +37,16 @@ def em_disco(im, cor=(244, 239, 230, 255)):
     return out
 
 
+def tinta(im, cor):
+    """Versão de uma cor só, para estampar na camisa: quanto mais escuro o pixel, mais opaco."""
+    im = im.convert('RGBA')
+    a = Image.eval(im.convert('L'), lambda v: 255 - v)
+    a = Image.composite(a, Image.new('L', im.size, 0), im.getchannel('A'))
+    out = Image.new('RGBA', im.size, cor + (255,))
+    out.putalpha(a)
+    return out
+
+
 def cantos(im, raio=36):
     im = im.convert('RGBA').resize((256, 256), Image.LANCZOS)
     m = Image.new('L', im.size, 0)
@@ -67,6 +77,10 @@ if __name__ == '__main__':
         'central_do_dobr': quadrado(sem_fundo_branco(abre('central_dobr.webp'))),
         'mestres_do_dugout': quadrado(sem_fundo_branco(abre('mestres_do_dugout.webp'))),
     }
+    # na camisa o Grupo Trem vai sem o disco, em branco ou preto conforme a cor da camisa (src/escudo.js)
+    trem = quadrado(sem_fundo_branco(abre('grupo_trem.png')))
+    selos['grupo_trem_camisa_claro'] = tinta(trem, (255, 255, 255))
+    selos['grupo_trem_camisa_escuro'] = tinta(trem, (17, 17, 17))
     for nome, im in selos.items():
         im.save(SAIDA / f'{nome}.png')
     print('ok:', sorted(selos))
