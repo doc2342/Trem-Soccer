@@ -30,6 +30,12 @@
   .aovivo > .lan { grid-area:lan; } .aovivo > .lat-e { grid-area:e; } .aovivo > .lat-d { grid-area:d; }
   @media (max-width:1060px) { .aovivo { grid-template-columns:minmax(0,2fr) minmax(240px,1fr); grid-template-rows:auto 1fr; grid-template-areas:"lan e" "lan d"; } }
   @media (max-width:760px) { .aovivo { grid-template-columns:1fr; grid-template-rows:none; grid-template-areas:"lan" "e" "d"; } }
+  .topo-estat { display:none; } .topo-estat .estat td { padding:2px 4px; font-size:13px; } .topo-estat .estat th { font-size:12px; padding-bottom:3px; } .topo-estat .dupla { margin-top:2px; height:3px; }
+  @media (min-width:1061px) {
+    .topo-g.com-estat { grid-template-columns:270px minmax(0,1fr) 180px; } .topo-estat { display:block; }
+    .aovivo { grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr); grid-template-areas:"lan d"; } .aovivo > .lat-e { display:none; }
+    .aovivo > .lan .lance { font-size:15px; } .aovivo > .lan .lance.posse, .aovivo > .lan .lance.roda, .aovivo > .lan .lance.falta, .aovivo > .lan .lance.canto { font-size:13px; }
+  }
   /* depois do apito (PC e celular): na reprise, só os lances principais até pedir todos; no ao vivo, todos sempre */
   #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.penaltis), #corpo:not(.todos) .legenda.lances { display:none; }
   #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
@@ -224,7 +230,8 @@ function topo(gols, m, narracao = [], pre = null) {
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
-  $("topo").innerHTML = `<div class="topo-g"><div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>
+  const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
+  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>
     <div class="painel"><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
@@ -263,7 +270,7 @@ function htmlEscalacoes(pre) {
   return `<div class="card" data-aba="esc"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
-function htmlEstatisticas(narracao) {
+function htmlEstatisticas(narracao, soTabela) {
   const conta = f => [0, 1].map(i => narracao.filter(l => l.time === i && f(l)).length);
   const fin = l => l.resultado !== undefined, ult = narracao.filter(l => l.p).pop(), p = ult ? ult.p : null;
   const xg = [0, 1].map(i => narracao.filter(l => l.time === i && fin(l)).reduce((s, l) => s + (l.xg || 0), 0));
@@ -278,7 +285,8 @@ function htmlEstatisticas(narracao) {
   const barra = v => { const a = parseFloat(String(v[0]).replace(",", ".")), b = parseFloat(String(v[1]).replace(",", ".")); if (!(a + b > 0)) return "";
     return `<div class="dupla"><i class="casa" style="width:${(100 * a / (a + b)).toFixed(1)}%"></i><i class="fora" style="width:${(100 * b / (a + b)).toFixed(1)}%"></i></div>`; };
   const cab = [partida.casa, partida.fora].map((c, i) => `<th class="${COR[i]}">${lkClube(c, esc(clubes[c].nome))}</th>`);
-  return `<div class="card" data-aba="estat"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat"><tr>${cab[0]}<th></th>${cab[1]}</tr>${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
+  const tabela = `<table class="estat"><tr>${cab[0]}<th></th>${cab[1]}</tr>${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table>`;
+  return soTabela ? tabela : `<div class="card" data-aba="estat"><h2>Estatísticas <span class="tag">ao vivo</span></h2>${tabela}</div>`;
 }
 // abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
 // cronologico: na reprise, depois do jogo, a abertura vem primeiro e na ordem em que aconteceu
