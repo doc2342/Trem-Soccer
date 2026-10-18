@@ -35,7 +35,7 @@ export async function pedirClube(nome, sigla, escudo, uniforme) {
   throw new Error(error.message);
 }
 export const pedidosPendentes = () => sb.from("pedidos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
-export const decidirPedido = (id, aprovar, motivo, clube) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null, p_clube: clube || null }).then(ok);
+export const decidirPedido = (id, aprovar, motivo, clube, elenco) => sb.rpc("decidir_pedido", { p_id: id, p_aprovar: aprovar, p_motivo: motivo || null, p_clube: clube || null, ...(elenco ? { p_elenco: elenco } : {}) }).then(ok);
 // clube extra (95_pedido_de_clube_extra.sql; antes dele as leituras voltam vazias)
 export const meuPedidoExtra = userId => sb.from("pedidos_extra").select("*").eq("user_id", userId).maybeSingle().then(({ data, error }) => error ? null : data);
 export const pedirClubeExtra = (pais, nome, sigla, escudo, uniforme) => sb.rpc("pedir_clube_extra", { p_pais: pais, p_nome: nome, p_sigla: sigla, p_escudo: escudo, p_uniforme: uniforme }).then(ok);
@@ -391,7 +391,9 @@ export async function trofeusDaLiga(ligaId) {
 }
 // título de série: o 1º do grupo; na Série B, desde a T14, o vencedor do playoff (o que subiu)
 export const campeaoDaSerie = x => x.divisao === 2 && x.temporada >= 14 && !PAISES[x.grupo] ? x.destino === "subiu" : x.posicao === 1;
-export const filtrarTrofeus = l => l.filter(x => campeaoDaSerie(x) || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa);
+// temporada de um bot que deu lugar a um dirigente (123): fica com o nome antigo, num id "arq:<nome>" que não é o do clube de hoje
+export const doArquivo = x => x.nome ? { ...x, clube_id: "arq:" + x.nome } : x;
+export const filtrarTrofeus = l => l.filter(x => campeaoDaSerie(x) || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa).map(doArquivo);
 export const historicoDoGrupo = (ligaId, grupo) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("temporada", { ascending: false }).order("posicao").then(({ data, error }) => error ? [] : data);
 // E5: sócio-torcedor, clube no vermelho e imposto (supabase/18_fim_de_temporada.sql)
 export const definirCarne = lugares => sb.rpc("definir_carne", { p_lugares: lugares }).then(ok);
@@ -450,7 +452,7 @@ export const livresDaLiga = async ligaId => {
 // histórico dos meus lances em leilões de livres (nulo antes do 88_historico_de_lances.sql) e as transferências do clube, de qualquer temporada
 export const meusLances = clubeId => sb.from("historico_lances").select("jogador_id, salario, temporadas, criada_em, jogadores(nome, pos, idade, clube_id, salario)").eq("clube_id", clubeId).order("criada_em", { ascending: false }).limit(60).then(({ data, error }) => error ? null : data);
 // campanhas de um clube nas temporadas anteriores (página do clube)
-export const historicoDoClube = (ligaId, clubeId) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("clube_id", clubeId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
+export const historicoDoClube = (ligaId, clubeId) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("clube_id", clubeId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data.filter(x => !x.nome));
 export const transferenciasDoClube = clubeId => sb.from("transferencias").select("*").or(`de_clube.eq.${clubeId},para_clube.eq.${clubeId}`).order("id", { ascending: false }).limit(100).then(({ data, error }) => error ? [] : data);
 export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);

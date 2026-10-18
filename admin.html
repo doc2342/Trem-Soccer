@@ -54,7 +54,7 @@ async function pedidos(aviso = "") {
   nPedidos = l.length + extras.length; titulo();
   el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
-      <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil").sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
+      <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO).sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="extraClube-${p.user_id}" title="Qual clube sem dono vira o clube extra"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["extraClube-" + p.user_id] == c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select> <button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
     ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
@@ -73,9 +73,27 @@ async function pedidos(aviso = "") {
     let motivo = null;
     if (r) { motivo = prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):"); if (motivo === null) return; }
     e.target.disabled = true;
-    try { await decidirPedido(+(a || r), !!a, motivo, a ? +$("pedClube-" + a).value || null : null); await pedidos(a ? "Pedido aprovado: o clube já está com o dirigente." : "Pedido recusado."); dirigentes().catch(() => {}); }
+    try { if (r) await decidirPedido(+r, false, motivo); else await aprovarPedido(+a, +$("pedClube-" + a).value || null); await pedidos(a ? "Pedido aprovado: o dirigente assumiu a vaga, com elenco novo." : "Pedido recusado."); dirigentes().catch(() => {}); }
     catch (err) { await pedidos("Não deu: " + err.message); }
   };
+}
+
+// Elenco novo com salários e contratos; clube assumido no meio do caminho: ninguém vence na temporada atual.
+const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais, nomes }).map(j => {
+  const { mercado, ...contrato } = contratoInicial(rng, j, temporada);
+  contrato.contrato_ate = temporada + rng.int(1, 2);
+  return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
+});
+
+// Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
+// (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais alta com bot.
+const NIVEL_DO_NOVATO = { 1: 38, 2: 35, 3: 32 };
+async function aprovarPedido(id, clubeId) {
+  const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
+  const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
+  const div = c => divisaoDoGrupo(c.grupo), topo = Math.min(...bots.map(div)), c = clubeId ? bots.find(x => x.id === clubeId) : rng.pick(bots.filter(x => div(x) === topo));
+  if (!c) throw new Error(clubeId ? "Esse clube não está mais livre." : "Não há vagas na liga no momento.");
+  return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada));
 }
 
 // Clube extra: elenco novo na média do país (nota média dos 16 melhores de cada clube sem dono de lá), com salários e contratos.
@@ -87,12 +105,7 @@ async function aprovarExtra(p, clubeId) {
   const forca = el => { const n = el.filter(j => !j.juvenil).map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 16); return n.reduce((s, x) => s + x, 0) / (n.length || 1); };
   const forcas = await Promise.all(bots.map(async c => forca(await elencoDoClube(c.id))));
   const nivel = forcas.reduce((s, x) => s + x, 0) / forcas.length;
-  const elenco = gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais: p.pais, nomes }).map(j => {
-    const { mercado, ...contrato } = contratoInicial(rng, j, liga.temporada);
-    contrato.contrato_ate = liga.temporada + rng.int(1, 2); // clube assumido no meio do caminho: ninguém vence na temporada atual
-    return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
-  });
-  return aprovarPedidoExtra(p.user_id, elenco, clubeId);
+  return aprovarPedidoExtra(p.user_id, elencoNovo(rng, nivel, p.pais, liga.temporada), clubeId);
 }
 
 // Clubes com dirigente, do mais recente para o mais antigo. Atualiza sozinho e põe o número no título da aba.
