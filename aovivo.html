@@ -74,7 +74,7 @@
 import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
-import { metasDaTemporada } from "./src/banco.js";
+import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -238,7 +238,7 @@ function momento() {
 // escudo e nome do time abrem a página do clube em jogo.html (aba nova, como os links de jogador)
 const lkClube = (id, html, cls = "lkj") => `<a class="${cls}" href="jogo.html#clube=${id}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>`;
 function topo(gols, m, narracao = [], pre = null) {
-  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}); // o segundo usa o reserva se as camisas se parecem
+  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}).map((x, i) => ({ ...x, marca: c[i].marca })); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
@@ -359,6 +359,8 @@ async function iniciar() {
   partida = id ? await partidaPorId(id) : null;
   if (!partida) { $("topo").innerHTML = `<div class="bad">Partida não encontrada.</div>`; return; }
   clubes = Object.fromEntries((await clubesPorIds([partida.casa, partida.fora])).map(c => [c.id, c]));
+  const marcas = await marcasDosClubes([partida.casa, partida.fora]).catch(() => ({})); // patrocínio estampado na camisa
+  for (const k in clubes) clubes[k].marca = marcas[k] || null;
   preco = await precoDoIngresso(partida.casa).catch(() => null);
   await carregarRodada().catch(() => { rodada = null; });
   await atualizar();

@@ -1795,7 +1795,7 @@ async function telaClube(liga, clube) {
   if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
   let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
   const rotuloTema = () => document.documentElement.dataset.tema === "claro" ? "🌙 Tema escuro" : "☀️ Tema claro";
-  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
+  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)} <span id="seloTopo">${patro && patro.escolha ? seloMarca(patro.escolha.marca, 28) : ""}</span></h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
@@ -2202,7 +2202,7 @@ ${historicoDaBase()}
       $("cvCorpo").innerHTML = `<div class="card mut">Carregando…</div>`;
       try {
         if (location.hash !== "#clube=" + id) { history.pushState(null, "", "#clube=" + id); empurrei = true; }
-        const [c, lista, jogos, hist, negocios] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id)]);
+        const [c, lista, jogos, hist, negocios, marcas] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id), B.marcasDosClubes([id])]);
         if (verClube !== id) return; // trocou de página enquanto lia
         const l = lista.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || b.nota - a.nota);
         const doGrupo = clubes.filter(x => x.grupo === c.grupo), jogosDoGrupo = await partidasDoGrupo(liga.id, c.grupo);
@@ -2229,7 +2229,7 @@ ${historicoDaBase()}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme(c.uniforme, 46)}
+        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>

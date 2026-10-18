@@ -544,4 +544,7 @@ export const ultimaNovidade = (ligaId, clubeId) => sb.rpc("ultima_novidade", { p
 export const propostasDePatrocinio = () => sb.rpc("propostas_patrocinio").then(({ data, error }) => error ? null : data && data.escolha && !data.escolha.clube_id ? { ...data, escolha: null } : data); // sem escolha, o SQL devolve um registro vazio
 export const escolherPatrocinio = (marca, proposta) => sb.rpc("escolher_patrocinio", { p_marca: marca, p_proposta: proposta }).then(ok);
 export const patrocinioDoClube = (clubeId, temporada) => sb.from("patrocinios").select("*").eq("clube_id", clubeId).eq("temporada", temporada).maybeSingle().then(({ data, error }) => error ? null : data);
+// marca estampada na camisa: a da temporada mais recente de cada clube ({ id: marca })
+export const marcasDosClubes = ids => sb.from("patrocinios").select("clube_id, marca, temporada").in("clube_id", ids).order("temporada", { ascending: false })
+  .then(({ data, error }) => error ? {} : (data || []).reduce((m, x) => (m[x.clube_id] ??= x.marca, m), {}));
 export const pagarPatrocinio = (ligaId, lista) => sb.rpc("pagar_patrocinio", { p_liga: ligaId, p_lista: lista }).then(ok);

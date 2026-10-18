@@ -80,7 +80,7 @@ export function svgEscudo(e = {}, sigla = "", tamanho = 48) {
     ${CONTORNOS[forma]} fill="none" stroke="${traco}" stroke-width="3"/></svg>`;
 }
 
-// uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }
+// uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js)
 export function svgUniforme(u = {}, tamanho = 48) {
   const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), cal = cor(u.calcao, "#111111"), id = "pu" + (++serie);
   const manga = cor(u.manga, null), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
@@ -94,6 +94,7 @@ export function svgUniforme(u = {}, tamanho = 48) {
     <path d="M70 6 L90 18 L98 40 L82 46 L78 34 V30 Z" fill="${manga || `url(#${id})`}" stroke="#0f1720" stroke-width="2"/>
     <path d="M30 6 L22 30 V72 H78 V30 L70 6 C64 14 36 14 30 6 Z" fill="url(#${id})" stroke="#0f1720" stroke-width="2"/>
     ${golas[u.golaTipo] || golas.redonda}
+    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${u.marca}.png`, import.meta.url)}" x="34" y="27" width="32" height="32" preserveAspectRatio="xMidYMid meet"/>` : ""}
     <path d="M23 74 H77 L80 98 H54 L50 88 L46 98 H20 Z" fill="${cal}" stroke="#0f1720" stroke-width="2"/>
     <rect x="25" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/><rect x="58" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/></svg>`;
 }
