@@ -33,9 +33,12 @@
   .topo-estat { display:none; } .topo-estat .estat td { padding:1px 4px; font-size:12px; } .topo-estat .estat td.casa, .topo-estat .estat td.fora { font-size:13px; } .topo-estat .estat th { font-size:12px; padding:2px 4px 3px; } .topo-estat .dupla { margin-top:1px; height:3px; }
   .topo-estat .kl { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); margin-bottom:2px; }
   /* escalações e rodada ao vivo: no PC, um card por vez, trocado pelas abas de cima (no celular já há a barra de abas) */
-  .lat-abas { display:flex; gap:6px; margin-bottom:8px; } .lat-abas button { padding:4px 12px; } .lat-abas .ativa { border-color:var(--ac); color:var(--ac); }
+  .lat-abas { display:flex; gap:6px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--line); } .lat-abas button { padding:4px 12px; } .lat-abas .ativa { border-color:var(--ac); color:var(--ac); }
   @media (max-width:760px) { .lat-abas { display:none; } }
-  @media (min-width:761px) { .lat-d.lat-esc > [data-aba="rodada"], .lat-d.lat-rodada > [data-aba="esc"] { display:none; } }
+  @media (min-width:761px) { .lat-d.lat-esc > [data-aba="rodada"], .lat-d.lat-rodada > [data-aba="esc"] { display:none; }
+    /* as abas ficam dentro de um card só, com o topo alinhado ao dos Lances; o título de dentro já está na aba */
+    .lat-d.lat-esc, .lat-d.lat-rodada { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px 14px; margin-top:12px; box-shadow:var(--sombra); }
+    .lat-d.lat-esc > .card, .lat-d.lat-rodada > .card { background:none; border:0; box-shadow:none; padding:0; margin:0; } .lat-d.lat-esc > .card > h2, .lat-d.lat-rodada > .card > h2 { display:none; } }
   @media (min-width:1061px) {
     .topo-g.com-estat { grid-template-columns:230px minmax(0,1fr) 180px; } .topo-estat { display:block; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 10px; box-shadow:var(--sombra); }
     .aovivo { grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr); grid-template-areas:"lan d"; } .aovivo > .lat-e { display:none; }
