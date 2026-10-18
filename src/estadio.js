@@ -2,17 +2,19 @@
 //   desenharEstadio(el, config)  cena 3D girável (config.vista = "3d") ou wireframe da reforma (config.vista = "wire"), three.js r128
 //   plantaEstadio(config)         planta baixa em SVG, com a hachura do que falta construir
 // config = { modelo, nivel (1–8), obra (0–1), nomeEstadio, mosaico, padrao (setor|listras|sigla), cores[1–3], corEscadas,
-//            cobertura (só Caldeirão: "", "N", "NS", "NSEW"), reforma (troca de modelo: tudo é novo),
+//            cobertura (só Caldeirão: "", "N", "NS", "NSEW"), muralha (só Caldeirão: fundo oeste numa arquibancada única, com o mosaico), reforma (troca de modelo: tudo é novo),
 //            clube (texto do carimbo da planta), custo e prazo (carimbo; padrão = obra do nível) }
 // Fixos para todos: placas, bancos, túnel, telão e alambrado. Refletores e estacionamento seguem o nível (src/economia.js).
 // Medidas em metros; x = leste, z = sul.
 import { temRefletores, estacionamentoDoEstadio } from "./economia.js";
-export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura" };
+export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira" };
 export const PADROES_DO_ESTADIO = { setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
 
 const FA = 52.5, FB = 34, DEP = 0.85, RISE = 0.42, CELL = 1.0, LS = 42.195, RI = 36.5, RO = RI + 9.76, POD = 2.4, PASSO_ESC = 24;
-const M = { tradicional: { nome: "Tradicional", a0: 96, b0: 66, pista: 1 }, caldeirao: { nome: "Caldeirão", a0: 57, b0: 38.5, R: 1.5, cantos: 1 }, arena: { nome: "Arena moderna", a0: 59.5, b0: 41, R: 12, teto: "arena" }, dunas: { nome: "Arena Concha", a0: 60, b0: 44, R: 34, teto: "dunas" }, ferradura: { nome: "Ferradura", a0: 94, b0: 64, pista: 1, aberta: 1 } };
+const M = { tradicional: { nome: "Tradicional", a0: 96, b0: 66, pista: 1 }, caldeirao: { nome: "Caldeirão", a0: 57, b0: 38.5, R: 1.5, cantos: 1 }, arena: { nome: "Arena moderna", a0: 59.5, b0: 41, R: 12, teto: "arena" }, dunas: { nome: "Arena Concha", a0: 60, b0: 44, R: 34, teto: "dunas" }, ferradura: { nome: "Ferradura", a0: 94, b0: 64, pista: 1, aberta: 1 },
+  // Bomboneira (18/10): 3 anéis íngremes e um lado de palcos reto; a Muralha é opção do Caldeirão (config.muralha)
+  bomboneira: { nome: "Bomboneira", a0: 55.5, b0: 37, R: 5, rise: 0.62, anel: 12, palcos: 6 } };
 const ROWS = [12, 12, 18, 24, 28, 41, 47, 53], CUSTO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000], PRAZO = [0, 1, 3, 6, 11, 18, 22, 27, 36]; // os mesmos de custo_da_obra e prazo_da_obra (55)
 const lug = l => l < 1 ? 0 : l <= 5 ? 5000 + 5000 * l : [40000, 50000, 60000][l - 6];
 const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " mil";
@@ -33,9 +35,9 @@ function aplicar(c) {
   const cores = (Array.isArray(c.cores) ? c.cores : []).filter(x => HEX.test(x)).slice(0, 3);
   C = { vista: "3d", padrao: "setor", corEscadas: "#f2c200", ...c, cores: cores.length ? cores : ["#0b3d91", "#ffffff"] };
   if (!HEX.test(C.corEscadas)) C.corEscadas = "#f2c200";
-  m = M[C.modelo] || M.tradicional; niv = Math.min(8, Math.max(1, Math.round(+C.nivel || 1))); rows = ROWS[niv - 1];
+  m = M[C.modelo] || M.tradicional; if (m.cantos && C.muralha) m = { ...m, muralha: 1.2, mosaico: "W" }; niv = Math.min(8, Math.max(1, Math.round(+C.nivel || 1))); rows = ROWS[niv - 1];
   prev = C.reforma ? 0 : niv > 1 ? ROWS[niv - 2] : 0; obra = Math.min(1, Math.max(0, C.obra == null ? 1 : +C.obra));
-  cob = new Set(m.cantos ? String(C.cobertura || "").split("").filter(x => "NSEW".includes(x)) : []);
+  cob = new Set(m.cantos ? String(C.cobertura || "").split("").filter(x => "NSEW".includes(x) && !(m.muralha && x == "W")) : []); // ponytail: Muralha sem cobertura no oeste (a parede passa da altura do teto)
   C.nb = estacionamentoDoEstadio(niv); C.refletores = temRefletores(niv);
 }
 function contorno(m, a, b) { const p = [];
@@ -50,7 +52,7 @@ function walk(pts, step) { const out = []; let d = step / 2;
     while (d <= L) { out.push({ x: p[0] + (q[0] - p[0]) * d / L, z: p[1] + (q[1] - p[1]) * d / L, ang }); d += step; } d -= L; }
   return out; }
 const perim = pts => pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + Math.hypot(q[0] - p[0], q[1] - p[1]); }, 0);
-function hRow(r) { if (r >= 28 && r <= 30) return hRow(27); return 1.0 + r * RISE + (r > 30 ? 3 : 0); }
+function hRow(r) { if (r >= 28 && r <= 30) return hRow(27); return 1.0 + r * (m.rise || RISE) + (r > 30 ? 3 : 0) + (m.anel && r >= m.anel ? 2.2 : 0); }
 const lado = (x, z) => Math.abs(x) / m.a0 > Math.abs(z) / m.b0 ? (x > 0 ? "E" : "W") : (z > 0 ? "S" : "N");
 const pula = (x, z, ld, lvl) => lvl < 1 || (lvl == 1 && (ld == "E" || ld == "W")) || (m.cantos && Math.abs(x) > FA + 3 && Math.abs(z) > FB + 3) || (m.aberta && ld == "E");
 const aRow = r => m.a0 + r * DEP + DEP / 2, bRow = r => m.b0 + r * DEP + DEP / 2;
@@ -73,7 +75,8 @@ function marcarEscadas(pos) { const S = PASSO_ESC, alvos = [], porRow = {}; pos.
         if (d < bd) { bd = d; best = p; } }
       if (best && bd < 0.9) best.esc = true; } } }
 function assentos(lvl) { const out = []; for (let r = 0; r < ROWS[lvl - 1]; r++) { const linha = [];
-  for (const p of walk(contorno(m, aRow(r), bRow(r)), CELL)) { p.ld = lado(p.x, p.z); if (pula(p.x, p.z, p.ld, lvl)) continue; p.r = r; p.h = hRow(r); linha.push(p); }
+  for (const p of walk(contorno(m, aRow(r), bRow(r)), CELL)) { p.ld = lado(p.x, p.z); if (pula(p.x, p.z, p.ld, lvl) || (m.palcos && p.z > m.b0 + m.palcos * DEP)) continue; p.r = r; p.h = hRow(r);
+    if (m.muralha && p.ld == "W") { p.dep = DEP * m.muralha; p.x = -(m.a0 + (r + 0.5) * p.dep); const n = ROWS[lvl - 1]; p.h = 1 + r / Math.max(1, n - 1) * (hRow(n - 1) * 1.1 - 1); } linha.push(p); } // Muralha: a parede sobe só 10% acima das outras arquibancadas, sem o degrau dos camarotes
   linha.forEach((p, i) => { const a = linha[(i - 1 + linha.length) % linha.length], b = linha[(i + 1) % linha.length]; p.ponta = Math.hypot(a.x - p.x, a.z - p.z) > 1.8 || Math.hypot(b.x - p.x, b.z - p.z) > 1.8; });
   out.push(...linha); } return out; }
 function porLado(lvl) { const c = { N: 0, S: 0, E: 0, W: 0, t: 0 }; if (lvl < 1) return c; for (const p of assentos(lvl)) if (p.r < 28 || p.r > 30) { c[p.ld]++; c.t++; } const cap = lug(lvl); for (const s of "NSEW") c[s] = Math.round(cap * c[s] / c.t / 100) * 100; return c; }
@@ -95,7 +98,7 @@ function dunasGeo(topH) {
   const faixa = (w, sul, hN) => { const Lc = centro(sul), bot = [], top = [], us = [], s0 = 0.22, s1 = Math.min(0.6, s0 + hN / H * 1.15); for (let i = 0; i <= 40; i++) { const L = Lc - w / 2 + w * i / 40, f = idx(L); bot.push(pt(f, s0, H, 2.6)); top.push(pt(f, s1, H, 2.6)); us.push(1 - i / 40); } return { bot, top, us }; };
   return { petalas, casca, rampas, O, inner: aM + 0.5, bInner: bM + 0.5, H, faixa }; }
 let _dg = null; function DG2() { if (!_dg || _dg.k !== m.nome + rows) { _dg = dunasGeo(hRow(rows - 1)); _dg.k = m.nome + rows; } return _dg; }
-function mascara(txt, rows) { const cw = 220, mr = Math.min(rows, 28), ch = Math.max(8, Math.round(cw * mr / (2 * (m.a0 - 4)))), c = document.createElement("canvas"); c.width = cw; c.height = ch; const x = c.getContext("2d");
+function mascara(txt, mr, meia, esc = 1) { const cw = 220, ch = Math.max(8, Math.round(cw * mr * esc / (2 * meia))), c = document.createElement("canvas"); c.width = cw; c.height = ch; const x = c.getContext("2d");
   x.font = "bold 100px sans-serif"; const w = x.measureText(txt).width || 1, fs = Math.min(ch * 0.92, 100 * cw * 0.94 / w); x.font = `bold ${fs}px sans-serif`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(txt, cw / 2, ch / 2 + fs * 0.06);
   const d = x.getImageData(0, 0, cw, ch).data; let u0 = 1, u1 = 0; for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) if (d[(j * cw + i) * 4 + 3] > 110) { u0 = Math.min(u0, i / cw); u1 = Math.max(u1, (i + 1) / cw); break; }
   const f = (u, v) => { const i = Math.min(cw - 1, Math.max(0, u * cw | 0)), j = Math.min(ch - 1, Math.max(0, v * ch | 0)); return d[(j * cw + i) * 4 + 3] > 110; }; f.u0 = u0; f.u1 = u1; return f; }
@@ -213,29 +216,30 @@ function construir() {
   entorno(aM + ext0 + (dunas ? 12 : 22), -(bM + ext0 + (dunas ? 12 : 22)), nb ? L.z1 + 14 : bM + ext0 + (dunas ? 12 : 22));
   cur.tag.textContent = obra < 1 ? "OBRA EM ANDAMENTO · " + Math.round(obra * 100) + "%" : "";
   const pad = C.padrao, k = C.cores.length, hx = [...C.cores, "#f2f2f2", "#c8102e"].slice(0, 3), cols = C.cores.map(c => new T.Color(c)), sig = (C.mosaico || " ").toUpperCase(), nomeE = (C.nomeEstadio || "").toUpperCase().trim();
-  const msk = mascara(sig, rows), mr = Math.min(rows, 28); marcarEscadas(pos);
-  const naArea = p => { if (pad != "sigla" || p.ld != "N" || p.r >= mr) return false; const u = (p.x / (m.a0 - 4) + 1) / 2; return u > msk.u0 - 0.025 && u < msk.u1 + 0.025; };
+  const LM = m.mosaico || "N", mr = LM == "W" ? rows : Math.min(rows, 28), meia = (LM == "W" ? m.b0 : m.a0) - 4, uDe = p => ((LM == "W" ? -p.z : p.x) / meia + 1) / 2;
+  const msk = mascara(sig, mr, meia, LM == "W" ? m.muralha : 1); marcarEscadas(pos);
+  const naArea = p => { if (pad != "sigla" || p.ld != LM || p.r >= mr) return false; const u = uDe(p); return u > msk.u0 - 0.025 && u < msk.u1 + 0.025; };
   const CONC = new T.Color("#bdb9ae"), OBRA = new T.Color("#9d998f"), SKY = new T.Color("#33393f"), ESCD = new T.Color(C.corEscadas);
   for (const p of pos) { const r = p.r, ld = p.ld; let c;
     if (!pronto(p.x, p.z, ld, r)) c = OBRA;
-    else if (r >= 28 && r <= 30) c = SKY; else if (p.ponta) c = CONC;
+    else if (r >= 28 && r <= 30 && !p.dep) c = SKY; else if (p.ponta || (m.anel && r == m.anel)) c = CONC;
     else if (p.esc && !naArea(p)) c = ESCD;
     else if (pad == "setor") { const mp = k == 1 ? { N: 0, E: 0, S: 0, W: 0 } : k == 2 ? { N: 0, E: 1, S: 0, W: 1 } : { N: 0, S: 1, E: 2, W: 2 }; c = cols[mp[ld]]; }
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
-    else { c = cols[0]; if (ld == "N" && r < mr) { const u = (p.x / (m.a0 - 4) + 1) / 2, v = 1 - (r + .5) / mr; if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
+    else { c = cols[0]; if (ld == LM && r < mr) { const u = uDe(p), v = 1 - (r + .5) / mr; if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
   grp.add(chao(contorno(m, aM + (dunas ? 30 : 8), bM + (dunas ? 30 : 8)), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
   if (m.pista) { const pt = pistaTex(); grp.add(plano(new T.PlaneGeometry(pt.W, pt.H), new T.MeshLambertMaterial({ map: pt.t, transparent: true }), 0.05)); }
   grp.add(plano(new T.PlaneGeometry(105, 68), new T.MeshLambertMaterial({ map: campoTex() }), 0.08));
-  inst(pos, (p, i, im) => put(im, i, p.x, p.h / 2, p.z, p.ang, CELL * 1.06, p.h, DEP * 1.04, p.c));
+  inst(pos, (p, i, im) => put(im, i, p.x, p.h / 2, p.z, p.ang, CELL * 1.06, p.h, (p.dep || DEP) * 1.04, p.c));
   const teto = m.teto == "arena" && niv >= 3, yT = topH + 5.4, yC = topH + 4.5;
   const ext = pos.filter(p => p.r == rows - 1), out = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
-  const fhOf = p => teto ? yT : cob.has(p.ld) ? yC + 0.2 : topH + 1.6;
+  const fhOf = p => teto ? yT : cob.has(p.ld) ? yC + 0.2 : p.h + 1.6, dp = p => (p.dep || DEP) / 2;
   if (!dunas) {
-    inst(ext, (p, i, im) => { const [nx, nz] = out(p), fh = fhOf(p); put(im, i, p.x + nx * (DEP / 2 + 0.3), fh / 2, p.z + nz * (DEP / 2 + 0.3), p.ang, CELL * 1.08, fh, 0.6, new T.Color(i % 8 == 0 ? "#8f8b82" : i % 8 < 5 ? "#d6d2c8" : "#c4c0b5")); });
-    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (DEP / 2 + 0.62), Math.min(topH * 0.3, 3.2), p.z + nz * (DEP / 2 + 0.62), p.ang, CELL * 1.08, 1.3, 0.1, new T.Color("#4a5560")); });
-    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (DEP / 2 + 0.62), fhOf(p) - 0.5, p.z + nz * (DEP / 2 + 0.62), p.ang, CELL * 1.08, 0.4, 0.12, new T.Color("#f1efe8")); });
+    inst(ext, (p, i, im) => { const [nx, nz] = out(p), fh = fhOf(p); put(im, i, p.x + nx * (dp(p) + 0.3), fh / 2, p.z + nz * (dp(p) + 0.3), p.ang, CELL * 1.08, fh, 0.6, new T.Color(i % 8 == 0 ? "#8f8b82" : i % 8 < 5 ? "#d6d2c8" : "#c4c0b5")); });
+    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (dp(p) + 0.62), Math.min(topH * 0.3, 3.2), p.z + nz * (dp(p) + 0.62), p.ang, CELL * 1.08, 1.3, 0.1, new T.Color("#4a5560")); });
+    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (dp(p) + 0.62), fhOf(p) - 0.5, p.z + nz * (dp(p) + 0.62), p.ang, CELL * 1.08, 0.4, 0.12, new T.Color("#f1efe8")); });
     if (nomeE) for (const sul of [true, false]) { const sd = sul ? "S" : "N", lado_ = ext.filter(p => p.ld == sd); if (!lado_.length) continue;
       const fh = teto ? yT : cob.has(sd) ? yC + 0.2 : topH + 1.6, faixaJan = Math.min(topH * 0.3, 3.2) + 0.65, hN = Math.min(8, (fh - faixaJan - 1.2) * 0.62), y0 = faixaJan + 0.6 + (fh - 1 - faixaJan - 0.6) / 2, { r } = nomeTex(nomeE, "#000");
       if (hN < 1.2) continue; const xs = lado_.map(p => p.x), w = Math.min(r * hN, (Math.max(...xs) - Math.min(...xs)) * 0.92); if (w < 4) continue; const hh = w / r;
@@ -264,6 +268,12 @@ function construir() {
     bloco(ns ? len : 0.3, 1.1, ns ? 0.3 : len, lam(hx[0]), ns ? mid : sg * ei, yC + 0.6 + dep / 2 * 0.07, ns ? sg * ei : mid);
     for (let t = mn; t <= mx + 0.1; t += 8) bloco(0.5, yC + 0.4, 0.5, lam("#8f8b82"), ns ? t : sg * (eo - 0.4), (yC + 0.4) / 2, ns ? sg * (eo - 0.4) : t); }
   if (C.refletores && !m.teto) { const f = m.R == null ? 0.75 : 0.97; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) torre(sx * (aM + 7) * f, sz * (bM + 7) * f, topH + 26); }
+  if (m.palcos) { const z0 = m.b0 + m.palcos * DEP, z1 = z0 + 8, xs = () => aM + 0.5, feito = prev && !C.reforma ? prev + (rows - prev) * obra : rows * obra, Hb = hRow(Math.max(1, Math.round(feito)) - 1) + 1.6;
+    const pr = new T.Mesh(new T.ExtrudeGeometry(shapeDe([[-xs(z0), z0], [xs(z0), z0], [xs(z1), z1], [-xs(z1), z1]]), { depth: Hb, bevelEnabled: false }), lam("#d6d2c8")); pr.rotation.x = -Math.PI / 2; pr.castShadow = pr.receiveShadow = true; grp.add(pr);
+    const vidro = lam("#33444f"); for (let y = 2.4; y < Hb - 1.5; y += 3.2) bloco(2 * xs(z0) - 3, 1.7, 0.2, vidro, 0, y, z0 - 0.05);
+    bloco(2 * xs(z0), 0.9, 0.3, lam(hx[0]), 0, Hb - 0.45, z0 - 0.1);
+    if (nomeE && Hb > 7) { const { r } = nomeTex(nomeE, "#000"), w = Math.min(r * Math.min(8, Hb * 0.3), 2 * xs(z1) * 0.9), hh = w / r, y0 = Hb * 0.55, pts = []; for (let x = -w / 2; x <= w / 2 + 0.01; x += 1) pts.push(x);
+      nome3D(nomeE, pts.map(x => [x, y0 - hh / 2, z1 + 0.2]), pts.map(x => [x, y0 + hh / 2, z1 + 0.2]), pts.map(x => (x + w / 2) / w), hx[0]); } }
   if (m.aberta) telao(m.a0 + 4, 10, 0, -6);
   else if (teto) telao(-(m.a0 + rows * DEP * 0.5) + 1, yT - 4.6, 0, 4.5);
   else if (dunas) telao(-(m.a0 + rows * DEP * 0.3) + 2, POD + DG.H - 9, 0, 5);
@@ -367,7 +377,7 @@ function barracas(aM, bM, topH, dunas, nb, hx) {
   const off = dunas ? 25 : 5.5, ring = walk(contorno(m, aM + off, bM + off), 1), n = 4 + 2 * niv, fila = Math.round(5 * Math.min(16, Math.max(0, C.humor ?? 8)) / 16);
   const f = m.R == null ? 0.75 : 0.97, torres = C.refletores && !m.teto ? [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (aM + 7) * f, sz * (bM + 7) * f]) : [];
   const livre = p => !(nb && p.z > 0 && Math.abs(p.x) < 8) && torres.every(([x, z]) => Math.hypot(p.x - x, p.z - z) > 6);
-  const pts = []; for (let i = 0; i < n; i++) { const p = ring[Math.floor((i + 0.5) * ring.length / n)]; if (p && livre(p)) pts.push(p); }
+  const pts = []; for (let i = 0; i < n; i++) { const p = ring[Math.floor((i + 0.5) * ring.length / n)]; if (!p) continue; if (m.muralha && p.x < -aM && Math.abs(p.z) < FB + 6) p.x -= rows * DEP * (m.muralha - 1); if (livre(p)) pts.push(p); }
   const fora = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
   const toldo = [hx[0], "#f2c200", hx[1], "#e8742a"].map(c => new T.Color(c)), gente = [], pal = [...toldo, new T.Color("#f1efe8"), new T.Color("#2c2c2a"), new T.Color("#888780")];
   inst(pts, (p, i, im) => put(im, i, p.x, 1.6, p.z, p.ang, 5, 3.2, 3, new T.Color("#f1efe8")));
@@ -403,7 +413,7 @@ function wire(pos, aM, bM, topH, L, DG) {
 // Planta baixa (SVG em texto). Não precisa do three.js.
 export function plantaEstadio(config) {
   aplicar(config);
-  const aO = m.a0 + rows * DEP, bO = m.b0 + rows * DEP, nb = C.nb, L = lote(aO, bO, nb), dunas = m.teto == "dunas", ex = dunas ? 18 : 0, zB = nb ? L.z1 : bO + ex;
+  const aO = m.a0 + rows * DEP, bO = m.b0 + rows * DEP, nb = C.nb, L = lote(aO, bO, nb), dunas = m.teto == "dunas", ex = dunas ? 18 : m.muralha ? rows * DEP * (m.muralha - 1) : 0, zB = nb ? L.z1 : bO + ex;
   const k = Math.min(390 / (2 * (aO + ex) + 40), 330 / (bO + ex + zB + 44)), CX = 246, CY = 258 - ((zB - bO - ex) / 2) * k;
   const X = x => (CX + x * k).toFixed(1), Y = z => (CY + z * k).toFixed(1);
   const P = pts => "M" + pts.map(p => X(p[0]) + " " + Y(p[1])).join("L") + "Z";
@@ -412,6 +422,7 @@ export function plantaEstadio(config) {
   const nomeE = esc((C.nomeEstadio || "").toUpperCase().trim()), id = "p" + Math.random().toString(36).slice(2, 8); // ids únicos: mais de uma planta na página
   const mask = (mid, lvl) => { let s = `<mask id="${id}${mid}"><rect width="680" height="480" fill="#fff"/>`; const Lm = 600, r = m.b0 / m.a0, tri = sx => `<polygon points="${CX},${CY} ${CX + sx * Lm},${CY + Lm * r} ${CX + sx * Lm},${CY - Lm * r}" fill="#000"/>`;
     if (lvl == 1) s += tri(1) + tri(-1); else if (m.aberta) s += tri(1);
+    if (m.palcos) s += `<rect x="0" y="${Y(m.b0 + m.palcos * DEP)}" width="680" height="480" fill="#000"/>`;
     if (m.cantos) { const ax = (FA + 3) * k, bz = (FB + 3) * k; for (const sx of [-1, 1]) for (const sz of [-1, 1]) s += `<rect x="${sx > 0 ? CX + ax : CX - ax - 400}" y="${sz > 0 ? CY + bz : CY - bz - 400}" width="400" height="400" fill="#000"/>`; }
     return s + "</mask>"; };
   const vom = (off, filtro, cor) => walk(Co(off), 24).filter(p => filtro(p.x, p.z, lado(p.x, p.z))).map(p => `<rect x="${(-1.6 * k).toFixed(1)}" y="${(-1.3 * k).toFixed(1)}" width="${(3.2 * k).toFixed(1)}" height="${(2.6 * k).toFixed(1)}" transform="translate(${X(p.x)} ${Y(p.z)}) rotate(${(p.ang * 180 / Math.PI).toFixed(1)})" fill="${BG}" stroke="${cor}" stroke-width="0.8"/>`).join("");
@@ -422,7 +433,7 @@ export function plantaEstadio(config) {
   <rect x="16" y="16" width="648" height="448" fill="none" stroke="${BR}" stroke-width="1.2"/><rect x="20" y="20" width="640" height="440" fill="none" stroke="${BR}" stroke-width="0.4"/>
   <line x1="472" y1="20" x2="472" y2="460" stroke="${BR}" stroke-width="0.8"/>`;
   s += `<path d="${P(Co(rows * DEP + 8 + ex))}" fill="none" stroke="${LB}" stroke-width="0.6" stroke-dasharray="1 3"/>`;
-  if (nb) { const x0 = -L.W / 2, vg = L.v.length; s += `<rect x="${X(-5)}" y="${Y(bO + 8 + ex)}" width="${(10 * k).toFixed(1)}" height="${((L.z0 - bO - 8 - ex) * k).toFixed(1)}" fill="none" stroke="${LB}" stroke-width="0.6"/><rect x="${X(x0)}" y="${Y(L.z0)}" width="${(L.W * k).toFixed(1)}" height="${(L.D * k).toFixed(1)}" fill="#0a3d70" stroke="${LB}" stroke-width="0.8"/>`;
+  if (nb) { const x0 = -L.W / 2, vg = L.v.length; s += `<rect x="${X(-5)}" y="${Y(bO + 8 + ex)}" width="${(10 * k).toFixed(1)}" height="${(Math.max(0, L.z0 - bO - 8 - ex) * k).toFixed(1)}" fill="none" stroke="${LB}" stroke-width="0.6"/><rect x="${X(x0)}" y="${Y(L.z0)}" width="${(L.W * k).toFixed(1)}" height="${(L.D * k).toFixed(1)}" fill="#0a3d70" stroke="${LB}" stroke-width="0.8"/>`;
     rng = 11; for (const za of L.bands) { s += `<line x1="${X(x0)}" y1="${Y(L.z0 + za + 5)}" x2="${X(-x0)}" y2="${Y(L.z0 + za + 5)}" stroke="${LB}" stroke-width="0.5"/>`; for (let x = x0; x <= -x0 + 0.01; x += 2.5) s += `<line x1="${X(x)}" y1="${Y(L.z0 + za)}" x2="${X(x)}" y2="${Y(L.z0 + za + 10)}" stroke="${LB}" stroke-width="0.4"/>`; }
     for (const v of L.v) if (rnd() < 0.62) s += `<rect x="${X(v.x - 0.85)}" y="${Y(v.z - 2.1)}" width="${(1.7 * k).toFixed(1)}" height="${(4.2 * k).toFixed(1)}" rx="1" fill="none" stroke="${LB}" stroke-width="0.5"/>`;
     s += `<rect x="${CX - 100}" y="${+Y(L.z0 + L.D / 2) - 8}" width="200" height="16" fill="${BG}"/><text x="${CX}" y="${+Y(L.z0 + L.D / 2) + 4}" text-anchor="middle" font-size="11" fill="${BR}">ESTACIONAMENTO N${nb} · ${vg} vagas</text>`; }
@@ -452,6 +463,10 @@ export function plantaEstadio(config) {
     for (let r = 4; r < prev; r += 4) s += `<path d="${P(Co(r * DEP))}" fill="none" stroke="${LB}" stroke-width="0.5" stroke-dasharray="1.5 2.5"/>`;
     if (prev > 30) s += `<path d="${ring(28 * DEP, 31 * DEP)}" fill-rule="evenodd" fill="#185FA5" stroke="${BR}" stroke-width="0.8"/>`;
     s += vom(prev * DEP / 2, (x, z, ld) => !pula(x, z, ld, niv - 1), BR) + "</g>"; }
+  if (m.palcos) { const z0 = m.b0 + m.palcos * DEP, z1 = z0 + 8, xs = () => aO + 0.5;
+    s += `<path d="${P([[-xs(z0), z0], [xs(z0), z0], [xs(z1), z1], [-xs(z1), z1]])}" fill="${BG}" stroke="${BR}" stroke-width="1.1"/><line x1="${X(-xs(z0))}" y1="${Y(z0 + 1.5)}" x2="${X(xs(z0))}" y2="${Y(z0 + 1.5)}" stroke="${LB}" stroke-width="0.5"/>`; }
+  if (m.muralha) { const x0 = -m.a0, x1 = -(m.a0 + rows * DEP * m.muralha), zz = FB + 3; // ponytail: a parede inteira hachurada ou pronta, sem o avanço da obra
+    s += `<rect x="${X(x1)}" y="${Y(-zz)}" width="${((x0 - x1) * k).toFixed(1)}" height="${(2 * zz * k).toFixed(1)}" fill="${obra < 1 ? `url(#${id}hach)` : BG}" stroke="${obra < 1 ? AM : BR}" stroke-width="1.1"/>`; }
   const midN = rows > prev ? (prev + rows) / 2 * DEP : rows / 2 * DEP;
   s += vom(midN, (x, z, ld) => !pula(x, z, ld, niv) && (rows > prev || pula(x, z, ld, niv - 1)), AM);
   if (m.teto == "arena" && niv >= 3) s += `<g fill="none" stroke="${LB}" stroke-width="0.9" ${DD}><path d="${P(Co(rows * DEP * 0.5))}"/><path d="${P(Co(rows * DEP + 1.5))}"/></g>`;
