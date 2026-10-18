@@ -291,9 +291,8 @@ async function atualizar() {
     // depois do jogo: público, renda e clima ficam no topo, ao lado do placar
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
-    // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria no fim
-    $("corpo").innerHTML = numeros + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true }) +
-      await htmlDiretoria();
+    // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
+    $("corpo").innerHTML = numeros + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
