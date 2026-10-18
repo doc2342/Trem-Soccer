@@ -1266,7 +1266,7 @@ async function telaClube(liga, clube) {
         <details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:12px">Como o público é calculado</summary><div class="mut" style="font-size:12px;margin-top:4px">O público depende da torcida, do humor, do adversário e da competição (final de copa lota, preliminar não), vezes o bônus do estádio, até o limite de lugares. O prestígio sobe com temporadas na Série A e títulos. Copa e playoff têm ingresso mais caro. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças. Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada.</div></details></div>
       <div class="card"><h2>🎨 Visual do estádio <span class="tag">só aparência: não muda lugares nem renda</span></h2>
         <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
-          <button id="evReforma" disabled>${gratis ? "Trocar agora (grátis)" : "Reformar"}</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : gratis ? `<span class="ok">uma troca grátis e na hora</span>, porque o visual chegou com a liga andando; depois, trocar de modelo é uma obra de ${dinheiro(CUSTO_DA_REFORMA(n))}` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}</span></div>
+          <button id="evReforma" disabled>${gratis ? "Trocar agora (grátis)" : "Reformar"}</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : gratis ? `<span class="ok">uma troca grátis e na hora</span>, porque o visual chegou com a liga andando; depois, trocar de modelo é uma obra de ${dinheiro(CUSTO_DA_REFORMA(n))}` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}${(clube.estadio_visual || {}).reforma_gratis_para ? ` · <span class="ok">troca grátis e na hora para ${MODELOS[clube.estadio_visual.reforma_gratis_para] || clube.estadio_visual.reforma_gratis_para}, o estádio novo</span>` : ""}</span></div>
         <div class="row" style="margin-top:8px;align-items:center"><label>Cidade <select id="evCidade" ${trocada ? "disabled" : ""}>${op(CIDADES, cidadeDoEstadio(v))}</select></label>
           <span class="mut" style="font-size:12px">${trocada ? "a troca grátis de cidade já foi usada" : "o entorno do estádio · uma troca grátis, depois fica"}</span></div>
         <div class="row" style="margin-top:8px"><label>Nome do estádio <input id="evNome" maxlength="32" value="${esc(v.nomeEstadio || "")}" style="width:220px"></label>
@@ -1285,11 +1285,13 @@ async function telaClube(liga, clube) {
     if (!$("estadio3d")) return;
     const atual = () => ({ ...configDoClube(clube, null), modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
       cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value, muralha: $("evMuralha").checked, cidade: $("evCidade").value });
-    const gratis = !!(clube.estadio_visual || {}).reforma_gratis, cidadeDeHoje = cidadeDoEstadio(configDoClube(clube, null));
+    const gratisGeral = !!(clube.estadio_visual || {}).reforma_gratis, gratisPara = (clube.estadio_visual || {}).reforma_gratis_para; // 127: troca grátis só para o estádio novo
+    const eGratis = () => gratisGeral || gratisPara === $("evModelo").value, cidadeDeHoje = cidadeDoEstadio(configDoClube(clube, null));
     const modeloDeHoje = (clube.estadio_visual || {}).modelo || "tradicional";
     const redesenhar = () => {
       $("evCobWrap").hidden = $("evMurWrap").hidden = $("evModelo").value !== "caldeirao";
       [1, 2].forEach(i => { $("evCor" + i).hidden = i >= +$("evNCores").value; });
+      const gratis = eGratis(); $("evReforma").textContent = gratis ? "Trocar agora (grátis)" : "Reformar";
       $("evReforma").disabled = (gratis ? obra && obra.estrutura === "estadio_modelo" : !!obra) || $("evModelo").value === modeloDeHoje;
       const cfg = $("evVista").value === "wire" ? { ...plantaDaObra().cfg, vista: "wire" } : atual();
       if (cenas.estadio3d) cenas.estadio3d.atualizar(cfg); else montarEstadio("estadio3d", cfg);
@@ -1307,8 +1309,8 @@ async function telaClube(liga, clube) {
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evSalvar").disabled = false; }
     };
     $("evReforma").onclick = async () => {
-      const m = $("evModelo").value, n = clube.estadio_nivel || 1;
-      if (gratis ? !confirm(`Trocar o estádio para o modelo ${MODELOS[m]} agora, de graça? É a única troca grátis: as próximas são obras pagas.`) : !confirm(`Reformar o estádio para o modelo ${MODELOS[m]}? Custa ${dinheiro(CUSTO_DA_REFORMA(n))} agora, leva ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"} e ocupa a vaga de obra. Não dá para cancelar.`)) return;
+      const m = $("evModelo").value, n = clube.estadio_nivel || 1, gratis = eGratis();
+      if (gratis ? !confirm(`Trocar o estádio para o modelo ${MODELOS[m]} agora, de graça? ${gratisPara === m ? "É a troca grátis do estádio novo." : "É a única troca grátis: as próximas são obras pagas."}`) : !confirm(`Reformar o estádio para o modelo ${MODELOS[m]}? Custa ${dinheiro(CUSTO_DA_REFORMA(n))} agora, leva ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"} e ocupa a vaga de obra. Não dá para cancelar.`)) return;
       $("evReforma").disabled = true;
       try { await B.reformarEstadio(m); await carregar({ user: usuario }); }
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evReforma").disabled = false; }
