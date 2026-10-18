@@ -1,4 +1,4 @@
-// Confere o supabase/123_dirigente_assume_a_vaga.sql num Postgres em memória (PGlite). Uso: node ferramentas/teste_vaga_sql.mjs
+// Confere o supabase/123_dirigente_assume_a_vaga.sql e o 124_repatriado.sql num Postgres em memória (PGlite). Uso: node ferramentas/teste_vaga_sql.mjs
 import assert from "node:assert";
 import fs from "node:fs";
 let PGlite;
@@ -27,6 +27,7 @@ create table pre_contratos (jogador_id bigint references jogadores on delete cas
 create table financas (clube_id bigint primary key, caixa int);
 create table divisoes (liga_id bigint, divisao smallint, torcida_base int);
 create table ofertas_livres (jogador_id bigint references jogadores on delete cascade, clube_id bigint, salario int);
+create table transferencias (id serial, tipo text, jogador_id bigint, para_clube bigint);
 create table taticas (clube_id bigint); create table lancamentos (clube_id bigint, valor int);
 create function carga_do_clube(p_liga bigint, p_clube bigint) returns jsonb language sql as $$
   select coalesce(jsonb_agg(to_jsonb(h)), '[]') from (select temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib from historico where liga_id = p_liga) h $$;
@@ -48,6 +49,8 @@ insert into pedidos (id, user_id, nome, sigla) values (7, '${U2}', 'Novato FC', 
 `);
 const sql = fs.readFileSync(new URL("../supabase/123_dirigente_assume_a_vaga.sql", import.meta.url), "utf8");
 await db.exec(sql); await db.exec(sql); // rodar duas vezes
+const sql124 = fs.readFileSync(new URL("../supabase/124_repatriado.sql", import.meta.url), "utf8");
+await db.exec(sql124); await db.exec(sql124);
 const jog = i => ({ nome: "Novo " + i, idade: 25, pos: "MC", fam: {}, at: Array(22).fill(30), pe: "D", principal: i < 11, tal: 50, salario: 100, salario_mercado: 100, contrato_ate: 15, protegido_ate: 13 });
 const elenco = JSON.stringify(Array.from({ length: 18 }, (_, i) => jog(i)));
 await assert.rejects(q(`select decidir_pedido(7, true, null, null, '[]')`), /Elenco novo incompleto/);
@@ -79,4 +82,6 @@ await q(`insert into ofertas_livres values (11, 3, 100)`);
 await assert.rejects(q(`select decidir_pedido(7, true, null, 3, $1)`, [elenco]), /já foi decidido/);
 await q(`update admin_flag set sim = false`);
 await assert.rejects(q(`select decidir_pedido(7, false)`), /Só o administrador/);
+await q(`insert into transferencias (tipo, jogador_id, para_clube) values ('livre', 11, 1), ('livre', 11, 3), ('multa', 11, 1)`);
+assert.deepEqual((await q(`select repatriado from transferencias order by id`)).map(x => x.repatriado), [true, false, false]);
 console.log("tudo certo");

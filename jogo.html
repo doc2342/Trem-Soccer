@@ -1193,7 +1193,7 @@ async function telaClube(liga, clube) {
           return `<tr><td class="esq">${pp(j.pos || "")} ${lj(h.jogador_id, j.nome)} <span class="mut">(${j.idade ?? "?"})</span></td><td>${dinheiro(h.salario)} · ${h.temporadas} temp.</td><td class="esq">${situacao(h)}</td><td class="mut">${quando(h.criada_em)}</td></tr>`; }).join("")}</table></div>`
       : `<div class="mut">Você ainda não deu lance em nenhum leilão (contando a partir de quando o histórico foi ligado).</div>`;
     const negocios = negociosDoClube.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Jogador</th><th class="esq">De / para</th><th>Valor</th><th class="esq">Como</th><th>Quando</th></tr>${negociosDoClube.map(t => { const entrou = t.para_clube === clube.id;
-        return `<tr><td title="${entrou ? "chegou" : "saiu"}">${entrou ? "⬅️" : "➡️"}</td><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${entrou ? (t.de_clube ? "de " + lk(t.de_clube) : `<span class="mut">estava livre</span>`) : t.para_clube ? "para " + lk(t.para_clube) : `<span class="mut">dispensado</span>`}</td><td class="${entrou ? "bad" : "ok"}">${t.valor ? dinheiro(t.valor) : "—"}</td><td class="esq mut">${TIPO[t.tipo] || esc(t.tipo || "")}</td><td class="mut">T${t.temporada} · ${quando(t.criada_em)}</td></tr>`; }).join("")}</table></div>`
+        return `<tr><td title="${entrou ? "chegou" : "saiu"}">${entrou ? "⬅️" : "➡️"}</td><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${entrou ? (t.de_clube ? "de " + lk(t.de_clube) : `<span class="mut">estava livre</span>`) : t.para_clube ? "para " + lk(t.para_clube) : `<span class="mut">dispensado</span>`}</td><td class="${entrou ? "bad" : "ok"}">${t.valor ? dinheiro(t.valor) : "—"}</td><td class="esq mut">${t.repatriado ? "🏠 repatriado (voltou ao clube formador)" : TIPO[t.tipo] || esc(t.tipo || "")}</td><td class="mut">T${t.temporada} · ${quando(t.criada_em)}</td></tr>`; }).join("")}</table></div>`
       : `<div class="mut">Nenhuma entrada ou saída ainda.</div>`;
     return `<div class="card"><h2>Meus lances em leilões <span class="tag">jogadores livres · leva quem oferecer o maior salário</span></h2>${lances}</div>
       <div class="card"><h2>Entradas e saídas <span class="tag">todas as transferências do clube</span></h2>${negocios}</div>
@@ -1615,8 +1615,9 @@ async function telaClube(liga, clube) {
     if (doClube.length) l.push(item("🏅", `Premiados do seu clube na temporada ${liga.temporada - 1}: ${doClube.map(p => `${esc(p.jogador || "")} (${esc(nomeDoPremio(p))})`).join(", ")}.`));
     safra.forEach(s => l.push(item(s.nivel >= 43 ? "🌟" : "✨", `A base do ${lk(s.clube_id)} revelou ${s.nivel >= 43 ? "uma joia rara" : "uma grande promessa"}: ${esc(s.jogador)} (${esc(sg(s.pos || ""))}, ${s.idade} anos).`)));
     if (livres && livres.length) mercado.push(item("✍️", `${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"} na aba Mercado${livres.some(j => new Date(j.livre_ate) > new Date()) ? ", com leilão aberto" : ""}.`));
-    const negocios = (transferencias || []).slice(0, 8).map(t => item(t.tipo === "livre" ? "✍️" : "🔁",
-      t.tipo === "livre" ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
+    const negocios = (transferencias || []).slice(0, 8).map(t => item(t.repatriado ? "🏠" : t.tipo === "livre" ? "✍️" : "🔁",
+      t.repatriado ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) voltou para casa: foi repatriado por ${lk(t.para_clube)}, o clube que o formou.`
+      : t.tipo === "livre" ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
         : `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) trocou ${lk(t.de_clube)} por ${lk(t.para_clube)} por ${dinheiro(t.valor)}${t.tipo === "multa" ? ", pela multa rescisória" : t.tipo === "divida" ? ", em oferta de clube no vermelho" : ""}.`));
     mercado.push(...negocios);
     return { copas, liga: l, mercado };
