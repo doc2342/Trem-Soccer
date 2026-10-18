@@ -80,6 +80,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .vaga .det { font-size:11px; color:var(--mut); }
 .lista .item { display:flex; gap:8px; align-items:center; padding:5px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
 .lista .item:hover { background:var(--hover); }
+.lista .setor { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); padding:10px 4px 3px; border-bottom:1px solid var(--line); }
 .lista .item { border-left:4px solid transparent; }
 .lista .item.titular { border-left-color:var(--ok); background:rgba(63,178,127,.13); }
 .lista .item.reserva { border-left-color:var(--ac); background:rgba(242,193,78,.10); }
