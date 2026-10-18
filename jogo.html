@@ -1803,7 +1803,6 @@ async function telaClube(liga, clube) {
       : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
   if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
   let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
-  const rotuloTema = () => document.documentElement.dataset.tema === "claro" ? "🌙 Tema escuro" : "☀️ Tema claro";
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
@@ -1811,9 +1810,7 @@ async function telaClube(liga, clube) {
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
-        <a href="temporada.html?clube=${clube.id}" style="color:var(--ac)">Relatório da temporada</a>
-        <button class="sec" id="modoTema" style="padding:3px 10px;font-size:12.5px">${rotuloTema()}</button>
-        ${telaPequena ? `<button class="sec" id="modoTela" style="padding:3px 10px;font-size:12.5px" title="${telaDePc ? "Voltar ao desenho feito para celular" : "Mostra a página inteira, como no computador, com o zoom reduzido"}">${telaDePc ? "📱 Tela de celular" : "🖥️ Tela de computador"}</button>` : ""}</div></div>
+</div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
     <section data-secao="inicio">
@@ -1896,6 +1893,7 @@ ${historicoDaBase()}
         <div><b>Dirigente</b>
           <div style="margin:4px 0 8px">${clube.dirigente === undefined ? `<span class="mut">O nome do dirigente aparece aqui quando o administrador ligar essa opção.</span>` : `${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">sem nome</span>`} <button class="sec" id="cfgDirigente">Mudar o nome</button>`}</div>
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
+          <div style="margin-top:12px"><b>Relatório da temporada</b><div style="margin-top:4px"><a href="temporada.html?clube=${clube.id}" style="color:var(--ac)">Abrir o relatório da temporada</a></div></div>
           <div style="margin-top:12px"><b>Tema</b><div class="mut" style="margin:4px 0 8px">No automático, o jogo fica claro ou escuro junto com o celular ou o computador.</div>
             ${[["", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]].map(([v, n]) => `<label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:4px"><input type="radio" name="cfgTema" value="${v}" ${temaEscolhido === v ? "checked" : ""}> ${n}</label>`).join("")}</div>
           ${telaPequena ? `<div style="margin-top:12px"><b>Tela</b><div class="mut" style="margin:4px 0 8px">No celular, dá para ver a página inteira de computador com o zoom reduzido, como no Dugout.</div><button class="sec" id="cfgTela">${telaDePc ? "📱 Usar a tela de celular" : "🖥️ Usar a tela de computador"}</button></div>` : ""}</div>
@@ -2425,10 +2423,8 @@ ${historicoDaBase()}
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
-  if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
-  const trocarTema = t => { window.moTema(t); $("modoTema").textContent = rotuloTema(); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
-  $("modoTema").onclick = () => trocarTema(document.documentElement.dataset.tema === "claro" ? "escuro" : "claro");
+  const trocarTema = t => { window.moTema(t); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
   document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.onchange = () => trocarTema(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
