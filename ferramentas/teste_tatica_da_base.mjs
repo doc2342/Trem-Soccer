@@ -47,3 +47,9 @@ assert.deepEqual(t2.escalacao.map(x => x.pos), FORMACOES["5-3-2"]);
 assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { esquema: "9-9-9" } }).escalacao.map(x => x.pos), formacao);
 assert.deepEqual(timeDaBase(criarRng(1), { juvenis, tatica: { esquema: "4-4-2" } }).escalacao.map(x => x.pos), FORMACOES["4-4-2"], "sem tática principal, o esquema da base vale");
 console.log("esquema próprio ok");
+
+// vagas livres (assimétricas) valem por cima do esquema pronto; inválidas são ignoradas
+const livres = ["GK", "DR", "DC", "DC", "WBL", "DMC", "MC", "AML", "MR", "SC", "FC"];
+assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { vagas: livres, esquema: "5-3-2" } }).escalacao.map(x => x.pos), livres);
+assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { vagas: ["GK", "GK"] } }).escalacao.map(x => x.pos), formacao);
+console.log("vagas livres ok");

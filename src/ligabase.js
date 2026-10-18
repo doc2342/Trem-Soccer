@@ -54,7 +54,7 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
     }
     return [n, soma, [...livres]];
   };
-  const doClube = Array.isArray(formacao) && formacao.length === 11 && formacao.every(p => LISTA_POSICOES.includes(p)) && formacao.filter(p => p === "GK").length === 1;
+  const doClube = vagasValidas(formacao);
   const esquemas = doClube ? [["do time principal", formacao]] : FORMACOES_DA_BASE.map(nome => [nome, FORMACOES[nome]]);
   const mesmoId = (j, id) => String(j.id).replace(/^j/, "") === String(id);
   let melhor = null;
@@ -91,8 +91,11 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
 
 // juvenis e profissionais: os de verdade, no formato do motor. Devolve a tática pronta da partida: { escalacao: [{ j, pos }], banco, instrucoes },
 // com um garoto da escolinha em cada vaga que sobrou e as trocas do intervalo.
-// Esquema da base: o que o dirigente escolheu para ela (tatica.esquema, um nome de FORMACOES) ou, sem escolha, o do time principal.
-export const esquemaDaBase = (tatica, principal) => (tatica && FORMACOES[tatica.esquema]) || principal || null;
+// 11 posições conhecidas, um goleiro só
+export const vagasValidas = f => Array.isArray(f) && f.length === 11 && f.every(p => LISTA_POSICOES.includes(p)) && f.filter(p => p === "GK").length === 1;
+// Esquema da base: as vagas que o dirigente montou para ela (tatica.vagas, livres como na tática principal), um esquema pronto (tatica.esquema,
+// nome de FORMACOES, das versões antigas) ou, sem nada, o do time principal.
+export const esquemaDaBase = (tatica, principal) => (tatica && vagasValidas(tatica.vagas) ? tatica.vagas : tatica && FORMACOES[tatica.esquema]) || principal || null;
 
 export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivelDaBase = 0, prefixo = "", minutos = {}, perfil = null, formacao = null, tatica = null } = {}) {
   const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);

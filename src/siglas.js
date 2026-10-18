@@ -22,6 +22,8 @@ export const pp = pos => `<span class="pp ${POSICOES[pos] ? SETOR[POSICOES[pos].
 // Desenho do campinho: cada fila é uma faixa do campo (ataque, meia, meio, volantes e alas juntos, defesa, gol).
 // Quem joga pelo lado fica na ponta da fila e os de centro no meio, numa grade de 10 colunas em que cada jogador ocupa 2.
 // Devolve [{ grade, itens: [{ x, col }] }]; com mais de 3 jogadores de centro (ou 2 do mesmo lado) a fila volta a ser distribuída por igual.
+// tiras de posições que aparecem ao arrastar uma vaga de linha: [posição, coluna da grade de 10] por faixa do campo (ataque … defesa)
+export const TIRAS = [[["LW", 1], ["FC", 4], ["SC", 6], ["RW", 9]], [["AML", 1], ["AMC", 5], ["AMR", 9]], [["ML", 1], ["MC", 5], ["MR", 9]], [["WBL", 1], ["DMC", 5], ["WBR", 9]], [["DL", 1], ["DC", 4], ["SW", 6], ["DR", 9]]];
 const FAIXA_DO_CAMPO = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 export function filasDoCampo(itens, posDe) {
   const filas = [[], [], [], [], [], []];

@@ -10,7 +10,7 @@ import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZona
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
-import { sg, pp, filasDoCampo } from "./siglas.js";
+import { sg, pp, filasDoCampo, TIRAS } from "./siglas.js";
 
 const HTML = `  <div id="cabecalho"></div>
   <h1 class="soLocal">Escalação e tática</h1>
@@ -306,7 +306,6 @@ function validar() {
 }
 
 // Faixas do campo e as posições de cada uma, para as tiras que aparecem ao arrastar um titular (coluna inicial numa grade de 10).
-const TIRAS = [[["LW", 1], ["FC", 4], ["SC", 6], ["RW", 9]], [["AML", 1], ["AMC", 5], ["AMR", 9]], [["ML", 1], ["MC", 5], ["MR", 9]], [["WBL", 1], ["DMC", 5], ["WBR", 9]], [["DL", 1], ["DC", 4], ["SW", 6], ["DR", 9]]];
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 // mapa: índice da vaga que está sendo arrastada (mostra as tiras de posições), ou null
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };

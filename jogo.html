@@ -259,7 +259,7 @@ import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { montarLogin } from "./src/ui-login.js";
-import { sg, pp, filasDoCampo, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
+import { sg, pp, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
 import { svgEscudo, svgUniforme, visualAleatorio } from "./src/escudo.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
@@ -326,11 +326,37 @@ async function carregar(s) {
 // Atualização discreta dos dados (resultados, leilões, propostas): não mexe na tela se o dirigente está com um painel aberto ou digitando.
 // Antes de refazer a carga da página (uma chamada com o 107_carga_do_clube.sql, ~40 consultas sem ele), pergunta ao banco a hora da última novidade: se não mudou desde a carga, só adia.
 let marca = null, conferindo = false;
+// Escalação da base: arrastar com mouse ou dedo (uma vaga para uma posição nova ou outra vaga; um jovem para uma vaga). O rascunho vive aqui até
+// salvar (a recarga discreta não o apaga); acoesDaBase = { desenhar(mapa), soltar(origem, alvo) } é refeito a cada desenho da página.
+let rascunhoBase = null, arrastoBase = null, acoesDaBase = null;
+const alvoDaBase = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest("#baseEsc [data-bvaga], #baseEsc [data-novapos]"); };
+const fimDoArrastoBase = () => { if (arrastoBase && arrastoBase.fantasma) arrastoBase.fantasma.remove(); document.querySelectorAll("#baseEsc .alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrastoBase = null; };
+document.addEventListener("pointerdown", e => {
+  const h = e.target.closest("#baseEsc [data-barrasta]");
+  if (!h || e.target.closest("select, button") || (e.pointerType === "mouse" && e.button !== 0)) return;
+  arrastoBase = { de: h.dataset.barrasta, rotulo: h.dataset.brotulo || "", x0: e.clientX, y0: e.clientY, fantasma: null };
+});
+window.addEventListener("pointermove", e => {
+  const a = arrastoBase; if (!a) return;
+  if (!a.fantasma) { if (Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 8) return;
+    a.fantasma = document.body.appendChild(Object.assign(document.createElement("div"), { className: "fantasma", textContent: a.rotulo })); document.body.classList.add("arrastando");
+    if (a.de[0] === "v" && acoesDaBase) { a.mapa = true; acoesDaBase.desenhar(+a.de.slice(1)); } }
+  a.fantasma.style.transform = `translate(${e.clientX + 10}px, ${e.clientY + 10}px)`;
+  document.querySelectorAll("#baseEsc .alvo").forEach(x => x.classList.remove("alvo"));
+  const alvo = alvoDaBase(e); if (alvo) alvo.classList.add("alvo");
+});
+window.addEventListener("pointerup", e => {
+  const a = arrastoBase; if (!a) return;
+  const alvo = a.fantasma ? alvoDaBase(e) : null; fimDoArrastoBase();
+  if (a.fantasma && acoesDaBase) acoesDaBase.soltar(a.de, alvo);
+});
+window.addEventListener("pointercancel", () => { const a = arrastoBase; fimDoArrastoBase(); if (a && a.mapa && acoesDaBase) acoesDaBase.desenhar(); });
 async function talvezAtualizar(idade) {
   if (document.hidden || !usuario || !$("abas") || Date.now() - carregadoEm < idade) return;
   const foco = document.activeElement;
   if (foco && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
   if (!$("taticaFora").hidden) return; // escalando: não mexe na tela
+  if (rascunhoBase) return; // montando a escalação da base sem salvar
   if ($("cfgSalvarVisual") && !$("cfgSalvarVisual").disabled) return; // escudo ou uniforme mudado sem salvar
   if (document.querySelector('#app [id$="Painel"]:not(:empty)') || ($("quadroAtr") && !$("quadroAtr").hidden)) return;
   if (marca && marca.novidade !== undefined && !conferindo) {
@@ -906,7 +932,7 @@ async function telaClube(liga, clube) {
   const jaJogou = Object.fromEntries(Object.entries(naBase).map(([id, n]) => [id, n.min]));
   const formacaoDaBase = tatica && tatica.dados && Array.isArray(tatica.dados.vagas) && tatica.dados.vagas.length === 11 ? tatica.dados.vagas : null;
   // esquema próprio da base (taticas_base.dados.esquema); sem ele, o do time principal
-  const esquemaProprio = taticaBase && taticaBase.dados && FORMACOES[taticaBase.dados.esquema] ? taticaBase.dados.esquema : null, vagasDaBase = esquemaDaBase(taticaBase && taticaBase.dados, formacaoDaBase);
+  const vagasDaBase = esquemaDaBase(taticaBase && taticaBase.dados, formacaoDaBase);
   const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: vagasDaBase, fixos: taticaBase && taticaBase.dados && taticaBase.dados.fixos }) : null;
   const ordemBase = (a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos);
   const conheceBase = (j, pos) => (j.fam || {})[pos] === "N" ? "" : (j.fam || {})[pos] === "C" ? "competente" : "improvisado";
@@ -934,32 +960,46 @@ async function telaClube(liga, clube) {
       ${lista.length ? `<div class="rolagem" style="margin-top:6px"><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th>${temTeto ? `<th title="Faixa de teto pelo olheiro">Teto</th>` : ""}<th title="Jogos na liga de base">J</th><th title="Minutos na liga de base">Min</th><th>Gols</th><th title="Nota média na liga de base">Média</th><th title="Posição que está aprendendo">Estuda</th><th>Contra o titular</th></tr>
         ${lista.map(linha).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Nenhum jovem no clube. Eles chegam na virada da temporada e na peneira (cartão Base, ao lado).</div>`}</div>`;
   };
-  // Escalação da base: o campinho com o esquema do time principal; em cada vaga, quem joga hoje e a escolha do dirigente
+  // Escalação da base: o campinho que o dirigente monta. As vagas são livres como na tática principal (arrastar uma vaga mostra as posições
+  // para onde ela pode ir) e soltar um jovem numa vaga o fixa nela. O rascunho fica em rascunhoBase até salvar; cada mudança redesenha só o cartão.
+  const salvoBase = (taticaBase && taticaBase.dados) || {};
+  if (rascunhoBase && rascunhoBase.clube !== clube.id) rascunhoBase = null;
+  const baseInicial = () => ({ clube: clube.id, segue: !salvoBase.vagas && !salvoBase.esquema && !!formacaoDaBase, vagas: [...(vagasDaBase || (prevista ? prevista.vagas.map(v => v.pos) : FORMACOES["4-4-2"]))], fixos: { ...(salvoBase.fixos || {}) }, instr: { ...(salvoBase.instr || {}) } });
+  const candidatosBase = [...meusJuvenis.map(j => ({ ...j, juvenil: true })), ...meusProfs].sort(ordemBase);
+  const FAIXA_BASE = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
+  let prevBase = null; // a escalação que o rascunho dá: o que o arrasto usa para saber quem está em cada vaga
+  const corpoDaBase = (mapa = null) => {
+    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos });
+    const vaga = (i, col) => { const v = P.vagas[i], pos = v.pos, c = v.j ? conheceBase(v.j, pos) : "", arrasta = editavel && pos !== "GK";
+      const escolha = editavel ? `<select data-tbvaga="${i}" style="max-width:100%;margin-top:4px"><option value="">automático</option>${candidatosBase.filter(j => (j.pos === "GK") === (pos === "GK")).map(j => { const k = conheceBase(j, pos);
+        return `<option value="${semJ(j.id)}" ${String(R.fixos[i]) === semJ(j.id) ? "selected" : ""}>${esc(j.nome)} ${f1(notaNaPosicao(j, pos))}${k === "improvisado" ? " (improvisado)" : k === "competente" ? " (comp.)" : ""}</option>`; }).join("")}</select>` : "";
+      return `<div class="vaga" data-bvaga="${i}" ${arrasta ? `data-barrasta="v${i}" data-brotulo="${esc(sg(pos))}${v.j ? " " + esc(v.j.nome) : ""}"` : ""} style="cursor:${arrasta ? "grab;touch-action:none" : "default"}${col ? `;grid-column:${col} / span 2` : ""}">${pp(pos)}<div class="nome" title="${v.j ? esc(v.j.nome) : "garoto da escolinha"}">${v.j ? `${v.fixo ? "📌 " : ""}<span class="nc">${esc(v.j.nome)}</span><span class="ns">${esc(v.j.nome.split(" ").slice(-1)[0])}</span>` : `<span class="mut">garoto</span>`}</div>
+        <div class="det">${v.j ? `${f1(notaNaPosicao(v.j, pos))}${c ? ` · <span class="${c === "improvisado" ? "aviso" : ""}">${c}</span>` : ""}${v.j.juvenil ? "" : " · prof."}` : "da escolinha"}</div>${escolha}</div>`; };
+    // com uma vaga sendo arrastada, as tiras de posições aparecem entre as filas, cada uma na sua faixa do campo
+    const filas = filasDoCampo(P.vagas.map((_, i) => i), i => P.vagas[i].pos).map(fila => ({ faixa: FAIXA_BASE[POSICOES[P.vagas[fila.itens[0].x].pos].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) => vaga(x, fila.grade ? col : 0)).join("")}</div>` }));
+    const jm = mapa === null ? null : P.vagas[mapa].j;
+    const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${jm ? ` ${f1(notaNaPosicao(jm, p))}` : ""}</div>`).join("")}</div>`;
+    const campo = `<div class="gramado" style="margin-top:8px">${mapa === null ? filas.map(f => f.html).join("") : TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("")}</div>`;
+    const ondeEsta = j => { const i = P.vagas.findIndex(v => v.j && semJ(v.j.id) === semJ(j.id)); return i < 0 ? "" : `${P.vagas[i].fixo ? "📌 " : ""}${esc(sg(P.vagas[i].pos))}`; };
+    const jovens = editavel && candidatosBase.length ? `<div style="margin-top:8px"><b>Jovens</b> <span class="mut" style="font-size:12px">· arraste para uma vaga para fixá-lo nela</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${candidatosBase.map(j => `<div data-barrasta="j${semJ(j.id)}" data-brotulo="${esc(sg(j.pos))} ${esc(j.nome)}" title="${esc(j.nome)}" style="display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:3px 7px;font-size:12px;cursor:grab;touch-action:none;user-select:none;background:rgba(10,14,38,.5)">${pp(j.pos)} ${esc(j.nome.split(" ").slice(-1)[0])} <b class="nota">${f1(notaNaPosicao(j, j.pos))}</b> <span class="mut">${ondeEsta(j) ? "→ " + ondeEsta(j) : "fora"}</span></div>`).join("")}</div>` : "";
+    const intervalo = P.trocas.length ? `<div style="margin-top:8px"><b>No intervalo</b>: ${P.trocas.map(x => `<b>${esc(x.entra.nome)}</b> <span class="mut">no lugar ${P.vagas[x.vaga].j ? `de ${esc(P.vagas[x.vaga].j.nome)}` : "do garoto"} (${esc(sg(P.vagas[x.vaga].pos))})</span>`).join(" · ")}</div>` : "";
+    const fora = P.fora.length ? `<div class="aviso" style="margin-top:4px">Sem jogo nesta rodada: ${P.fora.map(j => esc(j.nome)).join(", ")} (o rodízio dá a vez a eles nas próximas)</div>` : "";
+    const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${R.instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
+    const esquema = editavel ? `<div class="row" style="margin-top:6px;gap:6px;align-items:center"><b>Partir de</b> <select id="tbEsquema"><option value="">escolher um esquema…</option>${formacaoDaBase ? `<option value="=">o do time principal</option>` : ""}${Object.keys(FORMACOES).map(k => `<option>${esc(k)}</option>`).join("")}</select>
+      <span class="mut" style="font-size:12px">${R.segue ? "segue o esquema do time principal" : "esquema próprio da base"}</span></div>` : "";
+    const mudou = JSON.stringify([R.segue, R.vagas, R.fixos, R.instr]) !== JSON.stringify((({ segue, vagas, fixos, instr }) => [segue, vagas, fixos, instr])(baseInicial()));
+    return `${esquema}${campo}${jovens}${intervalo}${fora}
+      <div style="margin-top:10px"><b>Estilo</b> <span class="mut" style="font-size:12px">· em "como o bot", fica o que o bot escolheria</span></div><div>${Object.keys(INSTRUCOES_DA_BASE).map(opcao).join("")}</div>
+      ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar" ${mudou ? "" : "disabled"}>Salvar a escalação da base</button>${mudou ? `<button id="tbDesfazer" class="sec">Desfazer</button><span class="aviso">alterações não salvas</span>` : ""}<span id="tbAviso"></span></div>` : ""}`;
+  };
   const abaEscalacao = () => {
     if (baseJogos == null) return "";
     if (!prevista) return `<div class="card"><h2>Escalação da base</h2><div class="mut">Nenhum juvenil nem profissional formado no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</div></div>`;
-    const editavel = taticaBase !== undefined && !!vagasDaBase;
-    const d = (taticaBase && taticaBase.dados) || {}, fixos = d.fixos || {}, instr = d.instr || {};
-    const candidatos = [...meusJuvenis.map(j => ({ ...j, juvenil: true })), ...meusProfs].sort(ordemBase);
-    const vaga = (i, col) => { const v = prevista.vagas[i], pos = v.pos, c = v.j ? conheceBase(v.j, pos) : "";
-      const escolha = editavel ? `<select data-tbvaga="${i}" style="max-width:100%;margin-top:4px"><option value="">automático</option>${candidatos.filter(j => (j.pos === "GK") === (pos === "GK")).map(j => { const k = conheceBase(j, pos);
-        return `<option value="${semJ(j.id)}" ${String(fixos[i]) === semJ(j.id) ? "selected" : ""}>${esc(j.nome)} ${f1(notaNaPosicao(j, pos))}${k === "improvisado" ? " (improvisado)" : k === "competente" ? " (comp.)" : ""}</option>`; }).join("")}</select>` : "";
-      return `<div class="vaga" style="cursor:default${col ? `;grid-column:${col} / span 2` : ""}">${pp(pos)}<div class="nome" title="${v.j ? esc(v.j.nome) : "garoto da escolinha"}">${v.j ? `${v.fixo ? "📌 " : ""}<span class="nc">${esc(v.j.nome)}</span><span class="ns">${esc(v.j.nome.split(" ").slice(-1)[0])}</span>` : `<span class="mut">garoto</span>`}</div>
-        <div class="det">${v.j ? `${f1(notaNaPosicao(v.j, pos))}${c ? ` · <span class="${c === "improvisado" ? "aviso" : ""}">${c}</span>` : ""}${v.j.juvenil ? "" : " · prof."}` : "da escolinha"}</div>${escolha}</div>`; };
-    const campo = `<div class="gramado" style="margin-top:8px">${filasDoCampo(prevista.vagas.map((_, i) => i), i => prevista.vagas[i].pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) => vaga(x, fila.grade ? col : 0)).join("")}</div>`).join("")}</div>`;
-    const intervalo = prevista.trocas.length ? `<div style="margin-top:8px"><b>No intervalo</b>: ${prevista.trocas.map(x => `<b>${esc(x.entra.nome)}</b> <span class="mut">no lugar ${prevista.vagas[x.vaga].j ? `de ${esc(prevista.vagas[x.vaga].j.nome)}` : "do garoto"} (${esc(sg(prevista.vagas[x.vaga].pos))})</span>`).join(" · ")}</div>` : "";
-    const fora = prevista.fora.length ? `<div class="aviso" style="margin-top:4px">Sem jogo nesta rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")} (o rodízio dá a vez a eles nas próximas)</div>` : "";
-    const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
-    const aviso = taticaBase === undefined ? `<div class="mut" style="margin-top:6px">A tática da base ainda não está ligada no servidor: a escalação é automática.</div>`
-      : !vagasDaBase ? `<div class="aviso" style="margin-top:6px">Escolha um esquema para a base (ou salve a tática do time principal) para poder escolher quem joga onde. Até lá vale o esquema que melhor encaixa os juvenis (${esc(prevista.nome)}).</div>` : "";
-    // trocar o esquema salva na hora (a tela redesenha as vagas); os fixados que continuam numa vaga da mesma posição ficam
-    const seletorDeEsquema = taticaBase === undefined ? "" : `<div style="margin-top:8px"><b>Esquema</b> <select id="tbEsquema"><option value="">igual ao time principal${formacaoDaBase ? "" : " (ainda sem tática)"}</option>${Object.keys(FORMACOES).map(k => `<option ${k === esquemaProprio ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
-      <span class="mut" style="font-size:12px">· a base pode jogar num esquema diferente do principal, por exemplo para treinar posições que você ainda não usa</span> <span id="tbEsqAviso"></span></div>`;
-    return `<details class="card" id="baseEsc"><summary><h2>Escalação da base <span class="tag">${esquemaProprio ? esc(esquemaProprio) : formacaoDaBase ? "esquema do time principal" : esc(prevista.nome)}</span>${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2></summary>
-      <div class="mut" style="font-size:12px">Em cada vaga, quem joga a próxima partida. Escolha um jogador para fixá-lo (📌): ele começa jogando e não sai no intervalo. Em "automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos.</div>
-      ${seletorDeEsquema}${aviso}${campo}${intervalo}${fora}
-      <div style="margin-top:10px"><b>Estilo</b> <span class="mut" style="font-size:12px">· em "como o bot", fica o que o bot escolheria</span></div><div>${Object.keys(INSTRUCOES_DA_BASE).map(opcao).join("")}</div>
-      ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar">Salvar a escalação da base</button><span id="tbAviso"></span></div>` : ""}</details>`;
+    const aviso = taticaBase === undefined ? `<div class="mut" style="margin-top:6px">A tática da base ainda não está ligada no servidor: a escalação é automática.</div>` : "";
+    return `<div class="card" id="baseEsc"><h2>Escalação da base${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2>
+      <div class="mut" style="font-size:12px">Monte o time como na tática principal: arraste uma vaga para mudar a posição dela (dá para treinar posições que o time principal não usa) e arraste um jovem para uma vaga para fixá-lo (📌): ele começa jogando e não sai no intervalo. Em "automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos.</div>
+      ${aviso}<div id="baseEscCorpo">${corpoDaBase()}</div></div>`;
   };
   const kpi = (rot, v, d) => `<div class="kpi"><div class="kl">${rot}</div><div class="kv">${v}</div>${d ? `<div class="kd">${d}</div>` : ""}</div>`;
   // Base: os números do alto da página
@@ -1773,7 +1813,7 @@ ${historicoDaBase()}
     <section data-secao="base">
     ${kpisDaBase()}
     <div class="g2">
-      <div>${abaJuvenis()}${abaEscalacao()}</div>
+      <div>${abaEscalacao()}${abaJuvenis()}</div>
       <div>${baseJogos == null ? "" : painelDaBase()}
     ${rodadasFeitas == null ? "" : (() => { const n = clube.base_nivel || 0, pr = faixaDeJovens(n, "promocao"), pe = faixaDeJovens(n, "peneira"), feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
       const quantos = ([a, b]) => a === b ? (a === 0 ? "nenhum jovem" : a === 1 ? "1 jovem" : a + " jovens") : `${a} a ${b} jovens`;
@@ -1814,17 +1854,50 @@ ${historicoDaBase()}
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
     $("jFiltro").querySelectorAll("[data-jfiltro]").forEach(x => { x.style.outline = x === c ? "1px solid currentColor" : ""; });
     document.querySelectorAll("tr[data-jpos]").forEach(tr => { tr.hidden = !!c.dataset.jfiltro && tr.dataset.jpos !== c.dataset.jfiltro; }); };
-  // tática da base: lê a tela e salva; com esquema novo, só ficam os fixados cuja vaga tem a mesma posição nele
-  const salvarBase = async (esquema, aviso) => {
-    const fixos = {}, instr = {}, antes = vagasDaBase || [], depois = esquemaDaBase({ esquema }, formacaoDaBase) || [];
-    document.querySelectorAll("[data-tbvaga]").forEach(s => { if (s.value && antes[s.dataset.tbvaga] === depois[s.dataset.tbvaga]) fixos[s.dataset.tbvaga] = +s.value; });
-    document.querySelectorAll("[data-tbinstr]").forEach(s => { if (s.value) instr[s.dataset.tbinstr] = JSON.parse(s.value); });
-    if (new Set(Object.values(fixos)).size < Object.keys(fixos).length) { aviso.innerHTML = `<span class="bad">O mesmo jogador está em duas vagas.</span>`; return; }
-    try { await salvarTaticaDaBase(clube.id, { ...(esquema ? { esquema } : {}), fixos, instr }); await carregar({ user: usuario }); if ($("baseEsc")) $("baseEsc").open = true; }
-    catch (err) { aviso.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
-  };
-  if ($("tbSalvar")) $("tbSalvar").onclick = () => salvarBase(esquemaProprio, $("tbAviso"));
-  if ($("tbEsquema")) $("tbEsquema").onchange = e => salvarBase(e.target.value || null, $("tbEsqAviso"));
+  // tática da base: rascunho e gravação (o arrasto em si fica no alto do módulo e chama acoesDaBase)
+  if ($("baseEsc")) {
+    const R = () => rascunhoBase || (rascunhoBase = baseInicial());
+    const desenhar = (mapa = null) => { $("baseEscCorpo").innerHTML = corpoDaBase(mapa); };
+    const aviso = t => { if ($("tbAviso")) $("tbAviso").innerHTML = `<span class="bad">${esc(t)}</span>`; };
+    // tira o jogador de qualquer outra vaga em que esteja fixado e o fixa em k (id nulo = vaga automática)
+    const fixar = (k, id) => { const r = R(); for (const i of Object.keys(r.fixos)) if (String(r.fixos[i]) === String(id)) delete r.fixos[i]; if (id) r.fixos[k] = +id; else delete r.fixos[k]; };
+    acoesDaBase = {
+      desenhar,
+      soltar(de, alvo) {
+        const r = R();
+        if (alvo && alvo.dataset.novapos !== undefined && de[0] === "v") { r.vagas[+de.slice(1)] = alvo.dataset.novapos; r.segue = false; return desenhar(); }
+        if (!alvo || alvo.dataset.bvaga === undefined) return desenhar();
+        const k = +alvo.dataset.bvaga, gol = r.vagas[k] === "GK";
+        if (de[0] === "j") { const j = candidatosBase.find(x => semJ(x.id) === de.slice(1));
+          if (!j || (j.pos === "GK") !== gol) { desenhar(); return aviso(gol ? "No gol só joga goleiro." : "Goleiro só joga no gol."); }
+          fixar(k, de.slice(1)); return desenhar(); }
+        const i = +de.slice(1); if (i === k || gol) return desenhar();
+        // vaga sobre vaga: quem estava em i vai para k, e o fixado de k (se houver) vem para i
+        const quem = prevBase.vagas[i].j, ali = r.fixos[k];
+        if (quem) fixar(k, semJ(quem.id)); else delete r.fixos[k];
+        if (ali != null && (!quem || String(ali) !== semJ(quem.id))) fixar(i, ali); else delete r.fixos[i];
+        desenhar();
+      },
+    };
+    $("baseEsc").addEventListener("change", e => {
+      const t = e.target, r = R();
+      if (t.dataset.tbvaga !== undefined) fixar(+t.dataset.tbvaga, t.value || null);
+      else if (t.dataset.tbinstr !== undefined) { if (t.value) r.instr[t.dataset.tbinstr] = JSON.parse(t.value); else delete r.instr[t.dataset.tbinstr]; }
+      else if (t.id === "tbEsquema" && t.value) { // esquema pronto: os fixados que continuam numa vaga da mesma posição ficam
+        const novas = t.value === "=" ? formacaoDaBase : FORMACOES[t.value];
+        for (const i of Object.keys(r.fixos)) if (novas[i] !== r.vagas[i]) delete r.fixos[i];
+        r.vagas = [...novas]; r.segue = t.value === "=";
+      }
+      desenhar();
+    });
+    $("baseEsc").addEventListener("click", async e => {
+      if (e.target.id === "tbDesfazer") { rascunhoBase = null; return desenhar(); }
+      if (e.target.id !== "tbSalvar") return;
+      const r = R(); e.target.disabled = true;
+      try { await salvarTaticaDaBase(clube.id, { ...(r.segue ? {} : { vagas: r.vagas }), fixos: r.fixos, instr: r.instr }); rascunhoBase = null; await carregar({ user: usuario }); }
+      catch (err) { e.target.disabled = false; aviso(err.message); }
+    });
+  }
   if ($("antecipar")) $("antecipar").onclick = async () => {
     if (!confirm("Antecipar o prêmio desta temporada? O valor cheio será descontado do seu prêmio na virada.")) return;
     try { await anteciparPremio(); await carregar({ user: usuario }); }
