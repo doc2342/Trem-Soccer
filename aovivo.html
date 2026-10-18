@@ -36,7 +36,10 @@
   /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
   .abas.soCel { display:none; }
   @media (max-width:760px) {
-    .abas.soCel { display:flex; } .abas .aba { font-size:15px; padding:8px 10px 6px; }
+    .abas.soCel { display:flex; } /* como as abas do clube: ícone em cima, nome curto embaixo, todas numa linha */
+    .abas.soCel { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:0; overflow:visible; }
+    .abas .aba { padding:6px 0 5px; letter-spacing:0; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; white-space:nowrap; }
+    .abas .aba .ai { font-size:17px; line-height:1.1; }
     .fora-aba { display:none !important; }
   }
   .estat th { font-size:13px; padding:0 4px 6px; overflow-wrap:anywhere; }
@@ -227,11 +230,11 @@ function topo(gols, m, narracao = [], pre = null) {
 }
 
 // abas do celular e o "ver todos os lances" do pós-jogo: a escolha sobrevive ao redesenho de 10 em 10 segundos
-const ABAS = { resumo: "Resumo", lances: "Lances", estat: "Estatísticas", esc: "Escalações", rodada: "Rodada", jog: "Jogadores" };
+const ABAS = { resumo: ["📝", "Resumo"], lances: ["📜", "Lances"], estat: ["📊", "Números"], esc: ["👕", "Escalação"], rodada: ["🏆", "Rodada"], jog: ["⭐", "Jogadores"] };
 let aba = null, todosLances = false;
 const BOTAO_TODOS = `<button class="sec" data-todos style="margin:0 0 8px;padding:4px 12px"><span class="v1">Ver todos os lances</span><span class="v2">Só os principais</span></button>`;
 function barraDeAbas(ids) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0];
-  return `<div class="abas soCel">${ids.map(k => `<button class="aba" data-ir="${k}">${ABAS[k]}</button>`).join("")}</div>`; }
+  return `<div class="abas soCel">${ids.map(k => `<button class="aba" data-ir="${k}"><span class="ai">${ABAS[k][0]}</span><span>${ABAS[k][1]}</span></button>`).join("")}</div>`; }
 function aplicarAba() {
   document.querySelectorAll("#corpo [data-aba]").forEach(e => e.classList.toggle("fora-aba", e.dataset.aba !== aba));
   document.querySelectorAll("#corpo [data-ir]").forEach(b => b.classList.toggle("ativa", b.dataset.ir === aba));
