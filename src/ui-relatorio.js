@@ -58,7 +58,7 @@ function htmlOrdens(o, nome, cor) {
   const itens = [...o.subs.map(s => item(`aos ${s.min}' ${COND[s.cond] || s.cond}: sai ${esc(s.saiNome)}, entra ${esc(s.entraNome)}`, s)), ...o.ordens.map(x => item(`a partir dos ${x.min}' ${COND[x.cond] || x.cond}: ${esc(textoMuda(x.muda))}`, x))];
   return `<div class="card"><h2 class="${cor}">Suas ordens: ${nome}</h2>${itens.length ? `<ul>${itens.join("")}</ul>` : `<div class="mut">Nenhuma substituição ou ordem planejada.</div>`}</div>`;
 }
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null } = {}) { // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false } = {}) { // lateral: blocos extras na coluna das estatísticas // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
@@ -70,7 +70,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     + (ordens ? analistas.filter(i => ordens[i]).map(i => htmlOrdens(ordens[i], n[i], COR[i])).join("") : "");
   const lances = LEGENDA_LANCES + abertura + r.narracao.map(htmlLance).join("");
   const linha = (t, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${t}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
-  const estat = `<table>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
+  const estat = `<table><tr><th class="casa" style="font-size:13px">${n[0]}</th><th></th><th class="fora" style="font-size:13px">${n[1]}</th></tr>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
     ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}
     ${linha("Cartões amarelos · vermelhos", e => `${e.amarelos} · ${e.vermelhos}`)}${linha("Impedimentos", e => e.impedimentos)}${linha("Contra-ataques", e => e.contraAtaques)}</table>`;
   const cor = z => z.total < 4 ? "transparent" : `rgba(63,178,127,${0.08 + 0.5 * z.ganhos / z.total})`;
@@ -94,9 +94,10 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const jogadoresHtml = `<div class="rabas"><input type="radio" name="${id}" id="${id}a" class="rt1" checked><input type="radio" name="${id}" id="${id}b" class="rt2">
     <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🩹 lesão · 🔻 substituído</span></div>
     <div class="rp1"><div class="duas">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="rolagem">${estatisticas}</div></div></div>`;
+  const jogadores = `<div class="card"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
   return `${resultado}${analise}
     <div class="duas"><div class="card"><h2>Reprise</h2>${lances}</div>
-    <div><div class="card"><h2>Estatísticas</h2>${estat}</div>
-    <div class="card"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(duelos com a bola vencidos; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div></div></div>
-    <div class="card"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
+    <div><div class="card"><h2>Estatísticas</h2>${estat}</div>${lateral}
+    <div class="card"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(duelos com a bola vencidos; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div>${jogadoresAoLado ? jogadores : ""}</div></div>
+    ${jogadoresAoLado ? "" : jogadores}`;
 }

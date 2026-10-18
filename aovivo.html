@@ -142,7 +142,7 @@ function htmlRodada(meu, T = Date.now()) {
     return `<div style="padding:3px 0;${p.id === id ? "font-weight:700" : ""}">${p.id === id ? "" : `<a href="aovivo.html?id=${p.id}" style="color:inherit;text-decoration:none">`}${nome(p.casa)} <b>${x.g ? x.g[0] + " x " + x.g[1] : "x"}</b> ${nome(p.fora)}${p.id === id ? "" : "</a>"} <span class="mut" style="font-weight:400;font-size:12px">${x.fim ? "encerrado" : x.g ? "ao vivo" : hora(p.inicio)}</span></div>`; }).join("");
   const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, z = zonaDaPosicao(i, n), nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
     return `<tr style="${nosso ? "font-weight:700" : ""}"><td style="border-left:3px solid ${COR_DA_ZONA[z] || "transparent"};padding-left:5px">${i + 1}</td><td style="width:22px;font-size:11px" class="${d > 0 ? "ok" : d < 0 ? "bad" : "mut"}">${d > 0 ? "▲" + d : d < 0 ? "▼" + (-d) : ""}</td><td class="esq" style="text-align:left">${esc(t.clube.nome)}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.gp - t.gc}</td></tr>`; }).join("");
-  return `<div class="card"><h2>Rodada ${partida.rodada} ao vivo <span class="tag">${esc(nomeDoGrupo(partida.grupo))}</span></h2>${jogos}
+  return `<div class="card"><h2>Rodada ${partida.rodada}${encerrada ? "" : " ao vivo"} <span class="tag">${esc(nomeDoGrupo(partida.grupo))}</span></h2>${jogos}
     <table style="width:100%;margin-top:8px;font-size:13.5px"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>J</th><th>SG</th></tr>${tabela}</table>
     <div class="mut" style="margin-top:6px;font-size:12px">Classificação como ficaria com os placares deste momento. As setas comparam com o início da rodada.</div></div>`;
 }
@@ -291,8 +291,9 @@ async function atualizar() {
     // depois do jogo: público, renda e clima ficam no topo, ao lado do placar
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
-    $("corpo").innerHTML = numeros + htmlRodada([res.gols_casa, res.gols_fora]) +
-      await htmlDiretoria() + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes) });
+    // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria no fim
+    $("corpo").innerHTML = numeros + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true }) +
+      await htmlDiretoria();
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
