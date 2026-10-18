@@ -126,6 +126,7 @@
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
   .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--bd, #2a2f55); }
   .rod-tit { margin-bottom:4px; }
+  @media (max-width:900px) { #compQuadros .comp-esq { display:contents; } #compHist { order:1; } }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
   .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
   .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
@@ -1486,17 +1487,18 @@ async function telaClube(liga, clube) {
   }
   const muralDaLiga = () => {
     const l = [], copas = [], mercado = [], vejaJogo = p => ` <a class="lk" style="color:var(--ac)" href="aovivo.html?id=${p.id}">Ver o jogo</a>`;
-    // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
-    if (copaJogos.length) {
-      const fases = [...new Set(copaJogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => copaJogos.filter(p => p.copa_fase === f);
+    // copa, Libertadores e Sul-Americana: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
+    for (const [nome, ic, jogos, sub] of [["Copa do Brasil", "🏆", copaJogos, "copa"], [CONTINENTAIS.LIB[1], CONTINENTAIS.LIB[0], libJogos, "lib"], [CONTINENTAIS.SUL[1], CONTINENTAIS.SUL[0], sulJogos, "sul"]]) {
+      if (!jogos.length) continue;
+      const fases = [...new Set(jogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => jogos.filter(p => p.copa_fase === f);
       const final = daFase(6)[0], campeao = final && copaRes[final.id] ? quemPassou(final) : null;
-      if (campeao) copas.push(item("🏆", `${lk(campeao)} é o campeão da Copa do Brasil: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.${vejaJogo(final)}`));
+      if (campeao) copas.push(item(ic, `${lk(campeao)} é o campeão da ${nome}: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.${vejaJogo(final)}`));
       else { const f = fases.find(k => daFase(k).some(p => !copaRes[p.id]));
         if (f) { const js = daFase(f), um = js.length === 1 ? js[0] : null;
-          copas.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()}${um ? `, ${lk(um.casa)} x ${lk(um.fora)},` : ""} ${js.some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${um ? "o jogo" : js.length + " jogos"} em ${new Date(js[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}.${um ? vejaJogo(um) + " ·" : ""} <a class="lk" style="color:var(--ac);cursor:pointer" data-aba-ir="classificacao:copa">Ver a chave</a>`)); } }
+          copas.push(item(ic, `${nome}: ${FASES_DA_COPA[f].toLowerCase()}${um ? `, ${lk(um.casa)} x ${lk(um.fora)},` : ""} ${js.some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${um ? "o jogo" : js.length + " jogos"} em ${new Date(js[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}.${um ? vejaJogo(um) + " ·" : ""} <a class="lk" style="color:var(--ac);cursor:pointer" data-aba-ir="classificacao:${sub}">Ver a chave</a>`)); } }
       const encerrada = fases.filter(k => daFase(k).every(p => copaRes[p.id])).pop();
       if (encerrada && encerrada < 6) daFase(encerrada).filter(p => copaRes[p.id].penaltis).slice(0, 4).forEach(p => { const v = quemPassou(p);
-        copas.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da copa${penais(copaRes[p.id])}.${vejaJogo(p)}`)); });
+        copas.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da ${nome}${penais(copaRes[p.id])}.${vejaJogo(p)}`)); });
     }
     const passada = premiosTodos.filter(p => p.temporada === liga.temporada - 1 && !ehSelecao(p)), bola = passada.find(p => p.comp === "A" && p.premio === "melhor"), doClube = passada.filter(p => p.clube_id === clube.id);
     if (bola) l.push(item("🏅", `Bola de Ouro da temporada ${bola.temporada}: ${esc(bola.jogador || "")} (${lk(bola.clube_id)}). Todos os premiados em Competições, Estatísticas.`));
@@ -1510,7 +1512,7 @@ async function telaClube(liga, clube) {
     return { copas, liga: l, mercado };
   };
   // o mural mostra só as manchetes (as de mais peso, com o seu clube na frente); o resto fica fechado em "Mais notícias"
-  const PESO_DA_NOTICIA = { "🏆": 6, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
+  const PESO_DA_NOTICIA = { "🏆": 6, "🌎": 5, "🌐": 4, "🎟️": 3, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
   const SECOES_DO_MURAL = [["jogos", "Últimos jogos", 3], ["liga", "Na liga", 3], ["copas", "Outras competições", 2], ["mercado", "Mercado", 2]];
   const desenharMural = secoes => {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
@@ -1600,7 +1602,14 @@ async function telaClube(liga, clube) {
         if (der >= 3) l.push(item("📉", `Fase ruim: ${lk(c.id)} perdeu os últimos ${der} jogos.`));
       }
       const tab = classificacao(clubes.filter(c => c.grupo === g), ps, rs), fim = ps.every(p => res[p.id]);
-      if (tab[0] && tab[0].j >= 3) l.push(item(fim ? "🏆" : "🥇", fim ? `${lk(tab[0].clube.id)} é campeão do ${nomeDoGrupo(g)} com ${tab[0].pts} pontos.`
+      if (fim && tab[0]) { // fim da liga: as vagas pela faixa da tabela, como na legenda da classificação
+        const serie = serieDoGrupo(g), na = f => tab.filter((t, i) => faixaDaTabela(serie, i, tab.length) === f).map(t => lk(t.clube.id)), lista = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
+        const vagas = [["🌎", "lib", "Vão à Libertadores", serie === 1 ? " (a 4ª vaga é do campeão da Copa do Brasil)" : ""], ["🌐", "sul", "Vão à Sul-Americana", serie === 1 ? " (mais o vice da Copa do Brasil)" : ""],
+          ["⬆️", "sobe", liga.temporada < 14 ? "Sobe direto" : "Vão direto à semifinal do playoff", ""], ["🎟️", "playoff", liga.temporada < 14 ? "Disputam o playoff do acesso" : "Disputam a preliminar do playoff", ""], ["⬇️", "cai", "Rebaixados", ""]];
+        l.push(item("🏆", `Fim do ${nomeDoGrupo(g)}: ${lk(tab[0].clube.id)} é campeão com ${tab[0].pts} pontos${tab[1] ? `, ${tab[0].pts - tab[1].pts ? `${tab[0].pts - tab[1].pts} à frente do` : "no saldo sobre o"} ${lk(tab[1].clube.id)}` : ""}.`));
+        vagas.forEach(([ic, f, rot, obs]) => { const x = na(f); if (x.length) l.push(item(ic, `${nomeDoGrupo(g)} · ${rot}: ${lista(x)}${obs}.`)); });
+      }
+      else if (tab[0] && tab[0].j >= 3) l.push(item(fim ? "🏆" : "🥇", fim ? `${lk(tab[0].clube.id)} é campeão do ${nomeDoGrupo(g)} com ${tab[0].pts} pontos.`
         : `${lk(tab[0].clube.id)} lidera o ${nomeDoGrupo(g)} com ${tab[0].pts} pontos${tab[1] && tab[0].pts > tab[1].pts ? `, ${tab[0].pts - tab[1].pts} à frente do ${lk(tab[1].clube.id)}` : ", empatado em pontos com o vice"}.`));
     }
     const art = (stats && stats.artilheiros) || [], art1 = ((doGrupo && doGrupo.artilheiros) || [])[0];
@@ -1734,7 +1743,7 @@ ${historicoDaBase()}
     <div id="compKpis"></div>
     <div id="compChave"></div>
     <div class="g2" id="compQuadros">
-      <div><div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div><div id="compHist"></div></div>
+      <div class="comp-esq"><div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div><div id="compHist"></div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
     </section>
