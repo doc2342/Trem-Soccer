@@ -211,7 +211,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
-import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS } from "./src/estadio.js";
+import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS, CIDADES, cidadeDoEstadio } from "./src/estadio.js";
 import { MARCAS, selo as seloMarca, PROPOSTAS } from "./src/patrocinio.js";
 import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
@@ -1232,22 +1232,30 @@ async function telaClube(liga, clube) {
     if (n < NIVEL_MAXIMO_DO_ESTADIO) return { tag: `prévia da ampliação para o nível ${n + 1}`, cfg: { ...v, nivel: n + 1, obra: 0 } };
     return { tag: "nível máximo", cfg: v };
   };
-  // aba Clube, Estádio: o 3D grande em cima; embaixo, a planta à esquerda e obra e visual à direita
+  // aba Clube, Estádio: à esquerda o 3D e a planta (as vistas largas); à direita a ficha com a obra e o editor do visual
   const paginaDoEstadio = () => {
     if (caixa == null || clube.ct_nivel == null) return estrutura("estadio");
     const v = configDoClube(clube, null), n = clube.estadio_nivel || 1, alvo = (clube.estadio_visual || {}).modelo_alvo, p = plantaDaObra(), est = estacionamentoDoEstadio(n);
-    const pct = x => "+" + Math.round(x * 100) + "%", nv = n + 1 <= NIVEL_MAXIMO_DO_ESTADIO ? n + 1 : null;
+    const pct = x => "+" + Math.round(x * 100) + "%", nv = n + 1 <= NIVEL_MAXIMO_DO_ESTADIO ? n + 1 : null, custo = nv ? CUSTO.estadio[nv] : null, minhaObra = obra && obra.estrutura === "estadio";
     const op = (lista, sel) => Object.entries(lista).map(([k, nome]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${nome}</option>`).join("");
     const cor = (id, c, titulo) => `<input type="color" id="${id}" value="${c}" title="${titulo}" style="width:34px;height:30px;padding:0">`;
-    return `<div class="card"><h2>${esc(v.nomeEstadio || "Estádio sem nome")} <span class="tag">${MODELOS[v.modelo] || ""} · nível ${n} de ${NIVEL_MAXIMO_DO_ESTADIO}</span></h2>
+    const linha = (rot, val, obs) => `<tr><td class="esq mut">${rot}</td><td class="esq"><b>${val}</b>${obs ? `<div class="mut" style="font-size:12px">${obs}</div>` : ""}</td></tr>`;
+    return `<div class="g2"><div>
+      <div class="card"><h2>${esc(v.nomeEstadio || "Estádio sem nome")} <span class="tag">${MODELOS[v.modelo] || ""} · ${CIDADES[cidadeDoEstadio(v)]}</span></h2>
         <div class="row" style="margin:6px 0;align-items:center"><select id="evVista"><option value="3d">Estádio 3D</option><option value="wire">Wireframe da obra</option></select><span class="mut" style="font-size:12px">Arraste para girar.</span></div>
-        <div id="estadio3d" style="background:#fff;min-height:200px"></div></div>
-      <div class="kpis">${kpi("Lugares", lugaresDoEstadio(n).toLocaleString("pt-BR"), nv ? `${lugaresDoEstadio(nv).toLocaleString("pt-BR")} no nível ${nv}` : "nível máximo")}
-        ${kpi("Refletores", temRefletores(n) ? "sim" : "não", temRefletores(n) ? `público ${pct(EXTRAS_DO_ESTADIO.publicoRefletores)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutRefletores)} de manutenção` : `chegam no nível ${EXTRAS_DO_ESTADIO.nivelDosRefletores}`)}
-        ${kpi("Estacionamento", est ? `nível ${est}` : "não", est ? `público ${pct(EXTRAS_DO_ESTADIO.publicoPorEstacionamento * est)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutPorEstacionamento * est)} de manutenção` : "chega no nível 3 do estádio")}
-        ${kpi("Bônus de público", pct(bonusDoEstadio(n) - 1), "refletores e estacionamento; o teto são os lugares")}
-        ${kpi("Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ","), `por torcedor, com a torcida de hoje · ${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`)}</div>
-      <div class="g2"><div><div class="card"><h2>Planta <span class="tag">${p.tag}</span></h2>${plantaEstadio(p.cfg)}</div></div><div>${estrutura("estadio")}
+        <div id="estadio3d" style="min-height:200px"></div></div>
+      <div class="card"><h2>Planta <span class="tag">${p.tag}</span></h2>${plantaEstadio(p.cfg)}</div></div>
+      <div><div class="card"><h2>Ficha <span class="tag">nível ${n} de ${NIVEL_MAXIMO_DO_ESTADIO}</span></h2>
+        <table class="mini" style="width:100%">${linha("Lugares", lugaresDoEstadio(n).toLocaleString("pt-BR"), nv ? `${lugaresDoEstadio(nv).toLocaleString("pt-BR")} no nível ${nv}` : "nível máximo")}
+          ${linha("Torcida", (clube.torcida || 0).toLocaleString("pt-BR"), `${nomeDoHumor(clube.humor ?? 8).toLowerCase()} · prestígio ${String(clube.torcida_fator == null ? 1 : +clube.torcida_fator).replace(".", ",")}`)}
+          ${linha("Refletores", temRefletores(n) ? "sim" : "não", temRefletores(n) ? `público ${pct(EXTRAS_DO_ESTADIO.publicoRefletores)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutRefletores)} de manutenção` : `chegam no nível ${EXTRAS_DO_ESTADIO.nivelDosRefletores}`)}
+          ${linha("Estacionamento", est ? `nível ${est}` : "não", est ? `público ${pct(EXTRAS_DO_ESTADIO.publicoPorEstacionamento * est)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutPorEstacionamento * est)} de manutenção` : "chega no nível 3 do estádio")}
+          ${linha("Bônus de público", pct(bonusDoEstadio(n) - 1), "refletores e estacionamento; o teto são os lugares")}
+          ${linha("Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ",") + " por torcedor", `${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`)}</table>
+        ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
+          : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button>
+            <span class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
+        <details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:12px">Como o público é calculado</summary><div class="mut" style="font-size:12px;margin-top:4px">O público depende da torcida, do humor, do adversário e da competição (final de copa lota, preliminar não), vezes o bônus do estádio, até o limite de lugares. O prestígio sobe com temporadas na Série A e títulos. Copa e playoff têm ingresso mais caro. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças. Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada.</div></details></div>
       <div class="card"><h2>🎨 Visual do estádio <span class="tag">só aparência: não muda lugares nem renda</span></h2>
         <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
           <button id="evReforma" disabled>Reformar</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}</span></div>
@@ -2196,6 +2204,7 @@ ${historicoDaBase()}
         const bot = observada || l.length < 11 ? null : taticaBot(l), provavel = observada ? { escalacao: observada.vagas } : bot, aVenda = l.filter(j => j.a_venda);
         const campo = provavel ? `<div class="gramado" style="margin-top:8px">${filasDoCampo(provavel.escalacao, x => x.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) =>
           `<div class="vaga clk" data-cvjog="${x.j.id}" style="${fila.grade && col ? `grid-column:${col} / span 2` : ""}">${pp(x.pos)}<div class="nome" title="${esc(x.j.nome)}"><span class="nc">${esc(x.j.nome)}</span><span class="ns">${esc(x.j.nome.split(" ").slice(-1)[0])}</span></div><div class="det">${f1(notaNaPosicao(x.j, x.pos))} · ${x.j.idade} anos${x.j.a_venda ? " · 🏷️" : ""}</div>${observada ? `<div class="det" title="${x.substituto ? "Não jogou nesta vaga nos jogos vistos: é o melhor disponível" : `Titular nesta vaga em ${x.vezes} dos ${x.de} jogos vistos`}">${x.substituto ? "substituto" : `${x.vezes} de ${x.de}`}</div>` : ""}</div>`).join("")}</div>`).join("")}</div>` : `<div class="mut">Elenco curto demais para montar um time.</div>`;
+        const meu = id === clube.id; // a página do próprio clube: como os outros a veem
         const contra = jogos.filter(p => p.casa === clube.id || p.fora === clube.id), contraFeitos = contra.filter(p => feitos.includes(p));
         const conta = k => contraFeitos.filter(p => placar(p, clube.id).v === k).length;
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
@@ -2209,17 +2218,19 @@ ${historicoDaBase()}
           <div class="kpis" style="margin-bottom:12px">${kpi("Posição", eu && eu.j ? `${pos + 1}º<small> de ${tab.length}</small>` : "—", esc(nomeDoGrupo(c.grupo)))}
             ${kpi("Campanha", eu && eu.j ? `${eu.pts}<small> pts</small>` : "—", eu && eu.j ? `${eu.j} jogos · ${eu.v}V ${eu.e}E ${eu.d}D` : "ninguém jogou ainda")}
             ${kpi("Últimos jogos", feitos.length ? bolas(feitos.slice(-5), id) : "—", "liga e copas, do mais antigo ao mais recente")}
-            ${kpi("Contra você", contraFeitos.length ? `${conta("V")}V ${conta("E")}E ${conta("D")}D` : "—", `do ${esc(clube.nome)}, nesta temporada`)}</div>
+            ${meu ? kpi("Torcida", c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", "torcedores") : kpi("Contra você", contraFeitos.length ? `${conta("V")}V ${conta("E")}E ${conta("D")}D` : "—", `do ${esc(clube.nome)}, nesta temporada`)}</div>
           <div class="g2"><div>
             <div class="card"><h2>Time provável ${bot ? `<span class="tag">${esc(bot.formacao)}</span> <span class="tag">o melhor onze pelo elenco: ainda não jogou nesta temporada</span>` : observada ? `<span class="tag">${observada.jogos === 1 ? "o time do último jogo" : `o que mais jogou nos últimos ${observada.jogos} jogos`}</span>` : ""}</h2>
               ${observada ? `<div class="mut" style="font-size:12px">${analista ? `Visto pelo seu analista, ${esc(analista.nome)}` : "Sem analista, você só sabe o time do último jogo"}${nJogos < 3 ? `; ${analista ? "com skill 25" : "com um analista"} ele acompanha ${nJogos + 1} jogos` : ""}.</div>` : ""}${campo}</div>
             ${aVenda.length ? `<div class="card" style="border-color:var(--ac)"><h2>🏷️ À venda <span class="tag">clique para fazer uma proposta</span></h2><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th></tr>
               ${aVenda.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td><b>${dinheiro(j.preco_pedido)}</b></td></tr>`).join("")}</table></div>` : ""}
-            <div class="card"><h2>Contra o ${esc(clube.nome)} <span class="tag">nesta temporada</span></h2>${contra.length ? `<table class="mini" style="width:100%">${contra.map(p => { const x = feitos.includes(p) ? placar(p, clube.id) : null;
+            ${meu ? "" : `<div class="card"><h2>Contra o ${esc(clube.nome)} <span class="tag">nesta temporada</span></h2>${contra.length ? `<table class="mini" style="width:100%">${contra.map(p => { const x = feitos.includes(p) ? placar(p, clube.id) : null;
               return `<tr><td class="mut esq">${competicao(p)}</td><td class="esq">${lk(p.casa)} ${x ? `<b>${res[p.id].gols_casa} x ${res[p.id].gols_fora}</b>` : "x"} ${lk(p.fora)}</td><td>${x ? `<span class="fbola f${x.v}" title="para o ${esc(clube.nome)}">${x.v}</span>` : `<span class="mut">${quando(p.inicio)}</span>`}</td></tr>`; }).join("")}</table>`
-              : `<div class="mut">Os dois clubes não se enfrentam nesta temporada.</div>`}</div>
+              : `<div class="mut">Os dois clubes não se enfrentam nesta temporada.</div>`}</div>`}
           </div><div>
-            <div class="card"><h2>Estruturas</h2><div class="kpis" style="grid-template-columns:repeat(2, minmax(0, 1fr));margin-top:4px">
+            <div class="card"><h2>${c.estadio_nivel != null ? esc(configDoClube(c, null).nomeEstadio || "Estádio") : "Estruturas"} ${c.estadio_nivel != null ? `<span class="tag">${MODELOS[configDoClube(c, null).modelo] || ""} · ${CIDADES[cidadeDoEstadio(configDoClube(c, null))]}</span>` : ""}</h2>
+              ${c.estadio_nivel != null ? `<div id="cvEstadio" style="min-height:160px"></div><div class="mut" style="font-size:12px;margin:4px 0 8px">Arraste para girar.</div>` : ""}
+              <div class="kpis" style="grid-template-columns:repeat(2, minmax(0, 1fr));margin-top:4px">
               ${kpi("Estádio", c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "")}
               ${kpi("Torcida", c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", "torcedores")}
               ${kpi("CT", c.ct_nivel != null ? `nível ${c.ct_nivel}` : "—", "centro de treinamento")}
@@ -2238,12 +2249,10 @@ ${historicoDaBase()}
           </div><div>
             ${salaDeTrofeus(id, "Títulos")}
           </div></div>`;
-        if (c.estadio_nivel != null) { const ev = configDoClube(c, null);
-          $("cvCorpo").insertAdjacentHTML("beforeend", `<div class="card"><h2>${esc(ev.nomeEstadio || "Estádio")} <span class="tag">${MODELOS[ev.modelo] || ""} · nível ${c.estadio_nivel} · ${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares</span></h2><div id="cvEstadio" style="background:#fff;min-height:160px"></div><div class="mut" style="font-size:12px;margin-top:4px">Arraste para girar.</div></div>`);
-          montarEstadio("cvEstadio", ev); }
+        if (c.estadio_nivel != null) montarEstadio("cvEstadio", configDoClube(c, null));
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
         if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
-        $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (tr && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
+        $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (tr && !meu && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
       } catch (err) { $("cvCorpo").innerHTML = `<div class="card bad">${esc(err.message)}</div>`; }
     };
     mercadoAoAbrir = buscar; // a lista de todos os jogadores (duas leituras de 1.000) só é lida quando a aba Mercado abre
@@ -2397,11 +2406,11 @@ ${historicoDaBase()}
     const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub);
   };
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
-  // qualquer nome de clube com atalho abre a página dele (o próprio clube leva a Clube, Elenco)
+  // qualquer nome de clube com atalho abre a página dele (o próprio clube também: é como os outros o veem)
   $("app").addEventListener("click", e => {
     const a = e.target.closest("[data-clube]"); if (!a || e.ctrlKey || e.metaKey) return;
     e.preventDefault(); const id = +a.dataset.clube;
-    if (id === clube.id) abrir("elenco"); else if (paginaDoClube) paginaDoClube(id);
+    if (paginaDoClube) paginaDoClube(id); else if (id === clube.id) abrir("elenco");
   });
   // escudo e uniformes: editor com prévia; salvar não mexe na imagem enviada
   const visual = { escudo: { ...(clube.escudo || {}) }, uniforme: JSON.parse(JSON.stringify(clube.uniforme || {})) };
@@ -2439,10 +2448,10 @@ ${historicoDaBase()}
   const [abaDoEnd, subDoEnd] = doEndereco(location.hash);
   if (abaDoEnd && abaDoEnd !== "clubeVisto" && existe(abaDoEnd)) [inicial, subInicial] = [abaDoEnd, subDoEnd];
   const clubeDoEndereco = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
-  const clubeAberto = verClube || (clubeDoEndereco && clubeDoEndereco !== clube.id ? clubeDoEndereco : null);
+  const clubeAberto = verClube || clubeDoEndereco || null;
   // voltar e avançar do navegador: a página de um clube ou a aba (e aba interna) do endereço, com os dados já carregados
   window.onpopstate = () => { const id = +((location.hash.match(/^#clube=(\d+)$/) || [])[1] || 0);
-    if (id && id !== clube.id && paginaDoClube) { if (id !== verClube) paginaDoClube(id); return; }
+    if (id && paginaDoClube) { if (id !== verClube) paginaDoClube(id); return; }
     const [k, sub] = doEndereco(location.hash);
     if (k && existe(k)) { if (abaAtual === "clubeVisto") empurrei = false; if (k !== abaAtual || (GRUPO_DA_ABA[k] && sub !== subGuardada(GRUPO_DA_ABA[k]))) abrir(k, sub, "substitui"); }
     else if (abaAtual === "clubeVisto") { empurrei = false; abrir(abaAnterior, undefined, "substitui"); } };

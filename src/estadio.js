@@ -22,7 +22,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor };
+    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0 };
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
 }
@@ -191,7 +191,7 @@ export async function desenharEstadio(el, config) {
   const I = { scene, grp: new T.Group(), sun, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, vista: "3d" }; scene.add(I.grp);
   I.render = () => { const w = el.clientWidth; if (!w) return; const h = Math.round(w * 0.62); ren.setSize(w, h); cam.aspect = w / h;
     cam.position.set(I.dist * Math.cos(I.el) * Math.sin(I.az), I.dist * Math.sin(I.el), I.tz + I.dist * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
-    const bp = I.vista == "wire"; ren.setClearColor(bp ? 0x0C447C : 0x000000, bp ? 1 : 0); ren.render(scene, cam); };
+    ren.setClearColor(I.vista == "wire" ? 0x0C447C : CEU, 1); ren.render(scene, cam); };
   let drag = null;
   el.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, I.az, I.el]; el.setPointerCapture(e.pointerId); });
   el.addEventListener("pointermove", e => { if (!drag) return; I.az = drag[2] - (e.clientX - drag[0]) * 0.008; I.el = Math.min(1.35, Math.max(0.25, drag[3] + (e.clientY - drag[1]) * 0.005)); I.render(); });
@@ -205,10 +205,12 @@ export async function desenharEstadio(el, config) {
 function construir() {
   limpar();
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
-  const ext0 = dunas ? 20 : 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.1; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
+  const ext0 = dunas ? 20 : 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
   const pos = assentos(niv), DG = dunas ? dunasGeo(topH) : null;
   const sc = cur.sun.shadow.camera, S = Math.max(aM + ext0, nb ? L.z1 : bM + ext0) + 30; sc.left = sc.bottom = -S; sc.right = sc.top = S; sc.far = 800; sc.updateProjectionMatrix();
+  cur.scene.fog = null;
   if (C.vista == "wire") { wire(pos, aM, bM, topH, nb && L, DG); return; }
+  entorno(aM + ext0 + (dunas ? 12 : 22), -(bM + ext0 + (dunas ? 12 : 22)), nb ? L.z1 + 14 : bM + ext0 + (dunas ? 12 : 22));
   cur.tag.textContent = obra < 1 ? "OBRA EM ANDAMENTO · " + Math.round(obra * 100) + "%" : "";
   const pad = C.padrao, k = C.cores.length, hx = [...C.cores, "#f2f2f2", "#c8102e"].slice(0, 3), cols = C.cores.map(c => new T.Color(c)), sig = (C.mosaico || " ").toUpperCase(), nomeE = (C.nomeEstadio || "").toUpperCase().trim();
   const msk = mascara(sig, rows), mr = Math.min(rows, 28); marcarEscadas(pos);
@@ -290,6 +292,75 @@ function construir() {
     inst(carros, (v, i, im) => put(im, i, v.x, 1.35, v.z - v.dir * 0.2, Math.PI / 2, 2.2, 0.65, 1.6, new T.Color("#3a4652")));
     const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64"))); }
   cur.render(); }
+
+// Entorno: um pedaço de cidade em volta do estádio, sorteado pela semente (o id do clube), para cada estádio parecer estar numa cidade
+// diferente. Cinco tipos: centro (prédios altos), bairro (casas e árvores), rio, lago e litoral. Tudo instanciado e sem sombra (leve).
+export const CIDADES = { centro: "Centro", bairro: "Bairro", rio: "Beira-rio", lago: "Lago", litoral: "Litoral" };
+const CEU = "#dde8ee";
+export const cidadeDoEstadio = c => CIDADES[c.cidade] ? c.cidade : Object.keys(CIDADES)[Math.abs(c.semente | 0) % 5];
+function entorno(cx, zN, zS) {
+  let sd = Math.abs((C.semente | 0) * 7919) % 2147483646 + 1; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  const tipo = cidadeDoEstadio(C);
+  const E = Math.max(cx, zS, -zN) * 2.3 + 140, zc = (zN + zS) / 2;
+  const geoUp = g => { g.translate(0, 0.5, 0); return g; }, add = (geo, lista, set, opcoes) => { if (!lista.length) return;
+    const im = new T.InstancedMesh(geo, new T.MeshLambertMaterial(opcoes || {}), lista.length); lista.forEach((p, i) => set(p, i, im)); grp.add(im); };
+  const pos = (im, i, x, y, z, rot, sx, sy, sz, c) => { dm.position.set(x, y, z); dm.rotation.set(0, rot, 0); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); if (c) im.setColorAt(i, c); };
+  const cor = lista => new T.Color(lista[(r() * lista.length) | 0]);
+  // chão
+  grp.add(plano(new T.CircleGeometry(E + 400, 48), new T.MeshLambertMaterial({ color: { centro: "#a7ad98", bairro: "#88a862", rio: "#8ca967", lago: "#87a45f", litoral: "#98ad6c" }[tipo] }), -0.06));
+  // água: rio ao norte, lago de um lado, mar ao norte com praia
+  let naAgua = () => false, perto = () => 1e9, zMar = null;
+  const azul = new T.MeshLambertMaterial({ color: "#5d8fb0" }), areia = new T.MeshLambertMaterial({ color: "#e3d3a8" });
+  if (tipo === "rio") { const z0 = zN - 48 - r() * 20, w = 34 + r() * 16, fase = r() * 6, zr = x => z0 + 18 * Math.sin(x / 70 + fase), top = [], bot = [];
+    for (let x = -E - 400; x <= E + 400; x += 10) { top.push([x, zr(x) - w / 2]); bot.push([x, zr(x) + w / 2]); }
+    grp.add(plano(new T.ShapeGeometry(shapeDe([...top.map(([x, z]) => [x, z - 6]), ...bot.reverse().map(([x, z]) => [x, z + 6])])), new T.MeshLambertMaterial({ color: "#7d9a5a" }), -0.04));
+    grp.add(plano(new T.ShapeGeometry(shapeDe([...top, ...bot])), azul, -0.02));
+    naAgua = (x, z) => Math.abs(z - zr(x)) < w / 2 + 10; perto = (x, z) => Math.abs(z - zr(x)) - w / 2; }
+  if (tipo === "lago") { const lado = r() < 0.5 ? -1 : 1, ra = 60 + r() * 30, rb = 45 + r() * 25, lx = lado * (cx + ra + 40), lz = zc + (r() - 0.5) * 80;
+    const elipse = (a, b) => { const p = []; for (let i = 0; i < 64; i++) { const t = i / 64 * 2 * Math.PI, w = 1 + 0.08 * Math.sin(3 * t + 1); p.push([lx + a * w * Math.cos(t), lz + b * w * Math.sin(t)]); } return p; };
+    grp.add(plano(new T.ShapeGeometry(shapeDe(elipse(ra + 7, rb + 7))), areia, -0.04)); grp.add(plano(new T.ShapeGeometry(shapeDe(elipse(ra, rb))), azul, -0.02));
+    const d = (x, z) => Math.hypot((x - lx) / (ra + 12), (z - lz) / (rb + 12)); naAgua = (x, z) => d(x, z) < 1.1; perto = (x, z) => (d(x, z) - 1) * ra; }
+  if (tipo === "litoral") { const zm = zMar = zN - 60 - r() * 20, praia = plano(new T.PlaneGeometry(2 * E + 800, 30), areia, -0.04); praia.position.z = zm + 15; grp.add(praia);
+    const mar = plano(new T.PlaneGeometry(2 * E + 800, E + 400), azul, -0.02); mar.position.z = zm - (E + 400) / 2; grp.add(mar);
+    naAgua = (x, z) => z < zm + 36; perto = (x, z) => z - zm - 30; }
+  // ruas: o anel em volta da esplanada e avenidas a cada 96 m para fora
+  const ruasX = [], ruasZ = [], M = 96;
+  for (let x = cx + 6; x < E; x += M) ruasX.push(x, -x);
+  for (let z = zS + 6; z < zc + E; z += M) ruasZ.push(z);
+  for (let z = zN - 6; z > zc - E && (zMar == null || z > zMar + 36); z -= M) ruasZ.push(z);
+  const asf = new T.MeshLambertMaterial({ color: "#5b5c60" });
+  const z0r = zMar == null ? zc - E : zMar + 30; // no litoral as avenidas acabam na praia
+  for (const x of ruasX) { const p = plano(new T.PlaneGeometry(9, zc + E - z0r), asf, 0.02); p.position.x = x; p.position.z = (z0r + zc + E) / 2; grp.add(p); }
+  for (const z of ruasZ) { const p = plano(new T.PlaneGeometry(2 * E, 9), asf, 0.02); p.position.z = z; grp.add(p); }
+  const naRua = (x, z, f) => ruasX.some(rx => Math.abs(x - rx) < 4.5 + f) || ruasZ.some(rz => Math.abs(z - rz) < 4.5 + f);
+  // lotes de 22 m: prédio, casas, praça ou vazio, conforme o tipo e a distância do estádio
+  const predios = [], casas = [], telhados = [], copas = [], troncos = [], L = 22;
+  const PAREDE = ["#d9d4c7", "#c9c2b2", "#b8b9b5", "#e6e1d3", "#cdbfa6", "#bfb7a8", "#d6cdbb"], VIDRO = ["#8fa6b8", "#6f8799", "#a9bccb", "#7d93a3", "#c2ccd2"];
+  const CASA = ["#efe6d2", "#e8d3b0", "#d9c6a5", "#f2efe6", "#cfd8c4", "#e9c9b5", "#d8dee6"], TELHA = ["#a5462f", "#8e3b28", "#b8593a", "#6b5d55", "#9a4a36"], FOLHA = ["#4f7a2e", "#5e8a35", "#3f6b2a", "#6a9440"];
+  const arvore = (x, z, t) => { const h = t * (5 + r() * 4); troncos.push([x, z, h * 0.35]); copas.push([x, z, h, cor(FOLHA)]); };
+  for (let x = -E; x <= E; x += L) for (let z = zc - E; z <= zc + E; z += L) {
+    const jx = x + (r() - 0.5) * 3, jz = z + (r() - 0.5) * 3, d = Math.hypot(jx, jz - zc) / E;
+    if (d > 1 || (jx > -cx - 6 && jx < cx + 6 && jz > zN - 6 && jz < zS + 6) || naAgua(jx, jz) || naRua(jx, jz, 7)) continue;
+    const u = r(), beira = perto(jx, jz) < 45, dc = Math.max(Math.abs(jx) - cx, zN - jz, jz - zS), baixo = dc < 45; // perto da esplanada, nada alto tampa o estádio
+    if (u < (tipo === "bairro" ? 0.1 : 0.14)) { for (let k = 0; k < 5; k++) arvore(jx + (r() - 0.5) * 16, jz + (r() - 0.5) * 16, 1); continue; } // praça
+    if (u > 0.94) continue; // terreno vazio
+    const alto = tipo === "centro" ? (d < 0.55 ? 0.85 : 0.5) : tipo === "bairro" ? 0.08 : beira ? 0.5 : 0.3;
+    if (r() < alto) { const w = 12 + r() * 7, dpt = 12 + r() * 7, h = tipo === "centro" ? 18 + Math.pow(r(), 1.6) * (d < 0.5 ? 90 : 40) : beira ? 10 + r() * 16 : 8 + r() * 20;
+      predios.push([jx, jz, 0, w, baixo ? Math.min(h, 7 + dc / 4) : h, dpt, cor(h > 30 && !baixo ? VIDRO : PAREDE)]); }
+    else { const n = 2 + ((r() * 3) | 0); for (let k = 0; k < n; k++) { const hx = jx + (k % 2 ? 5 : -5) + (r() - 0.5) * 2, hz = jz + (k > 1 ? 5 : -5) + (r() - 0.5) * 2, w = 6 + r() * 2.5, dd = 5 + r() * 2, h = 3 + r() * 3, rot = r() < 0.5 ? 0 : Math.PI / 2;
+        casas.push([hx, hz, rot, w, h, dd, cor(CASA)]); telhados.push([hx, hz, rot, w, h, dd, cor(TELHA)]); }
+      if (r() < 0.5) arvore(jx + (r() - 0.5) * 18, jz + (r() - 0.5) * 18, 0.8); }
+  }
+  // árvores na beira da água e em volta da esplanada
+  for (let i = 0; i < 160; i++) { const t = r() * 2 * Math.PI, rr = 1 + r() * 0.15, x = Math.cos(t) * (cx + 14) * rr, z = zc + Math.sin(t) * ((zS - zN) / 2 + 14) * rr; if (!naRua(x, z, 2)) arvore(x, z, 0.9); }
+  add(geoUp(new T.BoxGeometry(1, 1, 1)), predios, ([x, z, , w, h, d, c], i, im) => pos(im, i, x, 0, z, 0, w, h, d, c));
+  add(geoUp(new T.BoxGeometry(1, 1, 1)), casas, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, 0, z, rot, w, h, d, c));
+  const tel = new T.ConeGeometry(0.75, 1, 4); tel.rotateY(Math.PI / 4); tel.translate(0, 0.5, 0);
+  add(tel, telhados, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, h, z, rot, w * 1.12, 2.4, d * 1.12, c));
+  add(geoUp(new T.BoxGeometry(1, 1, 1)), troncos, ([x, z, h], i, im) => pos(im, i, x, 0, z, 0, 0.5, h, 0.5, new T.Color("#6b5a45")));
+  add(new T.IcosahedronGeometry(1, 0), copas, ([x, z, h, c], i, im) => pos(im, i, x, h * 0.62, z, r() * 6, h * 0.36, h * 0.42, h * 0.36, c), { flatShading: true });
+  cur.scene.fog = new T.Fog(CEU, cur.dist * 0.95, cur.dist + E * 0.95);
+}
 
 // Barracas de comida e bebida (118_comida_no_estadio.sql) na esplanada: 4 + 2 por nível; a fila em cada uma segue o humor da torcida (0 a 5 pessoas)
 function barracas(aM, bM, topH, dunas, nb, hx) {
