@@ -1485,7 +1485,7 @@ async function telaClube(liga, clube) {
     };
   }
   const muralDaLiga = () => {
-    const l = [], copas = [], mercado = [], vejaJogo = p => ` <a class="lk" href="aovivo.html?id=${p.id}">Ver o jogo</a>`;
+    const l = [], copas = [], mercado = [], vejaJogo = p => ` <a class="lk" style="color:var(--ac)" href="aovivo.html?id=${p.id}">Ver o jogo</a>`;
     // copa: campeão, fase em andamento e os jogos decididos nos pênaltis na última fase encerrada
     if (copaJogos.length) {
       const fases = [...new Set(copaJogos.map(p => p.copa_fase))].sort((a, b) => a - b), daFase = f => copaJogos.filter(p => p.copa_fase === f);
@@ -1493,7 +1493,7 @@ async function telaClube(liga, clube) {
       if (campeao) copas.push(item("🏆", `${lk(campeao)} é o campeão da Copa do Brasil: venceu ${lk(campeao === final.casa ? final.fora : final.casa)} na final, ${copaRes[final.id].gols_casa} x ${copaRes[final.id].gols_fora}${penais(copaRes[final.id])}.${vejaJogo(final)}`));
       else { const f = fases.find(k => daFase(k).some(p => !copaRes[p.id]));
         if (f) { const js = daFase(f), um = js.length === 1 ? js[0] : null;
-          copas.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()}${um ? `, ${lk(um.casa)} x ${lk(um.fora)},` : ""} ${js.some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${um ? "o jogo" : js.length + " jogos"} em ${new Date(js[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}.${um ? vejaJogo(um) : ""} <a class="lk" data-aba-ir="classificacao:copa">Ver a chave</a>`)); } }
+          copas.push(item("🏆", `Copa do Brasil: ${FASES_DA_COPA[f].toLowerCase()}${um ? `, ${lk(um.casa)} x ${lk(um.fora)},` : ""} ${js.some(p => new Date(p.inicio).getTime() <= Date.now()) ? "em andamento" : `sorteada, com ${um ? "o jogo" : js.length + " jogos"} em ${new Date(js[0].inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`}.${um ? vejaJogo(um) + " ·" : ""} <a class="lk" style="color:var(--ac);cursor:pointer" data-aba-ir="classificacao:copa">Ver a chave</a>`)); } }
       const encerrada = fases.filter(k => daFase(k).every(p => copaRes[p.id])).pop();
       if (encerrada && encerrada < 6) daFase(encerrada).filter(p => copaRes[p.id].penaltis).slice(0, 4).forEach(p => { const v = quemPassou(p);
         copas.push(item("🥅", `${lk(v)} eliminou ${lk(v === p.casa ? p.fora : p.casa)} nos pênaltis ${naFase(encerrada)} da copa${penais(copaRes[p.id])}.${vejaJogo(p)}`)); });
