@@ -20,8 +20,17 @@
   .cronometro { display:block; width:max-content; margin:10px auto 0; padding:3px 14px; border-radius:999px; border:1px solid var(--ac); color:var(--ac); font-family:var(--display); font-weight:600; font-size:18px; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
   .esc { display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px; } .esc-j { padding:2px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .esc .pp { min-width:34px; font-size:11px; }
   .estat td { font-variant-numeric:tabular-nums; } .dupla { display:flex; gap:2px; height:4px; margin-top:4px; } .dupla i { display:block; border-radius:2px; } .dupla i.casa { background:var(--casa); } .dupla i.fora { background:var(--fora); } .estat td.casa, .estat td.fora { font-family:var(--display); font-weight:600; font-size:17px; width:22%; }
-  .aovivo { display:grid; grid-template-columns:minmax(0,2fr) minmax(240px,1fr); gap:12px; align-items:start; }
-  @media (max-width:760px) { .aovivo { grid-template-columns:1fr; } }
+  main { max-width:1280px; }
+  /* público, renda e clima: no PC, coluna à direita do placar; no celular, uma fileira embaixo */
+  .topo-g { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:14px; align-items:center; }
+  .topo-g .kpis { grid-template-columns:1fr; gap:6px; margin:0; } .topo-g .kpi { padding:6px 12px; } .topo-g .kpi .kv { font-size:22px; }
+  @media (max-width:760px) { .topo-g { grid-template-columns:1fr; } .topo-g .kpis { grid-template-columns:repeat(3, minmax(0, 1fr)); margin-top:4px; } }
+  /* estatísticas | lances | escalações e rodada; no meio-termo, os lances à esquerda e o resto empilhado à direita */
+  .aovivo { display:grid; grid-template-columns:minmax(230px,1fr) minmax(0,2fr) minmax(250px,1fr); grid-template-areas:"e lan d"; gap:12px; align-items:start; }
+  .aovivo > .lan { grid-area:lan; } .aovivo > .lat-e { grid-area:e; } .aovivo > .lat-d { grid-area:d; }
+  @media (max-width:1060px) { .aovivo { grid-template-columns:minmax(0,2fr) minmax(240px,1fr); grid-template-rows:auto 1fr; grid-template-areas:"lan e" "lan d"; } }
+  @media (max-width:760px) { .aovivo { grid-template-columns:1fr; grid-template-rows:none; grid-template-areas:"lan" "e" "d"; } }
+  .estat th { font-size:13px; padding:0 4px 6px; overflow-wrap:anywhere; }
   .estat { width:100%; } .estat td { text-align:center; padding:5px 4px; } .estat td.esq { text-align:left; }
 </style>
 </head>
@@ -33,7 +42,7 @@
 </main>
 
 <script type="module">
-import { nomeDoGrupo, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
+import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada } from "./src/banco.js";
@@ -120,14 +129,15 @@ function estadoDaRodada(T, meu) {
   return { antes: classificacao(rodada.clubes, rodada.ps, res), agora: classificacao(rodada.clubes, rodada.ps, [...res, ...vivos]), placares };
 }
 // zona da tabela pela posição (0 = líder): A cai 3; nas outras sobe o campeão, do 2º ao 4º é playoff, e na B caem 2
-const divisaoDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BC".includes(g) ? 2 : 3; // 0: país de uma divisão só
+const divisaoDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BCF".includes(g) ? 2 : 3; // 0: país de uma divisão só
 function zonaDaPosicao(i, n) { const d = divisaoDoGrupo(partida.grupo);
-  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : i <= 5 ? "sul" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : i <= 5 ? "sul" : "") : i === 0 ? "sobe" : i <= 3 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
-const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sul: "a zona da Sul-Americana", sobe: "a vaga de acesso direto", playoff: "a zona de playoff", cai: "a zona de descenso" };
+  return !d ? (i === 0 ? "lider" : i <= 2 ? "lib" : i <= 5 ? "sul" : "") : d === 1 ? (i === 0 ? "lider" : i <= 2 ? "lib" : i >= n - 3 ? "cai" : i <= 5 ? "sul" : "") : n <= 8 ? (i <= 1 ? "semi" : i <= 5 ? "playoff" : "") // Série B desde a T14 (grupos de 8): 1º e 2º direto na semifinal, 3º a 6º na preliminar
+    : i === 0 ? "sobe" : i <= 3 ? "playoff" : d === 2 && i >= n - 2 ? "cai" : ""; }
+const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sul: "a zona da Sul-Americana", sobe: "a vaga de acesso direto", semi: "a vaga direta na semifinal do playoff", playoff: "a zona de playoff", cai: "a zona de descenso" };
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";
   const e = estadoDaRodada(T, meu), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—"), posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;
-  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sobe: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
+  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sul: "#4fc3f7", sobe: "var(--ok, #4caf50)", semi: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
   const jogos = rodada.daRodada.map(p => { const x = e.placares[p.id];
     return `<div style="padding:3px 0;${p.id === id ? "font-weight:700" : ""}">${p.id === id ? "" : `<a href="aovivo.html?id=${p.id}" style="color:inherit;text-decoration:none">`}${nome(p.casa)} <b>${x.g ? x.g[0] + " x " + x.g[1] : "x"}</b> ${nome(p.fora)}${p.id === id ? "" : "</a>"} <span class="mut" style="font-weight:400;font-size:12px">${x.fim ? "encerrado" : x.g ? "ao vivo" : hora(p.inicio)}</span></div>`; }).join("");
   const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, z = zonaDaPosicao(i, n), nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
@@ -198,13 +208,13 @@ function momento() {
 
 // escudo e nome do time abrem a página do clube em jogo.html (aba nova, como os links de jogador)
 const lkClube = (id, html, cls = "lkj") => `<a class="${cls}" href="jogo.html#clube=${id}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>`;
-function topo(gols, m, narracao = []) {
+function topo(gols, m, narracao = [], pre = null) {
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
-  $("topo").innerHTML = `<div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · rodada ${partida.rodada}`}</div>
+  $("topo").innerHTML = `<div class="topo-g"><div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>
     <div class="painel"><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} ${svgUniforme(u[0], 26)}</span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} ${svgUniforme(u[1], 26)}</span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div></div>
-    <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}`;
+    <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
 
 const milhar = v => Math.round(v).toLocaleString("pt-BR");
@@ -239,7 +249,8 @@ function htmlEstatisticas(narracao) {
   // barra dividida: a parte de cada time no total da linha (some quando os dois estão em zero ou sem número)
   const barra = v => { const a = parseFloat(String(v[0]).replace(",", ".")), b = parseFloat(String(v[1]).replace(",", ".")); if (!(a + b > 0)) return "";
     return `<div class="dupla"><i class="casa" style="width:${(100 * a / (a + b)).toFixed(1)}%"></i><i class="fora" style="width:${(100 * b / (a + b)).toFixed(1)}%"></i></div>`; };
-  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat">${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
+  const cab = [partida.casa, partida.fora].map((c, i) => `<th class="${COR[i]}">${lkClube(c, esc(clubes[c].nome))}</th>`);
+  return `<div class="card"><h2>Estatísticas <span class="tag">ao vivo</span></h2><table class="estat"><tr>${cab[0]}<th></th>${cab[1]}</tr>${linhas.map(([n, v]) => `<tr><td class="casa">${v[0]}</td><td class="mut">${n}${barra(v)}</td><td class="fora">${v[1]}</td></tr>`).join("")}</table></div>`;
 }
 // abertura, como no Dugout: cara ou coroa, público, clima e as duas escalações
 // cronologico: na reprise, depois do jogo, a abertura vem primeiro e na ordem em que aconteceu
@@ -276,22 +287,22 @@ async function atualizar() {
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
-    topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") });
-    // depois do jogo: público, renda e clima em números no alto; o placar grande já está no topo
-    const numeros = htmlEstadio(pre) + `
+    topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") }, [], pre);
+    // depois do jogo: público, renda e clima ficam no topo, ao lado do placar
+    const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
     $("corpo").innerHTML = numeros + htmlRodada([res.gols_casa, res.gols_fora]) +
       await htmlDiretoria() + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes) });
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
-  topo(gols, m, narracao);
+  topo(gols, m, narracao, pre);
   const notas = notasDosGols(lances), comNota = l => htmlLance(l) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
-    : `${htmlEstadio(pre)}<div class="aovivo"><div class="card"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
+    : `<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
-       <div>${htmlRodada(gols)}${htmlEstatisticas(narracao)}${htmlEscalacoes(pre)}</div></div>`;
+       <div class="lat-d">${htmlEscalacoes(pre)}${htmlRodada(gols)}</div></div>`;
 }
 
 async function iniciar() {
