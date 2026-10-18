@@ -83,7 +83,7 @@ export function svgEscudo(e = {}, sigla = "", tamanho = 48) {
 // arte da marca na camisa (ferramentas/patrocinios.py): mono = uma cor só, branco ou preto conforme a camisa; cor = sem o fundo, colorida
 const NA_CAMISA = { grupo_trem: "mono", gazeta_dugoutense: "mono", dugout_dos_crias: "mono", dobet: "cor" };
 const arteNaCamisa = (marca, c1) => marca + ({ mono: `_camisa_${luz(c1) > 150 ? "escuro" : "claro"}`, cor: "_camisa" }[NA_CAMISA[marca]] || "");
-// uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js)
+// uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
 export function svgUniforme(u = {}, tamanho = 48) {
   const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), cal = cor(u.calcao, "#111111"), id = "pu" + (++serie);
   const manga = cor(u.manga, null), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
@@ -97,9 +97,18 @@ export function svgUniforme(u = {}, tamanho = 48) {
     <path d="M70 6 L90 18 L98 40 L82 46 L78 34 V30 Z" fill="${manga || `url(#${id})`}" stroke="#0f1720" stroke-width="2"/>
     <path d="M30 6 L22 30 V72 H78 V30 L70 6 C64 14 36 14 30 6 Z" fill="url(#${id})" stroke="#0f1720" stroke-width="2"/>
     ${golas[u.golaTipo] || golas.redonda}
-    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="27" y="27" width="46" height="32" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    ${escudoNoPeito(u.escudo, u.sigla)}
+    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="27" y="31" width="46" height="32" preserveAspectRatio="xMidYMid meet"/>` : ""}
     <path d="M23 74 H77 L80 98 H54 L50 88 L46 98 H20 Z" fill="${cal}" stroke="#0f1720" stroke-width="2"/>
     <rect x="25" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/><rect x="58" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/></svg>`;
+}
+
+// escudo pequeno no peito esquerdo de quem veste (à direita de quem olha); imagem enviada entra como <image>
+function escudoNoPeito(e, sigla) {
+  if (!e || typeof e !== "object") return "";
+  const lugar = `x="57" y="15" width="14" height="14"`;
+  if (typeof e.img === "string" && /^\d+-\d+\.(webp|png)$/.test(e.img)) return `<image href="${URL_DOS_ESCUDOS}${e.img}" ${lugar} preserveAspectRatio="xMidYMid meet"/>`;
+  return svgEscudo(e, sigla || "", 1).replace('width="1" height="1"', lugar);
 }
 
 // uniformes de um jogo: o visitante (ou o segundo, em campo neutro) troca para o reserva quando as camisas se parecem

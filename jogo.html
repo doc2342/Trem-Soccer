@@ -406,7 +406,7 @@ setInterval(() => talvezAtualizar(600000), 30000);
 function telaEspera(p) {
   $("app").onclick = $("app").onchange = null;
   $("app").innerHTML = `<div class="card"><h2>Pedido enviado</h2>
-    <div class="previa" style="margin-bottom:10px">${svgEscudo(p.escudo, p.sigla, 110)}${svgUniforme(p.uniforme, 90)}</div>
+    <div class="previa" style="margin-bottom:10px">${svgEscudo(p.escudo, p.sigla, 110)}${svgUniforme({ ...p.uniforme, escudo: p.escudo, sigla: p.sigla }, 90)}</div>
     <div><b>${esc(p.nome)}</b> (${esc(p.sigla)}) está esperando a aprovação do administrador da liga. Assim que ele aprovar, o seu clube aparece aqui, já com 22 jogadores.</div>
     <div class="row" style="margin-top:10px"><button id="verDeNovo">Ver se já foi aprovado</button><span class="mut">Esta página também confere sozinha a cada minuto.</span></div></div>`;
   $("verDeNovo").onclick = () => carregar({ user: usuario });
@@ -1787,7 +1787,7 @@ async function telaClube(liga, clube) {
         Quanto menos luvas, maior o bônus e mais difícil a meta. Na média as três propostas rendem o mesmo: o que muda é o risco.<br>
         Renovar com a mesma marca rende +5% por temporada seguida, até +20%. Você pode trocar até a 1ª rodada; nela a meta é calculada e o contrato fecha.`}</div></div>
       <div class="card"><h2>Marca</h2><div class="row" style="gap:16px;align-items:flex-start">
-        <div style="text-align:center;flex:none">${svgUniforme({ ...clube.uniforme, marca: trava ? e.marca : selM }, 110)}<div class="mut" style="font-size:12px">${(trava ? e.marca : selM) ? "assim fica a camisa" : "escolha uma marca"}</div></div>
+        <div style="text-align:center;flex:none">${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: trava ? e.marca : selM }, 110)}<div class="mut" style="font-size:12px">${(trava ? e.marca : selM) ? "assim fica a camisa" : "escolha uma marca"}</div></div>
         <div class="row" style="gap:10px;align-items:stretch;flex:1 1 300px;min-width:0">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
         return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--line);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
           ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div></div></div>
@@ -1802,7 +1802,7 @@ async function telaClube(liga, clube) {
   let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
   const rotuloTema = () => document.documentElement.dataset.tema === "claro" ? "🌙 Tema escuro" : "☀️ Tema claro";
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
-  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
+  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
@@ -2237,7 +2237,7 @@ ${historicoDaBase()}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, marca: marcas[id] }, 46)}
+        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <div class="patro-topo">${patroMaster(marcas[id])}</div>

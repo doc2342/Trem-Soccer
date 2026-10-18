@@ -212,7 +212,7 @@ async function iniciarOnline(sessaoDeTeste) {
   if (cabecalho) try {
     const [V, ligaC, admin] = await Promise.all([import("./escudo.js"), B.ligaAtual(), B.ehAdmin().catch(() => false)]);
     $("cabecalho").innerHTML = `<div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" style="margin-left:auto">${esc(s.user.email || "")}</span></div>
-      <div class="card topo">${V.svgEscudo(clubeOnline.escudo, clubeOnline.sigla, 72)}${V.svgUniforme(clubeOnline.uniforme, 52)}
+      <div class="card topo">${V.svgEscudo(clubeOnline.escudo, clubeOnline.sigla, 72)}${V.svgUniforme({ ...clubeOnline.uniforme, escudo: clubeOnline.escudo, sigla: clubeOnline.sigla }, 52)}
         <div><h2 style="margin:0;font-size:22px">${esc(clubeOnline.nome)}</h2>
           ${clubeOnline.dirigente ? `<div style="font-size:15px">${esc(clubeOnline.dirigente)}</div>` : ""}
           <div class="mut">${esc(ligaC.nome)} · temporada ${ligaC.temporada} · ${esc(B.nomeDoGrupo(clubeOnline.grupo))}</div></div>

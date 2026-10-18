@@ -238,7 +238,7 @@ function momento() {
 // escudo e nome do time abrem a página do clube em jogo.html (aba nova, como os links de jogador)
 const lkClube = (id, html, cls = "lkj") => `<a class="${cls}" href="jogo.html#clube=${id}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>`;
 function topo(gols, m, narracao = [], pre = null) {
-  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}).map((x, i) => ({ ...x, marca: c[i].marca })); // o segundo usa o reserva se as camisas se parecem
+  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}).map((x, i) => ({ ...x, escudo: c[i].escudo, sigla: c[i].sigla, marca: c[i].marca })); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)

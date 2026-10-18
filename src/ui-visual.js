@@ -18,10 +18,11 @@ export function editorVisual(raiz, F, opcoes = {}) {
     return `<label class="ev-cor">${rotulo}<div class="cores">${automatico ? `<span data-cor="" data-alvo="${a}" data-campo="${campo}" class="${!hex(atual) ? "sel" : ""}" title="${esc(automatico)}" style="background:repeating-linear-gradient(45deg,#2a3542 0 4px,#1a222c 4px 8px)"></span>` : ""}
       ${CORES.map(c => `<span data-cor="${c}" data-alvo="${a}" data-campo="${campo}" class="${atual === c ? "sel" : ""}" style="background:${c}"></span>`).join("")}
       <input type="color" data-livre="1" data-alvo="${a}" data-campo="${campo}" value="${hex(atual) ? atual : "#888888"}" title="Outra cor" style="width:28px;height:24px;padding:0;border:none;background:none"></div></label>`; };
+  const comEscudo = u => ({ ...u, escudo: { ...F.escudo, img: null }, sigla: sigla() }); // a prévia da camisa leva o escudo no peito
   const previa = () => parte === "escudo" ? svgEscudo({ ...F.escudo, img: null }, sigla(), 120)
-    : parte ? `${svgUniforme(alvo("uniforme"), 100)}${parte === "reserva" ? `<div style="text-align:center;opacity:.75">${svgUniforme(F.uniforme, 60)}<div class="mut" style="font-size:11px">titular</div></div>` : ""}`
-    : `${svgEscudo({ ...F.escudo, img: null }, sigla(), 110)}<div style="text-align:center">${svgUniforme(F.uniforme, 74)}<div class="mut" style="font-size:11px">titular</div></div>
-    <div style="text-align:center">${svgUniforme(F.uniforme.reserva || {}, 74)}<div class="mut" style="font-size:11px">reserva</div></div>`;
+    : parte ? `${svgUniforme(comEscudo(alvo("uniforme")), 100)}${parte === "reserva" ? `<div style="text-align:center;opacity:.75">${svgUniforme(comEscudo(F.uniforme), 60)}<div class="mut" style="font-size:11px">titular</div></div>` : ""}`
+    : `${svgEscudo({ ...F.escudo, img: null }, sigla(), 110)}<div style="text-align:center">${svgUniforme(comEscudo(F.uniforme), 74)}<div class="mut" style="font-size:11px">titular</div></div>
+    <div style="text-align:center">${svgUniforme(comEscudo(F.uniforme.reserva || {}), 74)}<div class="mut" style="font-size:11px">reserva</div></div>`;
   const desenhar = () => {
     const u = alvo("uniforme"), e = F.escudo;
     const blocoEscudo = `<div class="row" style="margin-top:6px"><label>Forma<select data-alvo="escudo" data-campo="forma">${opc(FORMAS, e.forma || "escudo")}</select></label>
