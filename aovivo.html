@@ -14,7 +14,7 @@
   .painel .gols { font-family:var(--display); font-size:64px; font-weight:700; line-height:1; white-space:nowrap; font-variant-numeric:tabular-nums; }
   /* uniformes: no PC, grandes nas pontas do placar; no celular, pequenos ao lado do escudo */
   .painel .uni-g { display:none; }
-  @media (min-width:761px) { .painel { grid-template-columns:auto minmax(0, 190px) auto minmax(0, 190px) auto; justify-content:center; max-width:none; gap:12px; } .painel .uni-g { display:block; } .painel .uni-p { display:none; } }
+  @media (min-width:761px) { .painel { grid-template-columns:repeat(5, auto); justify-content:center; max-width:none; gap:10px 14px; } .painel .time { max-width:200px; } .painel .uni-g { display:block; } .painel .uni-p { display:none; } }
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
