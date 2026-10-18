@@ -419,7 +419,8 @@ const __motor = (() => {
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
     contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.85, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
     // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
-    impedimento: { semLinha: 0.07, porPasse: { curto: 0.2, misto: 0.28, longo: 0.58 }, porComunicacao: 0.01, libero: -0.15, noContraAtaque: 0.3, furou: 1.35, furouNoContraAtaque: 1.6 },
+    impedimento: { semLinha: 0.07, porPasse: { curto: 0.2, misto: 0.28, longo: 0.58 }, porComunicacao: 0.01, libero: -0.15, noContraAtaque: 0.3, furou: 1.35, furouNoContraAtaque: 1.6,
+      naPerda: { base: 0.2, linha: 1.6, longo: 1.4, curto: 0.7 } }, // bola perdida no ataque que vira impedimento (só muda a narração e a falta; o futebol real tem ~4 por jogo)
     capitao: 0.002, // por ponto de Influência acima de 25, quando o time está perdendo
     pesoArmador: 2, pesoAlvo: 1.8,
     comunicacaoGoleiro: 0.002, // por ponto de Comunicação do goleiro acima de 25: defesa do centro
@@ -765,7 +766,7 @@ const __motor = (() => {
     // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
     // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
     // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
-    let atacante = null, ultimoNarrado = null, aposFalta = false; // aposFalta: a jogada recomeça com a cobrança de uma falta // time do ataque em andamento e do último ataque que foi narrado
+    let atacante = null, ultimoNarrado = null, aposFalta = false, impedido = false; // aposFalta: a jogada recomeça com a cobrança de uma falta // time do ataque em andamento e do último ataque que foi narrado
     let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
     const RODA = [
       (j, t, onde) => `${j} não acha espaço ${onde}, recua e o ${t} roda a bola.`,
@@ -773,6 +774,12 @@ const __motor = (() => {
       (j, t, onde) => `${j} prefere não arriscar ${onde} e recomeça a jogada por trás.`,
       (j, t, onde) => `Sem opção ${onde}, ${j} toca para trás e o ${t} vira o jogo.`,
     ]; // saida: time que dá a saída depois de sofrer um gol
+    const IMPEDIDO = [
+      (p, a) => `${p} tenta o passe, mas ${a} está em impedimento.`,
+      (p, a) => `${p} enfia a bola para ${a}, mas o bandeirinha levanta a bandeira: impedimento.`,
+      (p, a) => `${a} se adianta antes do passe de ${p} e fica impedido.`,
+      (p, a) => `${p} procura ${a} nas costas da zaga, mas ele estava à frente da linha: impedimento.`,
+    ];
     // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
     const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
     const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
@@ -801,6 +808,7 @@ const __motor = (() => {
       else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás com facilidade` : `supera ${nm(m)}`] : facil ? ["com todo o espaço do mundo"] : [])]);
     }
     function perdaDePosse(i, zona, d) {
+      impedido = false;
       // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
       bola = { time: 1 - i, zona: zona[0] === "D" ? "A" : zona[0] === "M" ? "M" : "D" };
       const onde = ONDE[zona[0]](zona[1]);
@@ -819,6 +827,12 @@ const __motor = (() => {
       if (!d.pivo) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} recupera a bola ${onde}.`)); return true; }
       const p = d.pivo, m = d.marcador;
       recebe(p);
+      if (zona[0] === "A") { // o passe para quem estava adiantado: impedimento, falta indireta para a defesa (a bola vai para ela como em qualquer perda)
+        const K = CONFIG.impedimento.naPerda, I = times[i].instr, alvo = sortearPeso(rng, times[i].zonas.AC.filter(o => o.jog !== p), o => o.w);
+        if (alvo && rng.chance(K.base * (times[1 - i].instr.impedimento ? K.linha : 1) * (I.passe === "longo" ? K.longo : I.passe === "curto" ? K.curto : 1))) {
+          estat[i].impedimentos++; impedido = true; evento(i, "impedimento", comTrilha(IMPEDIDO[seq % IMPEDIDO.length](nm(p), nm(alvo.jog)))); return true;
+        }
+      }
       const molhado = 1 + CONFIG.chuva.erros * chuva, causas = [["dominio", (60 - p.at[A.dom]) * molhado], ["passe", (60 - p.at[A.pas]) * molhado]];
       if (m) causas.push(["desarme", 20 + m.at[A.des]], ["corte", 20 + m.at[A.pos]]);
       // os sorteios seguem a ordem antiga (quando só parte das perdas era narrada), para a mesma semente continuar dando o mesmo jogo
@@ -1011,7 +1025,7 @@ const __motor = (() => {
         // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
         const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
         const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada);
-        if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+        if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
       };
       e.ataques++; trilha = []; portador = null; bola = null; aposFalta = false;
       soltarCartoes();
