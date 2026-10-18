@@ -112,6 +112,8 @@
   .mural { display:flex; flex-direction:column; }
   .mural > div { display:flex; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
   .mural > div:last-child { border-bottom:0; }
+  .mural > div[data-manchete] { font-size:15px; padding:10px 0; line-height:1.35; }
+  .mural > div[data-manchete] .ic { font-size:18px; width:24px; }
   .mural .ic { flex:none; width:20px; text-align:center; }
   .mural > div.urg { border-left:3px solid var(--ac); padding-left:8px; }
   .mural > div[data-aba-ir] { cursor:pointer; }
@@ -1502,7 +1504,16 @@ async function telaClube(liga, clube) {
       t.tipo === "livre" ? `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) estava livre e assinou com ${lk(t.para_clube)}.`
         : `${lj(t.jogador_id, t.jogador)} (${esc(sg(t.pos || ""))}) trocou ${lk(t.de_clube)} por ${lk(t.para_clube)} por ${dinheiro(t.valor)}${t.tipo === "multa" ? ", pela multa rescisória" : t.tipo === "divida" ? ", em oferta de clube no vermelho" : ""}.`));
     if (negocios.length) l.push(`<div><details style="flex:1"><summary style="cursor:pointer"><span class="ic">🔁</span> ${negocios.length === 1 ? "1 transferência recente" : `${negocios.length} transferências recentes`}</summary><div class="mural">${negocios.join("")}</div></details></div>`);
-    return l.join("") || `<div data-vazio>${item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut")}</div>`;
+    return l;
+  };
+  // o mural mostra só as manchetes (as de mais peso, com o seu clube na frente); o resto fica fechado em "Mais notícias"
+  const PESO_DA_NOTICIA = { "🏆": 6, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
+  const desenharMural = itens => {
+    if (!itens.length) return item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut");
+    const peso = h => h.startsWith("<div><details") ? -1 : (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
+    const ord = itens.map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]), n = telaPequena ? 3 : 4;
+    return ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
+      + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n} ${ord.length - n === 1 ? "notícia" : "notícias"}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
   };
   // Notícias da liga: geradas na hora (nada gravado no banco) com os jogos dos grupos que têm dirigente, a artilharia e a última virada.
   // Duelo de dirigentes: uma manchete pelo que o jogo teve de mais marcante (hat-trick, virada, gol no fim, revanche do turno, goleada, 0 x 0…),
@@ -1677,7 +1688,7 @@ async function telaClube(liga, clube) {
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
       <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
       <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
-    <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${muralDaLiga()}</div></div>
+    <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div>
     </div>
     <div>
     <div class="card c-mural"><h2>Mural do clube</h2><div class="mural" id="muralClube">${muralDoClube()}</div></div>
@@ -2260,7 +2271,7 @@ ${historicoDaBase()}
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
-  noticiasDaLiga().then(l => { const m = $("muralLiga"); if (!l.length || !m) return; m.querySelector("[data-vazio]")?.remove(); m.insertAdjacentHTML("afterbegin", l.join("")); }).catch(() => {});
+  noticiasDaLiga().then(l => { const m = $("muralLiga"); if (!l.length || !m) return; m.innerHTML = desenharMural([...l, ...muralDaLiga()]); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   if ($("modoTela")) $("modoTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
