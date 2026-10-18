@@ -25,17 +25,20 @@ const partidas = await tudo(`partidas?select=id,grupo,rodada,fase,casa,fora&liga
 const resultados = await tudo("resultados?select=partida_id,gols_casa,gols_fora&order=partida_id");
 const nomes = JSON.parse(fs.readFileSync(new URL("../dados/nomes.json", import.meta.url), "utf8"));
 const doElenco = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, salario: l.salario, contratoAte: l.contrato_ate,
-  naoRenovar: !!l.nao_renovar, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em, emprestadoDe: l.emprestado_de });
+  naoRenovar: !!l.nao_renovar, formador: l.formador, juvenil: !!l.juvenil, aposentaEm: l.aposenta_em, emprestadoDe: l.emprestado_de });
 const elencos = {}; for (const l of jog) if (l.clube_id) (elencos[l.clube_id] = elencos[l.clube_id] || []).push(doElenco(l));
 const doBrasil = () => clubes.filter(c => !["ARG", "URU", "COL", "CHI"].includes(c.grupo));
 const conta = () => Object.fromEntries([...new Set(clubes.map(c => c.grupo))].sort().map(g => [g, clubes.filter(c => c.grupo === g).length]));
 console.log(`Liga ${liga.id}, temporada ${liga.temporada}: ${clubes.length} clubes`, conta(), `· ${resultados.length} resultados`);
 
+const nome = id => clubes.find(c => c.id === id).nome;
+// a transição já rodou na virada real da T14 (a pirâmide de hoje é a de depois dela): refazer em cima dela moveria os clubes de novo
+if (liga.temporada < 14) {
 // ---------- 1. transição ----------
 const plano1 = planejarVirada({ rng: criarRng(13), liga, clubes, elencos, talentos: {}, partidas, resultados, nomes, comLivres: true, juvenis: true, transicao: true });
 const { plano, resumo } = plano1;
 const para = Object.fromEntries(plano.movimentos.map(m => [m.clube_id, m]));
-const nome = id => clubes.find(c => c.id === id).nome, ativo = c => c.dono && (c.extra || (c.ultimo_acesso && Date.now() - new Date(c.ultimo_acesso) <= 21 * 86400000));
+const ativo = c => c.dono && (c.extra || (c.ultimo_acesso && Date.now() - new Date(c.ultimo_acesso) <= 21 * 86400000));
 for (const c of clubes) if (para[c.id]) { c.grupo = para[c.id].grupo; c.divisao = para[c.id].divisao; }
 console.log("Depois da transição:", conta());
 assert.deepEqual(Object.fromEntries(["A", "B", "C", "F", "X"].map(g => [g, conta()[g]])), { A: 12, B: 8, C: 8, F: 8, X: 14 });
@@ -49,6 +52,9 @@ assert.equal(plano.classificacao.length, clubes.length - 0, "uma linha de histó
 assert.equal(plano.livres.filter(x => guardados.some(c => (elencos[c.id] || []).some(j => j.id === "j" + x.id))).length, 0, "guardado soltou jogador no mercado");
 assert.equal(plano.safra.filter(x => guardados.some(c => c.id === x.clube_id)).length, 0, "safra em guardado");
 console.log(`Plano: ${plano.aposentados.length} aposentados, ${plano.novos.length} jovens, ${plano.livres.length} livres, prêmios ${plano.classificacao.reduce((s, x) => s + x.premio, 0)} mil`);
+
+} else console.log("Transição já feita na T14: ensaio só da T14 → T15.");
+const guardados = clubes.filter(c => c.grupo === GUARDADO);
 
 // ---------- 2. T14 de mentira e a virada normal ----------
 // os jogadores do plano: idade nova; aposentados saem (o suficiente para o próximo plano)
