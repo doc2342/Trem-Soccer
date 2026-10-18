@@ -1477,7 +1477,8 @@ async function telaClube(liga, clube) {
     const obraAgora = obra ? obra.estrutura + ":" + obra.nivel_alvo : null;
     if (f.obra && f.obra !== obraAgora) { const [k, nv] = f.obra.split(":"); l.push(item("🏗️", `Obra concluída: ${esc((ESTRUTURAS.find(x => x[0] === k) || [])[1] || k)} no nível ${nv}.`, "ok", "estruturas")); }
     if (clube.confianca != null && f.conf != null && clube.confianca !== f.conf) l.push(item("🏛️", `Confiança da diretoria: ${f.conf} → ${clube.confianca}. ${fraseDoPresidente(clube.confianca)}`, clube.confianca > f.conf ? "ok" : "aviso"));
-    if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; l.push(item("🔍", `${n === 1 ? "1 relatório novo" : n + " relatórios novos"} do olheiro.`, "", "mercado")); }
+    if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; const quem = (extrato || []).filter(x => x.tipo === "olheiro").slice(0, n).map(x => esc(String(x.descricao || "").replace(/^Relatório de olheiro: /, "")));
+      l.push(item("🔍", `${n === 1 ? "1 relatório de olheiro comprado" : n + " relatórios de olheiro comprados"}${quem.length ? `: ${quem.join(", ")}` : ""}. Fica na ficha do jogador.`, "", "mercado")); }
     el.innerHTML = l.length ? `<div class="card c-chegada"><h2>Desde a sua última visita <span class="tag">${desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
         <button class="sec" id="visitaOk" style="float:right;padding:2px 10px;font-size:12.5px">Entendi</button></h2><div class="mural">${l.join("")}</div></div>` : "";
     el.onclick = e => {
@@ -2055,6 +2056,7 @@ ${historicoDaBase()}
         catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("pcEnviar")) $("pcEnviar").disabled = false; }
       };
       alvo.querySelectorAll("[data-relatorio]").forEach(b => { b.onclick = async () => {
+        if (!confirm(`Comprar o relatório ${b.textContent.trim().replace(" · ", " de ")} sobre ${j.nome}? O valor sai do caixa na hora.`)) return;
         b.disabled = true;
         try { recado = await comprarRelatorio(j.id, +b.dataset.relatorio); await carregar({ user: usuario }); }
         catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; b.disabled = false; }
