@@ -282,6 +282,17 @@ document.addEventListener("click", e => {
 // fecha pelo link da ficha, pelo Esc (close) ou pelo botão de voltar do aparelho (popstate); chamada mais de uma vez, só a primeira age
 const fecharJogador = window.fecharJogador = () => { if (!quadro.innerHTML) return; quadro.innerHTML = ""; if (quadro.open) quadro.close(); if (history.state && history.state.jogador) history.back(); };
 quadro.addEventListener("close", fecharJogador); addEventListener("popstate", fecharJogador);
+// botão do meio ou ctrl+clique em atalhos que não são links (clube, aba, aba interna, jogador do mercado): abre o endereço deles em outra aba
+const enderecoDe = el => el.closest("#meusClubes") ? "" : el.dataset.clube ? "#clube=" + el.dataset.clube : el.dataset.mjog ? "jogador.html?id=" + String(el.dataset.mjog).replace(/\D/g, "")
+  : el.dataset.abaIr ? (el.dataset.abaIr === "amistoso" ? "" : "#" + el.dataset.abaIr) : el.dataset.sub ? "#" + el.dataset.sub : el.dataset.aba ? "#" + el.dataset.aba : "";
+const outraAba = e => {
+  if (!e.target.closest || e.target.closest("a[href]") || !(e.button === 1 || (e.button === 0 && (e.ctrlKey || e.metaKey)))) return;
+  const el = e.target.closest("[data-clube], [data-mjog], [data-aba-ir], [data-sub], [data-aba]"), url = el && enderecoDe(el);
+  if (!url) return;
+  e.preventDefault(); e.stopPropagation(); open(url, "_blank");
+};
+addEventListener("auxclick", outraAba, true); addEventListener("click", outraAba, true);
+addEventListener("mousedown", e => { if (e.button === 1 && e.target.closest && e.target.closest("[data-clube], [data-mjog], [data-aba-ir], [data-sub], [data-aba]")) e.preventDefault(); }); // sem a rolagem automática do botão do meio
 const f1 = v => v.toFixed(1).replace(".", ",");
 const corAtr = v => "a" + (v < 10 ? 0 : v < 20 ? 1 : v < 30 ? 2 : v < 40 ? 3 : 4);
 let usuario = null, versao = 0;
@@ -1334,7 +1345,7 @@ async function telaClube(liga, clube) {
   // murais da Central
   // ir: aba (ou "aba:interna") que a linha abre ao ser clicada
   const item = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
-  const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
+  const lk = id => cPor[id] ? `<a class="lk" href="#clube=${id}" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
   const nomes = l2 => l2.slice(0, 6).map(j => esc(j.nome)).join(", ") + (l2.length > 6 ? " e outros" : "");
   // renovação automática (99_renovacao_automatica.sql): na virada quem vence renova por uma temporada, pelo maior entre o salário e o de mercado,
   // menos os marcados "não renovar"; se a folha passar do teto, os renovados mais caros saem (a mesma conta de src/virada.js, com o mercado de hoje)
@@ -2262,7 +2273,7 @@ ${historicoDaBase()}
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
   // qualquer nome de clube com atalho abre a página dele (o próprio clube leva a Clube, Elenco)
   $("app").addEventListener("click", e => {
-    const a = e.target.closest("[data-clube]"); if (!a) return;
+    const a = e.target.closest("[data-clube]"); if (!a || e.ctrlKey || e.metaKey) return;
     e.preventDefault(); const id = +a.dataset.clube;
     if (id === clube.id) abrir("elenco"); else if (paginaDoClube) paginaDoClube(id);
   });
