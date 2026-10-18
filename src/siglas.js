@@ -17,7 +17,8 @@ export const sg = pos => formatoDasSiglas() === "pt" ? (SIGLAS_PT[pos] || pos) :
 // pastilha da posição: a sigla no formato escolhido e, ao passar o mouse, o nome completo
 // a cor diz o setor, como num painel de clube: goleiro laranja, defesa azul, meio verde, ataque vermelho
 const SETOR = { gol: "s-gk", defesa: "s-df", ala: "s-df", volante: "s-md", meio: "s-md", meia: "s-md", ataque: "s-fw" };
-export const pp = pos => `<span class="pp ${POSICOES[pos] ? SETOR[POSICOES[pos].linha] || "" : ""}" title="${POSICOES[pos] ? POSICOES[pos].nome : ""}">${sg(pos || "")}</span>`;
+export const corDoSetor = pos => POSICOES[pos] ? SETOR[POSICOES[pos].linha] || "" : "";
+export const pp = pos => `<span class="pp ${corDoSetor(pos)}" title="${POSICOES[pos] ? POSICOES[pos].nome : ""}">${sg(pos || "")}</span>`;
 
 // Desenho do campinho: cada fila é uma faixa do campo (ataque, meia, meio, volantes e alas juntos, defesa, gol).
 // Quem joga pelo lado fica na ponta da fila e os de centro no meio, numa grade de 10 colunas em que cada jogador ocupa 2.
