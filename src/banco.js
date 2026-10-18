@@ -295,7 +295,7 @@ export async function jogosDaBaseNaTemporada(ligaId, temporada, grupo) {
   return separarBase(todos);
 }
 export function separarBase(todos) {
-  const mataMata = f => todos.filter(p => p.fase === f).map(({ dados, ...p }) => ({ ...p, penaltis: dados && dados.penaltis !== undefined ? dados.penaltis : null })).sort((a, b) => a.copinha_fase - b.copinha_fase || a.id - b.id);
+  const mataMata = f => todos.filter(p => p.fase === f).map(p => ({ ...p, penaltis: p.dados && p.dados.penaltis !== undefined ? p.dados.penaltis : null })) // dados ficam: o relatório dos meus jogos usa.sort((a, b) => a.copinha_fase - b.copinha_fase || a.id - b.id);
   return [todos.filter(p => p.fase !== "copinha" && p.fase !== "libjuv").sort((a, b) => a.rodada - b.rodada || a.id - b.id), mataMata("copinha"), mataMata("libjuv")];
 }
 // histórico da base: jogos das temporadas anteriores, que a virada não apaga (a liga de base de um grupo, sem as escalações, e a Copinha)

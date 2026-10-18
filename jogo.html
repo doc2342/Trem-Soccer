@@ -198,7 +198,8 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
 import { CONFIG_MERCADO_BOTS } from "./src/mercadobots.js";
 const prazoEmTexto = h => h >= 48 ? Math.round(h / 24) + " dias" : h >= 1 ? Math.round(h) + " horas" : Math.round(h * 60) + " minutos";
-import { escalacaoDaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE } from "./src/ligabase.js";
+import { escalacaoDaBase, esquemaDaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE } from "./src/ligabase.js";
+import { FORMACOES } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
@@ -858,6 +859,14 @@ async function telaClube(liga, clube) {
       ${l.map(linha).join("") || `<tr><td colspan="13" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
   };
   // Mata-mata da base (Copinha e Libertadores Juvenil): a mesma chave, com fases numeradas como as da Copa
+  // relatório curto de um jogo da base: quem jogou pelo meu time (posição, nome, nota) e, nos jogos guardados com eles, estatísticas e o analista
+  const relatorioDaBase = p => { const eu = p.casa === clube.id ? 0 : 1, d = p.dados || {};
+    const jog = (d.jogadores || []).filter(x => x.t === eu).map(x => String(x.id).startsWith("j") ? `${esc(sg(x.p))} <b style="color:var(--tx)">${esc(x.n)}</b> ${f1(x.nota)}` : `${esc(sg(x.p))} garoto ${f1(x.nota)}`).join(" · ");
+    const linha = (t, f) => `<tr><td>${f(d.est[0])}</td><td class="mut">${t}</td><td>${f(d.est[1])}</td></tr>`;
+    const est = d.est ? `<table class="mini" style="margin-top:6px;text-align:center"><tr><th>${esc((cPor[p.casa] || {}).nome || "")}</th><th></th><th>${esc((cPor[p.fora] || {}).nome || "")}</th></tr>
+      ${linha("Posse", e => e.po + "%")}${linha("Finalizações (no gol)", e => `${e.f} (${e.ng})`)}${linha("xG", e => e.xg.toFixed(2).replace(".", ","))}${linha("Escanteios", e => e.es)}${linha("Faltas", e => e.fa)}${linha("Cartões", e => e.am + (e.vm ? ` + ${e.vm} 🟥` : ""))}</table>` : "";
+    const an = d.an && d.an[eu] && d.an[eu].length ? `<div style="margin-top:6px"><b>Analista</b><ul style="margin:2px 0 0;padding-left:18px">${d.an[eu].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>` : "";
+    return `<div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${jog}${est}${an}</div>`; };
   const cartaoDeMataMata = (jogos, titulo, vazio, diretos, regrasProprias) => {
     if (jogos == null) return "";
     const regras = regrasProprias || `<div class="mut" style="font-size:12px">Mata-mata com os 50 clubes, nas mesmas datas da Copa do Brasil e com o time da base (juvenis, profissionais formados no clube de até 21 anos e garotos da escolinha). Empate vai direto aos pênaltis. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino. O campeão recebe ${dinheiro(200)} e o vice ${dinheiro(100)}, do fundo da liga.</div>`;
@@ -874,7 +883,8 @@ async function telaClube(liga, clube) {
       : !ult.processada ? `Próximo jogo: ${FASES_DA_COPA[ult.copinha_fase].toLowerCase()}, ${lk(ult.casa)} x ${lk(ult.fora)}, ${quandoC(ult.inicio)}.`
       : ult.vencedor === clube.id ? `Seu clube passou ${ult.copinha_fase === 3 ? "das" : "da"} ${FASES_DA_COPA[ult.copinha_fase].toLowerCase()} e espera o sorteio.` : `Seu clube caiu ${ult.copinha_fase === 3 ? "nas" : "na"} ${FASES_DA_COPA[ult.copinha_fase].toLowerCase()}.`;
     return `<div class="card"><h2>${titulo} <span class="tag">${FASES_DA_COPA[ultima]}</span></h2><div>${situacao}</div>
-      ${meus.length ? `<div style="margin-top:8px"><b>Seu caminho</b>${meus.map(p => `<div style="margin-top:3px"><span class="mut">${FASES_DA_COPA[p.copinha_fase]}:</span> ${linhaC(p).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}</div>`).join("")}</div>` : ""}
+      ${meus.length ? `<div style="margin-top:8px;display:flex;flex-direction:column"><b>Seu caminho</b>${meus.map(p => { const t = `<span class="mut">${FASES_DA_COPA[p.copinha_fase]}:</span> ${linhaC(p).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}`;
+        return p.dados && p.gols_casa != null ? `<details style="margin-top:3px"><summary style="cursor:pointer">${t}</summary>${relatorioDaBase(p)}</details>` : `<div style="margin-top:3px">${t}</div>`; }).join("")}</div>` : ""}
       <details style="margin-top:8px" ${meus.length && !final ? "" : "open"}><summary style="cursor:pointer"><b>Chave</b> <span class="mut">· ${jogos.length} ${jogos.length === 1 ? "jogo" : "jogos"}</span></summary>
         ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor, titulo === "Copinha" && liga.copa ? liga.copa.copinha_chave32 : null)}</details>${comoFunciona(regras)}</div>`;
   };
@@ -895,7 +905,9 @@ async function telaClube(liga, clube) {
     for (const x of (p.dados && p.dados.jogadores) || []) if (x.t === eu) { const n = naBase[x.id] = naBase[x.id] || { j: 0, min: 0, g: 0, nota: 0 }; n.j++; n.min += x.min || 0; n.g += x.g || 0; n.nota += x.nota || 0; } }
   const jaJogou = Object.fromEntries(Object.entries(naBase).map(([id, n]) => [id, n.min]));
   const formacaoDaBase = tatica && tatica.dados && Array.isArray(tatica.dados.vagas) && tatica.dados.vagas.length === 11 ? tatica.dados.vagas : null;
-  const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: formacaoDaBase, fixos: taticaBase && taticaBase.dados && taticaBase.dados.fixos }) : null;
+  // esquema próprio da base (taticas_base.dados.esquema); sem ele, o do time principal
+  const esquemaProprio = taticaBase && taticaBase.dados && FORMACOES[taticaBase.dados.esquema] ? taticaBase.dados.esquema : null, vagasDaBase = esquemaDaBase(taticaBase && taticaBase.dados, formacaoDaBase);
+  const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: vagasDaBase, fixos: taticaBase && taticaBase.dados && taticaBase.dados.fixos }) : null;
   const ordemBase = (a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos);
   const conheceBase = (j, pos) => (j.fam || {})[pos] === "N" ? "" : (j.fam || {})[pos] === "C" ? "competente" : "improvisado";
   // Juvenis: a tabela dos jovens do clube, com os números da base e a comparação com o titular da tática principal
@@ -926,7 +938,7 @@ async function telaClube(liga, clube) {
   const abaEscalacao = () => {
     if (baseJogos == null) return "";
     if (!prevista) return `<div class="card"><h2>Escalação da base</h2><div class="mut">Nenhum juvenil nem profissional formado no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</div></div>`;
-    const editavel = taticaBase !== undefined && !!formacaoDaBase;
+    const editavel = taticaBase !== undefined && !!vagasDaBase;
     const d = (taticaBase && taticaBase.dados) || {}, fixos = d.fixos || {}, instr = d.instr || {};
     const candidatos = [...meusJuvenis.map(j => ({ ...j, juvenil: true })), ...meusProfs].sort(ordemBase);
     const vaga = (i, col) => { const v = prevista.vagas[i], pos = v.pos, c = v.j ? conheceBase(v.j, pos) : "";
@@ -939,10 +951,13 @@ async function telaClube(liga, clube) {
     const fora = prevista.fora.length ? `<div class="aviso" style="margin-top:4px">Sem jogo nesta rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")} (o rodízio dá a vez a eles nas próximas)</div>` : "";
     const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
     const aviso = taticaBase === undefined ? `<div class="mut" style="margin-top:6px">A tática da base ainda não está ligada no servidor: a escalação é automática.</div>`
-      : !formacaoDaBase ? `<div class="aviso" style="margin-top:6px">Salve a tática do time principal: a base joga no mesmo esquema e só então dá para escolher quem joga onde. Até lá vale o esquema que melhor encaixa os juvenis (${esc(prevista.nome)}).</div>` : "";
-    return `<details class="card" id="baseEsc"><summary><h2>Escalação da base <span class="tag">${formacaoDaBase ? "esquema do time principal" : esc(prevista.nome)}</span>${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2></summary>
+      : !vagasDaBase ? `<div class="aviso" style="margin-top:6px">Escolha um esquema para a base (ou salve a tática do time principal) para poder escolher quem joga onde. Até lá vale o esquema que melhor encaixa os juvenis (${esc(prevista.nome)}).</div>` : "";
+    // trocar o esquema salva na hora (a tela redesenha as vagas); os fixados que continuam numa vaga da mesma posição ficam
+    const seletorDeEsquema = taticaBase === undefined ? "" : `<div style="margin-top:8px"><b>Esquema</b> <select id="tbEsquema"><option value="">igual ao time principal${formacaoDaBase ? "" : " (ainda sem tática)"}</option>${Object.keys(FORMACOES).map(k => `<option ${k === esquemaProprio ? "selected" : ""}>${esc(k)}</option>`).join("")}</select>
+      <span class="mut" style="font-size:12px">· a base pode jogar num esquema diferente do principal, por exemplo para treinar posições que você ainda não usa</span> <span id="tbEsqAviso"></span></div>`;
+    return `<details class="card" id="baseEsc"><summary><h2>Escalação da base <span class="tag">${esquemaProprio ? esc(esquemaProprio) : formacaoDaBase ? "esquema do time principal" : esc(prevista.nome)}</span>${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2></summary>
       <div class="mut" style="font-size:12px">Em cada vaga, quem joga a próxima partida. Escolha um jogador para fixá-lo (📌): ele começa jogando e não sai no intervalo. Em "automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos.</div>
-      ${aviso}${campo}${intervalo}${fora}
+      ${seletorDeEsquema}${aviso}${campo}${intervalo}${fora}
       <div style="margin-top:10px"><b>Estilo</b> <span class="mut" style="font-size:12px">· em "como o bot", fica o que o bot escolheria</span></div><div>${Object.keys(INSTRUCOES_DA_BASE).map(opcao).join("")}</div>
       ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar">Salvar a escalação da base</button><span id="tbAviso"></span></div>` : ""}</details>`;
   };
@@ -970,7 +985,7 @@ async function telaClube(liga, clube) {
     const semJovem = [...new Set((formacaoDaBase || []).filter(pos => !elenco.some(j => (j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil) && j.pos === pos)))];
     if (semJovem.length) avisos.push(`🔍 Nenhum jovem para ${semJovem.map(x => esc(sg(x))).join(", ")}, posições da sua tática.`);
     if (prevista && prevista.fora.length) avisos.push(`⏸️ Sem jogo na próxima rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")}.`);
-    if (prevista && taticaBase === null && formacaoDaBase) avisos.push(`📐 A escalação da base está automática. <a class="lk" data-abre="baseEsc">Escolher quem joga onde</a>.`);
+    if (prevista && taticaBase === null && vagasDaBase) avisos.push(`📐 A escalação da base está automática. <a class="lk" data-abre="baseEsc">Escolher quem joga onde</a>.`);
     return `<div class="card"><h2>Próximos jogos da base</h2>${prox(baseJogos, "Liga de base")}${prox(copinha, "Copinha")}${prox(libJuvenil, "Libertadores Juvenil")}
       <div style="margin-top:6px"><a class="lk" data-abre="baseEsc">Ver a escalação</a> · <a class="lk" data-aba-ir="classificacao:base">Tabelas e chaves em Competições</a></div>
       ${avisos.length ? `<div style="margin-top:10px"><b>Atenção</b>${avisos.map(x => `<div style="margin-top:4px">${x}</div>`).join("")}</div>` : ""}</div>`;
@@ -979,7 +994,7 @@ async function telaClube(liga, clube) {
   const ligaDeBase = () => {
     if (baseJogos == null) return "";
     const quando = quandoB;
-    const regras = `<div class="mut" style="font-size:12px">Turno único de 9 rodadas contra os clubes do seu grupo, uma a cada duas rodadas da liga. O time é montado com os seus juvenis e, nas vagas que sobrarem, com os profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos; se não houver onze (ou faltar goleiro), garotos da escolinha completam, e eles são melhores quanto maior o nível da base (os dos clubes sem dirigente valem os de uma base de nível 2). O esquema é o do time principal (sem tática salva, o que melhor encaixa os seus juvenis na posição deles); na aba Escalação você fixa quem joga onde e escolhe o estilo. Rodízio: quem jogou menos na temporada tem a preferência para começar, e os juvenis que não começam entram no intervalo (até ${CONFIG_LIGA_DE_BASE.trocas}), no lugar dos garotos, depois dos profissionais e depois de quem mais jogou; assim até ${11 + CONFIG_LIGA_DE_BASE.trocas} juvenis jogam por rodada. Não há lesão, cartão nem experiência. O juvenil que joga 45 minutos ganha um bônus de treino. O campeão do grupo recebe ${dinheiro(200)} do fundo da liga na virada.</div>`;
+    const regras = `<div class="mut" style="font-size:12px">Turno único de 9 rodadas contra os clubes do seu grupo, uma a cada duas rodadas da liga. O time é montado com os seus juvenis e, nas vagas que sobrarem, com os profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos; se não houver onze (ou faltar goleiro), garotos da escolinha completam, e eles são melhores quanto maior o nível da base (os dos clubes sem dirigente valem os de uma base de nível 2). O esquema é o que você escolher para a base ou, sem escolha, o do time principal (sem nenhum dos dois, o que melhor encaixa os seus juvenis na posição deles); na aba Escalação você fixa quem joga onde e escolhe o estilo. Rodízio: quem jogou menos na temporada tem a preferência para começar, e os juvenis que não começam entram no intervalo (até ${CONFIG_LIGA_DE_BASE.trocas}), no lugar dos garotos, depois dos profissionais e depois de quem mais jogou; assim até ${11 + CONFIG_LIGA_DE_BASE.trocas} juvenis jogam por rodada. Não há lesão, cartão nem experiência. O juvenil que joga 45 minutos ganha um bônus de treino. O campeão do grupo recebe ${dinheiro(200)} do fundo da liga na virada.</div>`;
     if (!baseJogos.length) return `<div class="card"><h2>Liga de base</h2><div class="mut">Começa quando o calendário da temporada for gerado.</div>${comoFunciona(regras)}</div>`;
     const T = {}, de = id => T[id] || (T[id] = { id, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }), gols = {};
     for (const p of baseJogos) { de(p.casa); de(p.fora); if (!p.processada || p.gols_casa == null) continue;
@@ -988,14 +1003,12 @@ async function telaClube(liga, clube) {
     const tabela = Object.values(T).sort((a, b) => (b.v * 3 + b.e) - (a.v * 3 + a.e) || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.id - b.id);
     const meus = baseJogos.filter(p => p.casa === clube.id || p.fora === clube.id), prox = meus.find(p => !p.processada), feitos = meus.filter(p => p.processada && p.gols_casa != null);
     const quemFez = p => { const eu = p.casa === clube.id ? 0 : 1, l = ((p.dados && p.dados.jogadores) || []).filter(x => x.t === eu && x.g > 0); return l.length ? ` <span class="mut">· ${l.map(x => `${esc(x.n)}${x.g > 1 ? ` (${x.g})` : ""}`).join(", ")}</span>` : ""; };
-    // quem jogou pelo meu time numa partida da base: posição, nome (juvenil em destaque) e nota
-    const escalados = p => { const eu = p.casa === clube.id ? 0 : 1; return ((p.dados && p.dados.jogadores) || []).filter(x => x.t === eu).map(x => String(x.id).startsWith("j") ? `${esc(sg(x.p))} <b style="color:var(--tx)">${esc(x.n)}</b> ${f1(x.nota)}` : `${esc(sg(x.p))} garoto ${f1(x.nota)}`).join(" · "); };
     const art = Object.values(gols).sort((a, b) => b.g - a.g).slice(0, 5), titulos = baseCampeoes.filter(x => x.clube_id === clube.id && !["COPINHA", "LIBJUV"].includes(x.grupo)).length;
     return `<div class="card"><h2>Liga de base <span class="tag">${esc(nomeDoGrupo(clube.grupo))}</span>${titulos ? ` <span class="tag">🏆 ${titulos} ${titulos === 1 ? "título" : "títulos"}</span>` : ""}</h2>
       <div><b>Próximo jogo:</b> ${prox ? `rodada ${prox.rodada}, ${lk(prox.casa)} x ${lk(prox.fora)}, ${quando(prox.inicio)}` : "a temporada da base acabou."}</div>
       <div class="duas" style="margin-top:10px"><div><table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th>P</th><th>J</th><th>V</th><th>E</th><th>D</th><th>SG</th></tr>
         ${tabela.map((t, i) => `<tr class="${t.id === clube.id ? "e-tit" : ""}"><td>${i + 1}</td><td class="esq">${lk(t.id)}</td><td><b>${t.v * 3 + t.e}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td>${t.gp - t.gc}</td></tr>`).join("")}</table></div>
-        <div><b>Seus jogos</b> <span class="mut" style="font-size:12px">· clique num jogo para ver quem jogou</span>${feitos.length ? feitos.map(p => `<details style="margin-top:4px"><summary style="cursor:pointer">R${p.rodada}: ${esc(cPor[p.casa].nome)} <b>${p.gols_casa} x ${p.gols_fora}</b> ${esc(cPor[p.fora].nome)}${quemFez(p)}</summary><div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${escalados(p)}</div></details>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum jogo ainda.</div>`}
+        <div><b>Seus jogos</b> <span class="mut" style="font-size:12px">· clique num jogo para ver quem jogou e o relatório</span>${feitos.length ? feitos.map(p => `<details style="margin-top:4px"><summary style="cursor:pointer">R${p.rodada}: ${esc(cPor[p.casa].nome)} <b>${p.gols_casa} x ${p.gols_fora}</b> ${esc(cPor[p.fora].nome)}${quemFez(p)}</summary>${relatorioDaBase(p)}</details>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum jogo ainda.</div>`}
           <div style="margin-top:10px"><b>Artilheiros do grupo</b>${art.length ? art.map(a => `<div style="margin-top:4px">${esc(a.n)} <span class="mut">(${lk(a.c)})</span> · <b>${a.g}</b></div>`).join("") : `<div class="mut" style="margin-top:4px">Nenhum gol de juvenil ainda (gol de garoto da escolinha não entra na lista).</div>`}</div></div></div>${comoFunciona(regras)}</div>`;
   };
   // Histórico da base: os campeões de cada temporada já vêm com a página; as tabelas e as chaves antigas só são buscadas ao abrir
@@ -1801,14 +1814,17 @@ ${historicoDaBase()}
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
     $("jFiltro").querySelectorAll("[data-jfiltro]").forEach(x => { x.style.outline = x === c ? "1px solid currentColor" : ""; });
     document.querySelectorAll("tr[data-jpos]").forEach(tr => { tr.hidden = !!c.dataset.jfiltro && tr.dataset.jpos !== c.dataset.jfiltro; }); };
-  if ($("tbSalvar")) $("tbSalvar").onclick = async () => {
-    const fixos = {}, instr = {};
-    document.querySelectorAll("[data-tbvaga]").forEach(s => { if (s.value) fixos[s.dataset.tbvaga] = +s.value; });
+  // tática da base: lê a tela e salva; com esquema novo, só ficam os fixados cuja vaga tem a mesma posição nele
+  const salvarBase = async (esquema, aviso) => {
+    const fixos = {}, instr = {}, antes = vagasDaBase || [], depois = esquemaDaBase({ esquema }, formacaoDaBase) || [];
+    document.querySelectorAll("[data-tbvaga]").forEach(s => { if (s.value && antes[s.dataset.tbvaga] === depois[s.dataset.tbvaga]) fixos[s.dataset.tbvaga] = +s.value; });
     document.querySelectorAll("[data-tbinstr]").forEach(s => { if (s.value) instr[s.dataset.tbinstr] = JSON.parse(s.value); });
-    if (new Set(Object.values(fixos)).size < Object.keys(fixos).length) { $("tbAviso").innerHTML = `<span class="bad">O mesmo jogador está em duas vagas.</span>`; return; }
-    try { await salvarTaticaDaBase(clube.id, { fixos, instr }); await carregar({ user: usuario }); }
-    catch (err) { $("tbAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
+    if (new Set(Object.values(fixos)).size < Object.keys(fixos).length) { aviso.innerHTML = `<span class="bad">O mesmo jogador está em duas vagas.</span>`; return; }
+    try { await salvarTaticaDaBase(clube.id, { ...(esquema ? { esquema } : {}), fixos, instr }); await carregar({ user: usuario }); if ($("baseEsc")) $("baseEsc").open = true; }
+    catch (err) { aviso.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
   };
+  if ($("tbSalvar")) $("tbSalvar").onclick = () => salvarBase(esquemaProprio, $("tbAviso"));
+  if ($("tbEsquema")) $("tbEsquema").onchange = e => salvarBase(e.target.value || null, $("tbEsqAviso"));
   if ($("antecipar")) $("antecipar").onclick = async () => {
     if (!confirm("Antecipar o prêmio desta temporada? O valor cheio será descontado do seu prêmio na virada.")) return;
     try { await anteciparPremio(); await carregar({ user: usuario }); }

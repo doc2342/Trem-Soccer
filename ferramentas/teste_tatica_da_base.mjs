@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarElenco } from "../src/gerador.js";
 import { escalacaoDaBase, timeDaBase } from "../src/ligabase.js";
+import { FORMACOES } from "../src/escalacao.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const elenco = gerarElenco(criarRng(7), { nivel: 20, nomes, prefixoId: "j" });
@@ -39,3 +40,10 @@ assert.equal(t.escalacao.length, 11);
 assert.equal(t.instrucoes.passe, "longo"); assert.equal(t.instrucoes.pressao, 2);
 assert.ok([-2, -1, 0, 1, 2].includes(t.instrucoes.mentalidade));
 console.log("tática da base: ok");
+
+// esquema próprio da base: vale por cima do principal; nome inválido volta ao principal
+const t2 = timeDaBase(criarRng(1), { juvenis, formacao, tatica: { esquema: "5-3-2" } });
+assert.deepEqual(t2.escalacao.map(x => x.pos), FORMACOES["5-3-2"]);
+assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { esquema: "9-9-9" } }).escalacao.map(x => x.pos), formacao);
+assert.deepEqual(timeDaBase(criarRng(1), { juvenis, tatica: { esquema: "4-4-2" } }).escalacao.map(x => x.pos), FORMACOES["4-4-2"], "sem tática principal, o esquema da base vale");
+console.log("esquema próprio ok");

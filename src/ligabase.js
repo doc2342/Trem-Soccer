@@ -91,9 +91,12 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
 
 // juvenis e profissionais: os de verdade, no formato do motor. Devolve a tática pronta da partida: { escalacao: [{ j, pos }], banco, instrucoes },
 // com um garoto da escolinha em cada vaga que sobrou e as trocas do intervalo.
+// Esquema da base: o que o dirigente escolheu para ela (tatica.esquema, um nome de FORMACOES) ou, sem escolha, o do time principal.
+export const esquemaDaBase = (tatica, principal) => (tatica && FORMACOES[tatica.esquema]) || principal || null;
+
 export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivelDaBase = 0, prefixo = "", minutos = {}, perfil = null, formacao = null, tatica = null } = {}) {
   const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);
-  const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos, { formacao, fixos: tatica && tatica.fixos });
+  const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos, { formacao: esquemaDaBase(tatica, formacao), fixos: tatica && tatica.fixos });
   const escalacao = e.vagas.map((v, i) => ({ j: v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i), pos: v.pos }));
   const instrucoes = { ...taticaBot(escalacao.map(x => x.j), { perfil }).instrucoes, ...instrucoesDaBase(tatica && tatica.instr) }; // capitão, cobradores e estilo, como o bot faria com estes onze; o estilo escolhido pelo dirigente vale por cima
   instrucoes.substituicoes = e.trocas.map(x => ({ min: 45, sai: escalacao[x.vaga].j.id, entra: x.entra.id, pos: escalacao[x.vaga].pos, cond: "sempre" }));

@@ -1936,9 +1936,12 @@ const __ligabase = (() => {
 
   // juvenis e profissionais: os de verdade, no formato do motor. Devolve a tática pronta da partida: { escalacao: [{ j, pos }], banco, instrucoes },
   // com um garoto da escolinha em cada vaga que sobrou e as trocas do intervalo.
+  // Esquema da base: o que o dirigente escolheu para ela (tatica.esquema, um nome de FORMACOES) ou, sem escolha, o do time principal.
+  const esquemaDaBase = (tatica, principal) => (tatica && FORMACOES[tatica.esquema]) || principal || null;
+
   function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivelDaBase = 0, prefixo = "", minutos = {}, perfil = null, formacao = null, tatica = null } = {}) {
     const nivel = CONFIG_LIGA_DE_BASE.escolinha[0] + CONFIG_LIGA_DE_BASE.escolinha[1] * (nivelDaBase || 0);
-    const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos, { formacao, fixos: tatica && tatica.fixos });
+    const e = escalacaoDaBase(juvenis.map(j => ({ ...j, juvenil: true })), profissionais.map(j => ({ ...j, juvenil: false })), minutos, { formacao: esquemaDaBase(tatica, formacao), fixos: tatica && tatica.fixos });
     const escalacao = e.vagas.map((v, i) => ({ j: v.j || garotoDaEscolinha(rng, v.pos, nivel, "e" + prefixo + "_" + i), pos: v.pos }));
     const instrucoes = { ...taticaBot(escalacao.map(x => x.j), { perfil }).instrucoes, ...instrucoesDaBase(tatica && tatica.instr) }; // capitão, cobradores e estilo, como o bot faria com estes onze; o estilo escolhido pelo dirigente vale por cima
     instrucoes.substituicoes = e.trocas.map(x => ({ min: 45, sai: escalacao[x.vaga].j.id, entra: x.entra.id, pos: escalacao[x.vaga].pos, cond: "sempre" }));
@@ -1957,7 +1960,7 @@ const __ligabase = (() => {
     for (const [k, opcoes] of Object.entries(INSTRUCOES_DA_BASE)) if (instr && opcoes.includes(instr[k])) r[k] = instr[k];
     return r;
   }
-  return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, escalacaoDaBase, timeDaBase, INSTRUCOES_DA_BASE, instrucoesDaBase };
+  return { CONFIG_LIGA_DE_BASE, garotoDaEscolinha, escalacaoDaBase, esquemaDaBase, timeDaBase, INSTRUCOES_DA_BASE, instrucoesDaBase };
 })();
 
 const __economia = (() => {
@@ -2323,6 +2326,10 @@ async function jogarBase(sb) {
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
+      // relatório curto: as estatísticas principais de cada lado e as frases do analista (sem os lances, para não pesar no banco)
+      const R = resultado.relatorio;
+      dados.est = R.estat.map(e => ({ po: e.posse, f: e.finalizacoes, ng: e.noGol, xg: Math.round(e.xg * 100) / 100, es: e.escanteios, fa: e.faltas, am: e.amarelos, vm: e.vermelhos }));
+      dados.an = R.analise;
       // Copinha (70_copinha.sql) e Libertadores Juvenil (101): mata-mata; empate vai direto aos pênaltis
       const extra = {};
       if (p.fase === "copinha" || p.fase === "libjuv") {

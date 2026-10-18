@@ -194,6 +194,10 @@ async function jogarBase(sb) {
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
       const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
+      // relatório curto: as estatísticas principais de cada lado e as frases do analista (sem os lances, para não pesar no banco)
+      const R = resultado.relatorio;
+      dados.est = R.estat.map(e => ({ po: e.posse, f: e.finalizacoes, ng: e.noGol, xg: Math.round(e.xg * 100) / 100, es: e.escanteios, fa: e.faltas, am: e.amarelos, vm: e.vermelhos }));
+      dados.an = R.analise;
       // Copinha (70_copinha.sql) e Libertadores Juvenil (101): mata-mata; empate vai direto aos pênaltis
       const extra = {};
       if (p.fase === "copinha" || p.fase === "libjuv") {
