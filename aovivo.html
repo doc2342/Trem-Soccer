@@ -27,7 +27,7 @@
 </head>
 <body>
 <main>
-  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><span class="relogio" style="margin-left:auto" title="Hora deste aparelho"></span></div>
+  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><button id="som" class="sec" style="margin-left:auto;padding:3px 10px" title="Sons da transmissão"></button><span class="relogio" title="Hora deste aparelho"></span></div>
   <div class="card" id="topo"><div class="mut">Carregando…</div></div>
   <div id="corpo"></div>
 </main>
@@ -52,6 +52,43 @@ const id = +new URLSearchParams(location.search).get("id");
 const COR = ["casa", "fora"];
 let partida, clubes, encerrada = false, relogio, tique, preco = null;
 const baixados = []; // lances já recebidos; cada consulta traz só os que vieram depois
+
+// ---------- sons (Web Audio, gerados aqui: nenhum arquivo, nada no banco) ----------
+// O navegador só toca depois de um clique: o botão cria o áudio e a escolha fica guardada neste aparelho.
+let somLigado = false, ctx = null;
+try { somLigado = localStorage.getItem("mo_som") === "1"; } catch (e) {}
+const audio = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === "suspended") ctx.resume(); return ctx; };
+// um tom: frequência, início e duração em segundos; trinado = vibrato rápido (o apito)
+function tom(f, ini, dur, { tipo = "sine", vol = 0.25, trinado = 0, ate = f } = {}) {
+  const a = audio(), t = a.currentTime + ini, o = a.createOscillator(), g = a.createGain();
+  o.type = tipo; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(ate, t + dur);
+  if (trinado) { const l = a.createOscillator(), lg = a.createGain(); l.frequency.value = trinado; lg.gain.value = f * 0.06; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur); }
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.setValueAtTime(vol, t + dur - 0.05); g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur);
+}
+const apito = n => { for (let i = 0; i < n; i++) tom(2600, i * 0.45, i === n - 1 ? 0.9 : 0.3, { trinado: 28, vol: 0.12 }); };
+const SONS = {
+  inicio: () => apito(1), intervalo: () => apito(2), fim: () => apito(3),
+  gol: () => [523, 659, 784, 1047].forEach((f, i) => tom(f, i * 0.12, i === 3 ? 0.7 : 0.14, { tipo: "triangle", vol: 0.3 })), // fanfarra subindo
+  amarelo: () => tom(880, 0, 0.12, { tipo: "square", vol: 0.08 }),
+  vermelho: () => { tom(440, 0, 0.18, { tipo: "square", vol: 0.1 }); tom(330, 0.2, 0.3, { tipo: "square", vol: 0.1 }); },
+};
+const tocar = s => { if (somLigado) try { SONS[s](); } catch (e) {} };
+function botaoDoSom() { $("som").textContent = somLigado ? "🔇" : "🔊 ativar som"; }
+$("som").onclick = () => { somLigado = !somLigado; try { localStorage.setItem("mo_som", somLigado ? "1" : "0"); } catch (e) {} if (somLigado) { audio(); tocar("amarelo"); } botaoDoSom(); };
+// som já ligado de outra visita: o áudio só destrava no primeiro clique na página
+document.addEventListener("click", () => { if (somLigado) audio(); }, { once: true });
+botaoDoSom();
+// Só lance novo na tela faz barulho: o primeiro desenho marca tudo como visto em silêncio, e quem chega com a aba voltando de segundo plano
+// (liberado há mais de 30 s) entra calado. fase: muda de 1º tempo, intervalo, 2º tempo e fim pelo relógio.
+let vistos = null, fase = null;
+function sonsDosLances(m, lances, agora) {
+  const f = m.antes ? "antes" : m.fim ? "fim" : m.texto.includes("intervalo") ? "intervalo" : m.texto.includes("2º") ? "2t" : "1t";
+  const novos = vistos ? lances.filter(l => !vistos.has(l.ordem) && agora - new Date(l.libera_em || agora).getTime() < 30000).map(l => l.dados) : [];
+  if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
+    if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
+  vistos = new Set(lances.map(l => l.ordem)); fase = f;
+}
 
 // ---------- rodada ao vivo: os outros jogos do grupo e a classificação se mexendo (só em partida de liga) ----------
 let rodada = null, voltas = 0;
@@ -218,7 +255,7 @@ function htmlAbertura(pre, cronologico = false, semTimes = false) {
 
 async function atualizar() {
   const m = momento();
-  if (m.antes) { topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
+  if (m.antes) { sonsDosLances(m, [], Date.now()); topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
   // o administrador lê tudo no banco; aqui a transmissão segue o relógio para ele também
   const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;
   const ultima = baixados.length ? baixados[baixados.length - 1].ordem : -100;
@@ -234,6 +271,7 @@ async function atualizar() {
     adiante = ultimo > agora; proximaBusca = adiante ? Math.max(agora + 60000, ultimo - 60000) : 0; // volta a buscar um minuto antes de acabar o que já tem
   }
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
+  sonsDosLances(m, lances, agora);
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
@@ -273,7 +311,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
 iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
 </body>
