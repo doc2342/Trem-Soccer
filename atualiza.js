@@ -7,7 +7,7 @@
   window.moTela = function (pc) { try { localStorage.setItem("mo_tela", pc ? "pc" : "cel"); } catch (e) {} location.reload(); };
   var ARQUIVOS = ["estilo.css", "jogo.html", "admin.html", "aovivo.html", "jogador.html", "escalacao.html", "index.html",
     "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js", "src/economia.js", "src/virada.js", "src/siglas.js", "src/treino.js", "src/saude.js", "src/base.js",
-    "src/banco.js", "src/escudo.js", "src/bandeiras.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-escalacao.js"];
+    "src/banco.js", "src/escudo.js", "src/bandeiras.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-escalacao.js", "src/estadio.js"];
   var ja = sessionStorage.getItem("mo_recarregou");
   function renovar() {
     if (ja) return;

@@ -2,9 +2,11 @@
 //   desenharEstadio(el, config)  cena 3D girável (config.vista = "3d") ou wireframe da reforma (config.vista = "wire"), three.js r128
 //   plantaEstadio(config)         planta baixa em SVG, com a hachura do que falta construir
 // config = { modelo, nivel (1–8), obra (0–1), nomeEstadio, mosaico, padrao (setor|listras|sigla), cores[1–3], corEscadas,
-//            cobertura (só Caldeirão: "", "N", "NS", "NSEW"), estacionamento (0–3), refletores, reforma (troca de modelo: tudo é novo),
+//            cobertura (só Caldeirão: "", "N", "NS", "NSEW"), reforma (troca de modelo: tudo é novo),
 //            clube (texto do carimbo da planta), custo e prazo (carimbo; padrão = obra do nível) }
-// Fixos para todos: placas, bancos, túnel, telão e alambrado. Medidas em metros; x = leste, z = sul.
+// Fixos para todos: placas, bancos, túnel, telão e alambrado. Refletores e estacionamento seguem o nível (src/economia.js).
+// Medidas em metros; x = leste, z = sul.
+import { temRefletores, estacionamentoDoEstadio } from "./economia.js";
 export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura" };
 export const PADROES_DO_ESTADIO = { setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
@@ -20,7 +22,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", estacionamento: 0, refletores: false, ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "" };
+    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "" };
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
 }
@@ -34,7 +36,7 @@ function aplicar(c) {
   m = M[C.modelo] || M.tradicional; niv = Math.min(8, Math.max(1, Math.round(+C.nivel || 1))); rows = ROWS[niv - 1];
   prev = C.reforma ? 0 : niv > 1 ? ROWS[niv - 2] : 0; obra = Math.min(1, Math.max(0, C.obra == null ? 1 : +C.obra));
   cob = new Set(m.cantos ? String(C.cobertura || "").split("").filter(x => "NSEW".includes(x)) : []);
-  C.nb = Math.min(3, Math.max(0, C.estacionamento | 0));
+  C.nb = estacionamentoDoEstadio(niv); C.refletores = temRefletores(niv);
 }
 function contorno(m, a, b) { const p = [];
   if (m.R == null) { for (let i = 0; i < 2400; i++) { const t = i / 2400 * 2 * Math.PI; p.push([a * Math.cos(t), b * Math.sin(t)]); } return p; }

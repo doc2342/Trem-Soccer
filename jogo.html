@@ -124,7 +124,7 @@
   .mural > div.rot:first-child { padding-top:0; }
   .mural summary .ic { display:inline-block; margin-right:4px; }
   .mini td, .mini th { padding:4px 6px; }
-  .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
+  .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); } .mini tr.camp td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.cai.lib td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--ac); } .mini tr.cai.sul td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--sul); }
   .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--bd, #2a2f55); }
   .rod-tit { margin-bottom:4px; }
   @media (max-width:900px) { #compQuadros .comp-esq { display:contents; } #compHist { order:1; } }
@@ -208,7 +208,7 @@ import { escalacaoDaBase, esquemaDaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE
 import { FORMACOES } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
-import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
+import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
 import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS } from "./src/estadio.js";
@@ -247,7 +247,7 @@ const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande, vencedorDoConfronto } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, ativarClube, minhasPendencias, entregarClubeExtra, marcarNaoRenovar, ultimaNovidade } from "./src/banco.js";
-import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, extraDoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO } from "./src/economia.js";
+import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, extraDoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, manutencaoExtraDoEstadio } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
 function acertarSalarioPelaDuracao() {
@@ -577,8 +577,14 @@ async function telaClube(liga, clube) {
   // faixa da posição i (0 = 1º) numa tabela de n clubes: Libertadores e Sul-Americana na Série A e nos países, descenso na A;
   // na Série B (desde a T14) o 1º e o 2º vão direto à semifinal do playoff e do 3º ao 6º jogam a preliminar; a B não cai
   // até a T13 (B e C de 10): sobe o 1º, 2º a 4º no playoff, caem 2 da B
-  const faixaDaTabela = (serie, i, n) => serie <= 1 ? (i <= 2 ? "lib" : serie && i >= n - 3 ? "cai" : i <= 5 ? "sul" : "")
-    : liga.temporada < 14 ? (i === 0 ? "sobe" : i <= 3 ? "playoff" : serie === 2 && i >= n - 2 ? "cai" : "") : i <= 1 ? "sobe" : i <= 5 ? "playoff" : "";
+  // com a final da Copa do Brasil decidida, as vagas da Série A já saem redistribuídas pela regra do calendário (vagasContinentais); o 1º ganha a cor de campeão
+  // e quem cai mas tem vaga pela copa leva as duas cores
+  const faixaDaTabela = (serie, i, n, tab) => { const cai = serie && i >= n - 3, v = serie === 1 && tab && vagasDaA(tab), id = tab && tab[i].clube.id;
+    const vaga = v ? (v.libBrasil.includes(id) ? "lib" : v.sulBrasil.includes(id) ? "sul" : "") : i <= 2 ? "lib" : i <= 5 && !cai ? "sul" : "";
+    return serie <= 1 ? [i === 0 ? "camp" : vaga, cai ? "cai" : ""].filter(Boolean).join(" ")
+    : liga.temporada < 14 ? (i === 0 ? "sobe" : i <= 3 ? "playoff" : serie === 2 && i >= n - 2 ? "cai" : "") : i <= 1 ? "sobe" : i <= 5 ? "playoff" : ""; };
+  const vagasDaA = tab => { const f = copaJogos.find(p => p.copa_fase === 6 && copaRes[p.id]), campeao = f && quemPassou(f);
+    return campeao ? vagasContinentais(tab.map((t, k) => ({ clube_id: t.clube.id, grupo: "A", posicao: k + 1 })), campeao, f.casa === campeao ? f.fora : f.casa) : null; };
   const LEGENDA_DA_B = liga.temporada < 14 ? `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff`
     : `<span class="ok">▌</span> semifinal do playoff · <span class="casa">▌</span> preliminar do playoff (3º x 6º e 4º x 5º) · o vencedor do playoff sobe`;
   // quadro do playoff do grupo: cada confronto com o placar (somado na ida e volta), quem passou em negrito
@@ -1160,7 +1166,7 @@ async function telaClube(liga, clube) {
   const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18, 22, 27, 36], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção do estádio
   // manutenção por temporada, a mesma conta do manutencao_por_temporada (68_economia.sql)
-  const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]);
+  const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]) + manutencaoExtraDoEstadio(clube.estadio_nivel);
   // resultado de um lance meu em leilão de livre: frente / coberto (em andamento), venceu, perdeu (para e.clube) ou livre (ninguém levou)
   const estadoDoLance = h => {
     const ofertas = (lancesLivres || []).filter(o => o.jogador_id === h.jogador_id);
@@ -1210,12 +1216,11 @@ async function telaClube(liga, clube) {
     <div class="card"><h2>Estruturas <span class="tag">uma obra por vez</span></h2>
       <div class="estrs">${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
         return `<div class="estr ${emObra ? "em-obra" : ""}">
-          <div class="estr-topo"><a class="lk" ${k === "base" ? `data-aba-ir="base"` : `href="#estr-${k}"`}><b>${nome}</b></a><span class="niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span></div>
+          <div class="estr-topo"><a class="lk" ${k === "base" ? `data-aba-ir="base"` : k === "estadio" ? `data-sub-ir="clube:estadio"` : `href="#estr-${k}"`}><b>${nome}</b></a><span class="niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span></div>
             <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div>
           ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
-      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base tem aba própria).</div></div>
-    ${(p => `<div class="card" style="max-width:760px"><h2>Planta do estádio <span class="tag">${p.tag}</span></h2>${plantaEstadio(p.cfg)}</div>`)(plantaDaObra())}`;
+      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base e o estádio têm aba própria).</div></div>`;
   };
   // estádio: visual de hoje (3D) e o que a obra em andamento, ou a próxima ampliação, vai construir (planta e wireframe)
   const CUSTO_DA_REFORMA = n => Math.max(250, Math.round(0.25 * (CUSTO.estadio[Math.max(1, n)] || 1000))), PRAZO_DA_REFORMA = n => Math.max(1, Math.floor(PRAZO[Math.min(8, Math.max(1, n))] / 2)); // os mesmos do 116
@@ -1227,14 +1232,22 @@ async function telaClube(liga, clube) {
     if (n < NIVEL_MAXIMO_DO_ESTADIO) return { tag: `prévia da ampliação para o nível ${n + 1}`, cfg: { ...v, nivel: n + 1, obra: 0 } };
     return { tag: "nível máximo", cfg: v };
   };
-  const blocoDoEstadio = () => {
-    const v = configDoClube(clube, null), n = clube.estadio_nivel || 1, alvo = (clube.estadio_visual || {}).modelo_alvo;
+  // aba Clube, Estádio: o 3D grande em cima; embaixo, a planta à esquerda e obra e visual à direita
+  const paginaDoEstadio = () => {
+    if (caixa == null || clube.ct_nivel == null) return estrutura("estadio");
+    const v = configDoClube(clube, null), n = clube.estadio_nivel || 1, alvo = (clube.estadio_visual || {}).modelo_alvo, p = plantaDaObra(), est = estacionamentoDoEstadio(n);
+    const pct = x => "+" + Math.round(x * 100) + "%", nv = n + 1 <= NIVEL_MAXIMO_DO_ESTADIO ? n + 1 : null;
     const op = (lista, sel) => Object.entries(lista).map(([k, nome]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${nome}</option>`).join("");
     const cor = (id, c, titulo) => `<input type="color" id="${id}" value="${c}" title="${titulo}" style="width:34px;height:30px;padding:0">`;
-    return `<div style="margin-top:12px">${v.nomeEstadio ? `<div><b>${esc(v.nomeEstadio)}</b> <span class="mut">· ${MODELOS[v.modelo] || ""}</span></div>` : ""}
-      <div class="row" style="margin:6px 0;align-items:center"><select id="evVista"><option value="3d">Estádio 3D</option><option value="wire">Wireframe da obra</option></select><span class="mut" style="font-size:12px">Arraste para girar.</span></div>
-      <div id="estadio3d" style="background:#fff;min-height:160px"></div></div>
-      <details style="margin-top:10px" id="evEditor"><summary style="cursor:pointer"><b>🎨 Visual do estádio</b> <span class="mut">só aparência: não muda lugares nem renda</span></summary>
+    return `<div class="card"><h2>${esc(v.nomeEstadio || "Estádio sem nome")} <span class="tag">${MODELOS[v.modelo] || ""} · nível ${n} de ${NIVEL_MAXIMO_DO_ESTADIO}</span></h2>
+        <div class="row" style="margin:6px 0;align-items:center"><select id="evVista"><option value="3d">Estádio 3D</option><option value="wire">Wireframe da obra</option></select><span class="mut" style="font-size:12px">Arraste para girar.</span></div>
+        <div id="estadio3d" style="background:#fff;min-height:200px"></div></div>
+      <div class="kpis">${kpi("Lugares", lugaresDoEstadio(n).toLocaleString("pt-BR"), nv ? `${lugaresDoEstadio(nv).toLocaleString("pt-BR")} no nível ${nv}` : "nível máximo")}
+        ${kpi("Refletores", temRefletores(n) ? "sim" : "não", temRefletores(n) ? `público ${pct(EXTRAS_DO_ESTADIO.publicoRefletores)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutRefletores)} de manutenção` : `chegam no nível ${EXTRAS_DO_ESTADIO.nivelDosRefletores}`)}
+        ${kpi("Estacionamento", est ? `nível ${est}` : "não", est ? `público ${pct(EXTRAS_DO_ESTADIO.publicoPorEstacionamento * est)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutPorEstacionamento * est)} de manutenção` : "chega no nível 3 do estádio")}
+        ${kpi("Bônus de público", pct(bonusDoEstadio(n) - 1), "refletores e estacionamento; o teto são os lugares")}</div>
+      <div class="g2"><div><div class="card"><h2>Planta <span class="tag">${p.tag}</span></h2>${plantaEstadio(p.cfg)}</div></div><div>${estrutura("estadio")}
+      <div class="card"><h2>🎨 Visual do estádio <span class="tag">só aparência: não muda lugares nem renda</span></h2>
         <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
           <button id="evReforma" disabled>Reformar</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}</span></div>
         <div class="row" style="margin-top:8px"><label>Nome do estádio <input id="evNome" maxlength="32" value="${esc(v.nomeEstadio || "")}" style="width:220px"></label>
@@ -1245,7 +1258,7 @@ async function telaClube(liga, clube) {
           <label>Escadas ${cor("evEscadas", v.corEscadas, "Cor das escadas")}</label>
           <label id="evCobWrap">Cobertura <select id="evCob">${op(COBERTURAS, v.cobertura || "")}</select></label></div>
         <div class="row" style="margin-top:10px;align-items:center"><button id="evSalvar">Salvar o visual</button><span class="mut" id="evAviso" style="font-size:12px">Nome, mosaico, padrão, cores e cobertura são de graça. O mosaico com o nome fica na arquibancada norte.</span></div>
-      </details>`;
+      </div></div></div>`;
   };
   // editor: cada mudança redesenha o 3D na hora (sem salvar); trocar o modelo mostra como ficaria
   const ligarEstadio = () => {
@@ -1323,8 +1336,8 @@ async function telaClube(liga, clube) {
       ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
         : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button>
           <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
-      ${comissaoDa(k)}${k === "estadio" ? blocoDoEstadio() : ""}
-      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada (${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do que foi gasto no estádio). O prazo da obra corre em rodadas de liga.</div></div>`;
+      ${comissaoDa(k)}
+      <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada (${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas, ${Math.round(MANUTENCAO.estadio * 100)}% do que foi gasto no estádio, mais refletores e estacionamento). O prazo da obra corre em rodadas de liga.</div></div>`;
   };
   const nomeDoHumor = h => h < 3 ? "Revoltada" : h < 6 ? "Nervosa" : h < 10 ? "Calma" : h < 13 ? "Animada" : "Eufórica";
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
@@ -1335,7 +1348,7 @@ async function telaClube(liga, clube) {
     const n = rodadasDoGrupo, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folhaPaga / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
     const temTorcida = clube.torcida != null, lugares = lugaresDoEstadio(clube.estadio_nivel);
-    const publico = temTorcida ? Math.min(lugares, Math.round(clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida))) : 0;
+    const publico = temTorcida ? Math.min(lugares, Math.round((clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida)) * bonusDoEstadio(clube.estadio_nivel))) : 0;
     // 10% da bilheteria vão para o fundo da liga (53_fundo_da_liga.sql)
     const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000 * 0.9), bil = Math.round(porJogo / 2);
     const com = Math.round((comissaoToda || []).reduce((t, x) => t + x.salario, 0) / n), man = Math.round(manutencaoDoClube() / n);
@@ -1679,7 +1692,7 @@ async function telaClube(liga, clube) {
       }
       const tab = classificacao(clubes.filter(c => c.grupo === g), ps, rs), fim = ps.every(p => res[p.id]);
       if (fim && tab[0]) { // fim da liga: as vagas pela faixa da tabela, como na legenda da classificação
-        const serie = serieDoGrupo(g), na = f => tab.filter((t, i) => faixaDaTabela(serie, i, tab.length) === f).map(t => lk(t.clube.id)), lista = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
+        const serie = serieDoGrupo(g), na = f => tab.filter((t, i) => faixaDaTabela(serie, i, tab.length, tab).split(" ").some(x => x === f || (f === "lib" && x === "camp"))).map(t => lk(t.clube.id)), lista = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
         const vagas = [["🌎", "lib", "Vão à Libertadores", serie === 1 ? " (a 4ª vaga é do campeão da Copa do Brasil)" : ""], ["🌐", "sul", "Vão à Sul-Americana", serie === 1 ? " (mais o vice da Copa do Brasil)" : ""],
           ["⬆️", "sobe", liga.temporada < 14 ? "Sobe direto" : "Vão direto à semifinal do playoff", ""], ["🎟️", "playoff", liga.temporada < 14 ? "Disputam o playoff do acesso" : "Disputam a preliminar do playoff", ""], ["⬇️", "cai", "Rebaixados", ""]];
         l.push(item("🏆", `Fim do ${nomeDoGrupo(g)}: ${lk(tab[0].clube.id)} é campeão com ${tab[0].pts} pontos${tab[1] ? `, ${tab[0].pts - tab[1].pts ? `${tab[0].pts - tab[1].pts} à frente do` : "no saldo sobre o"} ${lk(tab[1].clube.id)}` : ""}.`));
@@ -1976,9 +1989,10 @@ ${historicoDaBase()}
     </div>
     </section>
     <section data-secao="clube">
-    ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."], ["patrocinio", "🤝 Patrocínio", "Patroc."]])}
+    ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["estadio", "🏟️ Estádio", "Estádio"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."], ["patrocinio", "🤝 Patrocínio", "Patroc."]])}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
-      <div class="colunas">${["ct", "medico", "fisio", "estadio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
+      <div class="colunas">${["ct", "medico", "fisio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
+    <div data-parte="clube:estadio">${paginaDoEstadio()}</div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
@@ -2568,10 +2582,10 @@ ${historicoDaBase()}
         ${minha >= 0 ? kpi("Seu clube", `${minha + 1}º<small> de ${doGrupo.length}</small>`, esc(nomeDoGrupo(g))) : kpi("Dirigentes", donos, `de ${doGrupo.length} clubes`)}</div>`; }
     $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
-    const faixaG = i => faixaDaTabela(serieG, i, tabG.length);
+    const faixaG = i => faixaDaTabela(serieG, i, tabG.length, tabG);
     $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th><th class="c-forma" title="Últimos 5 jogos">Forma</th></tr>
       ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td><td class="c-forma">${formaDe(t.clube.id)}</td></tr>`).join("")}</table>
-      <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span style="color:var(--ac)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span style="color:var(--sul)">▌</span> Sul-Americana (a 4ª vaga é do vice da copa; se ele já tiver vaga, do próximo da tabela) · <span class="bad">▌</span> rebaixamento` : LEGENDA_DA_B}</div>${playoffDoGrupo(partidas, res)}`;
+      <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span class="ok">▌</span> campeão · <span style="color:var(--ac)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span class="ok">▌</span> campeão · <span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span style="color:var(--sul)">▌</span> Sul-Americana (a 4ª vaga é do vice da copa; se ele já tiver vaga, do próximo da tabela) · <span class="bad">▌</span> rebaixamento` : LEGENDA_DA_B}</div>${playoffDoGrupo(partidas, res)}`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
     const rotuloR = r => (p => p.fase !== "liga" ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
@@ -2613,11 +2627,11 @@ ${historicoDaBase()}
       if ($("termometro") && minhaMeta && eu && eu.j) { const avaliada = (tab.indexOf(eu) + 1 + posicaoPelosEsperados(tab)[clube.id]) / 2, sinal = x => (x > 0 ? "+" : "") + x;
         const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
         $("termometro").innerHTML = `Se a temporada terminasse hoje: <b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${sinal(v.total)}</b> (liga ${sinal(v.liga)} pela posição média entre a tabela e os pontos esperados, ${String(avaliada).replace(".", ",")}º; finanças ${sinal(v.financas)}). A copa entra no fim.`; }
-      const faixa = i => faixaDaTabela(serie, i, tab.length);
+      const faixa = i => faixaDaTabela(serie, i, tab.length, tab);
       $("miniTabela").className = "";
       $("miniTabela").innerHTML = `<table class="mini" style="width:100%"><tr><th></th><th class="esq">${esc(nomeDoGrupo(g))}</th><th>J</th><th>SG</th><th>PTS</th></tr>
         ${tab.map((t, i) => `<tr class="${faixa(i)}"><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}</td><td>${t.j}</td><td>${t.gp - t.gc}</td><td><b>${t.pts}</b></td></tr>`).join("")}</table>
-        <div class="mut" style="margin-top:6px;font-size:12px">${serie === 1 ? `<span class="bad">▌</span> rebaixamento` : serie ? LEGENDA_DA_B : ""}</div>`;
+        <div class="mut" style="margin-top:6px;font-size:12px">${serie <= 1 ? `<span class="ok">▌</span> campeão · <span style="color:var(--ac)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana${serie ? ` · <span class="bad">▌</span> rebaixamento${vagasDaA(tab) ? " · vagas já com a Copa do Brasil" : ""}` : ""}` : LEGENDA_DA_B}</div>`;
     }
   }
   // Competições: cada aba interna desenha nos dois quadros da tela (campeonatos, copa, estatísticas, federação, maiores campeões)
