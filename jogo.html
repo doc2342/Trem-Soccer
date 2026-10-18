@@ -121,6 +121,11 @@
   .mural .vai { margin-left:auto; padding-left:6px; opacity:.6; font-size:18px; line-height:1; }
   .mural > div.rot { border-bottom:0; padding:8px 0 2px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; opacity:.6; }
   .mural > div.rot:first-child { padding-top:0; }
+  .card-dobra > summary { list-style:none; cursor:pointer; }
+  .card-dobra > summary::-webkit-details-marker { display:none; }
+  .card-dobra > summary h2::after { content:"▾"; float:right; opacity:.6; }
+  .card-dobra:not([open]) > summary h2 { margin-bottom:0; }
+  .card-dobra:not([open]) > summary h2::after { content:"▸"; }
   .mural summary .ic { display:inline-block; margin-right:4px; }
   .mini td, .mini th { padding:4px 6px; }
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
@@ -1343,7 +1348,7 @@ async function telaClube(liga, clube) {
   };
   // no celular dá para trocar entre o desenho de celular e a página inteira com zoom reduzido (como no Dugout)
   let telaDePc = false; try { telaDePc = localStorage.getItem("mo_tela") === "pc"; } catch (e) {}
-  const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820;
+  const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820, celular = telaPequena && !telaDePc;
   // murais da Central
   // ir: aba (ou "aba:interna") que a linha abre ao ser clicada
   const item = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
@@ -1405,6 +1410,8 @@ async function telaClube(liga, clube) {
     if (clube.carne != null && clube.carne_temporada !== liga.temporada && transferencias && janela === "inicio") l.push(item("🎟️", "O Sócio-Torcedor desta temporada ainda não foi aberto (Clube, Finanças). Só dá para abrir antes da primeira rodada."));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
     const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
+    if (celular && resto.length) return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}` : "")
+      + `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">${urg.length ? "" : "Nada para resolver · "}Ver mais ${resto.length} ${resto.length === 1 ? "aviso" : "avisos"}</summary><div class="mural">${resto.join("")}</div></details></div>`;
     return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}${resto.length ? `<div class="rot">Para saber</div>` : ""}` : "") + resto.join("") || item("✅", "Sem novidades: ninguém lesionado, suspenso ou com contrato no fim.", "mut");
   };
   // painel de chegada: primeiros passos do dirigente novo; some quando tudo foi feito ou quando ele esconde
@@ -1683,11 +1690,11 @@ async function telaClube(liga, clube) {
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
-    <div class="card c-amistoso"><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2>
+    <details class="card c-amistoso card-dobra" ${celular ? "" : "open"}><summary><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2></summary>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
       <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
-      <div id="amInfo" class="mut" style="margin-top:6px"></div></div>
+      <div id="amInfo" class="mut" style="margin-top:6px"></div></details>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div>
     </div>
     <div>
@@ -1695,7 +1702,7 @@ async function telaClube(liga, clube) {
     <div class="card c-tabela"><h2>Tabela</h2><div id="miniTabela" class="mut">Carregando…</div></div>
     ${clube.confianca == null ? "" : (() => { const c = clube.confianca, C = CONFIG_DIRETORIA, d = minhaVirada && minhaVirada.detalhes || null, sinal = x => (x > 0 ? "+" : "") + x;
       const faixa = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `${minhaMeta.faixa_min}º lugar` : `entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º lugar`) : null;
-      return `<div class="card c-dir"><h2>Diretoria</h2><div class="row" style="gap:22px;align-items:flex-start">
+      return `<details class="card c-dir card-dobra" ${celular ? "" : "open"}><summary><h2>Diretoria <span class="tag">confiança ${c} de 100${faixa ? ` · meta: ${faixa}` : ""}</span></h2></summary><div class="row" style="gap:22px;align-items:flex-start">
         <div style="min-width:170px"><div class="mut">Confiança</div><div style="font-size:22px;font-weight:800" class="${c < 30 ? "bad" : c >= 70 ? "ok" : ""}">${c} <span class="mut" style="font-size:14px;font-weight:400">de 100</span></div>
           <div class="barra-passos" style="margin:4px 0 0"><i style="width:${c}%"></i></div></div>
         <div style="flex:1;min-width:220px"><div style="font-style:italic">“${fraseDoPresidente(c)}”</div>
@@ -1704,7 +1711,7 @@ async function telaClube(liga, clube) {
           ${d ? `<div class="mut" style="margin-top:4px">Na última virada: ${minhaVirada.antes} → ${minhaVirada.depois} (liga ${sinal(d.liga)}, copa ${sinal(d.copa)}, finanças ${sinal(d.financas)})${minhaVirada.verba ? `, verba de ${dinheiro(minhaVirada.verba)}` : ""}.</div>` : ""}</div>
         <div style="flex:1;min-width:220px" class="mut">Com ${C.verba[1][0]}+ na virada, a diretoria paga uma verba de ${Math.round(C.verba[1][1] * 100)}% do teto da folha${teto ? ` (${dinheiro(Math.round(teto * C.verba[1][1]))})` : ""}; com ${C.verba[0][0]}+, ${Math.round(C.verba[0][1] * 100)}% e mais uma compra pela multa.
           ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div style="margin-top:4px">⏳ Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="ok" style="margin-top:4px">✅ Clube extra em outro país liberado. <button class="sec" id="pedirExtra">Escolher o país e pedir</button></div>${pedidoExtra && pedidoExtra.estado === "recusado" ? `<div class="aviso" style="margin-top:4px">O pedido anterior (${esc(pedidoExtra.nome)}) foi recusado${pedidoExtra.motivo ? `: ${esc(pedidoExtra.motivo)}` : "."}</div>` : ""}` : `<div style="margin-top:4px">Clube extra em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo (quem já tem dois clubes precisa dos dois no ${C.segundoClube}).</div>`}
-          ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></div>`; })()}
+          ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></details>`; })()}
     ${clube.torcida == null ? `<div class="card c-destaque"><h2>Clube</h2><div class="mut">Torcida e estádio aparecem aqui quando a economia da liga for ligada.</div></div>` : `<div class="card c-destaque"><h2>Torcida</h2><div class="row" style="gap:22px;align-items:center">
       <div><div class="mut">Número de torcedores</div><div style="font-size:22px;font-weight:800">${clube.torcida.toLocaleString("pt-BR")}</div></div>
       <div><div class="mut">Humor da torcida</div><div style="font-size:22px;font-weight:800" class="${clube.humor < 6 ? "bad" : clube.humor >= 10 ? "ok" : ""}">${nomeDoHumor(clube.humor)} <span class="mut" style="font-size:14px;font-weight:400">(${String(clube.humor).replace(".", ",")} de 16)</span></div></div>
