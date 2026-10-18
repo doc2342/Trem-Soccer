@@ -507,6 +507,8 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     if (cond === "ganhando") return saldo > 0;
     if (cond === "empatando") return saldo === 0;
     if (cond === "perdendo") return saldo < 0;
+    if (cond === "umAMenos") return estat[i].vermelhos > estat[1 - i].vermelhos; // pelas expulsões: lesão sem troca não conta
+    if (cond === "umAMais") return estat[i].vermelhos < estat[1 - i].vermelhos;
     if (cond === "cansado") return !!jog && jog.energia < CONFIG.limiarCansado;
     if (cond === "amarelo") return !!jog && jog.amarelos > 0;
     if (cond === "mal" || cond === "naoBem") { // como o jogador que sai está indo na partida (goleiro não entra nessa conta: fica sempre no meio-termo)

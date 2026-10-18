@@ -848,6 +848,8 @@ const __motor = (() => {
       if (cond === "ganhando") return saldo > 0;
       if (cond === "empatando") return saldo === 0;
       if (cond === "perdendo") return saldo < 0;
+      if (cond === "umAMenos") return estat[i].vermelhos > estat[1 - i].vermelhos; // pelas expulsões: lesão sem troca não conta
+      if (cond === "umAMais") return estat[i].vermelhos < estat[1 - i].vermelhos;
       if (cond === "cansado") return !!jog && jog.energia < CONFIG.limiarCansado;
       if (cond === "amarelo") return !!jog && jog.amarelos > 0;
       if (cond === "mal" || cond === "naoBem") { // como o jogador que sai está indo na partida (goleiro não entra nessa conta: fica sempre no meio-termo)
@@ -1199,6 +1201,7 @@ const __bot = (() => {
       },
       substituicoes,
       ordens: [
+        { min: 0, cond: "umAMenos", muda: { mentalidade: Math.max(-2, mentalidade - 1) } }, // com 10, recuar uma casa rende um pouco mais (sim_mental: +0,05 pt)
         { min: 70, cond: "perdendo", muda: { mentalidade: Math.min(2, mentalidade + 1) } },
         { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1) } },
       ],
@@ -1380,7 +1383,7 @@ const __rodada = (() => {
       const titular = id => emCampo.has(id) ? id : null;
       const lista = (l, n) => (Array.isArray(l) ? l : []).filter(id => emCampo.has(id)).slice(0, n);
       const conv = v => v === "true" ? true : v === "false" ? false : isNaN(+v) ? v : +v;
-      const condicoes = ["sempre", "ganhando", "empatando", "perdendo", "cansado", "amarelo", "mal", "naoBem"];
+      const condicoes = ["sempre", "ganhando", "empatando", "perdendo", "umAMenos", "umAMais", "cansado", "amarelo", "mal", "naoBem"];
       const instrucoes = {
         mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
         passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"),
@@ -1389,10 +1392,10 @@ const __rodada = (() => {
         cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
         substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
           .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre"), ...(LISTA_POSICOES.includes(s.pos) && s.pos !== "GK" ? { pos: s.pos } : {}) })), // pos: onde o substituto entra (sem ela, na posição de quem sai)
-        ordens: (dados.ordens || []).slice(0, 3).map(o => {
+        ordens: (dados.ordens || []).slice(0, 30).map(o => { // sem limite na tela; o 30 só protege a função de uma tática adulterada
           const [k, v] = String(o.muda || "").split(":");
           if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar"].includes(k)) return null;
-          return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 4), "sempre"), muda: { [k]: conv(v) } };
+          return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
       return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };

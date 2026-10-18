@@ -50,7 +50,7 @@ export function htmlResumo(narracao, nomePorId = {}) {
 // r: saída de montarRelatorio. nomes: [mandante, visitante]. analistas: de quais times mostrar o comentário.
 // abertura: html opcional com cara ou coroa, clima e escalações, mostrado no começo da reprise.
 // "Suas ordens": cada substituição e ordem condicional com o minuto em que aconteceu ou o motivo de não ter acontecido
-const COND = { sempre: "sempre", ganhando: "se ganhando", empatando: "se empatando", perdendo: "se perdendo", cansado: "se cansado", amarelo: "se tiver amarelo", mal: "se jogando mal", naoBem: "se não estiver bem" };
+const COND = { sempre: "sempre", ganhando: "se ganhando", empatando: "se empatando", perdendo: "se perdendo", umAMenos: "com um a menos", umAMais: "com um a mais", cansado: "se cansado", amarelo: "se tiver amarelo", mal: "se jogando mal", naoBem: "se não estiver bem" };
 const MUDA = { mentalidade: ["muito defensiva", "defensiva", "mentalidade normal", "ofensiva", "muito ofensiva"], pressao: ["sem pressão", "pressão média", "pressão alta"] };
 const textoMuda = m => Object.entries(m).map(([k, v]) => k === "mentalidade" ? "mentalidade " + MUDA.mentalidade[v + 2].replace("mentalidade ", "") : k === "pressao" ? MUDA.pressao[v] : k === "contraAtaque" ? (v ? "liga" : "desliga") + " o contra-ataque" : k === "passe" ? (v === "longo" ? "bola longa" : "passe " + v) : `${k}: ${v}`).join(", ");
 function htmlOrdens(o, nome, cor) {

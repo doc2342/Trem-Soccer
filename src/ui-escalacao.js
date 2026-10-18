@@ -81,7 +81,7 @@ const OPCOES = {
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
 };
-const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"]];
+const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"], ["umAMenos", "se estiver com um a menos"], ["umAMais", "se estiver com um a mais"]];
 const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"], ["mal", "só se ele estiver jogando mal"], ["naoBem", "a não ser que ele esteja jogando bem"]];
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
   ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Arriscar de longe"], ["finalizar:area", "Trabalhar até a área"]];
@@ -375,12 +375,11 @@ function render() {
   if (editaSub !== null) $("subs").insertAdjacentHTML("beforeend", `<div class="mut" style="font-size:12px;margin-bottom:6px">Em "de", escolha a posição em que o substituto entra (ao lado, a nota dele ali). "Jogando mal" e "jogando bem" olham os duelos que ele venceu além do esperado e os gols até aquele minuto.</div>`);
   $("maisSub").disabled = E.subs.length >= CONFIG.maxSubstituicoes || !reservas.length || !tit.length;
   $("ordens").innerHTML = E.ordens.map((o, i) => editaOrdem !== i ? linhaCurta(`<b>${o.min}'</b> ${nomeCond(CONDICOES, o.cond)}: ${nomeCond(MUDANCAS, o.muda).toLowerCase()}`, "ordem", i) : `<div class="linhaSub">a partir dos <input type="number" min="0" max="89" value="${o.min}" data-ordem="${i}" data-campo="min"> min, ${sele(`data-ordem="${i}" data-campo="cond"`, CONDICOES, o.cond)}: ${sele(`data-ordem="${i}" data-campo="muda"`, MUDANCAS, o.muda)} <button data-editaordem="${i}">ok</button><button class="sec" data-tiraordem="${i}" title="Tirar">×</button></div>`).join("") || `<div class="mut" style="margin-bottom:6px">Nenhuma.</div>`;
-  $("maisOrdem").disabled = E.ordens.length >= 3;
   // resumo no título das seções fechadas
   const nPapeis = ["capitao", "vice", "armador", "alvo"].filter(k => E.instr[k]).length + Object.values(E.instr.cobradores).flat().filter(Boolean).length;
   $("nPapeis").textContent = nPapeis ? `${nPapeis} de 15 escolhidos` : "tudo automático";
   $("nSubs").textContent = `${E.subs.length} de ${CONFIG.maxSubstituicoes}`;
-  $("nOrdens").textContent = `${E.ordens.length} de 3`;
+  $("nOrdens").textContent = E.ordens.length ? `${E.ordens.length}` : "nenhuma";
   // salvas
   const salvas = ler("mo_salvas_" + chaveElenco()) || {};
   $("salvas").innerHTML = Object.keys(salvas).map(n => `<span class="chip" data-carrega="${esc(n)}">${esc(n)} <b data-apaga="${esc(n)}" title="Apagar">×</b></span>`).join("") || "";

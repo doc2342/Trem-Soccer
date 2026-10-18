@@ -86,6 +86,7 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
     },
     substituicoes,
     ordens: [
+      { min: 0, cond: "umAMenos", muda: { mentalidade: Math.max(-2, mentalidade - 1) } }, // com 10, recuar uma casa rende um pouco mais (sim_mental: +0,05 pt)
       { min: 70, cond: "perdendo", muda: { mentalidade: Math.min(2, mentalidade + 1) } },
       { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1) } },
     ],
