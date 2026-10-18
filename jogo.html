@@ -247,7 +247,7 @@ const divisoesDaLiga = daLiga("divisoesDaLiga", B.divisoesDaLiga);
 import { classificacao, taticaDoDirigente, climaDaPartida, efeitoDoClima, jogoGrande, vencedorDoConfronto } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { metasDaTemporada, confiancaDaTemporada, meusDireitos, meuPedidoExtra, pedirClubeExtra, ativarClube, minhasPendencias, entregarClubeExtra, marcarNaoRenovar, ultimaNovidade } from "./src/banco.js";
-import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, extraDoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, manutencaoExtraDoEstadio, COMIDA, comidaPorTorcedor } from "./src/economia.js";
+import { salarioDeMercado, clausula, multaDe, valorDeHoje, dinheiro, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, PREMIO_MINIMO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, valorNoAgente, extraDoAgente, VENDAS_PELO_AGENTE, faixaDaNegociacao, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, lugaresDoEstadio, NIVEL_MAXIMO_DO_ESTADIO, PRESTIGIO_MAXIMO, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, manutencaoExtraDoEstadio, COMIDA, comidaPorTorcedor, custoDeOperacao, FAIXAS_DO_IMPOSTO } from "./src/economia.js";
 // Contrato mais longo pede mais: ao trocar a duração, o salário mínimo do campo ao lado sobe (salário de mercado + 10% por temporada extra).
 // Os formulários são desenhados em vários momentos; um observador acerta o campo sempre que um deles aparece.
 function acertarSalarioPelaDuracao() {
@@ -853,7 +853,7 @@ async function telaClube(liga, clube) {
       <h2 style="margin-top:14px">Prêmios individuais</h2>
       <div class="mut">Pagos na virada ao clube do jogador. Em cada série: artilheiro, garçom, melhor jogador, melhor goleiro e revelação (até 21 anos), a 100 mil na Série A, 60 mil nas B e 40 mil nas C; o melhor jogador da Série A é o Bola de Ouro e vale 200 mil. Na copa: artilheiro e craque, 100 mil cada. Os premiados de cada temporada ficam em Estatísticas.</div>
       <h2 style="margin-top:14px">O que a liga cobra</h2>
-      <div class="mut">Imposto: 20% do lucro da temporada que passar de um quarto do teto de folha. Bilheteria: 10% de todo jogo (copa e playoff têm ingresso mais caro: até 50% a mais na final do playoff e o dobro na final da copa). Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
+      <div class="mut">Imposto sobre o lucro da temporada, em faixas do teto de folha: nada até 1/4 do teto, 20% de 1/4 a 1/2, 35% de 1/2 até o teto e 50% acima do teto. Bilheteria: 10% de todo jogo (copa e playoff têm ingresso mais caro: até 50% a mais na final do playoff e o dobro na final da copa). Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
   }
   // Recordes de todas as temporadas (89_tecnico_e_recordes.sql): da liga, ou só pelo clube (campanha, ataque e jogadores)
   const htmlDosRecordes = d => {
@@ -1252,7 +1252,8 @@ async function telaClube(liga, clube) {
           ${linha("Refletores", temRefletores(n) ? "sim" : "não", temRefletores(n) ? `público ${pct(EXTRAS_DO_ESTADIO.publicoRefletores)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutRefletores)} de manutenção` : `chegam no nível ${EXTRAS_DO_ESTADIO.nivelDosRefletores}`)}
           ${linha("Estacionamento", est ? `nível ${est}` : "não", est ? `público ${pct(EXTRAS_DO_ESTADIO.publicoPorEstacionamento * est)} · ${dinheiro(EXTRAS_DO_ESTADIO.manutPorEstacionamento * est)} de manutenção` : "chega no nível 3 do estádio")}
           ${linha("Bônus de público", pct(bonusDoEstadio(n) - 1), "refletores e estacionamento; o teto são os lugares")}
-          ${linha("Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ",") + " por torcedor", `${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`)}</table>
+          ${linha("Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ",") + " por torcedor", `${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`)}
+          ${linha("Operação do jogo", "R$ " + custoDeOperacao(n).toFixed(2).replace(".", ",") + " por torcedor", "segurança, staff e limpeza; na copa, meio a meio")}</table>
         ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
           : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button>
             <span class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
@@ -1358,15 +1359,16 @@ async function telaClube(liga, clube) {
   // finanças: visão geral, folha e teto, resumo por categoria, evolução do caixa, previsão por rodada e extrato
   const rotRodada = r => r === 100 ? "Supercopa" : r === 406 ? "Recopa" : r > 300 ? "Sul-Americana, " + (FASES_DA_COPA[r - 300] || "").toLowerCase() : r > 200 ? "Libertadores, " + (FASES_DA_COPA[r - 200] || "").toLowerCase() : r > 100 ? "copa, " + (FASES_DA_COPA[r - 100] || "").toLowerCase() : r + "ª";
   const CATEGORIAS = [["Ingressos e Sócio-Torcedor", ["bilheteria", "carne"]], ["Comida e bebida", ["comida"]], ["Patrocínio", ["patrocinio"]], ["Direitos de TV", ["tv", "paraquedas"]], ["Prêmios e fundo da liga", ["premio", "fundo", "antecipacao"]], ["Copas", ["copa"]],
-    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao", "formador"]], ["Salários e luvas", ["salarios", "luvas"]], ["Comissão técnica e olheiros", ["treinadores", "olheiro", "busca"]], ["Manutenção das estruturas", ["manutencao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
+    ["Transferências", ["compra", "venda", "taxa", "banco", "anulacao", "formador"]], ["Salários e luvas", ["salarios", "luvas"]], ["Comissão técnica e olheiros", ["treinadores", "olheiro", "busca"]], ["Manutenção das estruturas", ["manutencao"]], ["Operação dos jogos", ["operacao"]], ["Obras", ["obra"]], ["Imposto", ["imposto"]]];
   const financas = () => {
     const n = rodadasDoGrupo, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folhaPaga / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
     const temTorcida = clube.torcida != null, lugares = lugaresDoEstadio(clube.estadio_nivel);
     const publico = temTorcida ? Math.min(lugares, Math.round((clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida)) * bonusDoEstadio(clube.estadio_nivel))) : 0;
     // 10% da bilheteria vão para o fundo da liga (53_fundo_da_liga.sql)
-    // comida e bebida: todo o público, sem a taxa do fundo (118_comida_no_estadio.sql)
-    const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000 * 0.9) + Math.round(publico * comidaPorTorcedor(clube.estadio_nivel, clube.humor) / 1000), bil = Math.round(porJogo / 2);
+    // comida e bebida: todo o público, sem a taxa do fundo (118_comida_no_estadio.sql); operação do jogo por torcedor (122)
+    const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000 * 0.9) + Math.round(publico * comidaPorTorcedor(clube.estadio_nivel, clube.humor) / 1000)
+      - Math.round(publico * custoDeOperacao(clube.estadio_nivel) / 1000), bil = Math.round(porJogo / 2);
     const com = Math.round((comissaoToda || []).reduce((t, x) => t + x.salario, 0) / n), man = Math.round(manutencaoDoClube() / n);
     const humor = clube.humor < 3 ? "revoltada" : clube.humor < 6 ? "nervosa" : clube.humor < 10 ? "calma" : clube.humor < 13 ? "animada" : "eufórica";
     const fora = tv + pat - sal - com - man, emCasa = fora + porJogo, saldo = fora + bil, cor = v => v < 0 ? "bad" : v > 0 ? "ok" : "mut", sinal = v => (v > 0 ? "+" : "") + dinheiro(v);
@@ -1412,9 +1414,9 @@ async function telaClube(liga, clube) {
     }
     const previsao = `<div class="card"><h2>Previsão por rodada</h2>
       <div class="mut">TV ${sinal(tv)} · patrocínio ${sinal(pat)} · salários ${sinal(-sal)}${com ? ` · comissão técnica ${sinal(-com)}` : ""}${man ? ` · manutenção ${sinal(-man)}` : ""}
-        <br>${temTorcida ? `Rodada em casa (bilheteria e comida ${sinal(porJogo)}): <b class="${cor(emCasa)}">${sinal(emCasa)}</b> · rodada fora: <b class="${cor(fora)}">${sinal(fora)}</b> · média: ` : "Saldo: "}<b class="${cor(saldo)}">${sinal(saldo)}</b>
-        ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa com a comida, já sem os 10% do fundo da liga${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
-        <br>No fim da temporada entram o prêmio da liga e o imposto: 20% do lucro que passar de ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha).</div></div>`;
+        <br>${temTorcida ? `Rodada em casa (bilheteria e comida menos a operação do jogo ${sinal(porJogo)}): <b class="${cor(emCasa)}">${sinal(emCasa)}</b> · rodada fora: <b class="${cor(fora)}">${sinal(fora)}</b> · média: ` : "Saldo: "}<b class="${cor(saldo)}">${sinal(saldo)}</b>
+        ${temTorcida ? `<br>Estádio nível ${clube.estadio_nivel}: ${lugares.toLocaleString("pt-BR")} lugares · torcida de ${clube.torcida.toLocaleString("pt-BR")}, ${humor} · cerca de ${publico.toLocaleString("pt-BR")} pagantes e ${dinheiro(porJogo)} por jogo em casa com a comida e já sem a operação do jogo e os 10% do fundo da liga${publico >= lugares ? ` · <span class="aviso">o estádio lota: há torcida para mais lugares</span>` : ""}` : ""}
+        <br>No fim da temporada entram o prêmio da liga e o imposto sobre o lucro, em faixas: ${FAIXAS_DO_IMPOSTO.map(([de, tx], i) => `${Math.round(tx * 100)}% ${i + 1 < FAIXAS_DO_IMPOSTO.length ? `de ${dinheiro(Math.round(de * teto))} a ${dinheiro(Math.round(FAIXAS_DO_IMPOSTO[i + 1][0] * teto))}` : `acima de ${dinheiro(Math.round(de * teto))}`}`).join(", ")}; até ${dinheiro(Math.round(teto / 4))} (um quarto do teto de folha) não paga nada.</div></div>`;
     const detalhe = grupos.length ? `<details style="margin-top:12px"><summary style="cursor:pointer"><b>Extrato rodada a rodada</b> <span class="mut">(${extrato.length} lançamentos)</span></summary>
       <div style="max-height:320px;overflow:auto;margin-top:6px"><table class="mini" style="width:100%"><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq" style="white-space:nowrap">T${g.temporada} · ${g.rodada == null ? "fora de rodada" : rotRodada(g.rodada)}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}" style="white-space:nowrap"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div></details>`
       : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`;

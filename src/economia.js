@@ -39,6 +39,9 @@ export const bonusDoEstadio = nivel => 1 + (temRefletores(nivel) ? EXTRAS_DO_EST
 export const COMIDA = { base: 4, porNivel: 0.5, manutPorNivel: 20 };
 const nivelDoEstadio = nivel => Math.min(8, Math.max(1, nivel || 1));
 export const comidaPorTorcedor = (nivel, humor = 8) => Math.round((COMIDA.base + COMIDA.porNivel * nivelDoEstadio(nivel)) * (0.8 + 0.4 * Math.min(16, Math.max(0, humor ?? 8)) / 16) * 100) / 100;
+// Operação do jogo (122): segurança, staff e limpeza, R$ 0,10 × nível² por torcedor; o mandante paga, na copa meio a meio
+export const OPERACAO = { porNivel2: 0.10 };
+export const custoDeOperacao = nivel => Math.round(OPERACAO.porNivel2 * nivelDoEstadio(nivel) ** 2 * 100) / 100;
 export const manutencaoExtraDoEstadio = nivel => (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.manutRefletores : 0) + EXTRAS_DO_ESTADIO.manutPorEstacionamento * estacionamentoDoEstadio(nivel) + COMIDA.manutPorNivel * nivelDoEstadio(nivel);
 // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
 export const PRESTIGIO_MAXIMO = 2.15;
@@ -54,7 +57,11 @@ export function contratoInicial(rng, j, temporada) {
 
 // Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
 export const PREMIO_MINIMO = { 1: 2000, 2: 1200, 3: 600 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
-export const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
+// Imposto em faixas (122_imposto_em_faixas_e_operacao.sql): isento até 1/4 do teto; 20% até 1/2; 35% até o teto; 50% acima
+export const FAIXAS_DO_IMPOSTO = [[0.25, 0.2], [0.5, 0.35], [1, 0.5]];
+export const impostoDoLucro = (lucro, teto) => Math.round(FAIXAS_DO_IMPOSTO.reduce((t, [de, taxa], i) => {
+  const ate = FAIXAS_DO_IMPOSTO[i + 1] ? FAIXAS_DO_IMPOSTO[i + 1][0] * teto : Infinity;
+  return t + taxa * Math.max(0, Math.min(lucro, ate) - de * teto); }, 0));
 export const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
 export const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
 export const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
