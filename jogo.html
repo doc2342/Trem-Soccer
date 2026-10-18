@@ -1856,7 +1856,8 @@ async function telaClube(liga, clube) {
     <section data-secao="classificacao">
     ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["sul", "🌐 Sul-Americana", "Sul-Am."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
     <div data-parte="comp:liga"><div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
-      <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span></div></div>
+      <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
+      <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div></div>
     <div data-parte="comp:stats"><div class="row" style="margin-top:4px">
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
@@ -1893,7 +1894,6 @@ ${historicoDaBase()}
         <div><b>Dirigente</b>
           <div style="margin:4px 0 8px">${clube.dirigente === undefined ? `<span class="mut">O nome do dirigente aparece aqui quando o administrador ligar essa opção.</span>` : `${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">sem nome</span>`} <button class="sec" id="cfgDirigente">Mudar o nome</button>`}</div>
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
-          <div style="margin-top:12px"><b>Relatório da temporada</b><div style="margin-top:4px"><a href="temporada.html?clube=${clube.id}" style="color:var(--ac)">Abrir o relatório da temporada</a></div></div>
           <div style="margin-top:12px"><b>Tema</b><div class="mut" style="margin:4px 0 8px">No automático, o jogo fica claro ou escuro junto com o celular ou o computador.</div>
             ${[["", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]].map(([v, n]) => `<label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:4px"><input type="radio" name="cfgTema" value="${v}" ${temaEscolhido === v ? "checked" : ""}> ${n}</label>`).join("")}</div>
           ${telaPequena ? `<div style="margin-top:12px"><b>Tela</b><div class="mut" style="margin:4px 0 8px">No celular, dá para ver a página inteira de computador com o zoom reduzido, como no Dugout.</div><button class="sec" id="cfgTela">${telaDePc ? "📱 Usar a tela de celular" : "🖥️ Usar a tela de computador"}</button></div>` : ""}</div>
