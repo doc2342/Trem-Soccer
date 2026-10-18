@@ -52,7 +52,8 @@ export async function simularMetas({ grupos, elencos, rng, n = CONFIG_DIRETORIA.
       if (s % 5 === 4) { aoProgresso(feitos / total, g); await new Promise(r => setTimeout(r, 0)); }
     }
     for (const c of clubes) { const l = posicoes[c.id].sort((a, b) => a - b), q = f => l[Math.min(l.length - 1, Math.floor(f * l.length))];
-      metas.push({ clube_id: c.id, grupo: g, faixa_min: q(0.25), faixa_max: q(0.75) }); }
+      const distribuicao = Array.from({ length: clubes.length }, (_, i) => +(l.filter(x => x === i + 1).length / l.length).toFixed(4)); // chance de cada posição (patrocínio)
+      metas.push({ clube_id: c.id, grupo: g, faixa_min: q(0.25), faixa_max: q(0.75), distribuicao }); }
   }
   return metas;
 }

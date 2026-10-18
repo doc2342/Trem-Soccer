@@ -529,3 +529,9 @@ export const cargaDoClube = (ligaId, clubeId) => semCarga ? Promise.resolve(null
 }, () => null);
 // conferência leve antes de a página do clube se recarregar (92_ultima_novidade.sql); undefined = sem o SQL, recarrega como antes
 export const ultimaNovidade = (ligaId, clubeId) => sb.rpc("ultima_novidade", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => error ? undefined : data);
+
+// ---------- patrocínio (115_patrocinio.sql; sem ele as leituras voltam vazias) ----------
+export const propostasDePatrocinio = () => sb.rpc("propostas_patrocinio").then(({ data, error }) => error ? null : data && data.escolha && !data.escolha.clube_id ? { ...data, escolha: null } : data); // sem escolha, o SQL devolve um registro vazio
+export const escolherPatrocinio = (marca, proposta) => sb.rpc("escolher_patrocinio", { p_marca: marca, p_proposta: proposta }).then(ok);
+export const patrocinioDoClube = (clubeId, temporada) => sb.from("patrocinios").select("*").eq("clube_id", clubeId).eq("temporada", temporada).maybeSingle().then(({ data, error }) => error ? null : data);
+export const pagarPatrocinio = (ligaId, lista) => sb.rpc("pagar_patrocinio", { p_liga: ligaId, p_lista: lista }).then(ok);

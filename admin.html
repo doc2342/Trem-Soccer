@@ -22,7 +22,7 @@ import { notaBruta, paisDoGrupo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
+import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
@@ -189,7 +189,7 @@ async function tela(aviso = "") {
          <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar agora: ${nomeDaData(proxima).toLowerCase()}</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
          <div class="rolagem" style="margin-top:10px"><table><tr><th>Data</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${nomeDaData(x.r)}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
       : `<div class="mut" style="margin-bottom:10px">Sem calendário. Cada grupo joga turno e returno: 18 rodadas, 5 partidas por grupo em cada uma.</div>
-         <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label>
+         <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label><label title="Fora desse horário o relógio do calendário para: o intervalo conta só minutos do dia, e cada transmissão acaba até a hora final. 0 e 24 = sem restrição.">Jogos só entre (h)<span><input type="number" id="abre" value="0" min="0" max="23" style="width:55px"> e <input type="number" id="fecha" value="24" min="1" max="24" style="width:55px"></span></label>
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="105" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><label style="flex-direction:row;align-items:center;gap:6px" title="Uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga; precisa do SQL 47"><input type="checkbox" id="comCopa" checked> Com a Copa do Brasil</label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Duração 105 = transmissão ao vivo em tempo real (lances minuto a minuto, relatório só no apito final). Um número menor acelera o jogo (15 = partida inteira em 15 minutos); 0 mostra o resultado e o relatório na hora, sem transmissão. A tática fechando 1 segundo antes é valor de teste; na liga de verdade serão 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
@@ -202,7 +202,7 @@ async function tela(aviso = "") {
       <div id="previaVirada" style="margin-top:10px"></div></div>` : ""}
     ${liga ? `<div class="card"><h2>Diretoria</h2>
       <div class="mut" style="margin-bottom:10px">Metas da temporada ${liga.temporada}: <span id="metasInfo">…</span>. A meta de cada clube com dirigente é a faixa central de posições em várias simulações da temporada (todos com tática de bot). Calcule depois de gerar o calendário e antes da primeira rodada; cada grupo leva cerca de meio minuto com 100 simulações. Sem meta, a virada usa a posição pela força do elenco, com uma de folga para cada lado. A confiança é aplicada sozinha na virada.</div>
-      <div class="row"><button id="calcMetas" ${partidas.length ? "" : "disabled"}>Calcular as metas da temporada ${liga.temporada}</button><label>Simulações<input type="number" id="nSim" value="${CONFIG_DIRETORIA.simulacoes}" min="10" style="width:90px"></label></div>
+      <div class="row"><button id="calcMetas" ${partidas.length ? "" : "disabled"}>Calcular as metas da temporada ${liga.temporada}</button><span class="mut">Recalcule logo antes da 1ª rodada: é com ela que o patrocínio de cada clube trava.</span><label>Simulações<input type="number" id="nSim" value="${CONFIG_DIRETORIA.simulacoes}" min="10" style="width:90px"></label></div>
       <div id="avisoMetas" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${liga ? `<div class="card" id="transfAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Outros países</h2>
@@ -296,7 +296,17 @@ async function tela(aviso = "") {
       // rodadas da temporada = as da Série A: o pré-acordo abre depois da última (periodo_de_pre_acordo); a economia por jogo usa as do grupo (114)
       await atualizarLiga(liga.id, { rodadas_por_temporada: nDatas });
       const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k), espacoDaLib = k => ordem.indexOf("l" + k); // k: fase da copa, de 1 a 6; data da Libertadores, de 1 a 4
-      const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
+      // hora do espaço (+ extra ms): com "jogos só entre", o relógio anda só nos minutos em que um jogo pode começar
+      // (da hora inicial até a final menos a transmissão) e pula a noite; sem restrição, é o intervalo corrido
+      const abre = +$("abre").value, fecha = +$("fecha").value, util = (fecha - abre) * 60 - duracao; // minutos por dia
+      const hora = (espaco, extra = 0) => {
+        if (!(abre > 0 || fecha < 24)) return inicio + espaco * intervalo + extra;
+        if (!(util > 0)) throw new Error("A faixa de horário é menor que a transmissão.");
+        const d0 = new Date(inicio); d0.setHours(0, 0, 0, 0);
+        const p = Math.min(Math.max((inicio - d0) / 60000 - abre * 60, 0), util) + (espaco * intervalo + extra) / 60000;
+        const dia = Math.floor(p / util), d = new Date(d0); d.setDate(d.getDate() + dia);
+        return d.getTime() + (abre * 60 + p - dia * util) * 60000;
+      }, iso = t => new Date(t).toISOString();
       const linhas = [];
       for (const g of gruposDe(clubes)) for (const j of tabelas[g]) {
         const ini = hora(espacoDaRodada(dataDaRodada(g, j.rodada)));
@@ -334,10 +344,11 @@ async function tela(aviso = "") {
         }
         // oitavas da Libertadores e da Sul-Americana: cada clube do Brasil contra um de fora, por sorteio; os outros de fora entre si.
         // A ordem dos jogos também é sorteada: ela é a chave (o vencedor do 1º pega o do 2º nas quartas, e assim por diante). Estádio maior, como na copa.
-        // A Sul-Americana joga nos dias da Libertadores, depois do fim da transmissão dela (ou na metade do intervalo, se ele for curto).
+        // A Sul-Americana joga nos dias da Libertadores, depois do fim da transmissão dela; com intervalo curto, na mesma hora (os clubes são
+        // outros, e começar no meio do intervalo jogava os brasileiros dela em cima da rodada seguinte da liga).
         const continental = (grupo, base, brasil, fora, depois) => {
           const s = rng.embaralhar(fora), jogos = rng.embaralhar([...brasil.map((id, k) => [id, s[k]]), ...s.slice(brasil.length).reduce((l, id, k, a) => k % 2 ? l : [...l, [id, a[k + 1]]], [])]);
-          const c = { datas: [1, 2, 3, 4].map(k => { const t = hora(espacoDaLib(k)) + depois; return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
+          const c = { datas: [1, 2, 3, 4].map(k => { const t = hora(espacoDaLib(k), depois); return { inicio: iso(t), fim: iso(t + duracao * 60000) }; }) };
           for (let [k, [a, b]] of jogos.entries()) {
             if (nivel[b] > nivel[a]) [a, b] = [b, a];
             linhas.push({ liga_id: liga.id, grupo, rodada: base + 3, fase: "lib", copa_fase: 3, chave: k + 1, casa: a, fora: b, inicio: c.datas[0].inicio, fim: c.datas[0].fim });
@@ -345,7 +356,7 @@ async function tela(aviso = "") {
           return c;
         };
         const lib = comLib ? continental("LIB", 200, libBrasil, libFora, 0) : null;
-        const sul = comSul ? continental("SUL", 300, sulBrasil, sulFora, Math.min((duracao + 15) * 60000, intervalo / 2)) : null;
+        const sul = comSul ? continental("SUL", 300, sulBrasil, sulFora, intervalo >= 2 * (duracao + 15) * 60000 ? (duracao + 15) * 60000 : 0) : null;
         copa += lib ? " Libertadores: 8 jogos nas oitavas." : " Libertadores: não saiu (faltam os 16 classificados da temporada anterior no histórico).";
         copa += sul ? " Sul-Americana: 8 jogos nas oitavas." : " Sul-Americana: não saiu (faltam os 16 classificados da temporada anterior no histórico).";
         let rec;
@@ -373,7 +384,7 @@ async function tela(aviso = "") {
       const vespera = t => diario ? new Date(new Date(t).setHours(0, 0, 0, 0) - 60000) : new Date(t - 60000);
       const diaSeguinte = t => diario ? new Date(new Date(t).setHours(24, 0, 0, 0)) : new Date(t + duracao * 60000 + 60000);
       const fechaInicio = vespera(hora(espacoDaRodada(3)));
-      const abreMeio = comCopa ? diaSeguinte(hora(espacoDaCopa(3))) : (diario ? new Date(new Date(hora(espacoDaRodada(8)) + intervalo / 2).setHours(0, 0, 0, 0)) : new Date(hora(espacoDaRodada(8)) + intervalo / 2));
+      const abreMeio = comCopa ? diaSeguinte(hora(espacoDaCopa(3))) : (diario ? new Date(new Date(hora(espacoDaRodada(8), intervalo / 2)).setHours(0, 0, 0, 0)) : new Date(hora(espacoDaRodada(8), intervalo / 2)));
       const fechaMeio = vespera(comCopa ? hora(espacoDaCopa(4)) : hora(espacoDaRodada(12)));
       let janelas = "";
       try {
@@ -381,7 +392,8 @@ async function tela(aviso = "") {
         const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
         janelas = ` Janela de início até ${quando(fechaInicio)}; janela do meio de ${quando(abreMeio)} a ${quando(fechaMeio)}.`;
       } catch (e) { janelas = " (As datas das janelas não foram gravadas: falta o SQL 46. Vale a regra antiga, por rodada.)"; }
-      await tela(`Calendário gerado: ${linhas.length} partidas.` + copa + janelas);
+      const ultima = Math.max(...linhas.map(l => new Date(l.fim).getTime()), ...(playoffs || []).map(x => new Date(x.fim).getTime()));
+      await tela(`Calendário gerado: ${linhas.length} partidas, a última transmissão acaba em ${new Date(ultima).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}.` + copa + janelas);
     } catch (e) { await tela("Erro ao gerar o calendário: " + e.message); }
   });
   em("apagarCal", async () => {
@@ -487,6 +499,9 @@ async function tela(aviso = "") {
             }
             confianca = " " + await aplicarConfianca(liga.id, conf);
           } catch (e) { confianca = " Confiança da diretoria não aplicada: " + e.message + " (o 91_diretoria.sql já foi executado?)"; }
+          let patrocinio = ""; // bônus de patrocínio: quem cumpriu a meta de posição recebe, antes de a virada trocar a temporada
+          try { patrocinio = " " + await pagarPatrocinio(liga.id, plano.classificacao.map(x => ({ clube_id: x.clube_id, posicao: x.posicao }))); }
+          catch (e) { patrocinio = " Bônus de patrocínio não pagos: " + e.message + " (o 115_patrocinio.sql já foi executado?)"; }
           const feito = await virarTemporada(liga.id, plano), taxas = await distribuirTaxas(liga.id); // taxas de venda da temporada que acabou
           if (plano.safra && plano.safra.length) await registrarSafra(liga.id, plano.safra); // talentos raros: mural da liga e peso do próximo sorteio
           await atualizarTorcidas(liga.id); // prestígio de cada clube, pela campanha que acabou de ir para o histórico
@@ -495,7 +510,7 @@ async function tela(aviso = "") {
           let livres = ""; // contratos vencidos: os jogadores saem dos clubes e entram em leilão
           if (comLivres) { try { livres = ` ${await liberarJogadores(liga.id, plano.livres)} jogadores ficaram livres.`; } catch (e) { livres = " Não consegui liberar os jogadores de contrato vencido: " + e.message; } }
           const pre = await executarPreAcordos(liga.id); if (pre) livres += " " + pre; // pré-acordos e pré-contratos fechados antes da virada
-          await tela(feito + confianca + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
+          await tela(feito + confianca + patrocinio + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
         }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
       };

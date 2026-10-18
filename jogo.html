@@ -122,6 +122,9 @@
   .mural summary .ic { display:inline-block; margin-right:4px; }
   .mini td, .mini th { padding:4px 6px; }
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--ac); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); }
+  .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--bd, #2a2f55); }
+  .rod-tit { margin-bottom:4px; }
+  .hist-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:8px 14px; align-items:start; }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
   .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
   .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
@@ -205,6 +208,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
+import { MARCAS, selo, PROPOSTAS } from "./src/patrocinio.js";
 import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
 // entre as recargas causadas por ações (contratar, propor, comprar relatório…). A entrada na página e a recarga automática com novidade
@@ -464,6 +468,7 @@ async function telaClube(liga, clube) {
   let mercadoAoAbrir = null;
   const carga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
   const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
+  const patroP = B.propostasDePatrocinio().catch(() => null); // 115_patrocinio.sql; sem ele vem null e a aba explica
   const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], [baseJogos, copinha, libJuvenil],
     [baseCampeoes, premiosTodos, revelados, taticaBase], safra, rodadasFeitas, lancesLivres, copaBruta, meusBrutos, trofeus, [historicoLances, negociosDoClube]] = await Promise.all([
@@ -492,6 +497,7 @@ async function telaClube(liga, clube) {
   // campeões e vices da copa das temporadas anteriores, da mais recente para a mais antiga
   const finalistas = liga.copa === undefined ? [] : trofeus.filter(x => x.copa === "campeão" || x.copa === "vice").reverse();
   desenharSeletor(clube, clubes).catch(() => {});
+  let patro = await patroP;
   const [metasDaLiga, confPassada, direitos, pedidoExtra] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
   const IDADE_DE_APOSENTAR_DA_COMISSAO = 65; // 65_aposentadoria_da_comissao.sql: na virada todos envelhecem um ano e quem chega aos 65 se aposenta
@@ -617,6 +623,7 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px;font-size:12px">Jogo único, no estádio maior dos dois e sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio é pago pelo fundo da liga a cada clube que entra na fase; a preliminar não paga. A renda de cada jogo é dividida meio a meio.</div>`;
     $("tituloJogos").textContent = "Copa do Brasil · jogos";
     $("rodadas").className = "";
+    const rotuloR = r => (p => p.fase !== "liga" ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
     if (!fases.length) { $("rodadas").innerHTML = `<div class="mut">A copa ainda não foi sorteada.</div>`; return; }
     const atual = fases.find(f => daFase(f).some(p => !copaRes[p.id])) || fases[fases.length - 1];
     $("rodadas").innerHTML = `<label>Fase<select id="copaFase">${fases.map(f => `<option value="${f}" ${f === atual ? "selected" : ""}>${FASES_DA_COPA[f]}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>
@@ -1331,6 +1338,7 @@ async function telaClube(liga, clube) {
   const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
   const muralDoClube = () => {
     const l = [];
+    if (patro && !patro.escolha) l.push(item("🤝", "Escolha o patrocínio da temporada: luvas e bônus por meta. Vale até a 1ª rodada.", "aviso", "clube:patrocinio"));
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
     if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
@@ -1606,13 +1614,31 @@ async function telaClube(liga, clube) {
       ${kpi("Compras pela multa", `${comprei}<small> de ${limite}</small>`, `você perdeu ${perdi} de 3 nesta temporada`)}
       ${livres == null ? "" : kpi("Leilões", `${meusLeiloes}<small> de 3</small>`, pendentes ? `${pendentes} ${pendentes === 1 ? "proposta espera" : "propostas esperam"} você` : "ao mesmo tempo")}</div>`;
   };
+  // patrocínio por escolha (115_patrocinio.sql): marca cosmética + proposta de luvas e bônus por meta de posição
+  let selM = patro && patro.escolha ? patro.escolha.marca : patro && patro.marca && !(MARCAS[patro.marca].grande && clube.divisao !== 1) ? patro.marca : null, selP = patro && patro.escolha ? patro.escolha.proposta : null, msgP = "";
+  const abaPatrocinio = () => {
+    if (!patro) return `<div class="card mut">O patrocínio por escolha aparece aqui depois que o administrador rodar o 115_patrocinio.sql.</div>`;
+    const e = patro.escolha, trava = !!(e && e.travado), pr = Object.fromEntries(patro.propostas.map(x => [x.id, x]));
+    const cartao = (id, x) => { const [nome, desc] = PROPOSTAS[id], on = selP === id;
+      return `<div class="card" ${trava ? "" : `data-prop="${id}"`} style="cursor:${trava ? "default" : "pointer"};flex:1;min-width:210px;margin:0;${on ? "outline:2px solid var(--ac)" : ""}">
+        <b>${nome}</b> <span class="mut">${desc}</span>
+        <div style="margin-top:6px">Luvas: <b>${dinheiro(x.luvas)}</b> <span class="mut">em parcelas semanais</span></div>
+        <div>${x.meta ? `Bônus de <b>${dinheiro(x.bonus)}</b> se terminar em <b>${x.meta}º lugar ou acima</b> <span class="mut">(chance ${Math.round(x.chance * 100)}%)</span>` : `<span class="mut">Meta e bônus saem na 1ª rodada, com o seu elenco daquela hora.</span>`}</div></div>`; };
+    const vis = trava ? [[e.proposta, e]] : patro.propostas.map(x => [x.id, x]);
+    return `<div class="card"><h2>Patrocínio da temporada ${patro.temporada}</h2>
+      <div class="mut">Valor de referência: ${dinheiro(patro.base)}${patro.fidelidade ? ` (já com +${patro.fidelidade * 5}% de fidelidade)` : ""}. As três propostas valem o mesmo em média: quanto menos luvas, mais bônus e mais difícil a meta. A marca só enfeita e não muda o dinheiro; mantê-la por temporadas seguidas dá +5% por ano (até +20%). ${trava ? "Escolha travada na 1ª rodada." : "Você pode mudar até a 1ª rodada; meta e bônus são calculados e travam nela."}</div></div>
+      <div class="card"><h2>Marca</h2><div class="row" style="gap:10px;align-items:stretch">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
+        return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--bd, #2a3060);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
+          ${selo(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
+      <div class="card"><h2>Proposta</h2><div class="row" style="gap:10px;align-items:stretch">${vis.map(([id, x]) => cartao(id, x)).join("")}</div>
+        ${trava ? "" : `<div class="row" style="margin-top:12px"><button id="pConfirma" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP)}</span></div>`}</div>`; };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
     ${kpi("Próximo jogo", `<span id="kpiProx">—</span>`, `<span id="kpiProxD">carregando…</span>`)}
     ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
     ${clube.confianca != null ? kpi("Confiança", `<span class="${clube.confianca < 30 ? "bad" : clube.confianca >= 70 ? "ok" : ""}">${clube.confianca}</span><small> de 100</small>`, "da diretoria")
       : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
-      <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
+      <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)} <span id="seloTopo">${patro && patro.escolha ? selo(patro.escolha.marca, 28) : ""}</span></h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
@@ -1677,6 +1703,7 @@ ${historicoDaBase()}
       <div class="card"><h2 id="tituloTabela">Classificação</h2><div id="tabela" class="mut">Carregando…</div></div>
       <div class="card"><h2 id="tituloJogos">Jogos</h2><div id="rodadas" class="mut">Carregando…</div></div>
     </div>
+    <div id="compHist"></div>
     </section>
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
@@ -1828,7 +1855,7 @@ ${historicoDaBase()}
     </div>
     </section>
     <section data-secao="clube">
-    ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."]])}
+    ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."], ["patrocinio", "🤝 Patrocínio", "Patroc."]])}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
       <div class="colunas">${["ct", "medico", "fisio", "estadio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
@@ -1837,6 +1864,7 @@ ${historicoDaBase()}
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : financas()}
     </div>
     <div data-parte="clube:transf">${abaTransferencias()}</div>
+    <div data-parte="clube:patrocinio">${abaPatrocinio()}</div>
     </section>
 `;
 
@@ -2199,6 +2227,18 @@ ${historicoDaBase()}
     if (k === "mercado" && mercadoAoAbrir) { const f = mercadoAoAbrir; mercadoAoAbrir = null; f(); }
     if (g) abrirSubAba(g, sub);
   };
+  { const parte = document.querySelector('[data-parte="clube:patrocinio"]'); // escolha de patrocínio
+    const redesenha = () => { parte.innerHTML = abaPatrocinio(); $("seloTopo").innerHTML = patro && patro.escolha ? selo(patro.escolha.marca, 28) : ""; };
+    parte.onclick = async ev => {
+      const m = ev.target.closest("[data-marca]"), p = ev.target.closest("[data-prop]");
+      if (m) { selM = m.dataset.marca; redesenha(); }
+      else if (p) { selP = p.dataset.prop; redesenha(); }
+      else if (ev.target.id === "pConfirma") {
+        ev.target.disabled = true;
+        try { msgP = await B.escolherPatrocinio(selM, selP); patro = await B.propostasDePatrocinio() || patro; } catch (err) { msgP = "Não deu: " + err.message; }
+        redesenha();
+      }
+    }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(l => { const m = $("muralLiga"); if (!l.length || !m) return; m.querySelector("[data-vazio]")?.remove(); m.insertAdjacentHTML("afterbegin", l.join("")); }).catch(() => {});
@@ -2377,6 +2417,7 @@ ${historicoDaBase()}
 
   // classificação e jogos do grupo escolhido
   async function grupo(g) {
+    if ($("compHist")) $("compHist").innerHTML = "";
     if (g === "COPA") return telaDaCopa();
     if (g === "LIB" || g === "SUL") return telaDaLib(g);
     if (g === "TROFEUS") return telaDosCampeoes();
@@ -2406,15 +2447,16 @@ ${historicoDaBase()}
       <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span style="color:var(--ac)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span style="color:var(--ac)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span style="color:var(--sul)">▌</span> Sul-Americana (a 4ª vaga é do vice da copa; se ele já tiver vaga, do próximo da tabela) · <span class="bad">▌</span> rebaixamento` : LEGENDA_DA_B}</div>${playoffDoGrupo(partidas, res)}`;
     $("tituloJogos").textContent = `${nomeDoGrupo(g)} · jogos`;
     $("rodadas").className = "";
-    $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${(p => p.fase !== "liga" ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r))}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
+    $("rodadas").innerHTML = rodadas.length ? `<label>Rodada<select id="rodada">${rodadas.map(r => `<option value="${r}" ${r === atual ? "selected" : ""}>${rotuloR(r)}</option>`).join("")}</select></label><div id="jogos" style="margin-top:8px"></div>` : `<div class="mut">O calendário ainda não foi gerado.</div>`;
     // temporadas anteriores deste grupo, guardadas na virada; só com a aba Competições aberta (na Central esta função só preenche a tabela e os jogos)
     if (compAberta()) historicoDoGrupo(liga.id, g).then(h => {
-      if (!h.length || !$("rodadas") || $("tituloJogos").textContent !== `${nomeDoGrupo(g)} · jogos`) return; // a leitura chegou depois de trocar de aba (ex.: Copa)
+      if (!h.length || !$("rodadas") || !$("compHist") || $("tituloJogos").textContent !== `${nomeDoGrupo(g)} · jogos`) return; // a leitura chegou depois de trocar de aba (ex.: Copa)
       const nome = Object.fromEntries(clubes.map(c => [c.id, c.nome])), temporadas = [...new Set(h.map(x => x.temporada))];
-      $("rodadas").insertAdjacentHTML("beforeend", `<h2 style="margin-top:16px">Temporadas anteriores</h2>` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
-        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}${x.copa === "campeão" ? ` <span class="mut" title="Campeão da Copa do Brasil">🥇 copa</span>` : x.copa === "vice" ? ` <span class="mut" title="Vice-campeão da Copa do Brasil">vice copa</span>` : ""}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join(""));
+      $("compHist").innerHTML = `<div class="card"><h2>Temporadas anteriores</h2><div class="hist-grade">` + temporadas.map(t => `<details ${t === temporadas[0] ? "open" : ""}><summary>Temporada ${t}</summary><div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>Prêmio</th></tr>
+        ${h.filter(x => x.temporada === t).map(x => `<tr><td>${x.posicao}</td><td class="esq ${x.clube_id === clube.id ? "nota" : ""}">${esc(nome[x.clube_id] || "—")}${x.copa === "campeão" ? ` <span class="mut" title="Campeão da Copa do Brasil">🥇 copa</span>` : x.copa === "vice" ? ` <span class="mut" title="Vice-campeão da Copa do Brasil">vice copa</span>` : ""}</td><td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td>${x.gols_pro}</td><td>${x.gols_contra}</td><td>${dinheiro(x.premio)}${x.destino === "subiu" ? ` <span class="ok">▲</span>` : x.destino === "caiu" ? ` <span class="bad">▼</span>` : x.destino === "campeão" ? " 🏆" : ""}</td></tr>`).join("")}</table></div></details>`).join("") + `</div></div>`;
     }).catch(() => {});
-    const mostrar = () => { if ($("rodada")) $("jogos").innerHTML = partidas.filter(p => p.rodada === +$("rodada").value).map(p => jogo(p, res, agora)).join(""); };
+    const mostrar = () => { if (!$("rodada")) return; const i = rodadas.indexOf(+$("rodada").value);
+      $("jogos").innerHTML = [i, i - 1].filter(k => k >= 0).map(k => `<div class="rod-bloco"><div class="rod-tit"><b>${rotuloR(rodadas[k])}</b> <span class="mut">· ${rodadas[k] === atual ? "atual" : k === i ? "selecionada" : "anterior"}</span></div>${partidas.filter(p => p.rodada === rodadas[k]).map(p => jogo(p, res, agora)).join("")}</div>`).join(""); };
     if ($("rodada")) $("rodada").onchange = mostrar;
     mostrar();
     if (g === clube.grupo) {
