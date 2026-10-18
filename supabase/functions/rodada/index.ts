@@ -1451,7 +1451,7 @@ const __rodada = (() => {
   }
   const efeitoDoClima = c => c.chuva > 1 ? "campo pesado: o passe curto sofre bastante, o misto um pouco, a bola longa nada" : c.chuva ? "campo molhado: o passe curto sofre um pouco" : c.calor ? "todo mundo cansa 20% mais rápido" : "";
   // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
-  const jogoGrande = p => ["lib", "semi", "final", "acesso"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
+  const jogoGrande = p => ["lib", "pre", "semi", "final"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
   // Copa do Brasil: regras próprias da partida de copa.
   const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
   // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
@@ -1576,53 +1576,69 @@ const __rodada = (() => {
     return Object.values(t).sort((x, y) => y.pts - x.pts || (y.gp - y.gc) - (x.gp - x.gc) || y.gp - x.gp || x.gc - y.gc || x.clube.nome.localeCompare(y.clube.nome));
   }
 
-  // ---------- playoffs de acesso: 3º x 4º, e o vencedor visita o 2º na final; jogo único na casa do mais bem colocado ----------
-  // (Até a temporada 12 eram duas semifinais, 2º x 5º e 3º x 4º; grupo com duas semifinais ainda é resolvido do jeito antigo.)
-  const RODADA_SEMI = 19;
-  const RODADA_FINAL = 20;
-  // Final do acesso: os vencedores dos playoffs dos dois grupos da segunda divisão jogam pela terceira vaga na primeira.
-  const RODADA_DO_ACESSO = 21;
+  // ---------- playoff de acesso da segunda divisão (desde a T14, grupos de 8): seis classificados por grupo ----------
+  // Preliminar em jogo único na casa do melhor (3º x 6º e 4º x 5º; empate classifica o mandante); 1º e 2º folgam.
+  // Semifinal (1º x vencedor do 4x5, 2º x vencedor do 3x6) e final em ida e volta, a volta na casa da melhor campanha;
+  // empate no agregado classifica a melhor campanha (sem prorrogação nem pênaltis). O vencedor da final sobe.
+  // Rodadas, contadas depois das R rodadas de liga do grupo: preliminar R+1, semifinal R+2 e R+3, final R+4 e R+5.
+  // etapa = rodada − R − 1 (0 a 4): o calendário reserva uma data para cada etapa (ligas.copa.playoffs).
   const DESCENSO_DA_PRIMEIRA = 3;
-  // grupos da segunda divisão que disputam a final do acesso (só existe com exatamente dois)
-  const gruposDoAcesso = clubes => { const g = [...new Set(clubes.filter(c => c.divisao === 2).map(c => c.grupo))].sort(); return g.length === 2 ? g : null; };
+  const CLASSIFICADOS_DO_PLAYOFF = 6;
   const daLiga = p => !p.fase || p.fase === "liga";
   // Empate classifica o mandante, que é sempre o de melhor campanha.
   const vencedorDoPlayoff = (p, r) => r.gols_casa >= r.gols_fora ? p.casa : p.fora;
-  // Devolve os jogos da próxima fase a criar: { fase, jogos: [{ grupo, rodada, fase, casa, fora }] } ou { erro }.
+  // Confronto de um ou dois jogos: soma dos gols; empate classifica o mandante do último jogo (a melhor campanha). Sem resultado: null.
+  function vencedorDoConfronto(jogos, res) {
+    if (!jogos.length || jogos.some(p => !res[p.id])) return null;
+    const ultimo = jogos.reduce((a, b) => b.rodada > a.rodada ? b : a), gols = { [ultimo.casa]: 0, [ultimo.fora]: 0 };
+    for (const p of jogos) { gols[p.casa] += res[p.id].gols_casa; gols[p.fora] += res[p.id].gols_fora; }
+    return gols[ultimo.fora] > gols[ultimo.casa] ? ultimo.fora : ultimo.casa;
+  }
+  // confrontos de uma fase do grupo: jogos agrupados pelo par de clubes
+  const confrontos = jogos => Object.values(jogos.reduce((m, p) => { const k = [p.casa, p.fora].sort((a, b) => a - b).join("x"); (m[k] = m[k] || []).push(p); return m; }, {}));
+  const rodadasDeLiga = (partidas, g) => Math.max(0, ...partidas.filter(p => p.grupo === g && daLiga(p)).map(p => p.rodada));
+  // quem venceu o playoff do grupo (a final de ida e volta), ou null
+  function vencedorDoGrupo(partidas, resultados, g) {
+    const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
+    return vencedorDoConfronto(partidas.filter(p => p.grupo === g && p.fase === "final"), res);
+  }
+  // Devolve os jogos a criar agora, de todos os grupos da segunda divisão em diante, cada um na fase em que está:
+  // { jogos: [{ grupo, rodada, fase, etapa, casa, fora }] } ou { erro }. O grupo avança quando a liga DELE termina.
   function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
     const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
-    if (!partidas.length || partidas.some(p => daLiga(p) && !res[p.id])) return { erro: "A fase de liga ainda não terminou." };
-    const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].sort();
+    const grupos = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].filter(g => partidas.some(p => p.grupo === g && daLiga(p))).sort();
     if (!grupos.length) return { erro: "Nenhum grupo disputa playoff (só as divisões abaixo da primeira)." };
-    const semis = partidas.filter(p => p.fase === "semi"), finais = partidas.filter(p => p.fase === "final");
-    if (finais.length) { // finais criadas: falta só a final do acesso, entre os vencedores dos playoffs da segunda divisão
-      const gs = gruposDoAcesso(clubes);
-      if (!gs) return { erro: "As finais dos playoffs já foram criadas." };
-      if (partidas.some(p => p.fase === "acesso")) return { erro: "A final do acesso já foi criada." };
-      const lados = gs.map(g => { const f = finais.find(p => p.grupo === g); if (!f || !res[f.id]) return null;
-        const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados), id = vencedorDoPlayoff(f, res[f.id]), k = t.findIndex(x => x.clube.id === id);
-        return { id, g, pos: k, pts: t[k].pts, saldo: t[k].gp - t[k].gc }; });
-      if (lados.some(x => !x)) return { erro: "As finais dos playoffs da segunda divisão ainda não terminaram." };
-      lados.sort((a, b) => a.pos - b.pos || b.pts - a.pts || b.saldo - a.saldo || a.id - b.id); // em casa, o de melhor campanha
-      return { fase: "acesso", jogos: [{ grupo: lados[0].g, rodada: RODADA_DO_ACESSO, fase: "acesso", casa: lados[0].id, fora: lados[1].id }] };
-    }
-    const jogos = [];
+    const jogos = [], esperando = [];
     for (const g of grupos) {
-      const t = classificacao(clubes.filter(c => c.grupo === g), partidas.filter(p => p.grupo === g), resultados).map(x => x.clube.id);
-      if (!semis.length) {
-        if (t.length < 4) continue;
-        jogos.push({ grupo: g, rodada: RODADA_SEMI, fase: "semi", casa: t[2], fora: t[3] });
-      } else {
-        const doGrupo = semis.filter(p => p.grupo === g);
-        if (doGrupo.some(p => !res[p.id])) return { erro: "As semifinais ainda não terminaram." };
-        const v = doGrupo.map(p => vencedorDoPlayoff(p, res[p.id])).sort((a, b) => t.indexOf(a) - t.indexOf(b));
-        const lados = v.length === 1 ? [t[1], v[0]] : v; // uma semifinal só: o 2º colocado espera o vencedor
-        if (lados.length === 2) jogos.push({ grupo: g, rodada: RODADA_FINAL, fase: "final", casa: lados[0], fora: lados[1] });
+      const doGrupo = partidas.filter(p => p.grupo === g), R = rodadasDeLiga(partidas, g);
+      if (doGrupo.some(p => daLiga(p) && !res[p.id])) { esperando.push(g); continue; }
+      const t = classificacao(clubes.filter(c => c.grupo === g), doGrupo, resultados).map(x => x.clube.id);
+      if (t.length < CLASSIFICADOS_DO_PLAYOFF) continue;
+      const melhor = (a, b) => t.indexOf(a) <= t.indexOf(b) ? [a, b] : [b, a];
+      // ida e volta: ida na casa da pior campanha, volta na da melhor
+      const idaEVolta = (fase, rodada, a, b) => { const [m, p] = melhor(a, b);
+        jogos.push({ grupo: g, rodada, fase, etapa: rodada - R - 1, casa: p, fora: m }, { grupo: g, rodada: rodada + 1, fase, etapa: rodada - R, casa: m, fora: p }); };
+      const pre = doGrupo.filter(p => p.fase === "pre"), semis = doGrupo.filter(p => p.fase === "semi"), finais = doGrupo.filter(p => p.fase === "final");
+      if (!pre.length) {
+        jogos.push({ grupo: g, rodada: R + 1, fase: "pre", etapa: 0, casa: t[2], fora: t[5] }, { grupo: g, rodada: R + 1, fase: "pre", etapa: 0, casa: t[3], fora: t[4] });
+        continue;
       }
+      if (!semis.length) {
+        const v = pre.map(p => res[p.id] ? vencedorDoPlayoff(p, res[p.id]) : null);
+        if (v.includes(null)) { esperando.push(g); continue; }
+        const de = casa => v[pre.findIndex(p => p.casa === casa)]; // vencedor do jogo em que o casa foi mandante
+        idaEVolta("semi", R + 2, t[0], de(t[3])); idaEVolta("semi", R + 2, t[1], de(t[2]));
+        continue;
+      }
+      if (finais.length) continue; // playoff do grupo completo
+      const v = confrontos(semis).map(c => vencedorDoConfronto(c, res));
+      if (v.includes(null) || v.length !== 2) { esperando.push(g); continue; }
+      idaEVolta("final", R + 4, v[0], v[1]);
     }
-    return { fase: semis.length ? "final" : "semi", jogos };
+    if (!jogos.length) return { erro: esperando.length ? `Ainda em jogo: ${esperando.join(", ")}.` : "Os playoffs já foram todos criados." };
+    return { jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
@@ -2189,12 +2205,13 @@ const jogadorDoMercado = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, ida
 const PAIS_DO_GRUPO = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" }; // o mesmo de src/banco.js
 // clubes sem dono da liga, com caixa e teto, e os elencos deles
 // inativos: inclui os clubes de dirigente sem acesso há DIAS_PARA_BOT dias (menos o clube extra), que também jogam com a tática de bot
+// clube guardado (grupo "X", desde a T14) fica fora do mercado: não compra, não vende, não contrata
 async function botsDaLiga(sb, ligaId, inativos = false) {
   const limite = Date.now() - DIAS_PARA_BOT * 86400000;
   const cs = inativos
-    ? ((await sb.from("clubes").select("id, divisao, grupo, dono, extra, ultimo_acesso").eq("liga_id", ligaId)).data || [])
+    ? ((await sb.from("clubes").select("id, divisao, grupo, dono, extra, ultimo_acesso").eq("liga_id", ligaId).neq("grupo", "X")).data || [])
         .filter(c => !c.dono || (!c.extra && (!c.ultimo_acesso || new Date(c.ultimo_acesso).getTime() < limite)))
-    : (await sb.from("clubes").select("id, divisao, grupo").eq("liga_id", ligaId).is("dono", null)).data || [];
+    : (await sb.from("clubes").select("id, divisao, grupo").eq("liga_id", ligaId).is("dono", null).neq("grupo", "X")).data || [];
   const tetos = Object.fromEntries(((await sb.from("divisoes").select("divisao, teto_folha").eq("liga_id", ligaId)).data || []).map(d => [d.divisao, d.teto_folha]));
   const caixas = Object.fromEntries(((await sb.from("financas").select("clube_id, caixa").in("clube_id", cs.map(c => c.id))).data || []).map(f => [f.clube_id, f.caixa]));
   const elencos = {};
@@ -2237,26 +2254,32 @@ async function botsContratamLivres(sb, ligaId) {
   await sb.from("jogadores").update({ bots_viram: liga.temporada + ":" + janela }).in("id", fila.map(l => l.id));
 }
 
-// Playoffs de acesso: quando a fase de liga (ou as semifinais) termina, a fase seguinte é criada sozinha, uma data depois, no intervalo do calendário.
+// Playoffs de acesso da Série B: quando a liga de um grupo (ou uma fase do playoff dele) termina, a fase seguinte é criada sozinha, nas datas
+// reservadas pelo calendário (ligas.copa.playoffs, uma por etapa); sem elas, um intervalo depois do último jogo do grupo.
 async function avancarPlayoffs(sb) {
   for (const liga of (await sb.from("ligas").select("id, pausada, minutos_transmissao, copa")).data || []) {
     if (liga.pausada || (liga.copa || {}).sem_playoffs) continue; // sem_playoffs: temporada sem playoffs (a virada zera ligas.copa)
-    const conta = async f => (await f(sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id))).count || 0;
-    if (await conta(q => q.eq("fase", "acesso")) || await conta(q => q.eq("fase", "liga").eq("processada", false))) continue; // já tem a final do acesso, ou a liga ainda está em jogo
-    const partidas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio").eq("liga_id", liga.id).in("fase", ["liga", "semi", "final", "acesso"]).order("id").limit(2000)).data || [];
-    if (!partidas.length) continue;
-    const resultados = [], agora = new Date().toISOString(), ids = partidas.map(p => p.id);
-    for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));
+    const todas = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora, inicio, processada").eq("liga_id", liga.id).in("fase", ["liga", "pre", "semi", "final"]).order("id").limit(2000)).data || [];
     const clubes = (await sb.from("clubes").select("id, nome, grupo, divisao").eq("liga_id", liga.id)).data || [];
-    const r = proximaFaseDosPlayoffs({ clubes, partidas, resultados });
+    // só os grupos com playoff que têm tudo calculado e ainda não chegaram à final: o resto da liga não precisa ser lido
+    const comPlayoff = new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo));
+    const prontos = new Set([...comPlayoff].filter(g => { const l = todas.filter(p => p.grupo === g); return l.length && l.every(p => p.processada) && !l.some(p => p.fase === "final"); }));
+    if (!prontos.size) continue;
+    const partidas = todas.filter(p => prontos.has(p.grupo)), resultados = [], agora = new Date().toISOString(), ids = partidas.map(p => p.id);
+    for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));
+    const r = proximaFaseDosPlayoffs({ clubes: clubes.filter(c => prontos.has(c.grupo)), partidas, resultados });
     if (r.erro || !r.jogos.length) continue;
-    // a data: um intervalo do calendário (o que separa as duas primeiras rodadas) depois do último jogo marcado, e nunca no passado
-    const hora = p => new Date(p.inicio).getTime(), daLiga = partidas.filter(p => p.fase === "liga");
+    // sem data reservada: um intervalo do calendário (o que separa as duas primeiras rodadas) depois do último jogo do grupo, por etapa
+    const hora = p => new Date(p.inicio).getTime(), daLiga = todas.filter(p => p.fase === "liga"), reservadas = (liga.copa || {}).playoffs || [];
     const r1 = Math.min(...daLiga.filter(p => p.rodada === 1).map(hora)), r2 = Math.min(...daLiga.filter(p => p.rodada === 2).map(hora));
     const intervalo = isFinite(r2 - r1) && r2 > r1 ? r2 - r1 : 86400000;
-    const ini = Math.max(Math.max(...partidas.map(hora)) + intervalo, Date.now() + 60000), fim = ini + (liga.minutos_transmissao || 0) * 60000;
-    // com o 63_playoffs_automaticos.sql, o índice único barra a criação em dobro se duas chamadas chegarem juntas
-    await sb.from("partidas").insert(r.jogos.map(j => ({ liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, copa_fase: null, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(fim).toISOString() })));
+    const inicio = j => { if (reservadas[j.etapa]) return Math.max(new Date(reservadas[j.etapa].inicio).getTime(), Date.now() + 60000);
+      const doGrupo = partidas.filter(p => p.grupo === j.grupo), primeira = Math.min(...r.jogos.filter(x => x.grupo === j.grupo).map(x => x.etapa));
+      return Math.max(Math.max(...doGrupo.map(hora)) + intervalo, Date.now() + 60000) + (j.etapa - primeira) * intervalo; };
+    // um insert por grupo: com o índice único (63/69, e o 114 com a preliminar), a criação em dobro de duas chamadas juntas é barrada sem travar os outros grupos
+    for (const g of new Set(r.jogos.map(j => j.grupo)))
+      await sb.from("partidas").insert(r.jogos.filter(j => j.grupo === g).map(j => { const ini = inicio(j);
+        return { liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, copa_fase: null, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(ini + (liga.minutos_transmissao || 0) * 60000).toISOString() }; }));
   }
 }
 
