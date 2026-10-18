@@ -19,6 +19,26 @@
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
   /* aviso de gol: cobre o placar por 4,5 s com a camisa (escudo e patrocínio) nas cores do uniforme; fica fora do #topo, que é redesenhado a cada 10 s */
+  /* intervalo: TV com comerciais (master dos dois times e placas sorteadas por jogo, só cosméticas) e faixa de LED como as placas do campo */
+  .tv { position:relative; overflow:hidden; border-radius:14px; min-height:250px; display:flex; align-items:center; justify-content:center; padding:34px 18px 22px; color:#fff; background:#0d1220; margin-bottom:12px; transition:background .6s; }
+  .tv .selo-tv { position:absolute; top:10px; left:12px; font-family:var(--display); font-size:12px; letter-spacing:.14em; text-transform:uppercase; background:#c8102e; padding:2px 8px; border-radius:4px; }
+  .tv .volta { position:absolute; top:10px; right:12px; font-family:var(--display); font-size:13px; letter-spacing:.08em; opacity:.8; }
+  .tv .barra { position:absolute; left:0; bottom:0; height:3px; background:#fff; animation:tvBarra 8s linear forwards; }
+  .spot { display:flex; align-items:center; gap:26px; animation:tvSpot 8s ease forwards; }
+  .spot img, .spot .letra { filter:drop-shadow(0 10px 22px rgba(0,0,0,.45)); animation:tvZoom 8s ease-out forwards; }
+  .spot .marca { font-family:var(--display); font-size:46px; font-weight:700; line-height:.95; text-transform:uppercase; }
+  .spot .bordao { font-size:20px; margin-top:6px; opacity:.92; font-style:italic; }
+  .spot .quem { font-size:13px; margin-top:12px; opacity:.75; letter-spacing:.06em; text-transform:uppercase; }
+  .spot .letra { width:150px; height:150px; flex:none; border-radius:18px; display:flex; align-items:center; justify-content:center; text-align:center; font-family:var(--display); font-weight:700; font-size:26px; line-height:1; padding:10px; text-transform:uppercase; }
+  @keyframes tvSpot { 0% { opacity:0; transform:translateX(40px); } 8%, 92% { opacity:1; transform:none; } 100% { opacity:0; transform:translateX(-40px); } }
+  @keyframes tvZoom { from { transform:scale(.92); } to { transform:scale(1.04); } }
+  @keyframes tvBarra { from { width:0; } to { width:100%; } }
+  .led { margin:-4px 0 12px; overflow:hidden; border-radius:6px; background:#05070d; border:1px solid #1d2638; white-space:nowrap; }
+  .led .faixa { display:inline-flex; animation:tvLed 40s linear infinite; }
+  .led span { display:inline-flex; align-items:center; gap:8px; padding:8px 26px; font-family:var(--display); font-weight:700; font-size:20px; letter-spacing:.08em; text-transform:uppercase; border-right:1px solid #1d2638; }
+  @keyframes tvLed { to { transform:translateX(-50%); } }
+  @media (max-width:620px) { .spot { flex-direction:column; gap:10px; text-align:center; } .spot img, .spot .letra { width:96px !important; height:96px !important; } .spot .letra { font-size:17px; } .spot .marca { font-size:30px; } .spot .bordao { font-size:15px; } }
+  @media (prefers-reduced-motion:reduce) { .spot, .spot img, .spot .letra, .led .faixa { animation:none; } }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
     background:linear-gradient(110deg, var(--c1) 0 38%, var(--c2) 38% 41%, var(--c1) 41%); color:var(--txt-gol); animation:golEntra 4.5s cubic-bezier(.2,.8,.2,1) forwards; }
   .aviso-gol .camisa { animation:golPula 4.5s ease-out forwards; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
@@ -79,6 +99,7 @@
 <main>
   <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><button id="som" class="sec" style="margin-left:auto;padding:3px 10px" title="Sons da transmissão"></button><span class="relogio" title="Hora deste aparelho"></span></div>
   <div class="card" id="topo"><div class="mut">Carregando…</div></div>
+  <div id="intervalo"></div>
   <div id="corpo"></div>
 </main>
 
@@ -87,7 +108,7 @@ import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, 
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
-import { MARCAS, selo } from "./src/patrocinio.js";
+import { MARCAS, selo, placasDoJogo, ANUNCIE } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -133,6 +154,34 @@ botaoDoSom();
 // Só lance novo na tela faz barulho: o primeiro desenho marca tudo como visto em silêncio, e quem chega com a aba voltando de segundo plano
 // (liberado há mais de 30 s) entra calado. fase: muda de 1º tempo, intervalo, 2º tempo e fim pelo relógio.
 let vistos = null, fase = null;
+// intervalo: a TV roda um comercial a cada 8 s (master do mandante, duas placas, master do visitante, duas placas, anuncie aqui)
+let tv = null;
+function intervaloComercial(m) {
+  const el = $("intervalo"), no = !m.antes && !m.fim && m.texto.includes("intervalo");
+  if (!no) { if (tv) { clearInterval(tv); tv = null; el.innerHTML = ""; } return; }
+  if (tv) return; // já está passando: não recomeça a cada atualização
+  const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000, volta = new Date(partida.inicio).getTime() + total * 60 / 105 * 60000;
+  const placas = placasDoJogo(partida.id, 4), lados = [partida.casa, partida.fora].map(id => clubes[id]).filter(c => MARCAS[c.marca]);
+  const fila = [];
+  lados.forEach((c, i) => fila.push({ master: c }, ...placas.slice(i * 2, i * 2 + 2)));
+  if (!lados.length) fila.push(...placas);
+  fila.push(ANUNCIE);
+  const led = [...lados.map(c => `<span>${selo(c.marca, 24)}${esc(MARCAS[c.marca].nome)}</span>`), ...placas.concat(ANUNCIE).map(p => `<span style="color:${p.cor === "#111111" || p.cor === "#7b1e24" || p.cor === "#0f5c4d" ? p.txt : p.cor}">${esc(p.nome)}</span>`)].join("");
+  el.innerHTML = `<div class="tv" id="tv"><span class="selo-tv">Intervalo</span><span class="volta" id="tvVolta"></span><div id="tvSpot"></div><div class="barra" id="tvBarra"></div></div>
+    <div class="led" aria-hidden="true"><div class="faixa">${led}${led}</div></div>`;
+  let n = 0;
+  const passar = () => {
+    const s = fila[n++ % fila.length], mk = s.master && MARCAS[s.master.marca], seg = Math.max(0, Math.round((volta - Date.now()) / 1000));
+    $("tvVolta").textContent = `Voltamos em ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
+    $("tvSpot").innerHTML = mk
+      ? `<div class="spot">${selo(s.master.marca, 150)}<div><div class="marca">${esc(mk.nome)}</div><div class="bordao">“${esc(mk.bordao)}”</div><div class="quem">Patrocinador master do ${esc(s.master.nome)}</div></div></div>`
+      : `<div class="spot"><div class="letra" style="background:${s.cor};color:${s.txt}">${esc(s.nome)}</div><div><div class="marca">${esc(s.nome)}</div><div class="bordao">${s.convite ? esc(s.bordao) : `“${esc(s.bordao)}”`}</div><div class="quem">${s.convite ? "Placa disponível" : "Nas placas do estádio"}</div></div></div>`;
+    $("tv").style.background = mk ? "radial-gradient(circle at 30% 50%, #24304d, #0d1220 70%)" : `radial-gradient(circle at 30% 50%, ${s.cor}55, #0d1220 70%)`;
+    const b = $("tvBarra"); b.style.animation = "none"; b.offsetWidth; b.style.animation = "";
+  };
+  passar(); tv = setInterval(() => { if (!$("tvSpot")) { clearInterval(tv); tv = null; return; } passar(); }, 8000);
+}
+
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
 function avisoDeGol(d) {
   const lado = d.time ? 1 : 0, c = clubes[lado ? partida.fora : partida.casa], alvo = $("topo"); if (!c || !alvo) return;
@@ -341,6 +390,7 @@ function htmlAbertura(pre, cronologico = false, semTimes = false) {
 
 async function atualizar() {
   const m = momento();
+  intervaloComercial(m);
   if (m.antes) { sonsDosLances(m, [], Date.now()); topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
   // o administrador lê tudo no banco; aqui a transmissão segue o relógio para ele também
   const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;

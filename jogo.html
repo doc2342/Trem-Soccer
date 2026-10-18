@@ -527,6 +527,7 @@ async function telaClube(liga, clube) {
   const finalistas = liga.copa === undefined ? [] : trofeus.filter(x => x.copa === "campeão" || x.copa === "vice").reverse();
   desenharSeletor(clube, clubes).catch(() => {});
   let patro = await patroP;
+  if (patro && patro.escolha) clube.marca = patro.escolha.marca; // patrocinador master nas placas do estádio
   const repatriar = await repatriarP;
   const [metasDaLiga, confPassada, direitos, pedidoExtra] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // comissão técnica: treinadores (T2) e profissionais de saúde (T3). Nula: ainda não ligada (treino a 100%, sem médico).
@@ -2214,6 +2215,7 @@ ${historicoDaBase()}
         if (location.hash !== "#clube=" + id) { history.pushState(null, "", "#clube=" + id); empurrei = true; }
         const [c, lista, jogos, hist, negocios, marcas] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id), B.marcasDosClubes([id])]);
         if (verClube !== id) return; // trocou de página enquanto lia
+        c.marca = marcas[id] || null; // patrocinador master nas placas do estádio
         const l = lista.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || b.nota - a.nota);
         const doGrupo = clubes.filter(x => x.grupo === c.grupo), jogosDoGrupo = await partidasDoGrupo(liga.id, c.grupo);
         const [resDele, resGrupo] = await Promise.all([resultadosDe(jogos.map(p => p.id)), resultadosDe(jogosDoGrupo.map(p => p.id))]);
