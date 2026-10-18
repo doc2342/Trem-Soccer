@@ -16,6 +16,7 @@ export const CONFIG = {
   zonaVazia: 6, // força mínima de uma zona, para zona sem ninguém não virar divisão por zero
   inclinacaoDuelo: 1.2, // quanto a diferença de força pesa no duelo; mais alto, o melhor time vence mais
   baseDuelo: { D: 1.6, M: 0.25, A: 0.1 }, // logit do sucesso com forças iguais: cerca de 83%, 56% e 52%
+  basculacao: 0.6, // fração da defesa livre do lado vazio que vai para o lado sobrecarregado, na medida do desequilíbrio do ataque
   ajudaAoCentro: 0.65, // quanto da defesa dos lados fecha o centro quando o adversário não ameaça pelos lados
   continuidade: 1.3, // preferência por seguir no mesmo lado de uma linha para a outra
   pesoCentroPosse: 1.5, // o centro do meio-campo pesa mais na posse do que os lados
@@ -287,11 +288,17 @@ function montarDefesa(atk, def) {
   for (const z of ZONAS) dz[z] = def.def[espelho(z)];
   for (const linha of ["M", "A"]) {
     let ajuda = 0;
+    const livre = {}, Z = CONFIG.zonaVazia; // livre: defesa de um lado que sobra porque o adversário não ameaça ali
     for (const l of ["E", "D"]) {
-      const z = linha + l, ameaca = Math.min(1, (atk.atk[z] + CONFIG.zonaVazia) / (dz[z] + CONFIG.zonaVazia));
-      ajuda += CONFIG.ajudaAoCentro * dz[z] * (1 - ameaca);
+      const z = linha + l, ameaca = Math.min(1, (atk.atk[z] + Z) / (dz[z] + Z));
+      livre[l] = dz[z] * (1 - ameaca);
+      ajuda += CONFIG.ajudaAoCentro * livre[l];
     }
     dz[linha + "C"] += ajuda;
+    // basculação: quem ataca mais por um lado puxa a defesa do lado vazio para lá; o lado vazio fica mais aberto para a virada de jogo
+    const [e, d] = [atk.atk[linha + "E"], atk.atk[linha + "D"]], forte = e > d ? "E" : "D", fraco = forte === "E" ? "D" : "E";
+    const vai = CONFIG.basculacao * Math.abs(e - d) / (e + d + Z) * livre[fraco];
+    dz[linha + forte] += vai; dz[linha + fraco] -= vai;
   }
   return dz;
 }
