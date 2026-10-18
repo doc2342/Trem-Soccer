@@ -1,6 +1,6 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
@@ -41,55 +41,60 @@ const DE_GOLEIRO = new Set(ATRIBUTOS.map((a, i) => a.grupo === "gol" ? i : -1).f
 const numero = id => +String(id).replace(/^j/, "");
 
 // playoffs de acesso: a montagem das fases mora em rodada.js, porque o servidor também usa (cria as fases sozinho)
-import { RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, gruposDoAcesso, vencedorDoPlayoff, proximaFaseDosPlayoffs } from "./rodada.js";
-export { RODADA_SEMI, RODADA_FINAL, RODADA_DO_ACESSO, DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, proximaFaseDosPlayoffs };
-// Acesso e descenso: na primeira caem os 3 últimos. Da segunda sobem os dois campeões e o vencedor da final do acesso, jogada entre
-// os vencedores dos playoffs dos dois grupos (quem perde fica); da terceira sobem o campeão e o vencedor do playoff de cada grupo;
-// na segunda caem os 2 últimos de cada grupo. Entre a segunda e a terceira divisão o destino é fixo e cruzado:
-//   campeão da C1 → B1 e vencedor do playoff da C1 → B2; campeão da C2 → B2 e vencedor do playoff da C2 → B1;
-//   lanterna da B1 → C1 e 9º da B1 → C2; lanterna da B2 → C2 e 9º da B2 → C1.
-// Os 3 que caem da primeira divisão são sorteados: 2 para o grupo de onde saiu o vencedor da final do acesso e 1 para o outro.
-// (Segunda divisão sem exatamente dois grupos: vale a regra antiga, caem 4 e sobe o vencedor do playoff de cada grupo.)
+import { DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, vencedorDoGrupo, proximaFaseDosPlayoffs } from "./rodada.js";
+export { DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, proximaFaseDosPlayoffs };
+// Pirâmide desde a T14: Série A de 12 e grupos de 8 na Série B (B1 = "B", B2 = "C", B3 = "F"; "D" e "E" foram a Série C até a T13).
+// Clube GUARDADO fica no grupo "X": sem partidas, fora de liga, copa, base e mercado; envelhece na virada e volta numa expansão.
+export const GUARDADO = "X";
+export const GRUPOS_DA_B = ["B", "C", "F"];
+export const divisaoDoGrupo = g => PAISES[g] || g === "A" ? 1 : g === GUARDADO || g === "D" || g === "E" ? 3 : 2;
+// força do onze, a mesma do raio-x (ferramentas/saude.mjs): o melhor goleiro e os 10 melhores de linha, pela nota na posição principal
+export const forcaDoOnze = elenco => { const s = (elenco || []).map(j => ({ pos: j.pos, n: notaBruta(j.at, j.pos) })).sort((a, b) => b.n - a.n), g = s.find(j => j.pos === "GK");
+  const onze = [g, ...s.filter(j => j.pos !== "GK").slice(0, 10)].filter(Boolean); return onze.length ? onze.reduce((t, j) => t + j.n, 0) / onze.length : 0; };
+// Acesso e descenso: caem os 3 últimos da Série A; de cada grupo da Série B sobe o vencedor do playoff (rodada.js) e a B não cai.
+// Os que caem são sorteados entre os grupos que cederam o clube que subiu (um para cada).
 export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
-  const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
-  const divDoGrupo = g => (clubes.find(c => c.grupo === g) || {}).divisao, maxDiv = Math.max(...clubes.map(c => c.divisao));
-  const destino = {}, sobem = {}, caem = {}; // por divisão de origem
-  const gsAcesso = gruposDoAcesso(clubes); let doAcesso = null, grupoDoAcesso = null; // quem venceu a final do acesso e de que grupo saiu
-  if (gsAcesso) {
-    const f = partidas.find(p => p.fase === "acesso");
-    if (!f || !res[f.id]) throw new Error("Falta a final do acesso (entre os vencedores dos playoffs da Série B1 e da B2). Gere a próxima fase dos playoffs antes da virada.");
-    doAcesso = vencedorDoPlayoff(f, res[f.id]); grupoDoAcesso = (clubes.find(c => c.id === doAcesso) || {}).grupo;
-  }
+  const divDoGrupo = g => (clubes.find(c => c.grupo === g) || {}).divisao;
+  const destino = {}, lista = [], vagas = [];
   for (const [g, linhas] of Object.entries(grupos)) {
-    const d = divDoGrupo(g), n = linhas.length;
-    linhas.forEach(l => { destino[l.clube_id] = l.posicao === 1 && d === 1 ? "campeão" : "ficou"; });
-    if (d > 1) {
-      const final = partidas.find(p => p.grupo === g && p.fase === "final");
-      if (!final || !res[final.id]) throw new Error(`Falta a final do playoff da ${({ B: "Série B1", C: "Série B2", D: "Série C1", E: "Série C2" })[g] || "chave " + g}. Gere os playoffs antes da virada.`);
-      const pelo = vencedorDoPlayoff(final, res[final.id]);
-      // papel 0: fica no grupo "da mesma letra" do destino (campeão, lanterna); papel 1: vai para o outro grupo (playoff, penúltimo)
-      // na segunda divisão com final do acesso, o vencedor do playoff só sobe se venceu também a final
-      [linhas[0].clube_id, pelo].forEach((id, papel) => { if (papel === 1 && d === 2 && gsAcesso && id !== doAcesso) return;
-        destino[id] = "subiu"; (sobem[d] = sobem[d] || []).push({ id, de: g, papel }); });
-    }
-    if (d < maxDiv) linhas.slice(n - (d === 1 ? (gsAcesso ? DESCENSO_DA_PRIMEIRA : 4) : 2)).forEach(l => { destino[l.clube_id] = "caiu"; (caem[d] = caem[d] || []).push({ id: l.clube_id, de: g, papel: d === 1 ? null : l.posicao === n ? 0 : 1 }); });
+    linhas.forEach(l => { destino[l.clube_id] = l.posicao === 1 && divDoGrupo(g) === 1 ? "campeão" : "ficou"; });
+    if (divDoGrupo(g) === 1) continue;
+    const v = vencedorDoGrupo(partidas, resultados, g);
+    if (!v) throw new Error(`Falta a final do playoff da ${nomeCurto(g)}. Os playoffs saem sozinhos depois da última rodada do grupo (ou pelo botão "Gerar a próxima fase").`);
+    destino[v] = "subiu"; vagas.push(g);
+    lista.push({ clube_id: v, grupo: "A", divisao: 1, caiu: false });
   }
-  const gruposDa = d => Object.keys(grupos).filter(g => divDoGrupo(g) === d).sort();
-  const lista = [];
-  // distribui por igual entre os grupos do destino; quem sai de cada grupo abre exatamente as vagas que os que chegam ocupam
-  const distribuir = (quem, d, caiu) => {
-    const alvos = gruposDa(d), vagas = Object.fromEntries(alvos.map(g => [g, 0])), origens = [...new Set(quem.map(x => x.de))].sort();
-    // mesmo número de grupos na origem e no destino, com papel definido: destino fixo e cruzado, sem sorteio
-    if (alvos.length > 1 && origens.length === alvos.length && quem.every(x => x.papel != null)) {
-      quem.forEach(x => lista.push({ clube_id: x.id, grupo: alvos[(origens.indexOf(x.de) + x.papel) % alvos.length], divisao: d, caiu }));
-      return;
-    }
-    // os que caem da primeira: o grupo que cedeu o vencedor da final do acesso abriu uma vaga a mais, então recebe primeiro
-    if (caiu && d === 2 && grupoDoAcesso && alvos.includes(grupoDoAcesso)) alvos.sort((a, b) => (b === grupoDoAcesso) - (a === grupoDoAcesso));
-    rng.embaralhar(quem).forEach((x, k) => { const g = alvos[k % alvos.length]; vagas[g]++; lista.push({ clube_id: x.id, grupo: g, divisao: d, caiu }); });
-  };
-  for (const d of Object.keys(sobem)) distribuir(sobem[d], +d - 1, false);
-  for (const d of Object.keys(caem)) distribuir(caem[d], +d + 1, true);
+  const daA = grupos.A || [];
+  if (vagas.length) rng.embaralhar(daA.slice(daA.length - DESCENSO_DA_PRIMEIRA).map(l => l.clube_id)).forEach((id, k) => {
+    destino[id] = "caiu"; lista.push({ clube_id: id, grupo: vagas[k % vagas.length], divisao: 2, caiu: true }); });
+  return { destino, lista };
+}
+const nomeCurto = g => ({ B: "Série B1", C: "Série B2", F: "Série B3", D: "Série C1", E: "Série C2" })[g] || "chave " + g;
+
+// Transição T13 → T14 (uma vez só): de A 10 + B 2×10 + C 2×10 para A 12 + B 3×8. Ninguém cai da A. Sobem 2 das Bs: primeiro os clubes
+// com dirigente ativo (pela campanha), depois os campeões dos grupos (o grupo que ainda não mandou ninguém primeiro). A Série B nova são
+// os outros 18 das Bs e os 3 primeiros de cada grupo da C, em serpentina pela força do onze (1→B1, 2→B2, 3→B3, 4→B3, 5→B2, 6→B1…).
+// Os outros da C ficam guardados. grupos: classificação final de cada grupo do Brasil; forca: { clubeId: força do onze }; ativo(clube).
+export function movimentosDaTransicao({ clubes, grupos, forca, ativo, sobem = 2, daC = 3 }) {
+  const porId = Object.fromEntries(clubes.map(c => [c.id, c])), div = g => divisaoDoGrupo(g);
+  const linhasDa = d => Object.entries(grupos).filter(([g]) => div(g) === d).flatMap(([, l]) => l);
+  const dasB = linhasDa(2).sort((a, b) => a.posicao - b.posicao || b.pontos - a.pontos);
+  const subiram = dasB.filter(l => ativo(porId[l.clube_id])).slice(0, sobem);
+  const campeoes = dasB.filter(l => l.posicao === 1 && !subiram.includes(l));
+  while (subiram.length < sobem && campeoes.length) {
+    campeoes.sort((a, b) => subiram.some(x => x.grupo === a.grupo) - subiram.some(x => x.grupo === b.grupo) || b.pontos - a.pontos);
+    subiram.push(campeoes.shift());
+  }
+  for (const l of dasB) if (subiram.length < sobem && !subiram.includes(l)) subiram.push(l);
+  const daC_ = linhasDa(3).filter(l => l.posicao <= daC), guardados = linhasDa(3).filter(l => l.posicao > daC);
+  const serieB = [...dasB.filter(l => !subiram.includes(l)), ...daC_].sort((a, b) => (forca[b.clube_id] || 0) - (forca[a.clube_id] || 0) || a.clube_id - b.clube_id);
+  const n = GRUPOS_DA_B.length, serpentina = k => { const v = k % (2 * n); return GRUPOS_DA_B[v < n ? v : 2 * n - 1 - v]; };
+  const destino = {}, lista = [];
+  linhasDa(1).forEach(l => { destino[l.clube_id] = l.posicao === 1 ? "campeão" : "ficou"; });
+  subiram.forEach(l => { destino[l.clube_id] = "subiu"; lista.push({ clube_id: l.clube_id, grupo: "A", divisao: 1, caiu: false }); });
+  serieB.forEach((l, k) => { const g = serpentina(k); destino[l.clube_id] = div(l.grupo) === 3 ? "subiu" : "ficou";
+    if (g !== l.grupo) lista.push({ clube_id: l.clube_id, grupo: g, divisao: 2, caiu: false }); });
+  guardados.forEach(l => { destino[l.clube_id] = "guardado"; lista.push({ clube_id: l.clube_id, grupo: GUARDADO, divisao: 3, caiu: false }); });
   return { destino, lista };
 }
 
@@ -107,13 +112,13 @@ export const CONFIG_SAFRA = {
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
 export const ELENCO_MINIMO_DO_BOT = 18;
 // safras: { clubeId: última temporada em que o clube recebeu um talento raro }
-export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {}, semMovimentos = false }) {
+export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {}, semMovimentos = false, transicao = false }) {
   const nova = liga.temporada + 1;
   const plano = { temporada: liga.temporada, classificacao: [], jogadores: [], aposentados: [], novos: [], movimentos: [], livres: [] };
   const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], renovadosDono: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
   const grupoNovo = {}; // grupo em que cada clube que sobe ou cai vai jogar
 
-  for (const g of [...new Set(clubes.map(c => c.grupo))].sort()) {
+  for (const g of [...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO).sort()) { // guardado não tem tabela nem histórico
     const doGrupo = clubes.filter(c => c.grupo === g);
     resumo.grupos[g] = classificacao(doGrupo, partidas.filter(p => p.grupo === g), resultados).map((t, i) => {
       const linha = { clube_id: t.clube.id, divisao: t.clube.divisao, grupo: g, posicao: i + 1, pontos: t.pts, vitorias: t.v, empates: t.e, derrotas: t.d,
@@ -124,12 +129,15 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   }
 
   // acesso e descenso (só quando há mais de uma divisão), só entre os clubes do Brasil: o campeonato de outro país não sobe nem cai ninguém
-  const doBrasil = clubes.filter(c => !PAISES[c.grupo]);
+  const doBrasil = clubes.filter(c => !PAISES[c.grupo] && c.grupo !== GUARDADO);
+  const ativo = c => !!c && !!c.dono && (!!c.extra || (!!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000));
   for (const [g, linhas] of Object.entries(resumo.grupos)) if (PAISES[g]) linhas.forEach(l => { l.destino = plano.classificacao.find(x => x.clube_id === l.clube_id).destino = l.posicao === 1 ? "campeão" : "ficou"; });
   // semMovimentos: temporada sem acesso e descenso (todo mundo fica na divisão e no grupo; playoffs não contam)
   if (semMovimentos) Object.values(resumo.grupos).flat().concat(plano.classificacao).forEach(l => { if (!PAISES[l.grupo]) l.destino = l.posicao === 1 && l.divisao === 1 ? "campeão" : "ficou"; });
-  else if (new Set(doBrasil.map(c => c.divisao)).size > 1) {
-    const m = movimentos({ rng, clubes: doBrasil, grupos: Object.fromEntries(Object.entries(resumo.grupos).filter(([g]) => !PAISES[g])), partidas, resultados });
+  else if (transicao || new Set(doBrasil.map(c => c.divisao)).size > 1) {
+    const grupos = Object.fromEntries(Object.entries(resumo.grupos).filter(([g]) => !PAISES[g]));
+    const m = transicao ? movimentosDaTransicao({ clubes: doBrasil, grupos, forca: Object.fromEntries(doBrasil.map(c => [c.id, forcaDoOnze(elencos[c.id])])), ativo })
+      : movimentos({ rng, clubes: doBrasil, grupos, partidas, resultados });
     plano.movimentos = m.lista;
     m.lista.forEach(x => { grupoNovo[x.clube_id] = x.grupo; });
     const para = Object.fromEntries(m.lista.map(x => [x.clube_id, x.grupo]));
@@ -142,7 +150,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   // notaDeQuemSai: nota do aposentado que ele substitui; o jovem chega até 5 pontos abaixo dela (e nunca abaixo do piso da divisão),
   // para a liga não perder nível de uma vez quando a geração mais velha se aposenta
   const jovemDoBot = (c, pos, notaDeQuemSai = 0) => {
-    const g = grupoNovo[c.id], div = g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao, fora = !!PAISES[c.grupo]; // pela divisão em que o clube vai jogar
+    const g = grupoNovo[c.id], div = g ? divisaoDoGrupo(g) : c.divisao, fora = !!PAISES[c.grupo]; // pela divisão em que o clube vai jogar
     const piso = fora ? REGUA_DE_FORA.nota : NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM;
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
     const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados });
@@ -166,7 +174,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
      resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
    }
    // clube com dirigente que entrou nos últimos 21 dias cuida dos próprios contratos; os demais renovam sozinhos
-   const cuida = comLivres && !!c.dono && (!!c.extra || (!!c.ultimo_acesso && agora - new Date(c.ultimo_acesso).getTime() <= DIAS_DE_INATIVIDADE * 86400000)); // clube extra (96): sem inatividade
+   const cuida = comLivres && ativo(c); // clube extra (96): sem inatividade
+   const guardado = (grupoNovo[c.id] || c.grupo) === GUARDADO; // guardado envelhece e renova sozinho, mas não solta ninguém no mercado
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
     // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 38; antes dele, vale o sorteio na virada
@@ -189,7 +198,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     if (!c.dono && !j.juvenil && j.salario != null && j.salario < mercadoHoje) { reg.salario = mercadoHoje; resumo.reajustados++; }
     plano.jogadores.push(reg); regs.push(reg);
     if (j.juvenil) { // juvenil que passou dos 21 sem ser profissionalizado fica livre
-      if (comLivres && idade > CONFIG_BASE.idadeDeJuvenil) {
+      if (comLivres && !guardado && idade > CONFIG_BASE.idadeDeJuvenil) {
         plano.livres.push({ id: reg.id, salario_mercado: salarioDeMercado({ ...j, idade, at }) });
         resumo.livres.push({ clube: c.nome, dono: !!c.dono, juvenil: true, nome: j.nome, pos: j.pos, idade });
       }
@@ -211,8 +220,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    }
    // A renovação respeita o teto de folha: se a folha renovada passa do teto da divisão em que o clube vai jogar, os renovados mais caros
    // ficam livres e vão a leilão, até caber ou até o elenco chegar a 18 (clube sem dono ou com dirigente ausente) ou 16 (dirigente ativo).
-   if (comLivres) {
-    const g = grupoNovo[c.id], teto = PAISES[c.grupo] ? REGUA_DE_FORA.teto : tetos[g ? (g === "A" ? 1 : "BC".includes(g) ? 2 : 3) : c.divisao] || Infinity;
+   if (comLivres && !guardado) {
+    const g = grupoNovo[c.id], teto = PAISES[c.grupo] ? REGUA_DE_FORA.teto : tetos[g ? divisaoDoGrupo(g) : c.divisao] || Infinity;
     let folha = regs.reduce((s, r) => s + (r.salario || 0), 0) + plano.novos.filter(n => n.clube_id === c.id).reduce((s, n) => s + (n.salario || 0), 0);
     for (const v of renovadosAqui.sort((a, b) => b.reg.salario - a.reg.salario)) {
       if (folha <= teto || ficam <= (cuida ? ELENCO_MINIMO : ELENCO_MINIMO_DO_BOT)) break;
@@ -252,7 +261,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
       resumo.safra.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade, nivel });
     }
   } };
-  sortearSafra(doBrasil, CONFIG_SAFRA.niveis);
+  sortearSafra(doBrasil.filter(c => grupoNovo[c.id] !== GUARDADO), CONFIG_SAFRA.niveis);
   for (const g of Object.keys(PAISES)) { const doPais = clubes.filter(c => c.grupo === g); if (doPais.length) sortearSafra(doPais, SAFRA_DE_FORA); }
   return { plano, resumo };
 }
