@@ -293,6 +293,8 @@ async function tela(aviso = "") {
       const comPlayoff = g => !PAISES[g] && divisaoDoGrupo(g) > 1, ateA = g => nDatas - (comPlayoff(g) ? ETAPAS_DO_PLAYOFF : 0);
       // rodada r do grupo → data da liga: espalhada por igual entre a 1 e a última data do grupo
       const dataDaRodada = (g, r) => rodadasDe(g) <= 1 ? r : Math.round((r - 1) * (ateA(g) - 1) / (rodadasDe(g) - 1)) + 1;
+      // rodadas da temporada = as da Série A: o pré-acordo abre depois da última (periodo_de_pre_acordo); a economia por jogo usa as do grupo (114)
+      await atualizarLiga(liga.id, { rodadas_por_temporada: nDatas });
       const espacoDaRodada = r => ordem.indexOf("r" + r), espacoDaCopa = k => ordem.indexOf("c" + k), espacoDaLib = k => ordem.indexOf("l" + k); // k: fase da copa, de 1 a 6; data da Libertadores, de 1 a 4
       const hora = espaco => inicio + espaco * intervalo, iso = t => new Date(t).toISOString();
       const linhas = [];

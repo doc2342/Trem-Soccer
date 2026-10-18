@@ -240,6 +240,8 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 import { PAISES, paisDoGrupo } from "./modelo.js";
 export { PAISES, paisDoGrupo };
 // grupos em ordem de tela: os do Brasil primeiro (A a E), depois os países
+// jogos do playoff da Série B (desde a T14): preliminar em jogo único, semifinal e final em ida (rodada par) e volta (ímpar)
+export const nomeDoPlayoff = p => ({ pre: "Playoff · preliminar", semi: "Playoff · semifinal", final: "Playoff · final" })[p.fase] + (p.fase === "pre" ? "" : p.rodada % 2 ? " (volta)" : " (ida)");
 export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
 export const nomeDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", F: "Brasileiro Série B3", D: "Brasileiro Série C1", E: "Brasileiro Série C2", X: "Clubes guardados", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
   ARG: "Campeonato Argentino", URU: "Campeonato Uruguaio", COL: "Campeonato Colombiano", CHI: "Campeonato Chileno" })[g] || "Grupo " + g;
