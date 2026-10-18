@@ -1335,6 +1335,17 @@ async function telaClube(liga, clube) {
   // ir: aba (ou "aba:interna") que a linha abre ao ser clicada
   const item = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
   const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
+  const nomes = l2 => l2.slice(0, 6).map(j => esc(j.nome)).join(", ") + (l2.length > 6 ? " e outros" : "");
+  // renovação automática (99_renovacao_automatica.sql): na virada quem vence renova por uma temporada, pelo maior entre o salário e o de mercado,
+  // menos os marcados "não renovar"; se a folha passar do teto, os renovados mais caros saem (a mesma conta de src/virada.js, com o mercado de hoje)
+  const renovacao = () => {
+    const vencem = elenco.filter(j => !j.juvenil && j.salario != null && j.contratoAte != null && j.contratoAte <= liga.temporada && j.aposentaEm == null);
+    const saem = vencem.filter(j => j.naoRenovar), renovam = vencem.filter(j => !j.naoRenovar).map(j => ({ j, s: Math.max(j.salario, j.mercado || 0) }));
+    const ficam = elenco.filter(j => !j.juvenil && j.salario != null && !vencem.includes(j) && j.aposentaEm == null);
+    let folha = ficam.reduce((t, j) => t + j.salario, 0) + renovam.reduce((t, r) => t + r.s, 0), n = ficam.length + renovam.length;
+    const pelo = []; for (const r of [...renovam].sort((a, b) => b.s - a.s)) { if (folha <= (liga.teto_folha || Infinity) || n <= 16) break; folha -= r.s; n--; pelo.push(r.j); }
+    return { vencem, saem, renovam, pelo };
+  };
   const muralDoClube = () => {
     const l = [];
     if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
@@ -1372,15 +1383,8 @@ async function telaClube(liga, clube) {
     if (veteranos.length) l.push(item("👴", `${veteranos.length === 1 ? "Se aposenta" : "Se aposentam"} no fim da temporada (chegam aos ${IDADE_DE_APOSENTAR_DA_COMISSAO} anos): ${veteranos.map(t => `${esc(t.nome)} (${(t.funcao || "treinador") === "treinador" ? "treinador" : (FUNCOES_DE_SAUDE[t.funcao] || t.funcao).toLowerCase()}, ${t.idade})`).join(", ")}. Procure um substituto na lista de candidatos.`, "aviso", "estruturas:treino"));
     const param = elenco.filter(j => j.aposentaEm != null);
     if (param.length) l.push(item("🏁", `${param.length === 1 ? "Anunciou" : "Anunciaram"} a aposentadoria para o fim da temporada: ${param.map(j => `${esc(j.nome)} (${j.idade})`).join(", ")}. Não podem mais ser vendidos nem renovar.`, "aviso", "elenco"));
-    // renovação automática (99_renovacao_automatica.sql): na virada quem vence renova por uma temporada, pelo maior entre o salário e o de mercado,
-    // menos os marcados "não renovar"; se a folha passar do teto, os renovados mais caros saem (a mesma conta de src/virada.js, com o mercado de hoje)
-    const vencem = elenco.filter(j => !j.juvenil && j.salario != null && j.contratoAte != null && j.contratoAte <= liga.temporada && j.aposentaEm == null);
+    const { vencem, saem, renovam, pelo } = renovacao();
     if (vencem.length) {
-      const saem = vencem.filter(j => j.naoRenovar), renovam = vencem.filter(j => !j.naoRenovar).map(j => ({ j, s: Math.max(j.salario, j.mercado || 0) }));
-      const nomes = l2 => l2.slice(0, 6).map(j => esc(j.nome)).join(", ") + (l2.length > 6 ? " e outros" : "");
-      const ficam = elenco.filter(j => !j.juvenil && j.salario != null && !vencem.includes(j) && j.aposentaEm == null);
-      let folha = ficam.reduce((t, j) => t + j.salario, 0) + renovam.reduce((t, r) => t + r.s, 0), n = ficam.length + renovam.length;
-      const pelo = []; for (const r of [...renovam].sort((a, b) => b.s - a.s)) { if (folha <= (liga.teto_folha || Infinity) || n <= 16) break; folha -= r.s; n--; pelo.push(r.j); }
       l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato vence" : "contratos vencem"} no fim desta temporada.${renovam.length ? ` ${renovam.length === 1 ? "Renova" : "Renovam"} sozinho${renovam.length === 1 ? "" : "s"} por uma temporada na virada: ${nomes(renovam.map(r => r.j))}.` : ""}${saem.length ? ` ${saem.length === 1 ? "Sai" : "Saem"} livre${saem.length === 1 ? "" : "s"} (marcado${saem.length === 1 ? "" : "s"} "não renovar"): ${nomes(saem)}.` : ""} Para deixar alguém sair, marque "não renovar" no contrato dele.`, livres != null ? "aviso" : "", "elenco"));
       if (pelo.length) l.push(item("⚠️", `Com as renovações a folha passaria do teto de ${dinheiro(liga.teto_folha)}: na virada ${pelo.length === 1 ? "ficaria livre" : "ficariam livres"} ${nomes(pelo)} (os mais caros primeiro). Venda alguém, marque "não renovar" ou renove por outro valor.`, "aviso", "elenco"));
     }
@@ -1812,7 +1816,7 @@ ${historicoDaBase()}
     <div data-parte="elenco:lista">
     ${kpisDoElenco()}
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · clique num jogador para mexer no contrato, na proteção ou na venda</span></h2>
-      ${livres != null && elenco.some(j => j.contratoAte != null && j.contratoAte <= liga.temporada) ? `<div class="aviso" style="margin-bottom:8px">${elenco.filter(j => j.contratoAte != null && j.contratoAte <= liga.temporada).length} jogadores têm contrato só até o fim desta temporada (em amarelo na coluna Contr.). Quem não for renovado fica livre na virada e vai a leilão; o jogo só segura o suficiente para o elenco não ficar com menos de 16.</div>` : ""}
+      ${(pelo => pelo.length ? `<div class="aviso" style="margin-bottom:8px">Os contratos que vencem renovam sozinhos na virada, mas com eles a folha passaria do teto de ${dinheiro(liga.teto_folha)}: ${pelo.length === 1 ? "ficaria livre" : "ficariam livres"} ${nomes(pelo)} (os mais caros primeiro). Venda alguém, marque "não renovar" ou renove por outro valor.</div>` : "")(renovacao().pelo)}
       <div id="lugarPainelElenco"><div id="contratoPainel"></div></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
       ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
@@ -2570,8 +2574,8 @@ ${historicoDaBase()}
       <div class="duas">
         ${bloco("Contrato", `<div class="row"><label>Novo salário (em milhares)<input id="ctSalario" type="number" step="5" min="${j.salario}" max="${maximo}" value="${Math.max(j.salario, j.mercado)}" style="width:120px"></label>
             <label>Renovar por<select id="ctTemporadas" data-prog="ctSalario" data-luvas="1" data-mercado="${j.mercado || 0}"><option value="1">1 temporada</option><option value="2">2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label></div>
-          <div class="row" style="margin-top:8px"><button id="ctRenovar">Renovar o contrato</button><button class="sec" id="ctAumentar">Só aumentar o salário</button></div>
-          ${j.contratoAte != null && j.contratoAte <= liga.temporada && j.emprestadoDe == null ? `<label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="ctNaoRenovar" ${j.naoRenovar ? "checked" : ""} style="width:auto"> Não renovar: na virada ele fica livre e vai a leilão</label><div class="mut">Sem a marcação, ele renova sozinho na virada por uma temporada, por ${dinheiro(Math.max(j.salario, j.mercado || 0))} (se couber no teto).</div>` : ""}
+          ${(trava => `<div class="row" style="margin-top:8px"><button id="ctRenovar" ${trava ? "disabled" : ""}>Renovar o contrato</button><button class="sec" id="ctAumentar" ${trava ? "disabled" : ""}>Só aumentar o salário</button></div>${trava ? `<div class="aviso" style="margin-top:6px">${trava}</div>` : ""}`)(j.aposentaEm != null ? "Anunciou a aposentadoria: joga até o fim da temporada e para. Não dá para renovar nem aumentar o salário." : j.preContrato === liga.temporada ? "Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar." : "")}
+          ${j.contratoAte != null && j.contratoAte <= liga.temporada && j.emprestadoDe == null && j.aposentaEm == null ? `<label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="ctNaoRenovar" ${j.naoRenovar ? "checked" : ""} style="width:auto"> Não renovar: na virada ele fica livre e vai a leilão</label><div class="mut">Sem a marcação, ele renova sozinho na virada por uma temporada, por ${dinheiro(Math.max(j.salario, j.mercado || 0))} (se couber no teto).</div>` : ""}
           <div id="ctLuvas" style="margin-top:6px"></div>
           <div class="mut" style="margin-top:6px"><span id="ctClausula"></span> · na renovação ele pede pelo menos ${dinheiro(j.mercado)} · máximo por jogador ${dinheiro(maximo)} · sobram ${dinheiro(sobra)} até o teto. O salário só sobe; a multa é 5 vezes o maior entre o salário e o valor de hoje do jogador.
             <b>Luvas:</b> na renovação dá para pôr um salário abaixo do pedido (até ${Math.round(LUVAS.piso * 100)}% dele) pagando a diferença de uma vez, fora da folha: cada mil a menos por temporada custa ${String(LUVAS.fator).replace(".", ",")} mil por temporada de contrato. A multa continua pelo valor de hoje.</div>`)}

@@ -108,6 +108,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; background:var(--campo); }
 .chip.vazio { border-style:dashed; color:var(--mut); }
+#banco .chip:not(.vazio) { border-left:4px solid var(--ac); border-radius:6px; background:rgba(242,193,78,.10); } /* mesma marca de "no banco" da lista do elenco */
 .linhaSub { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
 .linhaSub input { width:64px; }
 /* arrastar e soltar */
