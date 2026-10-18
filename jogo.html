@@ -208,7 +208,7 @@ import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSes
 import { PREMIOS as PREMIOS_DA_LIGA } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
-import { MARCAS, selo, PROPOSTAS } from "./src/patrocinio.js";
+import { MARCAS, selo as seloMarca, PROPOSTAS } from "./src/patrocinio.js";
 import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
 // entre as recargas causadas por ações (contratar, propor, comprar relatório…). A entrada na página e a recarga automática com novidade
@@ -1629,7 +1629,7 @@ async function telaClube(liga, clube) {
       <div class="mut">Valor de referência: ${dinheiro(patro.base)}${patro.fidelidade ? ` (já com +${patro.fidelidade * 5}% de fidelidade)` : ""}. As três propostas valem o mesmo em média: quanto menos luvas, mais bônus e mais difícil a meta. A marca só enfeita e não muda o dinheiro; mantê-la por temporadas seguidas dá +5% por ano (até +20%). ${trava ? "Escolha travada na 1ª rodada." : "Você pode mudar até a 1ª rodada; meta e bônus são calculados e travam nela."}</div></div>
       <div class="card"><h2>Marca</h2><div class="row" style="gap:10px;align-items:stretch">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
         return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--bd, #2a3060);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
-          ${selo(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
+          ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
       <div class="card"><h2>Proposta</h2><div class="row" style="gap:10px;align-items:stretch">${vis.map(([id, x]) => cartao(id, x)).join("")}</div>
         ${trava ? "" : `<div class="row" style="margin-top:12px"><button id="pConfirma" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP)}</span></div>`}</div>`; };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
@@ -1638,7 +1638,7 @@ async function telaClube(liga, clube) {
     ${clube.confianca != null ? kpi("Confiança", `<span class="${clube.confianca < 30 ? "bad" : clube.confianca >= 70 ? "ok" : ""}">${clube.confianca}</span><small> de 100</small>`, "da diretoria")
       : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme(clube.uniforme, 52)}
-      <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)} <span id="seloTopo">${patro && patro.escolha ? selo(patro.escolha.marca, 28) : ""}</span></h2>
+      <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)} <span id="seloTopo">${patro && patro.escolha ? seloMarca(patro.escolha.marca, 28) : ""}</span></h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
@@ -2228,7 +2228,7 @@ ${historicoDaBase()}
     if (g) abrirSubAba(g, sub);
   };
   { const parte = document.querySelector('[data-parte="clube:patrocinio"]'); // escolha de patrocínio
-    const redesenha = () => { parte.innerHTML = abaPatrocinio(); $("seloTopo").innerHTML = patro && patro.escolha ? selo(patro.escolha.marca, 28) : ""; };
+    const redesenha = () => { parte.innerHTML = abaPatrocinio(); $("seloTopo").innerHTML = patro && patro.escolha ? seloMarca(patro.escolha.marca, 28) : ""; };
     parte.onclick = async ev => {
       const m = ev.target.closest("[data-marca]"), p = ev.target.closest("[data-prop]");
       if (m) { selM = m.dataset.marca; redesenha(); }
