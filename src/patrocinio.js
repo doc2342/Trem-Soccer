@@ -10,4 +10,8 @@ export const MARCAS = {
   mestres_do_dugout: { nome: "Mestres do Dugout", bordao: "Quem sabe, joga." },
 };
 export const selo = (marca, px = 40) => MARCAS[marca] ? `<img src="patrocinios/${marca}.png" width="${px}" height="${px}" alt="${MARCAS[marca].nome}" title="${MARCAS[marca].nome}" style="vertical-align:middle;object-fit:contain">` : "";
-export const PROPOSTAS = { segura: ["Segura", "Mais luvas, meta fácil de cumprir."], mista: ["Mista", "Metade a metade."], agressiva: ["Agressiva", "Poucas luvas, bônus alto por uma meta difícil."] };
+export const PROPOSTAS = {
+  segura: ["Segura", "Quase tudo garantido em luvas. Bônus pequeno por uma meta fácil."],
+  mista: ["Mista", "Parte garantida, parte no bônus. Meta no nível do seu time."],
+  agressiva: ["Agressiva", "Pouco garantido. Bônus alto se o time superar as expectativas."],
+};

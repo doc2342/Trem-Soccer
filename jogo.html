@@ -1338,7 +1338,7 @@ async function telaClube(liga, clube) {
   const lk = id => cPor[id] ? `<a class="lk" data-clube="${id}">${esc(cPor[id].nome)}</a>` : "—";
   const muralDoClube = () => {
     const l = [];
-    if (patro && !patro.escolha) l.push(item("🤝", "Escolha o patrocínio da temporada: luvas e bônus por meta. Vale até a 1ª rodada.", "aviso", "clube:patrocinio"));
+    if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
     if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
@@ -1617,16 +1617,19 @@ async function telaClube(liga, clube) {
   // patrocínio por escolha (115_patrocinio.sql): marca cosmética + proposta de luvas e bônus por meta de posição
   let selM = patro && patro.escolha ? patro.escolha.marca : patro && patro.marca && !(MARCAS[patro.marca].grande && clube.divisao !== 1) ? patro.marca : null, selP = patro && patro.escolha ? patro.escolha.proposta : null, msgP = "";
   const abaPatrocinio = () => {
-    if (!patro) return `<div class="card mut">O patrocínio por escolha aparece aqui depois que o administrador rodar o 115_patrocinio.sql.</div>`;
+    if (!patro) return `<div class="card mut">O patrocínio ainda não está disponível nesta liga.</div>`;
     const e = patro.escolha, trava = !!(e && e.travado), pr = Object.fromEntries(patro.propostas.map(x => [x.id, x]));
     const cartao = (id, x) => { const [nome, desc] = PROPOSTAS[id], on = selP === id;
       return `<div class="card" ${trava ? "" : `data-prop="${id}"`} style="cursor:${trava ? "default" : "pointer"};flex:1;min-width:210px;margin:0;${on ? "outline:2px solid var(--ac)" : ""}">
         <b>${nome}</b> <span class="mut">${desc}</span>
         <div style="margin-top:6px">Luvas: <b>${dinheiro(x.luvas)}</b> <span class="mut">em parcelas semanais</span></div>
-        <div>${x.meta ? `Bônus de <b>${dinheiro(x.bonus)}</b> se terminar em <b>${x.meta}º lugar ou acima</b> <span class="mut">(chance ${Math.round(x.chance * 100)}%)</span>` : `<span class="mut">Meta e bônus saem na 1ª rodada, com o seu elenco daquela hora.</span>`}</div></div>`; };
+        <div>${x.meta ? `Bônus de <b>${dinheiro(x.bonus)}</b> se terminar em <b>${x.meta}º lugar ou acima</b> <span class="mut">(chance ${Math.round(x.chance * 100)}%)</span>` : `<span class="mut">A meta e o bônus são definidos na 1ª rodada, pela força do seu elenco naquele momento.</span>`}</div></div>`; };
     const vis = trava ? [[e.proposta, e]] : patro.propostas.map(x => [x.id, x]);
     return `<div class="card"><h2>Patrocínio da temporada ${patro.temporada}</h2>
-      <div class="mut">Valor de referência: ${dinheiro(patro.base)}${patro.fidelidade ? ` (já com +${patro.fidelidade * 5}% de fidelidade)` : ""}. As três propostas valem o mesmo em média: quanto menos luvas, mais bônus e mais difícil a meta. A marca só enfeita e não muda o dinheiro; mantê-la por temporadas seguidas dá +5% por ano (até +20%). ${trava ? "Escolha travada na 1ª rodada." : "Você pode mudar até a 1ª rodada; meta e bônus são calculados e travam nela."}</div></div>
+      <div class="mut">${trava ? "Contrato fechado na 1ª rodada. As luvas entram no caixa toda semana, e o bônus é pago na virada da temporada se a meta for cumprida."
+        : `Escolha a marca que vai estampar a sua camisa e o formato do contrato. Valor de referência: <b>${dinheiro(patro.base)}</b>${patro.fidelidade ? `, já com +${patro.fidelidade * 5}% por fidelidade à marca` : ""}.<br>
+        Quanto menos luvas, maior o bônus e mais difícil a meta. Na média as três propostas rendem o mesmo: o que muda é o risco.<br>
+        Renovar com a mesma marca rende +5% por temporada seguida, até +20%. Você pode trocar até a 1ª rodada; nela a meta é calculada e o contrato fecha.`}</div></div>
       <div class="card"><h2>Marca</h2><div class="row" style="gap:10px;align-items:stretch">${Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1, on = (trava ? e.marca : selM) === k;
         return `<div ${trava || bloq ? "" : `data-marca="${k}"`} style="width:150px;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--bd, #2a3060);cursor:${trava || bloq ? "default" : "pointer"};opacity:${bloq ? .4 : 1};${on ? "outline:2px solid var(--ac)" : ""}">
           ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div>
