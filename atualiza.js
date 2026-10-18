@@ -14,12 +14,23 @@
     ja = "1"; sessionStorage.setItem("mo_recarregou", "1");
     Promise.all(ARQUIVOS.map(function (f) { return fetch(f, { cache: "reload" }).catch(function () {}); })).then(function () { location.reload(); });
   }
-  fetch("versao.txt", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (v) {
-    v = v.trim(); if (!v) return;
-    var antes = localStorage.getItem("mo_versao");
-    localStorage.setItem("mo_versao", v);
-    if (antes && antes !== v) renovar();
-  }).catch(function () {});
+  function conferir(aoVoltar) {
+    fetch("versao.txt", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; }).then(function (v) {
+      v = v.trim(); if (!v) return;
+      var antes = localStorage.getItem("mo_versao");
+      if (!antes || antes === v) { localStorage.setItem("mo_versao", v); return; }
+      if (!aoVoltar) { localStorage.setItem("mo_versao", v); renovar(); return; }
+      // aba que ficou aberta: não recarrega sozinha (pode haver escalação sem salvar); mostra um aviso para tocar
+      if (document.getElementById("moVersaoNova")) return;
+      var b = document.createElement("button"); b.id = "moVersaoNova"; b.textContent = "Versão nova do jogo: toque para atualizar";
+      b.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;padding:10px 16px;border-radius:999px;border:0;background:#f2c200;color:#1a1300;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.4)";
+      b.onclick = function () { localStorage.setItem("mo_versao", v); ja = null; renovar(); };
+      document.body.appendChild(b);
+    }).catch(function () {});
+  }
+  conferir(false);
+  // o celular (Safari principalmente) guarda a aba aberta por dias sem recarregar: confere de novo quando a aba volta a aparecer
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") conferir(true); });
   window.addEventListener("error", function (e) {
     if (/export|import|module/i.test(String(e.message || ""))) renovar();
   });
