@@ -220,9 +220,12 @@ function barras(lista, mat) { dm.rotation.order = "YXZ"; inst(lista, ([x, y, z, 
 function put(im, i, x, y, z, ang, sx, sy, sz, c) { dm.position.set(x, y, z); dm.rotation.set(0, -ang, 0); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); if (c) im.setColorAt(i, c); }
 function bloco(w, h, d, mat, x, y, z) { const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); b.castShadow = b.receiveShadow = true; grp.add(b); return b; }
 // brilho de uma luz acesa à noite: um ponto claro que sempre olha para a câmera
-function halo(x, y, z, tam, k) { if (!HALO) { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,244,214,.75)"); gr.addColorStop(1, "rgba(255,244,214,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); HALO = new T.CanvasTexture(c); }
-  const sp = new T.Sprite(new T.SpriteMaterial({ map: HALO, color: "#fff4d6", blending: T.AdditiveBlending, depthWrite: false, transparent: true, opacity: k })); sp.position.set(x, y, z); sp.scale.set(tam, tam, 1); grp.add(sp); }
+function haloTex() { if (!HALO) { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,244,214,.75)"); gr.addColorStop(1, "rgba(255,244,214,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); HALO = new T.CanvasTexture(c); } return HALO; }
+const brilho = k => ({ map: haloTex(), color: "#fff4d6", blending: T.AdditiveBlending, depthWrite: false, transparent: true, opacity: k });
+function halo(x, y, z, tam, k) { const sp = new T.Sprite(new T.SpriteMaterial(brilho(k))); sp.position.set(x, y, z); sp.scale.set(tam, tam, 1); grp.add(sp); }
+// a mancha de luz que um poste joga no chão
+function poca(x, z, tam, k) { const me = new T.Mesh(new T.PlaneGeometry(tam, tam), new T.MeshBasicMaterial(brilho(k))); me.rotation.x = -Math.PI / 2; me.position.set(x, 0.12, z); grp.add(me); }
 function torre(x, z, H) { const g = new T.Group(); g.position.set(x, 0, z); grp.add(g);
   if (luzNoite) { halo(x, H + 4.6, z, 24, 0.95 * luzNoite); const f = new T.SpotLight(0xfff2d8, 0.55 * luzNoite, 0, 0.6, 0.6, 1); f.position.set(x, H + 3, z); f.target.position.set(0, 0, 0); grp.add(f, f.target); }
   const base = new T.Mesh(new T.BoxGeometry(3.2, 1, 3.2), lam("#bdb9ae")); base.position.y = 0.5; g.add(base);
@@ -460,7 +463,8 @@ function construir() {
     rng = 11; for (const v of L.v) if (rnd() < lotacao()) carros.push({ ...v, c: pal[(rnd() * pal.length) | 0] });
     inst(carros, (v, i, im) => put(im, i, v.x, 0.65, v.z + v.dir * 0.2, Math.PI / 2, 4.3, 0.9, 1.8, v.c));
     inst(carros, (v, i, im) => put(im, i, v.x, 1.35, v.z - v.dir * 0.2, Math.PI / 2, 2.2, 0.65, 1.6, new T.Color("#3a4652")));
-    const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64"))); }
+    const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64")));
+    if (luzNoite) for (const [x, z] of ps) { halo(x, 10.4, z, 7, 0.9 * luzNoite); poca(x, z, 22, 0.4 * luzNoite); } } // à noite os postes acendem
   cur.render(); }
 
 // Entorno: um pedaço de cidade em volta do estádio, sorteado pela semente (o id do clube), para cada estádio parecer estar numa cidade
@@ -532,6 +536,7 @@ function entorno(cx, zN, zS) {
     for (const s of [-1, 1]) { const f = plano(new T.PlaneGeometry(Lv, 1.4), new T.MeshLambertMaterial({ color: c1 }), 0.13); f.position.x = xm; f.position.z = s * (via.w / 2 - 2.5); grp.add(f); }
     for (let x = via.x0 + 6, i = 0; x < via.x1 - 2; x += 12, i++) for (const s of [-1, 1]) { postes.push([x, s * (via.w / 2 - 0.8)]); bandeiras.push([x + 1.2, s * (via.w / 2 - 0.8), new T.Color(i % 2 ? c2 : c1)]); }
     add(geoUp(new T.BoxGeometry(1, 1, 1)), postes, ([x, z], k, im) => pos(im, k, x, 0, z, 0, 0.3, 8.5, 0.3, new T.Color("#5f5e5a")));
+    if (luzNoite) for (const [x, z] of postes) { halo(x, 8.9, z, 5, 0.85 * luzNoite); poca(x, z, 14, 0.3 * luzNoite); } // postes da via (Wembley) também acendem
     add(geoUp(new T.BoxGeometry(1, 1, 1)), bandeiras, ([x, z, c], k, im) => pos(im, k, x, 4, z, 0, 2.2, 4, 0.1, c)); }
   add(geoUp(new T.BoxGeometry(1, 1, 1)), predios, ([x, z, , w, h, d, c], i, im) => pos(im, i, x, 0, z, 0, w, h, d, c));
   add(geoUp(new T.BoxGeometry(1, 1, 1)), casas, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, 0, z, rot, w, h, d, c));
