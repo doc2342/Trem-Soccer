@@ -250,7 +250,7 @@ function telao(x, y, z, pe) { const g = new T.Group(), tl = new T.Mesh(new T.Box
   for (const s of [-6, 6]) { const p = new T.Mesh(new T.BoxGeometry(0.4, Math.abs(pe), 0.4), lam("#5f5e5a")); p.position.set(0, pe > 0 ? 4 + pe / 2 : -4 + pe / 2, s); g.add(p); }
   g.position.set(x, y, z); g.rotation.y = Math.atan2(z, -x); grp.add(g); }
 
-// Cena num elemento: devolve { atualizar(config), destruir() }. Arrastar gira.
+// Cena num elemento: devolve { atualizar(config), destruir() }. Arrastar gira; roda do mouse, pinça ou os botões + e − dão zoom.
 export async function desenharEstadio(el, config) {
   T = await carregarThree(); materiaisFixos();
   el.style.position = "relative"; el.style.cursor = "grab"; el.style.touchAction = "none"; el.style.overflow = "hidden"; el.style.borderRadius = "12px";
@@ -260,14 +260,25 @@ export async function desenharEstadio(el, config) {
   const scene = new T.Scene(), cam = new T.PerspectiveCamera(30, 1.6, 1, 3000);
   const hemi = new T.HemisphereLight(0xffffff, 0x77746a, 0.62), campo = new T.PointLight(0xfff4dc, 0, 0, 1); campo.position.set(0, 70, 0); scene.add(hemi, campo);
   const sun = new T.DirectionalLight(0xffffff, 0.95); sun.position.set(-90, 150, 80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; scene.add(sun);
-  const I = { scene, grp: new T.Group(), sun, hemi, campo, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, vista: "3d" }; scene.add(I.grp);
+  const I = { scene, grp: new T.Group(), sun, hemi, campo, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, zoom: 1, vista: "3d" }; scene.add(I.grp);
   I.render = () => { const w = el.clientWidth; if (!w) return; const h = Math.round(w * 0.62); ren.setSize(w, h); cam.aspect = w / h;
-    cam.position.set(I.dist * Math.cos(I.el) * Math.sin(I.az), I.dist * Math.sin(I.el), I.tz + I.dist * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
+    const d = I.dist * I.zoom; cam.position.set(d * Math.cos(I.el) * Math.sin(I.az), d * Math.sin(I.el), I.tz + d * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
     ren.setClearColor(I.vista == "wire" ? 0x0C447C : I.ceu || CEU, 1); ren.render(scene, cam); };
-  let drag = null;
-  el.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, I.az, I.el]; el.setPointerCapture(e.pointerId); });
-  el.addEventListener("pointermove", e => { if (!drag) return; I.az = drag[2] - (e.clientX - drag[0]) * 0.008; I.el = Math.min(1.35, Math.max(0.25, drag[3] + (e.clientY - drag[1]) * 0.005)); I.render(); });
-  el.addEventListener("pointerup", () => drag = null);
+  let drag = null, pinca = null; const dedos = new Map(), vao = () => { const [a, b] = [...dedos.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; };
+  const zoom = z => { I.zoom = Math.min(1.2, Math.max(0.3, z)); I.render(); };
+  el.addEventListener("pointerdown", e => { dedos.set(e.pointerId, [e.clientX, e.clientY]); el.setPointerCapture(e.pointerId);
+    if (dedos.size === 2) { drag = null; pinca = [vao(), I.zoom]; } else drag = [e.clientX, e.clientY, I.az, I.el]; });
+  el.addEventListener("pointermove", e => { if (!dedos.has(e.pointerId)) return; dedos.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pinca && dedos.size === 2) return zoom(pinca[1] * pinca[0] / vao()); if (!drag) return;
+    I.az = drag[2] - (e.clientX - drag[0]) * 0.008; I.el = Math.min(1.35, Math.max(0.25, drag[3] + (e.clientY - drag[1]) * 0.005)); I.render(); });
+  const solta = e => { dedos.delete(e.pointerId); pinca = null; drag = null; };
+  el.addEventListener("pointerup", solta); el.addEventListener("pointercancel", solta);
+  el.addEventListener("wheel", e => { e.preventDefault(); zoom(I.zoom * Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+  const botoes = document.createElement("div"); botoes.style.cssText = "position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px";
+  for (const [txt, f] of [["+", 0.8], ["−", 1.25]]) { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.title = txt === "+" ? "Aproximar" : "Afastar";
+    b.style.cssText = "width:34px;height:34px;border:0;border-radius:8px;background:rgba(13,18,32,.75);color:#fff;font:700 20px sans-serif;cursor:pointer";
+    b.addEventListener("pointerdown", e => e.stopPropagation()); b.addEventListener("click", () => zoom(I.zoom * f)); botoes.append(b); }
+  el.append(botoes);
   const ro = new ResizeObserver(() => I.render()); ro.observe(el);
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
