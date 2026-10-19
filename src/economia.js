@@ -75,4 +75,4 @@ export const valorNoAgente = (mercado, vermelho = false, cotacao = 1, vendidas =
 // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
 export const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
 // 440 → "440 mil"; 1370 → "1,37 mi"
-export const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
+export const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil"; // espaço que não quebra: "7,97 mi" nunca se parte em duas linhas

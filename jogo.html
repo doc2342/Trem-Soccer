@@ -18,7 +18,8 @@
   .meus-clubes button.ativo { border-color:var(--ac); } .meus-clubes .ponto { position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:var(--bad); }
   /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
   @media (max-width:620px) {
-    .topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; } #meusClubes { grid-column:1/-1; }
+    .card.topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; }
+    main > .topo { gap:6px 10px; } main > .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; } #sair { padding:3px 10px; }
     .topo > svg:first-child { width:52px; height:52px; } .topo > svg:nth-child(2) { width:38px; height:38px; }
     .patro-topo { grid-column:1/-1; margin-left:0; display:flex; align-items:center; gap:8px; } .patro-topo img { width:36px; height:36px; }
     .card.topo h2 { font-size:24px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
@@ -47,7 +48,7 @@
   .tdet { background:var(--vidro); } .tdet .row { gap:8px; }
   .tprog { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 16px; margin-top:8px; }
   .tprog .tb { height:6px; border-radius:999px; background:var(--trilho); overflow:hidden; margin-top:2px; } .tprog .tb > div { height:100%; background:var(--ac); }
-  @media (max-width:620px) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { display:none; }
+  @media (max-width:620px) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { width:0; padding:0 !important; border:0; font-size:0; }
     .ttab th:nth-child(1) { width:40px; } .ttab th:nth-child(4) { width:104px; } .ttab th:nth-child(5) { width:36px; } .ttab td:nth-child(2) { white-space:nowrap; }
     .ttab select { width:100%; font-size:12.5px; padding:4px 2px; } .tdet td { white-space:normal; } .tdet .row { flex-direction:column; align-items:stretch; gap:4px; } }
   /* finanças: quadros da visão geral, barra da folha e tabela por categoria */
@@ -147,6 +148,7 @@
     #mLista table { font-size:12.5px; } #mLista td, #mLista th { padding:4px 3px; }
     #mLista td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
   }
+  a.lance > svg + span:not(.xg) { flex:1; min-width:0; }
   .lk { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; cursor:pointer; }
   .lk:hover { text-decoration-color:var(--ac); }
   .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
@@ -548,7 +550,7 @@ async function telaClube(liga, clube) {
   // janela de saídas (79_janela_de_saidas.sql): entre a última rodada e a virada, 2 vendas pelo agente além das da temporada
   const SAIDAS = 2, janelaDeSaidas = !janela && !!prePeriodo, doAgente = (transferencias || []).filter(t => t.tipo === "agente" && t.de_clube === clube.id && t.temporada === liga.temporada);
   const vendasDeSaida = doAgente.filter(t => t.janela === "saida").length, vendasPeloAgente = doAgente.length - vendasDeSaida;
-  const duracaoDoLeilao = liga.horas_leilao == null ? "48 horas" : +liga.horas_leilao >= 1 ? +liga.horas_leilao + " horas" : Math.round(liga.horas_leilao * 60) + " minutos";
+  const duracaoDoLeilao = liga.horas_leilao == null ? "48 horas" : +liga.horas_leilao >= 1 ? (+liga.horas_leilao).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " horas" : Math.round(liga.horas_leilao * 60) + " minutos";
   const meusLeiloes = new Set(lancesLivres.filter(l => l.clube_id === clube.id).map(l => l.jogador_id)).size;
   const ateQuando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const cPor = Object.fromEntries(clubes.map(c => [c.id, c])), humanos = clubes.filter(c => c.dono).length;
@@ -758,7 +760,7 @@ async function telaClube(liga, clube) {
     const linha = p => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], r = resultado(p), aoVivo = !r && new Date(p.inicio).getTime() <= agora;
       const onde = ehCopa(p) ? (casa ? "no seu estádio · neutro" : "estádio dele · neutro") : casa ? "casa" : "fora";
       return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">
-        ${r ? `<b class="${r.v === "V" ? "ok" : r.v === "D" ? "bad" : "aviso"}" style="min-width:18px;text-align:center">${r.v}</b>` : `<span style="min-width:18px;text-align:center">${aoVivo ? "🔴" : "·"}</span>`}
+        ${r ? `<b class="${r.v === "V" ? "ok" : r.v === "D" ? "bad" : "aviso"}" style="min-width:18px;text-align:center">${r.v}</b>` : `<span style="min-width:18px;text-align:center">${aoVivo ? "🔴" : ""}</span>`}
         ${svgEscudo(adv.escudo, adv.sigla, 26)}<span style="flex:1;min-width:0"><b>${esc(adv.nome)}</b> <span class="mut">(${onde})</span><br><span class="mut" style="font-size:12px">${comp(p)} · ${dia(p.inicio)}</span></span>
         <span class="xg" style="white-space:nowrap">${r ? `<b>${r.texto}</b>` : aoVivo ? `<b class="aviso">ao vivo</b>` : ""}</span></a>`; };
     const jogados = meusJogos.filter(p => resDosMeus[p.id]).reverse(), proximos = meusJogos.filter(p => !resDosMeus[p.id]);
@@ -814,8 +816,8 @@ async function telaClube(liga, clube) {
       R.nota ? `<div><b>Melhor atuação:</b> ${esc(R.nota.nome)} (${lk(R.nota.clube)}), nota ${num(R.nota.nota)}${R.nota.gols ? `, ${R.nota.gols} ${R.nota.gols === 1 ? "gol" : "gols"}` : ""}${R.nota.ass ? `, ${R.nota.ass} ${R.nota.ass === 1 ? "assistência" : "assistências"}` : ""}${ver(R.nota)}</div>` : "",
       R.publico ? `<div><b>Maior público:</b> ${(+R.publico.publico).toLocaleString("pt-BR")} em ${lk(R.publico.casa)} x ${lk(R.publico.fora)}${ver(R.publico)}</div>` : ""].filter(Boolean);
     const cl = (d.clubes || []).filter(x => cPor[x.clube]);
-    $("rodadas").innerHTML = `<table class="mini" style="width:100%;table-layout:fixed"><tr><th class="esq">Clube</th><th style="width:26px" title="Jogos">J</th><th style="width:30px" title="Gols marcados">GP</th><th style="width:30px" title="Gols sofridos">GC</th><th style="width:36px" title="Finalizações por jogo">Fin</th><th style="width:40px" title="Posse de bola média">Pos</th><th style="width:30px" title="Cartões amarelos">🟨</th><th style="width:52px" title="Público médio em casa">Púb.</th></tr>
-        ${cl.map(x => `<tr><td class="esq ${x.clube === clube.id ? "nota" : ""}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lk(x.clube)}</td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td>${num((x.fin / x.j).toFixed(1))}</td><td>${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.am}</td><td>${x.publico == null ? "—" : (x.publico / 1000).toFixed(1).replace(".", ",") + " mil"}</td></tr>`).join("")}</table>
+    $("rodadas").innerHTML = `<table class="mini" style="width:100%;table-layout:fixed"><tr><th class="esq">Clube</th><th style="width:26px" title="Jogos">J</th><th style="width:30px" title="Gols marcados">GP</th><th style="width:30px" title="Gols sofridos">GC</th><th style="width:36px" title="Finalizações por jogo">Fin</th><th style="width:40px" title="Posse de bola média">Pos</th><th style="width:30px" title="Cartões amarelos">🟨</th><th style="width:62px" title="Público médio em casa">Púb.</th></tr>
+        ${cl.map(x => `<tr><td class="esq ${x.clube === clube.id ? "nota" : ""}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lk(x.clube)}</td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td>${num((x.fin / x.j).toFixed(1))}</td><td>${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.am}</td><td>${x.publico == null ? "—" : (x.publico / 1000).toFixed(1).replace(".", ",") + " mil"}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px">Ordenado por gols marcados.</div>
       ${recordes.length ? `<h2 style="margin-top:14px">Recordes</h2>${recordes.join("")}` : ""}<div id="stPremios"></div>`;
     mostrarPremios();
@@ -1879,7 +1881,7 @@ ${historicoDaBase()}
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
     ${subAbas("ajuste", [["geral", "⚙️ Configurações", "Geral"], ["escudo", "🛡️ Escudo", "Escudo"], ["titular", "👕 Uniforme casa", "Casa"], ["reserva", "🎽 Uniforme visitante", "Visitante"]])}
-    <div class="card" id="cfgBarra" style="position:sticky;top:0;z-index:5"><div class="row" style="align-items:center"><button id="cfgSalvarVisual" disabled>Salvar escudo e uniformes</button><span id="cfgVisualAviso" class="mut">Escudo e uniformes salvos.</span></div></div>
+    <div class="card" id="cfgBarra" style="position:sticky;top:var(--abas-h, 0px);z-index:5"><div class="row" style="align-items:center"><button id="cfgSalvarVisual" disabled>Salvar escudo e uniformes</button><span id="cfgVisualAviso" class="mut">Escudo e uniformes salvos.</span></div></div>
     <div data-parte="ajuste:escudo"><div class="card"><h2>Escudo</h2><div id="cfgEscudo"></div></div>
       <div class="card"><h2>Escudo enviado</h2><div>
             <div class="mut" style="margin:4px 0 8px;font-size:12.5px">Uma imagem sua no lugar do escudo desenhado: PNG, JPG ou WebP. A página reduz para 128 × 128 (até 100 KB) antes de enviar; prefira fundo transparente. O desenho continua guardado e volta se a imagem sair. O administrador pode pedir a troca.</div>
@@ -1963,7 +1965,7 @@ ${historicoDaBase()}
       const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
       const fase = j => !j.livre_ate ? `<span class="mut">aguarda o 1º lance</span>` : new Date(j.livre_ate) <= new Date() ? "encerrando"
         : `até ${ateQuando(j.livre_ate)}${entradaAte(j) ? (entradaAte(j) > new Date() ? `<div class="mut" style="font-size:12px">clube novo entra até ${ateQuando(entradaAte(j))}</div>` : `<div class="aviso" style="font-size:12px">só quem já deu lance</div>`) : ""}`;
-      return `<div class="mut" style="margin-bottom:8px">O leilão dura ${duracaoDoLeilao} a partir do primeiro lance. Clubes novos só entram ${(h => h >= 1 ? "nas primeiras " + h * 0.75 + " horas" : "nos primeiros " + Math.round(h * 45) + " minutos")(liga.horas_leilao == null ? 48 : +liga.horas_leilao)}; depois, só disputa quem já deu lance, e se só um clube deu lance até ali, ele já assina. Lance nos últimos 3 minutos estende o leilão em 3 minutos e precisa superar o maior em 5%. Quem abriu o leilão e termina na frente assina por <b>10% a menos</b> (marcado com ★). Nenhum leilão termina entre 23h e 6h59. Você está em <b>${meusLeiloes} de 3</b> leilões ao mesmo tempo.</div>
+      return `<div class="mut" style="margin-bottom:8px">O leilão dura ${duracaoDoLeilao} a partir do primeiro lance. Clubes novos só entram ${(h => h >= 1 ? "nas primeiras " + (h * 0.75).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " horas" : "nos primeiros " + Math.round(h * 45) + " minutos")(liga.horas_leilao == null ? 48 : +liga.horas_leilao)}; depois, só disputa quem já deu lance, e se só um clube deu lance até ali, ele já assina. Lance nos últimos 3 minutos estende o leilão em 3 minutos e precisa superar o maior em 5%. Quem abriu o leilão e termina na frente assina por <b>10% a menos</b> (marcado com ★). Nenhum leilão termina entre 23h e 6h59. Você está em <b>${meusLeiloes} de 3</b> leilões ao mesmo tempo.</div>
         <div class="rolagem" style="max-height:320px;overflow:auto" id="livresLista"><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th><th class="esq">Maior lance</th><th>Leilão</th></tr>
         ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id);
           return `<tr class="clk" data-livre="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td>${dinheiro(j.salario_mercado)}</td>
@@ -2427,6 +2429,7 @@ ${historicoDaBase()}
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
+  new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
   const trocarTema = t => { window.moTema(t); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
   document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.onchange = () => trocarTema(r.value); });

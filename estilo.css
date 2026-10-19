@@ -30,7 +30,7 @@ h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
 .g2 { display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr); gap:0 16px; align-items:start; }
 .kpis.k3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
 @media (max-width:900px) { .g2 { grid-template-columns:minmax(0, 1fr); } }
-@media (max-width:620px) { .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; } .kpi .kv { font-size:24px; } .card { padding:12px; } }
+@media (max-width:620px) { .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; } .kpi .kv { font-size:24px; } .card { padding:12px; overflow-x:auto; } } /* tabela larga rola dentro do cartão, sem alargar a página */
 .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
 .duas { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:12px; }
 .duas > * { min-width:0; }
@@ -173,8 +173,9 @@ details.card[open] > summary { margin-bottom:8px; }
   .posDaVaga select { flex:1; min-width:0; }
   .lista .item { padding:6px 2px; gap:6px; } .lista .item .pega { display:none; }
   .lista .item > span:not(.pp):not(.n):not(.pega):not(.dir) { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  /* o cartão de salvar acompanha a rolagem */
-  #online { position:sticky; top:0; z-index:30; }
+  /* o cartão de salvar acompanha a rolagem, baixo para não cobrir o campo: sem a dica fixa e com o botão menor */
+  #online { position:sticky; top:0; z-index:30; padding:8px 12px; } #online h2 { font-size:16px; } #online #salvarOnline { padding:6px 10px; font-size:13.5px; }
+  #online > .mut:last-child { display:none; } #avisoOnline { margin-top:2px !important; font-size:12.5px; }
   #banco .chip { padding:5px 10px; }
 }
 
