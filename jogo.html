@@ -2121,10 +2121,11 @@ ${historicoDaBase()}
     let daPosicao = [];
     // espelho das travas de comprar_pela_multa (76_emprestimo_e_supercopa.sql). Até a busca responder (ou sem o SQL 136),
     // as multas saem das últimas transferências já carregadas e a trava dos 5 jogos fica de fora
-    let multas = transferencias.filter(t => t.tipo === "multa" && t.temporada === liga.temporada), jogos5 = {};
-    const perdas = id => multas.filter(t => t.de_clube === id), minhasCompras = () => multas.filter(t => t.para_clube === clube.id).length;
-    const carregarTravas = () => Promise.all([B.multasDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null])
-      .then(([ms, js]) => { if (ms) multas = ms; if (js) jogos5 = js; });
+    let negocios = transferencias.filter(t => t.temporada === liga.temporada), jogos5 = {};
+    const multas = () => negocios.filter(t => t.tipo === "multa");
+    const perdas = id => multas().filter(t => t.de_clube === id), minhasCompras = () => multas().filter(t => t.para_clube === clube.id).length;
+    const carregarTravas = () => Promise.all([B.negociosDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null])
+      .then(([ns, js]) => { if (ns) negocios = ns; if (js) jogos5 = js; });
     const mesmaDivisao = j => (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) === DIVISAO(clube.grupo);
     // travas da origem: o jogador some da lista
     const situacao = j => j.salario == null ? "sem contrato" : j.protegido ? "protegido" : (j.protegido_ate != null && j.protegido_ate >= liga.temporada) ? "primeira temporada" : (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) < DIVISAO(clube.grupo) ? "divisão acima" : j.pais !== meuPais && estrangeiros >= 5 ? "estrangeiros"
@@ -2132,12 +2133,20 @@ ${historicoDaBase()}
       : perdas(j.clube_id).length >= ((cPor[j.clube_id] || {}).dono ? 3 : 2) ? "limite de perdas"
       : janela === "meio" && mesmaDivisao(j) && (jogos5[j.id] || 0) >= 5 ? "5 jogos" : "";
     // travas do seu clube (dá para mudar): o jogador fica na lista, em cinza, com o motivo. [curto, explicação]
-    const bloqueio = j => { const v = valorDeHoje(j), m = multaDe(j);
-      return minhasCompras() >= 4 ? ["4 compras", "você já fez as 4 compras pela multa desta temporada"]
-        : elenco.length >= 50 ? ["elenco cheio", "seu elenco já tem 50 jogadores"]
+    const travaDoContrato = j => { const v = valorDeHoje(j);
+      return elenco.length >= 50 ? ["elenco cheio", "seu elenco já tem 50 jogadores"]
         : v > maximo ? ["acima de 15%", `ele pede pelo menos ${dinheiro(v)}, e um jogador ganha no máximo ${dinheiro(maximo)} (15% do teto de folha)`]
-        : folha + v > teto ? ["teto", `ele pede pelo menos ${dinheiro(v)}, e sobram ${dinheiro(Math.max(0, teto - folha))} até o seu teto de folha`]
-        : caixa != null && m > caixa ? ["caixa", `a multa é de ${dinheiro(m)} e o seu caixa é de ${dinheiro(caixa)}`] : null; };
+        : folha + v > teto ? ["teto", `ele pede pelo menos ${dinheiro(v)}, e sobram ${dinheiro(Math.max(0, teto - folha))} até o seu teto de folha`] : null; };
+    const bloqueio = j => { const m = multaDe(j);
+      return minhasCompras() >= 4 ? ["4 compras", "você já fez as 4 compras pela multa desta temporada"]
+        : travaDoContrato(j) || (caixa != null && m > caixa ? ["caixa", `a multa é de ${dinheiro(m)} e o seu caixa é de ${dinheiro(caixa)}`] : null); };
+    // travas da proposta que já dá para saber antes de digitar o valor (fazer_proposta e fechar_negocio, SQL 46 e 133).
+    // ponytail: ficam de fora "chegou nesta janela" e "saiu desse clube há pouco" (a lista não traz esses campos); o servidor avisa
+    const travaDaProposta = (j, base) => j.aposenta_em != null ? "ele anunciou a aposentadoria"
+      : janela === "meio" && mesmaDivisao(j) && (jogos5[j.id] || 0) >= 5 ? `ele já jogou ${jogos5[j.id]} partidas de liga pelo clube, e na janela do meio quem tem 5 ou mais não vai para outro clube da mesma divisão`
+      : negocios.some(t => t.tipo === "negociada" && t.de_clube === j.clube_id && t.para_clube === clube.id) ? "esse clube já vendeu um jogador ao seu nesta temporada (é um negócio por temporada em cada sentido)"
+      : (t => t && t[1])(travaDoContrato(j))
+      || (caixa != null && caixa < faixaDaNegociacao(base).minimo ? `o seu caixa (${dinheiro(caixa)}) não cobre nem o valor mínimo da proposta (${dinheiro(faixaDaNegociacao(base).minimo)})` : null);
     const desenhar = () => {
       IDS_DOS_FILTROS.forEach(id => { if ($(id)) filtrosDoMercado[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value; });
       const g = $("mGrupo").value, idade = +$("mIdade").value || 99, idadeMin = +$("mIdadeMin").value || 0, soVenda = !!($("mSoVenda") && $("mSoVenda").checked), soMulta = $("mSoMulta").checked && !soVenda;
@@ -2181,6 +2190,7 @@ ${historicoDaBase()}
     const abrirJogador = (j, alvo) => {
       ["mPainel", "cvPainel"].forEach(id => { if ($(id) && $(id) !== alvo) $(id).innerHTML = ""; });
       const motivo = situacao(j), trava = !motivo && bloqueio(j), multa = multaDe(j), minimo = valorDeHoje(j), baseNeg = j.juvenil ? (j.idade >= 18 ? j.salario_mercado : null) : j.salario; // juvenil: faixa pelo salário de mercado
+      const travaP = baseNeg != null && travaDaProposta(j, baseNeg);
       alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${sg(j.pos)} · ${j.idade} anos · ${esc(cPor[j.clube_id].nome)}
         ${motivo ? `<div class="aviso" style="margin:6px 0">Não dá para comprar pela multa: ${motivo === "protegido" ? "está na lista de protegidos do clube" : motivo === "primeira temporada" ? "está na primeira temporada de contrato no clube" : motivo === "divisão acima" ? "é de uma divisão acima da sua (o campeonato de outro país vale como primeira divisão), e o jogador não desce de divisão pela multa" : motivo === "estrangeiros" ? "é de outro país, e seu clube já tem 5 estrangeiros (contando os emprestados)" : motivo === "aposentadoria" ? "anunciou a aposentadoria" : motivo === "perdeu na janela" ? "o clube não tem dirigente e já perdeu um jogador pela multa nesta janela (é um por janela)" : motivo === "limite de perdas" ? "o clube já perdeu o máximo de jogadores pela multa nesta temporada" : motivo === "5 jogos" ? `já jogou ${jogos5[j.id]} partidas de liga pelo clube, e na janela do meio quem tem 5 ou mais não vai para outro clube da mesma divisão` : "ainda não tem contrato"}.</div><button class="sec" id="mFechar">Fechar</button>`
           : `${trava ? `<div class="aviso" style="margin:6px 0">Por enquanto você não pode pagar a multa: ${esc(trava[1])}.</div>` : ""}<div class="mut" style="margin:4px 0">Multa rescisória: <b>${dinheiro(multa)}</b> (seu caixa: ${dinheiro(caixa)}). Salário atual ${dinheiro(j.salario)}; no contrato novo ele pede pelo menos ${dinheiro(minimo)} e pode ganhar até ${dinheiro(maximo)}. Sobram ${dinheiro(teto - folha)} até o seu teto de folha. No seu clube ele fica sem multa até o fim desta temporada.</div>
@@ -2191,7 +2201,7 @@ ${historicoDaBase()}
           <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="${faixaDaNegociacao(baseNeg).minimo}" max="${faixaDaNegociacao(baseNeg).maximo}" value="${Math.min(faixaDaNegociacao(baseNeg).maximo, Math.max(faixaDaNegociacao(baseNeg).minimo, j.preco_pedido || multa))}" style="width:140px"></label>
             <label>Salário do jogador<input id="pSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:120px"></label>
             <label>Contrato de<select id="pTemporadas" data-prog="pSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
-            <button class="sec" id="pEnviar" ${janela || (prePeriodo && j.idade < 37 && !j.juvenil) ? "" : "disabled"} title="${janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div>${temEmprestimo && j.idade <= 23 && !j.juvenil ? `<div class="row" style="margin-top:6px;align-items:center"><button class="sec" id="pEmprestimo" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pedir por empréstimo</button><span class="mut">até a virada da temporada · salário meio a meio (${dinheiro(Math.round(j.salario / 2))} para cada clube, e metade em cada folha) · o dono aceita ou recusa</span></div>` : ""}</div>` : ""}
+            ${travaP ? `<div class="aviso" style="margin:6px 0;flex-basis:100%">Por enquanto você não pode fazer proposta: ${esc(travaP)}.</div>` : ""}<button class="sec" id="pEnviar" ${!travaP && (janela || (prePeriodo && j.idade < 37 && !j.juvenil)) ? "" : "disabled"} title="${travaP ? esc(travaP) : janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div>${temEmprestimo && j.idade <= 23 && !j.juvenil ? `<div class="row" style="margin-top:6px;align-items:center"><button class="sec" id="pEmprestimo" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pedir por empréstimo</button><span class="mut">até a virada da temporada · salário meio a meio (${dinheiro(Math.round(j.salario / 2))} para cada clube, e metade em cada folha) · o dono aceita ou recusa</span></div>` : ""}</div>` : ""}
         ${!prePeriodo || !cPor[j.clube_id].dono || j.contrato_ate == null || j.contrato_ate > liga.temporada || j.aposenta_em != null ? "" : (meu => `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>✍️ Pré-contrato</b> <span class="mut">· o contrato dele acaba nesta temporada · você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas</span>
           <div class="mut" style="margin:4px 0">Se ele não renovar e ficar livre na virada, vai para quem ofereceu o maior salário, sem pagar nada ao clube. As propostas são fechadas: ninguém vê a dos outros.${meu ? ` A sua está em <b>${dinheiro(meu.salario)}</b> por ${meu.temporadas} ${meu.temporadas === 1 ? "temporada" : "temporadas"}.` : ""}</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="pcSalario" type="number" step="5" min="${j.salario_mercado || j.salario || 0}" value="${meu ? meu.salario : j.salario_mercado || j.salario || 0}" style="width:150px"></label>
@@ -2296,8 +2306,8 @@ ${historicoDaBase()}
             <div id="cvPainel"></div>
             <div class="elenco2" id="cvLista">${[ZONAS_DO_ELENCO.slice(0, 2), ZONAS_DO_ELENCO.slice(2)].map(metade => `<div>${metade.map(([titulo, linhas]) => { const z = l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota);
               return `<div class="zona"><h3>${titulo} <span class="tag">${z.length}</span></h3><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="c-sal">Salário</th><th>Multa</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
-                ${z.map(j => { const b = !meu && !situacao(j) && bloqueio(j); return `<tr class="clk" data-cvjog="${j.id}"${b ? ` style="opacity:.45" title="Por enquanto você não pode: ${esc(b[1])}"` : ""}><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
-                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : b ? `${dinheiro(multaDe(j))}<br><span class="bad" style="font-size:11px">${b[0]}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`; }).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>
+                ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
+                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>
           <div class="g2"><div>
             <div class="card"><h2>Temporadas anteriores</h2>${hist.length ? `<table class="mini" style="width:100%"><tr><th>T</th><th class="esq">Divisão</th><th>Pos.</th><th>P</th><th>V-E-D</th><th class="esq"></th></tr>
               ${hist.map(h => `<tr><td>${h.temporada}</td><td class="esq">${esc(nomeDoGrupo(h.grupo))}</td><td>${h.posicao}º</td><td>${h.pontos}</td><td>${h.vitorias}-${h.empates}-${h.derrotas}</td><td class="esq mut">${DESTINO[h.destino] || ""}${h.copa ? ` · copa: ${esc(h.copa)}` : ""}${h.lib ? ` · Libertadores: ${esc(h.lib)}` : ""}${h.sul ? ` · Sul-Americana: ${esc(h.sul)}` : ""}${h.recopa ? " · Recopa: campeão" : ""}</td></tr>`).join("")}</table>` : `<div class="mut">Primeira temporada do clube na liga.</div>`}</div>
