@@ -1471,7 +1471,6 @@ async function telaClube(liga, clube) {
       : desta ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles vão a todos os jogos de liga em casa e pagam o ingresso em parcelas: ${porRodada(clube.carne)} por rodada.`
       : `Os sócios entram sozinhos na primeira rodada da temporada: de 10% a 30% da torcida, conforme o humor, até metade dos lugares do estádio. Hoje seriam ${previstos.toLocaleString("pt-BR")}, pagando ${porRodada(previstos)} por rodada e indo a todos os jogos de liga em casa.`}</div></div>`;
   };
-  };
   // no celular dá para trocar entre o desenho de celular e a página inteira com zoom reduzido (como no Dugout)
   let telaDePc = false; try { telaDePc = localStorage.getItem("mo_tela") === "pc"; } catch (e) {}
   const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820, celular = telaPequena && !telaDePc;
