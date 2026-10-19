@@ -252,11 +252,9 @@ export async function desenharEstadio(el, config) {
   const ro = new ResizeObserver(() => I.render()); ro.observe(el);
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
-  // volta lenta em torno do estádio (festa do título na página da sede); para quando a pessoa pega a câmera
-  const girar = (ms = 6000) => { const a0 = I.az, t0 = performance.now(); let parar = false; el.addEventListener("pointerdown", () => parar = true, { once: true });
-    const f = t => { if (parar || I.morto) return; const k = Math.min(1, (t - t0) / ms); I.az = a0 + 2 * Math.PI * (k < .5 ? 2 * k * k : 1 - (2 - 2 * k) ** 2 / 2); I.render(); if (k < 1) requestAnimationFrame(f); };
-    requestAnimationFrame(f); };
-  return { atualizar, girar, destruir: () => { I.morto = true; ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
+  // posição na tela (pixels da cena) dos pontos da festa, para o canvas por cima acompanhar a câmera
+  const pontosDaFesta = () => { const w = el.clientWidth, h = Math.round(w * 0.62); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
+  return { atualizar, pontosDaFesta, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
 function construir() {
@@ -290,6 +288,9 @@ function construir() {
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
     else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
+  // festa: 10 cadeiras espalhadas pela arquibancada do campeão, onde a página da sede acende os sinalizadores
+  const arq = fes ? pos.filter(p => p.ld == LM && p.r > 1 && p.r < rows - 1 && !(p.r >= 28 && p.r <= 30)).sort((a, b) => uDe(a) - uDe(b)) : [];
+  cur.festaPts = arq.length ? Array.from({ length: 10 }, (_, i) => { const p = arq[Math.floor((i + 0.5) * arq.length / 10)]; return { x: p.x, y: p.h + 0.6, z: p.z }; }) : [];
   const esp = dunas ? 30 : m.pele ? 16 : 8 + (m.folga || 0); grp.add(chao(contorno(m, aM + esp, bM + esp), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
   if (m.pista) { const pt = pistaTex(); grp.add(plano(new T.PlaneGeometry(pt.W, pt.H), new T.MeshLambertMaterial({ map: pt.t, transparent: true }), 0.05)); }
