@@ -217,7 +217,7 @@ import { FORMACOES } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais } from "./src/virada.js";
-import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, definirCarne, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
+import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
 import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS, CIDADES, cidadeDoEstadio, SEDES, sedeDoJogo } from "./src/estadio.js";
 import { MARCAS, selo as seloMarca, PROPOSTAS, jogoPatrocinado } from "./src/patrocinio.js";
@@ -1460,17 +1460,17 @@ async function telaClube(liga, clube) {
       <div class="row"><button class="sec" id="antecipar" ${jaAntecipou ? "disabled" : ""}>${jaAntecipou ? "Prêmio já antecipado nesta temporada" : `Antecipar o prêmio: receber ${dinheiro(Math.round(base * 0.8))} agora e descontar ${dinheiro(base)} na virada`}</button></div>
       <div id="vermelhoAviso" style="margin-top:6px"></div></div>`;
   };
-  // sócio-torcedor (colunas "carne" no banco): antes da primeira rodada, até um terço da torcida compra os jogos em casa de uma vez, com 20% de desconto
+  // sócio-torcedor (colunas "carne" no banco; 134_socio_torcedor_automatico.sql): na primeira partida de liga da temporada, de 10% (humor 0)
+  // a 30% (humor 16) da torcida, até metade dos lugares; pagam meio ingresso por sócio a cada rodada de liga, menos os 10% do fundo
   const carne = () => {
     if (caixa == null || clube.carne == null || clube.torcida == null) return "";
-    const vendido = clube.carne_temporada != null && clube.carne_temporada === liga.temporada;
-    const lugares = lugaresDoEstadio(clube.estadio_nivel), maximo = Math.min(Math.floor(clube.torcida / 3), lugares), jogos = Math.round(rodadasDoGrupo / 2);
-    const valor = n => Math.round(n * (liga.preco_ingresso || 0) * 0.8 * jogos / 1000);
-    return `<div class="card"><h2>Sócio-Torcedor</h2>
-      ${vendido ? `<div class="mut" style="margin-top:4px">${clube.carne ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles já pagaram e vão a todos os jogos em casa.` : "Você não abriu vagas de sócio-torcedor nesta temporada."}</div>`
-        : `<div class="mut" style="margin:4px 0">Só antes da primeira rodada. Até um terço da torcida (${maximo.toLocaleString("pt-BR")} lugares) vira sócio-torcedor e paga os ${jogos} jogos em casa de uma vez, com 20% de desconto. Você recebe tudo agora e garante esse público mesmo com a torcida de mau humor; em troca, esses lugares rendem 20% menos do que o ingresso avulso.</div>
-          <div class="row"><label>Vagas de sócio-torcedor<input id="carneLugares" type="number" min="0" max="${maximo}" step="500" value="${maximo}" style="width:130px"></label><span class="mut" id="carneValor"></span><button class="sec" id="carneVender">Abrir o Sócio-Torcedor</button></div>
-          <div id="carneAviso" style="margin-top:6px"></div>`}</div>`;
+    const desta = clube.carne_temporada === liga.temporada, porRodada = n => dinheiro(Math.round(n * (liga.preco_ingresso || 0) / 2000 * 0.9));
+    const previstos = Math.min(Math.round(clube.torcida * (0.1 + 0.2 * Math.min(16, Math.max(0, clube.humor ?? 8)) / 16)), Math.floor(lugaresDoEstadio(clube.estadio_nivel) / 2));
+    return `<div class="card"><h2>Sócio-Torcedor</h2><div class="mut" style="margin-top:4px">${desta && !clube.socios_auto
+      ? (clube.carne ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles já pagaram e vão a todos os jogos em casa.` : "Sem sócios-torcedores nesta temporada.")
+      : desta ? `${clube.carne.toLocaleString("pt-BR")} sócios-torcedores nesta temporada. Eles vão a todos os jogos de liga em casa e pagam o ingresso em parcelas: ${porRodada(clube.carne)} por rodada.`
+      : `Os sócios entram sozinhos na primeira rodada da temporada: de 10% a 30% da torcida, conforme o humor, até metade dos lugares do estádio. Hoje seriam ${previstos.toLocaleString("pt-BR")}, pagando ${porRodada(previstos)} por rodada e indo a todos os jogos de liga em casa.`}</div></div>`;
+  };
   };
   // no celular dá para trocar entre o desenho de celular e a página inteira com zoom reduzido (como no Dugout)
   let telaDePc = false; try { telaDePc = localStorage.getItem("mo_tela") === "pc"; } catch (e) {}
@@ -1537,7 +1537,6 @@ async function telaClube(liga, clube) {
       if (pelo.length) l.push(item("⚠️", `Com as renovações a folha passaria do teto de ${dinheiro(liga.teto_folha)}: na virada ${pelo.length === 1 ? "ficaria livre" : "ficariam livres"} ${nomes(pelo)} (os mais caros primeiro). Venda alguém, marque "não renovar" ou renove por outro valor.`, "aviso", "elenco"));
     }
     if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
-    if (clube.carne != null && clube.carne_temporada !== liga.temporada && transferencias && janela === "inicio") l.push(item("🎟️", "O Sócio-Torcedor desta temporada ainda não foi aberto (Clube, Finanças). Só dá para abrir antes da primeira rodada."));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
     const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
     if (celular && resto.length) return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}` : "")
@@ -2059,17 +2058,7 @@ ${historicoDaBase()}
     </section>
 `;
 
-  // sócio-torcedor e antecipação do prêmio
-  if ($("carneVender")) {
-    const lugares = () => Math.max(0, Math.round(+$("carneLugares").value || 0));
-    const mostra = () => { $("carneValor").textContent = `você recebe ${dinheiro(Math.round(Math.min(lugares(), +$("carneLugares").max) * (liga.preco_ingresso || 0) * 0.8 * Math.round(rodadasDoGrupo / 2) / 1000))} agora`; };
-    $("carneLugares").oninput = mostra; mostra();
-    $("carneVender").onclick = async () => {
-      if (!confirm(`Vender ${lugares().toLocaleString("pt-BR")} vagas de sócio-torcedor? Só dá para fazer uma vez por temporada.`)) return;
-      try { await definirCarne(lugares()); await carregar({ user: usuario }); }
-      catch (err) { $("carneAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
-    };
-  }
+  // antecipação do prêmio
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
     $("jFiltro").querySelectorAll("[data-jfiltro]").forEach(x => { x.style.outline = x === c ? "1px solid currentColor" : ""; });
     document.querySelectorAll("tr[data-jpos]").forEach(tr => { tr.hidden = !!c.dataset.jfiltro && tr.dataset.jpos !== c.dataset.jfiltro; }); };
