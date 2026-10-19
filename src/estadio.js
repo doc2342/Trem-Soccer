@@ -252,7 +252,11 @@ export async function desenharEstadio(el, config) {
   const ro = new ResizeObserver(() => I.render()); ro.observe(el);
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
-  return { atualizar, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
+  // volta lenta em torno do estádio (festa do título na página da sede); para quando a pessoa pega a câmera
+  const girar = (ms = 6000) => { const a0 = I.az, t0 = performance.now(); let parar = false; el.addEventListener("pointerdown", () => parar = true, { once: true });
+    const f = t => { if (parar || I.morto) return; const k = Math.min(1, (t - t0) / ms); I.az = a0 + 2 * Math.PI * (k < .5 ? 2 * k * k : 1 - (2 - 2 * k) ** 2 / 2); I.render(); if (k < 1) requestAnimationFrame(f); };
+    requestAnimationFrame(f); };
+  return { atualizar, girar, destruir: () => { I.morto = true; ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
 function construir() {

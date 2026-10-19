@@ -39,7 +39,7 @@ const EX = [["Colorado", "#c8102e", "#ffffff"], ["America", "#0a7d3b", "#ffffff"
 const exemplo = () => { const i = Object.keys(SEDES).indexOf(s), comp = ["LIB", "COPA", "SUL", "SUP", "REC", "COPA"];
   return [3, 2, 1].map((t, j) => { const a = EX[(i + j) % 6], b = EX[(i + j + 3) % 6], gc = (i + j) % 3, gf = (i + 2 * j) % 3;
     return { temporada: t, competicao: s === "maracana" ? "LIB" : comp[(i + j) % 6], casa_nome: a[0], fora_nome: b[0], gols_casa: gc, gols_fora: gf, campeao: 1, campeao_nome: gc >= gf ? a[0] : b[0], cores: gc >= gf ? a.slice(1) : b.slice(1), publico: Math.round(SEDES[s].lugares * (0.78 + 0.07 * j)) }; }); };
-const desenhar = cfg => { const el = document.getElementById("cena"); if (cena) { cena.destruir(); cena = null; } desenharEstadio(el, cfg).then(v => { cena = v; }).catch(e => { el.innerHTML = `<div class="mut" style="padding:10px">${esc(e.message)}</div>`; }); };
+const desenhar = cfg => { const el = document.getElementById("cena"); if (cena) { cena.destruir(); cena = null; } return desenharEstadio(el, cfg).then(v => { cena = v; return v; }).catch(e => { el.innerHTML = `<div class="mut" style="padding:10px">${esc(e.message)}</div>`; }); };
 
 async function carregar() {
   document.title = "Trem Soccer · " + sede.nome;
@@ -65,7 +65,7 @@ async function carregar() {
   const b = document.getElementById("bFesta");
   let emFesta = !!festa && (previa || Date.now() - new Date(ultima.criado_em).getTime() < 864e5);
   const mostrar = () => { if (b) b.textContent = emFesta ? "Ver o mosaico da sede" : `Ver a festa do ${camp.nome}`;
-    desenhar(configDaSede(s, emFesta ? ultima.competicao : aqui[0], emFesta ? festa : null)); if (emFesta) festejar(festa.cores); };
+    desenhar(configDaSede(s, emFesta ? ultima.competicao : aqui[0], emFesta ? festa : null)).then(v => { if (emFesta && v) v.girar(6000); }); if (emFesta) festejar(festa.cores); };
   mostrar();
   if (b) b.onclick = () => { emFesta = !emFesta; mostrar(); };
 }
