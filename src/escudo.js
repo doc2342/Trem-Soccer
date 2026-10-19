@@ -81,7 +81,7 @@ export function svgEscudo(e = {}, sigla = "", tamanho = 48) {
 }
 
 // arte da marca na camisa (ferramentas/patrocinios.py): mono = uma cor só, branco ou preto conforme a camisa; cor = sem o fundo, colorida
-const NA_CAMISA = { grupo_trem: "mono", gazeta_dugoutense: "mono", dugout_dos_crias: "mono", dobet: "cor" };
+export const NA_CAMISA = { grupo_trem: "mono", gazeta_dugoutense: "mono", dugout_dos_crias: "mono", dobet: "cor" };
 const arteNaCamisa = (marca, c1) => marca + ({ mono: `_camisa_${luz(c1) > 150 ? "escuro" : "claro"}`, cor: "_camisa" }[NA_CAMISA[marca]] || "");
 // uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
 export function svgUniforme(u = {}, tamanho = 48) {

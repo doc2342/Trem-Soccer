@@ -10,14 +10,15 @@
 <script src="atualiza.js"></script>
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .patro-topo { margin-left:auto; text-align:center; } .patro-topo .mut { font-family:var(--display); text-transform:uppercase; letter-spacing:.08em; font-size:12px; margin-bottom:2px; } .patro-topo:empty { display:none; }
+  /* patrocinador master no cabeçalho: a arte sem fundo das camisas; a de uma cor só, escura no tema claro e clara no escuro */
+  .patro-topo { margin-left:auto; } .patro-topo img { display:block; width:56px; height:56px; object-fit:contain; } .patro-topo:empty { display:none; }
+  :root[data-tema=claro] .patro-topo .so-escuro, :root:not([data-tema=claro]) .patro-topo .so-claro { display:none; } .topo-conta #quem { display:none; }
   .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } /* a barra da conta (nome do jogo, relógio, e-mail, Sair) entra no cabeçalho do clube: uma linha a menos em toda tela */
   .topo-jogo { flex-basis:100%; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
   /* no PC (tela larga), tudo numa linha: Trem Soccer e o relógio no meio, na altura do nome do clube (mesma linha de base); o selo do patrocinador menor, junto do Guia */
   @media (min-width:901px) {
     .card.topo > .topo-jogo { order:1; flex:1 1 auto; align-self:baseline; margin:0; } .card.topo > div:not([class]):not(:last-child) { align-self:baseline; }
-    .card.topo > .patro-topo, .card.topo > div:last-child, .card.topo > #cvVoltar { order:2; } .card.topo > .patro-topo { margin-left:0; }
-    .patro-topo img { width:48px; height:48px; } .patro-topo .mut { font-size:10px; }
+    .card.topo > div:last-child, .card.topo > #cvVoltar { order:2; } .card.topo > .patro-topo { order:3; margin-left:0; }
   }
   .topo-conta { display:flex; gap:8px; align-items:center; } .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
   /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
@@ -36,7 +37,7 @@
     .card.topo > :is(svg, img) { width:44px; height:44px; } .card.topo > :is(svg, img) + svg { width:34px; height:34px; }
     .card.topo > div:not([class]):not(:last-child) { flex:1 1 0; min-width:0; } .card.topo > div:not([class]):not(:last-child) > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; }
     .card.topo h2 { font-size:22px !important; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; } /* nome comprido desce para a 2ª linha em vez de ser cortado */
-    .patro-topo { margin-left:0; } .patro-topo .mut { display:none; } .patro-topo img { width:36px; height:36px; }
+    .patro-topo { margin-left:0; } .patro-topo img { width:40px; height:40px; }
     main > .topo { gap:6px 10px; } main > .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
     .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
@@ -291,7 +292,7 @@ import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { montarLogin } from "./src/ui-login.js";
 import { sg, pp, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
-import { svgEscudo, svgUniforme, visualAleatorio } from "./src/escudo.js";
+import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
 
@@ -362,7 +363,7 @@ async function carregar(s) {
   const minha = ++versao; // evita desenhar duas vezes quando a sessão muda rápido
   usuario = s ? s.user : null;
   $("quem").textContent = usuario ? usuario.email : "";
-  $("sair").hidden = !usuario;
+  $("sair").hidden = !usuario; $("sair").title = usuario ? "Sair da conta " + usuario.email : "";
   if (!usuario) { $("meusClubes").innerHTML = ""; $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
   taticaVelha = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
   const redesenho = !!$("abas"), rolagem = scrollY; // a tela do clube já está aberta: troca o conteúdo sem piscar e fica onde estava
@@ -1171,7 +1172,9 @@ async function telaClube(liga, clube) {
   };
   // quadro de atributos, aberto pelo botão "i"
   // faixa com as cores do uniforme no cabeçalho do clube (só aceita cor em hexadecimal)
-  const patroMaster = marca => MARCAS[marca] ? `<div class="mut">Patrocinador master</div>${seloMarca(marca, 64)}` : "";
+  const patroMaster = marca => { if (!MARCAS[marca]) return "";
+    const arte = (arq, classe = "") => `<img src="patrocinios/${arq}.png" class="${classe}" alt="${esc(MARCAS[marca].nome)}" title="Patrocinador master: ${esc(MARCAS[marca].nome)}">`;
+    return NA_CAMISA[marca] === "mono" ? arte(marca + "_camisa_escuro", "so-claro") + arte(marca + "_camisa_claro", "so-escuro") : arte(NA_CAMISA[marca] === "cor" ? marca + "_camisa" : marca); };
   const coresDoClube = c => { const u = c.uniforme || {}, cor = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = cor(u.cor1), b = cor(u.cor2) || a;
     return a ? `border-top:4px solid ${a};background:linear-gradient(100deg, ${a}38, ${b}14 45%, transparent 75%), var(--card, #111a24)` : ""; };
   // polígono com a média de cada grupo de atributos (1 a 50)
@@ -1847,8 +1850,8 @@ async function telaClube(liga, clube) {
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut"><span class="so-pc">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</span><span class="so-cel">T${liga.temporada} · ${esc(nomeBaseDoGrupo(clube.grupo).replace(/^(Brasileiro|Campeonato) /, ""))}</span></div></div>
-      <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
+      <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
@@ -1923,7 +1926,7 @@ ${historicoDaBase()}
             <div id="cfgEnvio" class="mut" style="margin-top:6px"></div></div></div></div>
     <div data-parte="ajuste:titular"><div class="card"><h2>Uniforme casa</h2><div id="cfgTitular"></div></div></div>
     <div data-parte="ajuste:reserva"><div class="card"><h2>Uniforme visitante</h2><div id="cfgReserva"></div></div></div>
-    <div data-parte="ajuste:geral"><div class="card"><h2>Configurações</h2>${clube.extra ? `<div class="row" style="margin-bottom:10px;align-items:center"><button class="sec" id="cfgEntregar">Entregar este clube</button><span class="mut">Clube extra: volta para o bot do jeito que está (elenco, caixa e estruturas). Você pode pedir outro clube extra a partir da próxima temporada.</span></div>` : ""}
+    <div data-parte="ajuste:geral"><div class="card"><h2>Configurações</h2><div class="row" style="margin-bottom:10px;align-items:center"><a href="guia.html" style="color:var(--ac)">📖 Guia do dirigente</a><span class="mut">todas as regras do jogo</span></div>${clube.extra ? `<div class="row" style="margin-bottom:10px;align-items:center"><button class="sec" id="cfgEntregar">Entregar este clube</button><span class="mut">Clube extra: volta para o bot do jeito que está (elenco, caixa e estruturas). Você pode pedir outro clube extra a partir da próxima temporada.</span></div>` : ""}
       <div class="duas">
         <div><b>Siglas das posições</b>
           <div class="mut" style="margin:4px 0 8px">Vale para as suas telas, neste aparelho. Por dentro o jogo não muda: táticas salvas e o resto continuam iguais.</div>
