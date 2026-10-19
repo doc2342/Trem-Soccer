@@ -27,7 +27,7 @@ export const sedeDoJogo = (p, liga) => { const k = chaveDaFinal(p); return !k ? 
 export function configDaSede(chave, comp, festa) {
   const s = SEDES[chave] || SEDES.maracana;
   return { modelo: SEDES[chave] ? chave : "maracana", nivel: s.nivel, obra: 1, nomeEstadio: s.nome, mosaico: (FINAIS[comp] || s.nome).toUpperCase(), padrao: "sigla",
-    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null, noite: !!festa || ehNoite() };
+    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null, noite: festa ? 1 : nivelDaNoite() };
 }
 export const PADROES_DO_ESTADIO ={ setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
@@ -50,13 +50,14 @@ const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lotacao = () => C.ocupacao == null ? 0.62 : 0.1 + 0.88 * C.ocupacao; // fração das vagas com carro
 
-// noite pelo relógio do aparelho de quem olha (cada um vê a hora dele: quem mora em Miami vê a noite de Miami), das 18h às 6h
-export const ehNoite = (d = new Date()) => d.getHours() >= 18 || d.getHours() < 6;
+// noite pelo relógio do aparelho de quem olha (cada um vê a hora dele: quem mora em Miami vê a noite de Miami): 0 = dia, 1 = noite.
+// Das 17h às 18h entardece e das 6h às 7h amanhece, aos poucos, passando pelo céu alaranjado; das 18h às 6h é noite.
+export const nivelDaNoite = (d = new Date()) => { const h = d.getHours() + d.getMinutes() / 60; return h >= 18 || h < 6 ? 1 : h >= 17 ? h - 17 : h < 7 ? 7 - h : 0; };
 // Config a partir do clube (clubes.estadio_visual, 116_estadio_visual.sql) e da obra de nível em andamento.
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", noite: ehNoite(), ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null,
+    cobertura: "", noite: nivelDaNoite(), ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null,
     ocupacao: c.torcida == null ? null : Math.min(1, c.torcida * (0.95 + 0.3 * (c.humor ?? 8) / 16) * bonusDoEstadio(c.estadio_nivel) / lugaresDoEstadio(c.estadio_nivel)) }; // a conta do público em finanças (jogo.html)
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
@@ -235,23 +236,6 @@ function telaDaFesta() { const c = document.createElement("canvas"); c.width = 5
   x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffd23f"; x.font = "bold 92px sans-serif"; x.fillText("CAMPEÃO", 288, 102);
   const nome = (C.festa.nome || "").toUpperCase(); x.fillStyle = "#ffffff"; x.font = `bold ${Math.min(52, Math.floor(980 / Math.max(1, nome.length)))}px sans-serif`; x.fillText(nome, 288, 186);
   const t = new T.CanvasTexture(c); t.anisotropy = 4; return t; }
-// festa: bandeirão do campeão estendido sobre a arquibancada oeste (a do fundo na câmera de abertura; com a Muralha, a norte), com listras, escudo e nome
-function bandeirao(pos, LM) { const SD = LM == "W" ? "N" : "W", Z = SD == "N" ? "x" : "z", L = pos.filter(p => p.ld == SD && !(p.r >= 28 && p.r <= 30)); if (!L.length) return;
-  const ra = m.anel && rows > m.anel + 8 ? m.anel + 1 : 0, rb = Math.min(rows - 1, m.anel && !ra ? m.anel - 1 : 27), fila = r => L.filter(p => p.r == r), f0 = fila(ra), f1 = fila(rb); // com anéis, no anel do meio if (!f0.length || !f1.length) return;
-  const X = Z == "z" ? "x" : "z", zs = f0.map(p => p[Z]), zc = (Math.min(...zs) + Math.max(...zs)) / 2, meio = (l, k) => l.reduce((a, p) => a + p[k], 0) / l.length, perto = l => l.filter(p => Math.abs(p[Z] - zc) < 6);
-  const A = perto(f0).length ? perto(f0) : f0, B = perto(f1).length ? perto(f1) : f1, xa = meio(A, X), ha = meio(A, "h"), xb = meio(B, X), hb = meio(B, "h");
-  const hz = Math.min(0.45 * (Math.max(...zs) - Math.min(...zs)), 1.5 * Math.hypot(xb - xa, hb - ha)), nu = 28, nv = 12, P = [], U = [], ix = [];
-  for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { const u = i / nu, v = j / nv; const a_ = xa + (xb - xa) * v, z_ = SD == "W" ? zc + hz - 2 * hz * u : zc - hz + 2 * hz * u, y_ = ha + (hb - ha) * v + 1.2 + 0.35 * Math.sin(u * 11 + v * 6); P.push(Z == "z" ? a_ : z_, y_, Z == "z" ? z_ : a_); U.push(u, v); } // de frente para o campo: a parte de cima do pano fica nas fileiras de trás
-  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = a + nv + 1; ix.push(a, b, a + 1, b, b + 1, a + 1); }
-  const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(P, 3)); geo.setAttribute("uv", new T.Float32BufferAttribute(U, 2)); geo.setIndex(ix); geo.computeVertexNormals();
-  const cv = document.createElement("canvas"); cv.width = 512; cv.height = Math.max(128, Math.round(512 * Math.hypot(xb - xa, hb - ha) / (2 * hz))); const x = cv.getContext("2d"), [c1, c2] = [...C.festa.cores, "#ffffff"], H = cv.height;
-  for (let k = 0; k < 5; k++) { x.fillStyle = k % 2 ? c2 : c1; x.fillRect(0, k * H / 5, 512, H / 5 + 1); }
-  const nome = (C.festa.nome || "").toUpperCase(); x.fillStyle = c1; x.fillRect(0, H * 0.62, 512, H * 0.3); x.fillStyle = c2; x.textAlign = "center"; x.textBaseline = "middle";
-  x.font = `bold ${Math.min(H * 0.22, Math.floor(860 / Math.max(1, nome.length)))}px sans-serif`; x.fillText(nome, 256, H * 0.77);
-  const tex = new T.CanvasTexture(cv), me = new T.Mesh(geo, new T.MeshLambertMaterial({ map: tex, side: T.DoubleSide, emissive: "#222222" })); me.castShadow = true; grp.add(me);
-  // escudo no meio do pano (SVG do clube, ou a imagem enviada); quando carrega, redesenha a cena
-  const svg = C.festa.escudo || "", src = /^<img/.test(svg) ? (svg.match(/src="([^"]+)"/) || [])[1] : /^<svg/.test(svg) ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(/xmlns=/.test(svg) ? svg : svg.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"')) : null;
-  if (src) { const I0 = cur, img = new Image(); img.crossOrigin = "anonymous"; img.onload = () => { const t = H * 0.5; x.drawImage(img, 256 - t / 2, H * 0.08, t, t); tex.needsUpdate = true; I0.render(); }; img.src = src; } }
 function telao(x, y, z, pe) { const g = new T.Group(), tl = new T.Mesh(new T.BoxGeometry(1, 8, 18), [0, 1, 2, 3, 4, 5].map(i => i == 0 && C.festa ? new T.MeshBasicMaterial({ map: telaDaFesta() }) : new T.MeshLambertMaterial({ color: i == 0 ? "#185FA5" : "#2c2c2a", emissive: i == 0 ? "#0c447c" : "#000" }))); tl.castShadow = true; g.add(tl);
   for (const s of [-6, 6]) { const p = new T.Mesh(new T.BoxGeometry(0.4, Math.abs(pe), 0.4), lam("#5f5e5a")); p.position.set(0, pe > 0 ? 4 + pe / 2 : -4 + pe / 2, s); g.add(p); }
   g.position.set(x, y, z); g.rotation.y = Math.atan2(z, -x); grp.add(g); }
@@ -284,9 +268,11 @@ export async function desenharEstadio(el, config) {
 
 function construir() {
   limpar();
-  // noite de final (config.noite): céu escuro, sol fraco e o gramado aceso por cima
-  const noite = !!C.noite; cur.ceu = noite ? NOITE : CEU; cur.hemi.intensity = noite ? 0.3 : 0.62; cur.hemi.color.set(noite ? "#9fb4d8" : "#ffffff");
-  cur.sun.intensity = noite ? 0.22 : 0.95; cur.campo.intensity = noite ? 1.25 : 0; cur.campo.distance = (m.a0 + rows * DEP) * 2.2; cur.hemi.intensity = noite ? 0.2 : 0.62;
+  // noite (config.noite de 0 a 1; true vale 1): o céu passa do dia ao laranja e do laranja à noite; o sol enfraquece e amarela; o gramado acende
+  const n = Math.min(1, Math.max(0, +C.noite || 0)), lar = 1 - Math.abs(2 * n - 1), mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k);
+  cur.ceu = "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString();
+  cur.hemi.intensity = 0.62 - 0.42 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
+  cur.sun.intensity = 0.95 - 0.73 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 2.2;
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
   const pos = assentos(niv), DG = dunas ? dunasGeo(topH) : null;
@@ -316,7 +302,6 @@ function construir() {
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
     else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
-  if (fes) bandeirao(pos, LM);
   // festa: 14 pontos espalhados pelas arquibancadas (fileira 8), de onde a página da sede solta fumaça colorida
   const fr = Math.min(8, rows - 2), anelF = pos.filter(p => p.r == fr && !p.dep);
   cur.festaPts = fes && anelF.length ? Array.from({ length: 14 }, (_, i) => { const p = anelF[Math.floor((i + 0.5) * anelF.length / 14)]; return { x: p.x, y: p.h + 1, z: p.z }; }) : [];
@@ -472,7 +457,7 @@ function construir() {
 // Entorno: um pedaço de cidade em volta do estádio, sorteado pela semente (o id do clube), para cada estádio parecer estar numa cidade
 // diferente. Cinco tipos: centro (prédios altos), bairro (casas e árvores), rio, lago e litoral. Tudo instanciado e sem sombra (leve).
 export const CIDADES = { centro: "Centro", bairro: "Bairro", rio: "Beira-rio", lago: "Lago", litoral: "Litoral" };
-const CEU = "#dde8ee", NOITE = "#0b1426";
+const CEU = "#dde8ee", POENTE = "#f0a36a", NOITE = "#0b1426";
 export const cidadeDoEstadio = c => CIDADES[c.cidade] ? c.cidade : Object.keys(CIDADES)[Math.abs(c.semente | 0) % 5];
 function entorno(cx, zN, zS) {
   let sd = Math.abs((C.semente | 0) * 7919) % 2147483646 + 1; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;

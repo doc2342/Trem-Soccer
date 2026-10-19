@@ -28,7 +28,6 @@
 <script type="module">
 import { sb, ligaAtual, clubesPorIds } from "./src/banco.js";
 import { desenharEstadio, SEDES, FINAIS, configDaSede } from "./src/estadio.js";
-import { svgEscudo } from "./src/escudo.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const s = SEDES[new URLSearchParams(location.search).get("s")] ? new URLSearchParams(location.search).get("s") : "maracana", sede = SEDES[s];
@@ -50,7 +49,7 @@ async function carregar() {
   const finais = previa ? exemplo() : liga ? ((await sb.from("finais_nas_sedes").select("*").eq("liga_id", liga.id).eq("sede", s).order("temporada", { ascending: false }).order("criado_em", { ascending: false })).data || []) : [];
   const ultima = finais.find(f => f.campeao);
   const camp = previa ? { nome: ultima.campeao_nome, escudo: { cor1: ultima.cores[0], cor2: ultima.cores[1] } } : ultima ? (await clubesPorIds([ultima.campeao]))[0] : null;
-  const festa = camp ? { nome: camp.nome, cores: [camp.escudo?.cor1 || "#0b3d91", camp.escudo?.cor2 || "#ffffff"], escudo: svgEscudo(camp.escudo || {}, camp.sigla || "", 256) } : null;
+  const festa = camp ? { nome: camp.nome, cores: [camp.escudo?.cor1 || "#0b3d91", camp.escudo?.cor2 || "#ffffff"] } : null;
   const placar = f => `${esc(f.casa_nome)} ${f.gols_casa} x ${f.gols_fora} ${esc(f.fora_nome)}${f.gols_casa === f.gols_fora ? " (pên.)" : ""}`;
   document.getElementById("corpo").innerHTML = `
     <div class="card"><div class="sedes">${Object.entries(SEDES).map(([k, v]) => `<a href="sede.html?s=${k}${previa ? "&previa" : ""}" class="${k === s ? "on" : ""}">${esc(v.nome)}</a>`).join("")}</div></div>

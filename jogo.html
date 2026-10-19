@@ -1298,7 +1298,7 @@ async function telaClube(liga, clube) {
   // editor: cada mudança redesenha o 3D na hora (sem salvar); trocar o modelo mostra como ficaria
   const ligarEstadio = () => {
     if (!$("estadio3d")) return;
-    const atual = () => ({ ...configDoClube(clube, null), modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
+    const atual = () => ({ ...configDoClube(clube, null), noite: 0, modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
       cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value, muralha: $("evMuralha").checked, cidade: $("evCidade").value });
     const gratisGeral = !!(clube.estadio_visual || {}).reforma_gratis, gratisPara = [].concat((clube.estadio_visual || {}).reforma_gratis_para || []); // 127/128: troca grátis só para cada estádio novo (texto ou lista)
     const eGratis = () => gratisGeral || gratisPara.includes($("evModelo").value), cidadeDeHoje = cidadeDoEstadio(configDoClube(clube, null));
