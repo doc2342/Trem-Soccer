@@ -1558,7 +1558,6 @@ async function telaClube(liga, clube) {
       [!!v.elenco, "👥", "Conheça o elenco", "Clique num jogador para ver atributos, contrato, multa e as ações de mercado.", "elenco"],
       caixa != null && [!!v.financas, "💰", "Entenda o caixa e o teto da folha", `A soma dos salários não pode passar de ${dinheiro(teto)}. O dinheiro entra e sai a cada rodada.`, "financas"],
       patro && [!!patro.escolha, "🤝", "Escolha o patrocínio", "Uma marca e uma de três propostas, de segura a agressiva. Só até a primeira rodada da temporada.", "clube:patrocinio"],
-      caixa != null && clube.carne != null && [clube.carne_temporada === liga.temporada, "🎟️", "Abra o Sócio-Torcedor", "Até um terço da torcida paga os jogos em casa de uma vez. Só antes da primeira rodada.", "financas"],
       [!!v.escudo, "🛡️", "Personalize escudo e uniformes", "Desenhe ou envie uma imagem do escudo.", "config:escudo"],
       [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
     ].filter(Boolean);

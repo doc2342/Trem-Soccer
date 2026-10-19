@@ -52,8 +52,8 @@ const secoes = [
     <li>Entre com o seu e-mail: chega um link para entrar. Não existe senha.</li>
     <li>Escolha nome, sigla, escudo e uniforme e envie o pedido de clube. Um administrador aprova e a tela avisa quando sair.</li>
     <li>Você assume a <b>vaga</b> de um clube do bot na divisão mais alta com vaga: elenco novo, estruturas no nível 1 e caixa curto. Os jogadores do bot saem do jogo.</li>
-    <li>Na Central, o cartão <b>Primeiros passos</b> leva a cada tarefa: nome de dirigente, escalação e tática, treino, elenco, caixa, patrocínio, Sócio-Torcedor, escudo e um amistoso.</li>
-    <li>Antes da primeira rodada da temporada: escolha o <b>patrocínio</b> e abra o <b>Sócio-Torcedor</b>. Depois dela as duas coisas fecham.</li>
+    <li>Na Central, o cartão <b>Primeiros passos</b> leva a cada tarefa: nome de dirigente, escalação e tática, treino, elenco, caixa, patrocínio, escudo e um amistoso.</li>
+    <li>Escolha o <b>patrocínio</b> antes da primeira rodada da temporada: depois dela a escolha fecha.</li>
   </ol>
   <p>As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. A tática fecha pouco antes do apito; a partida inteira é calculada no apito e transmitida lance a lance. Com ${DIAS_PARA_BOT} dias sem entrar, o bot passa a escalar o seu time.</p>`],
 ["abas", "As abas do jogo", `
@@ -220,7 +220,7 @@ const secoes = [
     <li>Patrocínio: luvas em parcelas mais um bônus por meta de posição (veja Estádio, patrocínio e torcida).</li>
     <li>Bilheteria nos jogos em casa: o público depende da torcida, do humor dela, do tamanho do estádio e do jogo. Adversário de torcida grande, playoff e fases finais de copa atraem mais; copa e playoff têm ingresso mais caro. Na copa a renda é dividida meio a meio. De toda bilheteria, 10% vão para o fundo da liga.</li>
     <li>Comida e bebida: cada torcedor gasta de R$ 4 para cima, mais nos estádios maiores e com a torcida feliz. Sem taxa do fundo.</li>
-    <li>Sócio-Torcedor: só antes da primeira rodada. Até um terço da torcida paga os jogos em casa de uma vez, com 20% de desconto. Você recebe na hora e garante o público.</li>
+    <li>Sócio-Torcedor (opcional): antes da primeira rodada, até um terço da torcida pode pagar os jogos em casa de uma vez, com 20% de desconto. Você abre mão de 20% da renda desses lugares em troca do dinheiro na hora e do público garantido, mesmo com a torcida de mau humor.</li>
     <li>Prêmio da liga na virada, por posição; prêmios das copas a cada fase; prêmios individuais da temporada pagos ao clube.</li>
     <li>Diretoria: com confiança alta na virada, uma verba extra (veja Diretoria e confiança).</li>
   </ul>
@@ -307,7 +307,7 @@ const secoes = [
 ["erros", "Erros comuns de quem está começando", `
   <ul>
     <li><b>Não salvar a tática.</b> Sem tática salva o bot escala por você. Salve uma vez e revise antes de cada jogo.</li>
-    <li><b>Perder o patrocínio e o Sócio-Torcedor.</b> Os dois só dão para escolher antes da primeira rodada da temporada.</li>
+    <li><b>Perder o patrocínio.</b> Só dá para escolher antes da primeira rodada da temporada.</li>
     <li><b>Não proteger ninguém.</b> Sem a lista de protegidos, seus melhores saem por ${MULTIPLO_DA_CLAUSULA} vezes o salário. Você tem 7 vagas.</li>
     <li><b>Pagar salário alto para subir a multa.</b> Salário nunca desce, pesa no teto e sai do caixa toda rodada.</li>
     <li><b>Abrir leilões demais.</b> Os lances em que você está na frente contam juntos no teto; se fecharem juntos e não couberem, os que passam são descartados.</li>
