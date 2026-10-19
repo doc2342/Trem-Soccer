@@ -41,8 +41,9 @@ export const placasDoEstadio = clubeId => placasDoJogo(clubeId, 3).concat(ANUNCI
 export const NAMING = { A: "dobet", B: "gazeta_dugoutense", C: "dugout_dos_crias", COPA: "grupo_trem", LIB: "central_do_dobr", SUL: "central_do_mercado" };
 const DIVISAO_DO_GRUPO = { A: "A", B: "B", C: "B", F: "B", D: "C", E: "C" };
 // "Brasileiro Série B1" → "Brasileiro Gazeta Série B1"; "Copa do Brasil" → "Copa Grupo Trem do Brasil"; "Libertadores" → "Copa Central do DO-BR Libertadores"
+export const marcaDaCompeticao = g => MARCAS[NAMING[DIVISAO_DO_GRUPO[g] || g]] ? NAMING[DIVISAO_DO_GRUPO[g] || g] : null;
 export function batizar(g, nome) {
-  const m = MARCAS[NAMING[DIVISAO_DO_GRUPO[g] || g]]; if (!m) return nome;
+  const m = MARCAS[marcaDaCompeticao(g)]; if (!m) return nome;
   const n = m.curto || m.nome;
   return DIVISAO_DO_GRUPO[g] ? nome.replace("Brasileiro ", `Brasileiro ${n} `) : g === "COPA" ? `Copa ${n} do Brasil` : `Copa ${n} ${nome}`;
 }
