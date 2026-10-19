@@ -71,7 +71,7 @@ async function carregar() {
   if (b) b.onclick = () => { emFesta = !emFesta; mostrar(); };
 }
 // festa do título por cima do 3D (canvas), uns 10 segundos nas cores do campeão: fogos estourando no céu,
-// fumaça colorida subindo dos cantos e papel picado caindo
+// fumaça colorida saindo das arquibancadas e papel picado caindo
 function festejar(cores) {
   const box = document.getElementById("cena").parentElement; box.querySelector("canvas.festa")?.remove(); // fora do #cena: o 3D limpa a caixa dele ao carregar
   const cv = document.createElement("canvas"); cv.className = "festa"; box.appendChild(cv);
@@ -83,8 +83,9 @@ function festejar(cores) {
   const fumaca = (x, y, c, r, vy) => fum.push({ x, y, r, vy, vx: R(-8, 8), c, v: 0 });
   const passo = agora => { const dt = Math.min(0.05, (agora - ult) / 1000), t = agora - t0; ult = agora; g.clearRect(0, 0, W, H);
     const fim = Math.max(0, 1 - Math.max(0, t - DUR + 1800) / 1800); // tudo some nos últimos 1,8 s
-    // fumaça dos cantos
-    if (t < DUR - 2500) { if (Math.random() < dt * 6) fumaca(um([W * 0.06, W * 0.94]) + R(-30, 30), H + 20, um(cc), R(25, 45), R(18, 34)); }
+    // fumaça colorida saindo das arquibancadas (o 3D diz onde elas estão na tela a cada quadro)
+    const pts = cena?.pontosDaFesta?.() || [];
+    if (t < DUR - 2500 && pts.length) for (let n = 0; n < 2; n++) if (Math.random() < dt * 9) { const q = um(pts); fumaca(q.x + R(-6, 6), q.y, um(cc), R(10, 18), R(10, 22)); }
     for (let k = fum.length - 1; k >= 0; k--) { const f = fum[k]; f.v += dt; f.y -= f.vy * dt; f.x += f.vx * dt; f.r += 10 * dt; if (f.v > 6) { fum.splice(k, 1); continue; }
       const gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r); gr.addColorStop(0, f.c + "70"); gr.addColorStop(1, f.c + "00");
       g.globalAlpha = 0.85 * fim * Math.max(0, 1 - f.v / 6); g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, f.r, 0, 7); g.fill(); }

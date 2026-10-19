@@ -27,7 +27,7 @@ export const sedeDoJogo = (p, liga) => { const k = chaveDaFinal(p); return !k ? 
 export function configDaSede(chave, comp, festa) {
   const s = SEDES[chave] || SEDES.maracana;
   return { modelo: SEDES[chave] ? chave : "maracana", nivel: s.nivel, obra: 1, nomeEstadio: s.nome, mosaico: (FINAIS[comp] || s.nome).toUpperCase(), padrao: "sigla",
-    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null, noite: !!festa };
+    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null, noite: !!festa || ehNoite() };
 }
 export const PADROES_DO_ESTADIO ={ setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
@@ -50,11 +50,13 @@ const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lotacao = () => C.ocupacao == null ? 0.62 : 0.1 + 0.88 * C.ocupacao; // fração das vagas com carro
 
+// noite pelo relógio do aparelho de quem olha (cada um vê a hora dele: quem mora em Miami vê a noite de Miami), das 18h às 6h
+export const ehNoite = (d = new Date()) => d.getHours() >= 18 || d.getHours() < 6;
 // Config a partir do clube (clubes.estadio_visual, 116_estadio_visual.sql) e da obra de nível em andamento.
 export function configDoClube(c, obra) {
   const v = c.estadio_visual || {}, e = c.escudo || {};
   const cfg = { modelo: "tradicional", nomeEstadio: "", mosaico: c.sigla || "", padrao: "setor", cores: [e.cor1 || "#0b3d91", e.cor2 || "#ffffff"], corEscadas: "#f2c200",
-    cobertura: "", ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null,
+    cobertura: "", noite: ehNoite(), ...v, nivel: c.estadio_nivel || 1, obra: 1, clube: c.sigla || "", humor: c.humor, semente: c.id || 0, marca: c.marca || null,
     ocupacao: c.torcida == null ? null : Math.min(1, c.torcida * (0.95 + 0.3 * (c.humor ?? 8) / 16) * bonusDoEstadio(c.estadio_nivel) / lugaresDoEstadio(c.estadio_nivel)) }; // a conta do público em finanças (jogo.html)
   if (obra && obra.estrutura === "estadio") { cfg.nivel = obra.nivel_alvo; cfg.obra = 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total); }
   return cfg;
@@ -239,7 +241,7 @@ function bandeirao(pos, LM) { const SD = LM == "W" ? "N" : "W", Z = SD == "N" ? 
   const X = Z == "z" ? "x" : "z", zs = f0.map(p => p[Z]), zc = (Math.min(...zs) + Math.max(...zs)) / 2, meio = (l, k) => l.reduce((a, p) => a + p[k], 0) / l.length, perto = l => l.filter(p => Math.abs(p[Z] - zc) < 6);
   const A = perto(f0).length ? perto(f0) : f0, B = perto(f1).length ? perto(f1) : f1, xa = meio(A, X), ha = meio(A, "h"), xb = meio(B, X), hb = meio(B, "h");
   const hz = Math.min(0.45 * (Math.max(...zs) - Math.min(...zs)), 1.5 * Math.hypot(xb - xa, hb - ha)), nu = 28, nv = 12, P = [], U = [], ix = [];
-  for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { const u = i / nu, v = j / nv; const a_ = xa + (xb - xa) * v, z_ = SD == "W" ? zc + hz - 2 * hz * u : zc - hz + 2 * hz * u, y_ = ha + (hb - ha) * v + 1.2 + 0.35 * Math.sin(u * 11 + v * 6); P.push(Z == "z" ? a_ : z_, y_, Z == "z" ? z_ : a_); U.push(1 - u, v); } // de frente para o campo: a parte de cima do pano fica nas fileiras de trás
+  for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { const u = i / nu, v = j / nv; const a_ = xa + (xb - xa) * v, z_ = SD == "W" ? zc + hz - 2 * hz * u : zc - hz + 2 * hz * u, y_ = ha + (hb - ha) * v + 1.2 + 0.35 * Math.sin(u * 11 + v * 6); P.push(Z == "z" ? a_ : z_, y_, Z == "z" ? z_ : a_); U.push(u, v); } // de frente para o campo: a parte de cima do pano fica nas fileiras de trás
   for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = a + nv + 1; ix.push(a, b, a + 1, b, b + 1, a + 1); }
   const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(P, 3)); geo.setAttribute("uv", new T.Float32BufferAttribute(U, 2)); geo.setIndex(ix); geo.computeVertexNormals();
   const cv = document.createElement("canvas"); cv.width = 512; cv.height = Math.max(128, Math.round(512 * Math.hypot(xb - xa, hb - ha) / (2 * hz))); const x = cv.getContext("2d"), [c1, c2] = [...C.festa.cores, "#ffffff"], H = cv.height;
@@ -275,7 +277,9 @@ export async function desenharEstadio(el, config) {
   const ro = new ResizeObserver(() => I.render()); ro.observe(el);
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
-  return { atualizar, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
+  // posição na tela (pixels da cena) dos pontos de fumaça, para o canvas por cima acompanhar a câmera
+  const pontosDaFesta = () => { const w = el.clientWidth, h = Math.round(w * 0.62); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
+  return { atualizar, pontosDaFesta, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
 function construir() {
@@ -313,6 +317,9 @@ function construir() {
     else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
   if (fes) bandeirao(pos, LM);
+  // festa: 14 pontos espalhados pelas arquibancadas (fileira 8), de onde a página da sede solta fumaça colorida
+  const fr = Math.min(8, rows - 2), anelF = pos.filter(p => p.r == fr && !p.dep);
+  cur.festaPts = fes && anelF.length ? Array.from({ length: 14 }, (_, i) => { const p = anelF[Math.floor((i + 0.5) * anelF.length / 14)]; return { x: p.x, y: p.h + 1, z: p.z }; }) : [];
   const esp = dunas ? 30 : m.pele ? 16 : 8 + (m.folga || 0); grp.add(chao(contorno(m, aM + esp, bM + esp), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
   if (m.pista) { const pt = pistaTex(); grp.add(plano(new T.PlaneGeometry(pt.W, pt.H), new T.MeshLambertMaterial({ map: pt.t, transparent: true }), 0.05)); }
