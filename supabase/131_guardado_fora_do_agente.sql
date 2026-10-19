@@ -19,6 +19,20 @@ begin
   raise notice 'Funções sem guardados:%', coalesce(nullif(v_trocadas, ''), ' nenhuma (já trocadas)');
 end $$;
 
+-- Guardado também não paga as compras do agente nem entra na cotação dele: o caixa fica congelado até o clube voltar
+do $$
+declare v_f text; d text; n text;
+begin
+  foreach v_f in array array['public.pagar_pelos_bots(bigint,int,text)', 'public.cotacao_do_agente(bigint)'] loop
+    d := pg_get_functiondef(v_f::regprocedure);
+    if d like '%c.grupo <> ''X''%' then continue; end if;
+    n := replace(replace(d, 'c.dono is null and f.caixa', 'c.dono is null and c.grupo <> ''X'' and f.caixa'),
+                 'c.liga_id = p_liga and c.dono is null)', 'c.liga_id = p_liga and c.dono is null and c.grupo <> ''X'')');
+    if n = d then raise exception '%: trecho não encontrado; nada foi trocado.', v_f; end if;
+    execute n;
+  end loop;
+end $$;
+
 -- conferência: toda função que escolhe destino com vaga deve aparecer com sem_guardado = true
 select p.proname, p.prosrc like '%c.grupo <> ''X''%' as sem_guardado from pg_proc p join pg_namespace s on s.oid = p.pronamespace
-  where s.nspname = 'public' and p.prosrc like '%vaga_no_elenco(c.id%' order by 1;
+  where s.nspname = 'public' and (p.prosrc like '%vaga_no_elenco(c.id%' or p.proname in ('pagar_pelos_bots', 'cotacao_do_agente')) order by 1;
