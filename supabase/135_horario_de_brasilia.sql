@@ -1,4 +1,4 @@
--- 133: horário de Brasília escrito nas mensagens do banco (19/10/2026). Quem joga de outro fuso (um dirigente mora em Miami) via
+-- 135: horário de Brasília escrito nas mensagens do banco (19/10/2026). Quem joga de outro fuso (um dirigente mora em Miami) via
 -- "O leilão termina em 19/10 21:30" sem saber que é a hora de Brasília; as telas já mostram tudo no horário do aparelho.
 -- Muda só o texto de três funções: fim do leilão depois de um lance (dar_lance_livre, do 130), oferta à liga (oferecer_a_liga, do 21)
 -- e o aviso do prazo de repatriação (repatriacao_exclusiva, do 123). A regra "nenhum leilão termina entre 23h e 6h59" continua igual.
