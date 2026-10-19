@@ -57,7 +57,7 @@ async function carregar() {
       <div class="num"><div><b>${mil(sede.lugares)}</b><span class="mut">lugares</span></div><div><b>${finais.length}</b><span class="mut">finais aqui</span></div>
         <div><b>${aqui.length ? aqui.map(k => FINAIS[k]).join(", ") : "—"}</b><span class="mut">final desta temporada</span></div></div></div>
     <div class="card"><div style="position:relative"><div id="cena"></div></div>
-      ${festa ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="bFesta">Ver a festa do ${esc(camp.nome)}</button><span class="mut" style="font-size:12.5px">Último campeão aqui: ${esc(FINAIS[ultima.competicao] || "")} ${ultima.temporada}</span></div>` : ""}</div>
+      ${festa ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="bFesta">Ver a festa do ${esc(camp.nome)}</button><button id="bSom" class="sec" title="Som da festa"></button><span class="mut" style="font-size:12.5px">Último campeão aqui: ${esc(FINAIS[ultima.competicao] || "")} ${ultima.temporada}</span></div>` : ""}</div>
     <div class="card"><h3>Finais disputadas aqui</h3>${finais.length ? `<table><tr><th>Temp.</th><th>Competição</th><th>Jogo</th><th>Campeão</th><th>Público</th></tr>
       ${finais.map(f => `<tr><td>${f.temporada}</td><td>${esc(FINAIS[f.competicao] || f.competicao)}</td><td>${placar(f)}</td><td><b>${esc(f.campeao_nome || "—")}</b></td><td>${mil(f.publico)}</td></tr>`).join("")}</table>`
       : `<div class="mut">Nenhuma final jogada aqui ainda.</div>`}</div>`;
@@ -67,14 +67,47 @@ async function carregar() {
   const mostrar = () => { if (b) b.textContent = emFesta ? "Ver o mosaico da sede" : `Ver a festa do ${camp.nome}`;
     desenhar(configDaSede(s, emFesta ? ultima.competicao : aqui[0], emFesta ? festa : null)); if (emFesta) festejar(festa.cores); };
   mostrar();
-  if (b) b.onclick = () => { emFesta = !emFesta; mostrar(); };
+  if (b) b.onclick = () => { emFesta = !emFesta; if (!emFesta) SOM.parar(); mostrar(); };
+  // alto-falante: desligado por padrão; ligar no meio da festa já toca a torcida pelo tempo que falta
+  const bs = document.getElementById("bSom"), rotulo = () => { if (bs) bs.textContent = SOM.ligado ? "🔇 desligar som" : "🔊 ligar som"; };
+  if (bs) bs.onclick = () => { SOM.alternar(); rotulo(); };
+  rotulo();
 }
+// ---------- som da festa (Web Audio, gerado aqui: nenhum arquivo) ----------
+// Torcida = ruído filtrado que cresce, ondula e vai sumindo, com palmas no começo; fogos = assobio subindo e estouro grave com estalos.
+// Desligado por padrão (escolha guardada neste aparelho, separada do som do ao vivo); o navegador só toca depois de um clique.
+const SOM = (() => {
+  let ligado = false, ctx = null, mestre = null, buf = null, fimDaFesta = 0;
+  try { ligado = localStorage.getItem("mo_som_festa") === "1"; } catch (e) {}
+  const audio = () => { if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    if (ctx.state === "suspended") ctx.resume(); if (!mestre) { mestre = ctx.createGain(); mestre.gain.value = 0.9; mestre.connect(ctx.destination); } return ctx; };
+  // ruído por um filtro, com o volume seguindo os pontos [segundos, volume]
+  const ruido = (ini, dur, tipo, f, q, pontos) => { const a = audio(), t = a.currentTime + ini, src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = buf; src.loop = true; fl.type = tipo; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0, t); pontos.forEach(([s, v]) => g.gain.linearRampToValueAtTime(v, t + s));
+    src.connect(fl).connect(g).connect(mestre); src.start(t, Math.random() * 1.5); src.stop(t + dur); };
+  const torcida = seg => { if (seg < 1.5) return; const ond = []; for (let s = 1.2; s < seg - 2; s += 0.9) ond.push([s, 0.22 + 0.1 * Math.random()]);
+    ruido(0, seg, "bandpass", 700, 0.6, [[1, 0.3], ...ond, [seg, 0]]); ruido(0, seg, "bandpass", 1900, 0.9, [[1.2, 0.12], [seg - 1.5, 0.1], [seg, 0]]);
+    for (let k = 0; k < 10; k++) { const t = 0.4 + k * 0.42; if (t < seg - 1) ruido(t, 0.09, "highpass", 1800, 0.7, [[0.005, 0.35], [0.09, 0]]); } }; // palmas
+  const assobio = () => { const a = audio(), t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(2600, t + 0.7);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0, t + 0.7); o.connect(g).connect(mestre); o.start(t); o.stop(t + 0.75); };
+  const estouro = () => { ruido(0, 1.4, "lowpass", 380, 0.8, [[0.01, 0.9], [0.25, 0.35], [1.4, 0]]);
+    for (let k = 0; k < 9; k++) ruido(0.15 + Math.random() * 0.8, 0.04, "highpass", 3000, 0.6, [[0.003, 0.18], [0.04, 0]]); }; // estalos
+  const ok = () => ligado && ctx && performance.now() < fimDaFesta; // festa desligada: os fogos que ainda caem ficam mudos
+  return {
+    get ligado() { return ligado; },
+    alternar() { ligado = !ligado; try { localStorage.setItem("mo_som_festa", ligado ? "1" : "0"); } catch (e) {}
+      if (ligado) { audio(); const resta = (fimDaFesta - performance.now()) / 1000; if (resta > 0) torcida(resta); } else this.parar(); },
+    festa(ms) { fimDaFesta = performance.now() + ms + 1500; if (ligado) try { audio(); torcida(ms / 1000); } catch (e) {} },
+    fogo() { if (ok()) try { assobio(); } catch (e) {} }, estouro() { if (ok()) try { estouro(); } catch (e) {} },
+    parar() { fimDaFesta = 0; if (mestre) { const m = mestre; mestre = null; try { m.gain.setTargetAtTime(0, ctx.currentTime, 0.1); setTimeout(() => m.disconnect(), 600); } catch (e) {} } },
+  };
+})();
 // festa do título por cima do 3D (canvas), uns 10 segundos nas cores do campeão: fogos estourando no céu,
 // fumaça colorida saindo das arquibancadas e papel picado caindo
 function festejar(cores) {
   const box = document.getElementById("cena").parentElement; box.querySelector("canvas.festa")?.remove(); // fora do #cena: o 3D limpa a caixa dele ao carregar
   const cv = document.createElement("canvas"); cv.className = "festa"; box.appendChild(cv);
-  const W = cv.width = box.clientWidth, H = cv.height = box.clientHeight, g = cv.getContext("2d"), t0 = performance.now(), DUR = 10000;
+  const W = cv.width = box.clientWidth, H = cv.height = box.clientHeight, g = cv.getContext("2d"), t0 = performance.now(), DUR = 10000; SOM.festa(DUR - 1000);
   const cor = c => /^#[0-9a-f]{6}$/i.test(c) ? c : "#ffffff", cc = cores.map(cor), cs = [...cc, "#ffffff"], R = (a, b) => a + Math.random() * (b - a), um = l => l[Math.random() * l.length | 0];
   const pap = Array.from({ length: 170 }, () => ({ x: R(0, W), y: -R(0, H), vy: R(40, 110), vx: R(-15, 15), a: R(0, 6), va: R(-4, 4), c: um(cs), w: R(4, 8) }));
   const fum = [], fogos = [], fag = [];
@@ -90,10 +123,10 @@ function festejar(cores) {
       g.globalAlpha = 0.85 * fim * Math.max(0, 1 - f.v / 6); g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, f.r, 0, 7); g.fill(); }
     g.globalCompositeOperation = "lighter";
     // fogos: sobem com rastro e estouram numa bola de faíscas
-    if (t > proxFogo && t < DUR - 2500) { proxFogo = t + R(250, 550); fogos.push({ x: W * R(0.12, 0.88), y: H, vy: -R(H * 0.9, H * 1.2), alvo: H * R(0.08, 0.32), c: um(cs) }); }
+    if (t > proxFogo && t < DUR - 2500) { proxFogo = t + R(250, 550); SOM.fogo(); fogos.push({ x: W * R(0.12, 0.88), y: H, vy: -R(H * 0.9, H * 1.2), alvo: H * R(0.08, 0.32), c: um(cs) }); }
     for (let k = fogos.length - 1; k >= 0; k--) { const f = fogos[k]; f.y += f.vy * dt;
       g.globalAlpha = fim; g.fillStyle = "#fff4d0"; g.fillRect(f.x - 1.5, f.y, 3, 16);
-      if (f.y <= f.alvo) { const n = 80, v = R(H * 0.3, H * 0.45), c2 = um(cs); for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n, vv = v * R(0.6, 1); fag.push({ x: f.x, y: f.y, vx: Math.cos(a) * vv, vy: Math.sin(a) * vv, c: i % 3 ? f.c : c2, v: 0, dur: R(1.1, 1.7) }); } fogos.splice(k, 1); } }
+      if (f.y <= f.alvo) { SOM.estouro(); const n = 80, v = R(H * 0.3, H * 0.45), c2 = um(cs); for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n, vv = v * R(0.6, 1); fag.push({ x: f.x, y: f.y, vx: Math.cos(a) * vv, vy: Math.sin(a) * vv, c: i % 3 ? f.c : c2, v: 0, dur: R(1.1, 1.7) }); } fogos.splice(k, 1); } }
     for (let k = fag.length - 1; k >= 0; k--) { const q = fag[k]; q.v += dt; if (q.v > q.dur) { fag.splice(k, 1); continue; }
       q.vx *= 1 - 1.6 * dt; q.vy = q.vy * (1 - 1.6 * dt) + H * 0.25 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
       g.globalAlpha = fim * (1 - q.v / q.dur); g.fillStyle = q.c; g.beginPath(); g.arc(q.x, q.y, 3, 0, 7); g.fill(); g.globalAlpha *= 0.35; g.beginPath(); g.arc(q.x, q.y, 7, 0, 7); g.fill(); }
