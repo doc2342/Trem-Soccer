@@ -266,7 +266,7 @@ function construir() {
   entorno(aM + ext0 + (dunas ? 12 : 22), -(bM + ext0 + (dunas ? 12 : 22)), nb ? L.z1 + 14 : bM + ext0 + (dunas ? 12 : 22));
   cur.tag.textContent = obra < 1 ? "OBRA EM ANDAMENTO · " + Math.round(obra * 100) + "%" : "";
   const pad = C.padrao, k = C.cores.length, hx = [...C.cores, "#f2f2f2", "#c8102e"].slice(0, 3), cols = C.cores.map(c => new T.Color(c)), sig = (C.mosaico || " ").toUpperCase(), nomeE = (C.nomeEstadio || "").toUpperCase().trim();
-  const LM = m.mosaico || "N", mr = LM == "W" ? rows : Math.min(rows, 28), meia = (LM == "W" ? m.b0 : m.a0) - 4, uDe = p => ((LM == "W" ? -p.z : p.x) / meia + 1) / 2;
+  const LM = m.mosaico || "N", mr = LM == "W" ? rows : Math.min(rows, 28), meia = Math.min((LM == "W" ? m.b0 : m.a0) - 4, Math.max(10, ...pos.filter(p => p.ld == LM && p.r == 0).map(p => Math.abs(LM == "W" ? p.z : p.x) - 2))), uDe = p => ((LM == "W" ? -p.z : p.x) / meia + 1) / 2;
   const msk = mascara(sig, mr, meia, LM == "W" ? m.muralha : 1); marcarEscadas(pos);
   // festa do título: a torcida do campeão toma a arquibancada do mosaico com o nome e as cores do clube
   const fcs = ((C.festa && C.festa.cores) || []).filter(x => HEX.test(x)), fes = fcs.length ? { c: fcs.map(c => new T.Color(c)), k: mascara((C.festa.nome || " ").toUpperCase(), mr, meia, LM == "W" ? m.muralha : 1) } : null;
@@ -275,6 +275,7 @@ function construir() {
   for (const p of pos) { const r = p.r, ld = p.ld; let c;
     if (!pronto(p.x, p.z, ld, r)) c = OBRA;
     else if (r >= 28 && r <= 30 && !p.dep) c = SKY; else if (p.ponta || (m.anel && r == m.anel)) c = CONC;
+    else if (fes && ld == LM && r >= mr) c = fes.c[0]; // festa: a torcida toma a arquibancada inteira, o nome fica na parte do mosaico
     else if (fes && ld == LM && r < mr) { const u = uDe(p), v = 1 - (r + .5) / mr; c = u > 0 && u < 1 && fes.k(u, v) ? fes.c[1] || new T.Color("#fff") : fes.c[0]; }
     else if (p.esc && !naArea(p)) c = ESCD;
     else if (pad == "setor") { const mp = k == 1 ? { N: 0, E: 0, S: 0, W: 0 } : k == 2 ? { N: 0, E: 1, S: 0, W: 1 } : { N: 0, S: 1, E: 2, W: 2 }; c = cols[mp[ld]]; }
