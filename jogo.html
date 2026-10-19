@@ -24,11 +24,12 @@
        (2) escudo, uniforme, nome numa linha só e o selo do patrocinador (sem o rótulo). O ::after quebra a linha entre as duas */
     .card.topo { display:flex; flex-wrap:wrap; align-items:center; gap:0 10px; } .card.topo::after { content:""; order:2; flex-basis:100%; }
     .card.topo > * { order:3; } .card.topo > .topo-jogo { order:0; flex:1 1 auto; justify-content:flex-start; margin:-4px 0 8px; gap:8px; font-size:14px; } .card.topo .topo-jogo h1 { font-size:14px !important; }
+    .card.topo > #cvVoltar { order:1; margin:-4px 0 8px auto; } /* página de outro clube: o Voltar sobe para a 1ª linha e o nome ganha a largura */
     .card.topo > div:last-child { order:1; margin:-4px 0 8px auto !important; flex-direction:row !important; align-items:center !important; gap:10px !important; font-size:14px; }
     .topo-conta #quem, .so-pc { display:none; } .card.topo .so-cel { display:inline; } #sair { padding:2px 8px; }
     .card.topo > :is(svg, img) { width:44px; height:44px; } .card.topo > :is(svg, img) + svg { width:34px; height:34px; }
     .card.topo > div:not([class]):not(:last-child) { flex:1 1 0; min-width:0; } .card.topo > div:not([class]):not(:last-child) > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; }
-    .card.topo h2 { font-size:22px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .card.topo h2 { font-size:22px !important; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; } /* nome comprido desce para a 2ª linha em vez de ser cortado */
     .patro-topo { margin-left:0; } .patro-topo .mut { display:none; } .patro-topo img { width:36px; height:36px; }
     main > .topo { gap:6px 10px; } main > .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
