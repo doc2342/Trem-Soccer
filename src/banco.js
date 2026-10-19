@@ -474,7 +474,7 @@ export const anularTransferencia = id => sb.rpc("anular_transferencia", { p_id: 
 export const definirDirigente = nome => sb.rpc("definir_dirigente", { p_nome: nome }).then(ok);
 export const clubePorId = id => sb.from("clubes").select("*").eq("id", id).maybeSingle().then(ok);
 export const jogadoresDoClube = async clubeId => { // mesmo formato da lista do mercado
-  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("clube_id", clubeId).order("id");
+  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, aposenta_em").eq("clube_id", clubeId).order("id");
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("clube_id", clubeId).order("id").then(ok) : r.data;
 };
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);

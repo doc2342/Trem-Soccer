@@ -2123,6 +2123,8 @@ ${historicoDaBase()}
     // as multas saem das últimas transferências já carregadas e a trava dos 5 jogos fica de fora
     let multas = transferencias.filter(t => t.tipo === "multa" && t.temporada === liga.temporada), jogos5 = {};
     const perdas = id => multas.filter(t => t.de_clube === id), minhasCompras = () => multas.filter(t => t.para_clube === clube.id).length;
+    const carregarTravas = () => Promise.all([B.multasDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null])
+      .then(([ms, js]) => { if (ms) multas = ms; if (js) jogos5 = js; });
     const mesmaDivisao = j => (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) === DIVISAO(clube.grupo);
     // travas da origem: o jogador some da lista
     const situacao = j => j.salario == null ? "sem contrato" : j.protegido ? "protegido" : (j.protegido_ate != null && j.protegido_ate >= liga.temporada) ? "primeira temporada" : (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) < DIVISAO(clube.grupo) ? "divisão acima" : j.pais !== meuPais && estrangeiros >= 5 ? "estrangeiros"
@@ -2158,8 +2160,8 @@ ${historicoDaBase()}
     const buscar = async () => {
       const lista = $("mLista"); // se a tela for trocada (redesenho, sair) enquanto a busca está a caminho, a resposta é descartada
       lista.className = "mut"; lista.textContent = "Buscando…"; $("mPainel").innerHTML = "";
-      try { const [achados, ms, js] = await Promise.all([jogadoresDoMercado(), B.multasDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null]);
-        if (!lista.isConnected) return; if (ms) multas = ms; if (js) jogos5 = js; daPosicao = achados.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
+      try { const [achados] = await Promise.all([jogadoresDoMercado(), carregarTravas()]);
+        if (!lista.isConnected) return; daPosicao = achados.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
       catch (err) { if (lista.isConnected) lista.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     IDS_DOS_FILTROS.forEach(id => { if ($(id) && id in filtrosDoMercado) { if ($(id).type === "checkbox") $(id).checked = filtrosDoMercado[id]; else $(id).value = filtrosDoMercado[id]; } });
@@ -2234,7 +2236,7 @@ ${historicoDaBase()}
       $("cvCorpo").innerHTML = `<div class="card mut">Carregando…</div>`;
       try {
         if (location.hash !== "#clube=" + id) { history.pushState(null, "", "#clube=" + id); empurrei = true; }
-        const [c, lista, jogos, hist, negocios, marcas] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id), B.marcasDosClubes([id])]);
+        const [c, lista, jogos, hist, negocios, marcas] = await Promise.all([clubePorId(id), jogadoresDoClube(id), partidasDoClube(liga.id, id), B.historicoDoClube(liga.id, id), transferenciasDoClube(id), B.marcasDosClubes([id]), carregarTravas()]);
         if (verClube !== id) return; // trocou de página enquanto lia
         c.marca = marcas[id] || null; // patrocinador master nas placas do estádio
         const l = lista.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || b.nota - a.nota);
@@ -2294,8 +2296,8 @@ ${historicoDaBase()}
             <div id="cvPainel"></div>
             <div class="elenco2" id="cvLista">${[ZONAS_DO_ELENCO.slice(0, 2), ZONAS_DO_ELENCO.slice(2)].map(metade => `<div>${metade.map(([titulo, linhas]) => { const z = l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota);
               return `<div class="zona"><h3>${titulo} <span class="tag">${z.length}</span></h3><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="c-sal">Salário</th><th>Multa</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
-                ${z.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
-                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>
+                ${z.map(j => { const b = !meu && !situacao(j) && bloqueio(j); return `<tr class="clk" data-cvjog="${j.id}"${b ? ` style="opacity:.45" title="Por enquanto você não pode: ${esc(b[1])}"` : ""}><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.a_venda ? ` <span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
+                  <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : b ? `${dinheiro(multaDe(j))}<br><span class="bad" style="font-size:11px">${b[0]}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}</td><td>${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`; }).join("") || `<tr><td colspan="8" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`; }).join("")}</div>`).join("")}</div></div>
           <div class="g2"><div>
             <div class="card"><h2>Temporadas anteriores</h2>${hist.length ? `<table class="mini" style="width:100%"><tr><th>T</th><th class="esq">Divisão</th><th>Pos.</th><th>P</th><th>V-E-D</th><th class="esq"></th></tr>
               ${hist.map(h => `<tr><td>${h.temporada}</td><td class="esq">${esc(nomeDoGrupo(h.grupo))}</td><td>${h.posicao}º</td><td>${h.pontos}</td><td>${h.vitorias}-${h.empates}-${h.derrotas}</td><td class="esq mut">${DESTINO[h.destino] || ""}${h.copa ? ` · copa: ${esc(h.copa)}` : ""}${h.lib ? ` · Libertadores: ${esc(h.lib)}` : ""}${h.sul ? ` · Sul-Americana: ${esc(h.sul)}` : ""}${h.recopa ? " · Recopa: campeão" : ""}</td></tr>`).join("")}</table>` : `<div class="mut">Primeira temporada do clube na liga.</div>`}</div>
