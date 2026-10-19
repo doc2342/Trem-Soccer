@@ -521,6 +521,8 @@ async function telaClube(liga, clube) {
     da("trofeus", () => trofeusDaLiga(liga.id).catch(() => []), filtrarTrofeus),
     Promise.all([da("meusLances", () => meusLances(clube.id)), da("negocios", () => transferenciasDoClube(clube.id))]),
   ]);
+  // admin: pedidos de clube (novo e extra) esperando aprovação, para avisar sem precisar abrir a Administração
+  const pedidosAdm = admin ? (await Promise.all([B.pedidosPendentes(), B.pedidosExtraPendentes()]).catch(() => [])).flat().length : 0;
   // o que a carga trouxe para a Central (tabela do grupo, notícias) fica guardado como se tivesse sido lido sozinho
   if (carga) {
     if (carga.partidasDoGrupo) { guardar("partidasDoGrupo", [liga.id, clube.grupo], carga.partidasDoGrupo);
@@ -1491,6 +1493,7 @@ async function telaClube(liga, clube) {
   };
   const muralDoClube = () => {
     const l = [];
+    if (pedidosAdm) l.push(item("📝", `${pedidosAdm} ${pedidosAdm === 1 ? "pedido de clube esperando" : "pedidos de clube esperando"} a sua aprovação. <a class="lk" href="admin.html">Abrir a Administração</a>.`, "aviso"));
     if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
     for (const j of repatriar) l.push(item("🏠", `${esc(j.nome)} (${sg(j.pos)}), formado na sua base, voltou ao mercado como livre. Até ${new Date(j.repatriar_ate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} só você pode dar lance.`, "aviso", "mercado"));
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
@@ -1823,7 +1826,7 @@ async function telaClube(liga, clube) {
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração</a>` : ""}
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
