@@ -55,7 +55,7 @@ const secoes = [
     <li>Na Central, o cartão <b>Primeiros passos</b> leva a cada tarefa: nome de dirigente, escalação e tática, treino, elenco, caixa, patrocínio, escudo e um amistoso.</li>
     <li>Antes da primeira rodada, salve a tática e escolha o <b>patrocínio</b>: a escolha do patrocínio fecha quando a bola rola.</li>
   </ol>
-  <p>A tática fecha pouco antes do apito; depois disso ninguém mexe. Se você ficar ${DIAS_PARA_BOT} dias sem entrar, o bot passa a escalar o seu time.</p>`],
+  <p>A tática fecha pouco antes do apito; depois disso ninguém mexe. Se você ficar ${DIAS_PARA_BOT} dias sem entrar, seu time começa a ser escalado como se fosse um bot.</p>`],
 ["abas", "As abas do jogo", `
   <p>No celular as abas viram ícones; em Ajustes dá para trocar para a tela de computador e escolher o tema claro ou escuro.</p>
   ${tabela(["Aba", "Abas internas", "O que tem"], [
@@ -300,11 +300,11 @@ const secoes = [
   <ul>
     <li>A diretoria começa com confiança ${C.inicio} de 100 e dá uma meta de posição na liga, pela força do seu elenco.</li>
     <li>Na virada a confiança sobe ou cai (no máximo ${C.limite} pontos) pela posição em relação à meta, pela campanha na copa e pelas finanças.</li>
-    <li>Ela só dá recompensas, nunca demite: com ${C.verba[1][0]} ou mais, verba de ${pct(C.verba[1][1])} do teto da folha; com ${C.verba[0][0]} ou mais, ${pct(C.verba[0][1])} e mais uma compra pela multa. Com ${C.segundoClube} ou mais, o dirigente ganha o direito a um segundo clube em outro país.</li>
+    <li>Ela só dá recompensas, nunca demite: com ${C.verba[1][0]} ou mais, verba de ${pct(C.verba[1][1])} do teto da folha; com ${C.verba[0][0]} ou mais, ${pct(C.verba[0][1])} e mais uma compra pela multa. Com ${C.segundoClube} ou mais, você ganha o direito a um segundo clube em outro país.</li>
   </ul>`],
 ["erros", "Erros comuns de quem está começando", `
   <ul>
-    <li><b>Não salvar a tática.</b> Sem tática salva o bot escala por você. Salve uma vez e revise antes de cada jogo.</li>
+    <li><b>Não salvar a tática.</b> Sem tática salva, seu time é escalado como se fosse um bot. Salve uma vez e revise antes de cada jogo.</li>
     <li><b>Perder o patrocínio.</b> Só dá para escolher antes da primeira rodada da temporada.</li>
     <li><b>Não proteger ninguém.</b> Sem a lista de protegidos, seus melhores saem por ${MULTIPLO_DA_CLAUSULA} vezes o salário. Você tem 7 vagas.</li>
     <li><b>Pagar salário alto para subir a multa.</b> Salário nunca desce, pesa no teto e sai do caixa toda rodada.</li>
@@ -313,7 +313,7 @@ const secoes = [
     <li><b>Jovem no banco a temporada inteira.</b> Quem joga treina 10% melhor e ganha experiência; parado, perde forma e moral. A liga de base também conta.</li>
     <li><b>Julgar o motor por um jogo.</b> Um resultado tem muita sorte. Olhe os pontos esperados na tabela e o relatório da partida.</li>
     <li><b>Insistir na mesma tática.</b> Leia a prévia do adversário e responda ao estilo dele.</li>
-    <li><b>Sumir.</b> Com ${DIAS_PARA_BOT} dias sem entrar, o bot assume a escalação.</li>
+    <li><b>Sumir.</b> Com ${DIAS_PARA_BOT} dias sem entrar, seu time começa a ser escalado como se fosse um bot.</li>
   </ul>
   <p>Dúvida ou algo estranho? Avise o administrador: o jogo está em teste e ajustes são esperados.</p>`],
 ];

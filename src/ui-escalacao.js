@@ -251,7 +251,7 @@ async function iniciarOnline(sessaoDeTeste) {
   const situacao = async () => {
     const fechada = await B.taticaFechada(clubeOnline.id);
     $("avisoOnline").innerHTML = fechada ? `<span class="aviso">A tática está fechada: há um jogo começando ou em cálculo. O que você salvar agora só vale depois dele.</span>`
-      : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, o bot escala o seu time.";
+      : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, seu time é escalado como se fosse um bot.";
   };
   await situacao();
   previaDoAdversario(B).then(sedeNaPrevia).catch(() => { $("previa").hidden = true; }); // sem esperar: a prévia aparece quando ficar pronta

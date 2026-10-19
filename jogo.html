@@ -1495,7 +1495,7 @@ async function telaClube(liga, clube) {
     if (pedidosAdm) l.push(item("📝", `${pedidosAdm} ${pedidosAdm === 1 ? "pedido de clube esperando" : "pedidos de clube esperando"} a sua aprovação. <a class="lk" href="admin.html">Abrir a Administração</a>.`, "aviso"));
     if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
     for (const j of repatriar) l.push(item("🏠", `${esc(j.nome)} (${sg(j.pos)}), formado na sua base, voltou ao mercado como livre. Até ${new Date(j.repatriar_ate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} só você pode dar lance.`, "aviso", "mercado"));
-    if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: o bot está escalando o time.", "aviso", "tatica"));
+    if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: seu time está sendo escalado como se fosse um bot.", "aviso", "tatica"));
     if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
     const recebidas = (propostas || []).filter(p => p.vendedor === clube.id && p.estado === "pendente");
@@ -1551,7 +1551,7 @@ async function telaClube(liga, clube) {
     const seg = liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900, prazo = seg >= 60 ? `${Math.round(seg / 60)} min antes do apito` : "no apito inicial";
     const passos = [
       clube.dirigente !== undefined && [!!clube.dirigente, "🪪", "Dê o seu nome de dirigente", "É o nome que os outros veem na tabela e nas notícias.", "config:geral"],
-      [!!tatica, "📋", "Salve a escalação e a tática", `Até salvar, o bot escala o seu time. A tática fecha ${prazo} de cada jogo e vale para todos os seguintes até você mudar.`, "tatica"],
+      [!!tatica, "📋", "Salve a escalação e a tática", `Até salvar, seu time é escalado como se fosse um bot. A tática fecha ${prazo} de cada jogo e vale para todos os seguintes até você mudar.`, "tatica"],
       treinoLigado && [elenco.some(j => j.treino), "🏋️", "Escolha o treino", "Cada jogador evolui nos focos que você escolher; os jovens são os que mais crescem.", "treino"],
       [!!v.elenco, "👥", "Conheça o elenco", "Clique num jogador para ver atributos, contrato, multa e as ações de mercado.", "elenco"],
       caixa != null && [!!v.financas, "💰", "Entenda o caixa e o teto da folha", `A soma dos salários não pode passar de ${dinheiro(teto)}. O dinheiro entra e sai a cada rodada.`, "financas"],
@@ -1837,11 +1837,11 @@ async function telaClube(liga, clube) {
     <div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" style="margin-top:10px"></div>
-      <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, o bot escala o seu time."}</span></div></div>
+      <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, seu time é escalado como se fosse um bot."}</span></div></div>
     <details class="card c-amistoso" ${celular ? "" : "open"}><summary><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2></summary>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
-      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, o bot escala)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
+      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, seu time é escalado como se fosse um bot)"}; o adversário joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
       <div id="amInfo" class="mut" style="margin-top:6px"></div></details>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div>
     </div>
