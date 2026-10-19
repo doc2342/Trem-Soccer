@@ -32,21 +32,27 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&am
 const s = SEDES[new URLSearchParams(location.search).get("s")] ? new URLSearchParams(location.search).get("s") : "maracana", sede = SEDES[s];
 const mil = n => (+n || 0).toLocaleString("pt-BR");
 let cena = null;
+// ?previa: museu e sorteio de exemplo, sem ler o banco (para ver a página antes de haver finais)
+const previa = new URLSearchParams(location.search).has("previa");
+const EX = [["Colorado", "#c8102e", "#ffffff"], ["America", "#0a7d3b", "#ffffff"], ["Amnesia", "#1d1d1b", "#f2c200"], ["Trem Azul", "#0b3d91", "#ffffff"], ["Ferroviário", "#5b2a86", "#f2f2f2"], ["Vila Nova", "#e05a00", "#1d1d1b"]];
+const exemplo = () => { const i = Object.keys(SEDES).indexOf(s), comp = ["LIB", "COPA", "SUL", "SUP", "REC", "COPA"];
+  return [3, 2, 1].map((t, j) => { const a = EX[(i + j) % 6], b = EX[(i + j + 3) % 6], gc = (i + j) % 3, gf = (i + 2 * j) % 3;
+    return { temporada: t, competicao: s === "maracana" ? "LIB" : comp[(i + j) % 6], casa_nome: a[0], fora_nome: b[0], gols_casa: gc, gols_fora: gf, campeao: 1, campeao_nome: gc >= gf ? a[0] : b[0], cores: gc >= gf ? a.slice(1) : b.slice(1), publico: Math.round(SEDES[s].lugares * (0.78 + 0.07 * j)) }; }); };
 const desenhar = cfg => { const el = document.getElementById("cena"); if (cena) { cena.destruir(); cena = null; } desenharEstadio(el, cfg).then(v => { cena = v; }).catch(e => { el.innerHTML = `<div class="mut" style="padding:10px">${esc(e.message)}</div>`; }); };
 
 async function carregar() {
   document.title = "Trem Soccer · " + sede.nome;
-  const liga = await ligaAtual();
-  const sedes = liga ? ((await sb.rpc("sedes_da_temporada", { p_liga: liga.id })).data || liga.sedes || {}) : {};
+  const liga = previa ? null : await ligaAtual();
+  const sedes = previa ? { COPA: "wembley", SUL: "sansiro", SUP: "laterais", REC: "inflavel" } : liga ? ((await sb.rpc("sedes_da_temporada", { p_liga: liga.id })).data || liga.sedes || {}) : {};
   const aqui = Object.keys(FINAIS).filter(k => (k === "LIB" ? "maracana" : sedes[k]) === s);
-  const finais = liga ? ((await sb.from("finais_nas_sedes").select("*").eq("liga_id", liga.id).eq("sede", s).order("temporada", { ascending: false }).order("criado_em", { ascending: false })).data || []) : [];
+  const finais = previa ? exemplo() : liga ? ((await sb.from("finais_nas_sedes").select("*").eq("liga_id", liga.id).eq("sede", s).order("temporada", { ascending: false }).order("criado_em", { ascending: false })).data || []) : [];
   const ultima = finais.find(f => f.campeao);
-  const camp = ultima ? (await clubesPorIds([ultima.campeao]))[0] : null;
+  const camp = previa ? { nome: ultima.campeao_nome, escudo: { cor1: ultima.cores[0], cor2: ultima.cores[1] } } : ultima ? (await clubesPorIds([ultima.campeao]))[0] : null;
   const festa = camp ? { nome: camp.nome, cores: [camp.escudo?.cor1 || "#0b3d91", camp.escudo?.cor2 || "#ffffff"] } : null;
   const placar = f => `${esc(f.casa_nome)} ${f.gols_casa} x ${f.gols_fora} ${esc(f.fora_nome)}${f.gols_casa === f.gols_fora ? " (pên.)" : ""}`;
   document.getElementById("corpo").innerHTML = `
-    <div class="card"><div class="sedes">${Object.entries(SEDES).map(([k, v]) => `<a href="sede.html?s=${k}" class="${k === s ? "on" : ""}">${esc(v.nome)}</a>`).join("")}</div></div>
-    <div class="card cabeca"><h2>${esc(sede.nome)}</h2><div class="mut">${esc(sede.cidade)} · sede oficial das finais</div>
+    <div class="card"><div class="sedes">${Object.entries(SEDES).map(([k, v]) => `<a href="sede.html?s=${k}${previa ? "&previa" : ""}" class="${k === s ? "on" : ""}">${esc(v.nome)}</a>`).join("")}</div></div>
+    <div class="card cabeca"><h2>${esc(sede.nome)}</h2><div class="mut">${esc(sede.cidade)} · sede oficial das finais${previa ? ' · <span class="aviso">prévia com finais de exemplo</span>' : ""}</div>
       <div class="num"><div><b>${mil(sede.lugares)}</b><span class="mut">lugares</span></div><div><b>${finais.length}</b><span class="mut">finais aqui</span></div>
         <div><b>${aqui.length ? aqui.map(k => FINAIS[k]).join(", ") : "—"}</b><span class="mut">final desta temporada</span></div></div></div>
     <div class="card"><div id="cena"></div>
