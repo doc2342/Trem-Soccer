@@ -1562,7 +1562,7 @@ async function telaClube(liga, clube) {
     const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
     return `<div class="card c-chegada"><h2>Primeiros passos <span class="tag">${feitos} de ${passos.length}</span>
         <button class="sec" id="chegadaFechar" style="float:right;padding:2px 10px;font-size:12.5px">Esconder</button></h2>
-      <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Os clubes sem dirigente são do bot. Todas as regras estão no <a class="lk" href="guia.html" style="color:var(--ac)">📖 Guia do dirigente</a>.</div>
+      <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Todas as regras estão no <a class="lk" href="guia.html" style="color:var(--ac)">📖 Guia do dirigente</a>.</div>
       <div class="barra-passos"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
       <div class="mural passos">${passos.map(([ok, ic, t, d, ir]) => `<div data-aba-ir="${ir}" class="${ok ? "feito" : ""}" title="Clique para abrir"><span class="ic">${ok ? "✅" : ic}</span><span><b>${t}</b><br><span class="mut">${d}</span></span><span class="vai">›</span></div>`).join("")}</div></div>`;
   };
