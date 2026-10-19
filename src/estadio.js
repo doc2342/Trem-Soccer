@@ -27,7 +27,7 @@ export const sedeDoJogo = (p, liga) => { const k = chaveDaFinal(p); return !k ? 
 export function configDaSede(chave, comp, festa) {
   const s = SEDES[chave] || SEDES.maracana;
   return { modelo: SEDES[chave] ? chave : "maracana", nivel: s.nivel, obra: 1, nomeEstadio: s.nome, mosaico: (FINAIS[comp] || s.nome).toUpperCase(), padrao: "sigla",
-    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null };
+    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null, noite: !!festa };
 }
 export const PADROES_DO_ESTADIO ={ setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
@@ -227,7 +227,30 @@ function torre(x, z, H) { const g = new T.Group(); g.position.set(x, 0, z); grp.
   const pl = new T.Mesh(new T.BoxGeometry(12.8, 0.15, 1.6), lam("#6f6c64")); pl.position.set(0, -0.5, -1.4); hd.add(pl);
   const gr = new T.Mesh(new T.BoxGeometry(12.8, 0.08, 0.08), ESC); gr.position.set(0, 0.6, -2.15); hd.add(gr);
   for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) { const lx = -5.2 + i * 2.08, ly = 0.4 + j * 1.95; const h = new T.Mesh(cil, ESC); h.rotation.x = Math.PI / 2; h.position.set(lx, ly, 0); h.castShadow = true; hd.add(h); const d = new T.Mesh(disco, LUZ); d.position.set(lx, ly, 0.46); hd.add(d); } }
-function telao(x, y, z, pe) { const g = new T.Group(), tl = new T.Mesh(new T.BoxGeometry(1, 8, 18), [0, 1, 2, 3, 4, 5].map(i => new T.MeshLambertMaterial({ color: i == 0 ? "#185FA5" : "#2c2c2a", emissive: i == 0 ? "#0c447c" : "#000" }))); tl.castShadow = true; g.add(tl);
+// festa: "CAMPEÃO" e o nome do clube no telão, com a borda nas cores dele
+function telaDaFesta() { const c = document.createElement("canvas"); c.width = 576; c.height = 256; const x = c.getContext("2d"), [c1, c2] = [...C.festa.cores, "#ffffff"];
+  x.fillStyle = "#05070c"; x.fillRect(0, 0, 576, 256); x.lineWidth = 14; x.strokeStyle = c1; x.strokeRect(7, 7, 562, 242); x.lineWidth = 5; x.strokeStyle = c2; x.strokeRect(18, 18, 540, 220);
+  x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffd23f"; x.font = "bold 92px sans-serif"; x.fillText("CAMPEÃO", 288, 102);
+  const nome = (C.festa.nome || "").toUpperCase(); x.fillStyle = "#ffffff"; x.font = `bold ${Math.min(52, Math.floor(980 / Math.max(1, nome.length)))}px sans-serif`; x.fillText(nome, 288, 186);
+  const t = new T.CanvasTexture(c); t.anisotropy = 4; return t; }
+// festa: bandeirão do campeão estendido sobre a arquibancada oeste (a do fundo na câmera de abertura; com a Muralha, a norte), com listras, escudo e nome
+function bandeirao(pos, LM) { const SD = LM == "W" ? "N" : "W", Z = SD == "N" ? "x" : "z", L = pos.filter(p => p.ld == SD && !(p.r >= 28 && p.r <= 30)); if (!L.length) return;
+  const ra = m.anel && rows > m.anel + 8 ? m.anel + 1 : 0, rb = Math.min(rows - 1, m.anel && !ra ? m.anel - 1 : 27), fila = r => L.filter(p => p.r == r), f0 = fila(ra), f1 = fila(rb); // com anéis, no anel do meio if (!f0.length || !f1.length) return;
+  const X = Z == "z" ? "x" : "z", zs = f0.map(p => p[Z]), zc = (Math.min(...zs) + Math.max(...zs)) / 2, meio = (l, k) => l.reduce((a, p) => a + p[k], 0) / l.length, perto = l => l.filter(p => Math.abs(p[Z] - zc) < 6);
+  const A = perto(f0).length ? perto(f0) : f0, B = perto(f1).length ? perto(f1) : f1, xa = meio(A, X), ha = meio(A, "h"), xb = meio(B, X), hb = meio(B, "h");
+  const hz = Math.min(0.45 * (Math.max(...zs) - Math.min(...zs)), 1.5 * Math.hypot(xb - xa, hb - ha)), nu = 28, nv = 12, P = [], U = [], ix = [];
+  for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) { const u = i / nu, v = j / nv; const a_ = xa + (xb - xa) * v, z_ = SD == "W" ? zc + hz - 2 * hz * u : zc - hz + 2 * hz * u, y_ = ha + (hb - ha) * v + 1.2 + 0.35 * Math.sin(u * 11 + v * 6); P.push(Z == "z" ? a_ : z_, y_, Z == "z" ? z_ : a_); U.push(1 - u, v); } // de frente para o campo: a parte de cima do pano fica nas fileiras de trás
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) { const a = i * (nv + 1) + j, b = a + nv + 1; ix.push(a, b, a + 1, b, b + 1, a + 1); }
+  const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(P, 3)); geo.setAttribute("uv", new T.Float32BufferAttribute(U, 2)); geo.setIndex(ix); geo.computeVertexNormals();
+  const cv = document.createElement("canvas"); cv.width = 512; cv.height = Math.max(128, Math.round(512 * Math.hypot(xb - xa, hb - ha) / (2 * hz))); const x = cv.getContext("2d"), [c1, c2] = [...C.festa.cores, "#ffffff"], H = cv.height;
+  for (let k = 0; k < 5; k++) { x.fillStyle = k % 2 ? c2 : c1; x.fillRect(0, k * H / 5, 512, H / 5 + 1); }
+  const nome = (C.festa.nome || "").toUpperCase(); x.fillStyle = c1; x.fillRect(0, H * 0.62, 512, H * 0.3); x.fillStyle = c2; x.textAlign = "center"; x.textBaseline = "middle";
+  x.font = `bold ${Math.min(H * 0.22, Math.floor(860 / Math.max(1, nome.length)))}px sans-serif`; x.fillText(nome, 256, H * 0.77);
+  const tex = new T.CanvasTexture(cv), me = new T.Mesh(geo, new T.MeshLambertMaterial({ map: tex, side: T.DoubleSide, emissive: "#222222" })); me.castShadow = true; grp.add(me);
+  // escudo no meio do pano (SVG do clube, ou a imagem enviada); quando carrega, redesenha a cena
+  const svg = C.festa.escudo || "", src = /^<img/.test(svg) ? (svg.match(/src="([^"]+)"/) || [])[1] : /^<svg/.test(svg) ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(/xmlns=/.test(svg) ? svg : svg.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"')) : null;
+  if (src) { const I0 = cur, img = new Image(); img.crossOrigin = "anonymous"; img.onload = () => { const t = H * 0.5; x.drawImage(img, 256 - t / 2, H * 0.08, t, t); tex.needsUpdate = true; I0.render(); }; img.src = src; } }
+function telao(x, y, z, pe) { const g = new T.Group(), tl = new T.Mesh(new T.BoxGeometry(1, 8, 18), [0, 1, 2, 3, 4, 5].map(i => i == 0 && C.festa ? new T.MeshBasicMaterial({ map: telaDaFesta() }) : new T.MeshLambertMaterial({ color: i == 0 ? "#185FA5" : "#2c2c2a", emissive: i == 0 ? "#0c447c" : "#000" }))); tl.castShadow = true; g.add(tl);
   for (const s of [-6, 6]) { const p = new T.Mesh(new T.BoxGeometry(0.4, Math.abs(pe), 0.4), lam("#5f5e5a")); p.position.set(0, pe > 0 ? 4 + pe / 2 : -4 + pe / 2, s); g.add(p); }
   g.position.set(x, y, z); g.rotation.y = Math.atan2(z, -x); grp.add(g); }
 
@@ -239,12 +262,12 @@ export async function desenharEstadio(el, config) {
   const ren = new T.WebGLRenderer({ antialias: true, alpha: true }); ren.setPixelRatio(Math.min(2, devicePixelRatio)); ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
   ren.domElement.style.display = "block"; el.replaceChildren(ren.domElement, tag);
   const scene = new T.Scene(), cam = new T.PerspectiveCamera(30, 1.6, 1, 3000);
-  scene.add(new T.HemisphereLight(0xffffff, 0x77746a, 0.62));
+  const hemi = new T.HemisphereLight(0xffffff, 0x77746a, 0.62), campo = new T.PointLight(0xfff4dc, 0, 0, 1); campo.position.set(0, 70, 0); scene.add(hemi, campo);
   const sun = new T.DirectionalLight(0xffffff, 0.95); sun.position.set(-90, 150, 80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; scene.add(sun);
-  const I = { scene, grp: new T.Group(), sun, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, vista: "3d" }; scene.add(I.grp);
+  const I = { scene, grp: new T.Group(), sun, hemi, campo, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, vista: "3d" }; scene.add(I.grp);
   I.render = () => { const w = el.clientWidth; if (!w) return; const h = Math.round(w * 0.62); ren.setSize(w, h); cam.aspect = w / h;
     cam.position.set(I.dist * Math.cos(I.el) * Math.sin(I.az), I.dist * Math.sin(I.el), I.tz + I.dist * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
-    ren.setClearColor(I.vista == "wire" ? 0x0C447C : CEU, 1); ren.render(scene, cam); };
+    ren.setClearColor(I.vista == "wire" ? 0x0C447C : I.ceu || CEU, 1); ren.render(scene, cam); };
   let drag = null;
   el.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY, I.az, I.el]; el.setPointerCapture(e.pointerId); });
   el.addEventListener("pointermove", e => { if (!drag) return; I.az = drag[2] - (e.clientX - drag[0]) * 0.008; I.el = Math.min(1.35, Math.max(0.25, drag[3] + (e.clientY - drag[1]) * 0.005)); I.render(); });
@@ -257,6 +280,9 @@ export async function desenharEstadio(el, config) {
 
 function construir() {
   limpar();
+  // noite de final (config.noite): céu escuro, sol fraco e o gramado aceso por cima
+  const noite = !!C.noite; cur.ceu = noite ? NOITE : CEU; cur.hemi.intensity = noite ? 0.3 : 0.62; cur.hemi.color.set(noite ? "#9fb4d8" : "#ffffff");
+  cur.sun.intensity = noite ? 0.22 : 0.95; cur.campo.intensity = noite ? 1.25 : 0; cur.campo.distance = (m.a0 + rows * DEP) * 2.2; cur.hemi.intensity = noite ? 0.2 : 0.62;
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
   const pos = assentos(niv), DG = dunas ? dunasGeo(topH) : null;
@@ -286,6 +312,7 @@ function construir() {
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
     else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
+  if (fes) bandeirao(pos, LM);
   const esp = dunas ? 30 : m.pele ? 16 : 8 + (m.folga || 0); grp.add(chao(contorno(m, aM + esp, bM + esp), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
   if (m.pista) { const pt = pistaTex(); grp.add(plano(new T.PlaneGeometry(pt.W, pt.H), new T.MeshLambertMaterial({ map: pt.t, transparent: true }), 0.05)); }
@@ -438,7 +465,7 @@ function construir() {
 // Entorno: um pedaço de cidade em volta do estádio, sorteado pela semente (o id do clube), para cada estádio parecer estar numa cidade
 // diferente. Cinco tipos: centro (prédios altos), bairro (casas e árvores), rio, lago e litoral. Tudo instanciado e sem sombra (leve).
 export const CIDADES = { centro: "Centro", bairro: "Bairro", rio: "Beira-rio", lago: "Lago", litoral: "Litoral" };
-const CEU = "#dde8ee";
+const CEU = "#dde8ee", NOITE = "#0b1426";
 export const cidadeDoEstadio = c => CIDADES[c.cidade] ? c.cidade : Object.keys(CIDADES)[Math.abs(c.semente | 0) % 5];
 function entorno(cx, zN, zS) {
   let sd = Math.abs((C.semente | 0) * 7919) % 2147483646 + 1; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
@@ -511,7 +538,7 @@ function entorno(cx, zN, zS) {
   add(tel, telhados, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, h, z, rot, w * 1.12, 2.4, d * 1.12, c));
   add(geoUp(new T.BoxGeometry(1, 1, 1)), troncos, ([x, z, h], i, im) => pos(im, i, x, 0, z, 0, 0.5, h, 0.5, new T.Color("#6b5a45")));
   add(new T.IcosahedronGeometry(1, 0), copas, ([x, z, h, c], i, im) => pos(im, i, x, h * 0.62, z, r() * 6, h * 0.36, h * 0.42, h * 0.36, c), { flatShading: true });
-  cur.scene.fog = new T.Fog(CEU, cur.dist * 0.95, cur.dist + E * 0.95);
+  cur.scene.fog = new T.Fog(cur.ceu || CEU, cur.dist * 0.95, cur.dist + E * 0.95);
 }
 
 // Barracas de comida e bebida (118_comida_no_estadio.sql) na esplanada: 4 + 2 por nível; a fila em cada uma segue o humor da torcida (0 a 5 pessoas)
