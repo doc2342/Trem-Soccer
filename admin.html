@@ -47,7 +47,7 @@ const PREFIXOS_DE_FORA = ["Club Atlético", "Deportivo", "Sportivo", "Unión", "
 const NIVEL_DE_FORA = k => 37.5 - k / 3;
 const PREFIXOS = ["Atlético", "Esporte Clube", "União", "Sport", "Grêmio", "Real", "Operário", "Náutico", "Associação", "Sociedade Esportiva", "Clube", "Independente"];
 const dataHora = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-let relogio = null, ocupado = false;
+let relogio = null, ocupado = false, atualizadoEm = 0;
 
 // Fila de aprovação: pedidos de clube esperando decisão.
 let nPedidos = 0, nDirigentes = 0;
@@ -55,10 +55,10 @@ const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedido
 async function pedidos(aviso = "") {
   const el = $("pedidos"); if (!el) return;
   const [l, extras] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes()]);
-  const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-], select[id^=pedClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada 30 s: guarda o que o admin já escolheu
+  const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-], select[id^=pedClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada hora: guarda o que o admin já escolheu
   const bots = l.length || extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
   nPedidos = l.length + extras.length; titulo();
-  el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada 30 segundos</span></h2>
+  el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada hora</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO).sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
@@ -126,7 +126,7 @@ async function dirigentes() {
   const l = principais.flatMap(c => [c, ...comDono.filter(x => x.dono === c.dono && x !== c && x.extra).sort(maisNovo).map(x => ({ ...x, de: c }))]);
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
   nDirigentes = new Set(comDono.map(c => c.dono)).size; titulo();
-  el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada 30 segundos · o número também aparece no título da aba</span></h2>
+  el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada hora · o número também aparece no título da aba</span></h2>
     ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
       ${l.map(c => `<tr${c.de ? ` style="font-size:.94em"` : ""}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${c.de ? `<span class="mut">↳</span> ` : ""}${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}${c.de ? ` <span class="mut">· clube extra de ${esc(c.de.nome)}</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
   el.onclick = async e => {
@@ -175,14 +175,23 @@ function nomeDeClube(rng, usados, pais = "Brasil") {
   }
 }
 
+// atualiza sozinho de hora em hora (cada busca é log no Supabase), e nunca com a aba em segundo plano; ao voltar à aba,
+// atualiza se a hora já passou. Sem login, dirigentes() e pedidos() não acham a tela e não buscam
+function atualizarSozinho() {
+  if (document.hidden || Date.now() - atualizadoEm < 3600000) return;
+  atualizadoEm = Date.now();
+  dirigentes().catch(() => {}); pedidos().catch(() => {}); if ($("auto") && $("auto").checked) processar(true);
+}
+document.addEventListener("visibilitychange", atualizarSozinho);
+
 async function carregar(s) {
   $("quem").textContent = s ? s.user.email : ""; $("sair").hidden = !s;
   clearInterval(relogio);
   if (!s) { $("app").innerHTML = ""; return; }
   try {
     if (!(await ehAdmin())) { $("app").innerHTML = `<div class="card bad">Esta conta não é de administrador.</div>`; return; }
-    await tela();
-    relogio = setInterval(() => { dirigentes().catch(() => {}); pedidos().catch(() => {}); if ($("auto") && $("auto").checked) processar(true); }, 30000);
+    await tela(); atualizadoEm = Date.now();
+    relogio = setInterval(atualizarSozinho, 60000); // só confere o relógio: busca uma vez por hora
   } catch (e) { $("app").innerHTML = `<div class="card bad">Não consegui carregar: ${esc(e.message)}</div>`; }
 }
 
@@ -205,7 +214,7 @@ async function tela(aviso = "") {
     ${liga ? `<div class="card" id="pedidos"></div><div class="card" id="dirigentes"></div>` : ""}
     ${liga ? `<div class="card"><h2>Calendário e rodadas</h2>${partidas.length
       ? `<div>${partidas.length} partidas em ${rodadas.length} datas · ${feitas} já calculadas · ${liga.minutos_transmissao ? `transmissão de ${liga.minutos_transmissao} min` : "relatório instantâneo"} · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</div>
-         <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar agora: ${nomeDaData(proxima).toLowerCase()}</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada 30 segundos enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
+         <div class="row" style="margin-top:10px">${proxima ? `<button id="antecipar">Jogar agora: ${nomeDaData(proxima).toLowerCase()}</button>` : ""}<button class="sec" id="processar">Calcular as partidas que já deveriam ter começado</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada hora enquanto esta página estiver aberta</label><button class="sec" id="apagarCal">Apagar o calendário e os resultados</button></div>
          <div class="rolagem" style="margin-top:10px"><table><tr><th>Data</th><th>Início</th><th>Calculadas</th></tr>${rodadas.map(x => `<tr><td>${nomeDaData(x.r)}</td><td>${dataHora(x.inicio)}</td><td class="${x.feitas === x.total ? "ok" : new Date(x.inicio) <= new Date() ? "bad" : "mut"}">${x.feitas} de ${x.total}</td></tr>`).join("")}</table></div>`
       : `<div class="mut" style="margin-bottom:10px">Sem calendário. Cada grupo joga turno e returno: 18 rodadas, 5 partidas por grupo em cada uma.</div>
          <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label><label title="Fora desse horário o relógio do calendário para: o intervalo conta só minutos do dia, e cada transmissão acaba até a hora final. 0 e 24 = sem restrição.">Jogos só entre (h)<span><input type="number" id="abre" value="0" min="0" max="23" style="width:55px"> e <input type="number" id="fecha" value="24" min="1" max="24" style="width:55px"></span></label>
