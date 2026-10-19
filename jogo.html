@@ -11,7 +11,9 @@
 <style>
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .patro-topo { margin-left:auto; text-align:center; } .patro-topo .mut { font-family:var(--display); text-transform:uppercase; letter-spacing:.08em; font-size:12px; margin-bottom:2px; } .patro-topo:empty { display:none; }
-  .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } main > .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
+  .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } /* a barra da conta (nome do jogo, relógio, e-mail, Sair) entra no cabeçalho do clube: uma linha a menos em toda tela */
+  .topo-jogo { flex-basis:100%; grid-column:1/-1; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
+  .topo-conta { display:flex; gap:8px; align-items:center; } .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
   /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
   .meus-clubes { display:flex; gap:6px; align-items:center; } .meus-clubes:empty { display:none; }
   .meus-clubes button { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; position:relative; }
@@ -19,8 +21,8 @@
   /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
   @media (max-width:620px) {
     .card.topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; }
-    main > .topo { gap:6px 10px; } main > .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; } #sair { padding:3px 10px; }
-    .topo > svg:first-child { width:52px; height:52px; } .topo > svg:nth-child(2) { width:38px; height:38px; }
+    main > .topo { gap:6px 10px; } main .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; } #sair { padding:3px 10px; }
+    .topo > svg:first-of-type { width:52px; height:52px; } .topo > svg:nth-of-type(2) { width:38px; height:38px; }
     .patro-topo { grid-column:1/-1; margin-left:0; display:flex; align-items:center; gap:8px; } .patro-topo img { width:36px; height:36px; }
     .card.topo h2 { font-size:24px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
@@ -336,7 +338,13 @@ async function mostrarTatica(sim) {
 const filtrosDoMercado = {};
 const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
 
+// a barra fica no HTML para a tela de login; com o clube aberto, as peças mudam para o cabeçalho dele e voltam antes de #app ser redesenhado
+const barra = document.querySelector("main > .topo"), pecasDaBarra = [...barra.children];
+function devolverBarra() { barra.append(...pecasDaBarra); barra.hidden = false; }
+function barraNoCabecalho(cab) { cab.querySelector(".topo-jogo").append(...pecasDaBarra.slice(0, 2)); cab.querySelector(".topo-conta").append(...pecasDaBarra.slice(2)); barra.hidden = true; }
+
 async function carregar(s) {
+  devolverBarra();
   if (!s || !usuario || s.user.id !== usuario.id) memoriaDaLiga.clear();
   const minha = ++versao; // evita desenhar duas vezes quando a sessão muda rápido
   usuario = s ? s.user : null;
@@ -469,6 +477,7 @@ addEventListener("storage", e => { if (e.key === "ts_clube_ativo" && usuario) lo
 // ---------- pedir o clube extra (95_pedido_de_clube_extra.sql) ----------
 // Escolhe o país; o administrador aprova e o banco sorteia um clube sem dono de lá, refeito com elenco e estruturas novos na média do país.
 function telaPedidoExtra() {
+  devolverBarra();
   const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { pais: Object.values(PAISES)[0], nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
   const desenhar = (aviso = "") => {
     $("app").innerHTML = `<div class="card"><h2>Pedir o clube extra</h2>
@@ -1820,12 +1829,13 @@ async function telaClube(liga, clube) {
   if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
   let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
-  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}">${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
+  devolverBarra();
+  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
@@ -2056,6 +2066,7 @@ ${historicoDaBase()}
     <div data-parte="clube:patrocinio">${abaPatrocinio()}</div>
     </section>
 `;
+  barraNoCabecalho($("app").querySelector(".card.topo"));
 
   // antecipação do prêmio
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
@@ -2121,11 +2132,13 @@ ${historicoDaBase()}
     let daPosicao = [];
     // espelho das travas de comprar_pela_multa (76_emprestimo_e_supercopa.sql). Até a busca responder (ou sem o SQL 136),
     // as multas saem das últimas transferências já carregadas e a trava dos 5 jogos fica de fora
-    let negocios = transferencias.filter(t => t.temporada === liga.temporada), jogos5 = {};
+    let negocios = transferencias.filter(t => t.temporada === liga.temporada), jogos5 = {}, saidas = transferencias.filter(t => t.de_clube === clube.id);
+    // posição da janela na linha do tempo (indice_da_janela, 38_janela_de_fim_de_temporada.sql); fora da janela não há trava (como no servidor)
+    const indice = (t, jan) => t * 2 + (jan === "meio" ? 1 : jan === "fim" ? 2 : 0), agora = janela ? indice(liga.temporada, janela) : null;
     const multas = () => negocios.filter(t => t.tipo === "multa");
     const perdas = id => multas().filter(t => t.de_clube === id), minhasCompras = () => multas().filter(t => t.para_clube === clube.id).length;
-    const carregarTravas = () => Promise.all([B.negociosDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null])
-      .then(([ns, js]) => { if (ns) negocios = ns; if (js) jogos5 = js; });
+    const carregarTravas = () => Promise.all([B.negociosDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null, B.saidasDoClube(clube.id)])
+      .then(([ns, js, ss]) => { if (ss) saidas = ss; if (ns) negocios = ns; if (js) jogos5 = js; });
     const mesmaDivisao = j => (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) === DIVISAO(clube.grupo);
     // travas da origem: o jogador some da lista
     const situacao = j => j.salario == null ? "sem contrato" : j.protegido ? "protegido" : (j.protegido_ate != null && j.protegido_ate >= liga.temporada) ? "primeira temporada" : (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) < DIVISAO(clube.grupo) ? "divisão acima" : j.pais !== meuPais && estrangeiros >= 5 ? "estrangeiros"
@@ -2141,10 +2154,11 @@ ${historicoDaBase()}
       return minhasCompras() >= 4 ? ["4 compras", "você já fez as 4 compras pela multa desta temporada"]
         : travaDoContrato(j) || (caixa != null && m > caixa ? ["caixa", `a multa é de ${dinheiro(m)} e o seu caixa é de ${dinheiro(caixa)}`] : null); };
     // travas da proposta que já dá para saber antes de digitar o valor (fazer_proposta e fechar_negocio, SQL 46 e 133).
-    // ponytail: ficam de fora "chegou nesta janela" e "saiu desse clube há pouco" (a lista não traz esses campos); o servidor avisa
     const travaDaProposta = (j, base) => j.aposenta_em != null ? "ele anunciou a aposentadoria"
       : janela === "meio" && mesmaDivisao(j) && (jogos5[j.id] || 0) >= 5 ? `ele já jogou ${jogos5[j.id]} partidas de liga pelo clube, e na janela do meio quem tem 5 ou mais não vai para outro clube da mesma divisão`
       : negocios.some(t => t.tipo === "negociada" && t.de_clube === j.clube_id && t.para_clube === clube.id) ? "esse clube já vendeu um jogador ao seu nesta temporada (é um negócio por temporada em cada sentido)"
+      : agora != null && j.chegou_temporada != null && indice(j.chegou_temporada, j.chegou_janela) === agora ? "ele chegou ao clube nesta janela: só pode ser vendido a partir da próxima"
+      : agora != null && saidas.some(t => String(t.jogador_id) === String(j.id) && agora - indice(t.temporada, t.janela) <= 2) ? "ele saiu do seu clube há pouco: só pode voltar depois de duas janelas"
       : (t => t && t[1])(travaDoContrato(j))
       || (caixa != null && caixa < faixaDaNegociacao(base).minimo ? `o seu caixa (${dinheiro(caixa)}) não cobre nem o valor mínimo da proposta (${dinheiro(faixaDaNegociacao(base).minimo)})` : null);
     const desenhar = () => {
@@ -2274,11 +2288,11 @@ ${historicoDaBase()}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        $("cvCorpo").innerHTML = `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
+        $("cvCorpo").innerHTML = `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <div class="patro-topo">${patroMaster(marcas[id])}</div>
-            <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>
+            <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>`}
           ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
           <div class="kpis" style="margin-bottom:12px">${kpi("Posição", eu && eu.j ? `${pos + 1}º<small> de ${tab.length}</small>` : "—", esc(nomeDoGrupo(c.grupo)))}
             ${kpi("Campanha", eu && eu.j ? `${eu.pts}<small> pts</small>` : "—", eu && eu.j ? `${eu.j} jogos · ${eu.v}V ${eu.e}E ${eu.d}D` : "ninguém jogou ainda")}

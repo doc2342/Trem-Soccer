@@ -421,7 +421,7 @@ export async function jogadoresDoMercado() {
   const ler = async campos => { const tudo = [];
     for (let de = 0; ; de += 1000) { const r = await sb.from("jogadores").select(campos).not("clube_id", "is", null).order("id").range(de, de + 999); if (r.error) throw new Error(r.error.message); tudo.push(...r.data); if (r.data.length < 1000) return tudo; } };
   // "pe" só existe depois do 44_pe_dominante.sql; sem ele, a busca funciona sem o filtro de pé
-  try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, pe, aposenta_em"); } catch (e0) { /* sem o SQL 46 */ }
+  try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, pe, aposenta_em, chegou_temporada, chegou_janela"); } catch (e0) { /* sem o SQL 46 */ }
   try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, pe"); } catch (e) { try { return await ler(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido"); } catch (e2) { return ler(CAMPOS_DO_MERCADO); } }
 }
 // M2: venda negociada (supabase/20_venda_negociada.sql). minhasPropostas devolve null enquanto o SQL 20 não foi executado.
@@ -439,6 +439,8 @@ export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraprop
 export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
 // travas do mercado: as multas e vendas negociadas da temporada (sem o limite de 200 linhas) e quem tem 5+ jogos de liga pelo clube (SQL 136)
 export const negociosDaTemporada = (ligaId, temporada) => sb.from("transferencias").select("tipo, de_clube, para_clube, janela").eq("liga_id", ligaId).eq("temporada", temporada).in("tipo", ["multa", "negociada"]).then(({ data, error }) => error ? null : data);
+// quem saiu do clube (para a quarentena: não volta por negociação na mesma janela nem nas duas seguintes)
+export const saidasDoClube = clubeId => sb.from("transferencias").select("jogador_id, temporada, janela").eq("de_clube", clubeId).then(({ data, error }) => error ? null : data);
 export const jogosPeloClube = ligaId => sb.rpc("jogos_pelo_clube", { p_liga: ligaId }).then(({ data, error }) => error ? null : Object.fromEntries(data.map(x => [x.jogador_id, x.jogos])));
 export const transferenciasDaLiga = (ligaId, limite = 200) => sb.from("transferencias").select("*").eq("liga_id", ligaId).order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
 export const protegerJogador = (jogadorId, proteger) => sb.rpc("proteger_jogador", { p_jogador: numero(jogadorId), p_proteger: proteger }).then(ok);
@@ -474,7 +476,7 @@ export const anularTransferencia = id => sb.rpc("anular_transferencia", { p_id: 
 export const definirDirigente = nome => sb.rpc("definir_dirigente", { p_nome: nome }).then(ok);
 export const clubePorId = id => sb.from("clubes").select("*").eq("id", id).maybeSingle().then(ok);
 export const jogadoresDoClube = async clubeId => { // mesmo formato da lista do mercado
-  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, aposenta_em").eq("clube_id", clubeId).order("id");
+  const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido, aposenta_em, chegou_temporada, chegou_janela").eq("clube_id", clubeId).order("id");
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("clube_id", clubeId).order("id").then(ok) : r.data;
 };
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
