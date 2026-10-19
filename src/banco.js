@@ -286,6 +286,8 @@ export const comprarRelatorio = (jogadorId, nivel) => sb.rpc("comprar_relatorio"
 export const venderPeloAgente = jogadorId => sb.rpc("vender_pelo_agente", { p_jogador: numero(jogadorId) }).then(ok);
 // Base e dispensa (supabase/35_base_e_dispensa.sql). A peneira passa pela função "mercado", que gera os jovens no servidor.
 export const dispensarJogador = jogadorId => sb.rpc("dispensar_jogador", { p_jogador: numero(jogadorId) }).then(ok);
+// rescisão de quem tem de 22 a 30 anos (133_dispensa_com_multa_e_venda_de_juvenil.sql): null antes do SQL 133
+export const multaDaDispensa = jogadorId => sb.rpc("multa_da_dispensa", { p_jogador: numero(jogadorId) }).then(({ data, error }) => error ? null : +data);
 export const rodadasCompletas = ligaId => sb.rpc("rodadas_completas", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);
 // Liga de base (61_liga_de_base.sql): partidas do grupo na temporada, campeões, e as duas chamadas do administrador
 export const jogosDaBase = (ligaId, temporada, grupo) => sb.from("base_jogos").select("id, rodada, casa, fora, inicio, processada, gols_casa, gols_fora, dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("grupo", grupo).order("rodada").order("id").then(({ data, error }) => error ? null : data);
@@ -409,7 +411,7 @@ export const economiasGuardadas = ligaId => sb.from("economia_temporadas").selec
 export const lucrosDaTemporada = ligaId => sb.rpc("lucros_da_temporada", { p_liga: ligaId }).then(({ data, error }) => error ? [] : data);
 // M1: mercado (supabase/19_mercado.sql e a função "mercado")
 export const janelaDoMercado = ligaId => sb.rpc("janela_do_mercado", { p_liga: ligaId }).then(({ data, error }) => error ? undefined : data); // undefined: mercado ainda não ligado
-const CAMPOS_DO_MERCADO = "id, clube_id, nome, pais, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido";
+const CAMPOS_DO_MERCADO = "id, clube_id, nome, pais, idade, pos, fam, at, salario, salario_mercado, contrato_ate, protegido_ate, protegido, juvenil";
 export const jogadoresDaPosicao = async pos => { // com a lista de transferência (SQL 20) quando ela já existe
   const r = await sb.from("jogadores").select(CAMPOS_DO_MERCADO + ", a_venda, preco_pedido").eq("pos", pos).order("id");
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("pos", pos).order("id").then(ok) : r.data;

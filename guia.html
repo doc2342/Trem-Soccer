@@ -156,9 +156,9 @@ const secoes = [
   <ul>
     <li>A peneira é um botão em Base, uma vez por temporada, liberado depois da rodada ${CONFIG_BASE.rodadaDaPeneira}.</li>
     <li>Base de nível mais alto traz gente mais pronta: a nota de chegada fica perto de 15 mais 1,5 por nível. O talento não depende da base. A cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes; base melhor dá mais chance.</li>
-    <li>O jovem chega como juvenil: sem contrato nem salário. Treina, joga a base, mas não joga partida oficial e não pode ser vendido. Para usá-lo, profissionalize-o na ficha dele (contrato de 1 a 3 temporadas pelo salário de mercado). Quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.</li>
+    <li>O jovem chega como juvenil: sem contrato nem salário. Treina, joga a base, mas não joga partida oficial e não sai pela multa. A partir dos 18 anos pode ser vendido por proposta aceita, só com a janela aberta (nunca em pré-acordo); a faixa de valor é calculada sobre o salário de mercado dele, e ele chega ao comprador profissional, com o contrato da proposta. Para usá-lo, profissionalize-o na ficha dele (contrato de 1 a 3 temporadas pelo salário de mercado). Quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.</li>
     <li>O elenco comporta ${LIMITE_DE_CONTRATADOS} jogadores com contrato e ${LIMITE_DE_JUVENIS} juvenis.</li>
-    <li>Formado no clube: sem multa rescisória e sem pré-contrato até os ${CONFIG_BASE.idadeDeJuvenil} anos, conta ${pct(PESO_DO_FORMADO)} do salário no teto de folha e rende 5% de toda venda futura dele entre outros clubes.</li>
+    <li>Formado no clube: sem multa rescisória e sem pré-contrato até os ${CONFIG_BASE.idadeDeJuvenil} anos, conta ${pct(PESO_DO_FORMADO)} do salário no teto de folha e rende ao clube formador uma parte de toda venda futura dele entre outros clubes: 3% por temporada que passou no clube, da chegada à base até a saída (mínimo 3%, máximo 15%; empréstimo não conta como saída).</li>
     <li>Jovem que não serve pode ser dispensado: vira jogador livre.</li>
   </ul>
   <h3>Liga de base, Copinha e Libertadores Juvenil</h3>
@@ -194,7 +194,7 @@ const secoes = [
     ["Lista de transferência + proposta", "O combinado, menos a taxa", "Taxa de 30% se vender na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. As taxas vão para o fundo da liga"],
     ["Agente", "De 1 a 2,5 vezes o salário de mercado", `Venda garantida a um clube do bot; o preço do dia aparece na tela e cai a cada venda. Só na janela, até ${VENDAS_PELO_AGENTE} por temporada`],
     ["Empréstimo a bot", "Metade do salário", "O jogador joga pelo bot até a virada e volta"],
-    ["Dispensa", "Nada", "Só até 21 anos ou com 31 ou mais; o jogador vira livre e vai a leilão"],
+    ["Dispensa", "Nada até 21 anos ou com 31 ou mais; de 22 a 30, 50% do salário que falta até o fim do contrato", "O jogador vira livre e vai a leilão; quem dispensou não o contrata de novo nesta temporada nem na seguinte"],
     ["Pré-acordo", "O combinado", "Proposta entre dirigentes no período de pré-acordos; acontece na virada"],
   ])}
   <h3>Travas</h3>
