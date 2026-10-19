@@ -70,7 +70,8 @@
   .colunas .card { display:inline-block; width:100%; }
   /* chave do mata-mata */
   .chave { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; }
-  .ch-col { flex:1 0 104px; min-width:104px; max-width:170px; display:flex; flex-direction:column; }
+  .ch-col { flex:1 0 96px; min-width:96px; max-width:160px; display:flex; flex-direction:column; }
+  .ch-ponta { flex:1.8 0 150px; max-width:240px; } /* a 1ª fase é a única cheia de nomes desde o sorteio: ganha a largura que sobra das fases vazias */
   .ch-final .ch-f { color:var(--ac); } .ch-final .ch-j { border-color:var(--ac); }
   .ch-f { font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); text-align:center; margin-bottom:6px; }
   .ch-jogos { flex:1; display:flex; flex-direction:column; justify-content:space-around; gap:6px; }
@@ -695,7 +696,7 @@ async function telaClube(liga, clube) {
     // espelhada: a metade de cima de cada fase à esquerda, a de baixo à direita (colunas na ordem inversa) e a final no centro
     const coluna = (f, metade) => { const n = 2 ** (6 - f), ini = metade === 1 ? n / 2 : 0, fim = metade === 0 ? n / 2 : n;
       const itens = por[f].length ? por[f].slice(ini * por[f].length / n, fim * por[f].length / n).map(caixa) : Array.from({ length: fim - ini }, (_, i) => vazio(f, ini + i));
-      return `<div class="ch-col ${f === 6 ? "ch-final" : ""}"><div class="ch-f">${f === 6 ? "🏆 " : ""}${FASES_DA_COPA[f]}</div><div class="ch-jogos">${itens.join("")}</div></div>`; };
+      return `<div class="ch-col ${f === 6 ? "ch-final" : f === arvore[0] ? "ch-ponta" : ""}"><div class="ch-f">${f === 6 ? "🏆 " : ""}${FASES_DA_COPA[f]}</div><div class="ch-jogos">${itens.join("")}</div></div>`; };
     const lados = arvore.filter(f => f < 6);
     const arv = `<div class="chave">${lados.map(f => coluna(f, 0)).join("")}${coluna(6)}${lados.slice().reverse().map(f => coluna(f, 1)).join("")}</div>`;
     if (!prel) return arv;
