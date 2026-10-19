@@ -104,6 +104,7 @@
 </main>
 
 <script type="module">
+import { SEDES } from "./src/estadio.js";
 import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
@@ -318,7 +319,7 @@ function topo(gols, m, narracao = [], pre = null) {
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
-  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · campo neutro` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>${(jp => jp && jp.id === partida.id ? `<div class="competicao" style="color:var(--ac);margin-top:4px">${selo(jp.marca, 18)} ${esc(jp.nome)}</div>` : "")(rodada && !ehCopa(partida) ? (rodada.jp ??= jogoPatrocinado(rodada.daRodada, classificacao(rodada.clubes, rodada.ps.filter(p => p.rodada < partida.rodada), rodada.res).map(t => t.clube.id))) : null)}
+  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · ${SEDES[partida.sede] ? `<a href="sede.html?s=${partida.sede}" style="color:inherit">${SEDES[partida.sede].nome}</a> · ${SEDES[partida.sede].lugares.toLocaleString("pt-BR")} lugares` : "campo neutro"}` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>${(jp => jp && jp.id === partida.id ? `<div class="competicao" style="color:var(--ac);margin-top:4px">${selo(jp.marca, 18)} ${esc(jp.nome)}</div>` : "")(rodada && !ehCopa(partida) ? (rodada.jp ??= jogoPatrocinado(rodada.daRodada, classificacao(rodada.clubes, rodada.ps.filter(p => p.rodada < partida.rodada), rodada.res).map(t => t.clube.id))) : null)}
     <div class="painel"><div class="uni-g">${svgUniforme(u[0], 88)}</div><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} <span class="uni-p">${svgUniforme(u[0], 26)}</span></span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} <span class="uni-p">${svgUniforme(u[1], 26)}</span></span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div><div class="uni-g">${svgUniforme(u[1], 88)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
@@ -345,7 +346,7 @@ const milhar = v => Math.round(v).toLocaleString("pt-BR");
 function htmlEstadio(pre) {
   const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null;
   const kpi = (rot, v, d) => `<div class="kpi"><div class="kl">${rot}</div><div class="kv">${v}</div>${d ? `<div class="kd">${d}</div>` : ""}</div>`;
-  return `<div class="kpis k3">${kpi("Público", partida.publico != null ? milhar(partida.publico) : "–", "pagantes")}
+  return `<div class="kpis k3">${kpi("Público", partida.publico != null ? milhar(partida.publico) : "–", SEDES[partida.sede] ? `pagantes, de ${milhar(SEDES[partida.sede].lugares)}${partida.publico >= SEDES[partida.sede].lugares ? " · esgotado" : ""}` : "pagantes")}
     ${kpi("Renda", renda != null ? (renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil") : "–", ehCopa(partida) ? "dividida meio a meio" : "do mandante")}
     ${kpi("Clima", pre && pre.clima ? `${pre.clima.temp} °C` : "–", pre && pre.clima ? esc(pre.clima.nome.toLowerCase()) + (pre.grande ? " · jogo grande" : "") : "")}</div>`;
 }
@@ -383,7 +384,7 @@ function htmlAbertura(pre, cronologico = false, semTimes = false) {
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
   const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.</span>` : ""}</span></div>`;
   const partes = [...(semTimes ? [] : [time(pre.escalacoes[1], 1), time(pre.escalacoes[0], 0)]),
-    `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ao estádio. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`,
+    `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ${SEDES[partida.sede] ? "ao " + SEDES[partida.sede].nome : "ao estádio"}. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`,
     `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`];
   return (cronologico ? partes.reverse() : partes).join("");
 }

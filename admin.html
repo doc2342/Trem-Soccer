@@ -18,6 +18,8 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
+import { sb } from "./src/banco.js";
+import { SEDES, FINAIS } from "./src/estadio.js";
 import { notaBruta, paisDoGrupo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./src/rodada.js";
@@ -29,6 +31,10 @@ import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
   partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
+// troca da sede de uma final (132_estadio_real.sql)
+document.addEventListener("change", async e => { const x = e.target.closest("[data-sede]"); if (!x) return;
+  const av = document.getElementById("sedeAviso"), { error } = await sb.rpc("trocar_sede", { p_liga: +x.dataset.liga, p_chave: x.dataset.sede, p_sede: x.value });
+  if (av) av.innerHTML = error ? `<span class="bad">${error.message}</span>` : `<span class="ok">${FINAIS[x.dataset.sede]}: ${SEDES[x.value].nome}.</span>`; });
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
 
 const $ = id => document.getElementById(id);
@@ -205,6 +211,9 @@ async function tela(aviso = "") {
          <div class="row"><label>Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label>Intervalo entre as datas (minutos)<input type="number" id="intervalo" value="1440" min="1" style="width:110px"></label><label title="Fora desse horário o relógio do calendário para: o intervalo conta só minutos do dia, e cada transmissão acaba até a hora final. 0 e 24 = sem restrição.">Jogos só entre (h)<span><input type="number" id="abre" value="0" min="0" max="23" style="width:55px"> e <input type="number" id="fecha" value="24" min="1" max="24" style="width:55px"></span></label>
          <label>Duração da transmissão (minutos; 0 = relatório instantâneo)<input type="number" id="duracao" value="105" min="0" style="width:110px"></label><label>Tática fecha antes do apito (segundos)<input type="number" id="prazo" value="1" min="0" style="width:110px"></label><label style="flex-direction:row;align-items:center;gap:6px" title="Uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga; precisa do SQL 47"><input type="checkbox" id="comCopa" checked> Com a Copa do Brasil</label><button id="gerar">Gerar o calendário</button></div>
          <div class="mut" style="margin-top:6px">Duração 105 = transmissão ao vivo em tempo real (lances minuto a minuto, relatório só no apito final). Um número menor acelera o jogo (15 = partida inteira em 15 minutos); 0 mostra o resultado e o relatório na hora, sem transmissão. A tática fechando 1 segundo antes é valor de teste; na liga de verdade serão 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.</div>`}</div>` : ""}
+    ${liga ? `<div class="card"><h2>Sedes das finais <span class="tag">132_estadio_real.sql · sorteadas por temporada; trocar vale também para a final já marcada</span></h2>
+      ${liga.sedes && liga.sedes.temporada === liga.temporada ? `<div class="row">${Object.entries(FINAIS).map(([k, n]) => `<label>${n}<select data-sede="${k}" data-liga="${liga.id}">${Object.entries(SEDES).map(([sk, sv]) => `<option value="${sk}" ${(liga.sedes[k] || (k === "LIB" ? "maracana" : "")) === sk ? "selected" : ""}>${sv.nome} (${sv.lugares.toLocaleString("pt-BR")})</option>`).join("")}</select></label>`).join("")}</div><div class="mut" id="sedeAviso" style="margin-top:6px"></div>`
+        : `<div class="mut">O sorteio desta temporada sai quando a primeira final for marcada (ou quando alguém abrir a página de uma sede).</div>`}</div>` : ""}
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
       <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>

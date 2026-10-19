@@ -11,6 +11,7 @@ import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS } from "./siglas.js";
+import { SEDES, sedeDoJogo, chaveDaFinal, configDaSede, desenharEstadio } from "./estadio.js";
 
 const HTML = `  <div id="cabecalho"></div>
   <h1 class="soLocal">Escalação e tática</h1>
@@ -135,6 +136,14 @@ function novoElenco() {
 // Prévia do próximo adversário, feita pelo analista do clube. Quanto maior a skill dele, mais a prévia mostra:
 // qualquer analista dá a formação provável e a força do onze; com skill 20, o estilo de jogo; com 35, como enfrentar.
 // O adversário comandado por bot é previsto com o mesmo código que o bot usa; o de dirigente pode jogar diferente.
+// final em sede real: o 3D da sede embaixo da prévia (uma cena só; a anterior é destruída)
+let cenaDaSede = null;
+function sedeNaPrevia() {
+  const jogo = proximoJogo, el = $("previa"), a = el && el.querySelector('a[href^="sede.html"]'); if (cenaDaSede) { cenaDaSede.destruir(); cenaDaSede = null; }
+  if (!jogo || !a) return;
+  const d = document.createElement("div"); d.style.cssText = "height:240px;border-radius:8px;overflow:hidden;margin-top:8px"; el.appendChild(d);
+  desenharEstadio(d, configDaSede(new URLSearchParams(a.search).get("s"), chaveDaFinal(jogo))).then(v => { cenaDaSede = v; }).catch(() => d.remove());
+}
 async function previaDoAdversario(B) {
   const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
   if (comissao == null) return; // comissão técnica ainda não ligada no banco
@@ -144,7 +153,9 @@ async function previaDoAdversario(B) {
   if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
   const clima = climaDaPartida(jogo.id), emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + (jogo.fase === "lib" ? " da " + B.nomeDoGrupo(jogo.grupo) : " da copa") : jogo.fase === "liga" ? "rodada " + jogo.rodada : B.nomeDoPlayoff(jogo).toLowerCase()} · ${dia} · ${copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
+  const sd = copa ? sedeDoJogo(jogo, await B.ligaAtual()) : null; // final em sede real (132_estadio_real.sql)
+  const topo = `<h2>Próximo adversário <span class="tag">${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "copa").toLowerCase() + (jogo.fase === "lib" ? " da " + B.nomeDoGrupo(jogo.grupo) : " da copa") : jogo.fase === "liga" ? "rodada " + jogo.rodada : B.nomeDoPlayoff(jogo).toLowerCase()} · ${dia} · ${sd ? `final no ${SEDES[sd].nome}` : copa ? "campo neutro" : emCasa ? "em casa" : "fora"}</span></h2>
+    ${sd ? `<div><a href="sede.html?s=${sd}" style="color:var(--ac)">${SEDES[sd].nome}</a>, ${SEDES[sd].cidade} · ${SEDES[sd].lugares.toLocaleString("pt-BR")} lugares · público das duas torcidas, renda meio a meio</div>` : ""}
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>
     <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${efeitoDoClima(clima) ? ` <span class="aviso">· ${efeitoDoClima(clima)}</span>` : ""}</div>
     ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
@@ -243,7 +254,7 @@ async function iniciarOnline(sessaoDeTeste) {
       : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, o bot escala o seu time.";
   };
   await situacao();
-  previaDoAdversario(B).catch(() => { $("previa").hidden = true; }); // sem esperar: a prévia aparece quando ficar pronta
+  previaDoAdversario(B).then(sedeNaPrevia).catch(() => { $("previa").hidden = true; }); // sem esperar: a prévia aparece quando ficar pronta
   $("salvarOnline").onclick = async () => {
     const V = validar();
     if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }

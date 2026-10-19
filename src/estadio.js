@@ -10,7 +10,26 @@
 import { temRefletores, estacionamentoDoEstadio, lugaresDoEstadio, bonusDoEstadio } from "./economia.js";
 import { MARCAS, placasDoJogo, ANUNCIE } from "./patrocinio.js";
 export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira", laterais: "Estádio do Braga", inflavel: "Allianz Arena", sansiro: "San Siro", wembley: "Wembley", maracana: "Maracanã" };
-export const PADROES_DO_ESTADIO = { setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
+// Sedes reais das finais (132_estadio_real.sql): sem dono, nome e capacidade de verdade; nivel = o desenho mais próximo da capacidade
+export const SEDES = {
+  maracana: { nome: "Maracanã", cidade: "Rio de Janeiro", lugares: 78838, nivel: 8, cores: ["#1d4f9c", "#f2c200"], entorno: "centro" },
+  wembley: { nome: "Wembley", cidade: "Londres", lugares: 90000, nivel: 8, cores: ["#c8102e", "#ffffff"], entorno: "bairro" },
+  sansiro: { nome: "San Siro", cidade: "Milão", lugares: 75817, nivel: 8, cores: ["#b3202a", "#1f3f8a"], entorno: "bairro" },
+  inflavel: { nome: "Allianz Arena", cidade: "Munique", lugares: 75024, nivel: 8, cores: ["#c8102e", "#ffffff"], entorno: "bairro" },
+  bomboneira: { nome: "La Bombonera", cidade: "Buenos Aires", lugares: 54000, nivel: 7, cores: ["#123d8c", "#f2c200"], entorno: "rio" },
+  laterais: { nome: "Municipal de Braga", cidade: "Braga", lugares: 30286, nivel: 5, cores: ["#b3202a", "#ffffff"], entorno: "bairro" } };
+export const FINAIS = { LIB: "Libertadores", COPA: "Copa", SUL: "Sul-Americana", SUP: "Supercopa", REC: "Recopa" };
+// competição de uma final (a mesma conta de chave_da_final no SQL)
+export const chaveDaFinal = p => p.fase === "copa" && p.copa_fase === 0 ? "SUP" : p.fase === "copa" && p.copa_fase === 6 ? "COPA" : p.fase === "lib" && p.copa_fase === 6 ? p.grupo || "LIB" : null;
+// sede do jogo: a gravada na partida ou a da temporada (liga.sedes); a Libertadores é sempre no Maracanã
+export const sedeDoJogo = (p, liga) => { const k = chaveDaFinal(p); return !k ? null : p.sede || (k === "LIB" ? "maracana" : liga?.sedes?.temporada === liga?.temporada ? liga.sedes[k] : null) || null; };
+// config da sede; comp = chave da final (mosaico com o nome dela); festa = campeão { nome, cores } no mosaico da arquibancada norte
+export function configDaSede(chave, comp, festa) {
+  const s = SEDES[chave] || SEDES.maracana;
+  return { modelo: SEDES[chave] ? chave : "maracana", nivel: s.nivel, obra: 1, nomeEstadio: s.nome, mosaico: (FINAIS[comp] || s.nome).toUpperCase(), padrao: "sigla",
+    cores: s.cores, corEscadas: "#f2c200", cidade: s.entorno, clube: "SEDE", semente: 7, humor: 12, ocupacao: 0.9, festa: festa || null };
+}
+export const PADROES_DO_ESTADIO ={ setor: "Por setor", listras: "Anéis", sigla: "Nome no mosaico" };
 export const COBERTURAS = { "": "Nenhuma", N: "Só a principal", NS: "Laterais", NSEW: "Todas" };
 
 const FA = 52.5, FB = 34, DEP = 0.85, RISE = 0.42, CELL = 1.0, LS = 42.195, RI = 36.5, RO = RI + 9.76, POD = 2.4, PASSO_ESC = 24;
@@ -249,11 +268,14 @@ function construir() {
   const pad = C.padrao, k = C.cores.length, hx = [...C.cores, "#f2f2f2", "#c8102e"].slice(0, 3), cols = C.cores.map(c => new T.Color(c)), sig = (C.mosaico || " ").toUpperCase(), nomeE = (C.nomeEstadio || "").toUpperCase().trim();
   const LM = m.mosaico || "N", mr = LM == "W" ? rows : Math.min(rows, 28), meia = (LM == "W" ? m.b0 : m.a0) - 4, uDe = p => ((LM == "W" ? -p.z : p.x) / meia + 1) / 2;
   const msk = mascara(sig, mr, meia, LM == "W" ? m.muralha : 1); marcarEscadas(pos);
+  // festa do título: a torcida do campeão toma a arquibancada do mosaico com o nome e as cores do clube
+  const fcs = ((C.festa && C.festa.cores) || []).filter(x => HEX.test(x)), fes = fcs.length ? { c: fcs.map(c => new T.Color(c)), k: mascara((C.festa.nome || " ").toUpperCase(), mr, meia, LM == "W" ? m.muralha : 1) } : null;
   const naArea = p => { if (pad != "sigla" || p.ld != LM || p.r >= mr) return false; const u = uDe(p); return u > msk.u0 - 0.025 && u < msk.u1 + 0.025; };
   const CONC = new T.Color("#bdb9ae"), OBRA = new T.Color("#9d998f"), SKY = new T.Color("#33393f"), ESCD = new T.Color(C.corEscadas);
   for (const p of pos) { const r = p.r, ld = p.ld; let c;
     if (!pronto(p.x, p.z, ld, r)) c = OBRA;
     else if (r >= 28 && r <= 30 && !p.dep) c = SKY; else if (p.ponta || (m.anel && r == m.anel)) c = CONC;
+    else if (fes && ld == LM && r < mr) { const u = uDe(p), v = 1 - (r + .5) / mr; c = u > 0 && u < 1 && fes.k(u, v) ? fes.c[1] || new T.Color("#fff") : fes.c[0]; }
     else if (p.esc && !naArea(p)) c = ESCD;
     else if (pad == "setor") { const mp = k == 1 ? { N: 0, E: 0, S: 0, W: 0 } : k == 2 ? { N: 0, E: 1, S: 0, W: 1 } : { N: 0, S: 1, E: 2, W: 2 }; c = cols[mp[ld]]; }
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
@@ -328,7 +350,7 @@ function construir() {
     const ei = m.b0 + rows * DEP * 0.28, cab = []; for (let x = -(FA + 1); x <= FA + 1; x += 7) cab.push(x, yC + 0.6, -ei, x, yC + 0.6, ei);
     const gc = new T.BufferGeometry(); gc.setAttribute("position", new T.Float32BufferAttribute(cab, 3)); grp.add(new T.LineSegments(gc, new T.LineBasicMaterial({ color: "#3d3d3a" }))); }
   if (m.pele) { // Inflável: almofadas em losango em volta de tudo, na cor do clube; a pele estufa no meio da altura
-    const Hs = teto ? yT + 0.5 : topH + 2, e = Math.min(1, Hs / 30), ta = 2.6 * Math.max(0.6, e), of = y => 1.5 + 1.5 * e + 5 * e * Math.sin(Math.PI * y / Hs), base = new T.Color(hx[0]), alm = [], DY = ta * 0.707, DX = ta * 1.414; rng = 41;
+    const Hs = teto ? yT + 0.5 : topH + 2, e = Math.min(1, Hs / 30), ta = 2.6 * Math.max(0.6, e), of = y => 1.5 + 1.5 * e + 5 * e * Math.sin(Math.PI * y / Hs), base = new T.Color(fes ? fcs[0] : hx[0]), alm = [], DY = ta * 0.707, DX = ta * 1.414; rng = 41;
     for (let j = 0, y = DY / 2; y < Hs - 0.6; j++, y += DY) { const pts = walk(contorno(m, aM + of(y), bM + of(y)), DX), use = j % 2 ? pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2, ang: p.ang }; }) : pts;
       for (const p of use) alm.push({ ...p, y, c: base.clone().lerp(new T.Color("#ffffff"), 0.2 + 0.25 * rnd()) }); }
     const im = new T.InstancedMesh(box, new T.MeshLambertMaterial({ emissive: base.clone().multiplyScalar(0.25) }), alm.length); dm.rotation.order = "YXZ";

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Sede</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="atualiza.js"></script>
+<style>
+  .cabeca { padding:16px 18px; border-top:4px solid var(--ac); }
+  .cabeca h2 { margin:0; font-size:34px !important; line-height:1; font-weight:700 !important; }
+  .num { display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; } .num b { display:block; font-family:var(--display); font-weight:600; font-size:24px; } .num .mut { font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; }
+  #cena { height:420px; border-radius:8px; overflow:hidden; background:var(--line); } @media (max-width:620px) { #cena { height:300px; } .cabeca h2 { font-size:26px !important; } }
+  .sedes { display:flex; gap:8px; flex-wrap:wrap; } .sedes a { color:var(--ac); text-decoration:none; padding:4px 10px; border:1px solid var(--line); border-radius:999px; font-size:13px; }
+  .sedes a.on { background:var(--ac); color:#fff; border-color:var(--ac); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; } td, th { padding:6px 4px; border-bottom:1px solid var(--line); text-align:left; } th { font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--mut); }
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)" onclick="if (history.length > 1) { history.back(); return false; }">← Voltar</a><span class="relogio" style="margin-left:auto" title="Hora deste aparelho"></span></div>
+  <div id="corpo"><div class="card mut">Carregando…</div></div>
+</main>
+
+<script type="module">
+import { sb, ligaAtual, clubesPorIds } from "./src/banco.js";
+import { desenharEstadio, SEDES, FINAIS, configDaSede } from "./src/estadio.js";
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const s = SEDES[new URLSearchParams(location.search).get("s")] ? new URLSearchParams(location.search).get("s") : "maracana", sede = SEDES[s];
+const mil = n => (+n || 0).toLocaleString("pt-BR");
+let cena = null;
+const desenhar = cfg => { const el = document.getElementById("cena"); if (cena) { cena.destruir(); cena = null; } desenharEstadio(el, cfg).then(v => { cena = v; }).catch(e => { el.innerHTML = `<div class="mut" style="padding:10px">${esc(e.message)}</div>`; }); };
+
+async function carregar() {
+  document.title = "Trem Soccer · " + sede.nome;
+  const liga = await ligaAtual();
+  const sedes = liga ? ((await sb.rpc("sedes_da_temporada", { p_liga: liga.id })).data || liga.sedes || {}) : {};
+  const aqui = Object.keys(FINAIS).filter(k => (k === "LIB" ? "maracana" : sedes[k]) === s);
+  const finais = liga ? ((await sb.from("finais_nas_sedes").select("*").eq("liga_id", liga.id).eq("sede", s).order("temporada", { ascending: false }).order("criado_em", { ascending: false })).data || []) : [];
+  const ultima = finais.find(f => f.campeao);
+  const camp = ultima ? (await clubesPorIds([ultima.campeao]))[0] : null;
+  const festa = camp ? { nome: camp.nome, cores: [camp.escudo?.cor1 || "#0b3d91", camp.escudo?.cor2 || "#ffffff"] } : null;
+  const placar = f => `${esc(f.casa_nome)} ${f.gols_casa} x ${f.gols_fora} ${esc(f.fora_nome)}${f.gols_casa === f.gols_fora ? " (pên.)" : ""}`;
+  document.getElementById("corpo").innerHTML = `
+    <div class="card"><div class="sedes">${Object.entries(SEDES).map(([k, v]) => `<a href="sede.html?s=${k}" class="${k === s ? "on" : ""}">${esc(v.nome)}</a>`).join("")}</div></div>
+    <div class="card cabeca"><h2>${esc(sede.nome)}</h2><div class="mut">${esc(sede.cidade)} · sede oficial das finais</div>
+      <div class="num"><div><b>${mil(sede.lugares)}</b><span class="mut">lugares</span></div><div><b>${finais.length}</b><span class="mut">finais aqui</span></div>
+        <div><b>${aqui.length ? aqui.map(k => FINAIS[k]).join(", ") : "—"}</b><span class="mut">final desta temporada</span></div></div></div>
+    <div class="card"><div id="cena"></div>
+      ${festa ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="bFesta">Ver a festa do ${esc(camp.nome)}</button><span class="mut" style="font-size:12.5px">Último campeão aqui: ${esc(FINAIS[ultima.competicao] || "")} ${ultima.temporada}</span></div>` : ""}</div>
+    <div class="card"><h3>Finais disputadas aqui</h3>${finais.length ? `<table><tr><th>Temp.</th><th>Competição</th><th>Jogo</th><th>Campeão</th><th>Público</th></tr>
+      ${finais.map(f => `<tr><td>${f.temporada}</td><td>${esc(FINAIS[f.competicao] || f.competicao)}</td><td>${placar(f)}</td><td><b>${esc(f.campeao_nome || "—")}</b></td><td>${mil(f.publico)}</td></tr>`).join("")}</table>`
+      : `<div class="mut">Nenhuma final jogada aqui ainda.</div>`}</div>`;
+  let emFesta = false;
+  desenhar(configDaSede(s, aqui[0]));
+  const b = document.getElementById("bFesta");
+  if (b) b.onclick = () => { emFesta = !emFesta; b.textContent = emFesta ? "Ver o mosaico da sede" : `Ver a festa do ${camp.nome}`; desenhar(configDaSede(s, aqui[0] || ultima.competicao, emFesta ? festa : null)); };
+}
+carregar().catch(e => { document.getElementById("corpo").innerHTML = `<div class="card bad">${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>
