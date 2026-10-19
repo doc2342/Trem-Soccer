@@ -227,7 +227,7 @@ function halo(x, y, z, tam, k) { const sp = new T.Sprite(new T.SpriteMaterial(br
 // a mancha de luz que um poste joga no chão
 function poca(x, z, tam, k) { const me = new T.Mesh(new T.PlaneGeometry(tam, tam), new T.MeshBasicMaterial(brilho(k))); me.rotation.x = -Math.PI / 2; me.position.set(x, 0.12, z); grp.add(me); }
 function torre(x, z, H) { const g = new T.Group(); g.position.set(x, 0, z); grp.add(g);
-  if (luzNoite) { halo(x, H + 4.6, z, 24, 0.95 * luzNoite); const f = new T.SpotLight(0xfff2d8, 0.55 * luzNoite, 0, 0.6, 0.6, 1); f.position.set(x, H + 3, z); f.target.position.set(0, 0, 0); grp.add(f, f.target); }
+  if (luzNoite) { halo(x, H + 4.6, z, 24, 0.95 * luzNoite); const f = new T.SpotLight(0xfff2d8, 0.7 * luzNoite, 1.5 * Math.hypot(x, z, H), 0.6, 0.6, 1); /* o foco some logo depois do gramado */ f.position.set(x, H + 3, z); f.target.position.set(0, 0, 0); grp.add(f, f.target); }
   const base = new T.Mesh(new T.BoxGeometry(3.2, 1, 3.2), lam("#bdb9ae")); base.position.y = 0.5; g.add(base);
   const mast = new T.Mesh(new T.CylinderGeometry(0.55, 1.05, H, 18), AÇO); mast.position.y = H / 2; mast.castShadow = true; g.add(mast);
   for (let y = 6; y < H - 2; y += 6) { const r = new T.Mesh(new T.CylinderGeometry(0.9 - 0.4 * y / H, 0.9 - 0.4 * y / H, 0.25, 18), ESC); r.position.y = y; g.add(r); }
@@ -244,6 +244,17 @@ function telaDaFesta() { const c = document.createElement("canvas"); c.width = 5
   x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffd23f"; x.font = "bold 92px sans-serif"; x.fillText("CAMPEÃO", 288, 102);
   const nome = (C.festa.nome || "").toUpperCase(); x.fillStyle = "#ffffff"; x.font = `bold ${Math.min(52, Math.floor(980 / Math.max(1, nome.length)))}px sans-serif`; x.fillText(nome, 288, 186);
   const t = new T.CanvasTexture(c); t.anisotropy = 4; return t; }
+// carro que chega à noite: rente ao sul do estacionamento, sobe pela borda oeste e entra no primeiro corredor; set(k) com k de 0 a 1 (k < 0 esconde)
+function carroChegando(L) { const g = new T.Group(), x0 = -L.W / 2 - 3, zr = L.z1 + 6, zc = L.z0 + L.bands[0] + 5;
+  const caminho = [[x0 - 30, zr], [x0, zr], [x0, zc], [x0 + 40, zc]], seg = caminho.slice(1).map((p, i) => Math.hypot(p[0] - caminho[i][0], p[1] - caminho[i][1])), tot = seg.reduce((a, b) => a + b, 0);
+  const corpo = new T.Mesh(new T.BoxGeometry(4.2, 1.1, 1.9), lam(["#c8102e", "#e6e1d4", "#2c3e66", "#3d3d3a"][(C.semente | 0) % 4])); corpo.position.y = 0.75; g.add(corpo);
+  const teto = new T.Mesh(new T.BoxGeometry(2.2, 0.7, 1.7), lam("#1d232b")); teto.position.set(-0.3, 1.6, 0); g.add(teto);
+  for (const s of [-0.6, 0.6]) { const h = new T.Sprite(new T.SpriteMaterial(brilho(1))); h.position.set(2.3, 0.8, s); h.scale.set(5, 5, 1); g.add(h); }
+  const facho = new T.Mesh(new T.PlaneGeometry(18, 8), new T.MeshBasicMaterial(brilho(0.7))); facho.rotation.x = -Math.PI / 2; facho.position.set(10, 0.15, 0); g.add(facho);
+  g.visible = false; grp.add(g);
+  return k => { if (k < 0) { g.visible = false; return; } g.visible = true; let d = Math.min(1, k * 1.15) * tot, i = 0; while (i < seg.length - 1 && d > seg[i]) d -= seg[i++];
+    const [ax, az] = caminho[i], [bx, bz] = caminho[i + 1], f = Math.min(1, d / seg[i]); g.position.set(ax + (bx - ax) * f, 0, az + (bz - az) * f); g.rotation.y = -Math.atan2(bz - az, bx - ax); };
+}
 function telao(x, y, z, pe) { const g = new T.Group(), tl = new T.Mesh(new T.BoxGeometry(1, 8, 18), [0, 1, 2, 3, 4, 5].map(i => i == 0 && C.festa ? new T.MeshBasicMaterial({ map: telaDaFesta() }) : new T.MeshLambertMaterial({ color: i == 0 ? "#185FA5" : "#2c2c2a", emissive: i == 0 ? "#0c447c" : "#000" }))); tl.castShadow = true; g.add(tl);
   for (const s of [-6, 6]) { const p = new T.Mesh(new T.BoxGeometry(0.4, Math.abs(pe), 0.4), lam("#5f5e5a")); p.position.set(0, pe > 0 ? 4 + pe / 2 : -4 + pe / 2, s); g.add(p); }
   g.position.set(x, y, z); g.rotation.y = Math.atan2(z, -x); grp.add(g); }
@@ -271,7 +282,11 @@ export async function desenharEstadio(el, config) {
   atualizar(config);
   // posição na tela (pixels da cena) dos pontos de fumaça, para o canvas por cima acompanhar a câmera
   const pontosDaFesta = () => { const w = el.clientWidth, h = Math.round(w * 0.62); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
-  return { atualizar, pontosDaFesta, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
+  // à noite, de tempos em tempos um carro de faróis acesos chega ao estacionamento (I.carro, montado em construir): só nessa hora a cena é redesenhada sem parar
+  let indo = false; const chegar = () => { if (!I.carro || indo || document.hidden || I.morto) return; indo = true; const t0 = performance.now();
+    const passo = t => { if (I.morto) return; const k = (t - t0) / 7000; if (k >= 1 || !I.carro) { I.carro?.(-1); I.render(); indo = false; return; } I.carro(k); I.render(); requestAnimationFrame(passo); }; requestAnimationFrame(passo); };
+  const vez = setInterval(chegar, 16000); setTimeout(chegar, 2500);
+  return { atualizar, pontosDaFesta, destruir: () => { I.morto = true; clearInterval(vez); ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
 function construir() {
@@ -279,8 +294,8 @@ function construir() {
   // noite (config.noite de 0 a 1; true vale 1): o céu passa do dia ao laranja e do laranja à noite; o sol enfraquece e amarela; o gramado acende
   const n = Math.min(1, Math.max(0, +C.noite || 0)), lar = 1 - Math.abs(2 * n - 1), mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k);
   cur.ceu = "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString();
-  cur.hemi.intensity = 0.62 - 0.42 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
-  cur.sun.intensity = 0.95 - 0.73 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 2.2;
+  cur.hemi.intensity = 0.62 - 0.5 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
+  cur.sun.intensity = 0.95 - 0.85 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
   luzNoite = n > 0.35 ? Math.min(1, (n - 0.35) / 0.4) : 0; HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
@@ -461,6 +476,7 @@ function construir() {
     const ac0 = bM + (dunas ? 31 : 8); bloco(10, 0.05, L.z0 - ac0, lam("#5a5955"), 0, 0.03, (ac0 + L.z0) / 2);
     const pal = ["#e8e6e0", "#2c2c2a", "#a32d2d", "#185fa5", "#888780", "#c9c6bd", "#3b6d11", "#e8e6e0", "#444441"].map(c => new T.Color(c)), carros = [];
     rng = 11; for (const v of L.v) if (rnd() < lotacao()) carros.push({ ...v, c: pal[(rnd() * pal.length) | 0] });
+    cur.carro = luzNoite && L.bands.length ? carroChegando(L) : null;
     inst(carros, (v, i, im) => put(im, i, v.x, 0.65, v.z + v.dir * 0.2, Math.PI / 2, 4.3, 0.9, 1.8, v.c));
     inst(carros, (v, i, im) => put(im, i, v.x, 1.35, v.z - v.dir * 0.2, Math.PI / 2, 2.2, 0.65, 1.6, new T.Color("#3a4652")));
     const ps = []; for (let x = -L.W / 2 + 12; x < L.W / 2; x += 30) for (const za of L.bands) ps.push([x, L.z0 + za + 5]); inst(ps, ([x, z], i, im) => put(im, i, x, 5, z, 0, 0.3, 10, 0.3, new T.Color("#6f6c64")));
