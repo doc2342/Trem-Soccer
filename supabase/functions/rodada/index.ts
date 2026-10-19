@@ -2037,6 +2037,9 @@ const __economia = (() => {
   const COMIDA = { base: 4, porNivel: 0.5, manutPorNivel: 20 };
   const nivelDoEstadio = nivel => Math.min(8, Math.max(1, nivel || 1));
   const comidaPorTorcedor = (nivel, humor = 8) => Math.round((COMIDA.base + COMIDA.porNivel * nivelDoEstadio(nivel)) * (0.8 + 0.4 * Math.min(16, Math.max(0, humor ?? 8)) / 16) * 100) / 100;
+  // Operação do jogo (122): segurança, staff e limpeza, R$ 0,10 × nível² por torcedor; o mandante paga, na copa meio a meio
+  const OPERACAO = { porNivel2: 0.10 };
+  const custoDeOperacao = nivel => Math.round(OPERACAO.porNivel2 * nivelDoEstadio(nivel) ** 2 * 100) / 100;
   const manutencaoExtraDoEstadio = nivel => (temRefletores(nivel) ? EXTRAS_DO_ESTADIO.manutRefletores : 0) + EXTRAS_DO_ESTADIO.manutPorEstacionamento * estacionamentoDoEstadio(nivel) + COMIDA.manutPorNivel * nivelDoEstadio(nivel);
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
@@ -2052,7 +2055,11 @@ const __economia = (() => {
 
   // Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
   const PREMIO_MINIMO = { 1: 2000, 2: 1200, 3: 600 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
-  const impostoDoLucro = (lucro, teto) => Math.max(0, Math.round(0.2 * (lucro - teto / 4)));
+  // Imposto em faixas (122_imposto_em_faixas_e_operacao.sql): isento até 1/4 do teto; 20% até 1/2; 35% até o teto; 50% acima
+  const FAIXAS_DO_IMPOSTO = [[0.25, 0.2], [0.5, 0.35], [1, 0.5]];
+  const impostoDoLucro = (lucro, teto) => Math.round(FAIXAS_DO_IMPOSTO.reduce((t, [de, taxa], i) => {
+    const ate = FAIXAS_DO_IMPOSTO[i + 1] ? FAIXAS_DO_IMPOSTO[i + 1][0] * teto : Infinity;
+    return t + taxa * Math.max(0, Math.min(lucro, ate) - de * teto); }, 0));
   const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
   const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
   const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
@@ -2066,8 +2073,8 @@ const __economia = (() => {
   // Venda negociada: o valor fica entre 60% e 150% da multa rescisória (3 a 7,5 vezes o salário), como no 22_travas_da_negociacao.sql.
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
-  const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil";
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, COMIDA, comidaPorTorcedor, manutencaoExtraDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
+  const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil"; // espaço que não quebra: "7,97 mi" nunca se parte em duas linhas
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, COMIDA, comidaPorTorcedor, OPERACAO, custoDeOperacao, manutencaoExtraDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, FAIXAS_DO_IMPOSTO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __mercadobots = (() => {
@@ -2234,8 +2241,7 @@ const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
 // Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
-async function mercadoDosBots(sb, ligaId) {
-  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
+async function mercadoDosBots(sb, ligaId, janela) {
   if (!janela) return;
   const { data: liga } = await sb.from("ligas").select("id, temporada, pausada, bots_mercado").eq("id", ligaId).maybeSingle();
   if (!liga || liga.pausada || liga.bots_mercado === liga.temporada + ":" + janela) return;
@@ -2270,10 +2276,10 @@ async function botsDaLiga(sb, ligaId, inativos = false) {
 
 // Bots compram da lista de transferência dos dirigentes (72_bots_compram_listados.sql): o banco entrega a fila (quem já esperou o prazo sem
 // proposta de dirigente), cada listado é olhado uma vez por janela e o negócio é fechado pelo preço pedido. Sem efeito antes do SQL 72.
-async function botsCompramListados(sb, ligaId) {
+async function botsCompramListados(sb, ligaId, janela) {
+  if (!janela) return;
   const { data: fila, error } = await sb.rpc("listados_para_os_bots", { p_liga: ligaId });
   if (error || !fila || !fila.length) return;
-  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
   const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
   if (!janela || !liga) return;
   const { clubes, elencos } = await botsDaLiga(sb, ligaId);
@@ -2286,10 +2292,10 @@ async function botsCompramListados(sb, ligaId) {
 
 // Bots (e clubes de dirigente inativo) tapam buracos no banco com jogadores livres (113_bots_contratam_livres.sql): o banco entrega a fila (livres sem leilão há 48 h),
 // cada livre é olhado uma vez por janela e quem contrata (conferindo tudo de novo) é bot_contrata_livre. Sem efeito antes do SQL 113.
-async function botsContratamLivres(sb, ligaId) {
+async function botsContratamLivres(sb, ligaId, janela) {
+  if (!janela) return;
   const { data: fila, error } = await sb.rpc("livres_para_os_bots", { p_liga: ligaId });
   if (error || !fila || !fila.length) return;
-  const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: ligaId });
   const { data: liga } = await sb.from("ligas").select("temporada").eq("id", ligaId).maybeSingle();
   if (!janela || !liga) return;
   const { clubes, elencos } = await botsDaLiga(sb, ligaId, true); // só contratar: o clube inativo de dirigente entra aqui, não nas vendas
@@ -2449,20 +2455,25 @@ Deno.serve(async (req) => {
     const sb = createClient(url, chave, { auth: { persistSession: false } });
     if (!(await autorizado(req, sb))) return json({ erro: "Não autorizado." }, 401);
     const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
-    // leilões de jogadores livres e ofertas à liga que venceram (sem efeito antes do 21_jogadores_livres.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("resolver_leiloes", { p_liga: l.id }); await sb.rpc("anunciar_aposentadorias", { p_liga: l.id }); } } catch (e) { /* segue para as partidas */ }
+    // Leilões, aposentadorias, sorteio da copa e obras dos bots rodam no próprio banco, todo minuto, em tarefas_do_minuto()
+    // (67_cron_enxuto.sql): repetir aqui só gastava log de API.
     // Lesões, suspensões, amarelos, forma, moral e treino de cada partida só são gravados no apito final (33_efeitos_no_apito_final.sql):
     // ficam guardados no resultado até lá, para a página do clube não entregar o que ainda está passando na transmissão.
-    const adiar = !(await sb.from("resultados").select("efeitos").limit(1)).error;
-    if (adiar) {
+    const adiar = true; // o SQL 33 já rodou: a coluna efeitos existe
+    {
       const vencidos = (await sb.from("resultados").select("partida_id, efeitos").not("efeitos", "is", null).lte("libera_em", new Date().toISOString()).order("libera_em").limit(200)).data || [];
       for (const r of vencidos) { await gravarEfeitos(sb, r.efeitos, r.partida_id); await sb.from("resultados").update({ efeitos: null }).eq("partida_id", r.partida_id); }
     }
 
-    // copa: com os vencedores já gravados, sorteia a fase seguinte quando a atual terminou (sem efeito antes do 47_copa_calendario_e_chave.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) await sb.rpc("copa_avancar", { p_liga: l.id }); } catch (e) { /* segue */ }
-    // bots: obras rumo aos níveis da divisão e, uma vez por janela, negócios entre clubes sem dono (sem efeito antes do 66_multa_e_bots.sql)
-    try { for (const l of (await sb.from("ligas").select("id")).data || []) { await sb.rpc("bots_investem", { p_liga: l.id }); await mercadoDosBots(sb, l.id); await botsCompramListados(sb, l.id); await botsContratamLivres(sb, l.id); } } catch (e) { /* segue */ }
+    // bots: uma vez por janela, negócios entre clubes sem dono, compra de listados e contratação de livres (sem efeito antes do 66_multa_e_bots.sql);
+    // fora da janela de mercado nenhum dos três faz nada, então nem pergunta
+    try {
+      for (const l of (await sb.from("ligas").select("id")).data || []) {
+        const { data: janela } = await sb.rpc("janela_do_mercado", { p_liga: l.id });
+        if (!janela) continue;
+        await mercadoDosBots(sb, l.id, janela); await botsCompramListados(sb, l.id, janela); await botsContratamLivres(sb, l.id, janela);
+      }
+    } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
