@@ -1850,7 +1850,7 @@ async function telaClube(liga, clube) {
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
-        <div class="mut"><span class="so-pc">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</span><span class="so-cel">T${liga.temporada} · ${esc(nomeBaseDoGrupo(clube.grupo).replace(/^(Brasileiro|Campeonato) /, ""))}</span></div></div>
+        <div class="mut"><span class="so-pc">${esc(liga.nome)}<br>Temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</span><span class="so-cel">T${liga.temporada} · ${esc(nomeBaseDoGrupo(clube.grupo).replace(/^(Brasileiro|Campeonato) /, ""))}</span></div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
