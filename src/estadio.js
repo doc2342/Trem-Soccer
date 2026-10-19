@@ -544,6 +544,16 @@ function entorno(cx, zN, zS) {
   add(tel, telhados, ([x, z, rot, w, h, d, c], i, im) => pos(im, i, x, h, z, rot, w * 1.12, 2.4, d * 1.12, c));
   add(geoUp(new T.BoxGeometry(1, 1, 1)), troncos, ([x, z, h], i, im) => pos(im, i, x, 0, z, 0, 0.5, h, 0.5, new T.Color("#6b5a45")));
   add(new T.IcosahedronGeometry(1, 0), copas, ([x, z, h, c], i, im) => pos(im, i, x, h * 0.62, z, r() * 6, h * 0.36, h * 0.42, h * 0.36, c), { flatShading: true });
+  // à noite, janelas acesas: pontinhos amarelos e brancos nas fachadas dos prédios (andares de 3 m) e um ou dois por casa;
+  // sorteio próprio, para a cidade não mudar de desenho entre o dia e a noite
+  if (luzNoite) { let sj = 4242; const q = () => (sj = (sj * 16807) % 2147483647) / 2147483647, P = [], K = [], quente = new T.Color("#ffd27a"), fria = new T.Color("#fff3d6");
+    const luz = (x, y, z) => { P.push(x, y, z); const c = q() < 0.7 ? quente : fria; K.push(c.r, c.g, c.b); };
+    for (const [x, z, , w, h, d] of predios) for (let y = 3; y < h - 1; y += 3) {
+      for (let t = -d / 2 + 1.5; t < d / 2 - 1; t += 2.5) for (const sx of [-1, 1]) if (q() < 0.3) luz(x + sx * (w / 2 + 0.15), y, z + t);
+      for (let t = -w / 2 + 1.5; t < w / 2 - 1; t += 2.5) for (const sz of [-1, 1]) if (q() < 0.3) luz(x + t, y, z + sz * (d / 2 + 0.15)); }
+    for (const [x, z, rot, , h, d] of casas) for (const sd of [-1, 1]) if (q() < 0.45) luz(x + sd * Math.sin(rot) * (d / 2 + 0.15), h * 0.5, z + sd * Math.cos(rot) * (d / 2 + 0.15));
+    if (P.length) { const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(P, 3)); geo.setAttribute("color", new T.Float32BufferAttribute(K, 3));
+      grp.add(new T.Points(geo, new T.PointsMaterial({ size: 1.9, vertexColors: true, transparent: true, opacity: 0.95 * luzNoite, depthWrite: false }))); } }
   cur.scene.fog = new T.Fog(cur.ceu || CEU, cur.dist * 0.95, cur.dist + E * 0.95);
 }
 
