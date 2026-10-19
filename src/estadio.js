@@ -64,7 +64,7 @@ export function configDoClube(c, obra) {
 }
 
 // estado da construção em curso (uma de cada vez; tudo síncrono)
-let C, m, niv, rows, prev, obra = 1, cob = new Set(), T, grp, cur;
+let C, m, niv, rows, prev, obra = 1, cob = new Set(), T, grp, cur, luzNoite = 0, HALO = null;
 function aplicar(c) {
   const cores = (Array.isArray(c.cores) ? c.cores : []).filter(x => HEX.test(x)).slice(0, 3);
   C = { vista: "3d", padrao: "setor", corEscadas: "#f2c200", ...c, cores: cores.length ? cores : ["#0b3d91", "#ffffff"] };
@@ -219,7 +219,12 @@ function inst(list, set, mat) { const im = new T.InstancedMesh(box, mat || new T
 function barras(lista, mat) { dm.rotation.order = "YXZ"; inst(lista, ([x, y, z, yaw, tl, L, ey, ez = ey], i, im) => { dm.position.set(x, y, z); dm.rotation.set(0, -yaw, tl); dm.scale.set(L, ey, ez); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); }, mat); dm.rotation.order = "XYZ"; }
 function put(im, i, x, y, z, ang, sx, sy, sz, c) { dm.position.set(x, y, z); dm.rotation.set(0, -ang, 0); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); if (c) im.setColorAt(i, c); }
 function bloco(w, h, d, mat, x, y, z) { const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); b.castShadow = b.receiveShadow = true; grp.add(b); return b; }
+// brilho de uma luz acesa à noite: um ponto claro que sempre olha para a câmera
+function halo(x, y, z, tam, k) { if (!HALO) { const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.25, "rgba(255,244,214,.75)"); gr.addColorStop(1, "rgba(255,244,214,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); HALO = new T.CanvasTexture(c); }
+  const sp = new T.Sprite(new T.SpriteMaterial({ map: HALO, color: "#fff4d6", blending: T.AdditiveBlending, depthWrite: false, transparent: true, opacity: k })); sp.position.set(x, y, z); sp.scale.set(tam, tam, 1); grp.add(sp); }
 function torre(x, z, H) { const g = new T.Group(); g.position.set(x, 0, z); grp.add(g);
+  if (luzNoite) { halo(x, H + 4.6, z, 24, 0.95 * luzNoite); const f = new T.SpotLight(0xfff2d8, 0.55 * luzNoite, 0, 0.6, 0.6, 1); f.position.set(x, H + 3, z); f.target.position.set(0, 0, 0); grp.add(f, f.target); }
   const base = new T.Mesh(new T.BoxGeometry(3.2, 1, 3.2), lam("#bdb9ae")); base.position.y = 0.5; g.add(base);
   const mast = new T.Mesh(new T.CylinderGeometry(0.55, 1.05, H, 18), AÇO); mast.position.y = H / 2; mast.castShadow = true; g.add(mast);
   for (let y = 6; y < H - 2; y += 6) { const r = new T.Mesh(new T.CylinderGeometry(0.9 - 0.4 * y / H, 0.9 - 0.4 * y / H, 0.25, 18), ESC); r.position.y = y; g.add(r); }
@@ -273,6 +278,7 @@ function construir() {
   cur.ceu = "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString();
   cur.hemi.intensity = 0.62 - 0.42 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
   cur.sun.intensity = 0.95 - 0.73 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 2.2;
+  luzNoite = n > 0.35 ? Math.min(1, (n - 0.35) / 0.4) : 0; HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
   const pos = assentos(niv), DG = dunas ? dunasGeo(topH) : null;
@@ -344,7 +350,10 @@ function construir() {
     if (ns) rf.rotation.x = sg * 0.07; else rf.rotation.z = -sg * 0.07;
     bloco(ns ? len : 0.3, 1.1, ns ? 0.3 : len, lam(hx[0]), ns ? mid : sg * ei, yC + 0.6 + dep / 2 * 0.07, ns ? sg * ei : mid);
     for (let t = mn; t <= mx + 0.1; t += 8) bloco(0.5, yC + 0.4, 0.5, lam("#8f8b82"), ns ? t : sg * (eo - 0.4), (yC + 0.4) / 2, ns ? sg * (eo - 0.4) : t); }
-  if (C.refletores && !m.teto) { const f = m.R == null ? 0.75 : 0.97; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) torre(sx * (aM + 7) * f, sz * (bM + 7) * f, topH + 26); }
+  if (C.refletores && !m.teto) { const f = m.R == null ? 0.75 : 0.97; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) torre(sx * (aM + 7) * f, sz * (bM + 7) * f, topH + 26); if (luzNoite) cur.campo.intensity *= 0.7; }
+  // à noite, sem torres: uma fileira de luzes na borda de dentro da cobertura (ou da marquise, ou no alto da arquibancada)
+  else if (luzNoite) { const rIn = teto ? rows * DEP * (m.tetoIn ?? 0.5) : yM ? rows * DEP * 0.55 : rows * DEP, y = teto ? yT - 0.6 : yM ? yM - 0.4 : topH + 2.5;
+    for (const p of walk(contorno(m, m.a0 + rIn, m.b0 + rIn), 12)) halo(p.x, y, p.z, 7, 0.8 * luzNoite); }
   if (m.palcos) { const z0 = m.b0 + m.palcos * DEP, z1 = z0 + 8, xs = () => aM + 0.5, feito = prev && !C.reforma ? prev + (rows - prev) * obra : rows * obra, Hb = hRow(Math.max(1, Math.round(feito)) - 1) + 1.6;
     const pr = new T.Mesh(new T.ExtrudeGeometry(shapeDe([[-xs(z0), z0], [xs(z0), z0], [xs(z1), z1], [-xs(z1), z1]]), { depth: Hb, bevelEnabled: false }), lam("#d6d2c8")); pr.rotation.x = -Math.PI / 2; pr.castShadow = pr.receiveShadow = true; grp.add(pr);
     const vidro = lam("#33444f"); for (let y = 2.4; y < Hb - 1.5; y += 3.2) bloco(2 * xs(z0) - 3, 1.7, 0.2, vidro, 0, y, z0 - 0.05);

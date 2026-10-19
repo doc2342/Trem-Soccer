@@ -74,6 +74,7 @@ async function carregar() {
   rotulo();
 }
 // ---------- som da festa (Web Audio, gerado aqui: nenhum arquivo) ----------
+// Coro "É CAMPEÃO!" = umas 12 vozes (ondas com formantes das vogais é, a, ê, ão), cada uma um pouco desafinada e fora do tempo, subindo de tom.
 // Torcida = ruído filtrado que cresce, ondula e vai sumindo, com palmas no começo; fogos = assobio subindo e estouro grave com estalos.
 // Desligado por padrão (escolha guardada neste aparelho, separada do som do ao vivo); o navegador só toca depois de um clique.
 const SOM = (() => {
@@ -85,9 +86,17 @@ const SOM = (() => {
   const ruido = (ini, dur, tipo, f, q, pontos) => { const a = audio(), t = a.currentTime + ini, src = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
     src.buffer = buf; src.loop = true; fl.type = tipo; fl.frequency.value = f; fl.Q.value = q; g.gain.setValueAtTime(0, t); pontos.forEach(([s, v]) => g.gain.linearRampToValueAtTime(v, t + s));
     src.connect(fl).connect(g).connect(mestre); src.start(t, Math.random() * 1.5); src.stop(t + dur); };
-  const torcida = seg => { if (seg < 1.5) return; const ond = []; for (let s = 1.2; s < seg - 2; s += 0.9) ond.push([s, 0.22 + 0.1 * Math.random()]);
-    ruido(0, seg, "bandpass", 700, 0.6, [[1, 0.3], ...ond, [seg, 0]]); ruido(0, seg, "bandpass", 1900, 0.9, [[1.2, 0.12], [seg - 1.5, 0.1], [seg, 0]]);
-    for (let k = 0; k < 10; k++) { const t = 0.4 + k * 0.42; if (t < seg - 1) ruido(t, 0.09, "highpass", 1800, 0.7, [[0.005, 0.35], [0.09, 0]]); } }; // palmas
+  const SILABAS = [[0, 0.3, 1, [600, 1800], [600, 1800]], [0.34, 0.24, 1.06, [760, 1250], [760, 1250]], [0.62, 0.24, 1.12, [480, 2000], [480, 2000]], [0.9, 1.05, 1.26, [720, 1150], [380, 880]]]; // início, duração, tom, formantes de ida e de volta
+  const coro = () => { const a = audio(), t0 = a.currentTime + 0.05;
+    for (let v = 0; v < 12; v++) { const base = (v % 3 ? 165 : 220) * (1 + (Math.random() - 0.5) * 0.06);
+      for (const [ini, dur, tom, [f1, f2], [g1, g2]] of SILABAS) { const t = t0 + ini + Math.random() * 0.05, o = a.createOscillator(), g = a.createGain(); o.type = "sawtooth";
+        o.frequency.setValueAtTime(base * tom, t); o.frequency.linearRampToValueAtTime(base * tom * (dur > 0.5 ? 1.08 : 1.02), t + dur);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.022, t + 0.04); g.gain.setValueAtTime(0.022, t + dur * 0.75); g.gain.linearRampToValueAtTime(0, t + dur);
+        for (const [fi, ff, q] of [[f1, g1, 6], [f2, g2, 9]]) { const fl = a.createBiquadFilter(); fl.type = "bandpass"; fl.Q.value = q; fl.frequency.setValueAtTime(fi, t); fl.frequency.linearRampToValueAtTime(ff, t + dur); o.connect(fl).connect(g); }
+        g.connect(mestre); o.start(t); o.stop(t + dur + 0.05); } } };
+  const torcida = (seg, ini = 0) => { if (seg < 1.5) return; const ond = []; for (let s = 1.2; s < seg - 2; s += 0.9) ond.push([s, 0.22 + 0.1 * Math.random()]);
+    ruido(ini, seg, "bandpass", 700, 0.6, [[1, 0.3], ...ond, [seg, 0]]); ruido(ini, seg, "bandpass", 1900, 0.9, [[1.2, 0.12], [seg - 1.5, 0.1], [seg, 0]]);
+    for (let k = 0; k < 10; k++) { const t = 0.4 + k * 0.42; if (t < seg - 1) ruido(ini + t, 0.09, "highpass", 1800, 0.7, [[0.005, 0.35], [0.09, 0]]); } }; // palmas
   const assobio = () => { const a = audio(), t = a.currentTime, o = a.createOscillator(), g = a.createGain(); o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(2600, t + 0.7);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0, t + 0.7); o.connect(g).connect(mestre); o.start(t); o.stop(t + 0.75); };
   const estouro = () => { ruido(0, 1.4, "lowpass", 380, 0.8, [[0.01, 0.9], [0.25, 0.35], [1.4, 0]]);
@@ -97,7 +106,7 @@ const SOM = (() => {
     get ligado() { return ligado; },
     alternar() { ligado = !ligado; try { localStorage.setItem("mo_som_festa", ligado ? "1" : "0"); } catch (e) {}
       if (ligado) { audio(); const resta = (fimDaFesta - performance.now()) / 1000; if (resta > 0) torcida(resta); } else this.parar(); },
-    festa(ms) { fimDaFesta = performance.now() + ms + 1500; if (ligado) try { audio(); torcida(ms / 1000); } catch (e) {} },
+    festa(ms) { fimDaFesta = performance.now() + ms + 1500; if (ligado) try { audio(); coro(); torcida(ms / 1000 - 1.6, 1.6); } catch (e) {} }, // o coro grita primeiro, a torcida entra depois
     fogo() { if (ok()) try { assobio(); } catch (e) {} }, estouro() { if (ok()) try { estouro(); } catch (e) {} },
     parar() { fimDaFesta = 0; if (mestre) { const m = mestre; mestre = null; try { m.gain.setTargetAtTime(0, ctx.currentTime, 0.1); setTimeout(() => m.disconnect(), 600); } catch (e) {} } },
   };
