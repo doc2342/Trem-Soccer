@@ -25,6 +25,9 @@
     .topo > svg:first-of-type { width:52px; height:52px; } .topo > svg:nth-of-type(2) { width:38px; height:38px; }
     .patro-topo { grid-column:1/-1; margin-left:0; display:flex; align-items:center; gap:8px; } .patro-topo img { width:36px; height:36px; }
     .card.topo h2 { font-size:24px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
+    /* cabeçalho do clube no celular: o selo do patrocinador (sem o rótulo) divide a última linha com Sair, Guia e Administração; o e-mail sai */
+    .card.topo .patro-topo { grid-column:1/3; } .card.topo .patro-topo .mut { display:none; }
+    .card.topo > div:last-child { grid-column:3; align-items:center !important; flex-wrap:wrap; gap:4px 12px !important; } .topo-conta #quem { display:none; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
     .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
   }
