@@ -20,14 +20,17 @@
   .meus-clubes button.ativo { border-color:var(--ac); } .meus-clubes .ponto { position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:var(--bad); }
   /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
   @media (max-width:620px) {
-    .card.topo { display:grid; grid-template-columns:auto auto minmax(0, 1fr); gap:8px 10px; }
-    main > .topo { gap:6px 10px; } main .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; } #sair { padding:3px 10px; }
-    .topo > svg:first-of-type { width:52px; height:52px; } .topo > svg:nth-of-type(2) { width:38px; height:38px; }
-    .patro-topo { grid-column:1/-1; margin-left:0; display:flex; align-items:center; gap:8px; } .patro-topo img { width:36px; height:36px; }
-    .card.topo h2 { font-size:24px !important; } .topo > div:last-child { grid-column:1/-1; margin-left:0 !important; flex-direction:row !important; justify-content:flex-end; }
-    /* cabeçalho do clube no celular: o selo do patrocinador (sem o rótulo) divide a última linha com Sair, Guia e Administração; o e-mail sai */
-    .card.topo .patro-topo { grid-column:1/3; } .card.topo .patro-topo .mut { display:none; }
-    .card.topo > div:last-child { grid-column:3; align-items:center !important; flex-wrap:wrap; gap:4px 12px !important; } .topo-conta #quem { display:none; }
+    /* cabeçalho do clube no celular, em duas linhas: (1) Trem Soccer e relógio à esquerda, Sair, Guia e Admin à direita (sem o e-mail);
+       (2) escudo, uniforme, nome numa linha só e o selo do patrocinador (sem o rótulo). O ::after quebra a linha entre as duas */
+    .card.topo { display:flex; flex-wrap:wrap; align-items:center; gap:0 10px; } .card.topo::after { content:""; order:2; flex-basis:100%; }
+    .card.topo > * { order:3; } .card.topo > .topo-jogo { order:0; flex:1 1 auto; justify-content:flex-start; margin:-4px 0 8px; gap:8px; font-size:14px; } .card.topo .topo-jogo h1 { font-size:14px !important; }
+    .card.topo > div:last-child { order:1; margin:-4px 0 8px auto !important; flex-direction:row !important; align-items:center !important; gap:10px !important; font-size:14px; }
+    .topo-conta #quem, .so-pc { display:none; } #sair { padding:2px 8px; }
+    .card.topo > :is(svg, img) { width:44px; height:44px; } .card.topo > :is(svg, img) + svg { width:34px; height:34px; }
+    .card.topo > div:not([class]):not(:last-child) { flex:1 1 0; min-width:0; } .card.topo > div:not([class]):not(:last-child) > div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; }
+    .card.topo h2 { font-size:22px !important; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .patro-topo { margin-left:0; } .patro-topo .mut { display:none; } .patro-topo img { width:36px; height:36px; }
+    main > .topo { gap:6px 10px; } main > .topo #quem { font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 0; text-align:right; }
     .c-destaque .row { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px !important; align-items:start !important; }
     .c-destaque .row > div > div:nth-child(2) { font-size:17px !important; } .c-destaque .row .mut span, .c-destaque .row span.mut { display:block; }
   }
@@ -1838,7 +1841,7 @@ async function telaClube(liga, clube) {
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
