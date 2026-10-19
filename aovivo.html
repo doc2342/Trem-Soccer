@@ -109,7 +109,7 @@ import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, 
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
-import { MARCAS, selo, placasDoEstadio, jogoPatrocinado, marcaDaCompeticao } from "./src/patrocinio.js";
+import { MARCAS, selo, placasDoEstadio, ANUNCIE, jogoPatrocinado, marcaDaCompeticao } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -156,7 +156,7 @@ botaoDoSom();
 // (liberado há mais de 30 s) entra calado. fase: muda de 1º tempo, intervalo, 2º tempo e fim pelo relógio.
 let vistos = null, fase = null;
 // intervalo: a TV roda só os comerciais dos masters dos dois times e da marca que dá nome à competição, um a cada 8 s (sem master nenhum, roda as placas);
-// o LED embaixo é só das placas genéricas do estádio do mandante (as mesmas do campo).
+// o LED embaixo passa as demais marcas (as que não estão na TV) e o anuncie aqui.
 let tv = null;
 function intervaloComercial(m) {
   const el = $("intervalo"), no = !m.antes && !m.fim && m.texto.includes("intervalo");
@@ -167,7 +167,7 @@ function intervaloComercial(m) {
   const comp = marcaDaCompeticao(partida.fase === "copa" ? (partida.copa_fase ? "COPA" : "") : partida.grupo);
   const marcas = [...lados.map(c => ({ master: c })), ...(comp && !lados.some(c => c.marca === comp) ? [{ master: { marca: comp }, quem: `Patrocinador ${ehCopa(partida) ? "da competição" : "do " + nomeDoGrupo(partida.grupo)}` }] : [])];
   const fila = marcas.length ? marcas : placas;
-  const led = placas.map(p => `<span style="color:${p.cor === "#111111" || p.cor === "#7b1e24" || p.cor === "#0f5c4d" ? p.txt : p.cor}">${esc(p.nome)}</span>`).join("");
+  const naTv = marcas.map(s => s.master.marca), led = Object.keys(MARCAS).filter(k => !naTv.includes(k)).map(k => `<span style="color:#fff">${selo(k, 24)}${esc(MARCAS[k].nome)}</span>`).join("") + `<span style="color:#fff">${esc(ANUNCIE.nome)}</span>`;
   el.innerHTML = `<div class="tv" id="tv"><span class="selo-tv">Intervalo</span><span class="volta" id="tvVolta"></span><div id="tvSpot"></div><div class="barra" id="tvBarra"></div></div>
     <div class="led" aria-hidden="true"><div class="faixa">${led}${led}</div></div>`;
   let n = 0;
