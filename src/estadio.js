@@ -8,7 +8,7 @@
 // Fixos para todos: placas, bancos, túnel, telão e alambrado. Refletores e estacionamento seguem o nível (src/economia.js).
 // Medidas em metros; x = leste, z = sul.
 import { temRefletores, estacionamentoDoEstadio, lugaresDoEstadio, bonusDoEstadio } from "./economia.js";
-import { MARCAS, placasDoEstadio } from "./patrocinio.js";
+import { MARCAS, ANUNCIE } from "./patrocinio.js";
 export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira", laterais: "Estádio do Braga", inflavel: "Allianz Arena", sansiro: "San Siro", wembley: "Wembley", maracana: "Maracanã" };
 // Sedes reais das finais (132_estadio_real.sql): sem dono, nome e capacidade de verdade; nivel = o desenho mais próximo da capacidade
 export const SEDES = {
@@ -206,12 +206,14 @@ function loteTex(L) { const k = 6, [c, g] = canvas(L.W * k, L.D * k);
   for (const za of L.bands) { g.beginPath(); g.moveTo(0, (za + 5) * k); g.lineTo(c.width, (za + 5) * k); for (let x = 0; x <= L.W; x += 2.5) { g.moveTo(x * k, za * k); g.lineTo(x * k, (za + 10) * k); } g.stroke(); }
   g.fillStyle = "#f1efe8"; for (let z = 3; z < L.D; z += 16) for (let x = 8; x < L.W; x += 24) { g.beginPath(); g.moveTo(x * k, (z - .6) * k); g.lineTo((x + 4) * k, (z - .6) * k); g.lineTo((x + 4) * k, (z - 1.4) * k); g.lineTo((x + 6) * k, z * k); g.lineTo((x + 4) * k, (z + 1.4) * k); g.lineTo((x + 4) * k, (z + .6) * k); g.lineTo(x * k, (z + .6) * k); g.fill(); }
   return tex(c); }
-// placas do campo: a sigla do clube nas duas cores, intercalada com o master e as placas sorteadas (só cosméticas); cada célula tem 6 m
+// placas do campo: a sigla do clube nas duas cores, intercalada com o master, as demais marcas e o anuncie aqui (só cosméticas); cada célula tem 6 m
 function placaTex(cel) { const [c, g] = canvas(256 * cel.length, 64); g.textAlign = "center"; g.textBaseline = "middle";
   cel.forEach(([txt, bg, fg], i) => { g.fillStyle = bg; g.fillRect(i * 256, 0, 256, 64); g.font = "bold 40px sans-serif"; const fs = Math.min(40, 40 * 230 / Math.max(1, g.measureText(txt).width)); g.font = `bold ${fs}px sans-serif`; g.fillStyle = fg; g.fillText(txt, i * 256 + 128, 34); });
   const t = tex(c); t.wrapS = T.RepeatWrapping; t.userData = { m: 6 * cel.length }; return t; }
 function celulasDasPlacas(sig, c0, c1) {
-  const mk = MARCAS[C.marca], outras = [...(mk ? [[mk.nome.toUpperCase(), "#0d1220", "#ffffff"]] : []), ...placasDoEstadio(C.semente).map(p => [p.nome.toUpperCase(), p.cor, p.txt])];
+  // master da casa primeiro, depois as demais marcas e o anuncie aqui (as placas sorteadas voltam quando tiverem arte)
+  const marcas = [...(MARCAS[C.marca] ? [C.marca] : []), ...Object.keys(MARCAS).filter(k => k !== C.marca)];
+  const outras = [...marcas.map(k => [MARCAS[k].nome.toUpperCase(), "#0d1220", "#ffffff"]), [ANUNCIE.nome.toUpperCase(), ANUNCIE.cor, ANUNCIE.txt]];
   return outras.flatMap((o, i) => [i % 2 ? [sig, c1, c0] : [sig, c0, c1], o]); }
 function limpar() { grp.traverse(o => { o.geometry && o.geometry !== box && o.geometry !== cil && o.geometry !== disco && o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(x => { if (x === AÇO || x === ESC || x === LUZ) return; x.map && x.map.dispose(); x.dispose(); }); }); cur.scene.remove(grp); grp = cur.grp = new T.Group(); cur.scene.add(grp); }
 function inst(list, set, mat) { const im = new T.InstancedMesh(box, mat || new T.MeshLambertMaterial(), Math.max(1, list.length)); im.count = list.length; list.forEach((p, i) => set(p, i, im)); im.castShadow = im.receiveShadow = true; grp.add(im); return im; }
