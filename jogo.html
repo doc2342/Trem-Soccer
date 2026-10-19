@@ -12,7 +12,13 @@
   .topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .patro-topo { margin-left:auto; text-align:center; } .patro-topo .mut { font-family:var(--display); text-transform:uppercase; letter-spacing:.08em; font-size:12px; margin-bottom:2px; } .patro-topo:empty { display:none; }
   .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } /* a barra da conta (nome do jogo, relógio, e-mail, Sair) entra no cabeçalho do clube: uma linha a menos em toda tela */
-  .topo-jogo { flex-basis:100%; grid-column:1/-1; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
+  .topo-jogo { flex-basis:100%; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
+  /* no PC (tela larga), tudo numa linha: Trem Soccer e o relógio no meio, na altura do nome do clube (mesma linha de base); o selo do patrocinador menor, junto do Guia */
+  @media (min-width:901px) {
+    .card.topo > .topo-jogo { order:1; flex:1 1 auto; align-self:baseline; margin:0; } .card.topo > div:not([class]):not(:last-child) { align-self:baseline; }
+    .card.topo > .patro-topo, .card.topo > div:last-child, .card.topo > #cvVoltar { order:2; } .card.topo > .patro-topo { margin-left:0; }
+    .patro-topo img { width:48px; height:48px; } .patro-topo .mut { font-size:10px; }
+  }
   .topo-conta { display:flex; gap:8px; align-items:center; } .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
   /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
   .meus-clubes { display:flex; gap:6px; align-items:center; } .meus-clubes:empty { display:none; }
