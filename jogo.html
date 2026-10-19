@@ -15,11 +15,12 @@
   :root[data-tema=claro] .patro-topo .so-escuro, :root:not([data-tema=claro]) .patro-topo .so-claro { display:none; } .topo-conta #quem { display:none; }
   .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } /* a barra da conta (nome do jogo, relógio, e-mail, Sair) entra no cabeçalho do clube: uma linha a menos em toda tela */
   .topo-jogo { flex-basis:100%; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
-  /* no PC (tela larga), tudo numa linha: Trem Soccer e o relógio no meio, na altura do nome do clube (mesma linha de base); o selo do patrocinador menor, junto do Guia */
+  /* no PC (tela larga), tudo numa linha: escudo e nome, Trem Soccer com o relógio, o master, e Sair/Admin na ponta direita */
   @media (min-width:901px) {
-    .card.topo > .topo-jogo { order:1; flex:1 1 auto; align-self:baseline; margin:0; } .card.topo > div:not([class]):not(:last-child) { align-self:baseline; }
-    .card.topo > .patro-topo { order:2; margin-left:0; } .card.topo > div:last-child, .card.topo > #cvVoltar { order:3; }
-    .card.topo > .topo-jogo { flex-direction:column; align-items:center; gap:2px; } .patro-topo .mut { display:block; }
+    /* o meio do cabeçalho em duas metades iguais: Trem Soccer e relógio numa, o master na outra, cada um centrado na sua */
+    .card.topo > .topo-jogo { order:1; flex:1 1 0; flex-direction:column; align-items:center; gap:4px; margin:0; }
+    .card.topo .topo-jogo h1 { font-size:24px !important; line-height:1; } .card.topo .topo-jogo .relogio { font-size:22px; line-height:1; }
+    .card.topo > .patro-topo { order:2; flex:1 1 0; margin-left:0; } .card.topo > div:last-child, .card.topo > #cvVoltar { order:3; } .patro-topo .mut { display:block; }
   }
   .topo-conta { display:flex; gap:8px; align-items:center; } .topo h1 { font-family:var(--display); text-transform:uppercase; letter-spacing:.05em; font-size:20px; color:var(--mut); }
   /* seletor de clubes (quem tem mais de um): o ativo com borda e sigla, ponto vermelho no outro quando há pendência lá */
