@@ -108,8 +108,10 @@ export const CONFIG = {
   // faltas, cartões, lesões e bola parada
   falta: 0.1, // por duelo
   faltaPorAgressividade: 0.3,
-  amarelo: 0.19, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
-  cuidadoComAmarelo: 0.3, // quem já tem amarelo se segura: multiplicador da chance do segundo
+  amarelo: 0.32, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
+  cuidadoComAmarelo: 0.25, // quem já tem amarelo se segura: multiplicador da chance do segundo
+  amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
+  segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
   lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
   maxSubstituicoes: 5,
   escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
@@ -569,7 +571,8 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const t = times[i], s = jogadores[marcador.j.id], em = vitima ? ` em ${nm(vitima)}` : "";
     estat[i].faltas++; s.faltas++;
     if (rng.chance(CONFIG.vermelhoDireto)) return expulsar(i, marcador, `Cartão vermelho direto para ${nm(marcador)} pela entrada violenta${em}!`);
-    if (!rng.chance(CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * (marcador.amarelos ? CONFIG.cuidadoComAmarelo : 1))) return;
+    const repeticao = CONFIG.amareloPrimeiraFalta + CONFIG.amareloPorFaltaAntes * (s.faltas - 1), segura = marcador.amarelos ? CONFIG.cuidadoComAmarelo * (min <= 45 ? CONFIG.segundoAmareloPrimeiroTempo : 1) : 1;
+    if (!rng.chance(CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * repeticao * segura)) return;
     marcador.amarelos++; s.amarelos++; estat[i].amarelos++;
     if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)} pela falta${em}: está expulso!`);
     cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)} pela falta${em}.`);
