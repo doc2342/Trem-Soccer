@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Guia do dirigente</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="atualiza.js"></script>
+<style>
+  main { max-width:860px; }
+  .indice { display:flex; flex-wrap:wrap; gap:6px; } .indice a { padding:4px 10px; border:1px solid var(--line); border-radius:999px; color:var(--tx); text-decoration:none; font-size:13px; }
+  .indice a:hover { background:var(--hover); }
+  .card h2 { scroll-margin-top:12px; } h3 { font-size:14.5px; margin:14px 0 4px; }
+  .card ul, .card ol { margin:4px 0; padding-left:20px; } .card li { margin:3px 0; }
+  table { border-collapse:collapse; width:100%; margin:6px 0; font-size:13.5px; } th, td { border-bottom:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; }
+  th { color:var(--mut); font-weight:600; } .tab { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a>
+  <h1 style="margin-top:8px">Guia do dirigente</h1>
+  <div class="mut">As regras em vigor, do primeiro dia à virada da temporada. O jogo está em teste: números podem mudar, e os desta página saem do próprio jogo.</div>
+  <div id="corpo"><div class="card mut">Carregando…</div></div>
+</main>
+<script type="module">
+import { ligaAtual, valoresDaDivisao, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA } from "./src/banco.js";
+import { dinheiro, TETO_DE_FOLHA, MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, FAIXAS_DO_IMPOSTO, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, VENDAS_PELO_AGENTE, lugaresDoEstadio } from "./src/economia.js";
+import { PREMIOS } from "./src/virada.js";
+import { DIAS_PARA_BOT, AMARELOS_PARA_SUSPENSAO, COPA, DESCENSO_DA_PRIMEIRA } from "./src/rodada.js";
+import { CONFIG_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
+import { CONFIG_DIRETORIA } from "./src/diretoria.js";
+import { CONFIG_LIGA_DE_BASE } from "./src/ligabase.js";
+
+const pct = x => Math.round(x * 100) + "%";
+const tabela = (cab, linhas) => `<div class="tab"><table><tr>${cab.map(c => `<th>${c}</th>`).join("")}</tr>${linhas.map(l => `<tr>${l.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>`;
+const premios = p => `${p.fases.map((v, i) => v ? `${FASES_DA_COPA[i].toLowerCase()} ${dinheiro(v)}` : "").filter(Boolean).join(" · ")} · vice ${dinheiro(p.vice)} · campeão ${dinheiro(p.campeao)}`;
+
+let div = {};
+try { const liga = await ligaAtual(); if (liga) for (const d of [1, 2]) div[d] = await valoresDaDivisao(liga.id, d); } catch (e) {}
+const v = (d, k, f = dinheiro) => div[d] && div[d][k] != null ? f(div[d][k]) : "—";
+const fracao = x => ({ 0.25: "um quarto do teto", 0.5: "metade do teto", 1: "o teto" })[x] || pct(x) + " do teto";
+const imposto = FAIXAS_DO_IMPOSTO.map(([, taxa], i) => `${pct(taxa)} ${FAIXAS_DO_IMPOSTO[i + 1] ? "até " + fracao(FAIXAS_DO_IMPOSTO[i + 1][0]) : "acima do teto"}`).join(", ");
+const C = CONFIG_DIRETORIA;
+
+const secoes = [
+["passos", "Primeiros passos", `
+  <p>Em dez minutos você tem um clube e um time escalado.</p>
+  <ol>
+    <li>Entre com o seu e-mail: chega um link para entrar. Não existe senha.</li>
+    <li>Escolha nome, sigla, escudo e uniforme e envie o pedido de clube. Um administrador aprova e a tela avisa quando sair.</li>
+    <li>Você assume a <b>vaga</b> de um clube do bot na divisão mais alta com vaga: elenco novo, estruturas no nível 1 e caixa curto. Os jogadores do bot saem do jogo.</li>
+    <li>Na Central, o cartão <b>Primeiros passos</b> leva a cada tarefa: nome de dirigente, escalação e tática, treino, elenco, caixa, patrocínio, Sócio-Torcedor, escudo e um amistoso.</li>
+    <li>Antes da primeira rodada da temporada: escolha o <b>patrocínio</b> e abra o <b>Sócio-Torcedor</b>. Depois dela as duas coisas fecham.</li>
+  </ol>
+  <p>As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. A tática fecha pouco antes do apito; a partida inteira é calculada no apito e transmitida lance a lance. Com ${DIAS_PARA_BOT} dias sem entrar, o bot passa a escalar o seu time.</p>`],
+["abas", "As abas do jogo", `
+  <p>No celular as abas viram ícones; em Ajustes dá para trocar para a tela de computador e escolher o tema claro ou escuro.</p>
+  ${tabela(["Aba", "Abas internas", "O que tem"], [
+    ["🏠 Central", "", "Posição, próximo jogo, caixa e confiança; o resumo <i>desde a sua última visita</i>; próximos jogos; mural do clube e da liga; amistoso"],
+    ["👥 Elenco", "Elenco · Treino", "Jogadores com nota, forma, moral, salário, multa e contrato; focos de treino e treinadores"],
+    ["📋 Tática", "", "Escalação, instruções, papéis e cobradores, ordens durante o jogo e a prévia do próximo adversário"],
+    ["🌱 Base", "Painel · Juvenis · Escalação · Competições", "Juvenis, peneira, escalação e tática da base, liga de base, Copinha e Libertadores Juvenil"],
+    ["🏆 Competições", "Liga · Copa do Brasil · Libertadores · Sul-Americana · Estatísticas · Federação · Recordes · Base", "Tabelas, chaves, artilharia e notas, o fundo da liga e os campeões de cada temporada"],
+    ["🛒 Mercado", "Busca · Negociações · Livres e ofertas · Transferências", "A janela, compra pela multa, propostas, leilões de jogadores livres e todos os negócios da liga"],
+    ["🏛️ Clube", "Finanças · Estruturas · Estádio · Calendário · Troféus · Transferências · Patrocínio", "Caixa e previsão, obras, o estádio em 3D, os seus jogos, títulos e o contrato de patrocínio"],
+    ["⚙️ Ajustes", "Configurações · Escudo · Uniforme casa · Uniforme visitante", "Nome do dirigente, siglas das posições (inglês ou português), tela, tema e visual do clube"],
+  ])}
+  <p>Clicar no nome de qualquer clube abre a página dele, com campanha, time provável e confronto contra você. Clicar num jogador abre a ficha com atributos, evolução e as ações de contrato e de mercado. O endereço guarda a aba aberta: dá para mandar o link no grupo.</p>`],
+["tatica", "Escalação e tática", `
+  <p>Você escolhe 11 titulares em qualquer desenho, 7 reservas e as instruções. Salve: a tática vale para todos os jogos seguintes até você mudar. Dá para guardar várias escalações com nome na barra de cima.</p>
+  <h3>Montar o time</h3>
+  <ul>
+    <li>Toque numa vaga para escolher o jogador, ou arraste. Arrastar um titular mostra as posições possíveis e a nota dele em cada uma.</li>
+    <li>São 18 posições, as do Dugout. Fora da posição natural o jogador rende 93% (posição em que é competente) ou 80% (improvisado).</li>
+    <li>Na lateral e na ponta o pé conta: pé do lado cruza melhor; pé trocado cruza pior e finaliza melhor.</li>
+    <li>Lesionado ou suspenso que ficar na escalação é trocado sozinho pelo melhor disponível.</li>
+    <li>Contratado novo precisa de entrosamento: nos primeiros 8 jogos pelo clube ele tira até 10% do rendimento do setor em que joga.</li>
+  </ul>
+  <h3>Instruções</h3>
+  ${tabela(["Instrução", "Opções"], [
+    ["Mentalidade", "5 níveis, de muito defensiva a muito ofensiva"], ["Agressividade", "5 níveis; mais alta defende melhor e leva mais cartões"],
+    ["Pressão", "3 níveis; pressão alta gasta mais energia"], ["Lado do ataque", "misto, esquerda, centro, direita ou pelos lados"],
+    ["Passe", "misto, curto ou longo"], ["Contra-ataque e linha de impedimento", "ligado ou desligado"],
+    ["Papéis", "capitão, armador, homem-alvo e cobradores de escanteio, falta e pênalti (fichas por linha)"],
+  ])}
+  <h3>Durante o jogo (programado antes)</h3>
+  <ul>
+    <li>Até 5 substituições: minuto, quem sai, quem entra, em que posição e uma condição (sempre, ganhando, empatando, perdendo, cansado, com amarelo, jogando mal…).</li>
+    <li>Até 3 ordens táticas condicionais, como "perdendo aos 70, mentalidade ofensiva". Depois do jogo, <i>Suas ordens</i> mostra o minuto em que cada uma valeu ou por que não valeu.</li>
+  </ul>
+  <h3>O que vence o quê</h3>
+  <p>Não existe tática dominante: acertar a resposta ao adversário vale de 0,3 a 0,5 ponto por jogo, e errar custa o mesmo.</p>
+  ${tabela(["Sua escolha", "Vai bem contra", "Vai mal contra"], [
+    ["Passe curto", "time sem pressão, retranca", "pressão alta"], ["Bola longa", "pressão alta", "linha de impedimento"],
+    ["Linha de impedimento", "bola longa", "passe curto, contra-ataque"], ["Contra-ataque (postura defensiva)", "time muito ofensivo", "time neutro ou retrancado"],
+    ["Atacar pelo lado certo", "o corredor mais fraco do adversário", "o corredor mais forte"],
+  ])}
+  <p>A prévia do próximo adversário fica na própria tela da tática: time provável, estilo (posse, finalizações, contra-ataques, faltas, corredor, bola longa) e o seu onze ao lado. Quanto melhor o seu analista, mais jogos ela observa. Bots jogam conforme o perfil do clube; a tática de outro dirigente é segredo.</p>
+  <p>Em jogo grande (Libertadores, Sul-Americana, playoff, final da copa e Supercopa) a experiência pesa mais.</p>`],
+["jogador", "O jogador", `
+  <p>A nota resume os atributos que pesam na posição; forma, moral, experiência e energia mexem no que ele rende em cada jogo.</p>
+  ${tabela(["O quê", "Escala", "Como muda", "Efeito no jogo"], [
+    ["Atributos", "22, de 1 a 50", "Treino (sobe) e idade a partir dos 31 (físico cai)", "Decidem cada duelo e cada finalização"],
+    ["Talento", "Oculto", "Não muda", "Define o teto de evolução; o olheiro mostra uma faixa"],
+    ["Forma", "0 a 100, começa em 50", "Sobe jogando bem em relação à posição; cai parado ou lesionado; puxa de volta para 50", "Até 6% a mais ou a menos"],
+    ["Moral", "0 a 100, começa em 50", "Sobe com vitória e minutos; cai com derrota e banco", "Até 3% a mais ou a menos"],
+    ["Experiência", "0 a 100", "+1 por jogo com 45 minutos ou mais, +0,5 se só entrou", "Atuações mais regulares; pesa mais em jogo grande"],
+    ["Pé", "Direito, esquerdo ou ambidestro", "Não muda", "Conta nas posições de lado"],
+  ])}
+  <h3>Lesões e cartões</h3>
+  <ul>
+    <li>Lesão tira o jogador de 1 a 4 jogos e vale para todas as competições. Médico encurta; preparador de prevenção reduz a chance.</li>
+    <li>Na liga, o vermelho suspende por 1 jogo, e o ${AMARELOS_PARA_SUSPENSAO}º amarelo acumulado também.</li>
+    <li>Na Copa do Brasil a conta é separada: o ${COPA.amarelosParaSuspensao}º amarelo suspende, e os amarelos zeram depois das quartas. Suspensão de uma competição não vale na outra.</li>
+    <li>Cartões e suspensões zeram na virada; lesão continua.</li>
+  </ul>
+  <h3>Idade</h3>
+  <ul>
+    <li>Evolui em ritmo cheio até os 23, cada vez menos até os 30, e para. A partir dos 31 perde físico a cada temporada.</li>
+    <li>Entre 34 e 37 pode anunciar a aposentadoria no meio da temporada; quem anunciou não pode mais ser vendido nem renovar.</li>
+  </ul>
+  <p>Lesões, cartões, forma, moral e dinheiro de uma partida só aparecem no apito final, para não entregar o resultado durante a transmissão.</p>`],
+["treino", "Treino e comissão técnica", `
+  <p>Cada rodada de liga é uma sessão de treino; jogo de copa não treina. Tudo fica em Elenco › Treino.</p>
+  <h3>Como o treino funciona</h3>
+  <ul>
+    <li>Cada jogador tem um foco principal (5 atributos da função, 70% dos pontos) e um complementar (3 atributos à sua escolha, 30%). A cada 100 pontos o atributo sobe 1. "Sugerir focos para todos" resolve em um clique.</li>
+    <li>Todo jogador tem um teto de nota definido pelo talento (de 23 a 43) e treina na medida do caminho até lá: quem tem teto alto ganha mais pontos por rodada.</li>
+    <li>O ritmo depende da idade: cheio até os 23, 85% aos 24 e 25, 70% aos 26 e 27, 50% dos 28 aos 30, nada depois.</li>
+    <li>Quem jogou 45 minutos ou mais na rodada treina 10% melhor. Lesionado não treina.</li>
+    <li>O centro de treinamento rende 90% sem nível e mais 4% por nível.</li>
+    <li>Posição nova: na ficha de treino dá para mandar o jogador aprender outra posição. Custa 20% do treino enquanto dura, anda mais rápido se ele jogar nela e cada jogador guarda uma posição aprendida. Goleiro fica de fora.</li>
+  </ul>
+  <h3>Treinadores</h3>
+  <ul>
+    <li>Até 5 por clube. Sem treinador a área rende 90%; com um de skill 50, 115%.</li>
+    <li>Goleiros, defesa, meio e ataque precisam de um treinador designado para a área; o treinador geral soma 60% da skill dele por cima. Físico e tática somam a skill de todos os treinadores.</li>
+    <li>A lista de candidatos é só do seu clube e se renova sozinha; dá para procurar candidatos novos algumas vezes por temporada, pagando. Contratar custa luvas de 10% do salário; dispensar é grátis.</li>
+    <li>O salário da comissão fica fora do teto de folha e é pago por rodada.</li>
+  </ul>
+  <h3>Demais funcionários (um de cada)</h3>
+  ${tabela(["Funcionário", "O que faz", "Estrutura que amplia"], [
+    ["Médico", "Corta a duração da lesão (skill 50 = metade), mínimo 1 jogo", "Departamento médico: atende 1 lesionado, mais 1 por nível"],
+    ["Preparador de prevenção", "Reduz a chance de lesão do time em 10% a 40%", ""],
+    ["Preparador de forma", "Dá de 2 a 8 pontos de forma por rodada aos de pior forma", "Fisioterapia: 2 jogadores por rodada, mais 2 por nível"],
+    ["Psicólogo", "Corta de 20% a 60% das quedas de moral", ""],
+    ["Olheiro", "Mostra a faixa do teto de cada jogador do seu elenco; quanto maior a skill, mais estreita", ""],
+    ["Analista", "Melhora o comentário depois do jogo e a prévia do próximo adversário", ""],
+  ])}`],
+["base", "Base e olheiro", `
+  <p>A base entrega jovens de ${CONFIG_BASE.idade[0]} a ${CONFIG_BASE.idade[1]} anos duas vezes por temporada; eles chegam fracos (nota entre ${CONFIG_BASE.nota[3]} e ${CONFIG_BASE.nota[4]}) e valem pelo teto.</p>
+  ${tabela(["Nível da base", "Jovens na virada", "Jovens na peneira"], CONFIG_BASE.promocao.map(([a, b], n) => [n, a === b ? a : `${a} a ${b}`, (([c, d]) => !d ? "nenhum" : c === d ? c : `${c} a ${d}`)(CONFIG_BASE.peneira[n])]))}
+  <ul>
+    <li>A peneira é um botão em Base, uma vez por temporada, liberado depois da rodada ${CONFIG_BASE.rodadaDaPeneira}.</li>
+    <li>Base de nível mais alto traz gente mais pronta: a nota de chegada fica perto de 15 mais 1,5 por nível. O talento não depende da base. A cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes; base melhor dá mais chance.</li>
+    <li>O jovem chega como juvenil: sem contrato nem salário. Treina, joga a base, mas não joga partida oficial e não pode ser vendido. Para usá-lo, profissionalize-o na ficha dele (contrato de 1 a 3 temporadas pelo salário de mercado). Quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.</li>
+    <li>O elenco comporta ${LIMITE_DE_CONTRATADOS} jogadores com contrato e ${LIMITE_DE_JUVENIS} juvenis.</li>
+    <li>Formado no clube: sem multa rescisória e sem pré-contrato até os ${CONFIG_BASE.idadeDeJuvenil} anos, conta ${pct(PESO_DO_FORMADO)} do salário no teto de folha e rende 5% de toda venda futura dele entre outros clubes. Se o clube dele virar vaga de um dirigente novo, o formador tem 48 horas exclusivas para repatriá-lo.</li>
+    <li>Jovem que não serve pode ser dispensado: vira jogador livre.</li>
+  </ul>
+  <h3>Liga de base, Copinha e Libertadores Juvenil</h3>
+  <ul>
+    <li>Os juvenis (e os profissionais formados no clube com até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos) disputam a liga de base contra os clubes do seu grupo. A escalação e a tática da base são suas, em Base › Escalação; sem elas o jogo monta o time. Se faltar gente, garotos da escolinha completam.</li>
+    <li>Não há lesão nem cartão; quem joga ganha um bônus de treino e o campeão do grupo recebe ${dinheiro(CONFIG_LIGA_DE_BASE.premio)} do fundo da liga.</li>
+    <li>A Copinha corre nas datas da Copa do Brasil, e a Libertadores Juvenil nas datas da Libertadores.</li>
+  </ul>
+  <h3>Olheiro</h3>
+  <ul>
+    <li>O talento é oculto. O olheiro mostra o teto de nota como uma faixa, por exemplo "37 a 42", no botão <b>i</b> e na coluna Teto.</li>
+    <li>Para jogador de outro clube, compre um relatório no painel dele: faixa larga, média ou estreita, com preço crescente.</li>
+  </ul>`],
+["mercado", "Mercado", `
+  <p>Há vários jeitos de contratar e de vender; quase todos dependem da janela, que a faixa colorida no topo do Mercado mostra aberta, fechada ou em pré-acordos, com data.</p>
+  <h3>Janelas</h3>
+  <ul>
+    <li>Início: abre na virada da temporada e fecha na véspera da rodada 3.</li>
+    <li>Meio: abre no dia seguinte às oitavas da Copa do Brasil e fecha na véspera das quartas.</li>
+    <li>Pré-acordos: depois da última rodada e até a virada, dirigentes podem fechar negócios entre si que acontecem na virada e não se desfazem, e fazer até 2 propostas de pré-contrato a jogadores com contrato acabando.</li>
+    <li>Com a janela fechada continuam valendo: leilão de jogadores livres, ofertas de clubes no vermelho e a lista de transferência (só o anúncio).</li>
+  </ul>
+  <h3>Como contratar</h3>
+  ${tabela(["Caminho", "Quanto custa", "Regras principais"], [
+    ["Multa rescisória", `${MULTIPLO_DA_CLAUSULA} vezes o valor do jogador hoje (o maior entre salário e salário de mercado), sem taxa`, "Leva na hora. Não vale para protegidos, para quem está na primeira temporada de contrato nem para formado no clube até os 21. O jogador não desce de divisão pela multa. Limite de compras e de perdas por temporada, mostrado no Mercado"],
+    ["Proposta a outro dirigente", "Entre 3 e 7,5 vezes o salário", "O dono aceita, recusa ou contrapropõe. Dá para pedir empréstimo até a virada, com o salário meio a meio"],
+    ["Jogador livre", "Só o salário", "Leilão aberto: leva o maior salário. A duração acompanha o ritmo do calendário e aparece na tela. No máximo 3 leilões ao mesmo tempo, e os lances em que você está na frente contam juntos no teto da folha"],
+    ["Oferta de clube no vermelho", "3,75 vezes o salário", "Sem janela e sem contar nos limites da multa"],
+    ["Pré-contrato", "Só o salário", "No período de pré-acordos, até 2 propostas a jogadores de outros dirigentes com contrato acabando; na virada leva o maior salário"],
+  ])}
+  <h3>Como vender</h3>
+  ${tabela(["Caminho", "Quanto rende", "Regras principais"], [
+    ["Lista de transferência + proposta", "O combinado, menos a taxa", "Taxa de 30% se vender na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. As taxas vão para o fundo da liga"],
+    ["Agente", "De 1 a 2,5 vezes o salário de mercado", `Venda garantida a um clube sem dirigente, paga com o caixa desses clubes; o extra cai depois da 2ª e da 4ª venda. Só na janela, até ${VENDAS_PELO_AGENTE} por temporada`],
+    ["Empréstimo a bot", "Metade do salário", "O jogador joga pelo bot até a virada e volta"],
+    ["Dispensa", "Nada", "Só até 21 anos ou com 31 ou mais; o jogador vira livre e vai a leilão"],
+    ["Pré-acordo", "O combinado", "Proposta entre dirigentes no período de pré-acordos; acontece na virada"],
+  ])}
+  <h3>Travas</h3>
+  <ul>
+    <li>Elenco: no máximo ${LIMITE_DE_CONTRATADOS} com contrato e ${LIMITE_DE_JUVENIS} juvenis; no mínimo 16 para vender.</li>
+    <li>Folha: não passa do teto da divisão, e um jogador não ganha mais de ${pct(MAXIMO_INDIVIDUAL)} do teto.</li>
+    <li>No máximo 5 estrangeiros por clube, contando os emprestados. Clubes da Argentina, Uruguai, Colômbia e Chile contam como primeira divisão.</li>
+    <li>Quem chegou nesta janela só pode ser revendido por negociação na próxima. Depois de 5 jogos de liga pelo clube, o jogador não vai, na janela do meio, para clube da mesma divisão. Quem jogou a copa por um clube não a joga por outro na mesma temporada.</li>
+    <li>Você protege até 7 jogadores da multa. Incluir é a qualquer hora; tirar da lista, só com a janela fechada.</li>
+  </ul>`],
+["financas", "Finanças", `
+  <p>O dinheiro entra e sai a cada rodada de liga, no apito final; o teto de folha depende da divisão. Tudo está em Clube › Finanças, em milhares (mil) e milhões (mi) por temporada, com previsão por rodada.</p>
+  ${tabela(["", "Série A", "Série B"], [
+    ["Teto de folha", dinheiro(TETO_DE_FOLHA[1]), dinheiro(TETO_DE_FOLHA[2])],
+    ["Direitos de TV", v(1, "receita_tv"), v(2, "receita_tv")],
+    ["Ingresso", v(1, "preco_ingresso", x => "R$ " + x), v(2, "preco_ingresso", x => "R$ " + x)],
+    ["Torcida-base", v(1, "torcida_base", x => x.toLocaleString("pt-BR")), v(2, "torcida_base", x => x.toLocaleString("pt-BR"))],
+    ["Prêmio da liga, do campeão ao lanterna", `${dinheiro(PREMIOS[1][0])} a ${dinheiro(PREMIOS[1][1])}`, `${dinheiro(PREMIOS[2][0])} a ${dinheiro(PREMIOS[2][1])}`],
+  ])}
+  <h3>Receitas</h3>
+  <ul>
+    <li>TV cai em parcelas, uma por rodada.</li>
+    <li>Patrocínio: luvas em parcelas mais um bônus por meta de posição (veja Estádio, patrocínio e torcida).</li>
+    <li>Bilheteria nos jogos em casa: o público depende da torcida, do humor dela, do tamanho do estádio e do jogo. Adversário de torcida grande, playoff e fases finais de copa atraem mais; copa e playoff têm ingresso mais caro. Na copa a renda é dividida meio a meio. De toda bilheteria, 10% vão para o fundo da liga.</li>
+    <li>Comida e bebida: cada torcedor gasta de R$ 4 para cima, mais nos estádios maiores e com a torcida feliz. Sem taxa do fundo.</li>
+    <li>Sócio-Torcedor: só antes da primeira rodada. Até um terço da torcida paga os jogos em casa de uma vez, com 20% de desconto. Você recebe na hora e garante o público.</li>
+    <li>Prêmio da liga na virada, por posição; prêmios das copas a cada fase; prêmios individuais da temporada pagos ao clube.</li>
+    <li>Diretoria: com confiança alta na virada, uma verba extra (veja Diretoria e confiança).</li>
+  </ul>
+  <h3>Despesas</h3>
+  <ul>
+    <li>Salários dos jogadores, em parcelas por rodada. Salário nunca desce dentro do contrato.</li>
+    <li>Comissão técnica (fora do teto), manutenção das estruturas e obras.</li>
+    <li>Operação dos jogos em casa (segurança, staff, limpeza): cresce com o nível do estádio; na copa, meio a meio.</li>
+    <li>Imposto na virada sobre o lucro da temporada: isento até ${fracao(FAIXAS_DO_IMPOSTO[0][0])}, ${imposto}. Vai inteiro para o fundo da liga, que paga copas, prêmios da base e prêmios individuais.</li>
+  </ul>
+  <h3>Contratos</h3>
+  <ul>
+    <li>Duram de 1 a 3 temporadas. Renovação e aumento são feitos clicando no jogador.</li>
+    <li>Na renovação o salário não fica abaixo do salário de mercado dele; contrato mais longo pede mais (10% a mais para 2 temporadas, 20% para 3). Dá para pagar luvas de uma vez, fora da folha, para ele aceitar até 30% menos.</li>
+    <li>Contrato que vence renova sozinho na virada por uma temporada (pelo maior entre salário e mercado, se couber no teto). Para deixar sair, marque "Não renovar" na ficha: ele fica livre e vai a leilão.</li>
+    <li>Jogador com 33 anos ou mais só assina por uma temporada de cada vez.</li>
+  </ul>
+  <h3>Clube no vermelho</h3>
+  <ul>
+    <li>Caixa negativo bloqueia aumentos, renovações e obras.</li>
+    <li>Abaixo de ${pct(LIMITE_DA_DIVIDA)} do teto em dívida por ${RODADAS_DE_PRAZO} rodadas seguidas, o jogo vende sozinho o maior salário fora dos titulares.</li>
+    <li>Saídas: vender pelo agente por até 3 vezes o salário de mercado (vale com a janela fechada), oferecer um jogador à liga, ou antecipar parte do prêmio uma vez por temporada.</li>
+  </ul>
+  <p>Quem cai de divisão recebe um paraquedas na primeira temporada: teto e TV um pouco maiores que os da divisão nova.</p>`],
+["estadio", "Estádio, patrocínio e torcida", `
+  <h3>Estruturas</h3>
+  ${tabela(["Nível", "Custo da obra", "Prazo (rodadas de liga)"], [[1, "250 mil", 1], [2, "500 mil", 3], [3, "1 mi", 6], [4, "2 mi", 11], [5, "4 mi", 18]])}
+  <p>Vale para centro de treinamento, departamento médico, fisioterapia e base. Só uma obra por vez, contando o estádio; o dinheiro sai no início e a manutenção é cobrada por temporada.</p>
+  <h3>Estádio</h3>
+  <ul>
+    <li>8 níveis, de ${lugaresDoEstadio(1).toLocaleString("pt-BR")} a ${lugaresDoEstadio(8).toLocaleString("pt-BR")} lugares. Do nível 2 ao 8 a obra custa de 1,5 mi a 30 mi, com prazo de 3 a 36 rodadas.</li>
+    <li>Refletores a partir do nível 4 e estacionamento a cada dois níveis trazem um pouco mais de público; bares melhores vendem mais comida. Tudo isso entra na manutenção.</li>
+    <li>O estádio aparece em 3D em Clube › Estádio, com cidade ao redor e as placas dos patrocinadores. Trocar o modelo é uma reforma: custa 25% e leva metade do prazo de uma obra do mesmo nível.</li>
+    <li>As finais das copas continentais e da Supercopa são em sedes reais.</li>
+  </ul>
+  <h3>Patrocínio</h3>
+  <ul>
+    <li>Em Clube › Patrocínio, antes da primeira rodada: escolha uma marca (só visual: vai na camisa, no cabeçalho e nas placas; as marcas grandes só patrocinam a Série A) e uma de três propostas.</li>
+    <li><b>Segura</b>: quase tudo garantido em luvas, bônus pequeno por meta fácil. <b>Mista</b>: parte garantida, parte no bônus, meta no nível do seu time. <b>Agressiva</b>: pouco garantido, bônus alto se o time superar as expectativas.</li>
+    <li>As três valem o mesmo na média: a meta é calibrada pela força do clube. As luvas caem em parcelas; o bônus, se a meta for cumprida, é pago na virada.</li>
+  </ul>
+  <h3>Torcida</h3>
+  <p>Humor e torcida sobem com vitórias e caem com derrotas. O tamanho que a torcida pode atingir depende do prestígio do clube, que cresce a cada temporada na Série A e a cada título, e cai devagar nas divisões de baixo.</p>`],
+["temporada", "A temporada e as competições", `
+  <h3>Liga</h3>
+  <ul>
+    <li>Série A com 12 clubes, turno e returno, 22 rodadas, pontos corridos. Série B em três grupos de 8 (B1, B2 e B3), 14 rodadas e playoff.</li>
+    <li>Argentina, Uruguai, Colômbia e Chile têm campeonatos próprios de 10 clubes, nas mesmas datas.</li>
+    <li>A tabela mostra também os pontos esperados (PE), calculados pelas chances criadas: servem para saber se o time jogou melhor ou pior do que o placar.</li>
+    <li>Clube sem dirigente joga com um bot, que tem estilo próprio conforme o perfil do elenco.</li>
+  </ul>
+  <h3>Acesso e descenso</h3>
+  <ul>
+    <li>Caem os ${DESCENSO_DA_PRIMEIRA} últimos da Série A, um para cada grupo da B. A Série B não cai.</li>
+    <li>Sobe o vencedor do playoff de cada grupo da B: preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate passa o mandante), semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6, e final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado passa a melhor campanha).</li>
+  </ul>
+  <h3>Copa do Brasil</h3>
+  <ul>
+    <li>Mata-mata em jogo único com os clubes do Brasil. Os de pior campanha na temporada anterior jogam a preliminar; os outros entram na fase de 32. A chave sai inteira no sorteio.</li>
+    <li>Uma data de copa depois das rodadas 2, 5, 9, 13, 17 e 21 da liga.</li>
+    <li>O jogo é no estádio maior entre os dois, em campo neutro. Empate leva à prorrogação de 30 minutos e depois aos pênaltis.</li>
+    <li>Cartões próprios, experiência valendo ${String(COPA.experiencia).replace(".", ",")} e sem treino. Prêmios somados ao chegar a cada fase: ${premios(PREMIOS_DA_COPA)}. Com o fundo da liga folgado, a copa paga até o dobro.</li>
+  </ul>
+  <h3>Libertadores, Sul-Americana, Supercopa e Recopa</h3>
+  <ul>
+    <li>Libertadores: 16 clubes, mata-mata depois das rodadas 6, 11, 16 e 20. Vão os 3 primeiros da Série A e o campeão da copa (já classificado, o 4º), mais os 3 primeiros de cada país de fora. Prêmios: ${premios(PREMIOS_DA_LIB)}.</li>
+    <li>Sul-Americana: 16 clubes nas mesmas datas. Vão os 3 seguintes da Série A e o vice da copa, mais o 4º ao 6º de cada país. Prêmios: ${premios(PREMIOS_DA_SUL)}.</li>
+    <li>Supercopa (campeão da liga x campeão da copa) e Recopa (campeões continentais, ${dinheiro(PREMIO_DA_RECOPA)}) abrem a temporada.</li>
+    <li>Os prêmios das continentais saem do fundo da liga.</li>
+  </ul>
+  <h3>Virada</h3>
+  <ul>
+    <li>Acontece depois dos playoffs, feita pelo administrador.</li>
+    <li>Paga os prêmios da liga, cobra o imposto, sobe e rebaixa, envelhece os jogadores em um ano, aposenta quem anunciou, promove os jovens da base, renova sozinho os contratos vencidos (menos os marcados para sair) e atualiza a confiança da diretoria.</li>
+    <li>Zera cartões e suspensões e abre a janela de início. Caixa, obras, lesões e humor da torcida seguem.</li>
+    <li>A classificação final, os títulos, os prêmios individuais e os recordes ficam em Competições › Recordes e na sala de troféus.</li>
+  </ul>`],
+["diretoria", "Diretoria e confiança", `
+  <ul>
+    <li>A diretoria começa com confiança ${C.inicio} de 100 e dá uma meta de posição na liga, tirada de simulações da temporada com o seu elenco.</li>
+    <li>Na virada a confiança sobe ou cai (no máximo ${C.limite} pontos) pela posição em relação à meta, pela campanha na copa e pelas finanças.</li>
+    <li>Ela só dá recompensas, nunca demite: com ${C.verba[1][0]} ou mais, verba de ${pct(C.verba[1][1])} do teto da folha; com ${C.verba[0][0]} ou mais, ${pct(C.verba[0][1])} e mais uma compra pela multa. Com ${C.segundoClube} ou mais, o dirigente ganha o direito a um segundo clube em outro país.</li>
+  </ul>`],
+["erros", "Erros comuns de quem está começando", `
+  <ul>
+    <li><b>Não salvar a tática.</b> Sem tática salva o bot escala por você. Salve uma vez e revise antes de cada jogo.</li>
+    <li><b>Perder o patrocínio e o Sócio-Torcedor.</b> Os dois só dão para escolher antes da primeira rodada da temporada.</li>
+    <li><b>Não proteger ninguém.</b> Sem a lista de protegidos, seus melhores saem por ${MULTIPLO_DA_CLAUSULA} vezes o salário. Você tem 7 vagas.</li>
+    <li><b>Pagar salário alto para subir a multa.</b> Salário nunca desce, pesa no teto e sai do caixa toda rodada.</li>
+    <li><b>Abrir leilões demais.</b> Os lances em que você está na frente contam juntos no teto; se fecharem juntos e não couberem, os que passam são descartados.</li>
+    <li><b>Treinar sem treinador.</b> Sem comissão o treino rende 90% e o jogador chega ao teto anos mais tarde.</li>
+    <li><b>Jovem no banco a temporada inteira.</b> Quem joga treina 10% melhor e ganha experiência; parado, perde forma e moral. A liga de base também conta.</li>
+    <li><b>Julgar o motor por um jogo.</b> Um resultado tem muita sorte. Olhe os pontos esperados na tabela e o relatório da partida.</li>
+    <li><b>Insistir na mesma tática.</b> Leia a prévia do adversário e responda ao estilo dele.</li>
+    <li><b>Sumir.</b> Com ${DIAS_PARA_BOT} dias sem entrar, o bot assume a escalação.</li>
+  </ul>
+  <p>Dúvida ou algo estranho? Avise o administrador: o jogo está em teste e ajustes são esperados.</p>`],
+];
+
+document.getElementById("corpo").innerHTML = `<div class="card indice">${secoes.map(([id, t]) => `<a href="#${id}">${t}</a>`).join("")}</div>`
+  + secoes.map(([id, t, html]) => `<div class="card"><h2 id="${id}">${t}</h2>${html}</div>`).join("");
+if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+</script>
+</body>
+</html>

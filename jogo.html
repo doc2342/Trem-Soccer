@@ -1557,13 +1557,15 @@ async function telaClube(liga, clube) {
       treinoLigado && [elenco.some(j => j.treino), "🏋️", "Escolha o treino", "Cada jogador evolui nos focos que você escolher; os jovens são os que mais crescem.", "treino"],
       [!!v.elenco, "👥", "Conheça o elenco", "Clique num jogador para ver atributos, contrato, multa e as ações de mercado.", "elenco"],
       caixa != null && [!!v.financas, "💰", "Entenda o caixa e o teto da folha", `A soma dos salários não pode passar de ${dinheiro(teto)}. O dinheiro entra e sai a cada rodada.`, "financas"],
+      patro && [!!patro.escolha, "🤝", "Escolha o patrocínio", "Uma marca e uma de três propostas, de segura a agressiva. Só até a primeira rodada da temporada.", "clube:patrocinio"],
+      caixa != null && clube.carne != null && [clube.carne_temporada === liga.temporada, "🎟️", "Abra o Sócio-Torcedor", "Até um terço da torcida paga os jogos em casa de uma vez. Só antes da primeira rodada.", "financas"],
       [!!v.escudo, "🛡️", "Personalize escudo e uniformes", "Desenhe ou envie uma imagem do escudo.", "config:escudo"],
       [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
     ].filter(Boolean);
     const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
     return `<div class="card c-chegada"><h2>Primeiros passos <span class="tag">${feitos} de ${passos.length}</span>
         <button class="sec" id="chegadaFechar" style="float:right;padding:2px 10px;font-size:12.5px">Esconder</button></h2>
-      <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Os clubes sem dirigente são do bot.</div>
+      <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Os clubes sem dirigente são do bot. Todas as regras estão no <a class="lk" href="guia.html" style="color:var(--ac)">📖 Guia do dirigente</a>.</div>
       <div class="barra-passos"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
       <div class="mural passos">${passos.map(([ok, ic, t, d, ir]) => `<div data-aba-ir="${ir}" class="${ok ? "feito" : ""}" title="Clique para abrir"><span class="ic">${ok ? "✅" : ic}</span><span><b>${t}</b><br><span class="mut">${d}</span></span><span class="vai">›</span></div>`).join("")}</div></div>`;
   };
@@ -1826,7 +1828,7 @@ async function telaClube(liga, clube) {
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut">${esc(liga.nome)} · temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</div></div>
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" title="Ver o contrato de patrocínio" style="cursor:pointer">${seloDoTopo()}</div>
-      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end">${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
+      <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><a href="guia.html" style="color:var(--ac)">📖 Guia</a>${admin ? `<a href="admin.html" style="color:var(--ac)">Administração${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
@@ -2433,7 +2435,7 @@ ${historicoDaBase()}
       else if (ev.target.id === "pConfirma") {
         ev.target.disabled = true;
         try { msgP = await B.escolherPatrocinio(selM, selP); patro = await B.propostasDePatrocinio() || patro; } catch (err) { msgP = "Não deu: " + err.message; }
-        redesenha();
+        redesenha(); redesenharChegada();
       }
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
