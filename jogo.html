@@ -71,7 +71,7 @@
   /* chave do mata-mata */
   .chave { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; }
   .ch-col { flex:1 0 90px; min-width:90px; max-width:160px; display:flex; flex-direction:column; }
-  .ch-ponta { flex:0 0 250px; max-width:none; } /* a 1ª fase é a única cheia de nomes desde o sorteio: ganha a largura que sobra das fases vazias */
+  .ch-ponta { flex:0 0 250px; max-width:none; } .ch-t svg { flex:none; align-self:center; } .ch-t span { flex:1; } /* a 1ª fase é a única cheia de nomes desde o sorteio: ganha a largura que sobra das fases vazias */
   .ch-final .ch-f { color:var(--ac); } .ch-final .ch-j { border-color:var(--ac); }
   .ch-f { font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); text-align:center; margin-bottom:6px; }
   .ch-jogos { flex:1; display:flex; flex-direction:column; justify-content:space-around; gap:6px; }
@@ -684,24 +684,27 @@ async function telaClube(liga, clube) {
       if (temChave(por[fases[k]])) por[fases[k]].sort((a, b) => a.chave - b.chave);
       else por[fases[k]].sort((a, b) => Math.min(de(a.casa), de(a.fora)) - Math.min(de(b.casa), de(b.fora))); }
     const nome = id => esc((cPor[id] || {}).nome || "—"), sigla = id => esc((cPor[id] || {}).sigla || "—");
-    const caixa = p => { const r = res(p), v = venc(p);
-      const lado = (id, g) => `<div class="ch-t ${v === id ? "ch-v" : ""} ${id === clube.id ? "ch-eu" : ""}"><span title="${nome(id)}">${nome(id)}</span><b>${r ? g : ""}</b></div>`;
+    // só a fase atual (a mais adiantada já sorteada) mostra o nome inteiro; as outras, escudo e sigla, com o nome no title
+    const escudo = id => svgEscudo((cPor[id] || {}).escudo, (cPor[id] || {}).sigla, 16);
+    const caixa = (p, largo) => { const r = res(p), v = venc(p);
+      const lado = (id, g) => `<div class="ch-t ${v === id ? "ch-v" : ""} ${id === clube.id ? "ch-eu" : ""}">${escudo(id)}<span title="${nome(id)}">${largo ? nome(id) : sigla(id)}</span><b>${r ? g : ""}</b></div>`;
       return `<a class="ch-j ${p.casa === clube.id || p.fora === clube.id ? "ch-meu" : ""}" href="aovivo.html?id=${p.id}">${lado(p.casa, r && r.gols_casa)}${lado(p.fora, r && r.gols_fora)}${r && r.penaltis ? `<div class="ch-p">pên. ${r.penaltis[0]} x ${r.penaltis[1]}</div>` : ""}</a>`; };
     // A preliminar sai da árvore (com ela a 1ª coluna tem mais jogos que a seguinte e a chave fica torta e comprida) e vira uma grade abaixo.
     // Com a chave fixa, a fase de 32 ainda vazia já mostra as vagas: o clube direto ou o vencedor do jogo da preliminar.
     const prel = fases[0] === 1 && fases.length > 1 ? por[1] : null, arvore = prel ? fases.slice(1) : fases;
     const vaga = x => { const j = x < 0 && prel.find(p => p.chave === -x), w = x > 0 ? x : j && venc(j);
-      return w ? `<div class="ch-t ${w === clube.id ? "ch-eu" : ""}"><span>${nome(w)}</span><b></b></div>` : `<div class="ch-t"><span><i>${j ? `${sigla(j.casa)} ou ${sigla(j.fora)}` : "preliminar"}</i></span><b></b></div>`; };
+      return w ? `<div class="ch-t ${w === clube.id ? "ch-eu" : ""}">${escudo(w)}<span>${nome(w)}</span><b></b></div>` : `<div class="ch-t"><span><i>${j ? `${sigla(j.casa)} ou ${sigla(j.fora)}` : "preliminar"}</i></span><b></b></div>`; };
     const vazio = (f, i) => f === 2 && prel && Array.isArray(vagas32) && vagas32.length === 32 ? `<div class="ch-j ch-vazio ch-vaga">${vaga(+vagas32[2 * i])}${vaga(+vagas32[2 * i + 1])}</div>` : `<div class="ch-j ch-vazio">${fixa ? "a definir" : "a sortear"}</div>`;
     // espelhada: a metade de cima de cada fase à esquerda, a de baixo à direita (colunas na ordem inversa) e a final no centro
     const coluna = (f, metade) => { const n = 2 ** (6 - f), ini = metade === 1 ? n / 2 : 0, fim = metade === 0 ? n / 2 : n;
-      const itens = por[f].length ? por[f].slice(ini * por[f].length / n, fim * por[f].length / n).map(caixa) : Array.from({ length: fim - ini }, (_, i) => vazio(f, ini + i));
-      return `<div class="ch-col ${f === 6 ? "ch-final" : f === arvore[0] ? "ch-ponta" : ""}"><div class="ch-f">${f === 6 ? "🏆 " : ""}${FASES_DA_COPA[f]}</div><div class="ch-jogos">${itens.join("")}</div></div>`; };
+      const itens = por[f].length ? por[f].slice(ini * por[f].length / n, fim * por[f].length / n).map(p => caixa(p, f === atual)) : Array.from({ length: fim - ini }, (_, i) => vazio(f, ini + i));
+      return `<div class="ch-col ${f === 6 ? "ch-final" : ""} ${f === atual ? "ch-ponta" : ""}"><div class="ch-f">${f === 6 ? "🏆 " : ""}${FASES_DA_COPA[f]}</div><div class="ch-jogos">${itens.join("")}</div></div>`; };
+    const atual = arvore.filter(f => por[f].length).pop() || arvore[0];
     const lados = arvore.filter(f => f < 6);
     const arv = `<div class="chave">${lados.map(f => coluna(f, 0)).join("")}${coluna(6)}${lados.slice().reverse().map(f => coluna(f, 1)).join("")}</div>`;
     if (!prel) return arv;
     const feitos = prel.filter(p => venc(p)).length;
-    return arv + `<details class="ch-prel" ${por[2].length ? "" : "open"}><summary><b>${FASES_DA_COPA[1]}</b> <span class="mut">· ${prel.length} jogos${feitos === prel.length ? ", encerrada" : feitos ? `, ${feitos} encerrados` : ""}</span></summary><div class="ch-grade">${prel.map(caixa).join("")}</div></details>`;
+    return arv + `<details class="ch-prel" ${por[2].length ? "" : "open"}><summary><b>${FASES_DA_COPA[1]}</b> <span class="mut">· ${prel.length} jogos${feitos === prel.length ? ", encerrada" : feitos ? `, ${feitos} encerrados` : ""}</span></summary><div class="ch-grade">${prel.map(p => caixa(p, true)).join("")}</div></details>`;
   };
   const chaveDaCopa = (jogos, todas, vagas32) => { const fases = todas.filter(f => f > 1 || jogos.some(p => p.copa_fase === 1)); // a preliminar só aparece se existir
     const fixa = jogos.some(p => p.chave != null);
