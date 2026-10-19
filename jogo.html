@@ -2119,16 +2119,19 @@ ${historicoDaBase()}
     const DIVISAO = serieDoGrupo;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
     let daPosicao = [];
-    // espelho das travas de comprar_pela_multa (76_emprestimo_e_supercopa.sql). ponytail: só as 200 últimas transferências da liga; fica de fora a dos 5 jogos na janela do meio
-    const multasDaTemporada = transferencias.filter(t => t.tipo === "multa" && t.temporada === liga.temporada);
-    const perdas = id => multasDaTemporada.filter(t => t.de_clube === id), minhasCompras = multasDaTemporada.filter(t => t.para_clube === clube.id).length;
+    // espelho das travas de comprar_pela_multa (76_emprestimo_e_supercopa.sql). Até a busca responder (ou sem o SQL 136),
+    // as multas saem das últimas transferências já carregadas e a trava dos 5 jogos fica de fora
+    let multas = transferencias.filter(t => t.tipo === "multa" && t.temporada === liga.temporada), jogos5 = {};
+    const perdas = id => multas.filter(t => t.de_clube === id), minhasCompras = () => multas.filter(t => t.para_clube === clube.id).length;
+    const mesmaDivisao = j => (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) === DIVISAO(clube.grupo);
     // travas da origem: o jogador some da lista
     const situacao = j => j.salario == null ? "sem contrato" : j.protegido ? "protegido" : (j.protegido_ate != null && j.protegido_ate >= liga.temporada) ? "primeira temporada" : (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) < DIVISAO(clube.grupo) ? "divisão acima" : j.pais !== meuPais && estrangeiros >= 5 ? "estrangeiros"
       : j.aposenta_em != null ? "aposentadoria" : !(cPor[j.clube_id] || {}).dono && janela && perdas(j.clube_id).some(t => t.janela === janela) ? "perdeu na janela"
-      : perdas(j.clube_id).length >= ((cPor[j.clube_id] || {}).dono ? 3 : 2) ? "limite de perdas" : "";
+      : perdas(j.clube_id).length >= ((cPor[j.clube_id] || {}).dono ? 3 : 2) ? "limite de perdas"
+      : janela === "meio" && mesmaDivisao(j) && (jogos5[j.id] || 0) >= 5 ? "5 jogos" : "";
     // travas do seu clube (dá para mudar): o jogador fica na lista, em cinza, com o motivo. [curto, explicação]
     const bloqueio = j => { const v = valorDeHoje(j), m = multaDe(j);
-      return minhasCompras >= 4 ? ["4 compras", "você já fez as 4 compras pela multa desta temporada"]
+      return minhasCompras() >= 4 ? ["4 compras", "você já fez as 4 compras pela multa desta temporada"]
         : elenco.length >= 50 ? ["elenco cheio", "seu elenco já tem 50 jogadores"]
         : v > maximo ? ["acima de 15%", `ele pede pelo menos ${dinheiro(v)}, e um jogador ganha no máximo ${dinheiro(maximo)} (15% do teto de folha)`]
         : folha + v > teto ? ["teto", `ele pede pelo menos ${dinheiro(v)}, e sobram ${dinheiro(Math.max(0, teto - folha))} até o seu teto de folha`]
@@ -2143,7 +2146,7 @@ ${historicoDaBase()}
           && (!nome || j.nome.toLowerCase().includes(nome)) && (multaMax === Infinity || multaDe(j) <= multaMax) && (!soVenda || j.a_venda));
       const l = antes.filter(j => !soMulta || !situacao(j)).sort((a, b) => b.nota - a.nota);
       const escondidos = {}; if (soMulta) antes.forEach(j => { const m = situacao(j); if (m) escondidos[m] = (escondidos[m] || 0) + 1; });
-      const porque = Object.entries(escondidos).map(([m, n]) => `${n} ${m === "primeira temporada" ? "na primeira temporada de contrato" : m === "protegido" ? (n === 1 ? "protegido" : "protegidos") : m === "divisão acima" ? "de divisão acima da sua (o jogador não desce pela multa)" : m === "estrangeiros" ? "de outro país (seu clube já tem 5 estrangeiros)" : m === "aposentadoria" ? "que anunciaram a aposentadoria" : m === "perdeu na janela" ? "de clube sem dono que já perdeu um jogador nesta janela" : m === "limite de perdas" ? "de clube que já perdeu o máximo pela multa nesta temporada" : "sem contrato"}`).join(", ");
+      const porque = Object.entries(escondidos).map(([m, n]) => `${n} ${m === "primeira temporada" ? "na primeira temporada de contrato" : m === "protegido" ? (n === 1 ? "protegido" : "protegidos") : m === "divisão acima" ? "de divisão acima da sua (o jogador não desce pela multa)" : m === "estrangeiros" ? "de outro país (seu clube já tem 5 estrangeiros)" : m === "aposentadoria" ? "que anunciaram a aposentadoria" : m === "perdeu na janela" ? "de clube sem dono que já perdeu um jogador nesta janela" : m === "limite de perdas" ? "de clube que já perdeu o máximo pela multa nesta temporada" : m === "5 jogos" ? "da sua divisão com 5 jogos de liga ou mais pelo clube (na janela do meio não mudam de clube na mesma divisão)" : "sem contrato"}`).join(", ");
       $("mLista").className = "";
       $("mLista").innerHTML = l.length ? `<table class="mini" style="width:100%"><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th class="c-sal">Salário</th><th>Multa</th><th class="c-sal" title="Última temporada coberta pelo contrato">Contr.</th></tr>
         ${l.slice(0, 60).map(j => { const b = !situacao(j) && bloqueio(j); return `<tr class="clk" data-mjog="${j.id}"${b ? ` style="opacity:.45" title="Por enquanto você não pode: ${esc(b[1])}"` : ""}><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.aposenta_em != null ? ` <span title="Anunciou a aposentadoria: não pode ser negociado">🏁</span>` : ""}<span class="m-clube mut">${esc(cPor[j.clube_id].nome)}</span></td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
@@ -2155,7 +2158,8 @@ ${historicoDaBase()}
     const buscar = async () => {
       const lista = $("mLista"); // se a tela for trocada (redesenho, sair) enquanto a busca está a caminho, a resposta é descartada
       lista.className = "mut"; lista.textContent = "Buscando…"; $("mPainel").innerHTML = "";
-      try { const achados = await jogadoresDoMercado(); if (!lista.isConnected) return; daPosicao = achados.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
+      try { const [achados, ms, js] = await Promise.all([jogadoresDoMercado(), B.multasDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null]);
+        if (!lista.isConnected) return; if (ms) multas = ms; if (js) jogos5 = js; daPosicao = achados.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
       catch (err) { if (lista.isConnected) lista.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     IDS_DOS_FILTROS.forEach(id => { if ($(id) && id in filtrosDoMercado) { if ($(id).type === "checkbox") $(id).checked = filtrosDoMercado[id]; else $(id).value = filtrosDoMercado[id]; } });
@@ -2176,7 +2180,7 @@ ${historicoDaBase()}
       ["mPainel", "cvPainel"].forEach(id => { if ($(id) && $(id) !== alvo) $(id).innerHTML = ""; });
       const motivo = situacao(j), trava = !motivo && bloqueio(j), multa = multaDe(j), minimo = valorDeHoje(j), baseNeg = j.juvenil ? (j.idade >= 18 ? j.salario_mercado : null) : j.salario; // juvenil: faixa pelo salário de mercado
       alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${sg(j.pos)} · ${j.idade} anos · ${esc(cPor[j.clube_id].nome)}
-        ${motivo ? `<div class="aviso" style="margin:6px 0">Não dá para comprar pela multa: ${motivo === "protegido" ? "está na lista de protegidos do clube" : motivo === "primeira temporada" ? "está na primeira temporada de contrato no clube" : motivo === "divisão acima" ? "é de uma divisão acima da sua (o campeonato de outro país vale como primeira divisão), e o jogador não desce de divisão pela multa" : motivo === "estrangeiros" ? "é de outro país, e seu clube já tem 5 estrangeiros (contando os emprestados)" : motivo === "aposentadoria" ? "anunciou a aposentadoria" : motivo === "perdeu na janela" ? "o clube não tem dirigente e já perdeu um jogador pela multa nesta janela (é um por janela)" : motivo === "limite de perdas" ? "o clube já perdeu o máximo de jogadores pela multa nesta temporada" : "ainda não tem contrato"}.</div><button class="sec" id="mFechar">Fechar</button>`
+        ${motivo ? `<div class="aviso" style="margin:6px 0">Não dá para comprar pela multa: ${motivo === "protegido" ? "está na lista de protegidos do clube" : motivo === "primeira temporada" ? "está na primeira temporada de contrato no clube" : motivo === "divisão acima" ? "é de uma divisão acima da sua (o campeonato de outro país vale como primeira divisão), e o jogador não desce de divisão pela multa" : motivo === "estrangeiros" ? "é de outro país, e seu clube já tem 5 estrangeiros (contando os emprestados)" : motivo === "aposentadoria" ? "anunciou a aposentadoria" : motivo === "perdeu na janela" ? "o clube não tem dirigente e já perdeu um jogador pela multa nesta janela (é um por janela)" : motivo === "limite de perdas" ? "o clube já perdeu o máximo de jogadores pela multa nesta temporada" : motivo === "5 jogos" ? `já jogou ${jogos5[j.id]} partidas de liga pelo clube, e na janela do meio quem tem 5 ou mais não vai para outro clube da mesma divisão` : "ainda não tem contrato"}.</div><button class="sec" id="mFechar">Fechar</button>`
           : `${trava ? `<div class="aviso" style="margin:6px 0">Por enquanto você não pode pagar a multa: ${esc(trava[1])}.</div>` : ""}<div class="mut" style="margin:4px 0">Multa rescisória: <b>${dinheiro(multa)}</b> (seu caixa: ${dinheiro(caixa)}). Salário atual ${dinheiro(j.salario)}; no contrato novo ele pede pelo menos ${dinheiro(minimo)} e pode ganhar até ${dinheiro(maximo)}. Sobram ${dinheiro(teto - folha)} até o seu teto de folha. No seu clube ele fica sem multa até o fim desta temporada.</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="mSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
             <label>Contrato de<select id="mTemporadas" data-prog="mSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>

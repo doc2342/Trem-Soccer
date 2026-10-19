@@ -437,6 +437,9 @@ export const emprestadosDoClube = clubeId => sb.from("jogadores").select("id, no
 export const responderProposta = (id, acao, valor = null) => sb.rpc("responder_proposta", { p_id: id, p_acao: acao, p_valor: valor }).then(ok);
 export const decidirContraproposta = (id, aceitar) => sb.rpc("decidir_contraproposta", { p_id: id, p_aceitar: aceitar }).then(ok);
 export const distribuirTaxas = ligaId => sb.rpc("distribuir_taxas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);
+// travas do mercado na lista: as multas da temporada (sem o limite de 200 linhas) e quem tem 5+ jogos de liga pelo clube (SQL 136)
+export const multasDaTemporada = (ligaId, temporada) => sb.from("transferencias").select("de_clube, para_clube, janela").eq("liga_id", ligaId).eq("temporada", temporada).eq("tipo", "multa").then(({ data, error }) => error ? null : data);
+export const jogosPeloClube = ligaId => sb.rpc("jogos_pelo_clube", { p_liga: ligaId }).then(({ data, error }) => error ? null : Object.fromEntries(data.map(x => [x.jogador_id, x.jogos])));
 export const transferenciasDaLiga = (ligaId, limite = 200) => sb.from("transferencias").select("*").eq("liga_id", ligaId).order("id", { ascending: false }).limit(limite).then(({ data, error }) => error ? [] : data);
 export const protegerJogador = (jogadorId, proteger) => sb.rpc("proteger_jogador", { p_jogador: numero(jogadorId), p_proteger: proteger }).then(ok);
 export async function comprarPelaMulta(jogadorId, salario, temporadas) {
