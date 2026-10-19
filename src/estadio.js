@@ -252,9 +252,7 @@ export async function desenharEstadio(el, config) {
   const ro = new ResizeObserver(() => I.render()); ro.observe(el);
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
-  // posição na tela (pixels da cena) dos pontos da festa, para o canvas por cima acompanhar a câmera
-  const pontosDaFesta = () => { const w = el.clientWidth, h = Math.round(w * 0.62); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
-  return { atualizar, pontosDaFesta, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
+  return { atualizar, destruir: () => { ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
 function construir() {
@@ -288,9 +286,6 @@ function construir() {
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
     else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
-  // festa: 10 cadeiras espalhadas pela arquibancada do campeão, onde a página da sede acende os sinalizadores
-  const arq = fes ? pos.filter(p => p.ld == LM && p.r > 1 && p.r < rows - 1 && !(p.r >= 28 && p.r <= 30)).sort((a, b) => uDe(a) - uDe(b)) : [];
-  cur.festaPts = arq.length ? Array.from({ length: 10 }, (_, i) => { const p = arq[Math.floor((i + 0.5) * arq.length / 10)]; return { x: p.x, y: p.h + 0.6, z: p.z }; }) : [];
   const esp = dunas ? 30 : m.pele ? 16 : 8 + (m.folga || 0); grp.add(chao(contorno(m, aM + esp, bM + esp), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
   if (m.pista) { const pt = pistaTex(); grp.add(plano(new T.PlaneGeometry(pt.W, pt.H), new T.MeshLambertMaterial({ map: pt.t, transparent: true }), 0.05)); }

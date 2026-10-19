@@ -69,8 +69,8 @@ async function carregar() {
   mostrar();
   if (b) b.onclick = () => { emFesta = !emFesta; mostrar(); };
 }
-// festa do título por cima do 3D (canvas), uns 10 segundos nas cores do campeão: fogos estourando no céu, sinalizadores acesos
-// na arquibancada soltando fumaça, fumaça colorida subindo dos cantos e papel picado caindo
+// festa do título por cima do 3D (canvas), uns 10 segundos nas cores do campeão: fogos estourando no céu,
+// fumaça colorida subindo dos cantos e papel picado caindo
 function festejar(cores) {
   const box = document.getElementById("cena").parentElement; box.querySelector("canvas.festa")?.remove(); // fora do #cena: o 3D limpa a caixa dele ao carregar
   const cv = document.createElement("canvas"); cv.className = "festa"; box.appendChild(cv);
@@ -78,23 +78,16 @@ function festejar(cores) {
   const cor = c => /^#[0-9a-f]{6}$/i.test(c) ? c : "#ffffff", cc = cores.map(cor), cs = [...cc, "#ffffff"], R = (a, b) => a + Math.random() * (b - a), um = l => l[Math.random() * l.length | 0];
   const pap = Array.from({ length: 170 }, () => ({ x: R(0, W), y: -R(0, H), vy: R(40, 110), vx: R(-15, 15), a: R(0, 6), va: R(-4, 4), c: um(cs), w: R(4, 8) }));
   const fum = [], fogos = [], fag = [];
-  // sinalizadores: em 10 cadeiras da arquibancada do campeão (o 3D diz onde elas estão na tela a cada quadro), cada um acende num momento
-  const sin = Array.from({ length: 10 }, (_, k) => ({ k, x: -99, y: -99, d: R(0, 1800), c: k % 2 ? cc[0] : "#ff4a1c" }));
   let ult = t0, proxFogo = 300;
   const fumaca = (x, y, c, r, vy) => fum.push({ x, y, r, vy, vx: R(-8, 8), c, v: 0 });
   const passo = agora => { const dt = Math.min(0.05, (agora - ult) / 1000), t = agora - t0; ult = agora; g.clearRect(0, 0, W, H);
     const fim = Math.max(0, 1 - Math.max(0, t - DUR + 1800) / 1800); // tudo some nos últimos 1,8 s
-    const pts = cena?.pontosDaFesta?.() || []; for (const f of sin) { const q = pts[f.k]; if (q) { f.x = q.x; f.y = q.y; } }
-    // fumaça (dos cantos e dos sinalizadores)
-    if (t < DUR - 2500) { if (Math.random() < dt * 6) fumaca(um([W * 0.06, W * 0.94]) + R(-30, 30), H + 20, um(cc), R(25, 45), R(18, 34));
-      for (const f of sin) if (t > f.d && f.x > -99 && Math.random() < dt * 1.8) fumaca(f.x + R(-4, 4), f.y - 6, Math.random() < 0.5 ? f.c : um(cc), R(8, 14), R(14, 26)); }
+    // fumaça dos cantos
+    if (t < DUR - 2500) { if (Math.random() < dt * 6) fumaca(um([W * 0.06, W * 0.94]) + R(-30, 30), H + 20, um(cc), R(25, 45), R(18, 34)); }
     for (let k = fum.length - 1; k >= 0; k--) { const f = fum[k]; f.v += dt; f.y -= f.vy * dt; f.x += f.vx * dt; f.r += 10 * dt; if (f.v > 6) { fum.splice(k, 1); continue; }
       const gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r); gr.addColorStop(0, f.c + "70"); gr.addColorStop(1, f.c + "00");
       g.globalAlpha = 0.85 * fim * Math.max(0, 1 - f.v / 6); g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, f.r, 0, 7); g.fill(); }
-    // sinalizadores: núcleo branco, brilho na cor, piscando
     g.globalCompositeOperation = "lighter";
-    for (const f of sin) { if (t < f.d || f.x <= -99) continue; const r = 5 + 2.5 * Math.sin(t / 45 + f.k) + R(0, 2), gr = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, r * 2.4);
-      gr.addColorStop(0, "#ffffff"); gr.addColorStop(0.25, f.c); gr.addColorStop(1, f.c + "00"); g.globalAlpha = fim; g.fillStyle = gr; g.beginPath(); g.arc(f.x, f.y, r * 2.4, 0, 7); g.fill(); }
     // fogos: sobem com rastro e estouram numa bola de faíscas
     if (t > proxFogo && t < DUR - 2500) { proxFogo = t + R(250, 550); fogos.push({ x: W * R(0.12, 0.88), y: H, vy: -R(H * 0.9, H * 1.2), alvo: H * R(0.08, 0.32), c: um(cs) }); }
     for (let k = fogos.length - 1; k >= 0; k--) { const f = fogos[k]; f.y += f.vy * dt;
