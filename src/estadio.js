@@ -267,20 +267,24 @@ function construir() {
   cur.tag.textContent = obra < 1 ? "OBRA EM ANDAMENTO · " + Math.round(obra * 100) + "%" : "";
   const pad = C.padrao, k = C.cores.length, hx = [...C.cores, "#f2f2f2", "#c8102e"].slice(0, 3), cols = C.cores.map(c => new T.Color(c)), sig = (C.mosaico || " ").toUpperCase(), nomeE = (C.nomeEstadio || "").toUpperCase().trim();
   const LM = m.mosaico || "N", mr = LM == "W" ? rows : Math.min(rows, 28), meia = Math.min((LM == "W" ? m.b0 : m.a0) - 4, Math.max(10, ...pos.filter(p => p.ld == LM && p.r == 0).map(p => Math.abs(LM == "W" ? p.z : p.x) - 2))), uDe = p => ((LM == "W" ? -p.z : p.x) / meia + 1) / 2;
-  const msk = mascara(sig, mr, meia, LM == "W" ? m.muralha : 1); marcarEscadas(pos);
+  // Bombonera: o mosaico fica só no anel do meio (o degrau do anel, na fileira m.anel, cortava as letras)
+  const r0 = m.anel && mr > m.anel + 4 ? m.anel + 1 : 0, nr = mr - r0, vDe = r => 1 - (r - r0 + .5) / nr;
+  const msk = mascara(sig, nr, meia, LM == "W" ? m.muralha : 1); marcarEscadas(pos);
   // festa do título: a torcida do campeão toma a arquibancada do mosaico com o nome e as cores do clube
-  const fcs = ((C.festa && C.festa.cores) || []).filter(x => HEX.test(x)), fes = fcs.length ? { c: fcs.map(c => new T.Color(c)), k: mascara((C.festa.nome || " ").toUpperCase(), mr, meia, LM == "W" ? m.muralha : 1) } : null;
-  const naArea = p => { if (pad != "sigla" || p.ld != LM || p.r >= mr) return false; const u = uDe(p); return u > msk.u0 - 0.025 && u < msk.u1 + 0.025; };
+  const fcs = ((C.festa && C.festa.cores) || []).filter(x => HEX.test(x)), fes = fcs.length ? { c: fcs.map(c => new T.Color(c)), k: mascara((C.festa.nome || " ").toUpperCase(), nr, meia, LM == "W" ? m.muralha : 1) } : null;
+  // degradê da festa: o fundo vai da cor 1 (embaixo) até 35% da cor 2 (em cima); nos modelos com anéis, um tom por anel
+  const tomDe = r => m.anel ? (r < m.anel ? 0 : r < 28 ? 0.5 : 1) : Math.min(1, r / Math.max(1, rows - 1)), fundoFesta = r => fes.c[0].clone().lerp(fes.c[1] || new T.Color("#fff"), 0.35 * tomDe(r));
+  const naArea = p => { if (pad != "sigla" || p.ld != LM || p.r >= mr || p.r < r0) return false; const u = uDe(p); return u > msk.u0 - 0.025 && u < msk.u1 + 0.025; };
   const CONC = new T.Color("#bdb9ae"), OBRA = new T.Color("#9d998f"), SKY = new T.Color("#33393f"), ESCD = new T.Color(C.corEscadas);
   for (const p of pos) { const r = p.r, ld = p.ld; let c;
     if (!pronto(p.x, p.z, ld, r)) c = OBRA;
     else if (r >= 28 && r <= 30 && !p.dep) c = SKY; else if (p.ponta || (m.anel && r == m.anel)) c = CONC;
-    else if (fes && ld == LM && r >= mr) c = fes.c[0]; // festa: a torcida toma a arquibancada inteira, o nome fica na parte do mosaico
-    else if (fes && ld == LM && r < mr) { const u = uDe(p), v = 1 - (r + .5) / mr; c = u > 0 && u < 1 && fes.k(u, v) ? fes.c[1] || new T.Color("#fff") : fes.c[0]; }
+    else if (fes && ld == LM && (r >= mr || r < r0)) c = fundoFesta(r); // festa: a torcida toma a arquibancada inteira, o nome fica na parte do mosaico
+    else if (fes && ld == LM) { const u = uDe(p); c = u > 0 && u < 1 && fes.k(u, vDe(r)) ? fes.c[1] || new T.Color("#fff") : fundoFesta(r); }
     else if (p.esc && !naArea(p)) c = ESCD;
     else if (pad == "setor") { const mp = k == 1 ? { N: 0, E: 0, S: 0, W: 0 } : k == 2 ? { N: 0, E: 1, S: 0, W: 1 } : { N: 0, S: 1, E: 2, W: 2 }; c = cols[mp[ld]]; }
     else if (pad == "listras") c = cols[Math.floor(r / 3) % k];
-    else { c = cols[0]; if (ld == LM && r < mr) { const u = uDe(p), v = 1 - (r + .5) / mr; if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
+    else { c = cols[0]; if (ld == LM && r < mr && r >= r0) { const u = uDe(p), v = vDe(r); if (u > 0 && u < 1 && msk(u, v)) c = k > 1 ? cols[1] : new T.Color("#fff"); } }
     p.c = c === CONC || c === OBRA || c === SKY || c === ESCD ? c : c.clone().multiplyScalar(r % 2 ? 0.86 : 1); }
   const esp = dunas ? 30 : m.pele ? 16 : 8 + (m.folga || 0); grp.add(chao(contorno(m, aM + esp, bM + esp), "#d8d4ca", 0));
   grp.add(chao(contorno(m, m.a0, m.b0), "#4f8a24", 0.03));
