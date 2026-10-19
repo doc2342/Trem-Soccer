@@ -10,7 +10,8 @@ export async function montarLogin(el, aoMudar) {
   const desenhar = () => {
     el.innerHTML = etapa === "email"
       ? `<h2>Entrar</h2><div class="mut" style="margin-bottom:8px">Sem senha: você recebe um e-mail com um link para entrar.</div>
-         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar e-mail</button></form>`
+         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar e-mail</button></form>
+         <div class="row" style="margin-top:12px"><button type="button" class="sec" onclick="location.href='guia.html'">📖 Guia do dirigente</button><span class="mut">Novo por aqui? Veja como o jogo funciona antes de entrar.</span></div>`
       : `<h2>Confira o seu e-mail</h2><div style="margin-bottom:8px">Enviamos um e-mail para <b>${esc(email)}</b>. Abra-o neste aparelho e clique no link para entrar. Ele vale por alguns minutos; olhe também a caixa de spam.</div>
          <form class="row" id="fCodigo"><label>Se o e-mail trouxer um código, digite aqui<input id="lCodigo" inputmode="numeric" autocomplete="one-time-code" required style="width:160px;letter-spacing:3px"></label><button>Entrar com o código</button><button type="button" class="sec" id="lVoltar">Usar outro e-mail</button></form>`;
     if (aviso) el.insertAdjacentHTML("beforeend", `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>`);
