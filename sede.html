@@ -65,7 +65,7 @@ async function carregar() {
   const b = document.getElementById("bFesta");
   let emFesta = !!festa && (previa || Date.now() - new Date(ultima.criado_em).getTime() < 864e5);
   const mostrar = () => { if (b) b.textContent = emFesta ? "Ver o mosaico da sede" : `Ver a festa do ${camp.nome}`;
-    desenhar(configDaSede(s, emFesta ? ultima.competicao : aqui[0], emFesta ? festa : null)).then(v => { if (emFesta && v) v.girar(6000); }); if (emFesta) festejar(festa.cores); };
+    desenhar(configDaSede(s, emFesta ? ultima.competicao : aqui[0], emFesta ? festa : null)).then(v => { if (emFesta && v) v.girar(20000); }); if (emFesta) festejar(festa.cores); };
   mostrar();
   if (b) b.onclick = () => { emFesta = !emFesta; mostrar(); };
 }
