@@ -149,7 +149,9 @@
     #mLista table { font-size:12.5px; } #mLista td, #mLista th { padding:4px 3px; }
     #mLista td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
   }
-  a.lance > svg + span:not(.xg) { flex:1; min-width:0; }
+  a.jg { display:grid; grid-template-columns:minmax(0,1fr) 24px auto 24px minmax(0,1fr) auto; align-items:center; gap:8px; text-decoration:none; color:inherit; }
+  .jg-c, .jg-f { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .jg-c { text-align:right; }
+  .jg-x { text-align:center; white-space:nowrap; min-width:44px; } .jg-x small { display:block; font-weight:400; font-size:11px; color:var(--mut); }
   .lk { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; cursor:pointer; }
   .lk:hover { text-decoration-color:var(--ac); }
   .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
@@ -612,8 +614,11 @@ async function telaClube(liga, clube) {
   const opcoesDeGrupo = (marcado, sufixo = () => "") => ["Brasil", ...Object.values(PAISES)].map(p => { const gs = grupos.filter(g => paisDoGrupo(g) === p);
     return gs.length ? `<optgroup label="${esc(p)}">${gs.map(g => `<option value="${esc(g)}" ${g === marcado ? "selected" : ""}>${esc(nomeDoGrupo(g))}${sufixo(g)}</option>`).join("")}</optgroup>` : ""; }).join("");
   const quando = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const jogo = (p, res, agora) => { const r = res[p.id], aoVivo = !r && new Date(p.inicio).getTime() <= agora, meu = p.casa === clube.id || p.fora === clube.id;
-    return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${esc(cPor[p.casa].nome)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${esc(cPor[p.fora].nome)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
+  // um jogo numa lista (rodada da liga, fase da copa), como num placar: mandante, escudo, placar, escudo, visitante e, à direita, quando
+  const linhaDeJogo = (p, r, nome, aoVivo) => { const meu = p.casa === clube.id || p.fora === clube.id, cls = meu ? "nota" : "";
+    const extra = r && r.penaltis ? `<small>pên. ${r.penaltis[0]} x ${r.penaltis[1]}</small>` : r && r.prorrogacao ? "<small>prorr.</small>" : "";
+    return `<a class="lance jg" href="aovivo.html?id=${p.id}"><span class="jg-c ${cls}" title="${esc(cPor[p.casa].nome)}">${nome(p.casa)}</span>${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<b class="jg-x">${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}${extra}</b>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="jg-f ${cls}" title="${esc(cPor[p.fora].nome)}">${nome(p.fora)}</span><span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
+  const jogo = (p, res, agora) => linhaDeJogo(p, res[p.id], id => esc(cPor[id].nome), !res[p.id] && new Date(p.inicio).getTime() <= agora);
   // Copa do Brasil: pênaltis no placar, quem passou de cada jogo e a tela da copa (aba Competições, Copa do Brasil)
   const penais = r => r && r.penaltis ? ` <span class="mut">(pên. ${r.penaltis[0]} x ${r.penaltis[1]})</span>` : r && r.prorrogacao ? ` <span class="mut">(prorr.)</span>` : "";
   const quemPassou = p => { const r = copaRes[p.id]; return r ? p.vencedor || (r.vencedor ? +r.vencedor : r.gols_fora > r.gols_casa ? p.fora : p.casa) : null; };
@@ -710,9 +715,8 @@ async function telaClube(liga, clube) {
     const fixa = jogos.some(p => p.chave != null);
     return jogos.length ? `<div class="card"><h2>Chave <span class="tag">clique num jogo para abrir · ${fixa ? "chave sorteada no início: quem passa já sabe o próximo adversário" : "o sorteio de cada fase sai quando a anterior termina"}</span></h2>${desenharChave(jogos, fases, p => p.copa_fase, p => copaRes[p.id], quemPassou, vagas32)}</div>` : ""; };
   // um jogo de mata-mata na lista da fase (Copa do Brasil e Libertadores): em negrito, quem passou
-  const linhaDeCopa = p => { const r = copaRes[p.id], v = quemPassou(p), aoVivo = !r && new Date(p.inicio).getTime() <= Date.now(), meu = p.casa === clube.id || p.fora === clube.id;
-      const nome = id => v === id ? `<b>${esc(cPor[id].nome)}</b>` : esc(cPor[id].nome);
-      return `<a class="lance" style="align-items:center;text-decoration:none;color:inherit" href="aovivo.html?id=${p.id}">${svgEscudo(cPor[p.casa].escudo, cPor[p.casa].sigla, 24)}<span ${meu ? `class="nota"` : ""}>${nome(p.casa)} <b>${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"}</b> ${nome(p.fora)}${penais(r)}</span>${svgEscudo(cPor[p.fora].escudo, cPor[p.fora].sigla, 24)}<span class="xg">${r ? "encerrado" : aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</span></a>`; };
+  const linhaDeCopa = p => { const r = copaRes[p.id], v = quemPassou(p);
+      return linhaDeJogo(p, r, id => v === id ? `<b>${esc(cPor[id].nome)}</b>` : esc(cPor[id].nome), !r && new Date(p.inicio).getTime() <= Date.now()); };
   // Libertadores (81_libertadores.sql) e Sul-Americana (112_sulamericana_e_recopa.sql): 16 clubes, das oitavas à final, com os mesmos números
   // de fase da copa (3 a 6). A Recopa (um jogo só) aparece no topo das duas.
   // Recopa (112): campeão da Libertadores x campeão da Sul-Americana da temporada anterior, um jogo só, como a Supercopa
