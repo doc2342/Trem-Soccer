@@ -81,15 +81,17 @@ const secoes = [
   </ul>
   <h3>Instruções</h3>
   ${tabela(["Instrução", "Opções"], [
-    ["Mentalidade", "5 níveis, de muito defensiva a muito ofensiva"], ["Agressividade", "5 níveis; mais alta defende melhor e leva mais cartões"],
-    ["Pressão", "3 níveis; pressão alta gasta mais energia"], ["Lado do ataque", "misto, esquerda, centro, direita ou pelos lados"],
-    ["Passe", "misto, curto ou longo"], ["Contra-ataque e linha de impedimento", "ligado ou desligado"],
-    ["Papéis", "capitão, armador, homem-alvo e cobradores de escanteio, falta e pênalti (fichas por linha)"],
+    ["Mentalidade", "muito defensiva, defensiva, normal, ofensiva ou muito ofensiva"], ["Agressividade", "5 níveis, de muito baixa a muito alta; mais alta defende melhor e leva mais cartões"],
+    ["Pressão", "sem pressão, média ou alta; pressão alta gasta mais energia"], ["Passe", "misto, curto ou bola longa"],
+    ["Finalização", "misto, arriscar de longe ou trabalhar a bola até a área"], ["Lado do ataque", "livre, esquerda, centro, direita ou os dois lados"],
+    ["Contra-ataque", "sim ou não"], ["Linha de impedimento", "sim ou não"],
+    ["Papéis", "capitão e vice, armador, homem-alvo e cobradores de escanteio, falta e pênalti, em ordem de preferência"],
   ])}
   <h3>Durante o jogo (programado antes)</h3>
   <ul>
-    <li>Até 5 substituições: minuto, quem sai, quem entra, em que posição e uma condição (sempre, ganhando, empatando, perdendo, cansado, com amarelo, jogando mal…).</li>
-    <li>Até 3 ordens táticas condicionais, como "perdendo aos 70, mentalidade ofensiva". Depois do jogo, <i>Suas ordens</i> mostra o minuto em que cada uma valeu ou por que não valeu.</li>
+    <li>Até 5 substituições: minuto, quem sai, quem entra, em que posição e uma condição (sempre, ganhando, empatando, perdendo, com um a menos ou a mais, se ele estiver cansado, com amarelo, só se estiver jogando mal, a não ser que esteja jogando bem).</li>
+    <li>Ordens táticas sem limite de quantidade: a partir de um minuto e numa condição (sempre, ganhando, empatando, perdendo, com um a menos ou a mais), mudam mentalidade, pressão, contra-ataque, passe ou finalização. Por exemplo, "perdendo aos 70, mentalidade ofensiva".</li>
+    <li>Depois do jogo, <i>Suas ordens</i> mostra o minuto em que cada substituição e cada ordem valeu, ou por que não valeu.</li>
   </ul>
   <h3>O que vence o quê</h3>
   <p>Não existe tática dominante: acertar a resposta ao adversário vale de 0,3 a 0,5 ponto por jogo, e errar custa o mesmo.</p>
@@ -97,6 +99,7 @@ const secoes = [
     ["Passe curto", "time sem pressão, retranca", "pressão alta"], ["Bola longa", "pressão alta", "linha de impedimento"],
     ["Linha de impedimento", "bola longa", "passe curto, contra-ataque"], ["Contra-ataque (postura defensiva)", "time muito ofensivo", "time neutro ou retrancado"],
     ["Atacar pelo lado certo", "o corredor mais fraco do adversário", "o corredor mais forte"],
+    ["Arriscar de longe", "retranca (área congestionada)", "time aberto, que deixa espaço"], ["Trabalhar até a área", "time que ataca muito e deixa espaço atrás", "retranca"],
   ])}
   <p>A prévia do próximo adversário fica na própria tela da tática: time provável, estilo (posse, finalizações, contra-ataques, faltas, corredor, bola longa) e o seu onze ao lado. Quanto melhor o seu analista, mais jogos ela observa. Bots jogam conforme o perfil do clube; a tática de outro dirigente é segredo.</p>
   <p>Em jogo grande (Libertadores, Sul-Americana, playoff, final da copa e Supercopa) a experiência pesa mais.</p>`],
