@@ -21,6 +21,9 @@
 <body>
 <main>
   <a href="jogo.html" style="color:var(--ac)">← Voltar ao jogo</a>
+  <script>// dentro da aba Guia do jogo (iframe): sem o Voltar, e os links abrem na janela inteira
+  if (parent !== window) { document.currentScript.previousElementSibling.hidden = true;
+    addEventListener("click", e => { const a = e.target.closest && e.target.closest("a[href]"); if (a && !a.getAttribute("href").startsWith("#")) a.target = "_top"; }); }</script>
   <h1 style="margin-top:8px">Guia do dirigente</h1>
   <div class="mut">Como o Trem Soccer funciona, do primeiro dia ao fim da temporada. O jogo ainda está em teste e alguns números podem mudar.</div>
   <div id="corpo"><div class="card mut">Carregando…</div></div>
