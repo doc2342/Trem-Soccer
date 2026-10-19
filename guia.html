@@ -94,15 +94,7 @@ const secoes = [
     <li>Depois do jogo, <i>Suas ordens</i> mostra o minuto em que cada substituição e cada ordem valeu, ou por que não valeu.</li>
   </ul>
   <h3>O que vence o quê</h3>
-  <p>Não existe tática dominante: acertar a resposta ao adversário vale de 0,3 a 0,5 ponto por jogo, e errar custa o mesmo.</p>
-  ${tabela(["Sua escolha", "Vai bem contra", "Vai mal contra"], [
-    ["Passe curto", "time sem pressão, retranca", "pressão alta"], ["Bola longa", "pressão alta", "linha de impedimento"],
-    ["Linha de impedimento", "bola longa", "passe curto, contra-ataque"], ["Contra-ataque (postura defensiva)", "time muito ofensivo", "time neutro ou retrancado"],
-    ["Atacar pelo lado certo", "o corredor mais fraco do adversário", "o corredor mais forte"],
-    ["Arriscar de longe", "retranca (área congestionada)", "time aberto, que deixa espaço"], ["Trabalhar até a área", "time que ataca muito e deixa espaço atrás", "retranca"],
-  ])}
-  <p>A prévia do próximo adversário fica na própria tela da tática: time provável, estilo (posse, finalizações, contra-ataques, faltas, corredor, bola longa) e o seu onze ao lado. Quanto melhor o seu analista, mais jogos ela observa. Bots jogam conforme o perfil do clube; a tática de outro dirigente é segredo.</p>
-  <p>Em jogo grande (Libertadores, Sul-Americana, playoff, final da copa e Supercopa) a experiência pesa mais.</p>`],
+  <p>Não existe tática dominante: acertar a resposta ao adversário vale de 0,3 a 0,5 ponto por jogo, e errar custa o mesmo. Na tela da tática, a prévia do próximo adversário mostra o time provável dele ao lado do seu onze; com um analista, mostra também o estilo (posse, finalizações, contra-ataques, faltas, lado e bola longa), e um analista bom diz como enfrentá-lo. Clubes sem dirigente jogam conforme o perfil do elenco; a tática de outro dirigente é segredo.</p>  <p>Em jogo grande (Libertadores, Sul-Americana, playoff, final da copa e Supercopa) a experiência pesa mais.</p>`],
 ["jogador", "O jogador", `
   <p>A nota resume os atributos que pesam na posição; forma, moral, experiência e energia mexem no que ele rende em cada jogo.</p>
   ${tabela(["O quê", "Escala", "Como muda", "Efeito no jogo"], [
@@ -122,7 +114,7 @@ const secoes = [
   </ul>
   <h3>Idade</h3>
   <ul>
-    <li>Evolui em ritmo cheio até os 23, cada vez menos até os 30, e para. A partir dos 31 perde físico a cada temporada.</li>
+    <li>Evolui pelo treino até os 30, mais rápido quando jovem (veja Treino). A partir dos 31 perde físico a cada temporada.</li>
     <li>A partir dos 34 pode anunciar a aposentadoria depois da janela do meio, com chance de 20% aos 34 que cresce 20% por ano, até 80%; aos 39 para de qualquer jeito. Quem anunciou joga até a virada e não pode mais ser vendido nem renovar.</li>
   </ul>
   <p>Lesões, cartões, forma, moral e dinheiro de uma partida só aparecem no apito final, para não entregar o resultado durante a transmissão.</p>`],
@@ -133,6 +125,7 @@ const secoes = [
     <li>Cada jogador tem um foco principal (5 atributos da função, 70% dos pontos) e um complementar (3 atributos à sua escolha, 30%). A cada 100 pontos o atributo sobe 1. "Sugerir focos para todos" resolve em um clique.</li>
     <li>Todo jogador tem um teto de nota definido pelo talento (de 23 a 43) e treina na medida do caminho até lá: quem tem teto alto ganha mais pontos por rodada.</li>
     <li>O ritmo depende da idade: cheio até os 23, 85% aos 24 e 25, 70% aos 26 e 27, 50% dos 28 aos 30, nada depois.</li>
+    <li>Quem está adiantado para a idade (já perto do teto muito cedo) treina mais devagar, até 30% do normal. Ninguém evolui mais rápido que o melhor caso para a idade dele.</li>
     <li>Quem jogou 45 minutos ou mais na rodada treina 10% melhor. Lesionado não treina.</li>
     <li>O centro de treinamento rende 90% sem nível e mais 4% por nível.</li>
     <li>Posição nova: na ficha de treino dá para mandar o jogador aprender outra posição. Custa 20% do treino enquanto dura, anda mais rápido se ele jogar nela e cada jogador guarda uma posição aprendida. Goleiro fica de fora.</li>
