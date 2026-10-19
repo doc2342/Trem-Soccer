@@ -109,7 +109,7 @@ import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, 
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
-import { MARCAS, selo, placasDoJogo, ANUNCIE, jogoPatrocinado } from "./src/patrocinio.js";
+import { MARCAS, selo, placasDoEstadio, jogoPatrocinado } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
@@ -155,20 +155,17 @@ botaoDoSom();
 // Só lance novo na tela faz barulho: o primeiro desenho marca tudo como visto em silêncio, e quem chega com a aba voltando de segundo plano
 // (liberado há mais de 30 s) entra calado. fase: muda de 1º tempo, intervalo, 2º tempo e fim pelo relógio.
 let vistos = null, fase = null;
-// intervalo: a TV roda um comercial a cada 8 s (master do mandante, duas placas, master do visitante, a outra placa, anuncie aqui).
-// Placas e LED = as do estádio do mandante (semente = id do clube, 3 placas, só o master da casa).
+// intervalo: a TV roda só os comerciais dos masters dos dois times, um a cada 8 s (sem master nenhum, roda as placas);
+// o LED embaixo é só das placas genéricas do estádio do mandante (as mesmas do campo).
 let tv = null;
 function intervaloComercial(m) {
   const el = $("intervalo"), no = !m.antes && !m.fim && m.texto.includes("intervalo");
   if (!no) { if (tv) { clearInterval(tv); tv = null; el.innerHTML = ""; } return; }
   if (tv) return; // já está passando: não recomeça a cada atualização
   const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000, volta = new Date(partida.inicio).getTime() + total * 60 / 105 * 60000;
-  const placas = placasDoJogo(partida.casa, 3), lados = [partida.casa, partida.fora].map(id => clubes[id]).filter(c => MARCAS[c.marca]);
-  const fila = [];
-  lados.forEach((c, i) => fila.push({ master: c }, ...placas.slice(i * 2, i * 2 + 2)));
-  if (!lados.length) fila.push(...placas);
-  fila.push(ANUNCIE);
-  const led = [...lados.filter(c => c.id === partida.casa).map(c => `<span style="color:#fff">${selo(c.marca, 24)}${esc(MARCAS[c.marca].nome)}</span>`), ...placas.concat(ANUNCIE).map(p => `<span style="color:${p.cor === "#111111" || p.cor === "#7b1e24" || p.cor === "#0f5c4d" ? p.txt : p.cor}">${esc(p.nome)}</span>`)].join("");
+  const placas = placasDoEstadio(partida.casa), lados = [partida.casa, partida.fora].map(id => clubes[id]).filter(c => c && MARCAS[c.marca]);
+  const fila = lados.length ? lados.map(c => ({ master: c })) : placas;
+  const led = placas.map(p => `<span style="color:${p.cor === "#111111" || p.cor === "#7b1e24" || p.cor === "#0f5c4d" ? p.txt : p.cor}">${esc(p.nome)}</span>`).join("");
   el.innerHTML = `<div class="tv" id="tv"><span class="selo-tv">Intervalo</span><span class="volta" id="tvVolta"></span><div id="tvSpot"></div><div class="barra" id="tvBarra"></div></div>
     <div class="led" aria-hidden="true"><div class="faixa">${led}${led}</div></div>`;
   let n = 0;

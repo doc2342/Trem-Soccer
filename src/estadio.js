@@ -8,7 +8,7 @@
 // Fixos para todos: placas, bancos, túnel, telão e alambrado. Refletores e estacionamento seguem o nível (src/economia.js).
 // Medidas em metros; x = leste, z = sul.
 import { temRefletores, estacionamentoDoEstadio, lugaresDoEstadio, bonusDoEstadio } from "./economia.js";
-import { MARCAS, placasDoJogo, ANUNCIE } from "./patrocinio.js";
+import { MARCAS, placasDoEstadio } from "./patrocinio.js";
 export const MODELOS = { tradicional: "Tradicional", caldeirao: "Caldeirão", arena: "Arena moderna", dunas: "Arena Concha", ferradura: "Ferradura", bomboneira: "Bomboneira", laterais: "Estádio do Braga", inflavel: "Allianz Arena", sansiro: "San Siro", wembley: "Wembley", maracana: "Maracanã" };
 // Sedes reais das finais (132_estadio_real.sql): sem dono, nome e capacidade de verdade; nivel = o desenho mais próximo da capacidade
 export const SEDES = {
@@ -211,7 +211,7 @@ function placaTex(cel) { const [c, g] = canvas(256 * cel.length, 64); g.textAlig
   cel.forEach(([txt, bg, fg], i) => { g.fillStyle = bg; g.fillRect(i * 256, 0, 256, 64); g.font = "bold 40px sans-serif"; const fs = Math.min(40, 40 * 230 / Math.max(1, g.measureText(txt).width)); g.font = `bold ${fs}px sans-serif`; g.fillStyle = fg; g.fillText(txt, i * 256 + 128, 34); });
   const t = tex(c); t.wrapS = T.RepeatWrapping; t.userData = { m: 6 * cel.length }; return t; }
 function celulasDasPlacas(sig, c0, c1) {
-  const mk = MARCAS[C.marca], outras = [...(mk ? [[mk.nome.toUpperCase(), "#0d1220", "#ffffff"]] : []), ...placasDoJogo(C.semente, 3).concat(ANUNCIE).map(p => [p.nome.toUpperCase(), p.cor, p.txt])];
+  const mk = MARCAS[C.marca], outras = [...(mk ? [[mk.nome.toUpperCase(), "#0d1220", "#ffffff"]] : []), ...placasDoEstadio(C.semente).map(p => [p.nome.toUpperCase(), p.cor, p.txt])];
   return outras.flatMap((o, i) => [i % 2 ? [sig, c1, c0] : [sig, c0, c1], o]); }
 function limpar() { grp.traverse(o => { o.geometry && o.geometry !== box && o.geometry !== cil && o.geometry !== disco && o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(x => { if (x === AÇO || x === ESC || x === LUZ) return; x.map && x.map.dispose(); x.dispose(); }); }); cur.scene.remove(grp); grp = cur.grp = new T.Group(); cur.scene.add(grp); }
 function inst(list, set, mat) { const im = new T.InstancedMesh(box, mat || new T.MeshLambertMaterial(), Math.max(1, list.length)); im.count = list.length; list.forEach((p, i) => set(p, i, im)); im.castShadow = im.receiveShadow = true; grp.add(im); return im; }

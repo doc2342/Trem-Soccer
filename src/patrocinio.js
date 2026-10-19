@@ -33,6 +33,8 @@ export const PLACAS = [
 export const ANUNCIE = { nome: "Anuncie aqui", bordao: "Sua marca no Trem Soccer. Fale com a administração.", cor: "#ffffff", txt: "#111111", convite: true };
 // as placas de um jogo (ou de um estádio): a mesma semente dá sempre as mesmas, para todo mundo
 export const placasDoJogo = (semente, n = 4) => criarRng((semente | 0) * 7919 + 13).embaralhar(PLACAS).slice(0, n);
+// as placas do estádio de um clube (só genéricas + anuncie aqui): o campo 3D e o LED do intervalo usam esta, para baterem
+export const placasDoEstadio = clubeId => placasDoJogo(clubeId, 3).concat(ANUNCIE);
 
 // Naming rights (18/10/2026): só cosméticos. Quem administra a liga escolhe a marca de cada competição aqui (null = nome puro).
 // Chaves: A, B (B1 a B3), C (C1 e C2), COPA, LIB, SUL.
