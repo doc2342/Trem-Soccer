@@ -42,9 +42,7 @@
   window.moCor = function (escudo) { var c = escudo ? [escudo.cor1, escudo.cor2].join(",") : ""; if (c !== ler("mo_cor")) { gravar("mo_cor", c); aplicarTema(); } };
   if (claroDoAparelho && claroDoAparelho.addEventListener) claroDoAparelho.addEventListener("change", aplicarTema);
   aplicarTema();
-  var ARQUIVOS = ["atualiza.js", "estilo.css", "jogo.html", "admin.html", "aovivo.html", "jogador.html", "escalacao.html", "index.html",
-    "src/rng.js", "src/modelo.js", "src/gerador.js", "src/escalacao.js", "src/motor.js", "src/bot.js", "src/relatorio.js", "src/rodada.js", "src/economia.js", "src/virada.js", "src/siglas.js", "src/treino.js", "src/saude.js", "src/base.js",
-    "src/banco.js", "src/escudo.js", "src/bandeiras.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-escalacao.js", "src/estadio.js"];
+  var ARQUIVOS = ["atualiza.js", "estilo.css", "admin.html", "aovivo.html", "calibragem.html", "elenco.html", "escalacao.html", "guia.html", "index.html", "jogador.html", "jogo.html", "partida.html", "relatorio.html", "sede.html", "temporada.html", "src/banco.js", "src/bandeiras.js", "src/base.js", "src/bot.js", "src/diretoria.js", "src/economia.js", "src/escalacao.js", "src/escudo.js", "src/estadio.js", "src/gerador.js", "src/ligabase.js", "src/mercadobots.js", "src/modelo.js", "src/motor.js", "src/patrocinio.js", "src/relatorio.js", "src/rng.js", "src/rodada.js", "src/saude.js", "src/siglas.js", "src/treino.js", "src/ui-escalacao.js", "src/ui-graficos.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-visual.js", "src/virada.js"];
   var ja = sessionStorage.getItem("mo_recarregou");
   function renovar() {
     if (ja) return;

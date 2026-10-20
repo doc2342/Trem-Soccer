@@ -132,7 +132,8 @@ export function ligarGraficos(raiz = document) {
       : Math.abs(p) < .15 ? "jogo equilibrado" : `<b style="color:${G.cores[p > 0 ? 0 : 1]}">${esc(G.clubes[p > 0 ? 0 : 1].nome)}</b> ${Math.abs(p) > .6 ? "encurrala o adversário" : "tem o controle"}`);
   };
   for (const [k, svg] of Object.entries(svgs)) {
-    const X = k === "momento" ? G.Xm : G.X, alvo = svg.querySelector("[data-toque]");
+    const X = k === "momento" ? G.Xm : G.X, alvo = svg && svg.querySelector("[data-toque]");
+    if (!alvo) continue; // desenho incompleto: fica sem cursor, mas não derruba a página
     const mover = ev => { const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * W; let m = 0; while (m < G.ate && X(m + .5) < x) m++; mostra(Math.max(1, m)); };
     alvo.addEventListener("pointermove", mover); alvo.addEventListener("pointerdown", mover);
   }
