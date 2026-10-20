@@ -447,9 +447,9 @@ const __motor = (() => {
     narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
     // faltas, cartões, lesões e bola parada
-    falta: 0.123, // por duelo (alvo: 22 faltas por jogo)
+    falta: 0.12, // por duelo (alvo: 22 faltas por jogo, com os acréscimos)
     faltaPorAgressividade: 0.3,
-    amarelo: 0.46, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
+    amarelo: 0.47, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
     cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
     amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
     segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
