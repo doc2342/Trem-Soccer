@@ -237,6 +237,7 @@ async function tela(aviso = "") {
       <div id="avisoMetas" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${liga ? `<div class="card" id="transfAdm"></div>` : ""}
     ${liga ? `<div class="card" id="economiaAdm"></div>` : ""}
+    ${liga && partidas.length ? `<div class="card" id="saudeAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Outros países</h2>
       <div class="mut" style="margin-bottom:10px">${Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length} clubes`).join(" · ")}. Cada país é um campeonato de ${POR_GRUPO} clubes sem dirigente, com uma divisão só, nas mesmas datas do Brasil (precisa do SQL 77 e da função rodada republicada). Com o calendário já gerado, os jogos deles entram nas datas que existem; os de datas passadas são calculados em seguida. Por enquanto jogador não troca de clube entre países.</div>
       <div class="row"><button id="criarPaises" ${clubes.filter(c => PAISES[c.grupo]).length >= Object.keys(PAISES).length * POR_GRUPO ? "disabled" : ""}>Criar os países que faltam</button></div></div>` : ""}
@@ -281,6 +282,49 @@ async function tela(aviso = "") {
     if ($("ecoTemp")) $("ecoTemp").onchange = e => economia(+e.target.value).catch(() => {});
   };
   economia().catch(() => {});
+  // saúde do motor: médias dos jogos encerrados contra a faixa do futebol real; a linha do total fica colorida fora da faixa
+  const saude = async (grupo = "") => {
+    if (!$("saudeAdm")) return;
+    const daLiga = Object.fromEntries(partidas.map(p => [p.id, p])), agora = new Date().toISOString(), res = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await sb.from("resultados").select("partida_id, libera_em, gols_casa, gols_fora, xg_casa, xg_fora, pts_esp_casa, pts_esp_fora, estat:relatorio->estat").order("partida_id").range(de, de + 999);
+      if (error) throw new Error(error.message); res.push(...data); if (data.length < 1000) break;
+    }
+    const jogos = res.filter(r => daLiga[r.partida_id] && r.libera_em <= agora && r.estat && (!grupo || daLiga[r.partida_id].grupo === grupo));
+    const REAL = { gols: [2.5, 3, 2], gxg: [0.9, 1.1, 2], casa: [40, 48, 0], emp: [22, 30, 0], z0: [5, 9, 0], seis: [2, 6, 0], chutes: [22, 28, 1], noGol: [31, 37, 0], conv: [9.5, 12, 1], faltas: [20, 26, 1], esc: [9, 11, 1], amar: [3.3, 4.5, 1], verm: [0.1, 0.25, 2], imp: [3, 5, 1] };
+    const COLS = { gols: "Gols", gxg: "Gols/xG", casa: "Casa %", emp: "Empate %", z0: "0x0 %", seis: "6+ gols %", chutes: "Chutes", noGol: "No gol %", conv: "Conversão %", faltas: "Faltas", esc: "Escanteios", amar: "Amarelos", verm: "Vermelhos", imp: "Impedimentos" };
+    const medir = l => {
+      const n = l.length, s = f => l.reduce((a, r) => a + f(r), 0), e = k => s(r => (r.estat[0][k] || 0) + (r.estat[1][k] || 0));
+      const g = s(r => r.gols_casa + r.gols_fora), ch = e("finalizacoes");
+      return { n, gols: g / n, gxg: g / s(r => r.xg_casa + r.xg_fora), casa: s(r => r.gols_casa > r.gols_fora) / n * 100, emp: s(r => r.gols_casa === r.gols_fora) / n * 100,
+        z0: s(r => r.gols_casa + r.gols_fora === 0) / n * 100, seis: s(r => r.gols_casa + r.gols_fora >= 6) / n * 100, chutes: ch / n, noGol: e("noGol") / ch * 100, conv: g / ch * 100,
+        faltas: e("faltas") / n, esc: e("escanteios") / n, amar: e("amarelos") / n, verm: e("vermelhos") / n, imp: e("impedimentos") / n };
+    };
+    const celula = (m, k, cor) => { const [lo, hi, d] = REAL[k], v = m[k]; return `<td class="${cor && (v < lo || v > hi) ? "aviso" : ""}">${isFinite(v) ? v.toFixed(d).replace(".", ",") : "—"}</td>`; };
+    const nomeR = r => r < 100 ? `Rodada ${r}` : "Copas", porData = {};
+    for (const r of jogos) (porData[nomeR(daLiga[r.partida_id].rodada)] ??= []).push(r);
+    const linhas = Object.entries(porData).sort((a, b) => (a[0] === "Copas") - (b[0] === "Copas") || parseInt(a[0].slice(7)) - parseInt(b[0].slice(7)));
+    // pontos reais x esperados por favoritismo (um registro por time em cada jogo)
+    const FAIXAS = [[0, 0.8, "zebra (até 0,8)"], [0.8, 1.6, "parelho (0,8–1,6)"], [1.6, 2.2, "favorito (1,6–2,2)"], [2.2, 9, "muito favorito (2,2+)"]];
+    const faixas = FAIXAS.map(([lo, hi, nome]) => { let n = 0, pt = 0, pe = 0, g = 0, x = 0;
+      for (const r of jogos) for (const i of [0, 1]) { const esp = i ? r.pts_esp_fora : r.pts_esp_casa; if (esp < lo || esp >= hi) continue;
+        const gm = i ? r.gols_fora : r.gols_casa, gs = i ? r.gols_casa : r.gols_fora; n++; pe += esp; pt += gm > gs ? 3 : gm === gs ? 1 : 0; g += gm; x += i ? r.xg_fora : r.xg_casa; }
+      return { nome, n, pt: pt / n, pe: pe / n, gxg: g / x }; }).filter(f => f.n);
+    const zebras = jogos.filter(r => (r.gols_casa - r.gols_fora) * (r.xg_casa - r.xg_fora) < 0 && Math.abs(r.xg_casa - r.xg_fora) > 1).length;
+    const f2 = v => v.toFixed(2).replace(".", ",");
+    $("saudeAdm").innerHTML = `<h2>Saúde do motor <span class="tag">jogos encerrados · total em laranja = fora da faixa do futebol real · rodada isolada tem amostra pequena</span></h2>
+      <div class="row" style="margin-bottom:8px"><label>Grupo <select id="saudeGrupo"><option value="">Todos</option>${[...gruposDe(clubes), ...new Set(partidas.map(p => p.grupo))].filter((x, i, a) => a.indexOf(x) === i).map(x => `<option value="${x}" ${x === grupo ? "selected" : ""}>${esc(nomeDoGrupo(x))}</option>`).join("")}</select></label></div>
+      ${jogos.length ? `<div class="rolagem" style="overflow:auto"><table><tr><th class="esq">Data</th><th>Jogos</th>${Object.values(COLS).map(c => `<th>${c}</th>`).join("")}</tr>
+        ${linhas.map(([nome, l]) => { const m = medir(l); return `<tr><td class="esq">${nome}</td><td>${m.n}</td>${Object.keys(COLS).map(k => celula(m, k, false)).join("")}</tr>`; }).join("")}
+        <tr><th class="esq">Total</th><th>${jogos.length}</th>${(m => Object.keys(COLS).map(k => celula(m, k, true)).join(""))(medir(jogos))}</tr>
+        <tr class="mut"><td class="esq">Futebol real</td><td></td>${Object.values(REAL).map(([lo, hi]) => `<td>${String(lo).replace(".", ",")}–${String(hi).replace(".", ",")}</td>`).join("")}</tr></table></div>
+        <div class="rolagem" style="overflow:auto;margin-top:10px"><table><tr><th class="esq">Favoritismo do time</th><th>Registros</th><th>Pontos reais</th><th>Esperados</th><th>Gols/xG</th></tr>
+          ${faixas.map(f => `<tr><td class="esq">${f.nome}</td><td>${f.n}</td><td class="${Math.abs(f.pt - f.pe) > 0.25 && f.n >= 40 ? "aviso" : ""}">${f2(f.pt)}</td><td>${f2(f.pe)}</td><td class="${(f.gxg < 0.85 || f.gxg > 1.15) && f.n >= 40 ? "aviso" : ""}">${f2(f.gxg)}</td></tr>`).join("")}</table></div>
+        <div class="mut" style="margin-top:6px">Zebras: ${zebras} de ${jogos.length} jogos (${(zebras / jogos.length * 100).toFixed(0)}%) venceu quem teve 1 de xG ou mais a menos. Faixa de favoritismo em laranja só com 40 registros ou mais.</div>`
+      : `<div class="mut">Nenhum jogo encerrado ainda.</div>`}`;
+    $("saudeGrupo").onchange = e => saude(e.target.value).catch(err => { $("saudeAdm").innerHTML = `<h2>Saúde do motor</h2><div class="bad">${esc(err.message)}</div>`; });
+  };
+  saude().catch(err => { if ($("saudeAdm")) $("saudeAdm").innerHTML = `<h2>Saúde do motor</h2><div class="bad">${esc(err.message)}</div>`; });
   const em = (id, f) => { if ($(id)) $(id).onclick = f; };
   em("criar", criar);
   em("criarPaises", async () => {
