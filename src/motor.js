@@ -8,7 +8,7 @@ import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe 
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
-  ataquesPorMinuto: 0.9, /* 0,84 com o embalo; voltou a 0,9 quando a energia passou a pesar (time cansado finaliza pior), para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
+  ataquesPorMinuto: 0.85, /* 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
   mando: 1.04, // multiplicador da força do mandante
   expoentePosse: 1,
   expoenteCorredor: 1.5,
@@ -774,7 +774,8 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   const jogar = (de, ate) => { for (min = de; min <= ate; min++) minuto(); };
   // acréscimos: proporcionais às faltas do tempo e 30 s por substituição; jogados com o relógio parado no 45 (ou 90)
   const acrescimos = [], antes = { faltas: 0, subs: 0 };
-  const acrescimo = () => {
+  const acrescimo = fim => {
+    min = fim; // o for de jogar() sai com min um à frente
     const faltas = estat[0].faltas + estat[1].faltas, subs = estat[0].substituicoes + estat[1].substituicoes;
     const a = Math.max(1, Math.ceil(CONFIG.acrescimoPorFalta * (faltas - antes.faltas) + CONFIG.acrescimoPorSubstituicao * (subs - antes.subs) - 1e-9));
     antes.faltas = faltas; antes.subs = subs; acrescimos.push(a);
@@ -782,8 +783,8 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     for (ac = 1; ac <= a; ac++) minuto();
     ac = 0;
   };
-  jogar(1, 45); acrescimo();
-  jogar(46, 90); acrescimo();
+  jogar(1, 45); acrescimo(45);
+  jogar(46, 90); acrescimo(90);
   let duracao = 90;
   if (opcoes.prorrogacao && gols()[0] === gols()[1]) {
     soltarCartoes(); min = 91; saida = null; proximo = null;

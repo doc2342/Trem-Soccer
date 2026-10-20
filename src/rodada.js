@@ -85,9 +85,10 @@ export function taticaDoDirigente(dados, elenco) {
 const forcaDoOnze = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / escalacao.length;
 
 // Instante em que um minuto de jogo passa a ser visível, com 15 minutos de intervalo, na escala da transmissão.
-export function horaDoMinuto(inicio, min, minutosTransmissao) {
+// acr: acréscimos dos dois tempos, que empurram o que vem depois; meio: minuto inteiro do lance (diz de que tempo ele é)
+export function horaDoMinuto(inicio, min, minutosTransmissao, acr = [0, 0], meio = min) {
   // intervalo de 15 minutos; antes da prorrogação, mais 5 de pausa
-  const reais = (min <= 45 ? min : min <= 90 ? min + 15 : min + 20) * minutosTransmissao / 105;
+  const reais = (min + (meio <= 45 ? 0 : meio <= 90 ? 15 + acr[0] : 20 + acr[0] + acr[1])) * minutosTransmissao / 105;
   return new Date(new Date(inicio).getTime() + reais * 60000);
 }
 
@@ -187,16 +188,17 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
-  const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, l.s === undefined ? l.min : l.min - 1 + l.s / 60, minutosTransmissao).toISOString(), dados: l }));
+  const acr = p.acrescimos || [0, 0];
+  const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, (l.s === undefined ? l.min : l.min - 1 + l.s / 60) + (l.ac || 0), minutosTransmissao, acr, l.min).toISOString(), dados: l }));
   // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)
   const extra = criarRng((semente >>> 0) + 7919);
   lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
-    n: -1, min: 0, tipo: "inicio", moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
+    n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
     escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos })) })),
   } });
   // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis
   // (cinco para cada lado e, depois, alternados). Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida.
-  const placar = p.placar.slice(), fimReal = p.duracao > 90 ? horaDoMinuto(partida.inicio, p.duracao, minutosTransmissao).toISOString() : partida.fim;
+  const placar = p.placar.slice(), fimReal = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).toISOString();
   let penaltis = null, vencedor = null;
   if (copa) {
     const nomes = [casa.clube.nome, fora.clube.nome];

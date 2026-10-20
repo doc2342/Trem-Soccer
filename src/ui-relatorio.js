@@ -9,7 +9,7 @@ const LINHAS_CAMPO = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol
 let serieAbas = 0;
 
 const ICONE_RESULTADO = { gol: "⚽", defesa: "🧤", trave: "🥅", fora: "👟", bloqueado: "🛡️" };
-const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", prorrogacao: "⏱️", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
+const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", prorrogacao: "⏱️", acrescimo: "⏱️", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
 // Nomes vêm do motor marcados com o time ("{0:Fulano}"): aqui cada um ganha a cor do seu clube.
 const MARCA = /\{([01?]):([^{}]+)\}/g;
 export const textoSemMarcas = t => String(t).replace(MARCA, "$2");
@@ -19,13 +19,15 @@ export const lembrarJogadores = (...pares) => pares.forEach(([id, nome]) => { if
 export const linkJogador = (nome, texto = nome) => IDS[nome] ? `<a class="lkj" href="jogador.html?id=${IDS[nome]}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir a página do jogador">${esc(texto)}</a>` : esc(texto);
 const textoColorido = t => esc(t).replace(MARCA, (_, time, nome) => `<span class="nm ${time === "0" ? "casa" : time === "1" ? "fora" : ""}">${linkJogador(nome)}</span>`);
 const ROTULO = { gol: "Gol", defesa: "Finalização defendida", trave: "Finalização na trave", fora: "Finalização para fora", bloqueado: "Finalização bloqueada",
-  amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse", roda: "Roda a bola", falta: "Falta", canto: "Escanteio" };
+  amarelo: "Cartão amarelo", vermelho: "Cartão vermelho", lesao: "Lesão", substituicao: "Substituição", ordem: "Mudança tática", acrescimo: "Acréscimo", impedimento: "Impedimento", contra: "Contra-ataque", posse: "Perda de posse", roda: "Roda a bola", falta: "Falta", canto: "Escanteio" };
+// minuto do lance como se escreve: 45+2 nos acréscimos
+export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
 export function htmlLance(l) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   const finalizacao = l.resultado !== undefined, chave = finalizacao ? l.resultado : l.tipo;
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
-  return `<div class="lance ${classe}"><span class="min">${l.s === undefined ? l.min + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
@@ -37,10 +39,10 @@ export function htmlResumo(narracao, nomePorId = {}) {
     if (l.time !== 0 && l.time !== 1) continue;
     if (l.resultado === "gol") {
       const quem = l.quem || nomePorId[l.finalizador] || "", assist = l.assist !== undefined ? l.assist : (l.criador !== l.finalizador ? nomePorId[l.criador] : null);
-      lados[l.time].push(`⚽ ${l.min}' ${quem ? `<b>${linkJogador(quem)}</b>` : "gol"}${l.tipo === "penalti" ? ` <span class="mut">(pênalti)</span>` : assist ? ` <span class="mut">(${linkJogador(assist)})</span>` : ""}`);
+      lados[l.time].push(`⚽ ${minDoLance(l)}' ${quem ? `<b>${linkJogador(quem)}</b>` : "gol"}${l.tipo === "penalti" ? ` <span class="mut">(pênalti)</span>` : assist ? ` <span class="mut">(${linkJogador(assist)})</span>` : ""}`);
     } else if (l.tipo === "amarelo" || l.tipo === "vermelho") {
       const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
-      lados[l.time].push(`${l.tipo === "amarelo" ? "🟨" : /^Segundo amarelo/.test(l.texto || "") ? "🟨🟥" : "🟥"} ${l.min}' ${m ? linkJogador(m[1]) : ""}`);
+      lados[l.time].push(`${l.tipo === "amarelo" ? "🟨" : /^Segundo amarelo/.test(l.texto || "") ? "🟨🟥" : "🟥"} ${minDoLance(l)}' ${m ? linkJogador(m[1]) : ""}`);
     }
   }
   if (!lados[0].length && !lados[1].length) return "";
