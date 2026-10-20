@@ -263,7 +263,8 @@ export const PREMIOS_DA_SUL = { fases: [0, 0, 0, 0, 70, 100], vice: 250, campeao
 export const CONTINENTAIS = { LIB: ["🌎", nomeDoGrupo("LIB")], SUL: ["🌐", nomeDoGrupo("SUL")], REC: ["🏆", "Recopa"] };
 // jogo de mata-mata em campo neutro: Copa do Brasil, Supercopa ou Libertadores
 export const ehCopa = p => !!p && (p.fase === "copa" || p.fase === "lib");
-export const nomeDaCopa = p => p.fase === "lib" ? (([ic, nome]) => p.grupo === "REC" ? `${ic} ${nome}` : `${ic} ${nome} · ${FASES_DA_COPA[p.copa_fase] || ""}`)(CONTINENTAIS[p.grupo] || CONTINENTAIS.LIB) : p.copa_fase ? `🏆 ${nomeDoGrupo("COPA")} · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
+// curto: sem o naming rights (cards pequenos, como os próximos jogos da Central)
+export const nomeDaCopa = (p, curto) => p.fase === "lib" ? (([ic, nome]) => (nome = curto ? nomeBaseDoGrupo(p.grupo in CONTINENTAIS ? p.grupo : "LIB") : nome, p.grupo === "REC" ? `${ic} ${nome}` : `${ic} ${nome} · ${FASES_DA_COPA[p.copa_fase] || ""}`))(CONTINENTAIS[p.grupo] || CONTINENTAIS.LIB) : p.copa_fase ? `🏆 ${(curto ? nomeBaseDoGrupo : nomeDoGrupo)("COPA")} · ${FASES_DA_COPA[p.copa_fase] || ""}` : "⭐ Supercopa";
 export const valoresDaDivisao = (ligaId, divisao) => sb.from("divisoes").select("teto_folha, receita_tv, receita_patrocinio, preco_ingresso, torcida_base").eq("liga_id", ligaId).eq("divisao", divisao || 2).maybeSingle().then(({ data, error }) => error ? null : data);
 export async function precoDoIngresso(clubeId) {
   const { data: c } = await sb.from("clubes").select("liga_id, divisao").eq("id", clubeId).maybeSingle();

@@ -33,7 +33,9 @@
        (2) escudo, uniforme, nome numa linha só e o selo do patrocinador (sem o rótulo). O ::after quebra a linha entre as duas */
     .card.topo { display:flex; flex-wrap:wrap; align-items:center; gap:0 10px; } .card.topo::after { content:""; order:2; flex-basis:100%; }
     .card.topo > * { order:3; } .card.topo > .topo-jogo { order:0; flex:1 1 auto; justify-content:flex-start; margin:-4px 0 8px; gap:8px; font-size:14px; } .card.topo .topo-jogo h1 { font-size:14px !important; }
-    .card.topo > #cvVoltar { order:1; margin:-4px 0 8px auto; } /* página de outro clube: o Voltar sobe para a 1ª linha e o nome ganha a largura */
+    .card.topo > #cvVoltar { order:0; margin:-4px auto 8px 0; } /* página de outro clube: o Voltar sobe para a 1ª linha, à esquerda, e o selo do patrocinador vai à direita dele */
+    .card.topo-cv > .patro-topo { order:1; margin:-4px 0 8px; } .card.topo-cv > .patro-topo img { width:32px; height:32px; }
+    .card.topo.topo-cv > div:not([class]):not(:last-child) > div { white-space:normal; } /* dirigente, último acesso e divisão quebram a linha em vez de cortar */
     .card.topo > div:last-child { order:1; margin:-4px 0 8px auto !important; flex-direction:row !important; align-items:center !important; gap:10px !important; font-size:14px; }
     .topo-conta #quem, .so-pc { display:none; } .card.topo .so-cel { display:inline; } #sair { padding:2px 8px; }
     .card.topo > :is(svg, img) { width:44px; height:44px; } .card.topo > :is(svg, img) + svg { width:34px; height:34px; }
@@ -2307,7 +2309,7 @@ ${historicoDaBase()}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        $("cvCorpo").innerHTML = `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
+        $("cvCorpo").innerHTML = `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <div class="patro-topo">${patroMaster(marcas[id])}</div>
@@ -2712,7 +2714,7 @@ ${historicoDaBase()}
       const proximos = meus.filter(p => !res[p.id]).slice(0, 5), proximo = proximos[0];
       const rival = proximo ? cPor[proximo.casa === clube.id ? proximo.fora : proximo.casa] : null, ultimo = meus.filter(p => res[p.id]).pop();
       $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
-        return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${ehCopa(p) ? nomeDaCopa(p) : `${p.fase && p.fase !== "liga" ? nomeDoPlayoff(p).replace("Playoff · ", "") : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
+        return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${ehCopa(p) ? nomeDaCopa(p, true) : `${p.fase && p.fase !== "liga" ? nomeDoPlayoff(p).replace("Playoff · ", "") : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
         : `<div class="mut" style="grid-column:1/-1">${!partidas.length ? "O calendário ainda não foi gerado." : (k => k < 0 ? "Não há mais jogos nesta temporada." : `Temporada encerrada: você terminou em <b>${k + 1}º lugar</b>, com ${tabG[k].pts} pontos. A próxima começa depois da virada, feita pelo administrador.`)(tabG.findIndex(t => t.clube.id === clube.id))}</div>`;
       const linha = (rot, v) => `<div class="pj"><span>${rot}</span><span>${v}</span></div>`;
       $("proximo").innerHTML = (ultimo ? linha("Último jogo", `<a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` <span class="mut">· ${nomeDaCopa(ultimo)}</span>` : ""}`) : "")
