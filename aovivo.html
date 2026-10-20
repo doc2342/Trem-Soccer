@@ -100,9 +100,7 @@
   .tvTab td.c { text-align:left; max-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvTab .sobe { color:#34e36a; } .tvTab .desce { color:#ff6b6b; } .tvTab tr + tr td { border-top:1px solid #ffffff14; }
   .tvAna { display:grid; grid-template-columns:1fr 1fr; gap:22px; } .tvAna p { margin:6px 0 0; font-size:16px; line-height:1.4; }
   .tvTime { display:flex; align-items:center; gap:8px; font-family:var(--display); font-size:19px; text-transform:uppercase; padding-bottom:6px; border-bottom:2px solid #ffffff33; }
-  .tvCom { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .tvCom .tvTit { margin:0; } .tvCom svg { flex:none; }
-  .balao { position:relative; margin-top:12px; padding:8px 12px 10px; border-radius:14px; background:#f4f1ea; color:#1b1f2a; } .balao p { margin:4px 0 0; } .balao p:first-child { margin:0; }
-  .balao::before { content:""; position:absolute; top:-9px; left:22px; border:9px solid transparent; border-top:0; border-bottom-color:#f4f1ea; }
+  .tvFala { font-style:italic; font-size:16px; opacity:.85; margin:-2px 0 10px; } .tvFala.fim { margin:12px 0 0; }
   @keyframes tvEntra { from { opacity:0; transform:translateY(12px); } }
   @media (max-width:620px) { .tvRod, .tvAna { grid-template-columns:1fr; gap:12px; } .tvTit { font-size:18px; } .tvAna p { font-size:14.5px; } .tvRod { font-size:13px; } }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
@@ -271,7 +269,7 @@ function telaDaRodada(pt) {
     <div><div class="tvTit">Se acabasse agora<small>${esc(nomeDoGrupo(partida.grupo))}</small></div><table class="tvTab"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>SG</th></tr>${tabela}</table></div></div></div>`;
 }
 // o comentarista do intervalo: até duas frases por time, só com o que a narração do 1º tempo mostrou
-function analiseDoIntervalo(pt) {
+function analiseDoIntervalo(pt, com = comentarista()) {
   const ult = pt.filter(l => l.p).pop(), posse = ult ? ult.p[0] : 50, f1 = x => x.toFixed(1).replace(".", ","), LADO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
   return [0, 1].map(i => {
     const meu = pt.filter(l => l.time === i), fin = meu.filter(l => l.resultado !== undefined), gols = fin.filter(l => l.resultado === "gol").length, xg = fin.reduce((s, l) => s + (l.xg || 0), 0);
@@ -279,8 +277,8 @@ function analiseDoIntervalo(pt) {
     const [ld, nl] = Object.entries(fin.reduce((o, l) => (l.lado && (o[l.lado] = (o[l.lado] || 0) + 1), o), {})).sort((a, b) => b[1] - a[1])[0] || [], longe = fin.filter(l => l.tipo === "longe").length;
     const frases = [];
     if (verm) frases.push(`Ficou com um a menos aos ${verm.min}'${verm.ac ? "+" + verm.ac : ""} e vai ter que se reorganizar no vestiário.`);
-    if (gols - xg >= 0.8) frases.push(`Fez ${gols} com só ${f1(xg)} de xG: aproveitamento cirúrgico, o placar está generoso.`);
-    else if (xg - gols >= 0.8) frases.push(`Criou ${f1(xg)} de xG e ${gols ? "só marcou " + gols : "passou em branco"}: o placar engana, merecia mais.`);
+    if (gols - xg >= 0.8) frases.push(com.generoso(gols, f1(xg)));
+    else if (xg - gols >= 0.8) frases.push(com.engana(f1(xg), gols));
     if (!fin.length) frases.push("Não finalizou nenhuma vez. Precisa de mais coragem no último terço.");
     else if (nl >= 3 && nl / fin.length >= 0.5) frases.push(`Chega mais ${LADO[ld]}: ${nl} das ${fin.length} finalizações saíram por ali.`);
     else if (longe >= 3 && longe / fin.length >= 0.5) frases.push(`Insiste no chute de fora da área (${longe} de ${fin.length}); falta infiltrar.`);
@@ -291,13 +289,22 @@ function analiseDoIntervalo(pt) {
     return frases.slice(0, 2);
   });
 }
-// comentaristas (fictícios) dos veículos patrocinadores; cada partida tem o seu, sempre o mesmo. A análise é a de um analista nível 50, igual para todos.
-const COMENTARISTAS = [["Juvenal Prancheta", "gazeta_dugoutense"], ["Tião Linha de Fundo", "grupo_trem"], ["Célia Xavier, a Professora", "gazeta_dugoutense"], ["Bira Meia-Lua", "grupo_trem"]];
+// comentaristas (fictícios) dos veículos patrocinadores; cada partida tem o seu, sempre o mesmo. A análise é a de um analista nível 50, igual para todos;
+// muda o jeito de falar: abertura e fecho sorteados a cada vez que a tela entra, e a frase do placar que engana (engana: merecia mais; generoso: fez mais do que criou)
+const COMENTARISTAS = [
+  { nome: "Juvenal Prancheta", veiculo: "gazeta_dugoutense", abre: ["Deixa eu pegar a prancheta aqui…", "Vamos ao desenho do jogo."], fecha: ["No papel, tudo funciona. Agora é com eles.", "Anota aí na prancheta."],
+    engana: (xg, g) => `Na prancheta deu ${xg} de xG e ${g ? "só " + g + " na rede" : "nada na rede"}: o placar não conta o jogo que eu desenhei.`, generoso: (g, xg) => `Fez ${g} com ${xg} de xG: no papel não era pra tanto, mas o placar não pergunta.` },
+  { nome: "Tião Linha de Fundo", veiculo: "grupo_trem", abre: ["Minha Nossa Senhora do Escanteio!", "Que primeiro tempo, minha gente!"], fecha: ["Segura, que o trem não para!", "Volta logo, que eu não aguento!"],
+    engana: (xg, g) => `O placar tá mentindo, gente! ${xg} de xG e ${g ? "só " + g + "!" : "nenhum gol!"}`, generoso: (g, xg) => `Fez ${g} com ${xg} de xG? Isso é eficiência de outro planeta, minha gente!` },
+  { nome: "Célia Xavier, a Professora", veiculo: "gazeta_dugoutense", abre: ["Vamos à lousa.", "Lição do primeiro tempo:"], fecha: ["Tarefa para o vestiário: corrigir isso.", "Prova de verdade é no segundo tempo."],
+    engana: (xg, g) => `Tome nota: ${xg} de xG e ${g ? "apenas " + g + (g > 1 ? " gols" : " gol") : "nenhum gol"}. O placar engana; o desempenho merecia mais.`, generoso: (g, xg) => `Tome nota: ${g} ${g > 1 ? "gols" : "gol"} com ${xg} de xG. Eficiência acima da média, e isso não se repete toda hora.` },
+  { nome: "Bira Meia-Lua", veiculo: "grupo_trem", abre: ["Ô, meu amigo…", "Senta que lá vem análise."], fecha: ["Futebol é simples, a gente que complica.", "Calma, que tem mais 45."],
+    engana: (xg, g) => `Criou ${xg} de xG e ${g ? "fez só " + g : "passou em branco"}… o placar tá de brincadeira com esse time.`, generoso: (g, xg) => `Fez ${g} com ${xg} de xG, meu amigo. Futebol é bola na rede, o resto é conversa.` }];
+const comentarista = () => COMENTARISTAS[partida.id % COMENTARISTAS.length];
 function telaDoAnalista(pt) {
-  const a = analiseDoIntervalo(pt), c = [clubes[partida.casa], clubes[partida.fora]], [quem, veiculo] = COMENTARISTAS[partida.id % COMENTARISTAS.length];
-  // silhueta: cabeça e ombros com fone e microfone
-  const silhueta = `<svg width="58" height="58" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="#ffffff14"/><path d="M10 60c2-13 11-19 22-19s20 6 22 19z" fill="#cfd3dc"/><circle cx="32" cy="25" r="12" fill="#cfd3dc"/><path d="M19 25a13 13 0 0 1 26 0" fill="none" stroke="#facc15" stroke-width="3"/><rect x="16" y="22" width="5" height="9" rx="2" fill="#facc15"/><path d="M18 31q2 7 10 7" fill="none" stroke="#facc15" stroke-width="2"/><circle cx="29" cy="38" r="2.4" fill="#facc15"/></svg>`;
-  return `<div class="tvTela"><div class="tvCom">${silhueta}<div><div class="tvTit">🎙️ Comentarista</div><div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:.8;letter-spacing:.06em;text-transform:uppercase">${selo(veiculo, 20)}${esc(quem)} · ${esc(MARCAS[veiculo].nome)}</div></div></div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div><div class="balao">${a[i].map(f => `<p>${f}</p>`).join("")}</div></div>`).join("")}</div></div>`;
+  const com = comentarista(), a = analiseDoIntervalo(pt, com), c = [clubes[partida.casa], clubes[partida.fora]], sorte = l => l[Math.floor(Math.random() * l.length)];
+  return `<div class="tvTela"><div class="tvTit">🎙️ Comentarista<small style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${selo(com.veiculo, 20)}${esc(com.nome)} · ${esc(MARCAS[com.veiculo].nome)}</small></div>
+    <div class="tvFala">“${esc(sorte(com.abre))}”</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div><div class="tvFala fim">“${esc(sorte(com.fecha))}”</div></div>`;
 }
 
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
