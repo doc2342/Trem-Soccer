@@ -1,6 +1,7 @@
 // Desenho do relatório da partida, compartilhado pelas telas.
 import { POSICOES } from "./modelo.js";
 import { sg, pp, filasDoCampo } from "./siglas.js";
+import { htmlGraficos } from "./ui-graficos.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 const COR = ["casa", "fora"];
@@ -60,7 +61,7 @@ function htmlOrdens(o, nome, cor) {
   const itens = [...o.subs.map(s => item(`aos ${s.min}' ${COND[s.cond] || s.cond}: sai ${esc(s.saiNome)}, entra ${esc(s.entraNome)}`, s)), ...o.ordens.map(x => item(`a partir dos ${x.min}' ${COND[x.cond] || x.cond}: ${esc(textoMuda(x.muda))}`, x))];
   return `<div class="card" data-aba="resumo"><h2 class="${cor}">Suas ordens: ${nome}</h2>${itens.length ? `<ul>${itens.join("")}</ul>` : `<div class="mut">Nenhuma substituição ou ordem planejada.</div>`}</div>`;
 }
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "" } = {}) { // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "", clubes = null } = {}) { // clubes: [mandante, visitante] com escudo e sigla, para os gráficos // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card" data-aba="resumo"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
@@ -97,7 +98,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🩹 lesão · 🔻 substituído</span></div>
     <div class="rp1"><div class="duas">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="rolagem">${estatisticas}</div></div></div>`;
   const jogadores = `<div class="card" data-aba="jog"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
-  return `${resultado}${analise}${aposAnalise}
+  return `${resultado}${clubes ? htmlGraficos(r.narracao, clubes) : ""}${analise}${aposAnalise}
     <div class="duas"><div class="card" data-aba="lances"><h2>Reprise</h2>${lances}</div>
     <div><div class="card" data-aba="estat"><h2>Estatísticas</h2>${estat}</div>${lateral}
     <div class="card" data-aba="estat"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(duelos com a bola vencidos; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div>${jogadoresAoLado ? jogadores : ""}</div></div>

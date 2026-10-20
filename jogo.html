@@ -294,6 +294,7 @@ import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
+import { ligarGraficos } from "./src/ui-graficos.js";
 import { montarLogin } from "./src/ui-login.js";
 import { sg, pp, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
 import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo.js";
@@ -2926,7 +2927,8 @@ ${historicoDaBase()}
       const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
       const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);
       $("amInfo").textContent = `${adv.nome} (tática de bot, ${estiloDe(adv)}): ${dele.formacao}, nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
-      $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1], ordens: partida.ordens });
+      $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1], ordens: partida.ordens, clubes: casa ? [clube, adv] : [adv, clube] });
+      ligarGraficos($("amRel"));
       $("amRel").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) { $("amInfo").innerHTML = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }
     $("amJogar").disabled = false;

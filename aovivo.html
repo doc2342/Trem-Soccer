@@ -151,9 +151,13 @@
   #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
   /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
   .abas.soCel { display:none; }
+  /* depois do apito o relatório é longo: as abas valem também no PC, uma parte por vez */
+  .abas.soCel.noPC { display:flex; } .abas.noPC .aba .ai { margin-right:6px; }
+  #corpo.abasPC .fora-aba { display:none !important; }
+  #corpo.abasPC .duas:has(> .fora-aba) { grid-template-columns:minmax(0, 1fr); } /* sem o vizinho escondido, o cartão ocupa a largura toda */
   @media (max-width:760px) {
     .abas.soCel { display:flex; } /* como as abas do clube: ícone em cima, nome curto embaixo, todas numa linha */
-    .abas.soCel { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:0; overflow:visible; }
+    .abas.soCel, .abas.soCel.noPC { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:0; overflow:visible; }
     .abas .aba { padding:6px 0 5px; letter-spacing:0; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; white-space:nowrap; }
     .abas .aba .ai { font-size:17px; line-height:1.1; }
     .fora-aba { display:none !important; }
@@ -570,8 +574,8 @@ function topo(gols, m, narracao = [], pre = null) {
 const ABAS = { resumo: ["📝", "Resumo"], lances: ["📜", "Lances"], graf: ["📈", "Gráficos"], estat: ["📊", "Números"], esc: ["👕", "Escalação"], rodada: ["🏆", "Rodada"], jog: ["⭐", "Jogadores"] };
 let aba = null, todosLances = false, latAba = "esc";
 const BOTAO_TODOS = `<button class="sec" data-todos style="margin:0 0 8px;padding:4px 12px"><span class="v1">Ver todos os lances</span><span class="v2">Só os principais</span></button>`;
-function barraDeAbas(ids) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0];
-  return `<div class="abas soCel">${ids.map(k => `<button class="aba" data-ir="${k}"><span class="ai">${ABAS[k][0]}</span><span>${ABAS[k][1]}</span></button>`).join("")}</div>`; }
+function barraDeAbas(ids, tambemNoPC = false) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0]; $("corpo").classList.toggle("abasPC", tambemNoPC);
+  return `<div class="abas soCel${tambemNoPC ? " noPC" : ""}">${ids.map(k => `<button class="aba" data-ir="${k}"><span class="ai">${ABAS[k][0]}</span><span>${ABAS[k][1]}</span></button>`).join("")}</div>`; }
 function aplicarAba() {
   document.querySelectorAll("#corpo [data-aba]").forEach(e => e.classList.toggle("fora-aba", e.dataset.aba !== aba));
   document.querySelectorAll("#corpo [data-ir]").forEach(b => b.classList.toggle("ativa", b.dataset.ir === aba));
@@ -664,7 +668,7 @@ async function atualizar() {
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
-    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "lances", "graf", "estat", "esc", rodada && "rodada", "jog"]) + htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]]) + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
     ligarGraficos($("corpo")); aplicarAba();
     return;
   }
