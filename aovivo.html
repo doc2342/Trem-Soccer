@@ -18,6 +18,26 @@
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
+  /* cartão de fim de jogo: sobe no meio da tela no apito final (placar, gols e melhor em campo); some em 8 s ou no clique */
+  .fimJogo { position:fixed; inset:0; z-index:35; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(5,8,15,.55); animation:fimFundo 8s ease forwards; cursor:pointer; }
+  .fimJogo .cartao { position:relative; width:min(520px, 100%); border-radius:16px; overflow:hidden; color:#fff; text-align:center; padding:18px 18px 16px;
+    background:linear-gradient(100deg, var(--c1) 0 7%, #111827 7% 93%, var(--c2) 93%); box-shadow:0 24px 60px rgba(0,0,0,.55); animation:fimEntra .7s cubic-bezier(.2,1.4,.3,1) both; }
+  .fimJogo .apito { font-family:var(--display); font-size:15px; letter-spacing:.3em; text-transform:uppercase; color:#cbd5e1; }
+  .fimJogo .placar { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px; margin:10px 0 4px; }
+  .fimJogo .placar .t { display:flex; flex-direction:column; align-items:center; gap:6px; font-family:var(--display); font-weight:600; font-size:16px; letter-spacing:.04em; text-transform:uppercase; line-height:1.05; min-width:0; overflow-wrap:anywhere; }
+  .fimJogo .placar .g { font-family:var(--display); font-weight:700; font-size:72px; line-height:1; font-variant-numeric:tabular-nums; animation:fimPlacar .9s .35s cubic-bezier(.2,1.4,.3,1) both; }
+  .fimJogo .pen { font-size:14px; color:#cbd5e1; }
+  .fimJogo .gols { display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; font-size:14px; margin-top:8px; animation:fimSobe .5s .8s both; }
+  .fimJogo .gols div:first-child { text-align:right; } .fimJogo .gols div:last-child { text-align:left; }
+  .fimJogo .melhor { margin-top:14px; display:inline-flex; align-items:center; gap:10px; padding:6px 14px; border-radius:999px; background:#ffffff14; font-size:14px; animation:fimSobe .5s 1.2s both; }
+  .fimJogo .melhor b { font-family:var(--display); font-size:17px; letter-spacing:.04em; text-transform:uppercase; }
+  .fimJogo .melhor .n { font-family:var(--display); font-weight:700; font-size:20px; color:#facc15; }
+  @keyframes fimFundo { 0% { opacity:0; } 5%, 92% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
+  @keyframes fimEntra { from { transform:translateY(40px) scale(.85); opacity:0; } }
+  @keyframes fimPlacar { from { transform:scale(.3); opacity:0; } }
+  @keyframes fimSobe { from { transform:translateY(10px); opacity:0; } }
+  @media (max-width:620px) { .fimJogo .placar .g { font-size:52px; } .fimJogo .placar .t { font-size:13px; } .fimJogo .placar .t svg { width:44px; height:44px; } }
+  @media (prefers-reduced-motion:reduce) { .fimJogo, .fimJogo * { animation-duration:0s !important; animation-delay:0s !important; } .fimJogo { animation:fimSome 8s step-end forwards; } @keyframes fimSome { to { opacity:0; visibility:hidden; } } }
   /* placa do quarto árbitro: sobe do pé da tela na substituição (vermelho sai, verde entra) e no acréscimo (+N), fica 3,5 s e desce */
   .placa { position:fixed; left:50%; bottom:18px; z-index:30; pointer-events:none; transform:translate(-50%, 140%); animation:placaSobe 4s cubic-bezier(.2,.8,.2,1) forwards;
     background:#0c0c0e; border:3px solid #2a2a30; border-radius:10px; padding:10px 18px 12px; min-width:240px; max-width:calc(100vw - 32px); box-shadow:0 14px 34px rgba(0,0,0,.5), inset 0 0 0 1px #000; color:#fff; }
@@ -208,6 +228,21 @@ function avisoDeGol(d) {
     ${m ? `<div class="marca">${selo(c.marca, 34)}<span><b>${esc(m.nome)}</b><span> · “${esc(m.bordao)}”</span></span></div>` : ""}</div>`;
   document.body.append(el); setTimeout(() => el.remove(), 4600);
 }
+// cartão de fim de jogo. gols: [casa, fora]; narracao: para a lista de gols; melhor: { nome, nota, time } do relatório
+function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null }) {
+  document.querySelectorAll(".fimJogo").forEach(x => x.remove());
+  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}), hexa = (x, p) => /^#[0-9a-f]{6}$/i.test(x || "") ? x : p;
+  const lista = i => narracao.filter(l => l.resultado === "gol" && l.time === i).map(l => `<div>⚽ ${esc(l.quem || "gol")} ${l.min}${l.ac ? "+" + l.ac : ""}'</div>`).join("");
+  const el = document.createElement("div"); el.className = "fimJogo"; el.title = "Fechar";
+  el.innerHTML = `<div class="cartao" style="--c1:${hexa(u[0].cor1, "#0b3d91")};--c2:${hexa(u[1].cor1, "#b91c1c")}">
+    <div class="apito">🏁 Fim de jogo</div>
+    <div class="placar"><div class="t">${svgEscudo(c[0].escudo, c[0].sigla, 60)}${esc(c[0].nome)}</div><div class="g">${gols[0]} x ${gols[1]}</div><div class="t">${svgEscudo(c[1].escudo, c[1].sigla, 60)}${esc(c[1].nome)}</div></div>
+    ${penaltis ? `<div class="pen">Pênaltis: ${penaltis[0]} x ${penaltis[1]}</div>` : ""}
+    ${gols[0] + gols[1] ? `<div class="gols"><div>${lista(0)}</div><div>${lista(1)}</div></div>` : ""}
+    ${melhor ? `<div class="melhor">⭐ Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}</div>`;
+  el.onclick = () => el.remove(); document.body.append(el); setTimeout(() => el.remove(), 8000);
+}
+let fimMostrado = false, ultimoFim = null; // ultimoFim: dados do jogo encerrado, para a demo
 // placa do quarto árbitro (substituição e acréscimo): uma de cada vez, em fila
 const filaDePlacas = [];
 function placa(d) {
@@ -459,6 +494,9 @@ async function atualizar() {
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
+    // quem acompanhou (ou chegou até 2 minutos depois do apito) vê o cartão de fim de jogo uma vez
+    if (!fimMostrado && agora - new Date(res.libera_em || 0).getTime() < 120000) { fimMostrado = true; setTimeout(() => cartaoDeFim({ gols: [res.gols_casa, res.gols_fora], narracao, melhor: res.relatorio.melhor, penaltis: res.relatorio.penaltis }), 600); }
+    ultimoFim = { gols: [res.gols_casa, res.gols_fora], narracao, melhor: res.relatorio.melhor, penaltis: res.relatorio.penaltis };
     topo([res.gols_casa, res.gols_fora], { texto: "Fim de jogo" + (res.relatorio.penaltis ? ` · pênaltis ${res.relatorio.penaltis[0]} x ${res.relatorio.penaltis[1]}` : "") }, [], pre);
     // depois do jogo: público, renda e clima ficam no topo, ao lado do placar
     const numeros = `
@@ -504,11 +542,17 @@ function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dFim">🏁 Fim</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
   $("dAcr").onclick = () => placa({ tipo: "acrescimo", acr: 1 + Math.floor(Math.random() * 7) });
+  // jogo encerrado: o cartão de verdade; senão, um placar inventado com jogadores desta partida
+  $("dFim").onclick = () => { if (ultimoFim) return cartaoDeFim(ultimoFim);
+    const narracao = [], gols = [lado() + lado(), lado()];
+    [0, 1].forEach(t => { for (let k = 0; k < gols[t]; k++) narracao.push({ resultado: "gol", time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }); });
+    narracao.sort((a, b) => a.min - b.min); const t = lado();
+    cartaoDeFim({ gols, narracao, melhor: { nome: sorte(nomes(t)), nota: 7 + Math.random() * 2, time: t } }); };
 }
 iniciar().then(() => { if (new URLSearchParams(location.search).has("demo")) demo(); }).catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
