@@ -106,19 +106,20 @@ export const CONFIG = {
   narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
   // faltas, cartões, lesões e bola parada
-  falta: 0.1, // por duelo
+  falta: 0.123, // por duelo (alvo: 22 faltas por jogo)
   faltaPorAgressividade: 0.3,
-  amarelo: 0.32, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
-  cuidadoComAmarelo: 0.25, // quem já tem amarelo se segura: multiplicador da chance do segundo
+  amarelo: 0.46, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
+  cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
   amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
   segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
   lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
   maxSubstituicoes: 5,
+  acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
   escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
   escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
   cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
-  penalti: 0.13, // das faltas no centro do ataque
-  faltaDireta: 0.35, // das faltas no ataque que não são pênalti
+  penalti: 0.106, // das faltas no centro do ataque
+  faltaDireta: 0.27, // das faltas no ataque que não são pênalti
 };
 
 export const INSTRUCOES_PADRAO = {
@@ -417,17 +418,17 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   const jogadores = {}, lances = [], eventos = [], lesoes = [];
   const ficha = (jog, i) => jogadores[jog.j.id] || (jogadores[jog.j.id] = { nome: jog.j.nome, pos: jog.pos, time: i, entrou: 0, saiu: null, gols: 0, finalizacoes: 0, xg: 0, duelosGanhos: 0, duelosPerdidos: 0, duelosEsperados: 0, faltas: 0, amarelos: 0, vermelho: false, lesionado: false, energia: 100 });
   times.forEach((t, i) => t.emCampo.forEach(jog => ficha(jog, i)));
-  let min = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0;
+  let min = 0, ac = 0, jogados = 0, sujo = true, posseCasa = 0.5, defesas = null, somaPosse = 0; // ac: minuto de acréscimo (45+ac, 90+ac); jogados conta os minutos com os acréscimos
   const gols = () => [estat[0].gols, estat[1].gols];
   let seq = 0; // ordem de acontecimento, para a narração misturar finalizações e os outros lances na sequência certa
   // parcial para a transmissão ao vivo: [posse do mandante em %, faltas do mandante, do visitante, escanteios do mandante, do visitante]
-  const parcial = () => [min > 1 ? Math.round(somaPosse / (min - 1) * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
+  const parcial = () => [jogados ? Math.round(somaPosse / jogados * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
   const nm = jog => `{${jogadores[jog.j.id] ? jogadores[jog.j.id].time : "?"}:${jog.j.nome}}`, tm = i => `{${i}:${times[i].nome}}`;
   // os cartões esperam o lance da falta ser narrado e saem logo depois dele, já dizendo o motivo
   const pendentes = [];
-  const soltarCartoes = () => { while (pendentes.length) { const c = pendentes.shift(); eventos.push({ n: seq++, min, time: c.i, tipo: c.tipo, texto: c.texto, p: parcial() }); } };
+  const soltarCartoes = () => { while (pendentes.length) { const c = pendentes.shift(); eventos.push({ n: seq++, min, ...(ac ? { ac } : {}), time: c.i, tipo: c.tipo, texto: c.texto, p: parcial() }); } };
   const empurrar = (lista, o) => { lista.push(o); soltarCartoes(); };
-  const evento = (i, tipo, texto) => empurrar(eventos, { n: seq++, min, time: i, tipo, texto, p: parcial() });
+  const evento = (i, tipo, texto) => empurrar(eventos, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo, texto, p: parcial() });
   const cartao = (i, tipo, texto) => pendentes.push({ i, tipo, texto });
   // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
   const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `pela ${NOME_LADO[l]} do meio-campo`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
@@ -639,7 +640,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const sf = jogadores[c.finalizador.j.id];
     sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
     if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-    empurrar(lances, { n: seq++, min, time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
+    empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
     if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
   }
 
@@ -732,7 +733,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     finalizar(i, chance);
   }
 
-  const jogar = (de, ate) => { for (min = de; min <= ate; min++) {
+  const minuto = () => {
     ordensESubstituicoes(0); ordensESubstituicoes(1);
     for (const t of times) for (const jog of t.emCampo) {
       const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
@@ -768,9 +769,21 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
         atacar(i, false, zona);
       }
     }
-    somaPosse += posseCasa;
-  } };
-  jogar(1, 90);
+    somaPosse += posseCasa; jogados++;
+  };
+  const jogar = (de, ate) => { for (min = de; min <= ate; min++) minuto(); };
+  // acréscimos: proporcionais às faltas do tempo e 30 s por substituição; jogados com o relógio parado no 45 (ou 90)
+  const acrescimos = [], antes = { faltas: 0, subs: 0 };
+  const acrescimo = () => {
+    const faltas = estat[0].faltas + estat[1].faltas, subs = estat[0].substituicoes + estat[1].substituicoes;
+    const a = Math.max(1, Math.ceil(CONFIG.acrescimoPorFalta * (faltas - antes.faltas) + CONFIG.acrescimoPorSubstituicao * (subs - antes.subs) - 1e-9));
+    antes.faltas = faltas; antes.subs = subs; acrescimos.push(a);
+    soltarCartoes(); evento(0, "acrescimo", `A arbitragem dá ${a} ${a > 1 ? "minutos" : "minuto"} de acréscimo.`);
+    for (ac = 1; ac <= a; ac++) minuto();
+    ac = 0;
+  };
+  jogar(1, 45); acrescimo();
+  jogar(46, 90); acrescimo();
   let duracao = 90;
   if (opcoes.prorrogacao && gols()[0] === gols()[1]) {
     soltarCartoes(); min = 91; saida = null; proximo = null;
@@ -779,12 +792,12 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   }
   min = duracao;
   times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
-  estat[0].posse = Math.round(somaPosse / duracao * 100); estat[1].posse = 100 - estat[0].posse;
+  estat[0].posse = Math.round(somaPosse / jogados * 100); estat[1].posse = 100 - estat[0].posse;
   soltarCartoes();
   const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);
   // segundo de cada lance dentro do seu minuto, para a transmissão soltar um por vez em vez de todos no minuto cheio
   const porMinuto = {};
-  narracao.forEach(l => (porMinuto[l.min] = porMinuto[l.min] || []).push(l));
+  narracao.forEach(l => (porMinuto[l.min + "+" + (l.ac || 0)] = porMinuto[l.min + "+" + (l.ac || 0)] || []).push(l));
   Object.values(porMinuto).forEach(g => g.forEach((l, k) => { l.s = Math.floor((k + 0.5) / g.length * 60); }));
   // o que aconteceu com cada substituição e ordem planejada (só para as telas do próprio dirigente: não vai para o relatório público)
   const motivoSub = (t, s) => t.subs >= CONFIG.maxSubstituicoes ? `o time já tinha feito ${CONFIG.maxSubstituicoes} trocas` : !t.banco.some(j => j.id === s.entra) ? "o reserva já tinha entrado" : "a condição não chegou a valer";
@@ -792,5 +805,5 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     subs: t.instr.substituicoes.map((s, k) => ({ ...s, saiNome: t.nomes[s.sai] || "?", entraNome: t.nomes[s.entra] || "?", ...(t.cumpridas["s" + k] || { motivo: motivoSub(t, s) }) })),
     ordens: t.instr.ordens.map((o, k) => ({ ...o, ...(t.cumpridas["o" + k] || { motivo: "a condição não chegou a valer" }) })),
   }));
-  return { duracao, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
+  return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
 }

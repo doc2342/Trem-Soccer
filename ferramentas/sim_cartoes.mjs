@@ -18,3 +18,15 @@ for (const agressividade of [-2, -1, 0, 1, 2]) {
   const f = x => (x / N).toFixed(2), pct = x => (t.segundo ? (100 * x / t.segundo).toFixed(0) : "0") + "%";
   console.log(`${agressividade >= 0 ? "+" : ""}${agressividade}  | ${f(t.faltas)} | ${f(t.amarelos)} | ${f(t.vermelhos)} (${f(t.segundo)}) | ${(100 * t.baratas / N).toFixed(1)} | ${pct(t.cedo)}`);
 }
+// jogo inteiro com a tática dos bots dos dois lados: alvo de 22 faltas, 5 amarelos e 0,25 vermelho; gols de bola parada para ver o efeito das faltas
+{
+  const rng = criarRng(91), t = { faltas: 0, amarelos: 0, vermelhos: 0, gols: 0, falta: 0, penalti: 0, escanteio: 0, chutesFalta: 0, penais: 0 };
+  for (let k = 0; k < N; k++) {
+    const a = elenco(1 + k % 20), b = elenco(101 + k % 20);
+    const p = simularPartida(rng, prepararTime({ nome: "A", ...a }), prepararTime({ nome: "B", ...b }));
+    for (const e of p.estat) { t.faltas += e.faltas; t.amarelos += e.amarelos; t.vermelhos += e.vermelhos; t.gols += e.gols; }
+    for (const l of p.lances) { if (l.tipo === "falta") t.chutesFalta++; if (l.tipo === "penalti") t.penais++; if (l.resultado === "gol" && l.tipo in t) t[l.tipo]++; }
+  }
+  const f = x => (x / N).toFixed(2);
+  console.log(`jogo: ${f(t.faltas)} faltas, ${f(t.amarelos)} amarelos, ${f(t.vermelhos)} vermelhos, ${f(t.gols)} gols (de falta ${f(t.falta)}, pênalti ${f(t.penalti)}, escanteio ${f(t.escanteio)}) | lances de falta ${f(t.chutesFalta)}, pênaltis ${f(t.penais)}`);
+}

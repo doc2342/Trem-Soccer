@@ -447,10 +447,10 @@ const __motor = (() => {
     narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
     // faltas, cartões, lesões e bola parada
-    falta: 0.1, // por duelo
+    falta: 0.123, // por duelo (alvo: 22 faltas por jogo)
     faltaPorAgressividade: 0.3,
-    amarelo: 0.32, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
-    cuidadoComAmarelo: 0.25, // quem já tem amarelo se segura: multiplicador da chance do segundo
+    amarelo: 0.46, amareloPorAgressividade: 0.15, vermelhoDireto: 0.003,
+    cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
     amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
     segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
     lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
@@ -458,8 +458,8 @@ const __motor = (() => {
     escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
     escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
-    penalti: 0.13, // das faltas no centro do ataque
-    faltaDireta: 0.35, // das faltas no ataque que não são pênalti
+    penalti: 0.106, // das faltas no centro do ataque
+    faltaDireta: 0.27, // das faltas no ataque que não são pênalti
   };
 
   const INSTRUCOES_PADRAO = {
