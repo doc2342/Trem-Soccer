@@ -88,16 +88,16 @@
   .colunas .card { display:inline-block; width:100%; }
   /* chave do mata-mata */
   .chave { display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; }
-  .ch-col { flex:1 0 90px; min-width:90px; max-width:160px; display:flex; flex-direction:column; }
-  .ch-ponta { flex:0 0 250px; max-width:none; } .ch-t svg { flex:none; align-self:center; } .ch-t span { flex:1; } /* a 1ª fase é a única cheia de nomes desde o sorteio: ganha a largura que sobra das fases vazias */
+  .ch-col { flex:1 1 66px; min-width:66px; max-width:160px; display:flex; flex-direction:column; }
+  .ch-ponta { flex:0 1 240px; min-width:150px; max-width:none; } .ch-t svg { flex:none; align-self:center; } .ch-t span { flex:1; } /* a 1ª fase é a única cheia de nomes desde o sorteio: ganha a largura que sobra das fases vazias */
   .ch-final .ch-f { color:var(--ac); } .ch-final .ch-j { border-color:var(--ac); }
-  .ch-f { font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); text-align:center; margin-bottom:6px; }
+  .ch-f { font-family:var(--display); font-weight:600; font-size:12px; letter-spacing:.04em; white-space:nowrap; text-transform:uppercase; color:var(--mut); text-align:center; margin-bottom:6px; }
   .ch-jogos { flex:1; display:flex; flex-direction:column; justify-content:space-around; gap:6px; }
   .ch-j { display:block; border:1px solid var(--line); border-radius:8px; background:var(--campo); padding:4px 8px; font-size:12.5px; text-decoration:none; color:inherit; }
   a.ch-j:hover { border-color:var(--ac); }
   .ch-t { display:flex; justify-content:space-between; gap:6px; color:var(--mut); } .ch-t span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .ch-v { color:var(--tx); font-weight:600; } .ch-eu span { color:var(--ac); } .ch-p { font-size:11px; color:var(--mut); text-align:right; }
-  .ch-vazio { border-style:dashed; color:var(--mut); text-align:center; padding:12px 8px; font-size:11.5px; }
+  .ch-vazio { border-style:dashed; color:var(--mut); text-align:center; padding:12px 4px; font-size:11.5px; }
   .ch-vazio.ch-vaga { padding:4px 8px; text-align:left; font-size:12.5px; } .ch-vaga i { opacity:.7; }
   .ch-meu { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac) inset; }
   .ch-prel { margin-top:12px; } .ch-prel summary { cursor:pointer; }
@@ -167,9 +167,9 @@
     #mLista table { font-size:12.5px; } #mLista td, #mLista th { padding:4px 3px; }
     #mLista td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
   }
-  a.jg { display:grid; grid-template-columns:minmax(0,1fr) 24px auto 24px minmax(0,1fr) auto; align-items:center; gap:8px; text-decoration:none; color:inherit; }
+  a.jg { display:grid; grid-template-columns:minmax(0,1fr) 24px auto 24px minmax(0,1fr); align-items:center; gap:2px 6px; text-decoration:none; color:inherit; }
   .jg-c, .jg-f { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .jg-c { text-align:right; }
-  .jg-x { text-align:center; white-space:nowrap; min-width:44px; } .jg-x small { display:block; font-weight:400; font-size:11px; color:var(--mut); }
+  .jg-x { text-align:center; white-space:nowrap; min-width:22px; } a.jg > .xg { grid-column:1 / -1; margin-left:0; text-align:center; font-size:11px; } /* o horário numa segunda linha: sobra largura para os nomes */ .jg-x small { display:block; font-weight:400; font-size:11px; color:var(--mut); }
   .lk { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; cursor:pointer; }
   .lk:hover { text-decoration-color:var(--ac); }
   .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
@@ -218,7 +218,7 @@
 <main>
   <div class="topo"><h1 style="margin:0">Trem Soccer</h1><span class="relogio" title="Hora deste aparelho"></span><span class="mut" id="quem" style="margin-left:auto"></span><span id="meusClubes" class="meus-clubes"></span><button class="sec" id="sair" hidden>Sair</button></div>
   <div class="card" id="login"></div>
-  <div id="app"></div>
+  <div id="app" style="display:contents"></div><!-- sem caixa própria: as abas (sticky) ficam presas também na Tática, que está fora de #app -->
   <!-- aba Tática: fica fora de #app para não ser desmontada quando a tela do clube é redesenhada -->
   <div id="taticaFora" hidden></div>
 </main>
@@ -1884,7 +1884,7 @@ async function telaClube(liga, clube) {
         <div style="flex:1;min-width:220px"><div style="font-style:italic">“${fraseDoPresidente(c)}”</div>
           <div style="margin-top:4px">${faixa ? `Meta da temporada: terminar <b>${faixa}</b> no ${esc(nomeDoGrupo(clube.grupo))}.` : `<span class="mut">A meta da temporada aparece quando o administrador calcular. Sem ela, vale a posição pela força do elenco, com uma de folga para cada lado.</span>`}</div>
           <div id="termometro" class="mut" style="margin-top:4px"></div>
-          ${d ? `<div class="mut" style="margin-top:4px">Na última virada: ${minhaVirada.antes} → ${minhaVirada.depois} (liga ${sinal(d.liga)}, copa ${sinal(d.copa)}, finanças ${sinal(d.financas)})${minhaVirada.verba ? `, verba de ${dinheiro(minhaVirada.verba)}` : ""}.</div>` : ""}</div>
+          ${d ? `<div class="mut" style="margin-top:4px">Na última virada: ${minhaVirada.antes} → ${minhaVirada.depois} (liga ${sinal(d.liga)}, copa ${sinal(typeof d.copa === "number" ? d.copa : d.copa ? Math.max(-C.copaTeto, Math.min(C.copaTeto, C.copaPorFase * (d.copa.chegou - d.copa.esperada))) : 0)}, finanças ${sinal(d.financas)})${minhaVirada.verba ? `, verba de ${dinheiro(minhaVirada.verba)}` : ""}.</div>` : ""}</div>
         <div style="flex:1;min-width:220px" class="mut">Com ${C.verba[1][0]}+ na virada, a diretoria paga uma verba de ${Math.round(C.verba[1][1] * 100)}% do teto da folha${teto ? ` (${dinheiro(Math.round(teto * C.verba[1][1]))})` : ""}; com ${C.verba[0][0]}+, ${Math.round(C.verba[0][1] * 100)}% e mais uma compra pela multa.
           ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div style="margin-top:4px">⏳ Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="ok" style="margin-top:4px">✅ Clube extra em outro país liberado. <button class="sec" id="pedirExtra">Escolher o país e pedir</button></div>${pedidoExtra && pedidoExtra.estado === "recusado" ? `<div class="aviso" style="margin-top:4px">O pedido anterior (${esc(pedidoExtra.nome)}) foi recusado${pedidoExtra.motivo ? `: ${esc(pedidoExtra.motivo)}` : "."}</div>` : ""}` : `<div style="margin-top:4px">Clube extra em outro país: chegar a ${C.segundoClube} numa virada sem caixa negativo (quem já tem dois clubes precisa dos dois no ${C.segundoClube}).</div>`}
           ${clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? `<div class="ok" style="margin-top:4px">Nesta temporada: +${clube.multas_extra} compra pela multa (5 no total).</div>` : ""}</div></div></details>`; })()}
@@ -2318,7 +2318,7 @@ ${historicoDaBase()}
             ${kpi("Últimos jogos", feitos.length ? bolas(feitos.slice(-5), id) : "—", "liga e copas, do mais antigo ao mais recente")}
             ${meu ? kpi("Torcida", c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", "torcedores") : kpi("Contra você", contraFeitos.length ? `${conta("V")}V ${conta("E")}E ${conta("D")}D` : "—", `do ${esc(clube.nome)}, nesta temporada`)}</div>
           <div class="g2"><div>
-            <div class="card"><h2>Time provável ${bot ? `<span class="tag">${esc(bot.formacao)}</span> <span class="tag">o melhor onze pelo elenco: ainda não jogou nesta temporada</span>` : observada ? `<span class="tag">${observada.jogos === 1 ? "o time do último jogo" : `o que mais jogou nos últimos ${observada.jogos} jogos`}</span>` : ""}</h2>
+            <div class="card"><h2>Time provável ${bot ? `<span class="tag">${esc(bot.formacao)}</span> <span class="tag">o melhor onze pelo elenco: ${feitos.length ? "ninguém dos últimos jogos está mais no clube" : "ainda não jogou nesta temporada"}</span>` : observada ? `<span class="tag">${observada.jogos === 1 ? "o time do último jogo" : `o que mais jogou nos últimos ${observada.jogos} jogos`}</span>` : ""}</h2>
               ${observada ? `<div class="mut" style="font-size:12px">${analista ? `Visto pelo seu analista, ${esc(analista.nome)}` : "Sem analista, você só sabe o time do último jogo"}${nJogos < 3 ? `; ${analista ? "com skill 25" : "com um analista"} ele acompanha ${nJogos + 1} jogos` : ""}.</div>` : ""}${campo}</div>
             ${aVenda.length ? `<div class="card" style="border-color:var(--ac)"><h2>🏷️ À venda <span class="tag">clique para fazer uma proposta</span></h2><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th>Pede</th></tr>
               ${aVenda.map(j => `<tr class="clk" data-cvjog="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td><td><b>${dinheiro(j.preco_pedido)}</b></td></tr>`).join("")}</table></div>` : ""}
@@ -2454,7 +2454,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compChave").hidden = !["copa", "lib", "sul"].includes(k); $("compKpis").hidden = !["liga", "copa", "lib", "sul"].includes(k); if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compChave").hidden = !["copa", "lib", "sul"].includes(k); $("compKpis").hidden = !["copa", "lib", "sul"].includes(k); if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
@@ -2684,13 +2684,6 @@ ${historicoDaBase()}
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
     const atual = rodadas.find(r => partidas.some(p => p.rodada === r && !res[p.id])) || rodadas[rodadas.length - 1]; // primeira rodada ainda sem todos os resultados
     $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
-    // números do campeonato: líder, rodada, gols por jogo e a posição do meu clube (ou quantos dirigentes há nele)
-    { const feitos = resultados.filter(r => r.gols_casa != null), lider = classificacao(doGrupo, partidas, resultados)[0], regulares = rodadas.filter(r => partidas.some(p => p.rodada === r && p.fase === "liga"));
-      const minha = classificacao(doGrupo, partidas, resultados).findIndex(t => t.clube.id === clube.id), donos = doGrupo.filter(c => c.dono).length;
-      $("compKpis").innerHTML = `<div class="kpis">${kpi("Líder", lider && lider.j ? esc(lider.clube.nome) : "—", lider && lider.j ? `${lider.pts} pts em ${lider.j} jogos` : "ninguém jogou ainda")}
-        ${kpi("Rodada", regulares.length ? `${Math.min(atual, regulares[regulares.length - 1])}<small> de ${regulares[regulares.length - 1]}</small>` : "—", atual > regulares[regulares.length - 1] ? "playoff" : "turno e returno")}
-        ${kpi("Gols por jogo", feitos.length ? f1(feitos.reduce((t, r) => t + r.gols_casa + r.gols_fora, 0) / feitos.length) : "—", `${feitos.length} ${feitos.length === 1 ? "jogo" : "jogos"} disputados`)}
-        ${minha >= 0 ? kpi("Seu clube", `${minha + 1}º<small> de ${doGrupo.length}</small>`, esc(nomeDoGrupo(g))) : kpi("Dirigentes", donos, `de ${doGrupo.length} clubes`)}</div>`; }
     $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
     const faixaG = i => faixaDaTabela(serieG, i, tabG.length, tabG);

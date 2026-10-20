@@ -146,6 +146,7 @@ export function escalacaoObservada(titularesPorJogo, elenco, nota) {
     if (escolha) { usados.add(escolha[0]); return { pos, j: porNome[escolha[0]], vezes: escolha[1].n, de }; }
     return { pos, vezes: 0, de };
   });
+  if (!vagas.some(v => v.j)) return null; // ninguém dos jogos observados está no clube (elenco trocado): vale o melhor onze pelo elenco
   // vagas sem ninguém observado disponível: o melhor que sobrou para a posição
   vagas.filter(v => !v.j).forEach(v => {
     const j = elenco.filter(x => !usados.has(x.nome) && !(x.fora > 0) && (x.pos === "GK") === (v.pos === "GK")).sort((a, b) => nota(b, v.pos) - nota(a, v.pos))[0];

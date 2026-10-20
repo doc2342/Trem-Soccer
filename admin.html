@@ -543,7 +543,7 @@ async function tela(aviso = "") {
               for (const x of l.filter(x => (doLista[x.clube_id] || {}).dono)) {
                 const m = metas[x.clube_id], faixa = m ? [m.faixa_min, m.faixa_max] : metaPelaForca(pelaForca[x.clube_id], l.length), vermelho = (caixas[x.clube_id] || 0) < 0;
                 const v = variacaoDaConfianca({ avaliada: (x.posicao + peloEsp[x.clube_id]) / 2, faixa, copa: copa[x.clube_id] || null, vermelho });
-                conf.push({ clube_id: x.clube_id, delta: v.total, detalhes: { ...v, faixa, posicao: x.posicao, esperados: peloEsp[x.clube_id], copa: copa[x.clube_id] || null, vermelho, semMeta: !m } });
+                conf.push({ clube_id: x.clube_id, delta: v.total, detalhes: { ...v, faixa, posicao: x.posicao, esperados: peloEsp[x.clube_id], campanhaCopa: copa[x.clube_id] || null, vermelho, semMeta: !m } });
               }
             }
             confianca = " " + await aplicarConfianca(liga.id, conf);
