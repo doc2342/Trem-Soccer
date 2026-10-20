@@ -455,7 +455,7 @@ const __motor = (() => {
     segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
     lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
     maxSubstituicoes: 5,
-    acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
+    acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, acrescimoPorGol: 0.5, acrescimoPorLesao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
     escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
     escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
@@ -1113,13 +1113,14 @@ const __motor = (() => {
       somaPosse += posseCasa; jogados++;
     };
     const jogar = (de, ate) => { for (min = de; min <= ate; min++) minuto(); };
-    // acréscimos: proporcionais às faltas do tempo e 30 s por substituição; jogados com o relógio parado no 45 (ou 90)
-    const acrescimos = [], antes = { faltas: 0, subs: 0 };
+    // acréscimos: proporcionais às faltas do tempo e 30 s por substituição, gol e lesão; jogados com o relógio parado no 45 (ou 90)
+    const acrescimos = [], antes = { faltas: 0, subs: 0, gols: 0, lesoes: 0 };
     const acrescimo = fim => {
       min = fim; // o for de jogar() sai com min um à frente
-      const faltas = estat[0].faltas + estat[1].faltas, subs = estat[0].substituicoes + estat[1].substituicoes;
-      const a = Math.max(1, Math.ceil(CONFIG.acrescimoPorFalta * (faltas - antes.faltas) + CONFIG.acrescimoPorSubstituicao * (subs - antes.subs) - 1e-9));
-      antes.faltas = faltas; antes.subs = subs; acrescimos.push(a);
+      const C = CONFIG, agora = { faltas: estat[0].faltas + estat[1].faltas, subs: estat[0].substituicoes + estat[1].substituicoes, gols: estat[0].gols + estat[1].gols, lesoes: lesoes.length };
+      const d = k => agora[k] - antes[k];
+      const a = Math.max(1, Math.ceil(C.acrescimoPorFalta * d("faltas") + C.acrescimoPorSubstituicao * d("subs") + C.acrescimoPorGol * d("gols") + C.acrescimoPorLesao * d("lesoes") - 1e-9));
+      Object.assign(antes, agora); acrescimos.push(a);
       soltarCartoes(); evento(0, "acrescimo", `A arbitragem dá ${a} ${a > 1 ? "minutos" : "minuto"} de acréscimo.`);
       for (ac = 1; ac <= a; ac++) minuto();
       ac = 0;
