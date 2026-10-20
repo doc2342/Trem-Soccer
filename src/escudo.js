@@ -89,7 +89,7 @@ export function svgUniforme(u = {}, tamanho = 48) {
   const manga = cor(u.manga, null), manga2 = cor(u.manga2, manga), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
   const friso = g => g === cal ? contraste(cal) : g; // gola também faz os punhos e os detalhes do calção e do meião
   const T = `stroke="#0f1720" stroke-width="1.8" stroke-linejoin="round"`, F = `stroke="#0f1720" stroke-width="1" stroke-linejoin="round"`;
-  // cada peça: cor, luz da esquerda (sombra à direita) e contorno por cima
+  // cada peça: cor, luz da esquerda (sombra à direita, contínua no uniforme todo, para manga e camisa da mesma cor baterem) e contorno por cima
   const peca = (d, fundo) => `<path d="${d}" fill="${fundo}"/><path d="${d}" fill="url(#l${id})"/><path d="${d}" fill="none" ${T}/>`;
   const tronco = "M38 5 Q50 12 62 5 L77 10 Q80 20 77.5 31 L78 72 Q50 75.5 22 72 L22.5 31 Q20 20 23 10 Z";
   const mangaE = "M23 10 L9 21 L3.5 36 L17 41 L22.5 31 Q20 20 23 10 Z", mangaD = "M77 10 L91 21 L96.5 36 L83 41 L77.5 31 Q80 20 77 10 Z";
@@ -102,7 +102,7 @@ export function svgUniforme(u = {}, tamanho = 48) {
   };
   const fr = friso(gola);
   return `<svg viewBox="0 0 100 120" width="${tamanho}" height="${tamanho * 1.2}" role="img" aria-label="Uniforme" style="vertical-align:middle"><defs>${preenchimento(u.padrao === "borda" ? "liso" : u.padrao, c1, c2, id)}
-    <linearGradient id="l${id}" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient></defs>
+    <linearGradient id="l${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".14"/></linearGradient></defs>
     ${peca(mangaE, manga || `url(#${id})`)}${peca(mangaD, manga2 || `url(#${id})`)}
     <path d="M3.5 36 L17 41 L18.6 37.8 L5 32.8 Z" fill="${gola}" ${F}/><path d="M96.5 36 L83 41 L81.4 37.8 L95 32.8 Z" fill="${gola}" ${F}/>
     ${peca(tronco, `url(#${id})`)}
