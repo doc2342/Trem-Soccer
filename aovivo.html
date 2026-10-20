@@ -44,6 +44,10 @@
   .fimJogo .melhor { margin-top:14px; display:inline-flex; align-items:center; gap:10px; padding:6px 14px; border-radius:999px; background:#ffffff14; font-size:14px; animation:fimSobe .5s 1.2s both; }
   .fimJogo .melhor b { font-family:var(--display); font-size:17px; letter-spacing:.04em; text-transform:uppercase; }
   .fimJogo .melhor .n { font-family:var(--display); font-weight:700; font-size:20px; color:#facc15; }
+  .fimJogo .numeros { margin-top:12px; padding:0 7%; display:grid; gap:7px; font-size:14px; animation:fimSobe .5s 1s both; }
+  .fimJogo .nl { display:grid; grid-template-columns:60px 1fr 60px; align-items:center; font-variant-numeric:tabular-nums; }
+  .fimJogo .nl > span:first-child { text-align:left; font-weight:700; } .fimJogo .nl > span:nth-child(3) { text-align:right; font-weight:700; } .fimJogo .nl .mut { color:#cbd5e1; }
+  .fimJogo .barra2 { grid-column:1 / -1; height:5px; border-radius:3px; background:var(--c2); overflow:hidden; margin-top:3px; } .fimJogo .barra2 i { display:block; height:100%; background:var(--c1); }
   @keyframes fimFundo { 0% { opacity:0; } 5%, 92% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
   @keyframes fimEntra { from { transform:translateY(40px) scale(.85); opacity:0; } }
   @keyframes fimPlacar { from { transform:scale(.3); opacity:0; } }
@@ -241,19 +245,30 @@ function avisoDeGol(d) {
   document.body.append(el); setTimeout(() => el.remove(), 4600);
 }
 // cartão de fim de jogo. gols: [casa, fora]; narracao: para a lista de gols; melhor: { nome, nota, time } do relatório
-function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null }) {
+function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null, titulo = "🏁 Fim de jogo", linhas = null }) {
   document.querySelectorAll(".fimJogo").forEach(x => x.remove());
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}), hexa = (x, p) => /^#[0-9a-f]{6}$/i.test(x || "") ? x : p;
   const lista = i => narracao.filter(l => l.resultado === "gol" && l.time === i).map(l => `<div>⚽ ${esc(l.quem || "gol")} ${l.min}${l.ac ? "+" + l.ac : ""}'</div>`).join("");
   const el = document.createElement("div"); el.className = "fimJogo"; el.title = "Fechar";
   el.innerHTML = `<div class="cartao" style="--c1:${hexa(u[0].cor1, "#0b3d91")};--c2:${hexa(u[1].cor1, "#b91c1c")}">
-    <div class="apito">🏁 Fim de jogo</div>
+    <div class="apito">${titulo}</div>
     <div class="placar"><div class="t">${svgEscudo(c[0].escudo, c[0].sigla, 60)}${esc(c[0].nome)}</div><div class="g">${gols[0]} x ${gols[1]}</div><div class="t">${svgEscudo(c[1].escudo, c[1].sigla, 60)}${esc(c[1].nome)}</div></div>
     ${penaltis ? `<div class="pen">Pênaltis: ${penaltis[0]} x ${penaltis[1]}</div>` : ""}
     ${gols[0] + gols[1] ? `<div class="gols"><div>${lista(0)}</div><div>${lista(1)}</div></div>` : ""}
+    ${linhas ? `<div class="numeros">${linhas.map(([nome, a, b, fa]) => `<div class="nl"><span>${a}</span><span class="mut">${nome}</span><span>${b}</span><div class="barra2"><i style="width:${fa * 100}%"></i></div></div>`).join("")}</div>` : ""}
     ${melhor ? `<div class="melhor">⭐ Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}</div>`;
   el.onclick = () => el.remove(); document.body.append(el); setTimeout(() => el.remove(), 8000);
 }
+// intervalo: o mesmo cartão com o placar, os gols e os números do 1º tempo
+function cartaoDeIntervalo(narracao) {
+  const pt = narracao.filter(l => l.min <= 45), fin = i => pt.filter(l => l.resultado !== undefined && l.time === i);
+  const gols = [0, 1].map(i => fin(i).filter(l => l.resultado === "gol").length), ult = [...pt].reverse().find(l => l.p), posse = ult ? ult.p[0] : 50;
+  const xg = [0, 1].map(i => fin(i).reduce((s, l) => s + (l.xg || 0), 0)), f1 = x => x.toFixed(2).replace(".", ","), fr = (a, b) => a + b ? a / (a + b) : 0.5;
+  const nf = [0, 1].map(i => fin(i).length), ng = [0, 1].map(i => fin(i).filter(l => l.resultado === "gol" || l.resultado === "defesa").length);
+  cartaoDeFim({ gols, narracao: pt, titulo: "⏸️ Intervalo", linhas: [
+    ["Posse", posse + "%", 100 - posse + "%", posse / 100], ["Finalizações", nf[0], nf[1], fr(nf[0], nf[1])], ["No gol", ng[0], ng[1], fr(ng[0], ng[1])], ["xG", f1(xg[0]), f1(xg[1]), fr(xg[0], xg[1])]] });
+}
+let intervaloMostrado = false;
 let fimMostrado = false, ultimoFim = null; // ultimoFim: dados do jogo encerrado, para a demo
 // placa do quarto árbitro (substituição e acréscimo): uma de cada vez, em fila
 const filaDePlacas = [];
@@ -510,6 +525,7 @@ async function atualizar() {
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   sonsDosLances(m, lances, agora);
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
+  if (!intervaloMostrado && m.texto.includes("intervalo")) { intervaloMostrado = true; setTimeout(() => cartaoDeIntervalo(narracao), 600); }
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique);
@@ -561,7 +577,7 @@ function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dFim">🏁 Fim</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
@@ -569,6 +585,11 @@ function demo() {
   $("dAm").onclick = () => { const t = lado(); placa({ tipo: "amarelo", time: t, nome: sorte(nomes(t)) }); if (somLigado) tocar("amarelo"); };
   // vermelho: metade das vezes direto, metade no segundo amarelo
   $("dVm").onclick = () => { const t = lado(); placa({ tipo: "vermelho", time: t, nome: sorte(nomes(t)), segundo: Math.random() < 0.5 }); if (somLigado) tocar("vermelho"); };
+  // jogo com lances: o 1º tempo de verdade; senão, números inventados
+  $("dInt").onclick = () => { const n = baixados.map(l => l.dados).filter(l => l && l.tipo !== "inicio" && l.min <= 45);
+    if (n.some(l => l.resultado !== undefined)) return cartaoDeIntervalo(n);
+    const t = lado(), posse = 40 + Math.floor(Math.random() * 21);
+    cartaoDeIntervalo([{ min: 30, resultado: "gol", time: t, quem: sorte(nomes(t)), xg: 0.4, p: [posse] }, ...[0, 1, 0, 1, 0].map(i => ({ min: 40, resultado: "fora", time: i, xg: 0.08 + Math.random() * 0.2 }))]); };
   // jogo encerrado: o cartão de verdade; senão, um placar inventado com jogadores desta partida
   $("dFim").onclick = () => { if (ultimoFim) return cartaoDeFim(ultimoFim);
     const narracao = [], gols = [lado() + lado(), lado()];
