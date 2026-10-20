@@ -18,7 +18,7 @@ export const ehAdmin = () => sb.rpc("eh_admin").then(ok);
 export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok);
 // extra (96_seletor_de_clubes.sql): antes dele a coluna não existe e a leitura é refeita sem ela
 const comExtra = (consulta, campos) => consulta(campos + ", extra").then(r => r.error ? consulta(campos) : r).then(ok);
-export const clubesDaLiga = ligaId => comExtra(c => sb.from("clubes").select(c).eq("liga_id", ligaId).order("grupo").order("nome"), "id, grupo, dono, dirigente, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso");
+export const clubesDaLiga = ligaId => comExtra(c => sb.from("clubes").select(c).eq("liga_id", ligaId).order("grupo").order("nome"), "id, grupo, divisao, dono, dirigente, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso");
 // o clube ativo (92_clube_ativo.sql): com mais de um clube, a busca por dono traria os dois
 // seletor de clubes (96_seletor_de_clubes.sql)
 export const meusClubes = userId => sb.from("clubes").select("id, nome, sigla, escudo, pais").eq("dono", userId).order("assumido_em").then(ok);

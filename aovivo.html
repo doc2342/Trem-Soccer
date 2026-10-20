@@ -187,7 +187,7 @@ import { SEDES } from "./src/estadio.js";
 import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesEGols, partidasDaCopa, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
-import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
+import { metasDaTemporada, marcasDosClubes, valoresDaDivisao } from "./src/banco.js";
 import { MARCAS, selo, placasDoEstadio, ANUNCIE, jogoPatrocinado, marcaDaCompeticao } from "./src/patrocinio.js";
 import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
@@ -459,17 +459,26 @@ let rodada = null, voltas = 0;
 // O servidor entrega os lances dos próximos 10 minutos (SQL 75) e a página mostra cada um na hora dele, pelo relógio: uma busca a cada ~9 minutos
 // em vez de uma a cada 10 segundos. adiante: a última busca trouxe lance futuro; sem o SQL 75 isso nunca acontece e vale o ritmo antigo.
 let proximaBusca = 0, adiante = false;
+// Leituras que não mudam durante a rodada (clubes, patrocínios, divisão, jogos do grupo ou da fase da copa, estatísticas) ficam guardadas na aba
+// por 3 horas: trocar de jogo na rodada não relê tudo (cada pedido vira linha de log no Supabase). A chave leva a rodada ou a fase. Nulo não é guardado.
+function daAba(chave, ler) {
+  const k = "mo_aba:" + chave;
+  try { const x = JSON.parse(sessionStorage.getItem(k)); if (x && Date.now() - x.t < 3 * 3600000) return Promise.resolve(x.v); } catch (e) {}
+  return ler().then(v => { if (v != null) try { sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), v })); } catch (e) {} return v; });
+}
+const clubesDaLigaNaAba = ligaId => daAba("clubes:" + ligaId, () => clubesDaLiga(ligaId));
 // Os outros jogos do mesmo horário, para o aviso de gol no canto: na liga os da rodada; na copa os da mesma competição e fase (todos em jogo único,
 // no mesmo horário). gols: os deles que já chegaram, junto com os lances desta partida (lancesEGols), sem pedido a mais na transmissão.
 let outros = null; // { ps, clubes, gols }
 async function carregarRodada() {
   if (ehCopa(partida)) {
-    const ps = ((await partidasDaCopa(partida.liga_id)) || []).filter(p => p.id !== id && p.fase === partida.fase && p.grupo === partida.grupo && p.copa_fase === partida.copa_fase);
-    if (ps.length) outros = { ps, clubes: await clubesPorIds([...new Set(ps.flatMap(p => [p.casa, p.fora]))]), gols: [] };
+    const ps = ((await daAba(`copa:${partida.liga_id}:${partida.fase}:${partida.copa_fase}`, () => partidasDaCopa(partida.liga_id))) || []).filter(p => p.id !== id && p.fase === partida.fase && p.grupo === partida.grupo && p.copa_fase === partida.copa_fase);
+    if (ps.length) outros = { ps, clubes: await clubesDaLigaNaAba(partida.liga_id), gols: [] };
     return;
   }
   if (partida.fase && partida.fase !== "liga") return;
-  const [ps, cls, est] = await Promise.all([partidasDoGrupo(partida.liga_id, partida.grupo), clubesDaLiga(partida.liga_id), estatisticasDaLiga(partida.liga_id, partida.grupo).catch(() => null)]);
+  const r = `${partida.liga_id}:${partida.grupo}:${partida.rodada}`;
+  const [ps, cls, est] = await Promise.all([daAba("grupo:" + r, () => partidasDoGrupo(partida.liga_id, partida.grupo)), clubesDaLigaNaAba(partida.liga_id), daAba("estat:" + r, () => estatisticasDaLiga(partida.liga_id, partida.grupo)).catch(() => null)]);
   const doGrupo = ps.filter(p => !p.fase || p.fase === "liga");
   rodada = { ps: doGrupo, clubes: cls.filter(c => c.grupo === partida.grupo), daRodada: doGrupo.filter(p => p.rodada === partida.rodada), res: [], gols: [], art: (est && est.artilheiros) || [] };
   outros = { ps: rodada.daRodada.filter(p => p.id !== id), clubes: rodada.clubes, gols: rodada.gols }; // o mesmo array: os gols chegam com os lances
@@ -539,8 +548,9 @@ async function htmlDiretoria() {
   if (!conf.length) return "";
   let tab = null, metas = [];
   if (rodada) {
-    const liga = await ligaAtual();
-    const [rs, ms] = await Promise.all([resultadosDe(rodada.ps.map(p => p.id)), liga ? metasDaTemporada(liga.id, liga.temporada) : []]);
+    // os resultados já estão na rodada (só os que já foram ao ar); liga e metas não mudam na rodada: guardadas na aba
+    const liga = await daAba("liga", ligaAtual), agora = Date.now();
+    const rs = rodada.res.filter(r => !r.libera_em || new Date(r.libera_em).getTime() <= agora), ms = liga ? await daAba(`metas:${liga.id}:${liga.temporada}`, () => metasDaTemporada(liga.id, liga.temporada)) : [];
     tab = classificacao(rodada.clubes, rodada.ps, rs); metas = ms;
   }
   const esp = tab ? posicaoPelosEsperados(tab) : {}, sinal = x => (x > 0 ? "+" : "") + x;
@@ -727,15 +737,20 @@ async function atualizar() {
 async function iniciar() {
   partida = id ? await partidaPorId(id) : null;
   if (!partida) { $("topo").innerHTML = `<div class="bad">Partida não encontrada.</div>`; return; }
-  clubes = Object.fromEntries((await clubesPorIds([partida.casa, partida.fora])).map(c => [c.id, c]));
-  const marcas = await marcasDosClubes([partida.casa, partida.fora]).catch(() => ({})); // patrocínio estampado na camisa
+  // os dois clubes saem da lista da liga guardada na aba (a mesma da rodada ao vivo); clube fora dela, do jeito antigo
+  const daLiga = await clubesDaLigaNaAba(partida.liga_id).catch(() => []), lados = daLiga.filter(c => c.id === partida.casa || c.id === partida.fora);
+  clubes = Object.fromEntries((lados.length === 2 ? lados : await clubesPorIds([partida.casa, partida.fora])).map(c => [c.id, c]));
+  // patrocínio estampado na camisa: o de todos os clubes da liga, lido uma vez por aba
+  const marcas = await daAba("marcas:" + partida.liga_id, () => marcasDosClubes(daLiga.length ? daLiga.map(c => c.id) : [partida.casa, partida.fora])).catch(() => ({}));
   for (const k in clubes) clubes[k].marca = marcas[k] || null;
-  preco = await precoDoIngresso(partida.casa).catch(() => null);
+  const div = clubes[partida.casa] && clubes[partida.casa].divisao;
+  preco = div ? await daAba(`divisao:${partida.liga_id}:${div}`, () => valoresDaDivisao(partida.liga_id, div)).then(d => d ? d.preco_ingresso : null).catch(() => null) : await precoDoIngresso(partida.casa).catch(() => null);
   await carregarRodada().catch(() => { rodada = null; });
   await atualizar();
   // a cada 10 segundos redesenha com o que o relógio já liberou (sem consultar o banco) (e busca lances novos só quando os baixados estão acabando); com a aba em segundo plano não busca nada, e ao voltar busca de uma vez o que aconteceu
   let consultaDaPartida = 0; // a partida (calculada? público?) é conferida no máximo uma vez por minuto
-  const buscar = async () => { if (encerrada || document.hidden) return; if ((!partida.processada || partida.publico == null) && Date.now() - consultaDaPartida >= 60000) { consultaDaPartida = Date.now(); partida = await partidaPorId(id); }
+  // antes do apito nada muda no banco: só o relógio anda (atualizar não consulta nada antes do início)
+  const buscar = async () => { if (encerrada || document.hidden) return; if (momento().antes) return atualizar().catch(() => {}); if ((!partida.processada || partida.publico == null) && Date.now() - consultaDaPartida >= 60000) { consultaDaPartida = Date.now(); partida = await partidaPorId(id); }
     // os outros jogos do grupo: junto com a busca dos lances; no ritmo antigo, a cada 30 segundos
     if (adiante ? momento().fim || Date.now() >= proximaBusca : ++voltas % 3 === 0) await atualizarRodada().catch(() => {});
     atualizar().catch(() => {}); };
