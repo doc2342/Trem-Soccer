@@ -1,7 +1,7 @@
 // Editor do escudo e dos uniformes (titular e reserva), usado na criação do clube e nas Configurações.
 // F: { escudo, uniforme } (alterado no lugar); opcoes.sigla(): sigla para a prévia; opcoes.aoMudar(): avisa que algo mudou.
 // opcoes.parte: "escudo", "titular" ou "reserva" desenha só aquela parte (as Configurações têm uma aba para cada); sem ela, tudo.
-import { svgEscudo, svgUniforme, FORMAS, PADROES, SIMBOLOS, GOLAS, CORES } from "./escudo.js";
+import { svgEscudo, svgUniforme, FORMAS, PADROES, PADROES_CAMISA, SIMBOLOS, GOLAS, CORES } from "./escudo.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const hex = c => /^#[0-9a-fA-F]{6}$/.test(c || "");
@@ -30,7 +30,7 @@ export function editorVisual(raiz, F, opcoes = {}) {
           <label>Símbolo<select data-alvo="escudo" data-campo="simbolo">${opc(SIMBOLOS, e.simbolo || "sigla")}</select></label>
           <label>Estrelas<select data-alvo="escudo" data-campo="estrelas">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${(+e.estrelas || 0) === n ? "selected" : ""}>${n || "nenhuma"}</option>`).join("")}</select></label></div>
         <div class="row" style="margin-top:6px">${paleta("escudo", "cor1", "Cor principal")}${paleta("escudo", "cor2", "Segunda cor")}${paleta("escudo", "cor3", "Cor do símbolo e das estrelas", "automática")}</div>`;
-    const blocoUniforme = `<div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(Object.fromEntries(Object.entries(PADROES).filter(([k]) => k !== "borda")), u.padrao || "liso")}</select></label>
+    const blocoUniforme = `<div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(PADROES_CAMISA, u.padrao || "liso")}</select></label>
           <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
@@ -52,7 +52,7 @@ export function editorVisual(raiz, F, opcoes = {}) {
       <details open style="margin-top:10px"><summary><b>Uniforme</b></summary>
         <div class="subabas" style="margin:6px 0">${[["titular", "Titular"], ["reserva", "Reserva"]].map(([k, n]) => `<button type="button" class="sub ${qual === k ? "ativa" : ""}" data-qual="${k}">${n}</button>`).join("")}</div>
         ${qual === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O reserva entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
-        <div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(Object.fromEntries(Object.entries(PADROES).filter(([k]) => k !== "borda")), u.padrao || "liso")}</select></label>
+        <div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(PADROES_CAMISA, u.padrao || "liso")}</select></label>
           <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>

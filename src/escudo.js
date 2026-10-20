@@ -3,6 +3,10 @@
 export const FORMAS = { escudo: "Escudo", classico: "Clássico", frances: "Francês", circulo: "Círculo", anel: "Círculo com aro", losango: "Losango", retangular: "Retangular", oval: "Oval" };
 export const PADROES = { liso: "Liso", listras: "Listras verticais", horizontais: "Listras horizontais", faixa: "Faixa horizontal", faixaV: "Faixa vertical",
   diagonal: "Faixa diagonal", metade: "Metade", quartos: "Quartos", xadrez: "Xadrez", cruz: "Cruz", chevron: "Chevron (V)", borda: "Borda" };
+// desenhos que só a camisa tem (o escudo usa os PADROES); metadeCruzada: metade com cada manga na cor do outro lado
+export const PADROES_CAMISA = { liso: "Liso", listras: "Listras verticais", listrasFinas: "Listras finas", horizontais: "Listras horizontais", faixa: "Faixa no peito",
+  faixaV: "Faixa vertical", diagonal: "Faixa diagonal", diagonal2: "Faixa diagonal (invertida)", diagonais: "Listras diagonais", metade: "Metade", metadeCruzada: "Metade, mangas cruzadas",
+  quartos: "Quartos", xadrez: "Xadrez", cruz: "Cruz", chevron: "Chevron (V)", laterais: "Laterais" };
 export const SIMBOLOS = { sigla: "Sigla", estrela: "Estrela", bola: "Bola", coroa: "Coroa", raio: "Raio", torre: "Torre", trem: "Trem", ancora: "Âncora", leao: "Cabeça de leão", nenhum: "Nenhum" };
 export const GOLAS = { redonda: "Redonda", v: "Em V", polo: "Polo" };
 export const CORES = ["#c8102e", "#e4002b", "#7b1e24", "#f26b21", "#f2c14e", "#ffd100", "#0a7d3b", "#0f5c4d", "#7ac143", "#0b3d91", "#1e5bc6", "#3aa7e0",
@@ -10,22 +14,28 @@ export const CORES = ["#c8102e", "#e4002b", "#7b1e24", "#f26b21", "#f2c14e", "#f
 // imagens enviadas: públicas no bucket "escudos"; o nome do arquivo (clube-versão.webp) fica em escudo.img
 export const URL_DOS_ESCUDOS = "https://gqsvsvrclyiroehymuot.supabase.co/storage/v1/object/public/escudos/";
 
+const hexOk = c => /^#[0-9a-fA-F]{6}$/.test(c || "");
 const cor = (c, padrao) => /^#[0-9a-fA-F]{6}$/.test(c || "") ? c : padrao;
 const esc = s => String(s || "").replace(/[&<>"]/g, "");
 const luz = c => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); };
 const contraste = c => luz(c) > 150 ? "#111111" : "#ffffff";
 
 // desenho de fundo num ladrilho de 100 x 100 (serve para o escudo e para a camisa)
-function preenchimento(padrao, c1, c2, id) {
+function preenchimento(padrao, c1, c2, id, camisa) {
   const r = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
   const fundo = r(0, 0, 100, 100, c1);
   const desenhos = {
     listras: () => [10, 30, 50, 70, 90].map(x => r(x, 0, 10, 100, c2)).join(""),
     horizontais: () => [10, 30, 50, 70, 90].map(y => r(0, y, 100, 10, c2)).join(""),
-    faixa: () => r(0, 38, 100, 24, c2),
+    faixa: () => camisa ? r(0, 30, 100, 20, c2) : r(0, 38, 100, 24, c2), // na camisa, na altura do peito (onde vai o patrocínio)
     faixaV: () => r(38, 0, 24, 100, c2),
     diagonal: () => `<path d="M-10 18 L18 -10 L110 82 L82 110 Z" fill="${c2}"/>`,
     metade: () => r(50, 0, 50, 100, c2),
+    metadeCruzada: () => r(50, 0, 50, 100, c2),
+    listrasFinas: () => [5, 15, 25, 35, 45, 55, 65, 75, 85, 95].map(x => r(x - 0.9, 0, 1.8, 100, c2)).join(""),
+    diagonal2: () => `<path d="M110 18 L82 -10 L-10 82 L18 110 Z" fill="${c2}"/>`,
+    diagonais: () => [-100, -80, -60, -40, -20, 0, 20, 40, 60, 80, 100].map(k => `<path d="M${k} 0 H${k + 9} L${k + 109} 100 H${k + 100} Z" fill="${c2}"/>`).join(""),
+    laterais: () => r(22.5, 30, 8, 70, c2) + r(69.5, 30, 8, 70, c2), // painéis do lado do tronco, abaixo das mangas
     quartos: () => r(50, 0, 50, 50, c2) + r(0, 50, 50, 50, c2),
     xadrez: () => [0, 1, 2, 3, 4].flatMap(i => [0, 1, 2, 3, 4].map(k => (i + k) % 2 ? r(i * 20, k * 20, 20, 20, c2) : "")).join(""),
     cruz: () => r(40, 0, 20, 100, c2) + r(0, 34, 100, 20, c2),
@@ -86,7 +96,7 @@ const arteNaCamisa = (marca, c1) => marca + ({ mono: `_camisa_${luz(c1) > 150 ? 
 // uniforme: { padrao, cor1, cor2, calcao, gola, manga (a da esquerda na imagem), manga2 (a da direita; sem ela, igual à outra), meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
 export function svgUniforme(u = {}, tamanho = 48) {
   const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), cal = cor(u.calcao, "#111111"), id = "pu" + (++serie);
-  const manga = cor(u.manga, null), manga2 = cor(u.manga2, manga), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
+  const cruzada = u.padrao === "metadeCruzada", manga = cor(u.manga, cruzada ? c2 : null), manga2 = cor(u.manga2, cruzada && !hexOk(u.manga) ? c1 : manga), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
   const friso = g => g === cal ? contraste(cal) : g; // gola também faz os punhos e os detalhes do calção e do meião
   const T = `stroke="#0f1720" stroke-width="1.8" stroke-linejoin="round"`, F = `stroke="#0f1720" stroke-width="1" stroke-linejoin="round"`;
   // cada peça: cor, luz da esquerda (sombra à direita, contínua no uniforme todo, para manga e camisa da mesma cor baterem) e contorno por cima
@@ -101,7 +111,7 @@ export function svgUniforme(u = {}, tamanho = 48) {
     redonda: `<path d="M40.5 5 Q50 10 59.5 5 Q50 7 40.5 5 Z" ${fundoGola}/><path d="M37.5 4.6 Q50 15.5 62.5 4.6 L59.5 4.8 Q50 11 40.5 4.8 Z" fill="${gola}" ${F}/>`,
   };
   const fr = friso(gola);
-  return `<svg viewBox="0 0 100 120" width="${tamanho}" height="${tamanho * 1.2}" role="img" aria-label="Uniforme" style="vertical-align:middle"><defs>${preenchimento(u.padrao === "borda" ? "liso" : u.padrao, c1, c2, id)}
+  return `<svg viewBox="0 0 100 120" width="${tamanho}" height="${tamanho * 1.2}" role="img" aria-label="Uniforme" style="vertical-align:middle"><defs>${preenchimento(u.padrao === "borda" ? "liso" : u.padrao, c1, c2, id, true)}
     <linearGradient id="l${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="100" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".12"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".14"/></linearGradient></defs>
     ${peca(mangaE, manga || `url(#${id})`)}${peca(mangaD, manga2 || `url(#${id})`)}
     <path d="M3.5 36 L17 41 L18.6 37.8 L5 32.8 Z" fill="${gola}" ${F}/><path d="M96.5 36 L83 41 L81.4 37.8 L95 32.8 Z" fill="${gola}" ${F}/>
@@ -109,7 +119,7 @@ export function svgUniforme(u = {}, tamanho = 48) {
     <path d="M22.5 31 Q24 50 22.4 70 M77.5 31 Q76 50 77.6 70" fill="none" stroke="#0f1720" stroke-opacity=".18" stroke-width="1"/>
     ${golas[u.golaTipo] || golas.redonda}
     ${escudoNoPeito(u.escudo, u.sigla)}
-    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="28" y="32" width="44" height="28" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="28" y="${u.padrao === "faixa" ? 30 : 32}" width="44" height="${u.padrao === "faixa" ? 20 : 28}" preserveAspectRatio="xMidYMid meet"/>` : ""}
     ${peca("M23.5 75 Q50 78 76.5 75 L80 97 Q67 99 54 97 L50 87 L46 97 Q33 99 20 97 Z", cal)}
     <path d="M23.5 75 Q50 78 76.5 75 L77 78.5 Q50 81.5 23 78.5 Z" fill="#0f1720" fill-opacity=".22"/>
     <path d="M23.2 80 L20.8 95.5 M76.8 80 L79.2 95.5" stroke="${fr}" stroke-width="2.2" stroke-linecap="round"/>
@@ -136,5 +146,5 @@ export function visualAleatorio(rng) {
   const c1 = rng.pick(CORES); let c2 = rng.pick(CORES); while (c2 === c1) c2 = rng.pick(CORES);
   const padrao = rng.pick(["liso", "listras", "faixa", "metade", "horizontais", "diagonal"]);
   return { escudo: { forma: rng.pick(Object.keys(FORMAS)), padrao, cor1: c1, cor2: c2 },
-    uniforme: { padrao, cor1: c1, cor2: c2, calcao: rng.pick([c1, c2, "#111111", "#ffffff"]), golaTipo: rng.pick(Object.keys(GOLAS)), reserva: { padrao: "liso", cor1: c2, cor2: c1, calcao: c2 } } };
+    uniforme: { padrao: padrao === "metade" && rng.pick([0, 1]) ? "metadeCruzada" : padrao, cor1: c1, cor2: c2, calcao: rng.pick([c1, c2, "#111111", "#ffffff"]), golaTipo: rng.pick(Object.keys(GOLAS)), reserva: { padrao: "liso", cor1: c2, cor2: c1, calcao: c2 } } };
 }
