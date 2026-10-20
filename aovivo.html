@@ -100,7 +100,9 @@
   .tvTab td.c { text-align:left; max-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvTab .sobe { color:#34e36a; } .tvTab .desce { color:#ff6b6b; } .tvTab tr + tr td { border-top:1px solid #ffffff14; }
   .tvAna { display:grid; grid-template-columns:1fr 1fr; gap:22px; } .tvAna p { margin:6px 0 0; font-size:16px; line-height:1.4; }
   .tvTime { display:flex; align-items:center; gap:8px; font-family:var(--display); font-size:19px; text-transform:uppercase; padding-bottom:6px; border-bottom:2px solid #ffffff33; }
-  .tvFala { font-style:italic; font-size:16px; opacity:.85; margin:-2px 0 10px; } .tvFala.fim { margin:12px 0 0; }
+  /* bordões: a abertura presa ao cabeçalho do comentarista; o fecho assinado, no rodapé */
+  .tvFala { font-style:italic; font-size:17px; border-left:3px solid #facc15; padding:2px 0 2px 10px; margin:-4px 0 14px; }
+  .tvFala.fim { border-left:0; border-top:1px solid #ffffff22; padding:10px 0 0; margin:14px 0 0; text-align:right; } .tvFala .ass { font-style:normal; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#facc15; margin-left:8px; white-space:nowrap; }
   @keyframes tvEntra { from { opacity:0; transform:translateY(12px); } }
   @media (max-width:620px) { .tvRod, .tvAna { grid-template-columns:1fr; gap:12px; } .tvTit { font-size:18px; } .tvAna p { font-size:14.5px; } .tvRod { font-size:13px; } }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
@@ -304,7 +306,7 @@ const comentarista = () => COMENTARISTAS[partida.id % COMENTARISTAS.length];
 function telaDoAnalista(pt) {
   const com = comentarista(), a = analiseDoIntervalo(pt, com), c = [clubes[partida.casa], clubes[partida.fora]], sorte = l => l[Math.floor(Math.random() * l.length)];
   return `<div class="tvTela"><div class="tvTit">🎙️ Comentarista<small style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${selo(com.veiculo, 20)}${esc(com.nome)} · ${esc(MARCAS[com.veiculo].nome)}</small></div>
-    <div class="tvFala">“${esc(sorte(com.abre))}”</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div><div class="tvFala fim">“${esc(sorte(com.fecha))}”</div></div>`;
+    <div class="tvFala">“${esc(sorte(com.abre))}”</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div><div class="tvFala fim">“${esc(sorte(com.fecha))}”<span class="ass">— ${esc(com.nome.split(/[ ,]/)[0])}</span></div></div>`;
 }
 
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
