@@ -18,6 +18,18 @@
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
+  /* placa do quarto árbitro: sobe do pé da tela na substituição (vermelho sai, verde entra) e no acréscimo (+N), fica 3,5 s e desce */
+  .placa { position:fixed; left:50%; bottom:18px; z-index:30; pointer-events:none; transform:translate(-50%, 140%); animation:placaSobe 4s cubic-bezier(.2,.8,.2,1) forwards;
+    background:#0c0c0e; border:3px solid #2a2a30; border-radius:10px; padding:10px 18px 12px; min-width:240px; max-width:calc(100vw - 32px); box-shadow:0 14px 34px rgba(0,0,0,.5), inset 0 0 0 1px #000; color:#fff; }
+  .placa::after { content:""; position:absolute; inset:0; border-radius:8px; background:radial-gradient(circle, transparent 55%, rgba(0,0,0,.55) 60%) 0 0 / 4px 4px; pointer-events:none; } /* pontinhos de LED */
+  .placa .cab { display:flex; align-items:center; justify-content:center; gap:8px; font-family:var(--display); font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:#cfd3dc; margin-bottom:6px; }
+  .placa .cab i { width:12px; height:12px; border-radius:3px; background:var(--cor); box-shadow:0 0 0 2px #fff3; }
+  .placa .linha { display:flex; align-items:center; gap:10px; font-family:var(--display); font-weight:700; font-size:26px; line-height:1.15; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .placa .sai { color:#ff3b30; text-shadow:0 0 10px #ff3b3099; } .placa .entra { color:#34e36a; text-shadow:0 0 10px #34e36a99; }
+  .placa .num { font-family:var(--display); font-weight:700; font-size:84px; line-height:.9; text-align:center; color:#34e36a; text-shadow:0 0 18px #34e36aaa; font-variant-numeric:tabular-nums; }
+  @keyframes placaSobe { 0% { transform:translate(-50%, 140%); } 12%, 86% { transform:translate(-50%, 0); } 100% { transform:translate(-50%, 140%); } }
+  @media (max-width:620px) { .placa .linha { font-size:20px; } .placa .num { font-size:64px; } }
+  @media (prefers-reduced-motion:reduce) { .placa { animation:placaSome 4s step-end forwards; transform:translate(-50%, 0); } @keyframes placaSome { to { opacity:0; } } }
   /* aviso de gol: cobre o placar por 4,5 s com a camisa (escudo e patrocínio) nas cores do uniforme; fica fora do #topo, que é redesenhado a cada 10 s */
   /* intervalo: TV com comerciais (master dos dois times e placas sorteadas por jogo, só cosméticas) e faixa de LED como as placas do campo */
   .tv { position:relative; overflow:hidden; border-radius:14px; min-height:250px; display:flex; align-items:center; justify-content:center; padding:34px 18px 22px; color:#fff; background:#0d1220; margin-bottom:12px; transition:background .6s; }
@@ -80,7 +92,7 @@
     .aovivo > .lan .lance { font-size:15px; } .aovivo > .lan .lance.posse, .aovivo > .lan .lance.roda, .aovivo > .lan .lance.falta, .aovivo > .lan .lance.canto { font-size:13px; }
   }
   /* depois do apito (PC e celular): na reprise, só os lances principais até pedir todos; no ao vivo, todos sempre */
-  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.penaltis), #corpo:not(.todos) .legenda.lances { display:none; }
+  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.acrescimo):not(.penaltis), #corpo:not(.todos) .legenda.lances { display:none; }
   #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
   /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
   .abas.soCel { display:none; }
@@ -196,10 +208,36 @@ function avisoDeGol(d) {
     ${m ? `<div class="marca">${selo(c.marca, 34)}<span><b>${esc(m.nome)}</b><span> · “${esc(m.bordao)}”</span></span></div>` : ""}</div>`;
   document.body.append(el); setTimeout(() => el.remove(), 4600);
 }
+// placa do quarto árbitro (substituição e acréscimo): uma de cada vez, em fila
+const filaDePlacas = [];
+function placa(d) {
+  filaDePlacas.push(d); if (filaDePlacas.length > 1) return;
+  const mostrar = () => {
+    const x = filaDePlacas[0]; if (!x) return;
+    const el = document.createElement("div"); el.className = "placa";
+    if (x.tipo === "acrescimo") el.innerHTML = `<div class="cab">Acréscimo</div><div class="num">+${x.acr}</div>`;
+    else {
+      const c = clubes[x.time ? partida.fora : partida.casa] || {}, u = uniformesDoJogo((clubes[partida.casa] || {}).uniforme || {}, (clubes[partida.fora] || {}).uniforme || {})[x.time ? 1 : 0] || {};
+      el.style.setProperty("--cor", /^#[0-9a-f]{6}$/i.test(u.cor1 || "") ? u.cor1 : "#888");
+      el.innerHTML = `<div class="cab"><i></i>${esc(c.sigla || c.nome || "Substituição")} · substituição</div><div class="linha sai">▼ ${esc(x.sai)}</div><div class="linha entra">▲ ${esc(x.entra)}</div>`;
+    }
+    document.body.append(el);
+    setTimeout(() => { el.remove(); filaDePlacas.shift(); mostrar(); }, 4100);
+  };
+  mostrar();
+}
+// "Sai {0:A}, entra {0:B}." ou "Entra {0:B} no lugar de {0:A}." (troca por lesão)
+function dadosDaPlaca(l) {
+  if (l.tipo === "acrescimo") { const n = (l.texto.match(/\d+/) || [])[0]; return n ? { tipo: "acrescimo", acr: n } : null; }
+  const nomes = [...l.texto.matchAll(/\{[01?]:([^}]+)\}/g)].map(m => m[1]); if (nomes.length < 2) return null;
+  const [sai, entra] = /^Entra/.test(l.texto) ? [nomes[1], nomes[0]] : nomes;
+  return { tipo: "substituicao", time: l.time, sai, entra };
+}
 function sonsDosLances(m, lances, agora) {
   const f = m.antes ? "antes" : m.fim ? "fim" : m.texto.includes("intervalo") ? "intervalo" : m.texto.includes("2º") ? "2t" : "1t";
   const novos = vistos ? lances.filter(l => !vistos.has(l.ordem) && agora - new Date(l.libera_em || agora).getTime() < 30000).map(l => l.dados) : [];
   const golNovo = novos.filter(l => l.resultado === "gol").pop(); if (golNovo) avisoDeGol(golNovo);
+  novos.filter(l => l.tipo === "substituicao" || l.tipo === "acrescimo").map(dadosDaPlaca).filter(Boolean).forEach(placa);
   if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
   vistos = new Set(lances.map(l => l.ordem)); fase = f;
@@ -457,7 +495,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
 iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
 </body>
