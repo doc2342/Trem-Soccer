@@ -88,6 +88,14 @@
   @keyframes tvLed { to { transform:translateX(-50%); } }
   @media (max-width:620px) { .spot { flex-direction:column; gap:10px; text-align:center; } .spot img, .spot .letra { width:96px !important; height:96px !important; } .spot .letra { font-size:17px; } .spot .marca { font-size:30px; } .spot .bordao { font-size:15px; } }
   @media (prefers-reduced-motion:reduce) { .spot, .spot img, .spot .letra, .led .faixa { animation:none; } }
+  /* gol em outro jogo da rodada: aviso no canto, estilo plantão (some sozinho) */
+  #avisos { position:fixed; right:12px; bottom:12px; z-index:50; display:flex; flex-direction:column; gap:6px; pointer-events:none; }
+  .plantao { pointer-events:auto; display:flex; align-items:center; gap:8px; background:var(--vaga); color:inherit; text-decoration:none; border:1px solid var(--trilho); border-radius:10px; padding:7px 11px; box-shadow:var(--sombra-alta); font-size:13.5px; animation:avisoEntra .3s ease-out; transition:opacity .4s; }
+  .plantao .bola { width:9px; height:9px; border-radius:50%; background:var(--bad); animation:avisoPisca 1s infinite; flex:none; }
+  .plantao .quem { font-size:11.5px; opacity:.75; }
+  @keyframes avisoEntra { from { transform:translateX(30px); opacity:0; } }
+  @keyframes avisoPisca { 50% { opacity:.25; } }
+  @media (prefers-reduced-motion:reduce) { .plantao, .plantao .bola { animation:none; } }
   /* telas do intervalo entre os comerciais: placares da rodada com a tabela parcial, e o analista */
   #tvSpot { width:100%; display:flex; justify-content:center; }
   .tvTela { width:100%; max-width:780px; animation:tvEntra .6s ease; }
@@ -463,6 +471,27 @@ async function atualizarRodada() {
   const [res, gols] = await Promise.all([resultadosDe(rodada.ps.map(p => p.id), true), golsDasPartidas(rodada.daRodada.filter(p => p.id !== id).map(p => p.id))]);
   rodada.res = res; rodada.gols = gols;
 }
+// Gol em outro jogo da rodada: aviso no canto com o placar novo. Usa só os gols que atualizarRodada já baixou (nenhuma consulta a mais);
+// o primeiro desenho marca tudo como visto em silêncio, e gol liberado há mais de 60 s (aba voltando do segundo plano) não vira aviso.
+let golsAvisados = null;
+function avisosDaRodada(agora) {
+  if (!rodada) return;
+  const noAr = g => !g.libera_em || new Date(g.libera_em).getTime() <= agora, chave = g => g.partida_id + ":" + g.min + ":" + g.time + ":" + g.quem;
+  const liberados = rodada.gols.filter(noAr), primeira = !golsAvisados;
+  golsAvisados = golsAvisados || new Set();
+  for (const g of liberados) {
+    if (golsAvisados.has(chave(g))) continue;
+    golsAvisados.add(chave(g));
+    if (primeira || agora - new Date(g.libera_em || 0).getTime() > 60000) continue;
+    const p = rodada.daRodada.find(x => x.id === g.partida_id); if (!p) continue;
+    const c = id => rodada.clubes.find(x => x.id === id) || { nome: "—" }, gc = estadoDaRodada(agora, null).placares[p.id].g || [0, 0], fez = +g.time === 0 ? 0 : 1;
+    const el = document.createElement("a"); el.className = "plantao"; el.href = "aovivo.html?id=" + p.id;
+    el.innerHTML = `<span class="bola"></span>${svgEscudo(c(p.casa).escudo, c(p.casa).sigla, 20)}<span>${fez === 0 ? "<b>" : ""}${esc(c(p.casa).sigla || c(p.casa).nome)}${fez === 0 ? "</b>" : ""} <b>${gc[0]} x ${gc[1]}</b> ${fez === 1 ? "<b>" : ""}${esc(c(p.fora).sigla || c(p.fora).nome)}${fez === 1 ? "</b>" : ""}${g.quem ? `<div class="quem">⚽ ${esc(g.quem)} ${g.min}'</div>` : ""}</span>${svgEscudo(c(p.fora).escudo, c(p.fora).sigla, 20)}`;
+    let box = $("avisos"); if (!box) { box = document.createElement("div"); box.id = "avisos"; document.body.append(box); }
+    box.append(el); while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 400); }, 6000);
+  }
+}
 // Classificação e placares no instante T (o administrador lê tudo no banco: aqui vale só o que já foi ao ar). meu: [gols da casa, gols de fora] desta partida.
 function estadoDaRodada(T, meu) {
   const noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= T, daRodada = new Set(rodada.daRodada.map(p => p.id));
@@ -655,6 +684,7 @@ async function atualizar() {
   }
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   sonsDosLances(m, lances, agora);
+  avisosDaRodada(agora);
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   if (!intervaloMostrado && m.texto.includes("intervalo")) { intervaloMostrado = true; setTimeout(() => cartaoDeIntervalo(narracao), 600); }
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
@@ -702,7 +732,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, avisosDaRodada, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance
 function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
