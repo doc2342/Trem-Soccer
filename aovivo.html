@@ -236,7 +236,10 @@ function dadosDaPlaca(l) {
 function sonsDosLances(m, lances, agora) {
   const f = m.antes ? "antes" : m.fim ? "fim" : m.texto.includes("intervalo") ? "intervalo" : m.texto.includes("2º") ? "2t" : "1t";
   const novos = vistos ? lances.filter(l => !vistos.has(l.ordem) && agora - new Date(l.libera_em || agora).getTime() < 30000).map(l => l.dados) : [];
-  const golNovo = novos.filter(l => l.resultado === "gol").pop(); if (golNovo) avisoDeGol(golNovo);
+  // o aviso de gol também vale para quem chega atrasado (página aberta agora ou aba voltando): gol não visto dos últimos 2 minutos, sem som;
+  // espera o placar ser desenhado, porque no primeiro desenho ele ainda não existe
+  const golNovo = lances.filter(l => (!vistos || !vistos.has(l.ordem)) && l.dados.resultado === "gol" && agora - new Date(l.libera_em || 0).getTime() < 120000).map(l => l.dados).pop();
+  if (golNovo) setTimeout(() => avisoDeGol(golNovo), vistos ? 0 : 400);
   novos.filter(l => l.tipo === "substituicao" || l.tipo === "acrescimo").map(dadosDaPlaca).filter(Boolean).forEach(placa);
   if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
