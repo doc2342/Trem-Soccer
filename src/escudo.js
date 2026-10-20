@@ -83,30 +83,43 @@ export function svgEscudo(e = {}, sigla = "", tamanho = 48) {
 // arte da marca na camisa (ferramentas/patrocinios.py): mono = uma cor só, branco ou preto conforme a camisa; cor = sem o fundo, colorida
 export const NA_CAMISA = { grupo_trem: "mono", gazeta_dugoutense: "mono", dugout_dos_crias: "mono", dobet: "cor" };
 const arteNaCamisa = (marca, c1) => marca + ({ mono: `_camisa_${luz(c1) > 150 ? "escuro" : "claro"}`, cor: "_camisa" }[NA_CAMISA[marca]] || "");
-// uniforme: { padrao, cor1, cor2, calcao, gola, manga, meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
+// uniforme: { padrao, cor1, cor2, calcao, gola, manga (a da esquerda na imagem), manga2 (a da direita; sem ela, igual à outra), meiao, golaTipo, reserva: { mesmos campos } }; marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
 export function svgUniforme(u = {}, tamanho = 48) {
   const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), cal = cor(u.calcao, "#111111"), id = "pu" + (++serie);
-  const manga = cor(u.manga, null), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
+  const manga = cor(u.manga, null), manga2 = cor(u.manga2, manga), gola = cor(u.gola, c2 === c1 ? contraste(c1) : c2), meiao = cor(u.meiao, cal);
+  const friso = g => g === cal ? contraste(cal) : g; // gola também faz os punhos e os detalhes do calção e do meião
+  const T = `stroke="#0f1720" stroke-width="1.8" stroke-linejoin="round"`, F = `stroke="#0f1720" stroke-width="1" stroke-linejoin="round"`;
+  // cada peça: cor, luz da esquerda (sombra à direita) e contorno por cima
+  const peca = (d, fundo) => `<path d="${d}" fill="${fundo}"/><path d="${d}" fill="url(#l${id})"/><path d="${d}" fill="none" ${T}/>`;
+  const tronco = "M38 5 Q50 12 62 5 L77 10 Q80 20 77.5 31 L78 72 Q50 75.5 22 72 L22.5 31 Q20 20 23 10 Z";
+  const mangaE = "M23 10 L9 21 L3.5 36 L17 41 L22.5 31 Q20 20 23 10 Z", mangaD = "M77 10 L91 21 L96.5 36 L83 41 L77.5 31 Q80 20 77 10 Z";
+  const fundoGola = `fill="#0f1720" fill-opacity=".45"`;
   const golas = {
-    v: `<path d="M38 8 L50 22 L62 8" fill="none" stroke="${gola}" stroke-width="4" stroke-linejoin="round"/>`,
-    polo: `<path d="M36 7 L44 18 L50 12 L56 18 L64 7 Z" fill="${gola}" stroke="#0f1720" stroke-width="1"/>`,
-    redonda: `<path d="M37 8 C42 15 58 15 63 8" fill="none" stroke="${gola}" stroke-width="4"/>`,
+    v: `<path d="M40 5 L50 17 L60 5 Q50 8 40 5 Z" ${fundoGola}/><path d="M37.5 4.6 L50 20 L62.5 4.6 L59.5 4.8 L50 16 L40.5 4.8 Z" fill="${gola}" ${F}/>`,
+    polo: `<path d="M40 5 Q50 9 60 5 Q50 7 40 5 Z" ${fundoGola}/><path d="M50 10 V23" stroke="${gola}" stroke-width="3"/><circle cx="50" cy="16" r=".9" fill="#0f1720"/><circle cx="50" cy="20.5" r=".9" fill="#0f1720"/>
+      <path d="M37 4 L44.5 16.5 L50 10 Q44 8 37 4 Z" fill="${gola}" ${F}/><path d="M63 4 L55.5 16.5 L50 10 Q56 8 63 4 Z" fill="${gola}" ${F}/>`,
+    redonda: `<path d="M40.5 5 Q50 10 59.5 5 Q50 7 40.5 5 Z" ${fundoGola}/><path d="M37.5 4.6 Q50 15.5 62.5 4.6 L59.5 4.8 Q50 11 40.5 4.8 Z" fill="${gola}" ${F}/>`,
   };
-  return `<svg viewBox="0 0 100 120" width="${tamanho}" height="${tamanho * 1.2}" role="img" aria-label="Uniforme" style="vertical-align:middle"><defs>${preenchimento(u.padrao === "borda" ? "liso" : u.padrao, c1, c2, id)}</defs>
-    <path d="M30 6 L10 18 L2 40 L18 46 L22 34 V30 Z" fill="${manga || `url(#${id})`}" stroke="#0f1720" stroke-width="2"/>
-    <path d="M70 6 L90 18 L98 40 L82 46 L78 34 V30 Z" fill="${manga || `url(#${id})`}" stroke="#0f1720" stroke-width="2"/>
-    <path d="M30 6 L22 30 V72 H78 V30 L70 6 C64 14 36 14 30 6 Z" fill="url(#${id})" stroke="#0f1720" stroke-width="2"/>
+  const fr = friso(gola);
+  return `<svg viewBox="0 0 100 120" width="${tamanho}" height="${tamanho * 1.2}" role="img" aria-label="Uniforme" style="vertical-align:middle"><defs>${preenchimento(u.padrao === "borda" ? "liso" : u.padrao, c1, c2, id)}
+    <linearGradient id="l${id}" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient></defs>
+    ${peca(mangaE, manga || `url(#${id})`)}${peca(mangaD, manga2 || `url(#${id})`)}
+    <path d="M3.5 36 L17 41 L18.6 37.8 L5 32.8 Z" fill="${gola}" ${F}/><path d="M96.5 36 L83 41 L81.4 37.8 L95 32.8 Z" fill="${gola}" ${F}/>
+    ${peca(tronco, `url(#${id})`)}
+    <path d="M22.5 31 Q24 50 22.4 70 M77.5 31 Q76 50 77.6 70" fill="none" stroke="#0f1720" stroke-opacity=".18" stroke-width="1"/>
     ${golas[u.golaTipo] || golas.redonda}
     ${escudoNoPeito(u.escudo, u.sigla)}
-    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="27" y="31" width="46" height="32" preserveAspectRatio="xMidYMid meet"/>` : ""}
-    <path d="M23 74 H77 L80 98 H54 L50 88 L46 98 H20 Z" fill="${cal}" stroke="#0f1720" stroke-width="2"/>
-    <rect x="25" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/><rect x="58" y="100" width="17" height="19" rx="2" fill="${meiao}" stroke="#0f1720" stroke-width="1.5"/></svg>`;
+    ${/^[a-z0-9_]+$/.test(u.marca || "") ? `<image href="${new URL(`../patrocinios/${arteNaCamisa(u.marca, c1)}.png`, import.meta.url)}" x="28" y="32" width="44" height="28" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    ${peca("M23.5 75 Q50 78 76.5 75 L80 97 Q67 99 54 97 L50 87 L46 97 Q33 99 20 97 Z", cal)}
+    <path d="M23.5 75 Q50 78 76.5 75 L77 78.5 Q50 81.5 23 78.5 Z" fill="#0f1720" fill-opacity=".22"/>
+    <path d="M23.2 80 L20.8 95.5 M76.8 80 L79.2 95.5" stroke="${fr}" stroke-width="2.2" stroke-linecap="round"/>
+    ${[26, 58].map(x => `${peca(`M${x} 101 H${x + 16} V115 Q${x + 16} 119 ${x + 12} 119 H${x + 4} Q${x} 119 ${x} 115 Z`, meiao)}<rect x="${x + .9}" y="104" width="${14.2}" height="2.4" fill="${friso(gola) === meiao ? contraste(meiao) : friso(gola)}"/>`).join("")}</svg>`;
 }
 
 // escudo pequeno no peito esquerdo de quem veste (à direita de quem olha); imagem enviada entra como <image>
 function escudoNoPeito(e, sigla) {
   if (!e || typeof e !== "object") return "";
-  const lugar = `x="57" y="15" width="14" height="14"`;
+  const lugar = `x="58.5" y="16" width="12" height="12"`;
   if (typeof e.img === "string" && /^\d+-\d+\.(webp|png)$/.test(e.img)) return `<image href="${URL_DOS_ESCUDOS}${e.img}" ${lugar} preserveAspectRatio="xMidYMid meet"/>`;
   return svgEscudo(e, sigla || "", 1).replace('width="1" height="1"', lugar);
 }

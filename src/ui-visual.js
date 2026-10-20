@@ -32,7 +32,8 @@ export function editorVisual(raiz, F, opcoes = {}) {
         <div class="row" style="margin-top:6px">${paleta("escudo", "cor1", "Cor principal")}${paleta("escudo", "cor2", "Segunda cor")}${paleta("escudo", "cor3", "Cor do símbolo e das estrelas", "automática")}</div>`;
     const blocoUniforme = `<div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(Object.fromEntries(Object.entries(PADROES).filter(([k]) => k !== "borda")), u.padrao || "liso")}</select></label>
           <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}${paleta("uniforme", "manga", "Mangas", "iguais à camisa")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola", "automática")}${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "meiao", "Meião", "igual ao calção")}</div>`;
     if (parte) { // uma parte só, para as abas das Configurações
       raiz.innerHTML = `<div class="duas ev-parte"><div class="previa ev-previa">${previa()}</div><div>
@@ -53,7 +54,8 @@ export function editorVisual(raiz, F, opcoes = {}) {
         ${qual === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O reserva entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
         <div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(Object.fromEntries(Object.entries(PADROES).filter(([k]) => k !== "borda")), u.padrao || "liso")}</select></label>
           <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}${paleta("uniforme", "manga", "Mangas", "iguais à camisa")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola", "automática")}${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "meiao", "Meião", "igual ao calção")}</div>
       </details>`;
   };
