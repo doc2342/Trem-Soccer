@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gráficos de jogo — protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../estilo.css">
+<style>
+  /* Protótipo dos gráficos no estilo de transmissão de TV, com partidas reais do banco.
+     Os painéis de TV têm paleta própria e escura nos dois temas, como o grafismo de uma transmissão sobre a imagem. */
+  .tv { --tv:#0a0f1f; --tv2:#121a33; --tv3:#1b2647; --tvl:rgba(255,255,255,.09); --tvt:#ffffff; --tvm:#9aa6c8; --ouro:#f2c14e;
+    background:linear-gradient(180deg, var(--tv2), var(--tv)); color:var(--tvt); border-radius:14px; border:1px solid var(--tvl);
+    box-shadow:0 12px 32px rgba(0,0,0,.35); overflow:hidden; margin-top:14px; position:relative; }
+  .tv::before { content:""; position:absolute; inset:0 0 auto 0; height:3px; background:linear-gradient(90deg, var(--c0), var(--c0) 50%, var(--c1) 50%, var(--c1)); }
+  .tv-cab { display:flex; align-items:center; gap:10px; padding:14px 16px 0; }
+  .tv-cab h2 { font-family:var(--display); font-weight:800; font-size:20px; letter-spacing:.06em; text-transform:uppercase; margin:0; color:var(--tvt); }
+  .tv-cab .tag { margin-left:auto; font-family:var(--display); font-weight:600; font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--tv); background:var(--ouro); padding:3px 8px; border-radius:3px; }
+  .tv-corpo { padding:10px 16px 16px; }
+  .tv svg text { font-family:var(--display); }
+  .tv .nota { font:500 12.5px/1.45 var(--body); color:var(--tvm); margin:10px 0 0; }
+  main { max-width:960px; }
+  .barra-topo { display:flex; align-items:end; gap:10px; flex-wrap:wrap; }
+  .barra-topo label { flex:1 1 220px; min-width:0; } .barra-topo select { width:100%; }
+  .barra-topo h1 { font-family:var(--display); font-weight:800; font-size:26px; letter-spacing:.04em; text-transform:uppercase; margin:0 auto 0 0; }
+
+  /* placar */
+  .placar-tv { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:stretch; margin:14px 16px 0; }
+  .lado { display:flex; align-items:center; gap:12px; padding:10px 14px; background:linear-gradient(90deg, var(--cor), color-mix(in srgb, var(--cor) 55%, var(--tv))); min-width:0; }
+  .lado.fora { flex-direction:row-reverse; text-align:right; background:linear-gradient(270deg, var(--cor), color-mix(in srgb, var(--cor) 55%, var(--tv))); }
+  .lado .nm { font-family:var(--display); font-weight:800; font-size:22px; letter-spacing:.03em; text-transform:uppercase; line-height:1; text-shadow:0 2px 6px rgba(0,0,0,.4); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lado .esc { flex:none; filter:drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+  .lado.casa { clip-path:polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); padding-right:24px; }
+  .lado.fora { clip-path:polygon(14px 0, 100% 0, 100% 100%, 0 100%); padding-left:24px; }
+  .marcador { background:var(--tv); border-top:3px solid var(--ouro); display:flex; align-items:center; gap:10px; padding:4px 18px; font-family:var(--display); font-weight:800; font-size:52px; line-height:1; font-variant-numeric:tabular-nums; margin:0 -8px; position:relative; z-index:1;
+    clip-path:polygon(10px 0, calc(100% - 10px) 0, 100% 100%, 0 100%); }
+  .marcador i { font-style:normal; font-size:24px; color:var(--tvm); }
+  .sob-placar { display:grid; grid-template-columns:1fr auto 1fr; gap:10px; margin:0 16px; font-size:13px; color:var(--tvm); }
+  .sob-placar .meio { font-family:var(--display); font-weight:700; letter-spacing:.14em; text-transform:uppercase; background:var(--tv3); color:var(--tvt); padding:3px 12px; font-size:12px; }
+  .sob-placar .gols { padding-top:6px; line-height:1.5; } .sob-placar .gols:last-child { text-align:right; }
+  .sob-placar .gols b { color:var(--tvt); font-weight:600; }
+  @media (max-width:620px) { .lado .nm { display:none; } .marcador { font-size:42px; } .lado { justify-content:center; } }
+
+  /* estatísticas */
+  .estat { display:grid; gap:9px; }
+  .linha-e { display:grid; grid-template-columns:52px minmax(0,1fr) 52px; align-items:center; gap:10px; }
+  .linha-e .v { font-family:var(--display); font-weight:700; font-size:20px; font-variant-numeric:tabular-nums; color:var(--tvm); }
+  .linha-e .v.lider { color:var(--tvt); } .linha-e .v:last-child { text-align:right; }
+  .linha-e .meio { display:grid; gap:4px; }
+  .linha-e .rot { text-align:center; font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--tvm); }
+  /* uma barra só, dividida na proporção dos dois times, crescendo a partir do centro */
+  .barras { display:flex; gap:3px; height:8px; }
+  .barras i { display:block; height:100%; min-width:3px; }
+  .barras i:first-child { border-radius:4px 0 0 4px; transform-origin:right; } .barras i:last-child { border-radius:0 4px 4px 0; transform-origin:left; }
+
+  /* domínio: quanto do jogo cada time passou por cima */
+  .dominio { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:4px 12px; margin:2px 0 8px; }
+  .dom-lado { display:flex; align-items:center; gap:8px; } .dom-lado b { font-family:var(--display); font-weight:800; font-size:26px; font-variant-numeric:tabular-nums; }
+  .dom-barra { display:flex; gap:3px; height:10px; } .dom-barra i { display:block; border-radius:2px; min-width:3px; }
+  .dom-rot { grid-column:1 / -1; text-align:center; font-family:var(--display); font-weight:600; font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--tvm); }
+  /* campos */
+  .dois-campos { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:620px) { .dois-campos { grid-template-columns:1fr; } }
+  .cab-campo { display:flex; align-items:center; gap:8px; font-family:var(--display); font-weight:700; font-size:15px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px; }
+  .cab-campo .xg { margin-left:auto; color:var(--tvm); font-weight:600; } .cab-campo .xg b { color:var(--tvt); font-size:18px; }
+  .persp { perspective:900px; }
+  .persp svg { display:block; width:100%; transform:rotateX(26deg); transform-origin:50% 100%; }
+  .grafico { display:block; width:100%; touch-action:manipulation; }
+
+  /* faixa de leitura, como o crédito de um lance na TV */
+  .terco { display:flex; align-items:stretch; min-height:40px; margin-top:12px; background:var(--tv3); border-radius:4px; overflow:hidden; font-size:14px; }
+  .terco .bloco { width:6px; flex:none; background:var(--cor, var(--ouro)); }
+  .terco .min { flex:none; display:flex; align-items:center; padding:0 10px; background:var(--ouro); color:var(--tv); font-family:var(--display); font-weight:800; font-size:18px; }
+  .terco .txt { display:flex; align-items:center; gap:8px; padding:6px 12px; flex-wrap:wrap; color:var(--tvt); }
+  .terco .txt b { font-family:var(--display); font-weight:700; font-size:17px; letter-spacing:.04em; text-transform:uppercase; }
+  .terco .gol { font-family:var(--display); font-weight:800; letter-spacing:.1em; background:var(--ouro); color:var(--tv); padding:1px 7px; border-radius:2px; }
+  .terco .vazio { color:var(--tvm); }
+
+  .filtros { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:10px; }
+  .tv select, .tv input { background:var(--tv3); color:var(--tvt); border-color:var(--tvl); }
+  .tv label { color:var(--tvm); }
+  .tv .chk { flex-direction:row; align-items:center; gap:6px; color:var(--tvt); padding-bottom:7px; }
+  .placas { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:6px; margin-bottom:8px; }
+  .placa { background:var(--tv3); padding:8px 10px; border-left:3px solid var(--c0); }
+  .placa .k { font-family:var(--display); font-weight:600; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--tvm); }
+  .placa .n { font-family:var(--display); font-weight:800; font-size:28px; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .placa .n.ok { color:#4ade80; } .placa .n.bad { color:#ff6b7a; }
+  @media (max-width:620px) { .placas { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+  .escala { display:flex; align-items:center; gap:8px; font-family:var(--display); font-weight:600; font-size:12px; letter-spacing:.08em; color:var(--tvm); margin-top:4px; }
+  .escala i { display:block; height:8px; flex:1; max-width:240px; border-radius:2px; }
+
+  /* entrada animada, como grafismo de TV */
+  @media (prefers-reduced-motion:no-preference) {
+    .pop { animation:pop .45s cubic-bezier(.2,.9,.3,1.35) both; animation-delay:var(--d, 0s); transform-box:fill-box; transform-origin:center; }
+    @keyframes pop { from { transform:scale(0); opacity:0; } }
+    .traco { stroke-dasharray:1; stroke-dashoffset:1; animation:traco 1.1s ease-out forwards; animation-delay:var(--d, 0s); }
+    @keyframes traco { to { stroke-dashoffset:0; } }
+    .revela { animation:revela 1.2s cubic-bezier(.4,0,.2,1) both; animation-delay:var(--d, 0s); }
+    @keyframes revela { from { clip-path:inset(0 100% 0 0); } to { clip-path:inset(0 0 0 0); } }
+    .barras i { animation:cresce .8s cubic-bezier(.2,.8,.2,1) both; animation-delay:var(--d, 0s); }
+    @keyframes cresce { from { transform:scaleX(0); } }
+    .sobe { animation:sobe .5s ease-out both; animation-delay:var(--d, 0s); }
+    @keyframes sobe { from { transform:translateY(10px); opacity:0; } }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="barra-topo">
+    <h1>Gráficos de jogo</h1>
+    <label>Partida<select id="selPartida"><option>Carregando…</option></select></label>
+    <button class="sec" id="btTema">Tema</button>
+  </div>
+
+  <section class="tv" id="pPlacar">
+    <div class="placar-tv" id="placar"></div>
+    <div class="sob-placar" id="sobPlacar"></div>
+    <div class="tv-corpo"><div class="estat" id="estat"></div></div>
+  </section>
+
+  <section class="tv">
+    <div class="tv-cab"><h2>Momento do jogo</h2><span class="tag">Pressão</span></div>
+    <div class="tv-corpo">
+      <div class="dominio" id="dominio"></div>
+      <svg class="grafico" id="fluxo" role="img" aria-label="Pressão de cada time minuto a minuto"></svg>
+      <div class="terco" id="lerFluxo"></div>
+    </div>
+  </section>
+
+  <section class="tv">
+    <div class="tv-cab"><h2>Corrida do xG</h2><span class="tag">Gols esperados</span></div>
+    <div class="tv-corpo">
+      <svg class="grafico" id="corrida" role="img" aria-label="xG acumulado de cada time ao longo do jogo"></svg>
+      <div class="terco" id="lerCorrida"></div>
+      <p class="nota">Cada degrau é uma finalização, do tamanho da chance. A faixa entre as linhas fica na cor de quem está na frente no xG. No momento do jogo, o anel branco é chance clara perdida.</p>
+    </div>
+  </section>
+
+  <section class="tv">
+    <div class="tv-cab"><h2>Finalizações</h2><span class="tag">Mapa de chutes</span></div>
+    <div class="tv-corpo">
+      <div class="dois-campos" id="doisCampos"></div>
+      <div class="terco" id="lerChute"></div>
+    </div>
+  </section>
+
+  <section class="tv" id="pTemporada">
+    <div class="tv-cab"><h2>Onde o time chuta</h2><span class="tag">Temporada</span></div>
+    <div class="tv-corpo">
+      <div class="filtros">
+        <label>Clube<select id="selClube"></select></label>
+        <label>Jogador<select id="selJog"></select></label>
+        <label class="chk"><input type="checkbox" id="chkGols"> Só gols</label>
+      </div>
+      <div class="placas" id="placas"></div>
+      <div class="persp"><svg id="meioCampo" role="img" aria-label="Chutes da temporada"></svg></div>
+      <div class="escala"><span>XG</span><span>0</span><i id="barraEscala"></i><span>0,30+</span></div>
+      <div class="terco" id="lerTemporada"></div>
+    </div>
+  </section>
+
+  <section class="tv" id="pQuadrante">
+    <div class="tv-cab"><h2>Quem cria × quem cede</h2><span class="tag" id="tagGrupo">Liga</span></div>
+    <div class="tv-corpo">
+      <svg class="grafico" id="quadrante" role="img" aria-label="xG criado e sofrido por jogo de cada clube"></svg>
+      <div class="terco" id="lerQuad"></div>
+    </div>
+  </section>
+  <p class="mut" style="font-size:12px;margin-top:10px">Protótipo com partidas reais. O ponto exato de cada chute ainda não é gravado: sai do tipo da chance (de longe, cruzamento, na área…), do lado e do xG, e o motor passaria a gravar o mesmo ponto.</p>
+</main>
+
+<script type="module">
+import { svgEscudo } from "../src/escudo.js";
+
+// ---------- banco ----------
+const SB = "https://gqsvsvrclyiroehymuot.supabase.co/rest/v1/", CH = "sb_publishable_Tsz8yf6kkgTn5Zj0M0d2Yw_eDoGeFjP";
+const api = q => fetch(SB + q, { headers: { apikey: CH, Authorization: "Bearer " + CH } }).then(r => r.ok ? r.json() : Promise.reject(new Error("banco respondeu " + r.status)));
+
+// ---------- tema da página (os painéis de TV são sempre escuros) ----------
+const raiz = document.documentElement;
+raiz.setAttribute("data-tema", matchMedia("(prefers-color-scheme: light)").matches ? "claro" : "escuro");
+btTema.onclick = () => raiz.setAttribute("data-tema", raiz.getAttribute("data-tema") === "claro" ? "escuro" : "claro");
+
+// ---------- utilidades ----------
+const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ",");
+const sobrenome = n => String(n || "").split(" ").slice(-1)[0];
+const estreito = () => document.querySelector("main").clientWidth < 560;
+const luz = c => { const n = parseInt(c.slice(1), 16); return .299 * (n >> 16) + .587 * (n >> 8 & 255) + .114 * (n & 255); };
+const dist = (a, b) => { const p = parseInt(a.slice(1), 16), q = parseInt(b.slice(1), 16); return Math.hypot((p >> 16) - (q >> 16), (p >> 8 & 255) - (q >> 8 & 255), (p & 255) - (q & 255)); };
+// cor de cada time no grafismo: a principal do escudo, a não ser que seja preta, branca ou parecida com a do outro time
+function coresDoJogo(e0, e1) {
+  const op = e => [e?.cor1, e?.cor2].filter(c => /^#[0-9a-f]{6}$/i.test(c || "") && luz(c) > 40 && luz(c) < 225);
+  const a = op(e0)[0] || "#3a7bd5", b = op(e1).find(c => dist(c, a) > 110) || (dist("#e8833a", a) > 110 ? "#e8833a" : "#d94a64");
+  return [a, b].map(clarear);
+}
+// cor escura some no fundo da TV: clareia até ter luz suficiente
+function clarear(c) { let n = parseInt(c.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
+  while (.299 * r + .587 * g + .114 * b < 105) { r += (255 - r) * .15; g += (255 - g) * .15; b += (255 - b) * .15; }
+  return "#" + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, "0")).join(""); }
+const esc = (c, t) => svgEscudo(c.escudo || {}, c.sigla || "", t);
+function terco(el, cor, min, html) { el.style.setProperty("--cor", cor || "var(--ouro)"); el.innerHTML = `<span class="bloco"></span>${min != null ? `<span class="min">${min}'</span>` : ""}<span class="txt">${html}</span>`; }
+
+// xG pela posição (x: metros até a linha do gol, y: metros para o lado, negativo à esquerda de quem ataca)
+const xgDe = (x, y) => { let ang = Math.atan2(7.32 * x, x * x + y * y - 3.66 * 3.66); if (ang < 0) ang += Math.PI; return 1 / (1 + Math.exp(2.3 - 2.4 * ang + .09 * Math.hypot(x, y))); };
+// o ponto do chute: faixa de distância pelo tipo da chance, faixa lateral pelo lado, e o ponto cujo xG mais se aproxima do gravado
+const FAIXA = { longe: [17, 30], falta: [18, 28], area: [7, 16], profundidade: [7, 15], cruzamento: [4, 11], escanteio: [4, 10], corte: [6, 12], contra: [8, 18] };
+const DESCR = { longe: "chuta de fora da área", falta: "cobra a falta", area: "finaliza dentro da área", profundidade: "sai na cara do gol", cruzamento: "cabeceia após cruzamento", escanteio: "cabeceia no escanteio", corte: "bate após o corte", contra: "finaliza no contra-ataque", penalti: "cobra o pênalti" };
+const RESULT = { gol: "", defesa: "o goleiro defende", fora: "para fora", bloqueado: "bloqueado", trave: "na trave" };
+function pontoDoChute(l) {
+  if (l.tipo === "penalti") return { x: 11, y: 0, gx: (l.n % 3 - 1) * 2.4 };
+  const [a, b] = FAIXA[l.tipo] || [6, 20], ys = l.lado === "C" ? [-6, 6] : l.lado === "E" ? [-20, -4] : [4, 20];
+  let s = (l.n || 1) * 9301 + 49297, melhor = null; const r = () => (s = (s * 233280 + 49297) % 2147483647) / 2147483647;
+  for (let k = 0; k < 160; k++) { const x = a + (b - a) * r(), y = ys[0] + (ys[1] - ys[0]) * r(), d = Math.abs(xgDe(x, y) - l.xg) + r() * .004; if (!melhor || d < melhor.d) melhor = { x, y, d }; }
+  return { ...melhor, gx: (r() * 2 - 1) * 3 }; // gx: onde a bola entra no gol (só para desenhar a trajetória do gol)
+}
+const doLance = (d, pid) => ({ ...d, ...pontoDoChute(d), pid, min: Math.min(90, d.min), gol: d.resultado === "gol" });
+
+// escala do xG sobre a grama: branco, amarelo, vermelho
+const PARADAS = [[0, [214, 224, 255]], [.1, [255, 210, 63]], [.3, [255, 59, 92]]];
+const corXg = v => { v = Math.min(v, .3); for (let i = 1; i < PARADAS.length; i++) if (v <= PARADAS[i][0]) { const [a, ca] = PARADAS[i - 1], [b, cb] = PARADAS[i], t = (v - a) / (b - a); return `rgb(${ca.map((x, k) => Math.round(x + (cb[k] - x) * t))})`; } return "rgb(255,59,92)"; };
+barraEscala.style.background = `linear-gradient(90deg, ${[0, .05, .1, .15, .2, .25, .3].map(corXg).join(",")})`;
+
+// ---------- gramado ----------
+let serie = 0;
+// meio campo vertical, gol no alto; m = px por metro; 34 m de profundidade
+function meioGramado(m, ox, oy) {
+  const id = "g" + (++serie), W = 68 * m, P = 34, X = y => ox + (34 + y) * m, Y = x => oy + x * m, cal = `stroke="rgba(255,255,255,.85)" stroke-width="${Math.max(1.4, m * .16)}" fill="none"`;
+  return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a5a2e"/><stop offset="1" stop-color="#26763d"/></linearGradient>
+      <radialGradient id="${id}v" cx=".5" cy=".3" r=".8"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient></defs>
+    <rect x="${ox}" y="${oy}" width="${W}" height="${P * m}" fill="url(#${id})"/>
+    ${Array.from({ length: 7 }, (_, i) => i % 2 ? `<rect x="${ox}" y="${oy + i * 5 * m}" width="${W}" height="${5 * m}" fill="#ffffff" opacity=".045"/>` : "").join("")}
+    <rect x="${ox}" y="${oy}" width="${W}" height="${P * m}" fill="url(#${id}v)"/>
+    <line x1="${ox}" y1="${oy}" x2="${ox + W}" y2="${oy}" ${cal}/>
+    <rect x="${X(-20.16)}" y="${oy}" width="${40.32 * m}" height="${16.5 * m}" ${cal}/><rect x="${X(-9.16)}" y="${oy}" width="${18.32 * m}" height="${5.5 * m}" ${cal}/>
+    <path d="M${X(-7.31)} ${Y(16.5)} A ${9.15 * m} ${9.15 * m} 0 0 0 ${X(7.31)} ${Y(16.5)}" ${cal}/><circle cx="${X(0)}" cy="${Y(11)}" r="${m * .3}" fill="rgba(255,255,255,.85)"/>
+    <path d="M${X(-3.66)} ${oy} V${oy - 2.2 * m} H${X(3.66)} V${oy}" stroke="#fff" stroke-width="${m * .25}" fill="rgba(255,255,255,.08)"/>
+    ${Array.from({ length: 9 }, (_, i) => `<line x1="${X(-3.66 + i * .915)}" y1="${oy - 2.2 * m}" x2="${X(-3.66 + i * .915)}" y2="${oy}" stroke="rgba(255,255,255,.18)" stroke-width="1"/>`).join("")}`;
+}
+
+// ---------- estado ----------
+let P = null; // partida carregada: { pt, clubes:[c0,c1], cores, lances, chutes, estat }
+let G = null; // grupo da liga: { partidas, resultados, clubes }
+const cacheChutes = {};
+
+// ---------- 1. placar e estatísticas ----------
+function desenhaPlacar() {
+  const [c0, c1] = P.clubes, [k0, k1] = P.cores, g = P.chutes.filter(t => t.gol);
+  document.querySelectorAll(".tv").forEach(t => { t.style.setProperty("--c0", k0); t.style.setProperty("--c1", k1); });
+  placar.innerHTML = `<div class="lado casa" style="--cor:${k0}"><span class="esc">${esc(c0, 54)}</span><span class="nm">${c0.nome}</span></div>
+    <div class="marcador">${P.gols[0]}<i>×</i>${P.gols[1]}</div>
+    <div class="lado fora" style="--cor:${k1}"><span class="esc">${esc(c1, 54)}</span><span class="nm">${c1.nome}</span></div>`;
+  const lista = i => { const por = {}; g.filter(t => t.time === i).forEach(t => (por[t.quem] = por[t.quem] || []).push(t.min + "'" + (t.tipo === "penalti" ? " (pên.)" : "")));
+    return Object.entries(por).map(([n, ms]) => `<b>${sobrenome(n)}</b> ${ms.join(", ")}`).join("<br>") || "&nbsp;"; };
+  sobPlacar.innerHTML = `<div class="gols">${lista(0)}</div><div><span class="meio">Fim · ${P.pt.rodada}ª rodada</span></div><div class="gols">${lista(1)}</div>`;
+  const E = P.estat, ch = i => P.chutes.filter(t => t.time === i), area = i => ch(i).filter(t => t.x <= 16.5 && Math.abs(t.y) <= 20.16).length, grandes = i => ch(i).filter(t => t.xg >= .3).length;
+  const linhas = [["Posse de bola", E[0].posse, E[1].posse, v => v + "%"], ["xG", E[0].xg, E[1].xg, f2], ["Finalizações", E[0].finalizacoes, E[1].finalizacoes],
+    ["No gol", E[0].noGol, E[1].noGol], ["Dentro da área", area(0), area(1)], ["Grandes chances", grandes(0), grandes(1)], ["Ataques", E[0].ataques, E[1].ataques],
+    ["Escanteios", E[0].escanteios, E[1].escanteios], ["Contra-ataques", E[0].contraAtaques, E[1].contraAtaques], ["Faltas", E[0].faltas, E[1].faltas]];
+  estat.innerHTML = linhas.map(([rot, a, b, fm = String], i) => { const t = (a + b) || 1, d = .25 + i * .06;
+    return `<div class="linha-e sobe" style="--d:${d}s"><div class="v ${a >= b ? "lider" : ""}">${fm(a)}</div><div class="meio"><div class="rot">${rot}</div>
+      <div class="barras"><i style="--d:${d}s;flex:${a / t};background:${k0}"></i><i style="--d:${d}s;flex:${b / t};background:${k1}"></i></div></div>
+      <div class="v ${b >= a ? "lider" : ""}">${fm(b)}</div></div>`; }).join("");
+}
+
+// ---------- 2. momento do jogo ----------
+function suave(p) { // Catmull-Rom em Bézier
+  let d = `M${p[0][0].toFixed(1)} ${p[0][1].toFixed(1)}`;
+  for (let i = 0; i < p.length - 1; i++) { const a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c;
+    d += ` C${(b[0] + (c[0] - a[0]) / 6).toFixed(1)} ${(b[1] + (c[1] - a[1]) / 6).toFixed(1)} ${(c[0] - (e[0] - b[0]) / 6).toFixed(1)} ${(c[1] - (e[1] - b[1]) / 6).toFixed(1)} ${c[0].toFixed(1)} ${c[1].toFixed(1)}`; }
+  return d;
+}
+// pressão: cada lance empurra para o lado de quem atacava; chance pesa pelo xG; suavizada e comprimida com tanh
+function pressao(lances) {
+  const PESO = { posse: .35, roda: .15, canto: .5, escanteio: .5, contra: .6, impedimento: .3 }, v = Array(91).fill(0);
+  for (const d of lances) { if (d.time !== 0 && d.time !== 1) continue; const w = typeof d.xg === "number" ? .8 + d.xg * 4 : PESO[d.tipo] || 0, m = Math.min(90, Math.max(1, d.min));
+    for (let k = -2; k <= 2; k++) if (m + k >= 0 && m + k <= 90) v[m + k] += (d.time ? -1 : 1) * w * (1 - Math.abs(k) * .3); }
+  const kk = [1, 2, 3, 2, 1], sv = v.map((_, i) => kk.reduce((a, w, j) => a + w * (v[i + j - 2] ?? 0), 0) / 9), ord = sv.map(Math.abs).sort((p, q) => p - q), ref = ord[Math.floor(ord.length * .85)] || 1;
+  return sv.map(x => Math.tanh(x / ref * .9));
+}
+function eixoMinutos(Xm, y, fs = 13) { return [0, 15, 30, 45, 60, 75, 90].map(m => `<text x="${Xm(m)}" y="${y}" text-anchor="middle" font-size="${fs}" font-weight="600" fill="#9aa6c8">${m}'</text>`).join(""); }
+const bola = (x, y, r) => `<g transform="translate(${x} ${y}) scale(${r / 10})"><circle r="10" fill="#fff"/><path d="M0 -4 L3.8 -1.2 L2.4 3.2 L-2.4 3.2 L-3.8 -1.2 Z" fill="#111"/><path d="M0 -4 V-10 M3.8 -1.2 L9.5 -3 M2.4 3.2 L5.8 8 M-2.4 3.2 L-5.8 8 M-3.8 -1.2 L-9.5 -3" stroke="#111" stroke-width="1.4"/></g>`;
+// etiqueta de TV: retângulo na cor do time com texto branco
+const etiqueta = (x, y, txt, cor, fs) => { const w = txt.length * fs * .56 + 14, h = fs + 9;
+  return `<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="3" fill="${cor}"/><text x="${x}" y="${y + fs * .36}" text-anchor="middle" font-size="${fs}" font-weight="800" letter-spacing=".5" fill="#fff">${txt}</text>`; };
+const BRILHO = `<filter id="brilho" x="-10%" y="-30%" width="120%" height="160%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+// coloca etiquetas em faixas sem sobrepor: a que bateria na anterior vai para a faixa seguinte (k)
+function emFaixas(itens, x0, x1, gap = 6) {
+  const fim = []; return itens.map(it => { const x = Math.min(x1 - it.w / 2, Math.max(x0 + it.w / 2, it.x)); let k = 0; while (fim[k] !== undefined && x - it.w / 2 < fim[k] + gap) k++; fim[k] = x + it.w / 2; return { ...it, x, k }; }); }
+const rotMin = t => (t.min > 90 ? "90+" : t.min) + "'";
+const rotGol = (t, fs) => { const txt = `${rotMin(t)} ${sobrenome(t.quem).toUpperCase()}`; return { txt, w: txt.length * fs * .56 + 14 }; };
+
+function desenhaFluxo() {
+  const nar = estreito(), W = nar ? 520 : 900, fs = nar ? 15 : 13, H = nar ? 330 : 300, x0 = 8, x1 = W - 8, lane = fs + 12, gap = 5;
+  const [k0, k1] = P.cores, pr = P.pressao, gols = P.chutes.filter(t => t.gol);
+  const topoLivre = 2 * lane + 8, amp = (H - 2 * topoLivre - 22) / 2, meio = topoLivre + amp;
+  const Xm = m => m <= 45 ? x0 + m / 45 * ((x1 - x0) / 2 - gap) : x0 + (x1 - x0) / 2 + gap + (Math.min(m, 90) - 45) / 45 * ((x1 - x0) / 2 - gap);
+  const yDe = m => meio - (pr[Math.min(90, m)] || 0) * amp;
+  const curva = (de, ate, s) => { const pts = []; for (let m = de; m <= ate; m++) pts.push([Xm(m), meio - Math.max(0, s * pr[m]) * amp * s]); return pts; };
+  let g = `<defs>${BRILHO}${[[k0, "a", 0, 1], [k1, "b", 1, 0]].map(([c, id, y1, y2]) => `<linearGradient id="fl${id}" x1="0" y1="${y1}" x2="0" y2="${y2}"><stop offset="0" stop-color="${c}" stop-opacity=".95"/><stop offset=".7" stop-color="${c}" stop-opacity=".35"/><stop offset="1" stop-color="${c}" stop-opacity=".08"/></linearGradient>`).join("")}</defs>`;
+  g += `<rect x="${x0}" y="${meio - amp}" width="${x1 - x0}" height="${amp}" fill="${k0}" opacity=".06"/><rect x="${x0}" y="${meio}" width="${x1 - x0}" height="${amp}" fill="${k1}" opacity=".06"/>`;
+  for (const y of [-.5, .5]) g += `<line x1="${x0}" y1="${meio + y * amp}" x2="${x1}" y2="${meio + y * amp}" stroke="rgba(255,255,255,.06)" stroke-dasharray="3 5"/>`;
+  for (const m of [15, 30, 60, 75]) g += `<line x1="${Xm(m)}" y1="${meio - amp}" x2="${Xm(m)}" y2="${meio + amp}" stroke="rgba(255,255,255,.04)"/>`;
+  g += `<g class="revela" style="--d:.15s">`;
+  for (const [a, b] of [[0, 45], [45, 90]]) for (const [s, id, c] of [[1, "a", k0], [-1, "b", k1]]) {
+    const linha = suave(curva(a, b, s));
+    g += `<path d="${linha} L${Xm(b)} ${meio} L${Xm(a)} ${meio} Z" fill="url(#fl${id})"/><path d="${linha}" fill="none" stroke="${c}" stroke-width="2.6" stroke-linejoin="round" filter="url(#brilho)"/>`; }
+  g += `</g><line x1="${x0}" y1="${meio}" x2="${x1}" y2="${meio}" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>`;
+  // intervalo
+  const wi = 3 * (fs - 2) * .56 + 14;
+  g += `<rect x="${Xm(45) - gap}" y="${meio - amp - 2}" width="${gap * 2}" height="${amp * 2 + 4}" fill="#0f1630"/><rect x="${Xm(45) - wi / 2}" y="${meio - (fs + 7) / 2}" width="${wi}" height="${fs + 7}" rx="3" fill="#0f1630" stroke="rgba(255,255,255,.25)"/>
+    <text x="${Xm(45)}" y="${meio + (fs - 2) * .36}" text-anchor="middle" font-size="${fs - 2}" font-weight="800" letter-spacing="1" fill="#9aa6c8">INT</text>`;
+  // cartões, colados na linha do meio
+  P.lances.filter(d => (d.tipo === "amarelo" || d.tipo === "vermelho") && (d.time === 0 || d.time === 1)).forEach(d => {
+    const x = Xm(Math.min(90, d.min)), up = d.time === 0; g += `<rect x="${x - 3.5}" y="${up ? meio - 13 : meio + 3}" width="7" height="10" rx="1.2" fill="${d.tipo === "amarelo" ? "#facc15" : "#ef4444"}" stroke="#0a0f1f" stroke-width="1"/>`; });
+  // chances claras perdidas: anel branco na curva
+  P.chutes.filter(t => !t.gol && t.xg >= .25).forEach(t => g += `<circle cx="${Xm(t.min)}" cy="${yDe(t.min)}" r="5" fill="#0a0f1f" stroke="#fff" stroke-width="2" opacity=".9"/>`);
+  // gols: bola na curva, etiqueta na faixa de cima (mandante) ou de baixo (visitante)
+  [0, 1].forEach(i => {
+    const itens = gols.filter(t => t.time === i).map(t => ({ t, x: Xm(t.min), ...rotGol(t, fs) }));
+    emFaixas(itens, x0, x1).forEach((it, k) => { const c = P.cores[i], xb = Xm(it.t.min), yb = meio - (i ? -1 : 1) * Math.max(.12, (i ? -1 : 1) * (pr[Math.min(90, it.t.min)] || 0)) * amp, ye = i === 0 ? lane / 2 + 4 + it.k * lane : H - 22 - lane / 2 - 4 - it.k * lane;
+      g += `<g class="pop" style="--d:${1 + k * .12}s"><line x1="${xb}" y1="${yb}" x2="${it.x}" y2="${ye}" stroke="#fff" stroke-opacity=".55" stroke-dasharray="2 3"/>
+        ${etiqueta(it.x, ye, it.txt, c, fs)}<circle cx="${xb}" cy="${yb}" r="11" fill="#fff" stroke="${c}" stroke-width="3"/>${bola(xb, yb, 7.5)}</g>`; }); });
+  g += eixoMinutos(Xm, H - 4, fs);
+  g += `<g id="cursorF" opacity="0"><line y1="${meio - amp}" y2="${meio + amp}" stroke="#f2c14e" stroke-width="2"/><circle r="5" fill="#f2c14e" stroke="#0a0f1f" stroke-width="2"/></g><rect id="toqueF" x="${x0}" y="0" width="${x1 - x0}" height="${H - 20}" fill="transparent"/>`;
+  fluxo.setAttribute("viewBox", `0 0 ${W} ${H}`); fluxo.innerHTML = g;
+  fluxo._Xm = Xm; fluxo._y = yDe;
+  tocar(fluxo, fluxo.querySelector("#toqueF"), Xm, W);
+  // domínio: parte do tempo em que cada time estava por cima
+  const n = [0, 0, 0]; for (let m = 1; m <= 90; m++) n[pr[m] > .15 ? 0 : pr[m] < -.15 ? 2 : 1]++;
+  const pc = n.map(v => Math.round(v / 90 * 100));
+  dominio.innerHTML = `<div class="dom-lado">${esc(P.clubes[0], 30)}<b style="color:${k0}">${pc[0]}%</b></div>
+    <div class="dom-barra"><i style="flex:${n[0]};background:${k0}"></i><i style="flex:${n[1]};background:#3a4466"></i><i style="flex:${n[2]};background:${k1}"></i></div>
+    <div class="dom-lado"><b style="color:${k1}">${pc[2]}%</b>${esc(P.clubes[1], 30)}</div>
+    <div class="dom-rot">Tempo por cima do jogo · equilibrado ${pc[1]}%</div>`;
+  terco(lerFluxo, null, null, `<span class="vazio">Arraste sobre o gráfico para ver quem pressionava em cada minuto.</span>`);
+}
+// toque e arraste num dos gráficos movem o cursor dos dois ao mesmo tempo
+function tocar(svg, alvo, Xm, W) {
+  const mover = ev => { const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * W; let m = 0; while (m < 90 && Xm(m + .5) < x) m++; mostraMinuto(Math.max(1, m)); };
+  alvo.addEventListener("pointermove", mover); alvo.addEventListener("pointerdown", mover);
+}
+function mostraMinuto(m, chute) {
+  const cf = fluxo.querySelector("#cursorF"), x = fluxo._Xm(m);
+  cf.setAttribute("opacity", "1"); cf.firstElementChild.setAttribute("x1", x); cf.firstElementChild.setAttribute("x2", x); cf.lastElementChild.setAttribute("cx", x); cf.lastElementChild.setAttribute("cy", fluxo._y(m));
+  const cc = corrida.querySelector("#cursorC"), xc = corrida._X(m), xg = [0, 1].map(i => corrida._ate(i, m));
+  cc.setAttribute("opacity", "1"); cc.querySelector("line").setAttribute("x1", xc); cc.querySelector("line").setAttribute("x2", xc);
+  cc.querySelectorAll("circle").forEach((c, i) => { c.setAttribute("cx", xc); c.setAttribute("cy", corrida._Y(xg[i])); });
+  const num = (v, c) => `<span style="color:${c};font-weight:800;font-size:19px;font-family:var(--display)">${f2(v)}</span>`;
+  terco(lerCorrida, null, m, `${num(xg[0], P.cores[0])}<b>${P.clubes[0].sigla || ""} × ${P.clubes[1].sigla || ""}</b>${num(xg[1], P.cores[1])}<span style="color:#9aa6c8">xG acumulado até aqui</span>`);
+  const perto = chute || P.chutes.filter(t => Math.abs(t.min - m) <= 1).sort((a, b) => b.xg - a.xg)[0], p = P.pressao[m];
+  if (perto) return textoChute(lerFluxo, perto);
+  terco(lerFluxo, Math.abs(p) < .15 ? null : P.cores[p > 0 ? 0 : 1], m, Math.abs(p) < .15 ? "Jogo equilibrado" : `<b>${P.clubes[p > 0 ? 0 : 1].nome}</b> ${Math.abs(p) > .6 ? "encurrala o adversário" : "tem o controle"}`);
+}
+function textoChute(el, t, extra = "") {
+  const c = P && t.pid === P.pt.id ? P.cores[t.time] : G.corDe(t.clube);
+  terco(el, c, t.min, `<b>${t.quem}</b><span>${DESCR[t.tipo] || "finaliza"}${t.gol ? "" : " · " + (RESULT[t.resultado] || t.resultado)}</span><span style="color:#9aa6c8">xG ${f2(t.xg)}</span>${t.gol ? `<span class="gol">GOL</span>` : ""}${extra}`);
+}
+
+// ---------- 3. corrida do xG ----------
+function desenhaCorrida() {
+  const nar = estreito(), W = nar ? 520 : 900, fs = nar ? 15 : 13, H = nar ? 330 : 300, lane = fs + 12, x0 = 8, x1 = W - (nar ? 100 : 116), y0 = 2 * lane + 10, y1 = H - 26;
+  const sx = [0, 1].map(i => P.chutes.filter(t => t.time === i));
+  const ate = (i, m) => sx[i].filter(t => t.min <= m).reduce((a, t) => a + t.xg, 0);
+  const tot = [0, 1].map(i => ate(i, 999)), topo = Math.max(1, Math.ceil(Math.max(...tot) * 2) / 2);
+  const X = m => x0 + Math.min(m, 90) / 90 * (x1 - x0), Y = v => y1 - v / topo * (y1 - y0);
+  let g = `<defs>${BRILHO}${P.cores.map((c, i) => `<linearGradient id="cr${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".22"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient>`).join("")}</defs>`;
+  for (let v = 0; v <= topo + 1e-9; v += .5) g += `<line x1="${x0}" y1="${Y(v)}" x2="${x1}" y2="${Y(v)}" stroke="rgba(255,255,255,${v ? .07 : .4})"/>${v ? `<text x="${x0 + 2}" y="${Y(v) - 4}" font-size="${fs - 2}" font-weight="600" fill="#6f7ba0">${f1(v)}</text>` : ""}`;
+  g += `<line x1="${X(45)}" y1="${y0 - 6}" x2="${X(45)}" y2="${y1}" stroke="rgba(255,255,255,.14)" stroke-dasharray="4 4"/>`;
+  const faixa = ["", ""]; // entre as duas linhas, na cor de quem está na frente no xG; um caminho por cor, sem frestas
+  for (let m = 0; m < 90; m++) { const a = ate(0, m), b = ate(1, m); if (Math.abs(a - b) < .005) continue;
+    faixa[a > b ? 0 : 1] += `M${X(m)} ${Y(Math.max(a, b))}H${X(m + 1)}V${Y(Math.min(a, b))}H${X(m)}Z`; }
+  g += `<g class="revela" style="--d:.2s">${faixa.map((d, i) => d ? `<path d="${d}" fill="${P.cores[i]}" opacity=".18"/>` : "").join("")}</g>`;
+  const marcas = [];
+  [0, 1].forEach(i => { const c = P.cores[i]; let v = 0, d = `M${X(0)} ${Y(0)}`;
+    for (const t of sx[i]) { d += ` H${X(t.min)}`; v += t.xg; d += ` V${Y(v)}`;
+      if (t.gol) marcas.push({ i, t, xb: X(t.min), yb: Y(v) });
+    }
+    d += ` H${X(90)}`;
+    g += `<path d="${d} V${Y(0)} H${X(0)} Z" fill="url(#cr${i})"/><path class="traco" pathLength="1" style="--d:${.2 + i * .15}s" d="${d}" fill="none" stroke="${c}" stroke-width="3.2" stroke-linejoin="round" filter="url(#brilho)"/>`; });
+  // placas finais: escudo, xG e gols de verdade; se ficarem perto, uma sobe e a outra desce
+  const yf = tot.map(Y), alt = 40, sep = alt + 4;
+  if (Math.abs(yf[0] - yf[1]) < sep) { const c = (yf[0] + yf[1]) / 2, s = yf[0] <= yf[1] ? -1 : 1; yf[0] = c + s * sep / 2; yf[1] = c - s * sep / 2; }
+  [0, 1].forEach(i => { const y = Math.min(y1 - alt / 2, Math.max(y0 + alt / 2, yf[i]));
+    g += `<g class="pop" style="--d:1.4s"><line x1="${x1}" y1="${Y(tot[i])}" x2="${x1 + 8}" y2="${y}" stroke="${P.cores[i]}" stroke-width="2"/><rect x="${x1 + 8}" y="${y - alt / 2}" width="${W - x1 - 10}" height="${alt}" rx="4" fill="${P.cores[i]}"/>
+      <g transform="translate(${x1 + 13} ${y - 14})">${esc(P.clubes[i], 28)}</g>
+      <text x="${W - 9}" y="${y + 2}" text-anchor="end" font-size="${fs + 8}" font-weight="800" fill="#fff">${f2(tot[i])}</text>
+      <text x="${W - 9}" y="${y + 15}" text-anchor="end" font-size="${fs - 3}" font-weight="700" letter-spacing=".5" fill="#ffffffd0">${P.gols[i]} ${P.gols[i] === 1 ? "GOL" : "GOLS"}</text></g>`; });
+  // gols: bola no degrau e etiqueta nas faixas de cima, sem sobrepor
+  emFaixas(marcas.sort((a, b) => a.t.min - b.t.min).map(e => ({ ...e, x: e.xb, ...rotGol(e.t, fs) })), x0, x1).forEach((e, k) => {
+    const ye = lane / 2 + 2 + e.k * lane, c = P.cores[e.i];
+    g += `<g class="pop" style="--d:${1.1 + k * .1}s"><line x1="${e.xb}" y1="${e.yb}" x2="${e.x}" y2="${ye}" stroke="#fff" stroke-opacity=".5" stroke-dasharray="2 3"/>${etiqueta(e.x, ye, e.txt, c, fs)}
+      <circle cx="${e.xb}" cy="${e.yb}" r="10" fill="#fff" stroke="${c}" stroke-width="3"/>${bola(e.xb, e.yb, 6.5)}</g>`; });
+  g += eixoMinutos(X, H - 4, fs);
+  g += `<g id="cursorC" opacity="0"><line y1="${y0 - 6}" y2="${y1}" stroke="#f2c14e" stroke-width="2"/>${P.cores.map(c => `<circle r="6" fill="${c}" stroke="#fff" stroke-width="2"/>`).join("")}</g><rect id="toqueC" x="${x0}" y="0" width="${x1 - x0}" height="${H - 20}" fill="transparent"/>`;
+  corrida.setAttribute("viewBox", `0 0 ${W} ${H}`); corrida.innerHTML = g;
+  corrida._X = X; corrida._Y = Y; corrida._ate = ate;
+  tocar(corrida, corrida.querySelector("#toqueC"), X, W);
+  terco(lerCorrida, null, null, `<span class="vazio">Arraste para ver o xG acumulado de cada time em qualquer minuto.</span>`);
+}
+
+// ---------- 4. finalizações do jogo ----------
+function desenhaCampos() {
+  doisCampos.innerHTML = [0, 1].map(i => { const c = P.clubes[i], xs = P.chutes.filter(t => t.time === i), xg = xs.reduce((a, t) => a + t.xg, 0);
+    return `<div><div class="cab-campo">${esc(c, 26)}<span>${c.sigla || c.nome}</span><span class="xg">${xs.length} chutes · xG <b>${f2(xg)}</b></span></div><div class="persp"><svg data-t="${i}"></svg></div></div>`; }).join("");
+  doisCampos.querySelectorAll("svg[data-t]").forEach(svg => {
+    const i = +svg.dataset.t, m = 9, ox = 8, oy = 22, W = 68 * m + 16, H = 34 * m + oy + 4, X = y => ox + (34 + y) * m, Y = x => oy + x * m, cor = P.cores[i];
+    let g = meioGramado(m, ox, oy);
+    const xs = P.chutes.filter(t => t.time === i).sort((a, b) => a.gol - b.gol || b.xg - a.xg);
+    xs.forEach((t, k) => { const cx = X(t.y), cy = Y(t.x), r = 5 + Math.sqrt(t.xg) * 20, d = `style="--d:${.2 + k * .04}s;cursor:pointer"`, idx = P.chutes.indexOf(t);
+      if (t.gol) g += `<line class="traco" pathLength="1" style="--d:${.9 + k * .04}s" x1="${cx}" y1="${cy}" x2="${X(t.gx)}" y2="${oy - 1}" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity=".9"/>
+        <g class="pop" ${d} data-i="${idx}"><circle cx="${cx}" cy="${cy}" r="${r + 4}" fill="${cor}" opacity=".35"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="${cor}" stroke-width="3"/>${bola(cx, cy, r * .72)}</g>`;
+      else g += `<g class="pop" ${d} data-i="${idx}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#0a0f1f" fill-opacity=".72" stroke="${cor}" stroke-width="2.4"/><circle cx="${cx}" cy="${cy}" r="${Math.max(1.5, r * .25)}" fill="${cor}"/></g>`; });
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = g;
+  });
+  doisCampos.querySelectorAll("[data-i]").forEach(e => { const f = () => { const t = P.chutes[+e.dataset.i]; textoChute(lerChute, t); mostraMinuto(t.min, t); };
+    e.addEventListener("pointerenter", f); e.addEventListener("click", f); });
+  terco(lerChute, null, null, `<span class="vazio">Toque num chute. A bola branca é gol, com a trajetória até a rede.</span>`);
+}
+
+// ---------- 5. temporada ----------
+async function chutesDoClube(id) {
+  if (cacheChutes[id]) return cacheChutes[id];
+  const jogos = G.partidas.filter(p => (p.casa === id || p.fora === id) && G.liberado.has(p.id)), porId = Object.fromEntries(jogos.map(p => [p.id, p]));
+  const ls = jogos.length ? await api(`lances?select=partida_id,dados&partida_id=in.(${jogos.map(p => p.id)})&dados->xg=not.is.null`) : [];
+  return cacheChutes[id] = ls.filter(l => l.dados.time === (porId[l.partida_id].casa === id ? 0 : 1)).map(l => { const p = porId[l.partida_id];
+    return { ...doLance(l.dados, p.id), clube: id, adv: p.casa === id ? p.fora : p.casa, r: p.rodada }; });
+}
+async function desenhaTemporada(trocouClube) {
+  const id = +selClube.value, todos = await chutesDoClube(id);
+  if (trocouClube) { const conta = n => todos.filter(t => t.quem === n).length, nomes = [...new Set(todos.map(t => t.quem))].sort((a, b) => conta(b) - conta(a));
+    selJog.innerHTML = `<option value="">Todos</option>` + nomes.map(n => `<option>${n}</option>`).join(""); }
+  const cor = G.corDe(id), base = todos.filter(t => !selJog.value || t.quem === selJog.value), lista = chkGols.checked ? base.filter(t => t.gol) : base;
+  pTemporada.style.setProperty("--c0", cor); pTemporada.style.setProperty("--c1", cor);
+  const gols = base.filter(t => t.gol).length, xg = base.reduce((a, t) => a + t.xg, 0), dif = gols - xg;
+  placas.innerHTML = [["Chutes", base.length], ["Gols", gols], ["xG", f1(xg)], ["xG/chute", f2(base.length ? xg / base.length : 0)], ["Gols − xG", (dif >= 0 ? "+" : "−") + f1(Math.abs(dif)), dif >= 0 ? "ok" : "bad"]]
+    .map(([k, v, cl = ""], i) => `<div class="placa sobe" style="--d:${i * .05}s"><div class="k">${k}</div><div class="n ${cl}">${v}</div></div>`).join("");
+  const m = 11, ox = 8, oy = 26, W = 68 * m + 16, H = 34 * m + oy + 4, X = y => ox + (34 + y) * m, Y = x => oy + x * m;
+  let g = meioGramado(m, ox, oy);
+  const hex = (cx, cy, r) => Array.from({ length: 6 }, (_, k) => { const a = Math.PI / 3 * k + Math.PI / 6; return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; }).join(" ");
+  lista.slice().sort((a, b) => a.gol - b.gol || a.xg - b.xg).forEach((t, k) => { const cx = X(t.y), cy = Y(t.x), i = todos.indexOf(t), d = `style="--d:${Math.min(1.2, k * .012)}s;cursor:pointer"`;
+    g += t.gol ? `<g class="pop" ${d} data-k="${i}"><polygon points="${hex(cx, cy, 13)}" fill="${corXg(t.xg)}" opacity=".35"/><polygon points="${hex(cx, cy, 9.5)}" fill="${corXg(t.xg)}" stroke="#fff" stroke-width="2.6"/></g>`
+      : `<g class="pop" ${d} data-k="${i}"><polygon points="${hex(cx, cy, 8.5)}" fill="${corXg(t.xg)}" fill-opacity=".85" stroke="rgba(0,0,0,.35)" stroke-width="1"/></g>`; });
+  meioCampo.setAttribute("viewBox", `0 0 ${W} ${H}`); meioCampo.innerHTML = g;
+  meioCampo.querySelectorAll("[data-k]").forEach(e => { const f = () => { const t = todos[+e.dataset.k]; textoChute(lerTemporada, t, `<span style="color:#9aa6c8">${t.r}ª rodada × ${G.nome(t.adv)}</span>`); };
+    e.addEventListener("pointerenter", f); e.addEventListener("click", f); });
+  terco(lerTemporada, cor, null, `<span class="vazio">${lista.length} ${lista.length === 1 ? "chute" : "chutes"} em ${new Set(lista.map(t => t.pid)).size} jogos. Toque num hexágono.</span>`);
+}
+
+// ---------- 6. quadrante ----------
+function desenhaQuadrante() {
+  const T = G.clubes.map(c => { const rs = G.resultados.filter(r => { const p = G.pp[r.partida_id]; return p && (p.casa === c.id || p.fora === c.id); });
+    const n = rs.length || 1, casa = r => G.pp[r.partida_id].casa === c.id;
+    const cria = rs.reduce((a, r) => a + (casa(r) ? r.xg_casa : r.xg_fora), 0), cede = rs.reduce((a, r) => a + (casa(r) ? r.xg_fora : r.xg_casa), 0), gols = rs.reduce((a, r) => a + (casa(r) ? r.gols_casa : r.gols_fora), 0);
+    return { c, j: rs.length, cria: cria / n, cede: cede / n, gols, xgT: cria }; }).filter(t => t.j);
+  const azar = T.reduce((a, t) => (t.gols - t.xgT) < (a.gols - a.xgT) ? t : a), sorte = T.reduce((a, t) => (t.gols - t.xgT) > (a.gols - a.xgT) ? t : a);
+  const pad = .12, xa = Math.min(...T.map(t => t.cria)) - pad, xb = Math.max(...T.map(t => t.cria)) + pad, ya = Math.min(...T.map(t => t.cede)) - pad, yb = Math.max(...T.map(t => t.cede)) + pad;
+  const W = estreito() ? 520 : 900, H = estreito() ? 470 : 520, L = 46, R = W - 14, Tp = 14, B = H - 40, X = v => L + (v - xa) / (xb - xa) * (R - L), Y = v => Tp + (v - ya) / (yb - ya) * (B - Tp);
+  const mx = T.reduce((a, t) => a + t.cria, 0) / T.length, my = T.reduce((a, t) => a + t.cede, 0) / T.length;
+  let g = `<defs><linearGradient id="qbom" x1="1" y1="0" x2=".4" y2=".6"><stop offset="0" stop-color="#22c55e" stop-opacity=".28"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></linearGradient>
+    <linearGradient id="qruim" x1="0" y1="1" x2=".6" y2=".4"><stop offset="0" stop-color="#ef4444" stop-opacity=".28"/><stop offset="1" stop-color="#ef4444" stop-opacity="0"/></linearGradient></defs>
+    <rect x="${X(mx)}" y="${Tp}" width="${R - X(mx)}" height="${Y(my) - Tp}" fill="url(#qbom)"/><rect x="${L}" y="${Y(my)}" width="${X(mx) - L}" height="${B - Y(my)}" fill="url(#qruim)"/>`;
+  const passo = Math.max(xb - xa, yb - ya) > 1.2 ? .5 : .2;
+  for (let v = Math.ceil(xa / passo) * passo; v <= xb; v += passo) g += `<line x1="${X(v)}" y1="${Tp}" x2="${X(v)}" y2="${B}" stroke="rgba(255,255,255,.06)"/><text x="${X(v)}" y="${B + 18}" text-anchor="middle" font-size="12.5" fill="#6f7ba0">${f1(v)}</text>`;
+  for (let v = Math.ceil(ya / passo) * passo; v <= yb; v += passo) g += `<line x1="${L}" y1="${Y(v)}" x2="${R}" y2="${Y(v)}" stroke="rgba(255,255,255,.06)"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" font-size="12.5" fill="#6f7ba0">${f1(v)}</text>`;
+  g += `<line x1="${X(mx)}" y1="${Tp}" x2="${X(mx)}" y2="${B}" stroke="rgba(255,255,255,.35)" stroke-dasharray="6 5"/><line x1="${L}" y1="${Y(my)}" x2="${R}" y2="${Y(my)}" stroke="rgba(255,255,255,.35)" stroke-dasharray="6 5"/>`;
+  const fs = estreito() ? 12.5 : 15, canto = (x, y, a, t, c) => `<text x="${x}" y="${y}" text-anchor="${a}" font-size="${fs}" font-weight="800" letter-spacing="1.5" fill="${c}">${t}</text>`;
+  g += canto(R - 10, Tp + 22, "end", "CRIA MUITO · CEDE POUCO", "#4ade80") + canto(L + 10, B - 12, "start", "CRIA POUCO · CEDE MUITO", "#ff6b7a") + canto(L + 10, Tp + 22, "start", "CRIA POUCO · CEDE POUCO", "#6f7ba0") + canto(R - 10, B - 12, "end", "CRIA MUITO · CEDE MUITO", "#6f7ba0");
+  g += `<text x="${(L + R) / 2}" y="${H - 4}" text-anchor="middle" font-size="12.5" font-weight="600" letter-spacing="1" fill="#9aa6c8">XG CRIADO POR JOGO →</text><text transform="translate(13 ${(Tp + B) / 2}) rotate(-90)" text-anchor="middle" font-size="12.5" font-weight="600" letter-spacing="1" fill="#9aa6c8">← XG SOFRIDO POR JOGO</text>`;
+  const noJogo = new Set([P.pt.casa, P.pt.fora]);
+  T.forEach((t, i) => { const x = X(t.cria), y = Y(t.cede), tam = noJogo.has(t.c.id) ? 50 : 40, cor = G.corDe(t.c.id);
+    const selo = (txt, fundo) => `<g transform="translate(${x + tam / 2 - 6} ${y - tam / 2 - 8})"><rect width="${txt.length * 7.4 + 12}" height="18" rx="2" fill="${fundo}"/><text x="${(txt.length * 7.4 + 12) / 2}" y="13.5" text-anchor="middle" font-size="12" font-weight="800" letter-spacing="1" fill="#fff">${txt}</text></g>`;
+    g += `<g class="pop" style="--d:${.2 + i * .05}s;cursor:pointer" data-q="${t.c.id}"><circle cx="${x}" cy="${y}" r="${tam / 2 + 4}" fill="${cor}" opacity="${noJogo.has(t.c.id) ? .55 : .22}"/>
+      <g transform="translate(${x - tam / 2} ${y - tam / 2})">${esc(t.c, tam)}</g>${t === azar ? selo("AZARADO", "#e11d48") : t === sorte ? selo("PÉ QUENTE", "#16a34a") : ""}</g>`; });
+  quadrante.setAttribute("viewBox", `0 0 ${W} ${H}`); quadrante.innerHTML = g;
+  quadrante.querySelectorAll("[data-q]").forEach(e => { const f = () => { const t = T.find(k => k.c.id === +e.dataset.q), d = t.gols - t.xgT;
+    terco(lerQuad, G.corDe(t.c.id), null, `<b>${t.c.nome}</b><span>cria ${f2(t.cria)} · cede ${f2(t.cede)} por jogo</span><span style="color:#9aa6c8">${t.gols} gols para ${f1(t.xgT)} de xG em ${t.j} jogos</span><span style="color:${d >= 0 ? "#4ade80" : "#ff6b7a"};font-weight:700">${d >= 0 ? "+" : "−"}${f1(Math.abs(d))}</span>`); };
+    e.addEventListener("pointerenter", f); e.addEventListener("click", f); });
+  tagGrupo.textContent = `Grupo ${G.grupo} · ${Math.max(...T.map(t => t.j))} rodadas`;
+  terco(lerQuad, null, null, `<span class="vazio">Média por jogo. Para a direita cria mais; para cima sofre menos. Toque num escudo.</span>`);
+}
+
+// ---------- carga ----------
+async function carregarGrupo(ligaId, grupo) {
+  if (G && G.liga === ligaId && G.grupo === grupo) return;
+  const partidas = await api(`partidas?select=id,casa,fora,rodada&liga_id=eq.${ligaId}&grupo=eq.${grupo}`);
+  const ids = [...new Set(partidas.flatMap(p => [p.casa, p.fora]))];
+  const [resultados, clubes] = await Promise.all([api(`resultados?select=partida_id,gols_casa,gols_fora,xg_casa,xg_fora&libera_em=lt.now()&partida_id=in.(${partidas.map(p => p.id)})`), api(`clubes?select=id,nome,sigla,escudo&id=in.(${ids})`)]);
+  G = { liga: ligaId, grupo, partidas, resultados, clubes, pp: Object.fromEntries(partidas.map(p => [p.id, p])), liberado: new Set(resultados.map(r => r.partida_id)),
+    nome: id => (clubes.find(c => c.id === id) || {}).nome || "?", corDe: id => coresDoJogo((clubes.find(c => c.id === id) || {}).escudo, null)[0] };
+  selClube.innerHTML = clubes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${c.nome}</option>`).join("");
+}
+async function carregarPartida(id) {
+  const [[pt], ls, [res]] = await Promise.all([api(`partidas?select=id,casa,fora,rodada,liga_id,grupo&id=eq.${id}`), api(`lances?select=dados&partida_id=eq.${id}&order=ordem`),
+    api(`resultados?select=gols_casa,gols_fora,estat:relatorio->estat&partida_id=eq.${id}`)]);
+  await carregarGrupo(pt.liga_id, pt.grupo);
+  const cl = k => G.clubes.find(c => c.id === k), clubes = [cl(pt.casa), cl(pt.fora)], lances = ls.map(l => l.dados).filter(d => d.n >= 0);
+  P = { pt, clubes, cores: coresDoJogo(clubes[0].escudo, clubes[1].escudo), lances, estat: res.estat, gols: [res.gols_casa, res.gols_fora],
+    chutes: lances.filter(d => typeof d.xg === "number").map(d => doLance(d, pt.id)) };
+  P.pressao = pressao(lances);
+  desenhaPlacar(); desenhaFluxo(); desenhaCorrida(); desenhaCampos();
+  selClube.value = pt.casa; await desenhaTemporada(true); desenhaQuadrante();
+}
+selClube.onchange = () => desenhaTemporada(true); selJog.onchange = chkGols.onchange = () => desenhaTemporada(false);
+let largura = null; addEventListener("resize", () => { if (!P || estreito() === largura) return; largura = estreito(); desenhaFluxo(); desenhaCorrida(); desenhaQuadrante(); });
+
+(async () => {
+  try {
+    const rs = await api("resultados?select=partida_id,gols_casa,gols_fora&libera_em=lt.now()&order=libera_em.desc&limit=24");
+    const ps = await api(`partidas?select=id,casa,fora&id=in.(${rs.map(r => r.partida_id)})`);
+    const cs = await api(`clubes?select=id,nome&id=in.(${[...new Set(ps.flatMap(p => [p.casa, p.fora]))]})`), nome = k => (cs.find(c => c.id === k) || {}).nome || "?";
+    selPartida.innerHTML = rs.map(r => { const p = ps.find(x => x.id === r.partida_id); return `<option value="${r.partida_id}">${nome(p.casa)} ${r.gols_casa} × ${r.gols_fora} ${nome(p.fora)}</option>`; }).join("");
+    const pedido = new URLSearchParams(location.search).get("partida");
+    if (pedido && rs.some(r => r.partida_id === +pedido)) selPartida.value = pedido;
+    selPartida.onchange = () => carregarPartida(+selPartida.value);
+    largura = estreito(); await carregarPartida(+selPartida.value);
+  } catch (e) { selPartida.innerHTML = `<option>Sem conexão com o banco</option>`; console.error(e); }
+})();
+</script>
+</body>
+</html>

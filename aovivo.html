@@ -183,6 +183,7 @@ const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
 import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
 import { svgEscudo, svgUniforme, uniformesDoJogo } from "./src/escudo.js";
+import { htmlGraficos, ligarGraficos } from "./src/ui-graficos.js";
 import { sg, pp } from "./src/siglas.js";
 
 const $ = id => document.getElementById(id);
@@ -566,7 +567,7 @@ function topo(gols, m, narracao = [], pre = null) {
 }
 
 // abas do celular e o "ver todos os lances" do pós-jogo: a escolha sobrevive ao redesenho de 10 em 10 segundos
-const ABAS = { resumo: ["📝", "Resumo"], lances: ["📜", "Lances"], estat: ["📊", "Números"], esc: ["👕", "Escalação"], rodada: ["🏆", "Rodada"], jog: ["⭐", "Jogadores"] };
+const ABAS = { resumo: ["📝", "Resumo"], lances: ["📜", "Lances"], graf: ["📈", "Gráficos"], estat: ["📊", "Números"], esc: ["👕", "Escalação"], rodada: ["🏆", "Rodada"], jog: ["⭐", "Jogadores"] };
 let aba = null, todosLances = false, latAba = "esc";
 const BOTAO_TODOS = `<button class="sec" data-todos style="margin:0 0 8px;padding:4px 12px"><span class="v1">Ver todos os lances</span><span class="v2">Só os principais</span></button>`;
 function barraDeAbas(ids) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0];
@@ -663,8 +664,8 @@ async function atualizar() {
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
-    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "lances", "estat", "esc", rodada && "rodada", "jog"]) + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
-    aplicarAba();
+    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "lances", "graf", "estat", "esc", rodada && "rodada", "jog"]) + htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]]) + htmlRelatorio({ ...res.relatorio, narracao }, { semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    ligarGraficos($("corpo")); aplicarAba();
     return;
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
@@ -672,10 +673,10 @@ async function atualizar() {
   const notas = notasDosGols(lances), comNota = l => htmlLance(l) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
-    : `${barraDeAbas(["lances", "estat", pre && "esc", rodada && "rodada"])}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
+    : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
        ${(duas => `<div class="lat-d ${duas ? "lat-" + latAba : ""}">${duas ? `<div class="lat-abas">${[["esc", "👕 Escalações"], ["rodada", "🏆 Rodada ao vivo"]].map(([k, n]) => `<button class="sec ${latAba === k ? "ativa" : ""}" data-lat="${k}">${n}</button>`).join("")}</div>` : ""}${htmlEscalacoes(pre)}${htmlRodada(gols)}</div>`)(!!(pre && pre.escalacoes && rodada))}</div>`;
-  aplicarAba();
+  ligarGraficos($("corpo")); aplicarAba();
 }
 
 async function iniciar() {
