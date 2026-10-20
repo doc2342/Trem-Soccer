@@ -18,6 +18,18 @@
   @media (max-width:620px) { .painel .gols { font-size:44px; } .painel .time { font-size:15px; } .painel .time svg { width:46px; height:46px; } }
   /* placar: faixa com as cores das camisas, uma de cada lado */
   #topo { padding:16px 16px 12px; }
+  /* cartão do árbitro: o cartão gira na mão e entra o nome; no segundo amarelo, o amarelo e o vermelho juntos */
+  .placa.arb { display:flex; align-items:center; gap:16px; min-width:260px; padding:12px 20px 12px 16px; }
+  .placa.arb::after { display:none; }
+  .placa .cartoes { position:relative; width:58px; height:80px; flex:none; perspective:400px; }
+  .placa .cart { position:absolute; inset:0; border-radius:6px; box-shadow:0 6px 14px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.15); animation:cartGira .7s .25s cubic-bezier(.2,1.3,.3,1) both; }
+  .placa .cart.am { background:linear-gradient(160deg, #ffe14d, #f5c400); } .placa .cart.vm { background:linear-gradient(160deg, #ff4d4d, #d10f0f); }
+  .placa .cart.atras { --rot:-16deg; left:-14px; right:14px; animation-delay:.1s; }
+  .placa .cart.frente { --rot:10deg; }
+  .placa .arbTxt { min-width:0; text-align:left; } .placa .arbTxt .linha { font-size:24px; color:#fff; text-shadow:none; }
+  .placa .arbTxt .tipo { font-family:var(--display); font-size:15px; letter-spacing:.14em; text-transform:uppercase; }
+  @keyframes cartGira { from { transform:rotateY(90deg) rotate(-30deg) translateY(30px); opacity:0; } to { transform:rotate(var(--rot, 0deg)); opacity:1; } }
+  @media (max-width:620px) { .placa .arbTxt .linha { font-size:19px; } }
   /* cartão de fim de jogo: sobe no meio da tela no apito final (placar, gols e melhor em campo); some em 8 s ou no clique */
   .fimJogo { position:fixed; inset:0; z-index:35; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(5,8,15,.55); animation:fimFundo 8s ease forwards; cursor:pointer; }
   .fimJogo .cartao { position:relative; width:min(520px, 100%); border-radius:16px; overflow:hidden; color:#fff; text-align:center; padding:18px 18px 16px;
@@ -251,6 +263,12 @@ function placa(d) {
     const x = filaDePlacas[0]; if (!x) return;
     const el = document.createElement("div"); el.className = "placa";
     if (x.tipo === "acrescimo") el.innerHTML = `<div class="cab">Acréscimo</div><div class="num">+${x.acr}</div>`;
+    else if (x.tipo === "amarelo" || x.tipo === "vermelho") {
+      const c = clubes[x.time ? partida.fora : partida.casa] || {}, segundo = x.tipo === "vermelho" && x.segundo, cor = x.tipo === "amarelo" ? "#facc15" : "#ff4d4d";
+      el.classList.add("arb");
+      el.innerHTML = `<div class="cartoes">${segundo ? `<div class="cart am atras"></div>` : ""}<div class="cart ${x.tipo === "amarelo" ? "am" : "vm"} frente"></div></div>
+        <div class="arbTxt"><div class="tipo" style="color:${cor}">${x.tipo === "amarelo" ? "Cartão amarelo" : segundo ? "Segundo amarelo · expulso" : "Cartão vermelho"}</div><div class="linha">${esc(x.nome)}</div><div class="cab" style="justify-content:flex-start;margin:2px 0 0">${esc(c.nome || "")}</div></div>`;
+    }
     else {
       const c = clubes[x.time ? partida.fora : partida.casa] || {}, u = uniformesDoJogo((clubes[partida.casa] || {}).uniforme || {}, (clubes[partida.fora] || {}).uniforme || {})[x.time ? 1 : 0] || {};
       el.style.setProperty("--cor", /^#[0-9a-f]{6}$/i.test(u.cor1 || "") ? u.cor1 : "#888");
@@ -263,6 +281,7 @@ function placa(d) {
 }
 // "Sai {0:A}, entra {0:B}." ou "Entra {0:B} no lugar de {0:A}." (troca por lesão)
 function dadosDaPlaca(l) {
+  if (l.tipo === "amarelo" || l.tipo === "vermelho") { const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || ""); return m ? { tipo: l.tipo, time: l.time, nome: m[1], segundo: /^Segundo amarelo/.test(l.texto || "") } : null; }
   if (l.tipo === "acrescimo") { const n = (l.texto.match(/\d+/) || [])[0]; return n ? { tipo: "acrescimo", acr: n } : null; }
   const nomes = [...l.texto.matchAll(/\{[01?]:([^}]+)\}/g)].map(m => m[1]); if (nomes.length < 2) return null;
   const [sai, entra] = /^Entra/.test(l.texto) ? [nomes[1], nomes[0]] : nomes;
@@ -275,7 +294,7 @@ function sonsDosLances(m, lances, agora) {
   // espera o placar ser desenhado, porque no primeiro desenho ele ainda não existe
   const golNovo = lances.filter(l => (!vistos || !vistos.has(l.ordem)) && l.dados.resultado === "gol" && agora - new Date(l.libera_em || 0).getTime() < 120000).map(l => l.dados).pop();
   if (golNovo) setTimeout(() => avisoDeGol(golNovo), vistos ? 0 : 400);
-  novos.filter(l => l.tipo === "substituicao" || l.tipo === "acrescimo").map(dadosDaPlaca).filter(Boolean).forEach(placa);
+  novos.filter(l => ["substituicao", "acrescimo", "amarelo", "vermelho"].includes(l.tipo)).map(dadosDaPlaca).filter(Boolean).forEach(placa);
   if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
   vistos = new Set(lances.map(l => l.ordem)); fase = f;
@@ -542,11 +561,14 @@ function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dFim">🏁 Fim</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dFim">🏁 Fim</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
   $("dAcr").onclick = () => placa({ tipo: "acrescimo", acr: 1 + Math.floor(Math.random() * 7) });
+  $("dAm").onclick = () => { const t = lado(); placa({ tipo: "amarelo", time: t, nome: sorte(nomes(t)) }); if (somLigado) tocar("amarelo"); };
+  // vermelho: metade das vezes direto, metade no segundo amarelo
+  $("dVm").onclick = () => { const t = lado(); placa({ tipo: "vermelho", time: t, nome: sorte(nomes(t)), segundo: Math.random() < 0.5 }); if (somLigado) tocar("vermelho"); };
   // jogo encerrado: o cartão de verdade; senão, um placar inventado com jogadores desta partida
   $("dFim").onclick = () => { if (ultimoFim) return cartaoDeFim(ultimoFim);
     const narracao = [], gols = [lado() + lado(), lado()];
