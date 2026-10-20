@@ -288,9 +288,11 @@ function analiseDoIntervalo(pt) {
     return frases.slice(0, 2);
   });
 }
+// comentaristas (fictícios) dos veículos patrocinadores; cada partida tem o seu, sempre o mesmo. A análise é a de um analista nível 50, igual para todos.
+const COMENTARISTAS = [["Juvenal Prancheta", "gazeta_dugoutense"], ["Tião Linha de Fundo", "grupo_trem"], ["Célia Xavier, a Professora", "gazeta_dugoutense"], ["Bira Meia-Lua", "grupo_trem"]];
 function telaDoAnalista(pt) {
-  const a = analiseDoIntervalo(pt), c = [clubes[partida.casa], clubes[partida.fora]];
-  return `<div class="tvTela"><div class="tvTit">🎙️ Análise do intervalo</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div></div>`;
+  const a = analiseDoIntervalo(pt), c = [clubes[partida.casa], clubes[partida.fora]], [quem, veiculo] = COMENTARISTAS[partida.id % COMENTARISTAS.length];
+  return `<div class="tvTela"><div class="tvTit">🎙️ Comentarista<small style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${selo(veiculo, 20)}${esc(quem)} · ${esc(MARCAS[veiculo].nome)}</small></div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div></div>`;
 }
 
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
