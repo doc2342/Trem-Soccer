@@ -373,8 +373,9 @@ function construir() {
   if (C.refletores && !m.teto) { const f = m.R == null ? 0.75 : 0.97; for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) torre(sx * (aM + 7) * f, sz * (bM + 7) * f, topH + 26); if (luzNoite) cur.campo.intensity *= 0.7; }
   // à noite, sem torres: uma fileira de luzes na borda de dentro da cobertura (ou da marquise, ou no alto da arquibancada)
   else if (luzNoite) { const rIn = teto ? rows * DEP * (m.tetoIn ?? 0.5) : yM ? rows * DEP * 0.55 : rows * DEP, y = teto ? yT - 0.6 : yM ? yM - 0.4 : topH + 2.5;
-    for (const p of walk(contorno(m, m.a0 + rIn, m.b0 + rIn), 12)) halo(p.x, y, p.z, 7, 0.8 * luzNoite); }
-  if (luzNoite) { const g = plano(new T.PlaneGeometry(2.5 * aM, 2.5 * bM), new T.MeshBasicMaterial({ ...brilho(0.3 * luzNoite), color: "#e4f0ff" }), topH + 4); g.receiveShadow = false; grp.add(g); } // o claro que sobe do estádio aceso
+    if (teto || yM) for (const p of walk(contorno(m, m.a0 + rIn, m.b0 + rIn), 12)) halo(p.x, y, p.z, 7, 0.8 * luzNoite);
+    else { let u = null; for (const p of ext) if (!u || Math.hypot(p.x - u.x, p.z - u.z) > 12) { u = p; halo(p.x, fhOf(p) + 0.8, p.z, 4, 0.8 * luzNoite); } } } // sem cobertura: só em cima das arquibancadas que existem (no Caldeirão os cantos são vazios)
+  if (luzNoite) { const g = plano(new T.PlaneGeometry(2.5 * aM, 2.5 * bM), new T.MeshBasicMaterial({ ...brilho(0.3 * luzNoite * Math.min(1, topH / 25)), color: "#e4f0ff" }), topH + 4); g.receiveShadow = false; grp.add(g); } // o claro que sobe do estádio aceso (fraco nos baixos, senão embaça o campo)
   if (m.palcos) { const z0 = m.b0 + m.palcos * DEP, z1 = z0 + 8, xs = () => aM + 0.5, feito = prev && !C.reforma ? prev + (rows - prev) * obra : rows * obra, Hb = hRow(Math.max(1, Math.round(feito)) - 1) + 1.6;
     const pr = new T.Mesh(new T.ExtrudeGeometry(shapeDe([[-xs(z0), z0], [xs(z0), z0], [xs(z1), z1], [-xs(z1), z1]]), { depth: Hb, bevelEnabled: false }), lam("#d6d2c8")); pr.rotation.x = -Math.PI / 2; pr.castShadow = pr.receiveShadow = true; grp.add(pr);
     const vidro = lam("#33444f"); for (let y = 2.4; y < Hb - 1.5; y += 3.2) bloco(2 * xs(z0) - 3, 1.7, 0.2, vidro, 0, y, z0 - 0.05);
