@@ -1,7 +1,7 @@
 // Editor do escudo e dos uniformes (titular e reserva), usado na criação do clube e nas Configurações.
 // F: { escudo, uniforme } (alterado no lugar); opcoes.sigla(): sigla para a prévia; opcoes.aoMudar(): avisa que algo mudou.
 // opcoes.parte: "escudo", "titular" ou "reserva" desenha só aquela parte (as Configurações têm uma aba para cada); sem ela, tudo.
-import { svgEscudo, svgUniforme, FORMAS, PADROES, PADROES_CAMISA, SIMBOLOS, GOLAS, CORES } from "./escudo.js";
+import { svgEscudo, svgUniforme, svgSoCamisa, FORMAS, PADROES, PADROES_CAMISA, TEXTURAS, FRISOS, SIMBOLOS, GOLAS, CORES } from "./escudo.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const hex = c => /^#[0-9a-fA-F]{6}$/.test(c || "");
@@ -20,7 +20,7 @@ export function editorVisual(raiz, F, opcoes = {}) {
       <input type="color" data-livre="1" data-alvo="${a}" data-campo="${campo}" value="${hex(atual) ? atual : "#888888"}" title="Outra cor" style="width:28px;height:24px;padding:0;border:none;background:none"></div></label>`; };
   const comEscudo = u => ({ ...u, escudo: { ...F.escudo, img: null }, sigla: sigla() }); // a prévia da camisa leva o escudo no peito
   const previa = () => parte === "escudo" ? svgEscudo({ ...F.escudo, img: null }, sigla(), 120)
-    : parte ? `${svgUniforme(comEscudo(alvo("uniforme")), 100)}${parte === "reserva" ? `<div style="text-align:center;opacity:.75">${svgUniforme(comEscudo(F.uniforme), 60)}<div class="mut" style="font-size:11px">titular</div></div>` : ""}`
+    : parte ? `${svgSoCamisa(comEscudo(alvo("uniforme")), 220)}${svgUniforme(comEscudo(alvo("uniforme")), 110)}${parte === "reserva" ? `<div style="text-align:center;opacity:.75">${svgUniforme(comEscudo(F.uniforme), 60)}<div class="mut" style="font-size:11px">titular</div></div>` : ""}`
     : `${svgEscudo({ ...F.escudo, img: null }, sigla(), 110)}<div style="text-align:center">${svgUniforme(comEscudo(F.uniforme), 74)}<div class="mut" style="font-size:11px">titular</div></div>
     <div style="text-align:center">${svgUniforme(comEscudo(F.uniforme.reserva || {}), 74)}<div class="mut" style="font-size:11px">reserva</div></div>`;
   const desenhar = () => {
@@ -30,11 +30,14 @@ export function editorVisual(raiz, F, opcoes = {}) {
           <label>Símbolo<select data-alvo="escudo" data-campo="simbolo">${opc(SIMBOLOS, e.simbolo || "sigla")}</select></label>
           <label>Estrelas<select data-alvo="escudo" data-campo="estrelas">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${(+e.estrelas || 0) === n ? "selected" : ""}>${n || "nenhuma"}</option>`).join("")}</select></label></div>
         <div class="row" style="margin-top:6px">${paleta("escudo", "cor1", "Cor principal")}${paleta("escudo", "cor2", "Segunda cor")}${paleta("escudo", "cor3", "Cor do símbolo e das estrelas", "automática")}</div>`;
-    const blocoUniforme = `<div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(PADROES_CAMISA, u.padrao || "liso")}</select></label>
-          <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
+    const sel = (campo, lista, padrao) => `<select data-alvo="uniforme" data-campo="${campo}">${opc(Object.fromEntries(Object.entries(lista).map(([k, v]) => [k, typeof v === "string" ? v : v.nome])), u[campo] || padrao)}</select>`;
+    const blocoUniforme = `<div class="row"><label>Desenho da camisa${sel("padrao", PADROES_CAMISA, "liso")}</label><label>Gola${sel("golaTipo", GOLAS, "redonda")}</label><label>Textura${sel("textura", TEXTURAS, "nenhuma")}</label></div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}${paleta("uniforme", "cor3", "Terceira cor (filetes e alguns desenhos)", "nenhuma")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola", "automática")}${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "meiao", "Meião", "igual ao calção")}</div>`;
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola e punhos", "automática")}</div>
+        <div class="row" style="margin-top:6px"><label>Friso no ombro${sel("friso", FRISOS, "nenhum")}</label>${u.friso && u.friso !== "nenhum" ? paleta("uniforme", "corFriso", "Cor do friso do ombro", "cor da gola") : ""}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "calcao", "Calção")}<label>Friso do calção${sel("frisoCalcao", FRISOS, "um")}</label>${u.frisoCalcao !== "nenhum" ? paleta("uniforme", "corFrisoCalcao", "Cor do friso do calção", "cor da gola") : ""}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "meiao", "Meião", "igual ao calção")}<label>Friso do meião${sel("frisoMeiao", FRISOS, "um")}</label>${u.frisoMeiao !== "nenhum" ? paleta("uniforme", "corFrisoMeiao", "Cor do friso do meião", "cor da gola") : ""}</div>`;
     if (parte) { // uma parte só, para as abas das Configurações
       raiz.innerHTML = `<div class="duas ev-parte"><div class="previa ev-previa">${previa()}</div><div>
         ${parte === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O uniforme visitante (reserva) entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
@@ -52,11 +55,7 @@ export function editorVisual(raiz, F, opcoes = {}) {
       <details open style="margin-top:10px"><summary><b>Uniforme</b></summary>
         <div class="subabas" style="margin:6px 0">${[["titular", "Titular"], ["reserva", "Reserva"]].map(([k, n]) => `<button type="button" class="sub ${qual === k ? "ativa" : ""}" data-qual="${k}">${n}</button>`).join("")}</div>
         ${qual === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O reserva entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
-        <div class="row"><label>Desenho da camisa<select data-alvo="uniforme" data-campo="padrao">${opc(PADROES_CAMISA, u.padrao || "liso")}</select></label>
-          <label>Gola<select data-alvo="uniforme" data-campo="golaTipo">${opc(GOLAS, u.golaTipo || "redonda")}</select></label></div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola", "automática")}${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "meiao", "Meião", "igual ao calção")}</div>
+        ${blocoUniforme}
       </details>`;
   };
   const mudou = () => { if (opcoes.aoMudar) opcoes.aoMudar(); };

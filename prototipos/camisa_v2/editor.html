@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8"><title>Teste do editor de uniforme</title>
+<link rel="stylesheet" href="../../estilo.css">
+<style>.cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; } .cores span { width:24px; height:24px; border-radius:6px; border:2px solid var(--line); cursor:pointer; } .cores span.sel { border-color:var(--ac); }
+.ev-parte .previa { align-self:start; min-height:150px; } .previa { display:flex; gap:16px; align-items:center; justify-content:center; padding:12px; background:var(--campo); border-radius:10px; border:1px solid var(--line); }</style>
+<body><div style="max-width:1200px;margin:16px auto">
+<div class="card"><h2>Uniforme casa (aba das Configurações)</h2><div id="a"></div></div>
+<div class="card"><h2>Criar o clube (tudo junto)</h2><div id="b"></div></div>
+<div class="card"><h2>Lista</h2><div id="c"></div></div></div>
+<script type="module">
+import { editorVisual } from "../../src/ui-visual.js";
+import { svgUniforme } from "../../src/escudo.js";
+const F = { escudo: { padrao: "metade", cor1: "#c8102e", cor2: "#0b3d91" }, uniforme: { padrao: "metade", cor1: "#c8102e", cor2: "#0b3d91", calcao: "#ffffff", meiao: "#ffd100", marca: "grupo_trem" } };
+editorVisual(document.getElementById("a"), F, { sigla: () => "TRE", parte: "titular" });
+editorVisual(document.getElementById("b"), JSON.parse(JSON.stringify(F)), { sigla: () => "TRE" });
+document.getElementById("c").innerHTML = [26, 46, 52, 88].map(t => svgUniforme({ ...F.uniforme, escudo: F.escudo, sigla: "TRE" }, t)).join(" ");
+window.F = F;
+if (location.search.includes("demo")) { // troca algumas opções como o dirigente faria
+  const a = document.getElementById("a"), muda = (campo, v) => { const el = a.querySelector(`select[data-campo="${campo}"]`); el.value = v; el.dispatchEvent(new Event("change", { bubbles: true })); };
+  muda("padrao", "faixaV"); muda("textura", "pontos"); muda("friso", "tres"); muda("frisoMeiao", "tres");
+  a.querySelector('span[data-campo="cor3"][data-cor="#ffffff"]').click();
+  a.querySelector('span[data-campo="corFriso"][data-cor="#ffffff"]').click();
+  document.getElementById("c").textContent = JSON.stringify(F.uniforme);
+}
+</script>
