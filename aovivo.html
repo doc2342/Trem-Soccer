@@ -184,7 +184,7 @@
 
 <script type="module">
 import { SEDES } from "./src/estadio.js";
-import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesDaPartida, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, golsDasPartidas, estatisticasDaLiga } from "./src/banco.js";
+import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesEGols, partidasDaCopa, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, estatisticasDaLiga } from "./src/banco.js";
 import { classificacao } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes } from "./src/banco.js";
@@ -459,32 +459,40 @@ let rodada = null, voltas = 0;
 // O servidor entrega os lances dos próximos 10 minutos (SQL 75) e a página mostra cada um na hora dele, pelo relógio: uma busca a cada ~9 minutos
 // em vez de uma a cada 10 segundos. adiante: a última busca trouxe lance futuro; sem o SQL 75 isso nunca acontece e vale o ritmo antigo.
 let proximaBusca = 0, adiante = false;
+// Os outros jogos do mesmo horário, para o aviso de gol no canto: na liga os da rodada; na copa os da mesma competição e fase (todos em jogo único,
+// no mesmo horário). gols: os deles que já chegaram, junto com os lances desta partida (lancesEGols), sem pedido a mais na transmissão.
+let outros = null; // { ps, clubes, gols }
 async function carregarRodada() {
+  if (ehCopa(partida)) {
+    const ps = ((await partidasDaCopa(partida.liga_id)) || []).filter(p => p.id !== id && p.fase === partida.fase && p.grupo === partida.grupo && p.copa_fase === partida.copa_fase);
+    if (ps.length) outros = { ps, clubes: await clubesPorIds([...new Set(ps.flatMap(p => [p.casa, p.fora]))]), gols: [] };
+    return;
+  }
   if (partida.fase && partida.fase !== "liga") return;
   const [ps, cls, est] = await Promise.all([partidasDoGrupo(partida.liga_id, partida.grupo), clubesDaLiga(partida.liga_id), estatisticasDaLiga(partida.liga_id, partida.grupo).catch(() => null)]);
   const doGrupo = ps.filter(p => !p.fase || p.fase === "liga");
   rodada = { ps: doGrupo, clubes: cls.filter(c => c.grupo === partida.grupo), daRodada: doGrupo.filter(p => p.rodada === partida.rodada), res: [], gols: [], art: (est && est.artilheiros) || [] };
+  outros = { ps: rodada.daRodada.filter(p => p.id !== id), clubes: rodada.clubes, gols: rodada.gols }; // o mesmo array: os gols chegam com os lances
   await atualizarRodada();
 }
 async function atualizarRodada() {
   if (!rodada) return;
-  const [res, gols] = await Promise.all([resultadosDe(rodada.ps.map(p => p.id), true), golsDasPartidas(rodada.daRodada.filter(p => p.id !== id).map(p => p.id))]);
-  rodada.res = res; rodada.gols = gols;
+  rodada.res = await resultadosDe(rodada.ps.map(p => p.id), true); // os gols dos outros jogos vêm com os lances desta partida (atualizar)
 }
-// Gol em outro jogo da rodada: aviso no canto com o placar novo. Usa só os gols que atualizarRodada já baixou (nenhuma consulta a mais);
+// Gol em outro jogo do mesmo horário (rodada da liga ou fase da copa): aviso no canto com o placar novo. Os gols chegam com os lances desta partida;
 // o primeiro desenho marca tudo como visto em silêncio, e gol liberado há mais de 60 s (aba voltando do segundo plano) não vira aviso.
 let golsAvisados = null;
 function avisosDaRodada(agora) {
-  if (!rodada) return;
+  if (!outros) return;
   const noAr = g => !g.libera_em || new Date(g.libera_em).getTime() <= agora, chave = g => g.partida_id + ":" + g.min + ":" + g.time + ":" + g.quem;
-  const liberados = rodada.gols.filter(noAr), primeira = !golsAvisados;
+  const liberados = outros.gols.filter(noAr), primeira = !golsAvisados;
   golsAvisados = golsAvisados || new Set();
   for (const g of liberados) {
     if (golsAvisados.has(chave(g))) continue;
     golsAvisados.add(chave(g));
     if (primeira || agora - new Date(g.libera_em || 0).getTime() > 60000) continue;
-    const p = rodada.daRodada.find(x => x.id === g.partida_id); if (!p) continue;
-    const c = id => rodada.clubes.find(x => x.id === id) || { nome: "—" }, gc = estadoDaRodada(agora, null).placares[p.id].g || [0, 0], fez = +g.time === 0 ? 0 : 1;
+    const p = outros.ps.find(x => x.id === g.partida_id); if (!p) continue;
+    const c = id => outros.clubes.find(x => x.id === id) || { nome: "—" }, gc = [0, 1].map(t => liberados.filter(x => x.partida_id === p.id && +x.time === t).length), fez = +g.time === 0 ? 0 : 1;
     const el = document.createElement("a"); el.className = "plantao"; el.href = "aovivo.html?id=" + p.id;
     el.innerHTML = `<span class="bola"></span>${svgEscudo(c(p.casa).escudo, c(p.casa).sigla, 20)}<span>${fez === 0 ? "<b>" : ""}${esc(c(p.casa).sigla || c(p.casa).nome)}${fez === 0 ? "</b>" : ""} <b>${gc[0]} x ${gc[1]}</b> ${fez === 1 ? "<b>" : ""}${esc(c(p.fora).sigla || c(p.fora).nome)}${fez === 1 ? "</b>" : ""}${g.quem ? `<div class="quem">⚽ ${esc(g.quem)} ${g.min}'</div>` : ""}</span>${svgEscudo(c(p.fora).escudo, c(p.fora).sigla, 20)}`;
     let box = $("avisos"); if (!box) { box = document.createElement("div"); box.id = "avisos"; document.body.append(box); }
@@ -674,7 +682,10 @@ async function atualizar() {
   // o relatório só é pedido depois do apito final; até lá, apenas os lances novos
   let res = null;
   if (m.fim || agora >= proximaBusca) {
-    let novos; [novos, res] = await Promise.all([lancesDaPartida(id, ultima), m.fim ? relatorioDaPartida(id) : null]);
+    // gols dos outros jogos no mesmo pedido: só os liberados depois do último que já temos
+    const ultimoGol = outros && outros.gols.length ? new Date(Math.max(...outros.gols.map(g => new Date(g.libera_em || 0).getTime()))).toISOString() : null;
+    let novos, gols; [[novos, gols], res] = await Promise.all([lancesEGols(id, ultima, outros ? outros.ps.map(p => p.id) : [], ultimoGol), m.fim ? relatorioDaPartida(id) : null]);
+    if (outros) { const k = g => g.partida_id + ":" + g.min + ":" + g.time + ":" + g.quem, ja = new Set(outros.gols.map(k)); outros.gols.push(...gols.filter(g => !ja.has(k(g)))); }
     // duas buscas podem correr juntas (volta à aba + relógio de 10 s) e trazer os mesmos lances: só entra ordem nova
     const tem = new Set(baixados.map(l => l.ordem));
     baixados.push(...novos.filter(l => !tem.has(l.ordem)));
@@ -732,7 +743,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, avisosDaRodada, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, avisosDaRodada, outros: () => outros, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance
 function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];

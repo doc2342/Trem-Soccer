@@ -183,6 +183,11 @@ export const relatorioDaPartida = id => sb.from("resultados").select("*").eq("pa
 export const golsDasPartidas = ids => ids.length ? sb.from("lances").select("partida_id, libera_em, min, time:dados->time, quem:dados->>quem").in("partida_id", ids).eq("dados->>resultado", "gol").then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 // depoisDe: só os lances de ordem maior que esta (a página ao vivo pede apenas os novos a cada consulta, para poupar tráfego)
 export const lancesDaPartida = (id, depoisDe = -100) => sb.from("lances").select("ordem, min, dados, libera_em").eq("partida_id", id).gt("ordem", depoisDe).order("ordem").then(ok);
+// Num pedido só: os lances novos da partida e os gols das outras (do mesmo horário) liberados depois de golsDepoisDe (ISO; null = todos).
+// Devolve [lances da partida, gols das outras no formato de golsDasPartidas]. Sem outras, é o lancesDaPartida de sempre.
+export const lancesEGols = (id, depoisDe, outras, golsDepoisDe) => !outras.length ? lancesDaPartida(id, depoisDe).then(l => [l, []])
+  : sb.from("lances").select("partida_id, ordem, min, dados, libera_em").or(`and(partida_id.eq.${id},ordem.gt.${depoisDe}),and(partida_id.in.(${outras.join(",")}),dados->>resultado.eq.gol${golsDepoisDe ? `,libera_em.gt."${golsDepoisDe}"` : ""})`).order("ordem").then(ok)
+    .then(l => [l.filter(x => x.partida_id === id).map(({ partida_id, ...x }) => x), l.filter(x => x.partida_id !== id).map(x => ({ partida_id: x.partida_id, libera_em: x.libera_em, min: x.min, time: x.dados.time, quem: x.dados.quem }))]);
 export const clubesPorIds = ids => comExtra(c => sb.from("clubes").select(c).in("id", ids), "id, grupo, dono, nome, sigla, escudo, uniforme, perfil, ultimo_acesso");
 
 // ---------- administração ----------
