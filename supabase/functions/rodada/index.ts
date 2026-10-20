@@ -795,7 +795,7 @@ const __motor = (() => {
     // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
     // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
     let atacante = null, ultimoNarrado = null, aposFalta = false, impedido = false; // aposFalta: a jogada recomeça com a cobrança de uma falta // time do ataque em andamento e do último ataque que foi narrado
-    let trilha = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
+    let trilha = [], rota = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
     const RODA = [
       (j, t, onde) => `${j} não acha espaço ${onde}, recua e o ${t} roda a bola.`,
       (j, t, onde) => `Marcação fechada ${onde}: ${j} volta o jogo e o ${t} troca passes atrás.`,
@@ -811,7 +811,8 @@ const __motor = (() => {
     // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
     const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
     const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
-    const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; portador = null; ultimoNarrado = atacante; return t; };
+    const comTrilha = texto => { const t = trilha.length ? trilha.map(frase).join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; ultimoNarrado = atacante; return t; };
+    // rota do lance para a animação: [zona, quem leva a bola, marcador vencido] por passo; vai junto da finalização
     const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
     // a bola chega a "jog": se estava com outro, o passe entra na frase anterior; devolve true se o jogador já era o portador
     function recebe(jog) {
@@ -828,10 +829,11 @@ const __motor = (() => {
     const comFolga = d => (d.folga || 0) >= CONFIG.embalo.narrar;
     function passo(i, zona, d) {
       const p = d.pivo, m = d.marcador, lado = zona[1], facil = comFolga(d);
-      if (!p) { portador = null; trilha.push([`${tm(i)} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
+      if (!p) { portador = null; rota.push([zona]); trilha.push([`${tm(i)} ${zona[0] === "D" ? "sai jogando" : "avança"} ${PELO[lado]}`]); return; }
       const depoisDeFalta = aposFalta, mesmo = recebe(p), nome = nm(p);
       // falta fora da zona de ataque: o time fica com a bola e recomeça dali, cobrando a falta (não é lei da vantagem)
-      if (d.falta && m) { evento(i, "falta", comTrilha(`Falta de ${nm(m)} em ${nome} ${ONDE[zona[0]](lado)}.`)); portador = p; aposFalta = true; return; }
+      if (d.falta && m) { evento(i, "falta", comTrilha(`Falta de ${nm(m)} em ${nome} ${ONDE[zona[0]](lado)}.`)); rota.push([zona, p.j.id]); portador = p; aposFalta = true; return; }
+      rota.push(m ? [zona, p.j.id, m.j.id] : [zona, p.j.id]);
       if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [facil ? `passa fácil por ${nm(m)}` : `passa por ${nm(m)}`] : facil ? ["sem ser incomodado"] : [])]);
       else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás com facilidade` : `supera ${nm(m)}`] : facil ? ["com todo o espaço do mundo"] : [])]);
     }
@@ -999,7 +1001,7 @@ const __motor = (() => {
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
     }
 
@@ -1056,7 +1058,7 @@ const __motor = (() => {
         const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada);
         if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
       };
-      e.ataques++; trilha = []; portador = null; bola = null; aposFalta = false;
+      e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false;
       soltarCartoes();
       if (!contra && ultimoNarrado === i && !rodou) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](tm(i))], { fechada: true }));
       atacante = i;
