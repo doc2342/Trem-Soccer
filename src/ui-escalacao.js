@@ -71,13 +71,14 @@ const nomes = await (await fetch("./dados/nomes.json")).json();
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 
-const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
+const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", cruzamento: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
 const OPCOES = {
   mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
   pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
   agressividade: ["Agressividade", [[-2, "Muito baixa"], [-1, "Baixa"], [0, "Normal"], [1, "Alta"], [2, "Muito alta"]]],
   passe: ["Passe", [["misto", "Misto"], ["curto", "Curto"], ["longo", "Bola longa"]]],
-  finalizar: ["Finalização", [["misto", "Misto"], ["longe", "Arriscar de longe"], ["area", "Trabalhar até a área"]]],
+  finalizar: ["Finalização", [["misto", "Misto"], ["longe", "Resolver rápido (chute de fora e cruzamento)"], ["area", "Trabalhar até a área"]]],
+  cruzamento: ["Cruzamentos", [["misto", "Misto"], ["alto", "Altos (cabeceio)"], ["rasteiro", "Rasteiros"]]],
   lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
@@ -85,7 +86,7 @@ const OPCOES = {
 const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"], ["umAMenos", "se estiver com um a menos"], ["umAMais", "se estiver com um a mais"]];
 const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"], ["mal", "só se ele estiver jogando mal"], ["naoBem", "a não ser que ele esteja jogando bem"]];
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
-  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Arriscar de longe"], ["finalizar:area", "Trabalhar até a área"]];
+  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Resolver rápido"], ["finalizar:area", "Trabalhar até a área"], ["cruzamento:alto", "Cruzamentos altos"], ["cruzamento:rasteiro", "Cruzamentos rasteiros"]];
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 // papéis e cobradores: chave → [rótulo, só jogador de linha?, quantos]
 const PAPEIS = { capitao: ["Capitão", false, 1], vice: ["Vice", false, 1], armador: ["Armador", true, 1], alvo: ["Homem-alvo", true, 1], escanteio: ["Escanteios", true, 3], falta: ["Faltas", true, 3], penalti: ["Pênaltis", true, 5] };
@@ -307,6 +308,10 @@ function validar() {
   for (const z of ["DE", "DC", "DD", "ME", "MC", "MD"]) if (cob[z] < 0.2) avisos.push(`Quase ninguém cobre: ${NOME_ZONA[z]}.`);
   if (cob.DC < 1) avisos.push("Centro da defesa com pouca gente: menos de dois zagueiros.");
   if (cob.AC < 0.5) avisos.push("Pouca presença na área: cruzamentos e bolas em profundidade ficam sem alvo.");
+  // cruzamento escolhido sem quem o aproveite na área
+  const naArea = esc11.filter(x => (COBERTURA[x.pos].AC || 0) > 0), melhorNaArea = f => Math.max(0, ...naArea.map(x => f(x.j.at)));
+  if (E.instr.cruzamento === "alto" && melhorNaArea(at => (at[IDX.cab] + at[IDX.for]) / 2) < 25) avisos.push("Cruzamentos altos sem ninguém forte de cabeça na área.");
+  if (E.instr.cruzamento === "rasteiro" && melhorNaArea(at => (at[IDX.fin] + at[IDX.vel]) / 2) < 25) avisos.push("Cruzamentos rasteiros sem ninguém rápido e bom de finalização na área.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
   esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
   esc11.forEach(x => { const f = foraDePosicao(x.j, x.pos); if (f) avisos.push(`${x.j.nome} está ${f.fam === "I" ? "improvisado" : "competente (não natural)"} de ${sg(x.pos)} e perde ${f1(f.perda)} de nota (rende ${f.fam === "I" ? "80" : "93"}%).${f.melhor ? ` ${f.melhor.nome} renderia mais ali (${f1(f.ganho)}).` : ""}`); });

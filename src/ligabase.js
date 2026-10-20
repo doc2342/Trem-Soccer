@@ -109,7 +109,7 @@ export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivel
 // Instruções que o dirigente pode escolher para a base, com as opções de cada uma (as mesmas da tática principal).
 export const INSTRUCOES_DA_BASE = {
   mentalidade: [-2, -1, 0, 1, 2], agressividade: [-2, -1, 0, 1, 2], pressao: [0, 1, 2],
-  passe: ["misto", "curto", "longo"], lado: ["misto", "E", "C", "D", "lados"], finalizar: ["misto", "longe", "area"],
+  passe: ["misto", "curto", "longo"], lado: ["misto", "E", "C", "D", "lados"], finalizar: ["misto", "longe", "area"], cruzamento: ["misto", "alto", "rasteiro"],
   contraAtaque: [false, true], impedimento: [false, true],
 };
 // Só o que é válido passa; o que faltar fica como o bot faria.

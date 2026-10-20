@@ -71,9 +71,13 @@ export const CONFIG = {
   chuva: { curto: -0.09, misto: -0.04, longo: 0, erros: 0.5 },
   estiloLongo: { profundidade: 1.6, cruzamento: 1.3, area: 0.6, longe: 0.8 }, // mistura de chances da bola longa
   estiloCurto: { area: 1.2, longe: 0.8 },
-  // Finalização: arriscar de longe dá mais chutes (e o duelo perdido no ataque vira chute mais vezes), mas piores;
-  //   trabalhar até a área dá menos chutes e melhores, e o ataque emperrado perde a bola em vez de chutar. longe/outros: peso dos tipos de chance
-  finalizar: { longe: { longe: 2.2, outros: 0.85, forcado: 1.8, qualidade: 1.5 }, area: { longe: 0.35, outros: 1.1, forcado: 0.4 } },
+  // Finalização: resolver rápido (longe) chuta de fora e cruza cedo: mais chutes (e o duelo perdido no ataque vira chute ou chuveirinho mais vezes), mas piores;
+  //   trabalhar até a área dá menos chutes e melhores, e o ataque emperrado perde a bola em vez de chutar.
+  //   longe/cruzamento/outros: peso dos tipos de chance; cruzaForcado: parte dos duelos perdidos pelo lado que vira cruzamento afobado
+  finalizar: { longe: { longe: 2.2, cruzamento: 1.4, outros: 0.85, forcado: 1.8, qualidade: 1.5, cruzaForcado: 0.5 }, area: { longe: 0.35, cruzamento: 0.7, outros: 1.15, forcado: 0.4 } },
+  // Cruzamento alto (cabeceio) ou rasteiro (finalização e velocidade de quem chega). No misto, cada cruzamento vai para o que a área faz melhor.
+  //   rasteiro: xG do rasteiro em relação ao alto; afobado: xG do cruzamento forçado
+  cruzamento: { rasteiro: 1.1, afobado: 0.7 },
   // por nível de mentalidade de quem defende (só para quem escolheu a instrução): chute de longe contra retranca; área contra retranca e contra time aberto
   finalizarXmentalidade: { longe: 0.15, areaRetranca: 0.1, areaAberto: 0.08 },
   // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
@@ -128,7 +132,8 @@ export const INSTRUCOES_PADRAO = {
   pressao: 0, // 0, 1 ou 2
   lado: "misto", // misto, E, C, D ou lados
   passe: "misto", // misto, curto ou longo
-  finalizar: "misto", // misto, longe (arriscar de fora) ou area (trabalhar a bola até a área)
+  finalizar: "misto", // misto, longe (resolver rápido: chute de fora e cruzamento) ou area (trabalhar a bola até a área)
+  cruzamento: "misto", // misto, alto ou rasteiro
   contraAtaque: false,
   impedimento: false,
   capitao: null, vice: null, armador: null, alvo: null, // ids de jogadores
@@ -323,20 +328,22 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   const area = atk.zonas.AC, x = CONFIG.xgBase, k = CONFIG.inclinacaoXg, I = atk.instr;
   const alvoAereo = area.reduce((s, o) => s + o.w * media(o.jog.at[A.cab], o.jog.at[A.for]), 0) / 30;
   const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
+  const alvoRasteiro = area.reduce((s, o) => s + o.w * media(o.jog.at[A.fin], o.jog.at[A.vel]), 0) / 30;
+  const alvoCruz = I.cruzamento === "alto" ? alvoAereo : I.cruzamento === "rasteiro" ? alvoRasteiro : Math.max(alvoAereo, alvoRasteiro);
   const presenca = Math.min(1, area.reduce((s, o) => s + o.w, 0));
   const pt = CONFIG.pesoTipo;
   const espaco = Math.max(0.3, 1 + CONFIG.espacoPorMentalidade * def.instr.mentalidade); // linha recuada tira o espaço nas costas
   const jeito = I.passe === "longo" ? CONFIG.estiloLongo : I.passe === "curto" ? CONFIG.estiloCurto : {};
   const estilo = { profundidade: (jeito.profundidade || 1) * (contra ? 2 : 1) * espaco, area: jeito.area || 1, longe: jeito.longe || 1, cruzamento: jeito.cruzamento || 1, corte: 1 };
   const fin = CONFIG.finalizar[I.finalizar]; // chutar de longe ou trabalhar até a área: muda a mistura dos tipos de chance
-  if (fin) for (const t in estilo) estilo[t] *= t === "longe" ? fin.longe : fin.outros;
+  if (fin) for (const t in estilo) estilo[t] *= fin[t] || fin.outros;
   const D = CONFIG.decisaoDoChute, pe = v => D ? mod(v, D.referencia, D.inclinacao) : 1; // vontade de chutar, pelo pé
   const opcoes = lado === "C"
     ? [["profundidade", pt.profundidade * alvoVeloz * estilo.profundidade], ["area", pt.area * presenca * estilo.area], ["longe", pt.longe * estilo.longe * pe(pivo.at[A.lon])]]
-    : [["cruzamento", pt.cruzamento * alvoAereo * estilo.cruzamento], ["corte", pt.corte * pe(media(pivo.at[A.fin], pivo.at[A.lon]))], ["longe", pt.longeLado * estilo.longe * pe(pivo.at[A.lon])]];
-  const tipo = forcado ? "longe" : sortearPeso(rng, opcoes, o => o[1])[0];
+    : [["cruzamento", pt.cruzamento * alvoCruz * estilo.cruzamento], ["corte", pt.corte * pe(media(pivo.at[A.fin], pivo.at[A.lon]))], ["longe", pt.longeLado * estilo.longe * pe(pivo.at[A.lon])]];
+  const tipo = !forcado ? sortearPeso(rng, opcoes, o => o[1])[0] : lado !== "C" && fin && fin.cruzaForcado && rng.chance(fin.cruzaForcado) ? "cruzamento" : "longe";
   // chute forçado: quem chuta mal rola para quem chuta melhor (ele mesmo ou um atacante da área)
-  if (forcado && D) { const quem = sortearPeso(rng, [{ jog: pivo }, ...area.filter(o => o.jog !== pivo)], o => Math.pow(pe(o.jog.at[A.lon]), 2)); if (quem) pivo = quem.jog; }
+  if (forcado && D && tipo === "longe") { const quem = sortearPeso(rng, [{ jog: pivo }, ...area.filter(o => o.jog !== pivo)], o => Math.pow(pe(o.jog.at[A.lon]), 2)); if (quem) pivo = quem.jog; }
   const zagueiro = (sortearPeso(rng, def.zonas.DC, o => o.w) || {}).jog;
   const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
   const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
@@ -346,10 +353,21 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   const ehAlvo = o => o.jog.j.id === I.alvo ? CONFIG.pesoAlvo : 1;
 
   if (tipo === "cruzamento") {
-    c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.cab] + o.jog.at[A.for]) * ehAlvo(o)).jog;
-    const f = c.finalizador.at;
-    c.xg = x.cruzamento * Math.pow(mod(pivo.at[A.cru], 28, k), 0.6) * mod(media(f[A.cab], f[A.for]), zag ? media(zag[A.cab], zag[A.mar], zag[A.for]) : semZaga, k);
-    c.chute = f[A.cab]; c.defesa = gk ? media(gk[A.enc], gk[A.pos]) : semGoleiro;
+    // alto ou rasteiro: o escolhido na instrução; no misto, sorteado pela força da área no alto e no chão
+    c.rasteiro = I.cruzamento === "rasteiro" || I.cruzamento !== "alto" && rng.chance(alvoRasteiro / (alvoAereo + alvoRasteiro || 1));
+    const Cz = CONFIG.cruzamento;
+    if (c.rasteiro) { // rasteiro: o cruzador precisa chegar à linha de fundo; quem chega bate de primeira contra a marcação e o reflexo do goleiro
+      c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.fin] + o.jog.at[A.vel]) * ehAlvo(o)).jog;
+      const f = c.finalizador.at;
+      c.xg = x.cruzamento * Cz.rasteiro * Math.pow(mod(media(pivo.at[A.cru], pivo.at[A.dri]), 28, k), 0.6) * mod(media(f[A.fin], f[A.vel]), zag ? media(zag[A.mar], zag[A.pos], zag[A.vel]) : semZaga, k);
+      c.chute = f[A.fin]; c.defesa = gk ? gk[A.ref] : semGoleiro;
+    } else {
+      c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.cab] + o.jog.at[A.for]) * ehAlvo(o)).jog;
+      const f = c.finalizador.at;
+      c.xg = x.cruzamento * Math.pow(mod(pivo.at[A.cru], 28, k), 0.6) * mod(media(f[A.cab], f[A.for]), zag ? media(zag[A.cab], zag[A.mar], zag[A.for]) : semZaga, k);
+      c.chute = f[A.cab]; c.defesa = gk ? media(gk[A.enc], gk[A.pos]) : semGoleiro;
+    }
+    if (forcado) c.xg *= Cz.afobado; // chuveirinho de quem perdeu o duelo: cruza sem tempo de mirar
   } else if (tipo === "corte") {
     c.xg = x.corte * mod(media(pivo.at[A.fin], pivo.at[A.lon]), 26, k);
     c.chute = media(pivo.at[A.fin], pivo.at[A.lon]); c.defesa = gk ? media(gk[A.ref], gk[A.pos]) : semGoleiro;
@@ -382,7 +400,7 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
 function narrar(c, resultado, goleiro, nm) {
   const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
   const inicio = {
-    cruzamento: `${cr} cruza da ${lado} e ${f} cabeceia`,
+    cruzamento: c.rasteiro ? `${cr} cruza rasteiro da ${lado} e ${f} bate de primeira` : `${cr} cruza da ${lado} e ${f} cabeceia`,
     corte: `${f} vem da ${lado} em diagonal e chuta`,
     profundidade: `${cr} lança em profundidade e ${f} sai na cara do gol`,
     area: c.criador === c.finalizador ? `${f} recebe na área e finaliza` : `${cr} acha ${f} na área, que finaliza`,
