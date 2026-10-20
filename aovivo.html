@@ -100,6 +100,9 @@
   .tvTab td.c { text-align:left; max-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvTab .sobe { color:#34e36a; } .tvTab .desce { color:#ff6b6b; } .tvTab tr + tr td { border-top:1px solid #ffffff14; }
   .tvAna { display:grid; grid-template-columns:1fr 1fr; gap:22px; } .tvAna p { margin:6px 0 0; font-size:16px; line-height:1.4; }
   .tvTime { display:flex; align-items:center; gap:8px; font-family:var(--display); font-size:19px; text-transform:uppercase; padding-bottom:6px; border-bottom:2px solid #ffffff33; }
+  .tvCom { display:flex; align-items:center; gap:12px; margin-bottom:12px; } .tvCom .tvTit { margin:0; } .tvCom svg { flex:none; }
+  .balao { position:relative; margin-top:12px; padding:8px 12px 10px; border-radius:14px; background:#f4f1ea; color:#1b1f2a; } .balao p { margin:4px 0 0; } .balao p:first-child { margin:0; }
+  .balao::before { content:""; position:absolute; top:-9px; left:22px; border:9px solid transparent; border-top:0; border-bottom-color:#f4f1ea; }
   @keyframes tvEntra { from { opacity:0; transform:translateY(12px); } }
   @media (max-width:620px) { .tvRod, .tvAna { grid-template-columns:1fr; gap:12px; } .tvTit { font-size:18px; } .tvAna p { font-size:14.5px; } .tvRod { font-size:13px; } }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
@@ -292,7 +295,9 @@ function analiseDoIntervalo(pt) {
 const COMENTARISTAS = [["Juvenal Prancheta", "gazeta_dugoutense"], ["Tião Linha de Fundo", "grupo_trem"], ["Célia Xavier, a Professora", "gazeta_dugoutense"], ["Bira Meia-Lua", "grupo_trem"]];
 function telaDoAnalista(pt) {
   const a = analiseDoIntervalo(pt), c = [clubes[partida.casa], clubes[partida.fora]], [quem, veiculo] = COMENTARISTAS[partida.id % COMENTARISTAS.length];
-  return `<div class="tvTela"><div class="tvTit">🎙️ Comentarista<small style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">${selo(veiculo, 20)}${esc(quem)} · ${esc(MARCAS[veiculo].nome)}</small></div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div></div>`;
+  // silhueta: cabeça e ombros com fone e microfone
+  const silhueta = `<svg width="58" height="58" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="31" fill="#ffffff14"/><path d="M10 60c2-13 11-19 22-19s20 6 22 19z" fill="#cfd3dc"/><circle cx="32" cy="25" r="12" fill="#cfd3dc"/><path d="M19 25a13 13 0 0 1 26 0" fill="none" stroke="#facc15" stroke-width="3"/><rect x="16" y="22" width="5" height="9" rx="2" fill="#facc15"/><path d="M18 31q2 7 10 7" fill="none" stroke="#facc15" stroke-width="2"/><circle cx="29" cy="38" r="2.4" fill="#facc15"/></svg>`;
+  return `<div class="tvTela"><div class="tvCom">${silhueta}<div><div class="tvTit">🎙️ Comentarista</div><div style="display:flex;align-items:center;gap:6px;font-size:13px;opacity:.8;letter-spacing:.06em;text-transform:uppercase">${selo(veiculo, 20)}${esc(quem)} · ${esc(MARCAS[veiculo].nome)}</div></div></div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div><div class="balao">${a[i].map(f => `<p>${f}</p>`).join("")}</div></div>`).join("")}</div></div>`;
 }
 
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
