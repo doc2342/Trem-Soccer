@@ -87,6 +87,21 @@
   @keyframes tvLed { to { transform:translateX(-50%); } }
   @media (max-width:620px) { .spot { flex-direction:column; gap:10px; text-align:center; } .spot img, .spot .letra { width:96px !important; height:96px !important; } .spot .letra { font-size:17px; } .spot .marca { font-size:30px; } .spot .bordao { font-size:15px; } }
   @media (prefers-reduced-motion:reduce) { .spot, .spot img, .spot .letra, .led .faixa { animation:none; } }
+  /* telas do intervalo entre os comerciais: placares da rodada com a tabela parcial, e o analista */
+  #tvSpot { width:100%; display:flex; justify-content:center; }
+  .tvTela { width:100%; max-width:780px; animation:tvEntra .6s ease; }
+  .tvTit { font-family:var(--display); font-size:22px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px; }
+  .tvTit small { font-size:13px; font-weight:400; opacity:.7; letter-spacing:.08em; margin-left:6px; }
+  .tvRod { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:18px; align-items:start; font-size:14px; }
+  .tvJogo { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px; padding:5px 8px; border-radius:6px; background:#ffffff0d; margin-bottom:4px; }
+  .tvJogo span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvJogo span:first-child { text-align:right; }
+  .tvJogo b { font-family:var(--display); font-size:17px; font-variant-numeric:tabular-nums; } .tvJogo.nosso, .tvTab tr.nosso td { background:#facc1526; color:#ffe58a; font-weight:700; }
+  .tvTab { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; } .tvTab td, .tvTab th { padding:3px 5px; text-align:center; } .tvTab th { font-size:11px; opacity:.6; font-weight:400; }
+  .tvTab td.c { text-align:left; max-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tvTab .sobe { color:#34e36a; } .tvTab .desce { color:#ff6b6b; } .tvTab tr + tr td { border-top:1px solid #ffffff14; }
+  .tvAna { display:grid; grid-template-columns:1fr 1fr; gap:22px; } .tvAna p { margin:6px 0 0; font-size:16px; line-height:1.4; }
+  .tvTime { display:flex; align-items:center; gap:8px; font-family:var(--display); font-size:19px; text-transform:uppercase; padding-bottom:6px; border-bottom:2px solid #ffffff33; }
+  @keyframes tvEntra { from { opacity:0; transform:translateY(12px); } }
+  @media (max-width:620px) { .tvRod, .tvAna { grid-template-columns:1fr; gap:12px; } .tvTit { font-size:18px; } .tvAna p { font-size:14.5px; } .tvRod { font-size:13px; } }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
     background:linear-gradient(110deg, var(--c1) 0 38%, var(--c2) 38% 41%, var(--c1) 41%); color:var(--txt-gol); animation:golEntra 4.5s cubic-bezier(.2,.8,.2,1) forwards; }
   .aviso-gol .camisa { animation:golPula 4.5s ease-out forwards; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
@@ -205,10 +220,10 @@ botaoDoSom();
 let vistos = null, fase = null;
 // intervalo: a TV roda só os comerciais dos masters dos dois times e da marca que dá nome à competição, um a cada 8 s (sem master nenhum, roda as placas);
 // o LED embaixo passa as demais marcas (as que não estão na TV) e o anuncie aqui.
-let tv = null;
+let tv = null, tvForcada = false; // tvForcada: o botão 📺 da demo liga a TV fora do intervalo
 function intervaloComercial(m) {
-  const el = $("intervalo"), no = !m.antes && !m.fim && m.texto.includes("intervalo");
-  if (!no) { if (tv) { clearInterval(tv); tv = null; el.innerHTML = ""; } return; }
+  const el = $("intervalo"), no = tvForcada || !m.antes && !m.fim && m.texto.includes("intervalo");
+  if (!no) { if (tv) { clearTimeout(tv); tv = null; el.innerHTML = ""; } return; }
   if (tv) return; // já está passando: não recomeça a cada atualização
   const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000, volta = new Date(partida.inicio).getTime() + total * (60 + acrDoJogo()[0]) / 105 * 60000;
   const placas = placasDoEstadio(partida.casa), lados = [partida.casa, partida.fora].map(id => clubes[id]).filter(c => c && MARCAS[c.marca]);
@@ -218,17 +233,64 @@ function intervaloComercial(m) {
   const naTv = marcas.map(s => s.master.marca), led = Object.keys(MARCAS).filter(k => !naTv.includes(k)).map(k => `<span style="color:#fff">${selo(k, 24)}${esc(MARCAS[k].nome)}</span>`).join("") + `<span style="color:#fff">${esc(ANUNCIE.nome)}</span>`;
   el.innerHTML = `<div class="tv" id="tv"><span class="selo-tv">Intervalo</span><span class="volta" id="tvVolta"></span><div id="tvSpot"></div><div class="barra" id="tvBarra"></div></div>
     <div class="led" aria-hidden="true"><div class="faixa">${led}${led}</div></div>`;
-  let n = 0;
+  // entre um comercial e outro, alternadas: placares da rodada (só liga) e o analista; cada uma fica 15 s
+  const extras = [rodada && "rodada", "analista"].filter(Boolean);
+  let n = 0, c = 0, k = 0;
   const passar = () => {
-    const s = fila[n++ % fila.length], mk = s.master && MARCAS[s.master.marca], seg = Math.max(0, Math.round((volta - Date.now()) / 1000));
-    $("tvVolta").textContent = `Voltamos em ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
+    if (!$("tvSpot")) { tv = null; return; }
+    const seg = Math.max(0, Math.round((volta - Date.now()) / 1000)), b = $("tvBarra"), tela = n++ % 2 ? extras[k++ % extras.length] : null, dur = tela ? 15000 : 8000;
+    $("tvVolta").textContent = tvForcada ? "demo" : `Voltamos em ${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}`;
+    b.style.animation = "none"; b.offsetWidth; b.style.animation = ""; b.style.animationDuration = dur + "ms";
+    tv = setTimeout(passar, dur);
+    if (tela) { const pt = primeiroTempo();
+      $("tvSpot").innerHTML = tela === "rodada" ? telaDaRodada(pt) : telaDoAnalista(pt);
+      $("tv").style.background = tela === "rodada" ? "radial-gradient(circle at 30% 40%, #173a2b, #0d1220 72%)" : "radial-gradient(circle at 70% 40%, #2c2350, #0d1220 72%)";
+      return; }
+    const s = fila[c++ % fila.length], mk = s.master && MARCAS[s.master.marca];
     $("tvSpot").innerHTML = mk
       ? `<div class="spot">${selo(s.master.marca, 150)}<div><div class="marca">${esc(mk.nome)}</div><div class="bordao">“${esc(mk.bordao)}”</div><div class="quem">${esc(s.quem || "Patrocinador master do " + s.master.nome)}</div></div></div>`
       : `<div class="spot"><div class="letra" style="background:${s.cor};color:${s.txt}">${esc(s.nome)}</div><div><div class="marca">${esc(s.nome)}</div><div class="bordao">${s.convite ? esc(s.bordao) : `“${esc(s.bordao)}”`}</div><div class="quem">${s.convite ? "Placa disponível" : "Nas placas do estádio"}</div></div></div>`;
     $("tv").style.background = mk ? "radial-gradient(circle at 30% 50%, #24304d, #0d1220 70%)" : `radial-gradient(circle at 30% 50%, ${s.cor}55, #0d1220 70%)`;
-    const b = $("tvBarra"); b.style.animation = "none"; b.offsetWidth; b.style.animation = "";
   };
-  passar(); tv = setInterval(() => { if (!$("tvSpot")) { clearInterval(tv); tv = null; return; } passar(); }, 8000);
+  passar();
+}
+// lances do 1º tempo já no ar (os do 2º tempo podem estar baixados antes da hora e não entram)
+const primeiroTempo = () => baixados.filter(l => l.dados && l.dados.tipo !== "inicio" && l.dados.min <= 45 && (!l.libera_em || new Date(l.libera_em).getTime() <= Date.now())).map(l => l.dados);
+// placares dos jogos do grupo no apito do 1º tempo e a tabela como ficaria com eles (setas: comparadas com o início da rodada)
+function telaDaRodada(pt) {
+  const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000, T = Math.min(Date.now(), new Date(partida.inicio).getTime() + (45 + acrDoJogo()[0]) * total / 105 * 60000);
+  const e = estadoDaRodada(T, [0, 1].map(i => pt.filter(l => l.time === i && l.resultado === "gol").length)), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—");
+  const posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), nosso = c => c === partida.casa || c === partida.fora;
+  const jogos = rodada.daRodada.map(p => { const g = e.placares[p.id].g; return `<div class="tvJogo ${p.id === id ? "nosso" : ""}"><span>${nome(p.casa)}</span><b>${g ? g[0] + " x " + g[1] : "x"}</b><span>${nome(p.fora)}</span></div>`; }).join("");
+  const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i;
+    return `<tr class="${nosso(t.clube.id) ? "nosso" : ""}"><td>${i + 1}</td><td class="${d > 0 ? "sobe" : "desce"}" style="font-size:11px">${d > 0 ? "▲" + d : d < 0 ? "▼" + -d : ""}</td><td class="c">${esc(t.clube.nome)}</td><td><b>${t.pts}</b></td><td>${t.gp - t.gc}</td></tr>`; }).join("");
+  return `<div class="tvTela"><div class="tvRod"><div><div class="tvTit">Rodada ${partida.rodada}<small>placar do intervalo</small></div>${jogos}</div>
+    <div><div class="tvTit">Se acabasse agora<small>${esc(nomeDoGrupo(partida.grupo))}</small></div><table class="tvTab"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>SG</th></tr>${tabela}</table></div></div></div>`;
+}
+// o comentarista do intervalo: até duas frases por time, só com o que a narração do 1º tempo mostrou
+function analiseDoIntervalo(pt) {
+  const ult = pt.filter(l => l.p).pop(), posse = ult ? ult.p[0] : 50, f1 = x => x.toFixed(1).replace(".", ","), LADO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
+  return [0, 1].map(i => {
+    const meu = pt.filter(l => l.time === i), fin = meu.filter(l => l.resultado !== undefined), gols = fin.filter(l => l.resultado === "gol").length, xg = fin.reduce((s, l) => s + (l.xg || 0), 0);
+    const alvo = fin.filter(l => l.resultado === "gol" || l.resultado === "defesa").length, p = i ? 100 - posse : posse, verm = meu.find(l => l.tipo === "vermelho"), am = meu.filter(l => l.tipo === "amarelo").length;
+    const [ld, nl] = Object.entries(fin.reduce((o, l) => (l.lado && (o[l.lado] = (o[l.lado] || 0) + 1), o), {})).sort((a, b) => b[1] - a[1])[0] || [], longe = fin.filter(l => l.tipo === "longe").length;
+    const frases = [];
+    if (verm) frases.push(`Ficou com um a menos aos ${verm.min}'${verm.ac ? "+" + verm.ac : ""} e vai ter que se reorganizar no vestiário.`);
+    if (gols - xg >= 0.8) frases.push(`Fez ${gols} com só ${f1(xg)} de xG: aproveitamento cirúrgico, o placar está generoso.`);
+    else if (xg - gols >= 0.8) frases.push(`Criou ${f1(xg)} de xG e ${gols ? "só marcou " + gols : "passou em branco"}: o placar engana, merecia mais.`);
+    if (!fin.length) frases.push("Não finalizou nenhuma vez. Precisa de mais coragem no último terço.");
+    else if (nl >= 3 && nl / fin.length >= 0.5) frases.push(`Chega mais ${LADO[ld]}: ${nl} das ${fin.length} finalizações saíram por ali.`);
+    else if (longe >= 3 && longe / fin.length >= 0.5) frases.push(`Insiste no chute de fora da área (${longe} de ${fin.length}); falta infiltrar.`);
+    if (p >= 58) frases.push(`Manda no jogo com ${p}% de posse.`);
+    else if (p <= 42) frases.push(meu.some(l => l.tipo === "contra") ? `Abriu mão da bola (${p}%) e aposta no contra-ataque.` : `Ficou só com ${p}% da bola e sofre para sair jogando.`);
+    if (!verm && am >= 2) frases.push(`Tem ${am} amarelados: cuidado redobrado na marcação no 2º tempo.`);
+    if (frases.length < 2 && fin.length) frases.push(`Até aqui, ${fin.length} finalizaç${fin.length > 1 ? "ões" : "ão"} e ${alvo} no alvo.`);
+    return frases.slice(0, 2);
+  });
+}
+function telaDoAnalista(pt) {
+  const a = analiseDoIntervalo(pt), c = [clubes[partida.casa], clubes[partida.fora]];
+  return `<div class="tvTela"><div class="tvTit">🎙️ Análise do intervalo</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div></div>`;
 }
 
 // aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
@@ -571,13 +633,13 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance
 function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button><button id="dTv">📺 TV</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
@@ -596,6 +658,8 @@ function demo() {
     [0, 1].forEach(t => { for (let k = 0; k < gols[t]; k++) narracao.push({ resultado: "gol", time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }); });
     narracao.sort((a, b) => a.min - b.min); const t = lado();
     cartaoDeFim({ gols, narracao, melhor: { nome: sorte(nomes(t)), nota: 7 + Math.random() * 2, time: t } }); };
+  // TV do intervalo a qualquer hora (comercial → placares → comercial → analista); de novo desliga
+  $("dTv").onclick = () => { tvForcada = !tvForcada; intervaloComercial(momento()); if (tvForcada) $("intervalo").scrollIntoView({ behavior: "smooth" }); };
 }
 iniciar().then(() => { if (new URLSearchParams(location.search).has("demo")) demo(); }).catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>
