@@ -44,6 +44,7 @@
   .fimJogo .melhor { margin-top:14px; display:inline-flex; align-items:center; gap:10px; padding:6px 14px; border-radius:999px; background:#ffffff14; font-size:14px; animation:fimSobe .5s 1.2s both; }
   .fimJogo .melhor b { font-family:var(--display); font-size:17px; letter-spacing:.04em; text-transform:uppercase; }
   .fimJogo .melhor .n { font-family:var(--display); font-weight:700; font-size:20px; color:#facc15; }
+  .fimJogo .veredito { margin-top:12px; font-size:14px; line-height:1.4; color:#e2e8f0; animation:fimSobe .5s 1.6s both; }
   .fimJogo .numeros { margin-top:12px; padding:0 7%; display:grid; gap:7px; font-size:14px; animation:fimSobe .5s 1s both; }
   .fimJogo .nl { display:grid; grid-template-columns:60px 1fr 60px; align-items:center; font-variant-numeric:tabular-nums; }
   .fimJogo .nl > span:first-child { text-align:left; font-weight:700; } .fimJogo .nl > span:nth-child(3) { text-align:right; font-weight:700; } .fimJogo .nl .mut { color:#cbd5e1; }
@@ -302,6 +303,52 @@ const COMENTARISTAS = [
     engana: (xg, g) => `Tome nota: ${xg} de xG e ${g ? "apenas " + g + (g > 1 ? " gols" : " gol") : "nenhum gol"}. O placar engana; o desempenho merecia mais.`, generoso: (g, xg) => `Tome nota: ${g} ${g > 1 ? "gols" : "gol"} com ${xg} de xG. Eficiência acima da média, e isso não se repete toda hora.` },
   { nome: "Bira Meia-Lua", veiculo: "grupo_trem", abre: ["Ô, meu amigo…", "Senta que lá vem análise."], fecha: ["Futebol é simples, a gente que complica.", "Calma, que tem mais 45."],
     engana: (xg, g) => `Criou ${xg} de xG e ${g ? "fez só " + g : "passou em branco"}… o placar tá de brincadeira com esse time.`, generoso: (g, xg) => `Fez ${g} com ${xg} de xG, meu amigo. Futebol é bola na rede, o resto é conversa.` }];
+// veredito do fim de jogo, uma lista por situação no jeito de cada um. o: v vencedor, g placar (vencedor primeiro), t time do placar que engana, x seu xG, ng seus gols ("só 1 gol", "nenhum gol")
+const VEREDITOS = [
+  { goleada: [o => `${o.v} ${o.g}: desenho perfeito, a prancheta saiu de campo sem um rabisco.`, o => `Goleada de ${o.v}. Quando o plano encaixa, o placar é só consequência.`],
+    virada: [o => `${o.v} virou: ajuste de prancheta no meio do caminho e o jogo mudou de dono.`, o => `Saiu atrás e virou. ${o.v} redesenhou o jogo com a bola rolando.`],
+    fim: [o => `${o.v} decidiu no fim. Paciência também é tática, anota aí.`, o => `Gol no apagar das luzes para ${o.v}: a jogada ensaiada fica pro final.`],
+    engana: [o => `${o.t} criou ${o.x} de xG e ${o.ng} na rede: o desenho foi bom, faltou o traço final.`, o => `No papel, ${o.t} merecia mais: ${o.x} de xG para ${o.ng}.`],
+    generoso: [o => `${o.t} fez ${o.ng} com ${o.x} de xG: no papel não era pra tanto, mas o placar não pergunta.`, o => `${o.t} aproveitou tudo: ${o.ng} com ${o.x} de xG. Prancheta nenhuma prevê isso.`],
+    empate: [o => `${o.g}: duas pranchetas que se anularam.`, o => `Empate no desenho: ninguém achou o espaço que procurava.`],
+    vitoria: [o => `${o.v} venceu por ${o.g}: plano cumprido, fecha a prancheta.`, o => `Vitória de ${o.v}. O desenho funcionou do jeito que estava no papel.`] },
+  { goleada: [o => `É GOLEADA, minha gente! ${o.v} passou o trem por cima!`, o => `${o.g}! ${o.v} não teve dó, Minha Nossa Senhora do Escanteio!`],
+    virada: [o => `VIROU! ${o.v} buscou o jogo, que coisa linda, minha gente!`, o => `Tava perdendo e virou! Esse ${o.v} tem raça, segura o coração!`],
+    fim: [o => `No finzinho! ${o.v} arrancou essa vitória do fundo da alma!`, o => `Eu não aguento! ${o.v} decide no apagar das luzes!`],
+    engana: [o => `${o.t} com ${o.x} de xG e ${o.ng}? O placar tá mentindo, gente!`, o => `Coitado do ${o.t}! ${o.x} de xG e ${o.ng}… o futebol é cruel!`],
+    generoso: [o => `${o.t} fez ${o.ng} com ${o.x} de xG! Eficiência de outro planeta!`, o => `${o.ng} com ${o.x} de xG! O ${o.t} tá com a estrela, minha gente!`],
+    empate: [o => `${o.g}! Ninguém ganhou, mas que jogo, minha gente!`, o => `Empate! Cada um leva um ponto e eu levo um infarto!`],
+    vitoria: [o => `Vitória de ${o.v}! Segura, que o trem não para!`, o => `${o.v} venceu por ${o.g}! Que festa, minha gente!`] },
+  { goleada: [o => `Aula completa de ${o.v}: ${o.g}. Nota máxima.`, o => `${o.g}. ${o.v} fez a lição de casa do começo ao fim.`],
+    virada: [o => `Tome nota: ${o.v} errou no início, corrigiu e virou. Isso é aprendizado.`, o => `Virada de ${o.v}. Saber reagir também se ensina.`],
+    fim: [o => `${o.v} resolveu no fim. Prova entregue no último minuto ainda vale nota.`, o => `Tome nota: ${o.v} não desistiu até o apito e foi recompensado.`],
+    engana: [o => `Tome nota: ${o.t} somou ${o.x} de xG para ${o.ng}. O placar engana; o desempenho merecia mais.`, o => `${o.t} merecia mais: ${o.x} de xG para ${o.ng}. Faltou capricho na finalização.`],
+    generoso: [o => `Tome nota: ${o.ng} com ${o.x} de xG. ${o.t} foi eficiente acima da média, e isso não se repete toda hora.`, o => `${o.t} marcou mais do que criou (${o.x} de xG). Não conte com isso na próxima prova.`],
+    empate: [o => `${o.g}. Empate: nota igual para os dois.`, o => `Ninguém passou de ano hoje: ${o.g}.`],
+    vitoria: [o => `${o.v} venceu por ${o.g}. Aprovado, com ressalvas no boletim.`, o => `Vitória de ${o.v}: lição cumprida.`] },
+  { goleada: [o => `${o.g}, meu amigo. Isso aí não é jogo, é passeio.`, o => `Ô, meu amigo… ${o.v} hoje não deixou nem o cafezinho pro adversário.`],
+    virada: [o => `Ô, meu amigo, ${o.v} virou! Futebol só acaba quando termina.`, o => `${o.v} tava atrás e virou. Quem saiu cedo do estádio perdeu.`],
+    fim: [o => `No finalzinho, meu amigo! ${o.v} deixou pra resolver na hora do café.`, o => `${o.v} venceu no último suspiro. Gol no fim vale igual, viu?`],
+    engana: [o => `${o.t} criou ${o.x} de xG e ${o.ng}… o placar tá de brincadeira com esse time.`, o => `Ô, meu amigo, ${o.t} merecia mais (${o.x} de xG). Mas futebol não paga por merecimento.`],
+    generoso: [o => `${o.t} fez ${o.ng} com ${o.x} de xG, meu amigo. Futebol é bola na rede, o resto é conversa.`, o => `${o.x} de xG e ${o.ng}? Esse ${o.t} chuta e reza, e hoje o santo ajudou.`],
+    empate: [o => `${o.g}, meu amigo. Ninguém fez mais que o outro.`, o => `Empate. Cada um vai pra casa com um pedaço do bolo.`],
+    vitoria: [o => `${o.v} venceu por ${o.g}. Futebol é simples, a gente que complica.`, o => `Ganhou ${o.v}, meu amigo. Três pontos e cama.`] }];
+// situação do jogo encerrado, pela ordem: goleada, virada, vitória no fim (gol decisivo dos 85'), placar que engana (xG e gols a 0,8 ou mais), empate, vitória
+function veredito(gols, narracao) {
+  const i = COMENTARISTAS.indexOf(comentarista()), com = COMENTARISTAS[i], nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome], sorte = l => l[Math.floor(Math.random() * l.length)];
+  const fin = narracao.filter(l => l.resultado !== undefined), xg = [0, 1].map(t => fin.filter(l => l.time === t).reduce((s, l) => s + (l.xg || 0), 0));
+  const w = gols[0] === gols[1] ? -1 : gols[0] > gols[1] ? 0 : 1, o = { v: nomes[w], g: w < 0 ? `${gols[0]} x ${gols[1]}` : `${Math.max(...gols)} x ${Math.min(...gols)}` };
+  let atras = false, decisivo = null; const d = [0, 0];
+  fin.filter(l => l.resultado === "gol").sort((a, b) => a.min + (a.ac || 0) / 100 - b.min - (b.ac || 0) / 100).forEach(l => {
+    const antes = d[w] - d[1 - w]; d[l.time]++; if (d[w] < d[1 - w]) atras = true; if (l.time === w && antes === 0) decisivo = l; });
+  const dif = [0, 1].map(t => xg[t] - gols[t]), e = Math.abs(dif[0]) >= Math.abs(dif[1]) ? 0 : 1, n = gols[e];
+  let caso = w < 0 ? "empate" : "vitoria";
+  if (Math.abs(dif[e]) >= 0.8) { caso = dif[e] > 0 ? "engana" : "generoso"; Object.assign(o, { t: nomes[e], x: xg[e].toFixed(2).replace(".", ","), ng: n ? (caso === "engana" ? "só " : "") + n + (n > 1 ? " gols" : " gol") : "nenhum gol" }); }
+  if (w >= 0 && decisivo && decisivo.min >= 85) caso = "fim";
+  if (w >= 0 && atras) caso = "virada";
+  if (w >= 0 && Math.abs(gols[0] - gols[1]) >= 3) caso = "goleada";
+  return `🎙️ <b>${esc(com.nome)}</b>: ${esc(sorte(VEREDITOS[i][caso])(o))}`;
+}
 const comentarista = () => COMENTARISTAS[partida.id % COMENTARISTAS.length];
 function telaDoAnalista(pt) {
   const com = comentarista(), a = analiseDoIntervalo(pt, com), c = [clubes[partida.casa], clubes[partida.fora]], sorte = l => l[Math.floor(Math.random() * l.length)];
@@ -323,7 +370,7 @@ function avisoDeGol(d) {
   document.body.append(el); setTimeout(() => el.remove(), 4600);
 }
 // cartão de fim de jogo. gols: [casa, fora]; narracao: para a lista de gols; melhor: { nome, nota, time } do relatório
-function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null, titulo = "🏁 Fim de jogo", linhas = null }) {
+function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null, titulo = "🏁 Fim de jogo", linhas = null, comVeredito = true }) {
   document.querySelectorAll(".fimJogo").forEach(x => x.remove());
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}), hexa = (x, p) => /^#[0-9a-f]{6}$/i.test(x || "") ? x : p;
   const lista = i => narracao.filter(l => l.resultado === "gol" && l.time === i).map(l => `<div>⚽ ${esc(l.quem || "gol")} ${l.min}${l.ac ? "+" + l.ac : ""}'</div>`).join("");
@@ -334,7 +381,8 @@ function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null, titu
     ${penaltis ? `<div class="pen">Pênaltis: ${penaltis[0]} x ${penaltis[1]}</div>` : ""}
     ${gols[0] + gols[1] ? `<div class="gols"><div>${lista(0)}</div><div>${lista(1)}</div></div>` : ""}
     ${linhas ? `<div class="numeros">${linhas.map(([nome, a, b, fa]) => `<div class="nl"><span>${a}</span><span class="mut">${nome}</span><span>${b}</span><div class="barra2"><i style="width:${fa * 100}%"></i></div></div>`).join("")}</div>` : ""}
-    ${melhor ? `<div class="melhor">⭐ Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}</div>`;
+    ${melhor ? `<div class="melhor">⭐ Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}
+    ${comVeredito ? `<div class="veredito">${veredito(gols, narracao)}</div>` : ""}</div>`;
   el.onclick = () => el.remove(); document.body.append(el); setTimeout(() => el.remove(), 8000);
 }
 // intervalo: o mesmo cartão com o placar, os gols e os números do 1º tempo
@@ -343,7 +391,7 @@ function cartaoDeIntervalo(narracao) {
   const gols = [0, 1].map(i => fin(i).filter(l => l.resultado === "gol").length), ult = [...pt].reverse().find(l => l.p), posse = ult ? ult.p[0] : 50;
   const xg = [0, 1].map(i => fin(i).reduce((s, l) => s + (l.xg || 0), 0)), f1 = x => x.toFixed(2).replace(".", ","), fr = (a, b) => a + b ? a / (a + b) : 0.5;
   const nf = [0, 1].map(i => fin(i).length), ng = [0, 1].map(i => fin(i).filter(l => l.resultado === "gol" || l.resultado === "defesa").length);
-  cartaoDeFim({ gols, narracao: pt, titulo: "⏸️ Intervalo", linhas: [
+  cartaoDeFim({ gols, narracao: pt, titulo: "⏸️ Intervalo", comVeredito: false, linhas: [
     ["Posse", posse + "%", 100 - posse + "%", posse / 100], ["Finalizações", nf[0], nf[1], fr(nf[0], nf[1])], ["No gol", ng[0], ng[1], fr(ng[0], ng[1])], ["xG", f1(xg[0]), f1(xg[1]), fr(xg[0], xg[1])]] });
 }
 let intervaloMostrado = false;
@@ -649,7 +697,7 @@ async function iniciar() {
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
   tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo }; // para conferir pelo console
+window.__teste = { SONS, sonsDosLances, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance
 function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
@@ -671,7 +719,8 @@ function demo() {
   // jogo encerrado: o cartão de verdade; senão, um placar inventado com jogadores desta partida
   $("dFim").onclick = () => { if (ultimoFim) return cartaoDeFim(ultimoFim);
     const narracao = [], gols = [lado() + lado(), lado()];
-    [0, 1].forEach(t => { for (let k = 0; k < gols[t]; k++) narracao.push({ resultado: "gol", time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }); });
+    [0, 1].forEach(t => { for (let k = 0; k < gols[t]; k++) narracao.push({ resultado: "gol", time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90), xg: 0.1 + Math.random() * 0.5 });
+      for (let k = 0; k < 4 + Math.floor(Math.random() * 6); k++) narracao.push({ resultado: "fora", time: t, min: 1 + Math.floor(Math.random() * 90), xg: 0.03 + Math.random() * 0.3 }); });
     narracao.sort((a, b) => a.min - b.min); const t = lado();
     cartaoDeFim({ gols, narracao, melhor: { nome: sorte(nomes(t)), nota: 7 + Math.random() * 2, time: t } }); };
   // TV do intervalo a qualquer hora (comercial → placares → comercial → analista); de novo desliga
