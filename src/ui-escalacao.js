@@ -260,7 +260,7 @@ async function iniciarOnline(sessaoDeTeste) {
     const V = validar();
     if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }
     $("salvarOnline").disabled = true;
-    try { await B.salvarTatica(clubeOnline.id, E); salvoComo = JSON.stringify(E); $("avisoOnline").innerHTML = `<span class="ok">Tática salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
+    try { await B.salvarTatica(clubeOnline.id, E); salvoComo = JSON.stringify(E); dispatchEvent(new Event("taticaSalva")); $("avisoOnline").innerHTML = `<span class="ok">Tática salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
     catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${/row-level security/.test(e.message) ? "Não deu para salvar: a tática está fechada para o jogo que vai começar." : esc(e.message)}</span>`; }
     $("salvarOnline").disabled = false;
   };

@@ -342,11 +342,17 @@ let usuario = null, versao = 0;
 // O que sobrevive quando a tela é redesenhada depois de uma ação (lance, proposta, compra): recado a mostrar, filtros da busca do mercado e clube aberto.
 let recado = "", verClube = null, carregadoEm = 0;
 // Aba Tática: a tela de escalação é montada uma vez em #taticaFora e só é refeita quando os dados do clube mudaram e não há alteração sem salvar.
-let telaTatica = null, taticaVelha = true, taticaDe = null, montandoTatica = false;
+let telaTatica = null, taticaVelha = true, taticaDe = null, montandoTatica = false, taticaSalva = false;
+addEventListener("taticaSalva", () => { taticaSalva = true; });
 async function mostrarTatica(sim) {
   const fora = $("taticaFora");
   fora.hidden = !sim || !usuario;
-  if (fora.hidden) { document.body.classList.remove("escolhendo"); return; }
+  if (fora.hidden) {
+    document.body.classList.remove("escolhendo");
+    // saiu da Tática depois de salvar: relê o clube para o Elenco e a Central mostrarem a escalação nova; a tela da tática já está atual
+    if (taticaSalva && usuario) { taticaSalva = false; carregar({ user: usuario }).then(() => { taticaVelha = false; }); }
+    return;
+  }
   if (montandoTatica || (telaTatica && taticaDe === usuario.id && (!taticaVelha || telaTatica.sujo()))) return;
   taticaVelha = false; taticaDe = usuario.id; telaTatica = null; montandoTatica = true;
   fora.innerHTML = `<div class="card mut">Carregando a tática…</div>`;
