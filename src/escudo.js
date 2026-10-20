@@ -86,11 +86,11 @@ export function svgEscudo(e = {}, sigla = "", tamanho = 48) {
 // arte da marca na camisa (ferramentas/patrocinios.py): mono = uma cor só, branco ou preto conforme a camisa; cor = sem o fundo, colorida
 export const NA_CAMISA = { grupo_trem: "mono", gazeta_dugoutense: "mono", dugout_dos_crias: "mono", dobet: "cor" };
 const arteNaCamisa = (marca, c1) => marca + ({ mono: `_camisa_${luz(c1) > 150 ? "escuro" : "claro"}`, cor: "_camisa" }[NA_CAMISA[marca]] || "");
-// uniforme: { padrao, cor1, cor2, cor3, calcao, gola, manga (a da esquerda na imagem), manga2 (a da direita; sem ela, igual à outra), meiao, golaTipo, textura, friso, corFriso, frisoCalcao, corFrisoCalcao, frisoMeiao, corFrisoMeiao, reserva: { mesmos campos } } (desenho em src/camisa.js); marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
+// uniforme: { padrao, cor1, cor2, cor3, calcao, gola, manga (a da esquerda na imagem), manga2 (a da direita; sem ela, igual à outra), meiao, golaTipo, textura, friso, corFriso, frisoCalcao, corFrisoCalcao, frisoMeiao, corFrisoMeiao, chuteira, reserva: { mesmos campos } } (desenho em src/camisa.js); marca = patrocínio estampado no peito (src/patrocinio.js); escudo + sigla = escudo do clube no peito esquerdo
 export function svgUniforme(u = {}, tamanho = 48) {
   const marca = /^[a-z0-9_]+$/.test(u.marca || "") ? new URL(`../patrocinios/${arteNaCamisa(u.marca, cor(u.cor1, "#0b3d91"))}.png`, import.meta.url).href : null;
   const padrao = u.padrao === "borda" ? "liso" : u.padrao;
-  return svgCamisa({ ...u, padrao, marca, escudoSvg: escudoNoPeito(u.escudo, u.sigla) }, Math.round(tamanho * 0.76), true); // mesma altura de antes (1,3 x o tamanho)
+  return svgCamisa({ ...u, padrao, marca, escudoSvg: escudoNoPeito(u.escudo, u.sigla) }, Math.round(tamanho * 0.76), true); // altura parecida com a de antes (1,28 x o tamanho)
 }
 // só a camisa, grande (editor do uniforme)
 export const svgSoCamisa = (u = {}, largura = 200) => svgCamisa({ ...u, padrao: u.padrao === "borda" ? "liso" : u.padrao,

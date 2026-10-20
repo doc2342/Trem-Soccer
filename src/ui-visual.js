@@ -37,7 +37,8 @@ export function editorVisual(raiz, F, opcoes = {}) {
         <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola e punhos", "automática")}</div>
         <div class="row" style="margin-top:6px"><label>Friso no ombro${sel("friso", FRISOS, "nenhum")}</label>${u.friso && u.friso !== "nenhum" ? paleta("uniforme", "corFriso", "Cor do friso do ombro", "cor da gola") : ""}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "calcao", "Calção")}<label>Friso do calção${sel("frisoCalcao", FRISOS, "um")}</label>${u.frisoCalcao !== "nenhum" ? paleta("uniforme", "corFrisoCalcao", "Cor do friso do calção", "cor da gola") : ""}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "meiao", "Meião", "igual ao calção")}<label>Friso do meião${sel("frisoMeiao", FRISOS, "um")}</label>${u.frisoMeiao !== "nenhum" ? paleta("uniforme", "corFrisoMeiao", "Cor do friso do meião", "cor da gola") : ""}</div>`;
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "meiao", "Meião", "igual ao calção")}<label>Friso do meião${sel("frisoMeiao", FRISOS, "um")}</label>${u.frisoMeiao !== "nenhum" ? paleta("uniforme", "corFrisoMeiao", "Cor do friso do meião", "cor da gola") : ""}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "chuteira", "Chuteira", "preta")}</div>`;
     if (parte) { // uma parte só, para as abas das Configurações
       raiz.innerHTML = `<div class="duas ev-parte"><div class="previa ev-previa">${previa()}</div><div>
         ${parte === "reserva" ? `<div class="mut" style="font-size:12px;margin-bottom:6px">O uniforme visitante (reserva) entra quando a sua camisa titular se parece com a do adversário.</div>` : ""}
