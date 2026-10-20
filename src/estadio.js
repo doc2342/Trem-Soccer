@@ -165,6 +165,10 @@ const pathDe = pts => { const s = new T.Path(); pts.slice().reverse().forEach(([
 function plano(geo, mat, y) { const g = new T.Mesh(geo, mat); g.rotation.x = -Math.PI / 2; g.position.y = y; g.receiveShadow = true; return g; }
 const chao = (pts, cor, y) => plano(new T.ShapeGeometry(shapeDe(pts)), new T.MeshLambertMaterial({ color: cor }), y);
 const lam = c => new T.MeshLambertMaterial({ color: c });
+// chão grande: luz por pixel (o Lambert acende só os vértices, e à noite o claro do estádio vazava pela cidade inteira)
+const fosco = o => new T.MeshPhongMaterial({ ...o, shininess: 0, specular: 0 });
+// à noite a peça brilha nessa cor (fachada iluminada por baixo, janelas acesas); de dia é um Lambert comum
+const acesa = (cor, k) => new T.MeshLambertMaterial({ emissive: new T.Color(cor).multiplyScalar(k * luzNoite) });
 function anel(o, i, mat, y, d) { const s = shapeDe(o); s.holes.push(pathDe(i)); const me = new T.Mesh(new T.ExtrudeGeometry(s, { depth: d, bevelEnabled: false, curveSegments: 2 }), mat); me.rotation.x = -Math.PI / 2; me.position.y = y; me.castShadow = me.receiveShadow = true; grp.add(me); return me; }
 function malha(g, mat) { const nu = g.length - 1, nv = g[0].length - 1, pos = [], ix = []; g.forEach(c => c.forEach(p => pos.push(...p)));
   for (let u = 0; u < nu; u++) for (let v = 0; v < nv; v++) { const a = u * (nv + 1) + v, b = a + nv + 1; ix.push(a, b, a + 1, b, b + 1, a + 1); }
@@ -292,8 +296,8 @@ function construir() {
   // noite (config.noite de 0 a 1; true vale 1): o céu passa do dia ao laranja e do laranja à noite; o sol enfraquece e amarela; o gramado acende
   const n = Math.min(1, Math.max(0, +C.noite || 0)), lar = 1 - Math.abs(2 * n - 1), mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k);
   cur.ceu = "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString();
-  cur.hemi.intensity = 0.62 - 0.5 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
-  cur.sun.intensity = 0.95 - 0.85 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
+  cur.hemi.intensity = 0.62 - 0.55 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
+  cur.sun.intensity = 0.95 - 0.9 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
   luzNoite = n > 0.35 ? Math.min(1, (n - 0.35) / 0.4) : 0; HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
@@ -336,8 +340,8 @@ function construir() {
   const ext = pos.filter(p => p.r == rows - 1), out = p => { const nx = Math.sin(p.ang), nz = -Math.cos(p.ang), s = Math.sign(p.x * nx + p.z * nz) || 1; return [s * nx, s * nz]; };
   const fhOf = p => teto ? yT : yM || (cob.has(p.ld) ? yC + 0.2 : p.h + 1.6), dp = p => (p.dep || DEP) / 2;
   if (!dunas) {
-    inst(ext, (p, i, im) => { const [nx, nz] = out(p), fh = fhOf(p); put(im, i, p.x + nx * (dp(p) + 0.3), fh / 2, p.z + nz * (dp(p) + 0.3), p.ang, CELL * 1.08, fh, 0.6, new T.Color((m.fachada || FACHADA)[i % 8 == 0 ? 0 : i % 8 < 5 ? 1 : 2])); });
-    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (dp(p) + 0.62), Math.min(topH * 0.3, 3.2), p.z + nz * (dp(p) + 0.62), p.ang, CELL * 1.08, 1.3, 0.1, new T.Color("#4a5560")); });
+    inst(ext, (p, i, im) => { const [nx, nz] = out(p), fh = fhOf(p); put(im, i, p.x + nx * (dp(p) + 0.3), fh / 2, p.z + nz * (dp(p) + 0.3), p.ang, CELL * 1.08, fh, 0.6, new T.Color((m.fachada || FACHADA)[i % 8 == 0 ? 0 : i % 8 < 5 ? 1 : 2])); }, acesa(hx[0], 0.4));
+    inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (dp(p) + 0.62), Math.min(topH * 0.3, 3.2), p.z + nz * (dp(p) + 0.62), p.ang, CELL * 1.08, 1.3, 0.1, new T.Color("#4a5560")); }, acesa("#ffc96b", 0.9));
     inst(ext, (p, i, im) => { const [nx, nz] = out(p); put(im, i, p.x + nx * (dp(p) + 0.62), fhOf(p) - 0.5, p.z + nz * (dp(p) + 0.62), p.ang, CELL * 1.08, 0.4, 0.12, new T.Color("#f1efe8")); });
     if (nomeE && !m.pele) for (const sul of [true, false]) { const sd = sul ? "S" : "N", lado_ = ext.filter(p => p.ld == sd); if (!lado_.length) continue;
       const fh = teto ? yT : yM || (cob.has(sd) ? yC + 0.2 : topH + 1.6), faixaJan = Math.min(topH * 0.3, 3.2) + 0.65, hN = Math.min(8, (fh - faixaJan - 1.2) * 0.62), y0 = faixaJan + 0.6 + (fh - 1 - faixaJan - 0.6) / 2, { r } = nomeTex(nomeE, "#000");
@@ -354,7 +358,7 @@ function construir() {
   if (dunas) { anel(DG.O, contorno(m, DG.inner, DG.bInner), lam("#cfcbc1"), 0, POD);
     anel(contorno(m, aM + 3, bM + 3), contorno(m, aM + 1, bM + 1), new T.MeshLambertMaterial({ color: "#7fa6ad", transparent: true, opacity: .8 }), POD, 4);
     malha(DG.casca, new T.MeshLambertMaterial({ color: "#4f747c", side: T.DoubleSide }));
-    const pm = new T.MeshLambertMaterial({ color: "#f6f5f1", side: T.DoubleSide }); DG.petalas.forEach(g => malha(g, pm));
+    const pm = acesa(hx[0], 0.55); pm.color.set("#f6f5f1"); pm.side = T.DoubleSide; DG.petalas.forEach(g => malha(g, pm));
     const rm = lam("#d6d2c8"), dk = lam("#bdb9ae"); for (const r of DG.rampas) { const yaw = Math.atan2(r.d[0], r.d[1]);
       const b = new T.Mesh(new T.BoxGeometry(7, 0.7, 15), rm); b.rotation.order = "YXZ"; b.rotation.y = yaw; b.rotation.x = Math.atan(POD / 15); b.position.set(r.o[0] + r.d[0] * 7, POD / 2, r.o[1] + r.d[1] * 7); b.castShadow = b.receiveShadow = true; grp.add(b);
       for (const s of [-1, 1]) { const w = new T.Mesh(new T.BoxGeometry(0.4, 1.1, 15), dk); w.rotation.order = "YXZ"; w.rotation.y = yaw; w.rotation.x = Math.atan(POD / 15); w.position.set(r.o[0] + r.d[0] * 7 + Math.cos(yaw) * s * 3.5, POD / 2 + 0.6, r.o[1] + r.d[1] * 7 - Math.sin(yaw) * s * 3.5); grp.add(w); }
@@ -370,6 +374,7 @@ function construir() {
   // à noite, sem torres: uma fileira de luzes na borda de dentro da cobertura (ou da marquise, ou no alto da arquibancada)
   else if (luzNoite) { const rIn = teto ? rows * DEP * (m.tetoIn ?? 0.5) : yM ? rows * DEP * 0.55 : rows * DEP, y = teto ? yT - 0.6 : yM ? yM - 0.4 : topH + 2.5;
     for (const p of walk(contorno(m, m.a0 + rIn, m.b0 + rIn), 12)) halo(p.x, y, p.z, 7, 0.8 * luzNoite); }
+  if (luzNoite) { const g = plano(new T.PlaneGeometry(2.5 * aM, 2.5 * bM), new T.MeshBasicMaterial({ ...brilho(0.3 * luzNoite), color: "#e4f0ff" }), topH + 4); g.receiveShadow = false; grp.add(g); } // o claro que sobe do estádio aceso
   if (m.palcos) { const z0 = m.b0 + m.palcos * DEP, z1 = z0 + 8, xs = () => aM + 0.5, feito = prev && !C.reforma ? prev + (rows - prev) * obra : rows * obra, Hb = hRow(Math.max(1, Math.round(feito)) - 1) + 1.6;
     const pr = new T.Mesh(new T.ExtrudeGeometry(shapeDe([[-xs(z0), z0], [xs(z0), z0], [xs(z1), z1], [-xs(z1), z1]]), { depth: Hb, bevelEnabled: false }), lam("#d6d2c8")); pr.rotation.x = -Math.PI / 2; pr.castShadow = pr.receiveShadow = true; grp.add(pr);
     const vidro = lam("#33444f"); for (let y = 2.4; y < Hb - 1.5; y += 3.2) bloco(2 * xs(z0) - 3, 1.7, 0.2, vidro, 0, y, z0 - 0.05);
@@ -402,7 +407,7 @@ function construir() {
     const Hs = teto ? yT + 0.5 : topH + 2, e = Math.min(1, Hs / 30), ta = 2.6 * Math.max(0.6, e), of = y => 1.5 + 1.5 * e + 5 * e * Math.sin(Math.PI * y / Hs), base = new T.Color(fes ? fcs[0] : hx[0]), alm = [], DY = ta * 0.707, DX = ta * 1.414; rng = 41;
     for (let j = 0, y = DY / 2; y < Hs - 0.6; j++, y += DY) { const pts = walk(contorno(m, aM + of(y), bM + of(y)), DX), use = j % 2 ? pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2, ang: p.ang }; }) : pts;
       for (const p of use) alm.push({ ...p, y, c: base.clone().lerp(new T.Color("#ffffff"), 0.2 + 0.25 * rnd()) }); }
-    const im = new T.InstancedMesh(box, new T.MeshLambertMaterial({ emissive: base.clone().multiplyScalar(0.25) }), alm.length); dm.rotation.order = "YXZ";
+    const im = new T.InstancedMesh(box, new T.MeshLambertMaterial({ emissive: base.clone().multiplyScalar(0.25 + 0.45 * luzNoite) }), alm.length); dm.rotation.order = "YXZ";
     alm.forEach((p, i) => { dm.position.set(p.x, p.y, p.z); dm.rotation.set(0, -p.ang, Math.PI / 4); dm.scale.set(ta, ta, 0.7); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); im.setColorAt(i, p.c); });
     dm.rotation.order = "XYZ"; im.castShadow = im.receiveShadow = true; grp.add(im);
     anel(contorno(m, aM + of(Hs) + 0.6, bM + of(Hs) + 0.6), contorno(m, aM + 0.5, bM + 0.5), lam("#eeece6"), Hs - 0.2, 0.4);
@@ -494,10 +499,10 @@ function entorno(cx, zN, zS) {
   const pos = (im, i, x, y, z, rot, sx, sy, sz, c) => { dm.position.set(x, y, z); dm.rotation.set(0, rot, 0); dm.scale.set(sx, sy, sz); dm.updateMatrix(); im.setMatrixAt(i, dm.matrix); if (c) im.setColorAt(i, c); };
   const cor = lista => new T.Color(lista[(r() * lista.length) | 0]);
   // chão
-  grp.add(plano(new T.CircleGeometry(E + 400, 48), new T.MeshLambertMaterial({ color: { centro: "#a7ad98", bairro: "#88a862", rio: "#8ca967", lago: "#87a45f", litoral: "#98ad6c" }[tipo] }), -0.06));
+  grp.add(plano(new T.CircleGeometry(E + 400, 48), fosco({ color: { centro: "#a7ad98", bairro: "#88a862", rio: "#8ca967", lago: "#87a45f", litoral: "#98ad6c" }[tipo] }), -0.06));
   // água: rio ao norte, lago de um lado, mar ao norte com praia
   let naAgua = () => false, perto = () => 1e9, zMar = null;
-  const azul = new T.MeshLambertMaterial({ color: "#5d8fb0" }), areia = new T.MeshLambertMaterial({ color: "#e3d3a8" });
+  const azul = fosco({ color: "#5d8fb0" }), areia = fosco({ color: "#e3d3a8" });
   if (tipo === "rio") { const z0 = zN - 48 - r() * 20, w = 34 + r() * 16, fase = r() * 6, zr = x => z0 + 18 * Math.sin(x / 70 + fase), top = [], bot = [];
     for (let x = -E - 400; x <= E + 400; x += 10) { top.push([x, zr(x) - w / 2]); bot.push([x, zr(x) + w / 2]); }
     grp.add(plano(new T.ShapeGeometry(shapeDe([...top.map(([x, z]) => [x, z - 6]), ...bot.reverse().map(([x, z]) => [x, z + 6])])), new T.MeshLambertMaterial({ color: "#7d9a5a" }), -0.04));
@@ -519,7 +524,7 @@ function entorno(cx, zN, zS) {
   for (let x = cx + 6; x < E; x += M) ruasX.push(x, -x);
   for (let z = zS + 6; z < zc + E; z += M) ruasZ.push(z);
   for (let z = zN - 6; z > zc - E && (zMar == null || z > zMar + 36); z -= M) ruasZ.push(z);
-  const asf = new T.MeshLambertMaterial({ color: "#5b5c60" });
+  const asf = fosco({ color: "#5b5c60" });
   const z0r = zMar == null ? zc - E : zMar + 30; // no litoral as avenidas acabam na praia
   for (const x of ruasX) { const p = plano(new T.PlaneGeometry(9, zc + E - z0r), asf, 0.02); p.position.x = x; p.position.z = (z0r + zc + E) / 2; grp.add(p); }
   for (const z of ruasZ) { const p = plano(new T.PlaneGeometry(2 * E, 9), asf, 0.02); p.position.z = z; grp.add(p); }
@@ -567,6 +572,18 @@ function entorno(cx, zN, zS) {
     for (const [x, z, rot, , h, d] of casas) for (const sd of [-1, 1]) if (q() < 0.2) luz(x + sd * Math.sin(rot) * (d / 2 + 0.15), h * 0.5, z + sd * Math.cos(rot) * (d / 2 + 0.15));
     if (P.length) { const geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(P, 3)); geo.setAttribute("color", new T.Float32BufferAttribute(K, 3));
       grp.add(new T.Points(geo, new T.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.75 * luzNoite, depthWrite: false }))); } }
+  // à noite, postes de luz laranja a cada 32 m nas ruas e faróis (brancos de um lado, lanternas vermelhas do outro)
+  if (luzNoite) { let sc = 777; const q = () => (sc = (sc * 16807) % 2147483647) / 2147483647, L = [], F = [], K = [], branco = new T.Color("#fff6e0"), verm = new T.Color("#ff3b2a");
+    const ok = (x, z) => Math.hypot(x, z - zc) < E && !naAgua(x, z) && !(x > -cx - 6 && x < cx + 6 && z > zN - 6 && z < zS + 6);
+    const rua = (pt, len) => { for (let t = 0; t < len; t += 32) { const [x, z, sx, sz] = pt(t); if (ok(x, z)) L.push(x + sx * 5, 0.4, z + sz * 5); }
+      for (let t = 0; t < len; t += 3) if (q() < 0.12) { const [x, z, sx, sz] = pt(t), s = q() < 0.5 ? 1 : -1, c = s > 0 ? branco : verm; if (ok(x, z)) { F.push(x + sx * 2 * s, 0.6, z + sz * 2 * s); K.push(c.r, c.g, c.b); } } };
+    for (const x of ruasX) rua(t => [x, z0r + t, 1, 0], zc + E - z0r);
+    for (const z of ruasZ) rua(t => [-E + t, z, 0, 1], 2 * E);
+    const pts = (P, mat) => { if (!P.length) return; const g = new T.BufferGeometry(); g.setAttribute("position", new T.Float32BufferAttribute(P, 3)); if (mat.vertexColors) g.setAttribute("color", new T.Float32BufferAttribute(K, 3)); grp.add(new T.Points(g, mat)); };
+    const pg = new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), im = new T.InstancedMesh(pg, new T.MeshBasicMaterial({ ...brilho(0.4 * luzNoite), color: "#ffa64a" }), L.length / 3); // a poça laranja deitada no chão
+    for (let i = 0; i < L.length; i += 3) { dm.position.set(L[i], 0.15, L[i + 2]); dm.rotation.set(0, 0, 0); dm.scale.set(20, 1, 20); dm.updateMatrix(); im.setMatrixAt(i / 3, dm.matrix); } grp.add(im);
+    for (let i = 1; i < L.length; i += 3) L[i] = 7; pts(L, new T.PointsMaterial({ ...brilho(luzNoite), color: "#ffc27a", size: 6 }));
+    pts(F, new T.PointsMaterial({ ...brilho(0.9 * luzNoite), color: "#ffffff", vertexColors: true, size: 4 })); }
   cur.scene.fog = new T.Fog(cur.ceu || CEU, cur.dist * 0.95, cur.dist + E * 0.95);
 }
 
