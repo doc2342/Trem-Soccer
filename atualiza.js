@@ -82,4 +82,10 @@
   }
   setInterval(tique, 1000);
   document.addEventListener("DOMContentLoaded", tique);
+
+  // todo link que abre uma partida (aovivo.html?id=...) vai para uma aba nova: a página de onde se veio continua aberta
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("a[href]");
+    if (a && !a.target && /(^|\/)aovivo\.html\?/.test(a.getAttribute("href"))) { a.target = "_blank"; a.rel = "noopener"; }
+  }, true);
 })();

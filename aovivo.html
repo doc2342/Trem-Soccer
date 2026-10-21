@@ -702,9 +702,8 @@ function htmlAbertura(pre, cronologico = false, semTimes = false) {
 }
 
 async function atualizar() {
-  const m = momento();
-  intervaloComercial(m);
-  if (m.antes) { sonsDosLances(m, [], Date.now()); topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
+  let m = momento();
+  if (m.antes) { intervaloComercial(m); sonsDosLances(m, [], Date.now()); topo([0, 0], m); $("corpo").innerHTML = `<div class="card mut">A transmissão começa no horário do jogo. Os lances aparecem aqui minuto a minuto.</div>`; return; }
   // o administrador lê tudo no banco; aqui a transmissão segue o relógio para ele também
   const agora = Date.now(), noAr = x => !x.libera_em || new Date(x.libera_em).getTime() <= agora;
   const ultima = baixados.length ? baixados[baixados.length - 1].ordem : -100;
@@ -722,6 +721,8 @@ async function atualizar() {
     const ultimo = Math.max(0, ...baixados.map(l => new Date(l.libera_em || 0).getTime()));
     adiante = ultimo > agora; proximaBusca = adiante ? Math.max(agora + 60000, ultimo - 60000) : 0; // volta a buscar um minuto antes de acabar o que já tem
   }
+  // os acréscimos vêm no lance de abertura: quem chega com o jogo rolando (no celular, a aba recarregada ao voltar) só os tem depois da primeira busca
+  m = momento(); intervaloComercial(m);
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   sonsDosLances(m, lances, agora);
   avisosDaRodada(agora);
