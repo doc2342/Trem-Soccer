@@ -62,6 +62,7 @@ th { color:var(--mut); font-weight:600; font-size:12px; } td.esq, th.esq { text-
 .campo div { border:1px solid var(--line); border-radius:6px; padding:8px 4px; text-align:center; font-size:12px; }
 .pp { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; background:var(--pp); font-weight:600; font-size:12px; text-align:center; }
 .nota { font-weight:700; color:var(--ac); }
+.camisa-n { display:inline-block; min-width:22px; padding:0 4px; margin-right:4px; border-radius:5px; border:1px solid var(--line); font-family:var(--display); font-weight:700; font-size:12px; text-align:center; color:var(--mut); }
 .pp.s-gk, .vaga select.s-gk { background-color:#c9781a; color:#1f1100; } .pp.s-df, .vaga select.s-df { background-color:#2d6cc0; color:#fff; } .pp.s-md, .vaga select.s-md { background-color:#357f3c; color:#fff; } .pp.s-fw, .vaga select.s-fw { background-color:#c0332e; color:#fff; }
 .vaga select option { background:var(--campo); color:var(--tx); } /* a lista aberta volta às cores normais */
 ul { margin:0; padding-left:18px; } li { margin:4px 0; }
