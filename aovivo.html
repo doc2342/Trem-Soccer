@@ -546,7 +546,7 @@ const NOME_DA_ZONA = { lider: "a liderança", lib: "a zona da Libertadores", sul
 function htmlRodada(meu, T = Date.now()) {
   if (!rodada) return "";
   const e = estadoDaRodada(T, meu), nome = c => esc(rodada.clubes.find(x => x.id === c)?.nome || "—"), posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;
-  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--ac)", sul: "var(--sul)", sobe: "var(--ok, #4caf50)", semi: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
+  const hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), COR_DA_ZONA = { lider: "var(--ac)", lib: "var(--lib)", sul: "var(--sul)", sobe: "var(--ok, #4caf50)", semi: "var(--ok, #4caf50)", playoff: "var(--ac)", cai: "var(--bad, #e57373)" };
   const jogos = rodada.daRodada.map(p => { const x = e.placares[p.id];
     return `<div style="padding:3px 0;${p.id === id ? "font-weight:700" : ""}">${p.id === id ? "" : `<a href="aovivo.html?id=${p.id}" style="color:inherit;text-decoration:none">`}${nome(p.casa)} <b>${x.g ? x.g[0] + " x " + x.g[1] : "x"}</b> ${nome(p.fora)}${p.id === id ? "" : "</a>"} <span class="mut" style="font-weight:400;font-size:12px">${x.fim ? "encerrado" : x.g ? "ao vivo" : hora(p.inicio)}</span></div>`; }).join("");
   const tabela = e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, z = zonaDaPosicao(i, n), nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
