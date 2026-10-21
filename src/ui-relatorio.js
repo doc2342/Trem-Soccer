@@ -41,8 +41,8 @@ export function htmlResumo(narracao, nomePorId = {}) {
     if (l.resultado === "gol") {
       const quem = l.quem || nomePorId[l.finalizador] || "", assist = l.assist !== undefined ? l.assist : (l.criador !== l.finalizador ? nomePorId[l.criador] : null);
       lados[l.time].push(`⚽ ${minDoLance(l)}' ${quem ? `<b>${linkJogador(quem)}</b>` : "gol"}${l.tipo === "penalti" ? ` <span class="mut">(pênalti)</span>` : assist ? ` <span class="mut">(${linkJogador(assist)})</span>` : ""}`);
-    } else if (l.tipo === "lesao") {
-      const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
+    } else if (l.tipo === "lesao") { // o texto traz a jogada antes ("Fulano toca para Beltrano. Beltrano se machuca"): o lesionado é o nome logo antes de "se machuca"
+      const m = /\{[01?]:([^{}]+)\} se machuca/.exec(l.texto || "");
       lados[l.time].push(`🚑 ${minDoLance(l)}' ${m ? linkJogador(m[1]) : ""} <span class="mut">(lesão)</span>`);
     } else if (l.tipo === "amarelo" || l.tipo === "vermelho") {
       const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
