@@ -985,6 +985,19 @@ const __motor = (() => {
       return { venceu, pivo, marcador, parada, falta: comFalta, folga };
     }
 
+    // desfecho do chute contra o goleiro: bloqueado, fora, trave, defesa ou gol; xg é o publicado e chanceDeGol(defesa) a chance contra outro goleiro
+    function chutar(c, goleiro) {
+      const ruido = goleiro ? rng.normal(0, goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
+      const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
+      const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
+      const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
+      const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
+      const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
+      const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
+        : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
+      return { resultado, xg, chanceDeGol };
+    }
+
     function finalizar(i, c) {
       const atk = times[i], def = times[1 - i], e = estat[i];
       if (c.tipo === "profundidade") {
@@ -993,14 +1006,7 @@ const __motor = (() => {
         if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${nm(c.criador)} lança e ${nm(c.finalizador)} é pego em impedimento.`)); return; }
         if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
       }
-      const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
-      const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
-      const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
-      const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
-      const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
-      const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
-      const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
-        : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
+      const { resultado, xg, chanceDeGol } = chutar(c, def.goleiro);
       e.chances++; e.xg += xg; e.finalizacoes++;
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
       if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
@@ -1160,6 +1166,30 @@ const __motor = (() => {
       jogar(91, 120); duracao = 120;
     }
     min = duracao;
+    // Disputa de pênaltis, se o mata-mata segue empatado depois da prorrogação: cinco cobranças alternadas, parando quando um time não alcança
+    // mais o outro, e depois uma para cada lado até desempatar. Batem os que terminaram em campo: primeiro os cobradores de pênalti da tática,
+    // depois os de melhor finalização e o goleiro por último; acabada a fila, ela recomeça. Cada cobrança é um pênalti do jogo (quem bate
+    // contra o goleiro), mas fica fora das estatísticas, do placar e das notas.
+    let penaltis = null;
+    if (opcoes.prorrogacao && gols()[0] === gols()[1]) {
+      soltarCartoes();
+      const filas = times.map(t => {
+        const primeiros = (t.instr.cobradores.penalti || []).map(id => t.emCampo.find(x => x.j.id === id)).filter(Boolean);
+        return [...primeiros, ...t.emCampo.filter(x => !primeiros.includes(x)).sort((a, b) => (a.pos === "GK") - (b.pos === "GK") || b.at[A.fin] - a.at[A.fin])];
+      });
+      const placar = [0, 0], batidas = [0, 0], cobrancas = [];
+      const FIM = { gol: "GOL!", fora: "para fora!", trave: "na trave!" };
+      const bater = i => {
+        const quem = filas[i][batidas[i]++ % filas[i].length], gk = times[1 - i].goleiro;
+        const { resultado } = chutar({ tipo: "penalti", xg: CONFIG.xgBase.penalti, chute: quem.at[A.fin], defesa: gk ? gk.at[A.um] : 5 }, gk);
+        if (resultado === "gol") placar[i]++;
+        const fim = FIM[resultado] || (gk ? `${nm(gk)} defende!` : "a bola é defendida!");
+        cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
+      };
+      for (let k = 0; k < 10; k++) { bater(k % 2); if (placar[0] > placar[1] + 5 - batidas[1] || placar[1] > placar[0] + 5 - batidas[0]) break; }
+      while (placar[0] === placar[1]) { bater(0); bater(1); }
+      penaltis = { placar, cobrancas };
+    }
     times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
     estat[0].posse = Math.round(somaPosse / jogados * 100); estat[1].posse = 100 - estat[0].posse;
     soltarCartoes();
@@ -1174,7 +1204,7 @@ const __motor = (() => {
       subs: t.instr.substituicoes.map((s, k) => ({ ...s, saiNome: t.nomes[s.sai] || "?", entraNome: t.nomes[s.entra] || "?", ...(t.cumpridas["s" + k] || { motivo: motivoSub(t, s) }) })),
       ordens: t.instr.ordens.map((o, k) => ({ ...o, ...(t.cumpridas["o" + k] || { motivo: "a condição não chegou a valer" }) })),
     }));
-    return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
+    return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
   }
   return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, avaliarZonas, simularPartida };
 })();
@@ -1523,7 +1553,7 @@ const __rodada = (() => {
   // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
   const jogoGrande = p => ["lib", "pre", "semi", "final"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
   // Copa do Brasil: regras próprias da partida de copa.
-  const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
+  const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5 };
   // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
   const foraDaCopa = (j, clubeId) => (j.fora > 0 && j.motivo === "lesão") || j.foraCopa > 0 || (j.copaClube != null && j.copaClube !== clubeId);
   // Libertadores e Sul-Americana (fase "lib"): cartões contados à parte, como na copa (vermelho e segundo amarelo suspendem por um jogo
@@ -1588,21 +1618,22 @@ const __rodada = (() => {
       n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
       escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
     } });
-    // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis
-    // (cinco para cada lado e, depois, alternados). Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida.
-    const placar = p.placar.slice(), fimReal = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).toISOString();
-    let penaltis = null, vencedor = null;
+    // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
+    // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
+    const placar = p.placar.slice(), fimDoJogo = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).getTime();
+    let fimReal = new Date(fimDoJogo).toISOString(), penaltis = null, vencedor = null;
     if (copa) {
       const nomes = [casa.clube.nome, fora.clube.nome];
-      if (placar[0] === placar[1]) {
-        penaltis = [0, 0];
-        // cinco cobranças alternadas, parando quando um time não alcança mais o outro; depois, uma para cada lado até desempatar
-        const batidas = [0, 0];
-        for (let k = 0; k < 10; k++) { const i = k % 2; batidas[i]++; if (extra.chance(COPA.penalti)) penaltis[i]++;
-          if (penaltis[0] > penaltis[1] + 5 - batidas[1] || penaltis[1] > penaltis[0] + 5 - batidas[0]) break; }
-        while (penaltis[0] === penaltis[1]) { const a = extra.chance(COPA.penalti), b = extra.chance(COPA.penalti); if (a) penaltis[0]++; if (b) penaltis[1]++; }
-        const v = penaltis[0] > penaltis[1] ? 0 : 1;
-        lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: fimReal, dados: { n: 99999, min: 120, time: v, tipo: "penaltis", texto: `A prorrogação não resolveu. Pênaltis: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]}. Passa o {${v}:${nomes[v]}}.` } });
+      if (p.penaltis) {
+        penaltis = p.penaltis.placar;
+        // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos (na escala da transmissão)
+        const passo = minutosTransmissao / 105 * 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
+        const lance = (k, dados) => lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: hora(k), dados: { n: 99000 + k, min: 120, ...dados } });
+        lance(-1, { time: 0, tipo: "penaltis", texto: "A prorrogação termina empatada. A vaga vai ser decidida nos pênaltis." });
+        p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, placar: c.placar, texto: c.texto }));
+        const v = penaltis[0] > penaltis[1] ? 0 : 1, n = p.penaltis.cobrancas.length;
+        lance(n, { n: 99999, time: v, tipo: "penaltis", texto: `Fim da disputa: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]} nos pênaltis. Passa o {${v}:${nomes[v]}}.` });
+        fimReal = hora(n);
       }
       vencedor = (penaltis ? penaltis[0] > penaltis[1] : placar[0] > placar[1]) ? casa.clube.id : fora.clube.id;
       r.vencedor = vencedor; if (p.duracao > 90) r.prorrogacao = true; if (penaltis) r.penaltis = penaltis;

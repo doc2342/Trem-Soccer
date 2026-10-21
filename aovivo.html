@@ -157,7 +157,7 @@
     .aovivo > .lan .lance { font-size:15px; } .aovivo > .lan .lance.posse, .aovivo > .lan .lance.roda, .aovivo > .lan .lance.falta, .aovivo > .lan .lance.canto { font-size:13px; }
   }
   /* depois do apito (PC e celular): na reprise, só os lances principais até pedir todos; no ao vivo, todos sempre */
-  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.acrescimo):not(.penaltis), #corpo:not(.todos) .legenda.lances { display:none; }
+  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.acrescimo):not(.penaltis):not(.cobranca), #corpo:not(.todos) .legenda.lances { display:none; }
   #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
   /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
   .abas.soCel { display:none; }
@@ -465,7 +465,7 @@ function sonsDosLances(m, lances, agora) {
   const golNovo = lances.filter(l => (!vistos || !vistos.has(l.ordem)) && l.dados.resultado === "gol" && agora - new Date(l.libera_em || 0).getTime() < 120000).map(l => l.dados).pop();
   if (golNovo) setTimeout(() => avisoDeGol(golNovo), vistos ? 0 : 400);
   novos.filter(l => ["lesao", "substituicao", "acrescimo", "amarelo", "vermelho"].includes(l.tipo)).map(dadosDaPlaca).filter(Boolean).forEach(placa);
-  if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
+  if (vistos) { if (novos.some(l => l.resultado === "gol" || l.pen === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
   vistos = new Set(lances.map(l => l.ordem)); fase = f;
 }
@@ -616,7 +616,8 @@ function momento() {
   if (ehCopa(partida) && !encerrada) { // se não houve prorrogação, o resultado chega e encerra a transmissão antes disto aparecer
     if (t < 110 + a1 + a2) return { texto: "90:00 · fim do tempo normal", fim: true };
     if (t < 140 + a1 + a2) return { texto: `${mmss(t - 20 - a1 - a2)} · prorrogação`, fim: true };
-    return { texto: "Pênaltis", fim: true };
+    const cob = baixados.filter(l => l.dados && l.dados.tipo === "cobranca" && new Date(l.libera_em).getTime() <= Date.now()).pop(); // placar da disputa até a última cobrança no ar
+    return { texto: "Pênaltis" + (cob ? ` · ${cob.dados.placar[0]} x ${cob.dados.placar[1]}` : ""), fim: true };
   }
   return { texto: "Fim de jogo", fim: true };
 }

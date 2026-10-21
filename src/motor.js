@@ -644,6 +644,19 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     return { venceu, pivo, marcador, parada, falta: comFalta, folga };
   }
 
+  // desfecho do chute contra o goleiro: bloqueado, fora, trave, defesa ou gol; xg é o publicado e chanceDeGol(defesa) a chance contra outro goleiro
+  function chutar(c, goleiro) {
+    const ruido = goleiro ? rng.normal(0, goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
+    const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
+    const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
+    const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
+    const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
+    const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
+    const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
+      : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
+    return { resultado, xg, chanceDeGol };
+  }
+
   function finalizar(i, c) {
     const atk = times[i], def = times[1 - i], e = estat[i];
     if (c.tipo === "profundidade") {
@@ -652,14 +665,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${nm(c.criador)} lança e ${nm(c.finalizador)} é pego em impedimento.`)); return; }
       if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
     }
-    const ruido = def.goleiro ? rng.normal(0, def.goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
-    const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
-    const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
-    const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
-    const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
-    const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
-    const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
-      : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
+    const { resultado, xg, chanceDeGol } = chutar(c, def.goleiro);
     e.chances++; e.xg += xg; e.finalizacoes++;
     if (resultado === "gol" || resultado === "defesa") e.noGol++;
     if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
@@ -819,6 +825,30 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     jogar(91, 120); duracao = 120;
   }
   min = duracao;
+  // Disputa de pênaltis, se o mata-mata segue empatado depois da prorrogação: cinco cobranças alternadas, parando quando um time não alcança
+  // mais o outro, e depois uma para cada lado até desempatar. Batem os que terminaram em campo: primeiro os cobradores de pênalti da tática,
+  // depois os de melhor finalização e o goleiro por último; acabada a fila, ela recomeça. Cada cobrança é um pênalti do jogo (quem bate
+  // contra o goleiro), mas fica fora das estatísticas, do placar e das notas.
+  let penaltis = null;
+  if (opcoes.prorrogacao && gols()[0] === gols()[1]) {
+    soltarCartoes();
+    const filas = times.map(t => {
+      const primeiros = (t.instr.cobradores.penalti || []).map(id => t.emCampo.find(x => x.j.id === id)).filter(Boolean);
+      return [...primeiros, ...t.emCampo.filter(x => !primeiros.includes(x)).sort((a, b) => (a.pos === "GK") - (b.pos === "GK") || b.at[A.fin] - a.at[A.fin])];
+    });
+    const placar = [0, 0], batidas = [0, 0], cobrancas = [];
+    const FIM = { gol: "GOL!", fora: "para fora!", trave: "na trave!" };
+    const bater = i => {
+      const quem = filas[i][batidas[i]++ % filas[i].length], gk = times[1 - i].goleiro;
+      const { resultado } = chutar({ tipo: "penalti", xg: CONFIG.xgBase.penalti, chute: quem.at[A.fin], defesa: gk ? gk.at[A.um] : 5 }, gk);
+      if (resultado === "gol") placar[i]++;
+      const fim = FIM[resultado] || (gk ? `${nm(gk)} defende!` : "a bola é defendida!");
+      cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
+    };
+    for (let k = 0; k < 10; k++) { bater(k % 2); if (placar[0] > placar[1] + 5 - batidas[1] || placar[1] > placar[0] + 5 - batidas[0]) break; }
+    while (placar[0] === placar[1]) { bater(0); bater(1); }
+    penaltis = { placar, cobrancas };
+  }
   times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
   estat[0].posse = Math.round(somaPosse / jogados * 100); estat[1].posse = 100 - estat[0].posse;
   soltarCartoes();
@@ -833,5 +863,5 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     subs: t.instr.substituicoes.map((s, k) => ({ ...s, saiNome: t.nomes[s.sai] || "?", entraNome: t.nomes[s.entra] || "?", ...(t.cumpridas["s" + k] || { motivo: motivoSub(t, s) }) })),
     ordens: t.instr.ordens.map((o, k) => ({ ...o, ...(t.cumpridas["o" + k] || { motivo: "a condição não chegou a valer" }) })),
   }));
-  return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens };
+  return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
 }

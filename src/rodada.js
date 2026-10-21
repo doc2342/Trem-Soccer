@@ -137,7 +137,7 @@ export const efeitoDoClima = c => c.chuva > 1 ? "campo pesado: o passe curto sof
 // Jogo grande: Libertadores, playoffs de acesso, final da Copa do Brasil e Supercopa. Nele a experiência pesa mais (CONFIG_EXPERIENCIA.jogoGrande).
 export const jogoGrande = p => ["lib", "pre", "semi", "final"].includes(p.fase) || (p.fase === "copa" && (!p.copa_fase || p.copa_fase === 6));
 // Copa do Brasil: regras próprias da partida de copa.
-export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
+export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5 };
 // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
 export const foraDaCopa = (j, clubeId) => (j.fora > 0 && j.motivo === "lesão") || j.foraCopa > 0 || (j.copaClube != null && j.copaClube !== clubeId);
 // Libertadores e Sul-Americana (fase "lib"): cartões contados à parte, como na copa (vermelho e segundo amarelo suspendem por um jogo
@@ -202,21 +202,22 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
     escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
   } });
-  // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis
-  // (cinco para cada lado e, depois, alternados). Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida.
-  const placar = p.placar.slice(), fimReal = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).toISOString();
-  let penaltis = null, vencedor = null;
+  // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
+  // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
+  const placar = p.placar.slice(), fimDoJogo = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).getTime();
+  let fimReal = new Date(fimDoJogo).toISOString(), penaltis = null, vencedor = null;
   if (copa) {
     const nomes = [casa.clube.nome, fora.clube.nome];
-    if (placar[0] === placar[1]) {
-      penaltis = [0, 0];
-      // cinco cobranças alternadas, parando quando um time não alcança mais o outro; depois, uma para cada lado até desempatar
-      const batidas = [0, 0];
-      for (let k = 0; k < 10; k++) { const i = k % 2; batidas[i]++; if (extra.chance(COPA.penalti)) penaltis[i]++;
-        if (penaltis[0] > penaltis[1] + 5 - batidas[1] || penaltis[1] > penaltis[0] + 5 - batidas[0]) break; }
-      while (penaltis[0] === penaltis[1]) { const a = extra.chance(COPA.penalti), b = extra.chance(COPA.penalti); if (a) penaltis[0]++; if (b) penaltis[1]++; }
-      const v = penaltis[0] > penaltis[1] ? 0 : 1;
-      lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: fimReal, dados: { n: 99999, min: 120, time: v, tipo: "penaltis", texto: `A prorrogação não resolveu. Pênaltis: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]}. Passa o {${v}:${nomes[v]}}.` } });
+    if (p.penaltis) {
+      penaltis = p.penaltis.placar;
+      // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos (na escala da transmissão)
+      const passo = minutosTransmissao / 105 * 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
+      const lance = (k, dados) => lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: hora(k), dados: { n: 99000 + k, min: 120, ...dados } });
+      lance(-1, { time: 0, tipo: "penaltis", texto: "A prorrogação termina empatada. A vaga vai ser decidida nos pênaltis." });
+      p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, placar: c.placar, texto: c.texto }));
+      const v = penaltis[0] > penaltis[1] ? 0 : 1, n = p.penaltis.cobrancas.length;
+      lance(n, { n: 99999, time: v, tipo: "penaltis", texto: `Fim da disputa: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]} nos pênaltis. Passa o {${v}:${nomes[v]}}.` });
+      fimReal = hora(n);
     }
     vencedor = (penaltis ? penaltis[0] > penaltis[1] : placar[0] > placar[1]) ? casa.clube.id : fora.clube.id;
     r.vencedor = vencedor; if (p.duracao > 90) r.prorrogacao = true; if (penaltis) r.penaltis = penaltis;

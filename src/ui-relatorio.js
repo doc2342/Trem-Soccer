@@ -26,9 +26,10 @@ export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
 export function htmlLance(l) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
-  const finalizacao = l.resultado !== undefined, chave = finalizacao ? l.resultado : l.tipo;
+  // cobrança da disputa de pênaltis: o desfecho vem em "pen", não em "resultado", para não contar como finalização nem gol do jogo
+  const finalizacao = l.resultado !== undefined, cobranca = l.tipo === "cobranca", chave = finalizacao ? l.resultado : cobranca ? l.pen : l.tipo;
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
-  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🚑", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
