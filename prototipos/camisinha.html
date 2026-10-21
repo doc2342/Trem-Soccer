@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>Camisinha colorida</title>
+<link rel="stylesheet" href="../estilo.css">
+<style>.lado{display:inline-block;vertical-align:top;padding:16px 22px;margin:8px;border-radius:12px;background:var(--card);color:var(--tx)} .lado div{padding:5px 0;border-bottom:1px solid var(--line)} a{color:inherit}</style>
+<body style="padding:10px">
+<div id="escuro" class="lado"></div>
+<div id="claro" class="lado" style="--card:#fff;--line:#d5dcec;--tx:#121a3a;--mut:#5a6590"></div>
+<script type="module">
+import { camisinha } from "../src/camisa.js";
+const times = [["Cinza (sem uniforme)", null], ["Flamengo", { cor1: "#c8102e" }], ["Corinthians", { cor1: "#ffffff" }], ["Palmeiras", { cor1: "#006437" }], ["Cruzeiro", { cor1: "#1d3c8f" }], ["Botafogo", { cor1: "#111111" }], ["Amarelo", { cor1: "#f2c200" }]];
+const html = times.map(([n, u], i) => `<div>${camisinha([10, 1, 7, 9, 4, 11, 23][i], u)}<a>${n}</a></div>`).join("") + `<h2 style="margin-top:12px">${camisinha(10, { cor1: "#c8102e" }, "font-size:14px")}Calebe Brito</h2>`;
+escuro.innerHTML = "<b>Tema escuro</b>" + html;
+claro.innerHTML = "<b>Tema claro</b>" + html;
+document.documentElement.style.background = "#0a0e26";
+</script>

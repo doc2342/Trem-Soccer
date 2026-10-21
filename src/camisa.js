@@ -8,6 +8,10 @@ const luz = c => { const n = parseInt(c.slice(1), 16); return 0.299 * (n >> 16) 
 const contraste = c => luz(c) > 150 ? "#111111" : "#ffffff";
 let serie = 0;
 
+// número da camisa nas listas (classe .camisa-n do estilo.css): a camisinha na cor principal do uniforme e o número na mesma tinta das costas; sem uniforme, cinza
+export const camisinha = (numero, u, estilo = "") => { u = u || {}; const c1 = cor(u.cor1, "");
+  return `<span class="camisa-n" style="${c1 ? `--c1:${c1};--cn:${cor(u.corNumero, contraste(c1))};` : ""}${estilo}" title="Número da camisa">${numero}</span>`; };
+
 // peças em 200 x 220
 const TRONCO = "M76 12 C68 17 54 22 44 26 C49 44 51 62 50 82 C49 120 50 168 51 206 Q100 214 149 206 C150 168 151 120 150 82 C149 62 151 44 156 26 C146 22 132 17 124 12 C116 23 84 23 76 12 Z";
 const MANGA_E = "M44 26 C34 29 26 35 22 44 L4 90 C14 97 26 102 38 104 L50 82 C51 62 49 44 44 26 Z";

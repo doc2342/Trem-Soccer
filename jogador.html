@@ -34,6 +34,7 @@ import { sb } from "./src/banco.js";
 import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, notaBruta, notaNaPosicao } from "./src/modelo.js";
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
+import { camisinha } from "./src/camisa.js";
 import { sg } from "./src/siglas.js";
 import { bandeira } from "./src/bandeiras.js";
 
@@ -81,7 +82,7 @@ async function carregar() {
   const [doElenco, comprados] = await Promise.all([sb.rpc("relatorio_do_elenco").then(r => r.data || []), lista(sb.from("relatorios").select("jogador_id, minimo, maximo"))]);
   const teto = [...doElenco, ...comprados].find(t => +t.jogador_id === j.id);
   const topo = `<div class="card cabeca" style="${c1 ? `border-top-color:${c1};background:linear-gradient(100deg, ${c1}38, ${c2}14 45%, transparent 75%), var(--card)` : ""}">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
-    <div><h2>${j.numero ? `<span class="camisa-n" style="font-size:14px" title="Número da camisa">${j.numero}</span>` : ""}${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
+    <div><h2>${j.numero ? camisinha(j.numero, (clube || {}).uniforme, "font-size:14px") : ""}${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
       <div class="mut">${clube ? nomeDe(j.clube_id) : "Sem clube (jogador livre)"}${j.formador ? ` · formado no ${nomeDe(j.formador)}` : ""}</div>
       ${situacao.length ? `<div class="aviso" style="margin-top:4px">${situacao.join(" · ")}</div>` : ""}</div>
     ${teto ? `<div class="nota" title="Teto de nota estimado pelo olheiro: até onde o treino pode levar o jogador"><b style="color:var(--tx)">${teto.minimo}–${teto.maximo}</b><span class="mut">teto · olheiro</span></div>` : ""}
