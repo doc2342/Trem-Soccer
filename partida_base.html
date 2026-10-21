@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Partida da base</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="atualiza.js"></script>
+</head>
+<body>
+<main>
+  <div class="card" id="topo"><div class="mut">Carregando…</div></div>
+  <div id="corpo"></div>
+</main>
+
+<script type="module">
+// Partida da base (liga de base, Copinha, Libertadores Juvenil): o relatório completo e a reprise, lidos uma vez (136_relatorio_da_base.sql).
+// Não há transmissão: o jogo é calculado inteiro no apito.
+import { partidaDaBase, clubesPorIds, FASES_DA_COPA } from "./src/banco.js";
+import { htmlRelatorio, lembrarJogadores } from "./src/ui-relatorio.js";
+import { ligarGraficos } from "./src/ui-graficos.js";
+import { svgEscudo } from "./src/escudo.js";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const id = +new URLSearchParams(location.search).get("id");
+const COMPETICAO = { copinha: "Copinha", libjuv: "Libertadores Juvenil" };
+
+async function iniciar() {
+  const p = id ? await partidaDaBase(id) : null;
+  if (!p) { $("topo").innerHTML = `<div class="bad">Partida não encontrada.</div>`; return; }
+  const clubes = Object.fromEntries((await clubesPorIds([p.casa, p.fora])).map(c => [c.id, c]));
+  const c = [clubes[p.casa] || { nome: "—" }, clubes[p.fora] || { nome: "—" }], nomes = c.map(x => x.nome);
+  const qual = p.fase ? `${COMPETICAO[p.fase] || "Base"} · ${FASES_DA_COPA[p.copinha_fase] || ""}` : `Liga de base · rodada ${p.rodada}`;
+  const pen = p.dados && p.dados.penaltis, quando = new Date(p.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  $("topo").innerHTML = `<div class="mut">🌱 ${esc(qual)} · ${quando}</div>
+    <div class="placar" style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:6px">
+      <span class="casa">${esc(nomes[0])}</span>${svgEscudo(c[0].escudo, c[0].sigla, 36)}
+      <b style="font-size:28px">${p.gols_casa == null ? "x" : `${p.gols_casa} x ${p.gols_fora}`}</b>
+      ${svgEscudo(c[1].escudo, c[1].sigla, 36)}<span class="fora">${esc(nomes[1])}</span></div>
+    ${pen ? `<div class="mut" style="text-align:center">Pênaltis: ${pen[0]} x ${pen[1]}</div>` : ""}`;
+  document.title = `Trem Soccer · ${nomes[0]} x ${nomes[1]} (base)`;
+  if (!p.processada || p.gols_casa == null) { $("corpo").innerHTML = `<div class="card mut">O jogo ainda não aconteceu. O relatório aparece aqui depois do apito.</div>`; return; }
+  if (!p.relatorio) { $("corpo").innerHTML = `<div class="card mut">Este jogo foi disputado antes do relatório completo da base: ficaram só o placar, as notas e o resumo, que aparecem na página do clube.</div>`; return; }
+  const r = p.relatorio;
+  r.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
+  $("corpo").innerHTML = htmlRelatorio(r, { nomes, clubes: c, semPlacar: true });
+  ligarGraficos($("corpo"));
+}
+iniciar().catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

@@ -1006,7 +1006,8 @@ async function telaClube(liga, clube) {
     const est = d.est ? `<table class="mini" style="margin-top:6px;text-align:center"><tr><th>${esc((cPor[p.casa] || {}).nome || "")}</th><th></th><th>${esc((cPor[p.fora] || {}).nome || "")}</th></tr>
       ${linha("Posse", e => e.po + "%")}${linha("Finalizações (no gol)", e => `${e.f} (${e.ng})`)}${linha("xG", e => e.xg.toFixed(2).replace(".", ","))}${linha("Escanteios", e => e.es)}${linha("Faltas", e => e.fa)}${linha("Cartões", e => e.am + (e.vm ? ` + ${e.vm} 🟥` : ""))}</table>` : "";
     const an = d.an && d.an[eu] && d.an[eu].length ? `<div style="margin-top:6px"><b>Analista</b><ul style="margin:2px 0 0;padding-left:18px">${d.an[eu].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>` : "";
-    return `<div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${jog}${est}${an}</div>`; };
+    const completo = `<div style="margin-top:6px"><a class="lk" href="partida_base.html?id=${p.id}" target="_blank" rel="noopener">📋 Relatório completo e reprise</a></div>`; // 136: só nos jogos disputados depois dele
+    return `<div class="mut" style="font-size:12.5px;margin:3px 0 6px 14px">${jog}${est}${an}${completo}</div>`; };
   const cartaoDeMataMata = (jogos, titulo, vazio, diretos, regrasProprias) => {
     if (jogos == null) return "";
     const regras = regrasProprias || `<div class="mut" style="font-size:12px">Mata-mata com os 50 clubes, nas mesmas datas da Copa do Brasil e com o time da base (juvenis, profissionais formados no clube de até 21 anos e garotos da escolinha). Empate vai direto aos pênaltis. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino. O campeão recebe ${dinheiro(200)} e o vice ${dinheiro(100)}, do fundo da liga.</div>`;

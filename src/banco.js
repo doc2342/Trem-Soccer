@@ -319,6 +319,8 @@ export function separarBase(todos) {
 }
 // histórico da base: jogos das temporadas anteriores, que a virada não apaga (a liga de base de um grupo, sem as escalações, e a Copinha)
 // ponytail: sem paginação; a Copinha tem 49 jogos por temporada e a resposta vai até 1.000 linhas (~20 temporadas). Paginar quando chegar lá.
+// Uma partida da base com o relatório completo (136_relatorio_da_base.sql): só na página da partida, nunca nas listas
+export const partidaDaBase = id => sb.from("base_jogos").select("id, liga_id, temporada, grupo, rodada, fase, copinha_fase, casa, fora, inicio, processada, gols_casa, gols_fora, vencedor, dados, relatorio").eq("id", id).maybeSingle().then(ok);
 export const historicoDaLigaDeBase = (ligaId, grupo, antesDe) => sb.from("base_jogos").select("temporada, casa, fora, gols_casa, gols_fora").eq("liga_id", ligaId).eq("grupo", grupo).lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 export const historicoDaCopinha = (ligaId, antesDe) => sb.from("base_jogos").select("temporada, copinha_fase, casa, fora, gols_casa, gols_fora, vencedor, penaltis:dados->penaltis").eq("liga_id", ligaId).eq("grupo", "COPINHA").lt("temporada", antesDe).eq("processada", true).order("temporada", { ascending: false }).order("copinha_fase", { ascending: false }).order("id").then(({ data, error }) => error ? [] : data);
 // teto de folha que o banco aplica ao clube (o administrador usa para saber se o 80_virada_com_paises.sql já foi executado)
