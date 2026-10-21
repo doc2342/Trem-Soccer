@@ -397,7 +397,7 @@ const __economia = (() => {
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
   // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
-  const TETO_DE_FOLHA = { 1: 20000, 2: 14000, 3: 10000 };
+  const TETO_DE_FOLHA = { 1: 20000, 2: 16000, 3: 10000 };
 
   // Contrato inicial de um jogador gerado: salário de mercado, duração sorteada de 1 a 3 temporadas (contando a atual)
   // e proteção contra a cláusula até o fim da primeira temporada.
