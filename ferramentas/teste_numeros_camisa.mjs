@@ -13,4 +13,7 @@ assert.deepEqual(["t5", "t6", "t7", "t8", "t9", "t10"].map(k => m.get(k)), [5, 8
 m = t(["GK", "DC", "DC", "DC", "WBR", "WBL", "MC", "MC", "AMC", "SC", "FC"]);
 assert.equal(new Set(m.values()).size, 11);
 assert.equal(numerosDaCamisa(null).size, 0);
+// número escolhido vale antes da regra: o zagueiro com a 9 fica com ela, o centroavante pega o próximo da lista (10), e ninguém repete
+m = numerosDaCamisa({ titulares: [{ nome: "z", pos: "DC", numero: 9 }, { nome: "c", pos: "SC" }, { nome: "g", pos: "GK", numero: 23 }], banco: [{ nome: "r", pos: "MC", numero: 77 }, { nome: "s", pos: "MC" }] });
+assert.deepEqual(["z", "c", "g", "r", "s"].map(k => m.get(k)), [9, 10, 23, 77, 12]);
 console.log("números da camisa: ok");

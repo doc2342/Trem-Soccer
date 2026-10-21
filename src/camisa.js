@@ -52,18 +52,21 @@ export const FRISOS = { nenhum: "Nenhum", um: "Um friso", tres: "Três frisos" }
 
 // Número da camisa, pela posição na escalação (os jogadores não têm número próprio): goleiro 1, laterais 2 e 6, zagueiros 3 e 4,
 // volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; quem sobra pega o primeiro número livre; o banco vai do 12 em diante.
-// esc = { titulares: [{ nome, pos }], banco: [{ nome, pos }] } (as escalações do lance de início). Devolve Map nome -> número.
+// O número escolhido pelo dirigente (jogadores.numero, 139_numero_da_camisa.sql) vem antes: os outros ficam com os que sobram.
+// esc = { titulares: [{ nome, pos, numero? }], banco: [{ nome, pos, numero? }] } (as escalações do lance de início). Devolve Map nome -> número.
 const NUMEROS = { GK: [1], SC: [9, 10], DR: [2], WBR: [2], DL: [6], WBL: [6], DC: [3, 4], SW: [3, 4], DMC: [5, 8], AMC: [10, 8],
   RW: [7, 11], AMR: [7, 11], MR: [7, 11], LW: [11, 7], AML: [11, 7], ML: [11, 7], MC: [8, 10, 5], FC: [9, 10, 11] };
 const ORDEM_DOS_NUMEROS = Object.keys(NUMEROS);
 export function numerosDaCamisa(esc) {
   const usados = new Set(), m = new Map(), livre = de => { let n = de; while (usados.has(n)) n++; return n; };
   const tit = ((esc && esc.titulares) || []).map((j, i) => ({ ...j, i })), ordem = p => { const k = ORDEM_DOS_NUMEROS.indexOf(p); return k < 0 ? 99 : k; };
-  for (const j of tit.sort((a, b) => ordem(a.pos) - ordem(b.pos) || a.i - b.i)) {
+  for (const j of [...tit, ...((esc && esc.banco) || [])]) { const n = +j.numero;
+    if (Number.isInteger(n) && n >= 1 && n <= 99 && !usados.has(n) && !m.has(j.nome)) { usados.add(n); m.set(j.nome, n); } }
+  for (const j of tit.sort((a, b) => ordem(a.pos) - ordem(b.pos) || a.i - b.i)) { if (m.has(j.nome)) continue;
     const n = (NUMEROS[j.pos] || []).find(x => !usados.has(x)) || (livre(2) <= 11 ? livre(2) : livre(13));
     usados.add(n); if (!m.has(j.nome)) m.set(j.nome, n);
   }
-  for (const j of (esc && esc.banco) || []) { const n = livre(12); usados.add(n); if (!m.has(j.nome)) m.set(j.nome, n); }
+  for (const j of (esc && esc.banco) || []) { if (m.has(j.nome)) continue; const n = livre(12); usados.add(n); m.set(j.nome, n); }
   return m;
 }
 

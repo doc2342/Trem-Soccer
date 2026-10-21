@@ -46,6 +46,8 @@ export const pedidosExtraPendentes = () => sb.from("pedidos_extra").select("*").
 // clubeId: o bot escolhido pelo administrador (98_escolher_clube_extra.sql); null = sorteio
 export const aprovarPedidoExtra = (userId, elenco, clubeId = null) => sb.rpc("aprovar_pedido_extra", clubeId ? { p_user: userId, p_elenco: elenco, p_clube: clubeId } : { p_user: userId, p_elenco: elenco }).then(ok);
 export const recusarPedidoExtra = (userId, motivo) => sb.rpc("recusar_pedido_extra", { p_user: userId, p_motivo: motivo || null }).then(ok);
+// números da camisa (139_numero_da_camisa.sql): { id do jogador: número de 1 a 99, ou null para automático }
+export const definirNumeros = (clubeId, numeros) => sb.rpc("definir_numeros", { p_clube: clubeId, p_numeros: numeros }).then(ok);
 export const editarVisual = (escudo, uniforme) => sb.rpc("editar_visual", { p_escudo: escudo, p_uniforme: uniforme }).then(ok);
 // escudo enviado como imagem (51_escudo_enviado.sql): sobe ao Storage, passa a valer e apaga a imagem anterior
 export async function enviarEscudo(clubeId, blob) {
@@ -66,7 +68,7 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok).then(linhas => linhas.map(doElenco));
-export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
+export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,

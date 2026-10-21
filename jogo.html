@@ -174,6 +174,8 @@
   .jg-x { text-align:center; white-space:nowrap; min-width:22px; } a.jg > .xg { grid-column:1 / -1; margin-left:0; text-align:center; font-size:11px; } /* o horário numa segunda linha: sobra largura para os nomes */ .jg-x small { display:block; font-weight:400; font-size:11px; color:var(--mut); }
   .lk { color:inherit; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px; cursor:pointer; }
   .lk:hover { text-decoration-color:var(--ac); }
+  .numeros-elenco { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:6px 14px; }
+  .num-j { flex-direction:row !important; align-items:center; gap:8px; } .num-j input { width:64px; text-align:center; font-family:var(--display); font-weight:700; font-size:16px; }
   .cores { display:flex; flex-wrap:wrap; gap:4px; max-width:230px; }
   .cores span { width:24px; height:24px; border-radius:6px; border:2px solid var(--line); cursor:pointer; }
   .cores span.sel { border-color:var(--ac); }
@@ -2047,7 +2049,7 @@ ${historicoDaBase()}
     </div>
     </section>
     <section data-secao="elenco">
-    ${subAbas("elenco", [["lista", "👥 Elenco", "Elenco"], ["treino", "🏋️ Treino", "Treino"]])}
+    ${subAbas("elenco", [["lista", "👥 Elenco", "Elenco"], ["treino", "🏋️ Treino", "Treino"], ["numeros", "🔢 Números", "Números"]])}
     <div data-parte="elenco:lista">
     ${kpisDoElenco()}
     <div class="card"><h2>Elenco <span class="tag">${elenco.length} jogadores · clique num jogador para mexer no contrato, na proteção ou na venda</span></h2>
@@ -2057,6 +2059,10 @@ ${historicoDaBase()}
       ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
       ${comoFunciona(`<div class="mut" style="font-size:12px">A coluna Tática mostra quem é titular (e em que posição) e quem está no banco na sua tática salva${tatica ? "" : "; você ainda não salvou uma"}. O botão <b>i</b> abre os atributos, o salário e a multa rescisória.${temMomento ? " For e Mor são a forma e a moral, de 0 a 100 (50 é neutro): a forma pesa até 6% no desempenho e a moral até 3%." : ""} Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div>`)}</div>
     </div>
+    <div data-parte="elenco:numeros"><div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
+      <div class="mut" style="font-size:12.5px;margin-bottom:8px">Escolha de 1 a 99, sem repetir. Quem fica em branco recebe um número pela posição em cada jogo (goleiro 1, laterais 2 e 6, zagueiros 3 e 4, volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; banco do 12 em diante), sem pegar os números já escolhidos. Quem sai do clube perde o número.</div>
+      <div class="numeros-elenco">${[...elenco].sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || a.nome.localeCompare(b.nome)).map(j => `<label class="num-j"><input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="auto"><span>${sg(j.pos)} ${esc(j.nome)}</span></label>`).join("")}</div>
+      <div class="row" style="margin-top:10px;align-items:center"><button id="numSalvar">Salvar números</button><span id="numAviso" class="mut"></span></div></div></div>
     <div data-parte="elenco:treino">
     ${treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
       <div>Escolha os focos de cada jogador e salve; o treino vale a partir da próxima rodada.</div>${comoFunciona(`<div class="mut" style="font-size:12.5px">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
@@ -2545,6 +2551,18 @@ ${historicoDaBase()}
   const editores = [];
   const aoMudarVisual = () => { $("cfgSalvarVisual").disabled = false; $("cfgVisualAviso").innerHTML = `<span class="aviso">Há mudanças sem salvar.</span>`; editores.forEach(ed => ed.atualizarPrevia()); };
   [["cfgEscudo", "escudo"], ["cfgTitular", "titular"], ["cfgReserva", "reserva"]].forEach(([id, parte]) => editores.push(editorVisual($(id), visual, { sigla: () => clube.sigla, parte, aoMudar: aoMudarVisual })));
+  // números da camisa: confere repetidos antes de gravar
+  if ($("numSalvar")) $("numSalvar").onclick = async () => {
+    const campos = [...document.querySelectorAll("[data-numero]")], numeros = {}, vistos = {};
+    for (const c of campos) { const v = c.value.trim(), n = +v, id = c.dataset.numero.replace(/^j/, "");
+      if (v && (!Number.isInteger(n) || n < 1 || n > 99)) { $("numAviso").innerHTML = `<span class="bad">Use números de 1 a 99.</span>`; c.focus(); return; }
+      if (v && vistos[n]) { $("numAviso").innerHTML = `<span class="bad">O ${n} está em dois jogadores.</span>`; c.focus(); return; }
+      if (v) vistos[n] = true; numeros[id] = v ? n : null; }
+    $("numSalvar").disabled = true; $("numAviso").textContent = "Salvando…";
+    try { await B.definirNumeros(clube.id, numeros); $("numAviso").textContent = "Números salvos. Valem a partir do próximo jogo."; }
+    catch (err) { $("numAviso").innerHTML = `<span class="bad">${esc(/definir_numeros/.test(err.message) ? "Falta rodar o SQL 139 no Supabase." : err.message)}</span>`; }
+    $("numSalvar").disabled = false;
+  };
   $("cfgSalvarVisual").onclick = async () => {
     $("cfgSalvarVisual").disabled = true;
     try { await editarVisual(visual.escudo, visual.uniforme); await carregar({ user: usuario }); }

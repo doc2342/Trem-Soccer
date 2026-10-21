@@ -114,6 +114,7 @@
   .tvFala.fim { border-left:0; border-top:1px solid #ffffff22; padding:10px 0 0; margin:14px 0 0; text-align:right; } .tvFala .ass { font-style:normal; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#facc15; margin-left:8px; white-space:nowrap; }
   @keyframes tvEntra { from { opacity:0; transform:translateY(12px); } }
   @media (max-width:620px) { .tvRod, .tvAna { grid-template-columns:1fr; gap:12px; } .tvTit { font-size:18px; } .tvAna p { font-size:14.5px; } .tvRod { font-size:13px; } }
+  .num-c { display:inline-block; min-width:22px; margin-right:4px; font-family:var(--display); font-weight:700; font-variant-numeric:tabular-nums; text-align:right; color:var(--mut); }
   .aviso-gol { position:absolute; z-index:20; display:flex; align-items:center; justify-content:center; gap:22px; padding:12px; border-radius:14px; overflow:hidden; pointer-events:none;
     background:linear-gradient(110deg, var(--c1) 0 38%, var(--c2) 38% 41%, var(--c1) 41%); color:var(--txt-gol); animation:golEntra 4.5s cubic-bezier(.2,.8,.2,1) forwards; }
   .aviso-gol .camisa { animation:golPula 4.5s ease-out forwards; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
@@ -652,8 +653,9 @@ function htmlEstadio(pre) {
 function htmlEscalacoes(pre) {
   if (!pre || !pre.escalacoes) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
-  const time = (e, i) => `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
-    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`;
+  const num = e => { const m = numerosDaCamisa(e); return j => `<span class="num-c">${m.get(j.nome) || ""}</span>`; };
+  const time = (e, i) => { const n = num(e); return `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${n(j)}${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
+    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${n(j)}${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`; };
   return `<div class="card" data-aba="esc"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
