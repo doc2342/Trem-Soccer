@@ -526,7 +526,7 @@ async function tela(aviso = "") {
     finally { $("calcMetas").disabled = false; }
   });
   em("prepararVirada", async () => {
-    // com outros países na liga, o banco precisa do 80 (teto de 24 mi lá fora, Copinha e liga de base só do Brasil) antes da virada
+    // com outros países na liga, o banco precisa do 80 (teto de lá fora, hoje 20 mi pelo 140, Copinha e liga de base só do Brasil) antes da virada
     const deFora = clubes.find(c => PAISES[c.grupo]);
     if (deFora && await tetoDoClube(deFora.id) !== REGUA_DE_FORA.teto) return alert("Antes de virar a temporada com outros países, execute o supabase/80_virada_com_paises.sql.");
     $("prepararVirada").disabled = true; $("previaVirada").innerHTML = `<span class="mut">Lendo elencos e resultados…</span>`;

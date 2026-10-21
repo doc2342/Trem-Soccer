@@ -26,9 +26,9 @@ export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -8, 3: -20 };
 // Outros países: campeonato de uma divisão só, sem acesso nem descenso, com régua própria, um pouco acima da Série A, para o campeão de
 // cada país chegar à Libertadores com onze de 39 a 40. Simulado em ferramentas/sim_paises.mjs (10 clubes, 20 temporadas, 4 sementes): com jovem
 // de nota 28 e talento +14, o campeão tem onze de ~38,5 nas primeiras temporadas e ~40,4 na liga madura, com folha de até ~23,9 mi.
-// O teto de 24 mi é o mesmo do banco (teto_do_clube, 80_virada_com_paises.sql). O prêmio da liga é maior que o da Série A porque a folha é
+// O teto de 20 mi é o mesmo do banco (teto_do_clube, 140_tetos_com_duas_divisoes.sql). O prêmio da liga é maior que o da Série A porque a folha é
 // maior e TV, patrocínio e ingresso são os da Série A: sem ele o clube ficaria no vermelho e venderia jogador ao banco.
-export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 24000, premios: [9000, 5000] };
+export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 20000, premios: [9000, 5000] };
 // Safra de cada país, sorteada à parte (não tira raro do Brasil): em média 0,15 de teto 43 e 0,3 de teto 42 por temporada, a mesma
 // proporção do Brasil por clube.
 export const SAFRA_DE_FORA = [{ nivel: 43, tal: 100, quantos: [[0, 0.85], [1, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.7], [1, 0.3]] }];
