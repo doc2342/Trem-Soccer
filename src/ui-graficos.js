@@ -7,18 +7,10 @@ import { svgEscudo } from "./escudo.js";
 const f1 = v => v.toFixed(1).replace(".", ","), f2 = v => v.toFixed(2).replace(".", ",");
 const esc = s => String(s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const sobrenome = n => esc(String(n || "").split(" ").slice(-1)[0]);
-const rgb = c => { const n = parseInt(c.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; };
-const luz = c => { const [r, g, b] = rgb(c); return .299 * r + .587 * g + .114 * b; };
-const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
-// puxa a cor para o preto (tema claro) ou para o branco (tema escuro) até ela aparecer no fundo do cartão
-function legivel(c, claro) { let [r, g, b] = rgb(c); const alvo = claro ? 0 : 255, l = () => .299 * r + .587 * g + .114 * b;
-  while (claro ? l() > 150 : l() < 105) { r += (alvo - r) * .12; g += (alvo - g) * .12; b += (alvo - b) * .12; }
-  return "#" + [r, g, b].map(v => Math.round(v).toString(16).padStart(2, "0")).join(""); }
-// cor de cada time: a principal do escudo, a não ser que seja preta, branca ou parecida com a do outro
-export function coresDoJogo(e0, e1, claro = false) {
-  const op = e => [e?.cor1, e?.cor2].filter(c => /^#[0-9a-f]{6}$/i.test(c || "") && luz(c) > 40 && luz(c) < 225);
-  const a = op(e0)[0] || "#3a7bd5", b = op(e1).find(c => dist(c, a) > 110) || (dist("#e8833a", a) > 110 ? "#e8833a" : "#d94a64");
-  return [a, b].map(c => legivel(c, claro));
+// cor de cada time: a mesma das estatísticas (--casa para o mandante, --fora para o visitante, de estilo.css), em todo o site
+export function coresDoJogo(claro = false) {
+  const css = typeof document !== "undefined" ? getComputedStyle(document.documentElement) : null, v = (k, p) => css?.getPropertyValue(k).trim() || p;
+  return [v("--casa", claro ? "#1c78b0" : "#7fcdf0"), v("--fora", claro ? "#c0531d" : "#e58a5a")];
 }
 
 // pressão: cada lance empurra para o lado de quem atacava; chance pesa pelo xG; suavizada e comprimida com tanh
@@ -115,7 +107,7 @@ export function htmlGraficos(narracao, clubes, { aoVivo = false } = {}) {
   if (aoVivo) tempo.F = Math.max(tempo.F, ...lances.map(l => l.t)); // lance além do previsto (acréscimo ainda não anunciado): o eixo cresce
   const ate = aoVivo ? Math.max(1, ...lances.map(l => l.t)) : tempo.F, sx = [0, 1].map(i => chutes.filter(t => t.time === i));
   const claro = typeof document !== "undefined" && document.documentElement.getAttribute("data-tema") === "claro";
-  const G = { cores: coresDoJogo(clubes[0].escudo, clubes[1].escudo, claro), lances, chutes, sx, ate, aoVivo, gols: chutes.filter(t => t.gol), pr: pressao(lances, ate, tempo.F), tempo,
+  const G = { cores: coresDoJogo(claro), lances, chutes, sx, ate, aoVivo, gols: chutes.filter(t => t.gol), pr: pressao(lances, ate, tempo.F), tempo,
     xgAte: (i, m) => sx[i].filter(t => t.t <= m).reduce((a, t) => a + t.xg, 0), clubes };
   const n = [0, 0, 0]; for (let m = 1; m <= ate; m++) n[G.pr[m] > .15 ? 0 : G.pr[m] < -.15 ? 2 : 1]++;
   const pc = n.map(v => Math.round(v / ate * 100)), [k0, k1] = G.cores;
