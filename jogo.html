@@ -190,17 +190,18 @@
   .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-family:var(--display); font-weight:600; font-size:16px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); }
   .zona table { width:100%; font-size:13px; } .zona td, .zona th { padding:5px 4px; white-space:nowrap; } .zona td.esq { white-space:normal; }
   .zona .pp, .zona .act { min-width:34px; padding:1px 4px; }
-  .zona tr.e-tit td { background:var(--ok-fundo); } .zona tr.e-res td { background:var(--ac-fundo); } /* titular e banco da tática salva */
   /* celular: só o essencial (posição colorida pela tática, atributos, nome, idade, nota e contrato); o resto está no botão i */
   @media (max-width:620px) {
-    .zona .c-tat, .zona .c-sal { display:none; }
+    .zona .c-tat, .zona .c-sal { display:none; } .zona td .so-cel { display:inline; } /* vence o display:none declarado mais abaixo */
+    .zona tr.e-tit td { background:var(--ok-fundo); } .zona tr.e-res td { background:var(--ac-fundo); }
     .zona table { font-size:12.5px; } .zona td, .zona th { padding:3px 3px; }
     .zona td.esq { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:30vw; }
     .zona .info { width:20px; height:20px; }
     .zona { margin-bottom:10px; }
   }
   .act { display:inline-block; min-width:38px; padding:1px 6px; border-radius:6px; font-size:11.5px; font-weight:700; text-align:center; }
-  .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; }
+  .act.tit { background:#2c6b4a; color:#eafff3; } .act.res { background:#5a4a1e; color:#ffe9a8; } .act.juv { background:#4a3b6b; color:#efe6ff; }
+  .zona .so-cel { display:none; } /* o 🌱 do juvenil: no computador a coluna Tática já diz JUV */
   .info { position:relative; width:22px; height:22px; padding:0; border-radius:50%; font-size:12px; font-weight:700; font-style:italic; line-height:1; background:#2a4a7a; color:#fff; border:0; cursor:pointer; }
   .info::after { content:""; position:absolute; inset:-6px -12px; } /* aumenta a área de toque sem mudar o desenho */
   .quadro-atr { position:fixed; z-index:50; max-height:calc(100vh - 16px); overflow:auto; width:min(520px, calc(100vw - 16px)); background:var(--card); border:1px solid var(--ac); border-radius:10px; padding:12px; box-shadow:var(--sombra-alta); }
@@ -982,14 +983,15 @@ async function telaClube(liga, clube) {
   }
   const treinoLigado = elenco.some(j => j.treino !== undefined); // false antes do 27_treino.sql
   const temTeto = Object.keys(tetoDe).length > 0; // há olheiro contratado
+  const papel = j => j.juvenil ? `<span class="act juv" title="Juvenil: sem contrato, treina mas não joga partida oficial">JUV</span>` : !naTatica[j.id] ? "" : naTatica[j.id].titular ? `<span class="act tit" title="Titular na tática salva">TIT</span>` : `<span class="act res" title="No banco, na tática salva">RES</span>`;
   const selo = j => { const t = naTatica[j.id]; return t && t.titular && t.pos && t.pos !== j.pos ? ` <small class="mut" title="Titular na tática salva, jogando de ${sg(t.pos)}">→${sg(t.pos)}</small>` : ""; };
-  const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td>${pp(j.pos)}${selo(j)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
-    <td class="esq">${j.numero ? `<span class="camisa-n" title="Número da camisa">${j.numero}</span>` : ""}${lj(j.id, j.nome)}${situacao(j)}${j.juvenil ? ` <span title="Juvenil: sem contrato, treina mas não joga partida oficial. Clique para profissionalizar.">🌱</span>` : ""}${j.aposentaEm != null ? ` <span class="tag aviso" title="Anunciou a aposentadoria: joga até o fim da temporada e para. Não pode ser vendido nem renovar.">🏁 se aposenta</span>` : ""}${j.preContrato === liga.temporada ? ` <span class="tag aviso" title="Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar com ele.">✍️ assediado</span>` : ""}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
+  const linha = j => `<tr class="clk ${naTatica[j.id] ? (naTatica[j.id].titular ? "e-tit" : "e-res") : ""}" data-jog="${j.id}"><td class="c-tat">${papel(j)}</td><td>${pp(j.pos)}${selo(j)}</td><td><button class="info" data-info="${j.id}" title="Atributos">i</button></td>
+    <td class="esq">${j.numero ? `<span class="camisa-n" title="Número da camisa">${j.numero}</span>` : ""}${lj(j.id, j.nome)}${situacao(j)}${j.juvenil ? ` <span class="so-cel" title="Juvenil: sem contrato, treina mas não joga partida oficial. Clique para profissionalizar.">🌱</span>` : ""}${j.aposentaEm != null ? ` <span class="tag aviso" title="Anunciou a aposentadoria: joga até o fim da temporada e para. Não pode ser vendido nem renovar.">🏁 se aposenta</span>` : ""}${j.preContrato === liga.temporada ? ` <span class="tag aviso" title="Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar com ele.">✍️ assediado</span>` : ""}${j.aVenda ? ` <span class="tag" title="Na lista de transferência">à venda por ${dinheiro(j.precoPedido)}</span>` : ""}</td>
     <td>${j.idade}</td><td class="mut c-pais">${bandeira(j.pais)}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="c-sal mut">${Math.round(experienciaDe(j))}</td>
     <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td class="${j.contratoAte != null && j.contratoAte <= liga.temporada ? "aviso" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? ` <span title="Na lista de protegidos: sem multa rescisória">🛡️</span>` : ""}</td></tr>`;
   const zonaDoElenco = ([titulo, linhas]) => {
     const l = elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th class="c-pais" title="Nacionalidade"></th><th title="Nota na posição dele">Nota</th><th class="c-sal" title="Experiência, de 0 a 100: sobe jogando, deixa o desempenho mais estável e rende até 3% a mais">Exp</th><th class="c-sal">Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
+    return `<div class="zona"><h3>${titulo} <span class="tag">${l.length}</span></h3><table><tr><th class="c-tat" title="Na tática salva: TIT titular, RES no banco; JUV juvenil">Tática</th><th>Pos</th><th></th><th class="esq">Jogador</th><th title="Idade">Id.</th><th class="c-pais" title="Nacionalidade"></th><th title="Nota na posição dele">Nota</th><th class="c-sal" title="Experiência, de 0 a 100: sobe jogando, deixa o desempenho mais estável e rende até 3% a mais">Exp</th><th class="c-sal">Salário</th><th title="Última temporada coberta pelo contrato">Contr.</th></tr>
       ${l.map(linha).join("") || `<tr><td colspan="13" class="mut">Ninguém nesta zona.</td></tr>`}</table></div>`;
   };
   // Mata-mata da base (Copinha e Libertadores Juvenil): a mesma chave, com fases numeradas como as da Copa
@@ -2055,7 +2057,7 @@ ${historicoDaBase()}
       <div id="lugarPainelElenco"><div id="contratoPainel"></div></div>
       <div class="elenco2"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(zonaDoElenco).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(zonaDoElenco).join("")}</div></div>
       ${emprestados.length ? `<div style="margin-top:8px"><b>Emprestados a outros clubes</b> <span class="mut">· voltam na virada da temporada · você paga metade do salário, e metade conta na sua folha</span>${emprestados.map(j => `<div>${sg(j.pos)} ${esc(j.nome)} <span class="mut">(${j.idade}) · no ${esc((cPor[j.clube_id] || {}).nome || "—")} · sua metade: ${dinheiro(Math.round((j.salario || 0) / 2))} por temporada</span></div>`).join("")}</div>` : ""}
-      ${comoFunciona(`<div class="mut" style="font-size:12px">Na sua tática salva${tatica ? "" : " (você ainda não salvou uma)"}, os titulares ficam com a linha verde e o banco com a linha amarela; a seta ao lado da posição mostra quem joga fora dela. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div>`)}</div>
+      ${comoFunciona(`<div class="mut" style="font-size:12px">A coluna Tática diz quem é titular (TIT) e quem está no banco (RES) na sua tática salva${tatica ? "" : ", que você ainda não salvou"}, e JUV marca os juvenis; no celular, a linha fica verde para titular e amarela para banco. A seta ao lado da posição mostra quem joga fora dela. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div>`)}</div>
     </div>
     <div data-parte="elenco:numeros"><div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
       <div class="mut" style="font-size:12.5px;margin-bottom:8px">Escolha de 1 a 99, sem repetir. Quem fica em branco recebe um número pela posição em cada jogo (goleiro 1, laterais 2 e 6, zagueiros 3 e 4, volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; banco do 12 em diante), sem pegar os números já escolhidos. Quem sai do clube perde o número.</div>
