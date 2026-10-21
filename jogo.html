@@ -1875,7 +1875,7 @@ async function telaClube(liga, clube) {
     ${clube.confianca != null ? kpi("Confiança", `<span class="${clube.confianca < 30 ? "bad" : clube.confianca >= 70 ? "ok" : ""}">${clube.confianca}</span><small> de 100</small>`, "da diretoria")
       : clube.torcida != null ? kpi("Torcida", clube.torcida.toLocaleString("pt-BR"), nomeDoHumor(clube.humor)) : ""}</div>`;
   if (window.moCor) window.moCor(clube.escudo); // a cor de destaque do jogo sai do escudo
-  let temaEscolhido = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; } catch (e) {}
+  let temaEscolhido = "", coresEscolhidas = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; coresEscolhidas = localStorage.getItem("mo_cores") || ""; } catch (e) {}
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   devolverBarra();
   $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
@@ -1971,6 +1971,8 @@ ${historicoDaBase()}
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
           <div style="margin-top:12px"><b>Tema</b><div class="mut" style="margin:4px 0 8px">No automático, o jogo fica claro ou escuro junto com o celular ou o computador.</div>
             ${[["", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]].map(([v, n]) => `<label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:4px"><input type="radio" name="cfgTema" value="${v}" ${temaEscolhido === v ? "checked" : ""}> ${n}</label>`).join("")}</div>
+          <div style="margin-top:12px"><b>Cores dos jogos</b><div class="mut" style="margin:4px 0 8px">Mandante e visitante nas estatísticas e nos gráficos. Cores que nenhum clube grande veste, para ninguém torcer com a cor do rival.</div>
+            ${[["", "#2dd4bf", "Turquesa"], ["roxo", "#a78bfa", "Roxo"]].map(([v, c, n]) => `<label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:4px"><input type="radio" name="cfgCores" value="${v}" ${coresEscolhidas === v ? "checked" : ""}> <span style="display:inline-flex;gap:3px"><i style="width:14px;height:10px;border-radius:2px;background:${c}"></i><i style="width:14px;height:10px;border-radius:2px;background:#f5a524"></i></span> ${n} × âmbar${v ? "" : ` <span class="mut">(padrão)</span>`}</label>`).join("")}</div>
           ${telaPequena ? `<div style="margin-top:12px"><b>Tela</b><div class="mut" style="margin:4px 0 8px">No celular, dá para ver a página inteira de computador com o zoom reduzido, como no Dugout.</div><button class="sec" id="cfgTela">${telaDePc ? "📱 Usar a tela de celular" : "🖥️ Usar a tela de computador"}</button></div>` : ""}</div>
       </div></div></div>
     </section>
@@ -2530,6 +2532,7 @@ ${historicoDaBase()}
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
   const trocarTema = t => { window.moTema(t); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
   document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.onchange = () => trocarTema(r.value); });
+  document.querySelectorAll('input[name="cfgCores"]').forEach(r => { r.onchange = () => window.moCores(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
   document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });

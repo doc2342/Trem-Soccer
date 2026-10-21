@@ -10,7 +10,7 @@ const sobrenome = n => esc(String(n || "").split(" ").slice(-1)[0]);
 // cor de cada time: a mesma das estatísticas (--casa para o mandante, --fora para o visitante, de estilo.css), em todo o site
 export function coresDoJogo(claro = false) {
   const css = typeof document !== "undefined" ? getComputedStyle(document.documentElement) : null, v = (k, p) => css?.getPropertyValue(k).trim() || p;
-  return [v("--casa", claro ? "#1c78b0" : "#7fcdf0"), v("--fora", claro ? "#c0531d" : "#e58a5a")];
+  return [v("--casa", claro ? "#0f8a7c" : "#2dd4bf"), v("--fora", claro ? "#b06a00" : "#f5a524")];
 }
 
 // pressão: cada lance empurra para o lado de quem atacava; chance pesa pelo xG; suavizada e comprimida com tanh

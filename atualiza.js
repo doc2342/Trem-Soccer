@@ -36,9 +36,11 @@
   function aplicarTema() {
     var raiz = document.documentElement, t = ler("mo_tema"), claro = t ? t === "claro" : !!(claroDoAparelho && claroDoAparelho.matches), a = acento(ler("mo_cor").split(","), claro);
     raiz.setAttribute("data-tema", claro ? "claro" : "escuro");
+    if (ler("mo_cores")) raiz.setAttribute("data-cores", ler("mo_cores")); else raiz.removeAttribute("data-cores");
     if (a) { raiz.style.setProperty("--ac", a[0]); raiz.style.setProperty("--ac-tx", a[1]); } else { raiz.style.removeProperty("--ac"); raiz.style.removeProperty("--ac-tx"); }
   }
   window.moTema = function (t) { gravar("mo_tema", t); aplicarTema(); }; // "claro", "escuro" ou "" (automático)
+  window.moCores = function (c) { gravar("mo_cores", c); aplicarTema(); }; // cores de mandante × visitante: "" (turquesa × âmbar) ou "roxo"
   window.moCor = function (escudo) { var c = escudo ? [escudo.cor1, escudo.cor2].join(",") : ""; if (c !== ler("mo_cor")) { gravar("mo_cor", c); aplicarTema(); } };
   if (claroDoAparelho && claroDoAparelho.addEventListener) claroDoAparelho.addEventListener("change", aplicarTema);
   aplicarTema();

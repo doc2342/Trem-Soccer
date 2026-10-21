@@ -1,13 +1,16 @@
-:root { --bg:#0a0e26; --card:#121842; --campo:#0d1235; --hover:#1b2457; --pp:#243066; --line:#262e62; --tx:#eaf1fb; --mut:#8d98c2; --ac:#f2c14e; --sul:#b48cf2; --casa:#7fcdf0; --fora:#e58a5a; --ok:#3fcb82; --bad:#ff5c63;
+:root { --bg:#0a0e26; --card:#121842; --campo:#0d1235; --hover:#1b2457; --pp:#243066; --line:#262e62; --tx:#eaf1fb; --mut:#8d98c2; --ac:#f2c14e; --sul:#b48cf2; --casa:#2dd4bf; --fora:#f5a524; --ok:#3fcb82; --bad:#ff5c63;
   --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif; --body:"Barlow",system-ui,"Segoe UI",Roboto,sans-serif; --sombra:0 1px 2px rgba(0,0,0,.3);
   /* tons que dependem do fundo: no tema claro mudam junto com as cores acima */
   --ac-tx:#1a1300; --vidro:rgba(255,255,255,.03); --trilho:rgba(255,255,255,.08); --vaga:rgba(10,14,38,.86); --sombra-alta:0 10px 30px rgba(0,0,0,.55);
   --ac-fundo:color-mix(in srgb, var(--ac) 12%, transparent); --ok-fundo:color-mix(in srgb, var(--ok) 13%, transparent); --bad-fundo:color-mix(in srgb, var(--bad) 9%, transparent); }
 /* tema claro: o atualiza.js põe data-tema="claro" no <html> (escolha do jogador ou tema do aparelho); --ac e --ac-tx podem vir do escudo do clube */
 :root[data-tema=claro] { --bg:#eef1f8; --card:#ffffff; --campo:#f5f7fc; --hover:#e6ebf6; --pp:#dfe5f4; --line:#d5dcec; --tx:#121a3a; --mut:#5a6590;
-  --ac:#946a00; --ac-tx:#ffffff; --sul:#7447c9; --casa:#1c78b0; --fora:#c0531d; --ok:#1b8a52; --bad:#d3313a;
+  --ac:#946a00; --ac-tx:#ffffff; --sul:#7447c9; --casa:#0f8a7c; --fora:#b06a00; --ok:#1b8a52; --bad:#d3313a;
   --sombra:0 1px 2px rgba(20,30,70,.07), 0 2px 8px rgba(20,30,70,.05); --vidro:rgba(18,26,58,.035); --trilho:rgba(18,26,58,.08); --vaga:rgba(255,255,255,.93); --sombra-alta:0 10px 30px rgba(20,30,70,.22); color-scheme:light; }
 :root[data-tema=claro] .fbola { color:#fff; }
+/* cores de mandante (--casa) e visitante (--fora): fora de vermelho, azul, verde, preto e branco para nenhum clube jogar com a cor do rival.
+   Turquesa × âmbar é o padrão; roxo × âmbar é a opção dos Ajustes (o atualiza.js põe data-cores="roxo" no <html>) */
+:root[data-cores=roxo] { --casa:#a78bfa; } :root[data-tema=claro][data-cores=roxo] { --casa:#7c4dcc; }
 * { box-sizing:border-box; }
 #quadroJogador{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--bg)}#quadroJogador iframe{display:block;width:100%;height:100%;border:0}
 [hidden] { display:none !important; }
