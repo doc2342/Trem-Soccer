@@ -419,6 +419,8 @@ const __motor = (() => {
     // Cruzamento alto (cabeceio) ou rasteiro (finalização e velocidade de quem chega). No misto, cada cruzamento vai para o que a área faz melhor.
     //   rasteiro: xG do rasteiro em relação ao alto; afobado: xG do cruzamento forçado
     cruzamento: { rasteiro: 1.1, afobado: 0.7 },
+    // centroavante sozinho na área (o segundo da área tem peso < limite): os dois zagueiros ficam nele. bonus: pontos somados à marcação dele no cruzamento; peso: multiplica a vontade de cruzar
+    marcacaoDobrada: { limite: 0.4, bonus: 6, peso: 0.8 },
     // por nível de mentalidade de quem defende (só para quem escolheu a instrução): chute de longe contra retranca; área contra retranca e contra time aberto
     finalizarXmentalidade: { longe: 0.15, areaRetranca: 0.1, areaAberto: 0.08 },
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
@@ -670,7 +672,9 @@ const __motor = (() => {
     const alvoAereo = area.reduce((s, o) => s + o.w * media(o.jog.at[A.cab], o.jog.at[A.for]), 0) / 30;
     const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
     const alvoRasteiro = area.reduce((s, o) => s + o.w * media(o.jog.at[A.fin], o.jog.at[A.vel]), 0) / 30;
-    const alvoCruz = I.cruzamento === "alto" ? alvoAereo : I.cruzamento === "rasteiro" ? alvoRasteiro : Math.max(alvoAereo, alvoRasteiro);
+    const MD = CONFIG.marcacaoDobrada, pesos = area.map(o => o.w).sort((a, b) => b - a), sozinho = area.length > 0 && (pesos[1] || 0) < MD.limite;
+    const centroavante = sozinho ? area.reduce((m, o) => o.w > m.w ? o : m).jog : null; // o único atacante de verdade na área
+    const alvoCruz = (I.cruzamento === "alto" ? alvoAereo : I.cruzamento === "rasteiro" ? alvoRasteiro : Math.max(alvoAereo, alvoRasteiro)) * (sozinho ? MD.peso : 1);
     const presenca = Math.min(1, area.reduce((s, o) => s + o.w, 0));
     const pt = CONFIG.pesoTipo;
     const espaco = Math.max(0.3, 1 + CONFIG.espacoPorMentalidade * def.instr.mentalidade); // linha recuada tira o espaço nas costas
@@ -700,12 +704,14 @@ const __motor = (() => {
       if (c.rasteiro) { // rasteiro: o cruzador precisa chegar à linha de fundo; quem chega bate de primeira contra a marcação e o reflexo do goleiro
         c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.fin] + o.jog.at[A.vel]) * ehAlvo(o)).jog;
         const f = c.finalizador.at;
-        c.xg = x.cruzamento * Cz.rasteiro * Math.pow(mod(media(pivo.at[A.cru], pivo.at[A.dri]), 28, k), 0.6) * mod(media(f[A.fin], f[A.vel]), zag ? media(zag[A.mar], zag[A.pos], zag[A.vel]) : semZaga, k);
+        const dobra = c.finalizador === centroavante ? MD.bonus : 0;
+        c.xg = x.cruzamento * Cz.rasteiro * Math.pow(mod(media(pivo.at[A.cru], pivo.at[A.dri]), 28, k), 0.6) * mod(media(f[A.fin], f[A.vel]), (zag ? media(zag[A.mar], zag[A.pos], zag[A.vel]) : semZaga) + dobra, k);
         c.chute = f[A.fin]; c.defesa = gk ? gk[A.ref] : semGoleiro;
       } else {
         c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.cab] + o.jog.at[A.for]) * ehAlvo(o)).jog;
         const f = c.finalizador.at;
-        c.xg = x.cruzamento * Math.pow(mod(pivo.at[A.cru], 28, k), 0.6) * mod(media(f[A.cab], f[A.for]), zag ? media(zag[A.cab], zag[A.mar], zag[A.for]) : semZaga, k);
+        const dobra = c.finalizador === centroavante ? MD.bonus : 0;
+        c.xg = x.cruzamento * Math.pow(mod(pivo.at[A.cru], 28, k), 0.6) * mod(media(f[A.cab], f[A.for]), (zag ? media(zag[A.cab], zag[A.mar], zag[A.for]) : semZaga) + dobra, k);
         c.chute = f[A.cab]; c.defesa = gk ? media(gk[A.enc], gk[A.pos]) : semGoleiro;
       }
       if (forcado) c.xg *= Cz.afobado; // chuveirinho de quem perdeu o duelo: cruza sem tempo de mirar
