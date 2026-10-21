@@ -10,7 +10,7 @@ const LINHAS_CAMPO = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol
 let serieAbas = 0;
 
 const ICONE_RESULTADO = { gol: "⚽", defesa: "🧤", trave: "🥅", fora: "👟", bloqueado: "🛡️" };
-const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🩹", substituicao: "🔁", ordem: "📋", prorrogacao: "⏱️", acrescimo: "⏱️", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
+const ICONE_EVENTO = { amarelo: "🟨", vermelho: "🟥", lesao: "🚑", substituicao: "🔁", ordem: "📋", prorrogacao: "⏱️", acrescimo: "⏱️", penaltis: "🥅", impedimento: "🚩", contra: "⚡", posse: "·", roda: "↺", falta: "✋", canto: "⛳" };
 // Nomes vêm do motor marcados com o time ("{0:Fulano}"): aqui cada um ganha a cor do seu clube.
 const MARCA = /\{([01?]):([^{}]+)\}/g;
 export const textoSemMarcas = t => String(t).replace(MARCA, "$2");
@@ -30,9 +30,9 @@ export function htmlLance(l) {
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
   return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${ROTULO[chave] || ""}">${(finalizacao ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
-export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🩹", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
+export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🚑", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
-// Resumo da partida: quem fez os gols (e quem deu o passe) e quem levou cartão, um time de cada lado, na ordem do jogo.
+// Resumo da partida: quem fez os gols (e quem deu o passe), quem levou cartão e quem saiu machucado, um time de cada lado, na ordem do jogo.
 // Serve à transmissão (recebe só os lances já liberados) e ao relatório. nomePorId cobre partidas gravadas antes de o lance trazer os nomes.
 export function htmlResumo(narracao, nomePorId = {}) {
   const lados = [[], []];
@@ -41,6 +41,9 @@ export function htmlResumo(narracao, nomePorId = {}) {
     if (l.resultado === "gol") {
       const quem = l.quem || nomePorId[l.finalizador] || "", assist = l.assist !== undefined ? l.assist : (l.criador !== l.finalizador ? nomePorId[l.criador] : null);
       lados[l.time].push(`⚽ ${minDoLance(l)}' ${quem ? `<b>${linkJogador(quem)}</b>` : "gol"}${l.tipo === "penalti" ? ` <span class="mut">(pênalti)</span>` : assist ? ` <span class="mut">(${linkJogador(assist)})</span>` : ""}`);
+    } else if (l.tipo === "lesao") {
+      const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
+      lados[l.time].push(`🚑 ${minDoLance(l)}' ${m ? linkJogador(m[1]) : ""} <span class="mut">(lesão)</span>`);
     } else if (l.tipo === "amarelo" || l.tipo === "vermelho") {
       const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
       lados[l.time].push(`${l.tipo === "amarelo" ? "🟨" : /^Segundo amarelo/.test(l.texto || "") ? "🟨🟥" : "🟥"} ${minDoLance(l)}' ${m ? linkJogador(m[1]) : ""}`);
@@ -80,7 +83,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const zonas = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = r.zonas[i][l + s]; return `<div style="background:${cor(z)}">${z.total ? pc(z.ganhos / z.total) : "—"}<br><span class="mut">${z.ganhos}/${z.total}</span></div>`; }).join("")).join("")}</div></div>`).join("");
   // jogadores: cada time separado, titulares na ordem das posições e, depois, quem entrou
   const ordem = p => { const k = ORDEM_POS.indexOf(p); return k < 0 ? 99 : k; };
-  const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🩹" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? "🔻" : ""}`;
+  const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🚑" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? "🔻" : ""}`;
   const corNota = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
   const doTime = i => { const l = r.jogadores.filter(j => j.time === i); return { tit: l.filter(j => j.entrou === 0).sort((a, b) => ordem(a.pos) - ordem(b.pos)), res: l.filter(j => j.entrou > 0).sort((a, b) => a.entrou - b.entrou) }; };
   const ficha = (j, col) => `<div class="vaga" style="cursor:default${col ? `;grid-column:${col} / span 2` : ""}">${pp(j.pos)}<div class="nome" title="${esc(j.nome)}"><span class="nc">${linkJogador(j.nome)}</span><span class="ns">${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0])}</span></div><div class="det"><b class="${corNota(j.nota)}" style="font-size:14px">${f1(j.nota)}</b> ${marcas(j)}</div></div>`;
@@ -95,7 +98,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const estatisticas = `<table>${[0, 1].map(i => { const { tit, res } = doTime(i); return titulo(`<span class="${COR[i]}">${n[i]}</span> · titulares`) + cab + tit.map(linhaJ).join("") + (res.length ? titulo(`<span class="${COR[i]}">${n[i]}</span> · entraram no jogo`) + res.map(linhaJ).join("") : ""); }).join("")}</table>`;
   const id = "rj" + (++serieAbas);
   const jogadoresHtml = `<div class="rabas"><input type="radio" name="${id}" id="${id}a" class="rt1" checked><input type="radio" name="${id}" id="${id}b" class="rt2">
-    <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🩹 lesão · 🔻 substituído</span></div>
+    <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🚑 lesão · 🔻 substituído</span></div>
     <div class="rp1"><div class="duas">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="rolagem">${estatisticas}</div></div></div>`;
   const jogadores = `<div class="card" data-aba="jog"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
   return `${resultado}${clubes ? htmlGraficos(r.narracao, clubes) : ""}${analise}${aposAnalise}

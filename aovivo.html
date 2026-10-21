@@ -26,6 +26,8 @@
   .placa .cart.am { background:linear-gradient(160deg, #ffe14d, #f5c400); } .placa .cart.vm { background:linear-gradient(160deg, #ff4d4d, #d10f0f); }
   .placa .cart.atras { --rot:-16deg; left:-14px; right:14px; animation-delay:.1s; }
   .placa .cart.frente { --rot:10deg; }
+  .placa .cruz { flex:none; width:64px; height:64px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(160deg, #ff4d4d, #c81e1e); box-shadow:0 6px 14px rgba(0,0,0,.5); animation:cruzPulsa 1s .2s ease-in-out 2; }
+  @keyframes cruzPulsa { 50% { transform:scale(1.15); } }
   .placa .arbTxt { min-width:0; text-align:left; } .placa .arbTxt .linha { font-size:24px; color:#fff; text-shadow:none; }
   .placa .arbTxt .tipo { font-family:var(--display); font-size:15px; letter-spacing:.14em; text-transform:uppercase; }
   @keyframes cartGira { from { transform:rotateY(90deg) rotate(-30deg) translateY(30px); opacity:0; } to { transform:rotate(var(--rot, 0deg)); opacity:1; } }
@@ -415,7 +417,7 @@ function cartaoDeIntervalo(narracao) {
 }
 let intervaloMostrado = false;
 let fimMostrado = false, ultimoFim = null; // ultimoFim: dados do jogo encerrado, para a demo
-// placa do quarto árbitro (substituição e acréscimo): uma de cada vez, em fila
+// placa do quarto árbitro (substituição, acréscimo, cartão e lesão): uma de cada vez, em fila
 const filaDePlacas = [];
 function placa(d) {
   filaDePlacas.push(d); if (filaDePlacas.length > 1) return;
@@ -423,6 +425,12 @@ function placa(d) {
     const x = filaDePlacas[0]; if (!x) return;
     const el = document.createElement("div"); el.className = "placa";
     if (x.tipo === "acrescimo") el.innerHTML = `<div class="cab">Acréscimo</div><div class="num">+${x.acr}</div>`;
+    else if (x.tipo === "lesao") {
+      const c = clubes[x.time ? partida.fora : partida.casa] || {};
+      el.classList.add("arb");
+      el.innerHTML = `<div class="cruz"><svg viewBox="0 0 24 24" width="40" height="40"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z" fill="#fff"/></svg></div>
+        <div class="arbTxt"><div class="tipo" style="color:#ff6b6b">Lesão · fora do jogo</div><div class="linha">${esc(x.nome)}</div><div class="cab" style="justify-content:flex-start;margin:2px 0 0">${esc(c.nome || "")}</div></div>`;
+    }
     else if (x.tipo === "amarelo" || x.tipo === "vermelho") {
       const c = clubes[x.time ? partida.fora : partida.casa] || {}, segundo = x.tipo === "vermelho" && x.segundo, cor = x.tipo === "amarelo" ? "#facc15" : "#ff4d4d";
       el.classList.add("arb");
@@ -441,6 +449,7 @@ function placa(d) {
 }
 // "Sai {0:A}, entra {0:B}." ou "Entra {0:B} no lugar de {0:A}." (troca por lesão)
 function dadosDaPlaca(l) {
+  if (l.tipo === "lesao") { const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || ""); return m ? { tipo: "lesao", time: l.time, nome: m[1] } : null; }
   if (l.tipo === "amarelo" || l.tipo === "vermelho") { const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || ""); return m ? { tipo: l.tipo, time: l.time, nome: m[1], segundo: /^Segundo amarelo/.test(l.texto || "") } : null; }
   if (l.tipo === "acrescimo") { const n = (l.texto.match(/\d+/) || [])[0]; return n ? { tipo: "acrescimo", acr: n } : null; }
   const nomes = [...l.texto.matchAll(/\{[01?]:([^}]+)\}/g)].map(m => m[1]); if (nomes.length < 2) return null;
@@ -454,7 +463,7 @@ function sonsDosLances(m, lances, agora) {
   // espera o placar ser desenhado, porque no primeiro desenho ele ainda não existe
   const golNovo = lances.filter(l => (!vistos || !vistos.has(l.ordem)) && l.dados.resultado === "gol" && agora - new Date(l.libera_em || 0).getTime() < 120000).map(l => l.dados).pop();
   if (golNovo) setTimeout(() => avisoDeGol(golNovo), vistos ? 0 : 400);
-  novos.filter(l => ["substituicao", "acrescimo", "amarelo", "vermelho"].includes(l.tipo)).map(dadosDaPlaca).filter(Boolean).forEach(placa);
+  novos.filter(l => ["lesao", "substituicao", "acrescimo", "amarelo", "vermelho"].includes(l.tipo)).map(dadosDaPlaca).filter(Boolean).forEach(placa);
   if (vistos) { if (novos.some(l => l.resultado === "gol")) tocar("gol"); else if (novos.some(l => l.tipo === "vermelho")) tocar("vermelho"); else if (novos.some(l => l.tipo === "amarelo")) tocar("amarelo");
     if (fase && f !== fase) setTimeout(() => tocar(f === "2t" ? "inicio" : f), novos.length ? 1200 : 0); } // 2º tempo começa com o apito do início
   vistos = new Set(lances.map(l => l.ordem)); fase = f;
@@ -599,10 +608,10 @@ function momento() {
   const mmss = x => { const s = Math.max(0, Math.floor(x * 60)); return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0"); };
   if (t < 0) { const falta = Math.ceil((new Date(partida.inicio) - Date.now()) / 60000); return { texto: falta > 90 ? `Começa em ${new Date(partida.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : `Começa em ${falta} min`, antes: true }; }
   if (t <= 45) return { texto: `${mmss(t)} · 1º tempo` };
-  if (t <= 45 + a1) return { texto: `45:00 +${mmss(t - 45)} · 1º tempo` };
+  if (t <= 45 + a1) return { texto: `${mmss(t)} +${a1} · 1º tempo` }; // como na TV: o tempo corrido e os minutos dados
   if (t < 60 + a1) return { texto: "45:00 · intervalo" };
   if (t < 105 + a1) return { texto: `${mmss(t - 15 - a1)} · 2º tempo` };
-  if (t < 105 + a1 + a2) return { texto: `90:00 +${mmss(t - 105 - a1)} · 2º tempo` };
+  if (t < 105 + a1 + a2) return { texto: `${mmss(t - 15 - a1)} +${a2} · 2º tempo` };
   if (ehCopa(partida) && !encerrada) { // se não houve prorrogação, o resultado chega e encerra a transmissão antes disto aparecer
     if (t < 110 + a1 + a2) return { texto: "90:00 · fim do tempo normal", fim: true };
     if (t < 140 + a1 + a2) return { texto: `${mmss(t - 20 - a1 - a2)} · prorrogação`, fim: true };
@@ -772,7 +781,7 @@ function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button><button id="dTv">📺 TV</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dLes">🚑 Lesão</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button><button id="dTv">📺 TV</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
@@ -780,6 +789,7 @@ function demo() {
   $("dAm").onclick = () => { const t = lado(); placa({ tipo: "amarelo", time: t, nome: sorte(nomes(t)) }); if (somLigado) tocar("amarelo"); };
   // vermelho: metade das vezes direto, metade no segundo amarelo
   $("dVm").onclick = () => { const t = lado(); placa({ tipo: "vermelho", time: t, nome: sorte(nomes(t)), segundo: Math.random() < 0.5 }); if (somLigado) tocar("vermelho"); };
+  $("dLes").onclick = () => { const t = lado(), sai = sorte(nomes(t)); placa({ tipo: "lesao", time: t, nome: sai }); placa({ tipo: "substituicao", time: t, sai, entra: sorte(banco(t)) }); };
   // jogo com lances: o 1º tempo de verdade; senão, números inventados
   $("dInt").onclick = () => { const n = baixados.map(l => l.dados).filter(l => l && l.tipo !== "inicio" && l.min <= 45);
     if (n.some(l => l.resultado !== undefined)) return cartaoDeIntervalo(n);
