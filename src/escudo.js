@@ -1,10 +1,10 @@
 // Escudo e uniforme desenhados a partir de poucos parâmetros. O escudo também pode ser uma imagem enviada pelo dirigente
 // (51_escudo_enviado.sql): fica no Storage do Supabase e o desenho continua guardado, como reserva.
-import { svgCamisa, DESENHOS, TEXTURAS, FRISOS } from "./camisa.js";
+import { svgCamisa, DESENHOS, TEXTURAS, FRISOS, numerosDaCamisa } from "./camisa.js";
 export const FORMAS = { escudo: "Escudo", classico: "Clássico", frances: "Francês", circulo: "Círculo", anel: "Círculo com aro", losango: "Losango", retangular: "Retangular", oval: "Oval" };
 export const PADROES = { liso: "Liso", listras: "Listras verticais", horizontais: "Listras horizontais", faixa: "Faixa horizontal", faixaV: "Faixa vertical",
   diagonal: "Faixa diagonal", metade: "Metade", quartos: "Quartos", xadrez: "Xadrez", cruz: "Cruz", chevron: "Chevron (V)", borda: "Borda" };
-export { TEXTURAS, FRISOS };
+export { TEXTURAS, FRISOS, numerosDaCamisa };
 export const PADROES_CAMISA = Object.fromEntries(Object.entries(DESENHOS).map(([k, d]) => [k, d.nome]));
 export const SIMBOLOS = { sigla: "Sigla", estrela: "Estrela", bola: "Bola", coroa: "Coroa", raio: "Raio", torre: "Torre", trem: "Trem", ancora: "Âncora", leao: "Cabeça de leão", nenhum: "Nenhum" };
 export const GOLAS = { redonda: "Redonda", v: "Em V", polo: "Polo" };
@@ -92,6 +92,8 @@ export function svgUniforme(u = {}, tamanho = 48) {
   const padrao = u.padrao === "borda" ? "liso" : u.padrao;
   return svgCamisa({ ...u, padrao, marca, escudoSvg: escudoNoPeito(u.escudo, u.sigla) }, Math.round(tamanho * 0.76), true); // altura parecida com a de antes (1,28 x o tamanho)
 }
+// a camisa de costas, com nome e número (aviso de gol)
+export const svgCostas = (u = {}, nome = "", numero = "", largura = 200) => svgCamisa({ ...u, padrao: u.padrao === "borda" ? "liso" : u.padrao }, largura, false, { nome, numero });
 // só a camisa, grande (editor do uniforme)
 export const svgSoCamisa = (u = {}, largura = 200) => svgCamisa({ ...u, padrao: u.padrao === "borda" ? "liso" : u.padrao,
   marca: /^[a-z0-9_]+$/.test(u.marca || "") ? new URL(`../patrocinios/${arteNaCamisa(u.marca, cor(u.cor1, "#0b3d91"))}.png`, import.meta.url).href : null, escudoSvg: escudoNoPeito(u.escudo, u.sigla) }, largura, false);

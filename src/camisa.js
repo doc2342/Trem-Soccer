@@ -50,6 +50,40 @@ export const TEXTURAS = {
 };
 export const FRISOS = { nenhum: "Nenhum", um: "Um friso", tres: "Três frisos" };
 
+// Número da camisa, pela posição na escalação (os jogadores não têm número próprio): goleiro 1, laterais 2 e 6, zagueiros 3 e 4,
+// volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; quem sobra pega o primeiro número livre; o banco vai do 12 em diante.
+// esc = { titulares: [{ nome, pos }], banco: [{ nome, pos }] } (as escalações do lance de início). Devolve Map nome -> número.
+const NUMEROS = { GK: [1], SC: [9, 10], DR: [2], WBR: [2], DL: [6], WBL: [6], DC: [3, 4], SW: [3, 4], DMC: [5, 8], AMC: [10, 8],
+  RW: [7, 11], AMR: [7, 11], MR: [7, 11], LW: [11, 7], AML: [11, 7], ML: [11, 7], MC: [8, 10, 5], FC: [9, 10, 11] };
+const ORDEM_DOS_NUMEROS = Object.keys(NUMEROS);
+export function numerosDaCamisa(esc) {
+  const usados = new Set(), m = new Map(), livre = de => { let n = de; while (usados.has(n)) n++; return n; };
+  const tit = ((esc && esc.titulares) || []).map((j, i) => ({ ...j, i })), ordem = p => { const k = ORDEM_DOS_NUMEROS.indexOf(p); return k < 0 ? 99 : k; };
+  for (const j of tit.sort((a, b) => ordem(a.pos) - ordem(b.pos) || a.i - b.i)) {
+    const n = (NUMEROS[j.pos] || []).find(x => !usados.has(x)) || (livre(2) <= 11 ? livre(2) : livre(13));
+    usados.add(n); if (!m.has(j.nome)) m.set(j.nome, n);
+  }
+  for (const j of (esc && esc.banco) || []) { const n = livre(12); usados.add(n); if (!m.has(j.nome)) m.set(j.nome, n); }
+  return m;
+}
+
+// de trás o decote é raso: o recorte da frente é coberto com o tecido e a gola vira uma faixa alta
+function golaDeTras(g, c1, desenho, id) {
+  const tampa = "M75 11.6 C84 15.5 116 15.5 125 11.6 C116 23.5 84 23.5 75 11.6 Z";
+  return `<clipPath id="k${id}"><path d="${tampa}"/></clipPath><g clip-path="url(#k${id})">${R(0, 0, 200, 220, c1)}${desenho}<rect width="200" height="220" fill="url(#v${id})"/></g>
+    <path d="M73.5 10.5 C84 17.5 116 17.5 126.5 10.5 L123 9 C112 14 88 14 77 9 Z" fill="${g}" filter="url(#s${id})"/><path d="M75 10 C84 16 116 16 125 10" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".6"/>`;
+}
+
+// nome em arco e número grandes nas costas; a cor contrasta com a cor principal e leva contorno, para aparecer em listras e xadrez
+function nomeENumero({ nome = "", numero = "" }, u, c1) {
+  const tinta = cor(u.corNumero, contraste(c1)), borda = tinta === "#111111" ? "#ffffff" : "#111111";
+  const n = String(numero).replace(/\D/g, "").slice(0, 2), nomeCurto = String(nome).trim().length > 12 ? String(nome).trim().split(/\s+/).pop() : String(nome).trim(), txt = nomeCurto.toUpperCase().replace(/[&<>"]/g, "").slice(0, 14); // nome comprido: só o último, como nas costas de verdade
+  const fonte = `font-family="'Barlow Condensed','Arial Narrow',sans-serif" font-weight="700" fill="${tinta}" stroke="${borda}" stroke-opacity=".8" paint-order="stroke" text-anchor="middle"`;
+  const tam = txt.length > 10 ? 13 : 16;
+  return `${txt ? `<text x="100" y="58" ${fonte} stroke-width="2.4" font-size="${tam}" letter-spacing="1.4">${txt}</text>` : ""}
+    ${n ? `<text x="100" y="${n.length > 1 ? 142 : 143}" ${fonte} stroke-width="4" font-size="${n.length > 1 ? 86 : 90}" letter-spacing="-2">${n}</text>` : ""}`;
+}
+
 function golaSvg(tipo, g, c1, id) {
   const dentro = `<path d="M78 12.5 C88 7 112 7 122 12.5 C114 21 86 21 78 12.5 Z" fill="${c1}"/><path d="M78 12.5 C88 7 112 7 122 12.5 C114 21 86 21 78 12.5 Z" fill="#000" fill-opacity=".38"/>`;
   const sombra = `filter="url(#s${id})"`;
@@ -67,12 +101,14 @@ function golaSvg(tipo, g, c1, id) {
 }
 
 // camisa sozinha (completo = false) ou uniforme inteiro (com calção e meião)
-export function svgCamisa(u = {}, largura = 200, completo = false) {
+// costas = { nome, numero }: a camisa vista de trás (desenho espelhado, gola alta, nome e número; sem escudo nem patrocínio)
+export function svgCamisa(u = {}, largura = 200, completo = false, costas = null) {
   const id = "cv" + (++serie), des = DESENHOS[u.padrao] || DESENHOS.liso;
   const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), c3 = cor(u.cor3, null);
   const g = cor(u.gola, c2 === c1 ? contraste(c1) : c2);
-  const mE = cor(u.manga, des.cruzada ? c2 : null), mD = cor(u.manga2, des.cruzada && !hexOk(u.manga) ? c1 : mE);
-  const desenho = des.d(c2, c3);
+  let mE = cor(u.manga, des.cruzada ? c2 : null), mD = cor(u.manga2, des.cruzada && !hexOk(u.manga) ? c1 : mE);
+  if (costas) [mE, mD] = [mD, mE]; // de trás, cada manga troca de lado
+  const desenho = costas ? `<g transform="translate(200 0) scale(-1 1)">${des.d(c2, c3)}</g>` : des.d(c2, c3);
   const tex = TEXTURAS[u.textura] ? TEXTURAS[u.textura].p : null, fc = cor(u.corFriso, g);
   const linha = (dx, dy, w) => `<path d="M${79 + dx} ${12.6 + dy} C${69 + dx} ${18 + dy} ${55 + dx} ${23 + dy} ${44 + dx} ${27 + dy} C${34 + dx} ${30 + dy} ${26 + dx} ${36 + dy} ${22 + dx} ${45 + dy} L${7 + dx} ${83 + dy}" fill="none" stroke="${fc}" stroke-width="${w}"/>`;
   const frisos = u.friso === "tres" ? linha(1, 3, 2) + linha(2.6, 7, 2) + linha(4.2, 11, 2) : u.friso === "um" ? linha(1.6, 4.5, 3) : "";
@@ -102,9 +138,8 @@ export function svgCamisa(u = {}, largura = 200, completo = false) {
       <g filter="url(#b${id})" fill="none" stroke-linecap="round"><path d="M53 88 Q66 104 63 128" stroke="#000" stroke-opacity=".11" stroke-width="5"/><path d="M147 88 Q134 104 137 128" stroke="#000" stroke-opacity=".11" stroke-width="5"/>
         <path d="M60 70 Q72 74 78 86" stroke="#fff" stroke-opacity=".14" stroke-width="5"/><path d="M76 192 Q100 200 126 194" stroke="#000" stroke-opacity=".07" stroke-width="5"/><path d="M118 140 Q126 160 122 182" stroke="#000" stroke-opacity=".05" stroke-width="6"/></g></g>
     <path d="M44 26 C49 44 51 62 50 82 M156 26 C151 44 149 62 150 82" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>
-    ${golaSvg(u.golaTipo, g, c1, id)}
-    ${u.escudoSvg || ""}
-    ${u.marca ? `<image href="${u.marca}" x="58" y="${des === DESENHOS.faixa ? 84 : 82}" width="84" height="${des === DESENHOS.faixa ? 36 : 44}" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    ${costas ? golaDeTras(g, c1, desenho, id) + nomeENumero(costas, u, c1) : golaSvg(u.golaTipo, g, c1, id) + (u.escudoSvg || "")}
+    ${u.marca && !costas ? `<image href="${u.marca}" x="58" y="${des === DESENHOS.faixa ? 84 : 82}" width="84" height="${des === DESENHOS.faixa ? 36 : 44}" preserveAspectRatio="xMidYMid meet"/>` : ""}
     <path d="M76 12 C68 17 54 22 44 26 C34 29 26 35 22 44 L4 90 C14 97 26 102 38 104 L50 82 C49 120 50 168 51 206 Q100 214 149 206 C150 168 151 120 150 82 L162 104 C174 102 186 97 196 90 L178 44 C174 35 166 29 156 26 C146 22 132 17 124 12" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
 }
 

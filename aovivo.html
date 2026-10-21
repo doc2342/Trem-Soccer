@@ -194,7 +194,7 @@ import { sb } from "./src/banco.js";
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
 import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
-import { svgEscudo, svgUniforme, uniformesDoJogo } from "./src/escudo.js";
+import { svgEscudo, svgUniforme, svgCostas, numerosDaCamisa, uniformesDoJogo } from "./src/escudo.js";
 import { htmlGraficos, ligarGraficos } from "./src/ui-graficos.js";
 import { sg, pp } from "./src/siglas.js";
 
@@ -369,7 +369,12 @@ function telaDoAnalista(pt) {
     <div class="tvFala">“${esc(sorte(com.abre))}”</div><div class="tvAna">${[0, 1].map(i => `<div><div class="tvTime">${svgEscudo(c[i].escudo, c[i].sigla, 30)}<span>${esc(c[i].nome)}</span></div>${a[i].map(f => `<p>${f}</p>`).join("")}</div>`).join("")}</div><div class="tvFala fim">“${esc(sorte(com.fecha))}”<span class="ass">— ${esc(com.nome.split(/[ ,]/)[0])}</span></div></div>`;
 }
 
-// aviso de gol (só para gol novo, como o som): camisa grande com escudo e patrocínio, autor, minuto e o bordão da marca
+// número da camisa de quem está na escalação do lance de início (src/camisa.js); sem a escalação, nenhum
+function numeroDaCamisa(lado, nome) {
+  const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados;
+  return pre && pre.escalacoes && pre.escalacoes[lado] ? numerosDaCamisa(pre.escalacoes[lado]).get(nome) || "" : "";
+}
+// aviso de gol (só para gol novo, como o som): a camisa do autor de costas, com nome e número; autor, minuto e o bordão da marca
 function avisoDeGol(d) {
   const lado = d.time ? 1 : 0, c = clubes[lado ? partida.fora : partida.casa], alvo = $("topo"); if (!c || !alvo) return;
   const u = uniformesDoJogo(clubes[partida.casa].uniforme || {}, clubes[partida.fora].uniforme || {})[lado], hexa = (x, p) => /^#[0-9a-f]{6}$/i.test(x || "") ? x : p;
@@ -377,7 +382,7 @@ function avisoDeGol(d) {
   document.querySelectorAll(".aviso-gol").forEach(x => x.remove());
   const r = alvo.getBoundingClientRect(), el = document.createElement("div"); el.className = "aviso-gol";
   el.style.cssText = `left:${r.left + scrollX}px;top:${r.top + scrollY}px;width:${r.width}px;height:${r.height}px;--c1:${c1};--c2:${c2};--txt-gol:${claro ? "#111" : "#fff"};--pilula:${claro ? "rgba(0,0,0,.78)" : "rgba(0,0,0,.28)"}`;
-  el.innerHTML = `<div class="camisa">${svgUniforme({ ...u, escudo: c.escudo, sigla: c.sigla, marca: c.marca }, 150)}</div><div style="min-width:0"><h3>Gooool!</h3>
+  el.innerHTML = `<div class="camisa">${d.quem ? svgCostas(u, d.quem, numeroDaCamisa(lado, d.quem), 150) : svgUniforme({ ...u, escudo: c.escudo, sigla: c.sigla, marca: c.marca }, 150)}</div><div style="min-width:0"><h3>Gooool!</h3>
     <div class="quem">${d.quem ? `<b>${esc(d.quem)}</b> · ` : ""}${d.min != null ? `${d.min}${d.ac ? "+" + d.ac : ""}' · ` : ""}${esc(c.nome)}</div>
     ${m ? `<div class="marca">${selo(c.marca, 34)}<span><b>${esc(m.nome)}</b><span> · “${esc(m.bordao)}”</span></span></div>` : ""}</div>`;
   document.body.append(el); setTimeout(() => el.remove(), 4600);
@@ -394,7 +399,7 @@ function cartaoDeFim({ gols, narracao = [], melhor = null, penaltis = null, titu
     ${penaltis ? `<div class="pen">Pênaltis: ${penaltis[0]} x ${penaltis[1]}</div>` : ""}
     ${gols[0] + gols[1] ? `<div class="gols"><div>${lista(0)}</div><div>${lista(1)}</div></div>` : ""}
     ${linhas ? `<div class="numeros">${linhas.map(([nome, a, b, fa]) => `<div class="nl"><span>${a}</span><span class="mut">${nome}</span><span>${b}</span><div class="barra2"><i style="width:${fa * 100}%"></i></div></div>`).join("")}</div>` : ""}
-    ${melhor ? `<div class="melhor">⭐ Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}
+    ${melhor ? `<div class="melhor">${melhor.time === 0 || melhor.time === 1 ? svgCostas(u[melhor.time], melhor.nome, numeroDaCamisa(melhor.time, melhor.nome), 44) : "⭐"} Melhor em campo <b>${esc(melhor.nome)}</b><span class="n">${String(melhor.nota.toFixed ? melhor.nota.toFixed(1) : melhor.nota).replace(".", ",")}</span></div>` : ""}
     ${comVeredito ? `<div class="veredito">${veredito(gols, narracao)}</div>` : ""}</div>`;
   el.onclick = () => el.remove(); document.body.append(el); setTimeout(() => el.remove(), 8000);
 }
