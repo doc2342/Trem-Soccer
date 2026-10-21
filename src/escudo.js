@@ -106,12 +106,13 @@ function escudoNoPeito(e, sigla) {
   return svgEscudo(e, sigla || "", 1).replace('width="1" height="1"', lugar);
 }
 
-// uniformes de um jogo: o visitante (ou o segundo, em campo neutro) troca para o reserva quando as camisas se parecem
+// uniformes de um jogo: o visitante (ou o segundo, em campo neutro) troca para o reserva quando as camisas se parecem,
+// mas só se o reserva se afasta mais da camisa do mandante (um reserva da mesma cor do mandante não resolve nada)
 export function uniformesDoJogo(casa = {}, fora = {}) {
-  const parece = (a, b) => { const x = cor(a.cor1, "#0b3d91"), y = cor(b.cor1, "#0b3d91"), d = k => parseInt(x.slice(k, k + 2), 16) - parseInt(y.slice(k, k + 2), 16);
-    return Math.hypot(d(1), d(3), d(5)) < 110; };
+  const dist = (a, b) => { const x = cor(a.cor1, "#0b3d91"), y = cor(b.cor1, "#0b3d91"), d = k => parseInt(x.slice(k, k + 2), 16) - parseInt(y.slice(k, k + 2), 16);
+    return Math.hypot(d(1), d(3), d(5)); };
   const reserva = fora.reserva && typeof fora.reserva === "object" ? fora.reserva : null;
-  return [casa, reserva && parece(casa, fora) ? reserva : fora];
+  return [casa, reserva && dist(casa, fora) < 110 && dist(casa, reserva) > dist(casa, fora) ? reserva : fora];
 }
 
 export function visualAleatorio(rng) {
