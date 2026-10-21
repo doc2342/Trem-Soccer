@@ -77,7 +77,8 @@ export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, numero: l.numero |
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, emprestadoDe: l.emprestado_de === undefined ? undefined : l.emprestado_de, // indefinido: antes do 76_emprestimo_e_supercopa.sql
      preContrato: l.pre_contrato || null,
-    amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube }); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
+    amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube,
+    amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 }); // indefinidas antes do 30_forma_e_moral.sql; nulas valem 50 // treino indefinido: o 27_treino.sql ainda não foi executado
 // T2: treinadores (supabase/28_treinadores.sql). A lista devolve null enquanto o SQL 28 não foi executado.
 export const treinadoresDoClube = clubeId => sb.from("treinadores").select("*").eq("clube_id", clubeId).eq("contratado", true).order("id").then(({ data, error }) => error ? null : data);
 export const candidatosATreinador = () => sb.rpc("candidatos_a_treinador").then(ok);

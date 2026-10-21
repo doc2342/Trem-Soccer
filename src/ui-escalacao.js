@@ -5,7 +5,7 @@ import { experienciaDe, nivelDoAnalista } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
-import { foraDaCopa, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
+import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
 import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
@@ -94,8 +94,13 @@ const ehCobranca = k => k in INSTR.cobradores;
 const curto = j => j ? j.nome.split(" ").slice(-1)[0] : "";
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
-// na Libertadores só a lesão tira do jogo (rodada.js): suspensão da liga ou da copa não vale
-const paraALib = lista => lista.map(j => j.fora > 0 && j.motivo !== "lesão" ? { ...j, fora: 0, motivo: null } : j);
+// Libertadores e Sul-Americana (rodada.js): tiram do jogo a lesão e a suspensão continental; a da liga e a da copa não valem.
+// Na Recopa (grupo "REC") só a lesão.
+const paraALib = (lista, jogo) => lista.map(j => {
+  if (j.fora > 0 && j.motivo === "lesão") return j;
+  if (jogo.grupo === "REC" || !foraDoContinental(j)) return j.fora > 0 ? { ...j, fora: 0, motivo: null } : j;
+  return { ...j, fora: j.foraLib, motivo: "suspensão continental" };
+});
 let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null, proximoJogo = null;
 // elenco visto pela copa: "fora" passa a ser a indisponibilidade na copa, com o motivo certo
 const paraACopa = (lista, clubeId) => lista.map(j => {
@@ -160,7 +165,7 @@ async function previaDoAdversario(B) {
     <div><b>${esc(adv.nome)}</b> <span class="mut">· ${adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></div>
     <div>Previsão do tempo: <b>${clima.nome.toLowerCase()}</b>, ${clima.temp} °C${efeitoDoClima(clima) ? ` <span class="aviso">· ${efeitoDoClima(clima)}</span>` : ""}</div>
     ${jogoGrande(jogo) ? `<div>Jogo grande: <span class="mut">jogador sem experiência oscila mais e rende até 3% menos.</span></div>` : ""}`;
-  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0));
+  const elencoAdv = await B.elencoDoClube(adv.id), disponiveis = (jogo.fase === "lib" ? paraALib(elencoAdv, jogo) : copa ? paraACopa(elencoAdv, adv.id) : elencoAdv).filter(j => !(j.fora > 0));
   // o time que eles escalaram nos últimos jogos: 1 sem analista; 2 ou 3 com ele (nivelDoAnalista). Quem não pode jogar dá lugar a um substituto.
   const partidasAdv = jogo.liga_id ? await B.partidasDoClube(jogo.liga_id, adv.id) : null;
   const obs = partidasAdv ? B.escalacaoObservada(await B.escalacoesRecentes(partidasAdv, adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
@@ -242,7 +247,7 @@ async function iniciarOnline(sessaoDeTeste) {
   // a suspensão da liga não vale na copa
   proximoJogo = (await B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
   if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
-  if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco);
+  if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco, proximoJogo);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));

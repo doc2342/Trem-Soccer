@@ -1526,31 +1526,38 @@ const __rodada = (() => {
   const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
   // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
   const foraDaCopa = (j, clubeId) => (j.fora > 0 && j.motivo === "lesão") || j.foraCopa > 0 || (j.copaClube != null && j.copaClube !== clubeId);
+  // Libertadores e Sul-Americana (fase "lib"): cartões contados à parte, como na copa (vermelho e segundo amarelo suspendem por um jogo
+  // continental; depois das quartas os amarelos zeram). A Recopa, jogo único, não mexe neles.
+  const CONTINENTAL = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4 };
+  const foraDoContinental = j => (j.fora > 0 && j.motivo === "lesão") || j.foraLib > 0;
   // Situação dos jogadores depois de um jogo de copa: lesões valem para tudo; cartões e suspensões são só da copa
   // (segundo amarelo suspende; depois das quartas os amarelos zeram, para ninguém perder a final por acúmulo).
-  function situacaoDaCopa(elenco, p, clubeId, fase, medico = null) {
+  // continental: Libertadores ou Sul-Americana, com os campos amarelosLib e foraLib e sem trava de clube
+  function situacaoDaCopa(elenco, p, clubeId, fase, medico = null, continental = false) {
+    const R = continental ? CONTINENTAL : COPA;
     const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), situacao = [], copa = [];
     let vagas = medico ? medico.vagas - elenco.filter(j => j.fora > 1 && j.motivo === "lesão").length : 0;
     for (const j of elenco) {
-      let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelosCopa || 0, foraCopa = j.foraCopa || 0, copaClube = j.copaClube == null ? null : j.copaClube;
+      let fora = j.fora || 0, motivo = j.motivo || null, amarelos = (continental ? j.amarelosLib : j.amarelosCopa) || 0, foraCopa = (continental ? j.foraLib : j.foraCopa) || 0, copaClube = j.copaClube == null ? null : j.copaClube;
       if (fora > 0 && motivo === "lesão") { fora--; if (!fora) motivo = null; }
       if (foraCopa > 0) foraCopa--;
       const s = p.jogadores[j.id];
       if (s) {
-        copaClube = clubeId;
+        if (!continental) copaClube = clubeId;
         if (s.vermelho) foraCopa = 1;
-        else if (s.amarelos) { amarelos++; if (amarelos >= COPA.amarelosParaSuspensao) { amarelos = 0; foraCopa = 1; } }
+        else if (s.amarelos) { amarelos++; if (amarelos >= R.amarelosParaSuspensao) { amarelos = 0; foraCopa = 1; } }
         if (lesao[j.id]) {
           let n = jogosFora(lesao[j.id]);
           if (medico && vagas > 0) { vagas--; n = Math.max(1, Math.round(n * (1 - medico.reducao))); }
           if (n >= fora) { fora = n; motivo = "lesão"; }
         }
       }
-      if (fase === COPA.faseQueZeraCartoes) amarelos = 0;
+      if (fase === R.faseQueZeraCartoes) amarelos = 0;
       if (fora !== (j.fora || 0) || motivo !== (j.motivo || null)) situacao.push({ id: j.id, fora, motivo, amarelos: j.amarelos || 0 });
-      if (amarelos !== (j.amarelosCopa || 0) || foraCopa !== (j.foraCopa || 0) || copaClube !== (j.copaClube == null ? null : j.copaClube)) copa.push({ id: j.id, amarelos, fora: foraCopa, clube: copaClube });
+      if (continental) { if (amarelos !== (j.amarelosLib || 0) || foraCopa !== (j.foraLib || 0)) copa.push({ id: j.id, amarelos, fora: foraCopa }); }
+      else if (amarelos !== (j.amarelosCopa || 0) || foraCopa !== (j.foraCopa || 0) || copaClube !== (j.copaClube == null ? null : j.copaClube)) copa.push({ id: j.id, amarelos, fora: foraCopa, clube: copaClube });
     }
-    return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa (fase 0): cartões e trava de clube da copa não contam
+    return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa e Recopa (fase 0): cartões e trava de clube não contam
   }
 
   function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
@@ -1558,10 +1565,9 @@ const __rodada = (() => {
     const clima = climaDaPartida(partida.id == null ? semente : partida.id);
     const lados = [casa, fora].map(l => {
       const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
-      // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
-      // ponytail: a Libertadores não tem cartões próprios (só lesão tira do jogo; vermelho e amarelos não passam para o jogo seguinte).
-      // Se fizer falta, dar a ela colunas próprias como as da copa (amarelos_copa, fora_copa).
-      const elenco = lib ? l.elenco.map(j => ({ ...j, fora: j.fora > 0 && j.motivo === "lesão" ? 1 : 0 })) : copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
+      // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim);
+      // na Libertadores e na Sul-Americana, a lesão e a suspensão continental (na Recopa só a lesão: foraLib é da Libertadores ou da Sul-Americana)
+      const elenco = lib ? l.elenco.map(j => ({ ...j, fora: (partida.grupo === "REC" ? j.fora > 0 && j.motivo === "lesão" : foraDoContinental(j)) ? 1 : 0 })) : copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
       const humana = l.pronta || (inativo ? null : taticaDoDirigente(l.tatica, elenco)); // pronta: tática já montada (liga de base)
       const disponiveis = elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
@@ -1624,9 +1630,10 @@ const __rodada = (() => {
       ordens: [casa, fora].map((l, i) => lados[i].humana && l.clube.dono ? { partida_id: partida.id, clube_id: l.clube.id, libera_em: fimReal, itens: p.ordens[i] } : null).filter(Boolean),
       ...(() => { // na copa, cartões e suspensões vão para os campos da copa, e sai também quem passou de fase
         if (!copa) return { situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)] };
-        const fase = lib ? 0 : partida.copa_fase; // Libertadores: como a Supercopa (fase 0), não mexe nos cartões nem na trava de clube da copa
-        const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, fase, casa.saude && casa.saude.medico), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, fase, fora.saude && fora.saude.medico);
-        return { situacao: [...a.situacao, ...b.situacao], copa: [...a.copa, ...b.copa], vencedor };
+        // Libertadores e Sul-Americana: cartões continentais (lib); Recopa: como a Supercopa (fase 0), não mexe em cartão nenhum
+        const fase = lib && partida.grupo === "REC" ? 0 : partida.copa_fase;
+        const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, fase, casa.saude && casa.saude.medico, lib), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, fase, fora.saude && fora.saude.medico, lib);
+        return { situacao: [...a.situacao, ...b.situacao], ...(lib ? { copa: [], lib: [...a.copa, ...b.copa] } : { copa: [...a.copa, ...b.copa] }), vencedor };
       })(),
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
@@ -1709,7 +1716,7 @@ const __rodada = (() => {
     if (!jogos.length) return { erro: esperando.length ? `Ainda em jogo: ${esperando.join(", ")}.` : "Os playoffs já foram todos criados." };
     return { jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
@@ -2490,6 +2497,7 @@ async function gravarEfeitos(sb, e, partida = null) {
   if (e && e.momento && e.momento.length) await sb.rpc("aplicar_momento", { p_lista: e.momento });
   if (e && e.treinos && e.treinos.length) await sb.rpc("aplicar_treino", { p_lista: e.treinos });
   if (e && e.copa && e.copa.length) await sb.rpc("aplicar_copa", { p_lista: e.copa });
+  if (e && e.lib && e.lib.length) await sb.rpc("aplicar_lib", { p_lista: e.lib }); // sem efeito antes do 141_cartoes_continentais.sql
   if (e && e.vencedor && partida) await sb.from("partidas").update({ vencedor: e.vencedor }).eq("id", partida);
 }
 
@@ -2537,7 +2545,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -2557,7 +2565,7 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor, ordens } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -2571,6 +2579,12 @@ Deno.serve(async (req) => {
           efeitos.copa = copa.map(m => ({ id: +String(m.id).slice(1), amarelos: m.amarelos, fora: m.fora, clube: m.clube })); efeitos.vencedor = vencedor;
           const novoC = Object.fromEntries(copa.map(m => [m.id, m]));
           for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novoC[j.id]) { j.amarelosCopa = novoC[j.id].amarelos; j.foraCopa = novoC[j.id].fora; j.copaClube = novoC[j.id].clube; }
+        }
+        // Libertadores e Sul-Americana: cartões e suspensões continentais
+        if (lib && lib.length) {
+          efeitos.lib = lib.map(m => ({ id: +String(m.id).slice(1), amarelos: m.amarelos, fora: m.fora }));
+          const novoL = Object.fromEntries(lib.map(m => [m.id, m]));
+          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novoL[j.id]) { j.amarelosLib = novoL[j.id].amarelos; j.foraLib = novoL[j.id].fora; }
         }
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         // recém-chegados: um jogo a menos para entrosar (sem efeito antes do 86_entrosamento.sql)

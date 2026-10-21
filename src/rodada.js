@@ -140,31 +140,38 @@ export const jogoGrande = p => ["lib", "pre", "semi", "final"].includes(p.fase) 
 export const COPA = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4, experiencia: 1.5, penalti: 0.76 };
 // Quem não joga a copa: lesionado, suspenso na copa, ou quem já jogou a copa desta temporada por outro clube.
 export const foraDaCopa = (j, clubeId) => (j.fora > 0 && j.motivo === "lesão") || j.foraCopa > 0 || (j.copaClube != null && j.copaClube !== clubeId);
+// Libertadores e Sul-Americana (fase "lib"): cartões contados à parte, como na copa (vermelho e segundo amarelo suspendem por um jogo
+// continental; depois das quartas os amarelos zeram). A Recopa, jogo único, não mexe neles.
+export const CONTINENTAL = { amarelosParaSuspensao: 2, faseQueZeraCartoes: 4 };
+export const foraDoContinental = j => (j.fora > 0 && j.motivo === "lesão") || j.foraLib > 0;
 // Situação dos jogadores depois de um jogo de copa: lesões valem para tudo; cartões e suspensões são só da copa
 // (segundo amarelo suspende; depois das quartas os amarelos zeram, para ninguém perder a final por acúmulo).
-function situacaoDaCopa(elenco, p, clubeId, fase, medico = null) {
+// continental: Libertadores ou Sul-Americana, com os campos amarelosLib e foraLib e sem trava de clube
+function situacaoDaCopa(elenco, p, clubeId, fase, medico = null, continental = false) {
+  const R = continental ? CONTINENTAL : COPA;
   const lesao = Object.fromEntries(p.lesoes.map(l => [l.id, l.dias])), situacao = [], copa = [];
   let vagas = medico ? medico.vagas - elenco.filter(j => j.fora > 1 && j.motivo === "lesão").length : 0;
   for (const j of elenco) {
-    let fora = j.fora || 0, motivo = j.motivo || null, amarelos = j.amarelosCopa || 0, foraCopa = j.foraCopa || 0, copaClube = j.copaClube == null ? null : j.copaClube;
+    let fora = j.fora || 0, motivo = j.motivo || null, amarelos = (continental ? j.amarelosLib : j.amarelosCopa) || 0, foraCopa = (continental ? j.foraLib : j.foraCopa) || 0, copaClube = j.copaClube == null ? null : j.copaClube;
     if (fora > 0 && motivo === "lesão") { fora--; if (!fora) motivo = null; }
     if (foraCopa > 0) foraCopa--;
     const s = p.jogadores[j.id];
     if (s) {
-      copaClube = clubeId;
+      if (!continental) copaClube = clubeId;
       if (s.vermelho) foraCopa = 1;
-      else if (s.amarelos) { amarelos++; if (amarelos >= COPA.amarelosParaSuspensao) { amarelos = 0; foraCopa = 1; } }
+      else if (s.amarelos) { amarelos++; if (amarelos >= R.amarelosParaSuspensao) { amarelos = 0; foraCopa = 1; } }
       if (lesao[j.id]) {
         let n = jogosFora(lesao[j.id]);
         if (medico && vagas > 0) { vagas--; n = Math.max(1, Math.round(n * (1 - medico.reducao))); }
         if (n >= fora) { fora = n; motivo = "lesão"; }
       }
     }
-    if (fase === COPA.faseQueZeraCartoes) amarelos = 0;
+    if (fase === R.faseQueZeraCartoes) amarelos = 0;
     if (fora !== (j.fora || 0) || motivo !== (j.motivo || null)) situacao.push({ id: j.id, fora, motivo, amarelos: j.amarelos || 0 });
-    if (amarelos !== (j.amarelosCopa || 0) || foraCopa !== (j.foraCopa || 0) || copaClube !== (j.copaClube == null ? null : j.copaClube)) copa.push({ id: j.id, amarelos, fora: foraCopa, clube: copaClube });
+    if (continental) { if (amarelos !== (j.amarelosLib || 0) || foraCopa !== (j.foraLib || 0)) copa.push({ id: j.id, amarelos, fora: foraCopa }); }
+    else if (amarelos !== (j.amarelosCopa || 0) || foraCopa !== (j.foraCopa || 0) || copaClube !== (j.copaClube == null ? null : j.copaClube)) copa.push({ id: j.id, amarelos, fora: foraCopa, clube: copaClube });
   }
-  return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa (fase 0): cartões e trava de clube da copa não contam
+  return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa e Recopa (fase 0): cartões e trava de clube não contam
 }
 
 export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
@@ -172,10 +179,9 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   const clima = climaDaPartida(partida.id == null ? semente : partida.id);
   const lados = [casa, fora].map(l => {
     const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
-    // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim)
-    // ponytail: a Libertadores não tem cartões próprios (só lesão tira do jogo; vermelho e amarelos não passam para o jogo seguinte).
-    // Se fizer falta, dar a ela colunas próprias como as da copa (amarelos_copa, fora_copa).
-    const elenco = lib ? l.elenco.map(j => ({ ...j, fora: j.fora > 0 && j.motivo === "lesão" ? 1 : 0 })) : copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
+    // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim);
+    // na Libertadores e na Sul-Americana, a lesão e a suspensão continental (na Recopa só a lesão: foraLib é da Libertadores ou da Sul-Americana)
+    const elenco = lib ? l.elenco.map(j => ({ ...j, fora: (partida.grupo === "REC" ? j.fora > 0 && j.motivo === "lesão" : foraDoContinental(j)) ? 1 : 0 })) : copa ? l.elenco.map(j => ({ ...j, fora: foraDaCopa(j, l.clube.id) ? 1 : 0 })) : l.elenco;
     const humana = l.pronta || (inativo ? null : taticaDoDirigente(l.tatica, elenco)); // pronta: tática já montada (liga de base)
     const disponiveis = elenco.filter(j => !(j.fora > 0));
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
@@ -238,9 +244,10 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     ordens: [casa, fora].map((l, i) => lados[i].humana && l.clube.dono ? { partida_id: partida.id, clube_id: l.clube.id, libera_em: fimReal, itens: p.ordens[i] } : null).filter(Boolean),
     ...(() => { // na copa, cartões e suspensões vão para os campos da copa, e sai também quem passou de fase
       if (!copa) return { situacao: [...situacaoDepois(casa.elenco, p, casa.saude && casa.saude.medico), ...situacaoDepois(fora.elenco, p, fora.saude && fora.saude.medico)] };
-      const fase = lib ? 0 : partida.copa_fase; // Libertadores: como a Supercopa (fase 0), não mexe nos cartões nem na trava de clube da copa
-      const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, fase, casa.saude && casa.saude.medico), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, fase, fora.saude && fora.saude.medico);
-      return { situacao: [...a.situacao, ...b.situacao], copa: [...a.copa, ...b.copa], vencedor };
+      // Libertadores e Sul-Americana: cartões continentais (lib); Recopa: como a Supercopa (fase 0), não mexe em cartão nenhum
+      const fase = lib && partida.grupo === "REC" ? 0 : partida.copa_fase;
+      const a = situacaoDaCopa(casa.elenco, p, casa.clube.id, fase, casa.saude && casa.saude.medico, lib), b = situacaoDaCopa(fora.elenco, p, fora.clube.id, fase, fora.saude && fora.saude.medico, lib);
+      return { situacao: [...a.situacao, ...b.situacao], ...(lib ? { copa: [], lib: [...a.copa, ...b.copa] } : { copa: [...a.copa, ...b.copa] }), vencedor };
     })(),
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou

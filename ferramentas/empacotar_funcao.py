@@ -262,6 +262,7 @@ async function gravarEfeitos(sb, e, partida = null) {
   if (e && e.momento && e.momento.length) await sb.rpc("aplicar_momento", { p_lista: e.momento });
   if (e && e.treinos && e.treinos.length) await sb.rpc("aplicar_treino", { p_lista: e.treinos });
   if (e && e.copa && e.copa.length) await sb.rpc("aplicar_copa", { p_lista: e.copa });
+  if (e && e.lib && e.lib.length) await sb.rpc("aplicar_lib", { p_lista: e.lib }); // sem efeito antes do 141_cartoes_continentais.sql
   if (e && e.vencedor && partida) await sb.from("partidas").update({ vencedor: e.vencedor }).eq("id", partida);
 }
 
@@ -309,7 +310,7 @@ Deno.serve(async (req) => {
     const elencos = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -329,7 +330,7 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, vencedor, ordens } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
         });
@@ -343,6 +344,12 @@ Deno.serve(async (req) => {
           efeitos.copa = copa.map(m => ({ id: +String(m.id).slice(1), amarelos: m.amarelos, fora: m.fora, clube: m.clube })); efeitos.vencedor = vencedor;
           const novoC = Object.fromEntries(copa.map(m => [m.id, m]));
           for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novoC[j.id]) { j.amarelosCopa = novoC[j.id].amarelos; j.foraCopa = novoC[j.id].fora; j.copaClube = novoC[j.id].clube; }
+        }
+        // Libertadores e Sul-Americana: cartões e suspensões continentais
+        if (lib && lib.length) {
+          efeitos.lib = lib.map(m => ({ id: +String(m.id).slice(1), amarelos: m.amarelos, fora: m.fora }));
+          const novoL = Object.fromEntries(lib.map(m => [m.id, m]));
+          for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (novoL[j.id]) { j.amarelosLib = novoL[j.id].amarelos; j.foraLib = novoL[j.id].fora; }
         }
         aplicarSituacao(elencos[p.casa] || [], situacao); aplicarSituacao(elencos[p.fora] || [], situacao);
         // recém-chegados: um jogo a menos para entrosar (sem efeito antes do 86_entrosamento.sql)

@@ -640,6 +640,9 @@ async function telaClube(liga, clube) {
   const minhaCopa = copaJogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ultCopa = minhaCopa[minhaCopa.length - 1];
   const vivoNaCopa = !!(liga.copa && (ultCopa ? !copaRes[ultCopa.id] || (ultCopa.copa_fase < 6 && (ultCopa.vencedor || (copaRes[ultCopa.id].vencedor ? +copaRes[ultCopa.id].vencedor : null)) === clube.id)
     : ((liga.copa.diretos || []).map(Number).includes(clube.id) && !copaJogos.some(p => p.copa_fase >= 2))));
+  // Libertadores ou Sul-Americana: vivo enquanto o último jogo não terminou ou foi vencido antes da final (para os avisos de cartões continentais)
+  const meuCont = [...libJogos, ...sulJogos].filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ultCont = meuCont[meuCont.length - 1];
+  const vivoNoContinente = !!ultCont && (!copaRes[ultCont.id] || (ultCont.copa_fase < 6 && (ultCont.vencedor || (copaRes[ultCont.id].vencedor ? +copaRes[ultCont.id].vencedor : null)) === clube.id));
   const grupos = ordenarGrupos([...new Set(clubes.map(c => c.grupo))].filter(g => g !== "X")); // "X": clubes guardados, fora das competições
   // série do grupo para as faixas da tabela e a regra da multa; país estrangeiro tem uma divisão só, sem acesso nem descenso (0)
   const serieDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BCF".includes(g) ? 2 : 3;
@@ -963,7 +966,7 @@ async function telaClube(liga, clube) {
       return `<div style="margin-bottom:10px"><b>Temporada ${t}</b>${TIPOS_DE_TROFEU.map(([k, ic, nome]) => { const x = da.find(y => tiposDe(y).includes(k)); return x ? `<div>${ic} ${nome}: ${lk(x.clube_id)}</div>` : ""; }).join("")}</div>`; }).join("")
       : `<div class="mut">Ainda não houve virada de temporada.</div>`;
   }
-  const situacao = j => (j.emprestadoDe ? ` <span class="tag" title="Emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")} até a virada da temporada">emp.</span>` : "") + (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
+  const situacao = j => (j.emprestadoDe ? ` <span class="tag" title="Emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")} até a virada da temporada">emp.</span>` : "") + (j.fora > 0 ? ` <span class="bad" title="${j.motivo === "lesão" ? "Lesionado" : "Suspenso"}: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}">${j.motivo === "lesão" ? "🩹" : "⛔"}${j.fora}</span>` : "") + (j.foraCopa > 0 ? ` <span class="bad" title="Suspenso no próximo jogo de copa">⛔C</span>` : "") + (j.foraLib > 0 ? ` <span class="bad" title="Suspenso no próximo jogo da Libertadores ou da Sul-Americana">⛔L</span>` : "") + (j.amarelos ? ` <span class="aviso" title="Amarelos acumulados: o terceiro suspende por um jogo">${"🟨".repeat(j.amarelos)}</span>` : "");
   const contratados = elenco.filter(j => !j.juvenil).length; // o mínimo de 16 vale para quem tem contrato
   const temJuvenis = elenco.some(j => j.juvenil !== undefined); // juvenis sem contrato: depois do 60_juvenis_e_formador.sql
   // empréstimo (76_emprestimo_e_supercopa.sql): quem veio emprestado conta metade na folha, e quem saiu emprestado também
@@ -1576,6 +1579,13 @@ async function telaClube(liga, clube) {
       if (pendC.length) l.push(item("🟨", `Pendurados na copa (o próximo amarelo suspende por um jogo de copa): ${pendC.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
       const travados = elenco.filter(j => j.copaClube != null && j.copaClube !== clube.id);
       if (travados.length) l.push(item("🔒", `Não podem jogar a copa por você (já jogaram por outro clube nesta temporada): ${travados.map(j => esc(j.nome)).join(", ")}.`));
+    }
+    // Libertadores e Sul-Americana: suspensos e pendurados com os cartões continentais (141_cartoes_continentais.sql)
+    if (vivoNoContinente) {
+      const nomeC = ultCont.grupo === "SUL" ? "Sul-Americana" : "Libertadores";
+      elenco.filter(j => j.foraLib > 0).forEach(j => l.push(item("⛔", `${esc(j.nome)} (${sg(j.pos)}) suspenso na ${nomeC}: fora do próximo jogo dela.`)));
+      const pendL = elenco.filter(j => j.amarelosLib >= 1 && !(j.foraLib > 0));
+      if (pendL.length) l.push(item("🟨", `Pendurados na ${nomeC} (o próximo amarelo suspende por um jogo): ${pendL.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
     }
     const aprenderam = elenco.map(j => { const d = degrauRecente(j); return d && `${esc(j.nome)} (${d.para === "N" ? "natural" : "competente"}, ${sg(d.pos)})`; }).filter(Boolean);
     if (aprenderam.length) l.push(item("🎓", `Posição nova aprendida: ${aprenderam.join(", ")}.`, "ok"));
