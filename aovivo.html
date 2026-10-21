@@ -449,7 +449,8 @@ function placa(d) {
 }
 // "Sai {0:A}, entra {0:B}." ou "Entra {0:B} no lugar de {0:A}." (troca por lesão)
 function dadosDaPlaca(l) {
-  if (l.tipo === "lesao") { const m = /\{[01?]:([^{}]+)\} se machuca/.exec(l.texto || ""); // o texto traz a jogada antes; o lesionado é quem "se machuca" return m ? { tipo: "lesao", time: l.time, nome: m[1] } : null; }
+  // o texto da lesão traz a jogada antes; o lesionado é quem "se machuca"
+  if (l.tipo === "lesao") { const m = /\{[01?]:([^{}]+)\} se machuca/.exec(l.texto || ""); return m ? { tipo: "lesao", time: l.time, nome: m[1] } : null; }
   if (l.tipo === "amarelo" || l.tipo === "vermelho") { const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || ""); return m ? { tipo: l.tipo, time: l.time, nome: m[1], segundo: /^Segundo amarelo/.test(l.texto || "") } : null; }
   if (l.tipo === "acrescimo") { const n = (l.texto.match(/\d+/) || [])[0]; return n ? { tipo: "acrescimo", acr: n } : null; }
   const nomes = [...l.texto.matchAll(/\{[01?]:([^}]+)\}/g)].map(m => m[1]); if (nomes.length < 2) return null;
