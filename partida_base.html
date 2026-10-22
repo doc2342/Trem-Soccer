@@ -28,22 +28,34 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const id = +new URLSearchParams(location.search).get("id");
 const COMPETICAO = { copinha: "Copinha", libjuv: "Libertadores Juvenil" };
 
+// jogo de antes do relatório completo: só o que ficou em "dados" (quem jogou com a nota, as estatísticas principais e o analista, nos que têm)
+function resumoAntigo(d, nomes) {
+  const f1 = v => v == null ? "—" : v.toFixed(1).replace(".", ",");
+  const time = t => (d.jogadores || []).filter(x => x.t === t).map(x => `<tr><td>${esc(x.p)}</td><td class="esq">${String(x.id).startsWith("j") ? esc(x.n) : `<span class="mut">garoto da escolinha</span>`}${x.g ? ` ⚽${x.g > 1 ? "×" + x.g : ""}` : ""}</td><td>${x.min}'</td><td class="nota">${f1(x.nota)}</td></tr>`).join("");
+  const linha = (t, f) => `<tr><td>${f(d.est[0])}</td><td class="mut">${t}</td><td>${f(d.est[1])}</td></tr>`;
+  const est = d.est ? `<div class="card"><h2>Estatísticas</h2><table class="mini" style="width:100%;text-align:center"><tr><th>${esc(nomes[0])}</th><th></th><th>${esc(nomes[1])}</th></tr>
+    ${linha("Posse", e => e.po + "%")}${linha("Finalizações (no gol)", e => `${e.f} (${e.ng})`)}${linha("xG", e => e.xg.toFixed(2).replace(".", ","))}${linha("Escanteios", e => e.es)}${linha("Faltas", e => e.fa)}</table></div>` : "";
+  const an = t => d.an && d.an[t] && d.an[t].length ? `<ul style="margin:6px 0 0;padding-left:18px">${d.an[t].map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : "";
+  return `<div class="card mut">Jogo disputado antes do relatório completo da base: ficaram as notas e o resumo.</div>${est}
+    <div class="duas">${[0, 1].map(t => `<div class="card"><h2>${esc(nomes[t])}</h2><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Min</th><th>Nota</th></tr>${time(t)}</table>${an(t)}</div>`).join("")}</div>`;
+}
+
 async function iniciar() {
   const p = id ? await partidaDaBase(id) : null;
   if (!p) { $("topo").innerHTML = `<div class="bad">Partida não encontrada.</div>`; return; }
   const clubes = Object.fromEntries((await clubesPorIds([p.casa, p.fora])).map(c => [c.id, c]));
-  const c = [clubes[p.casa] || { nome: "—" }, clubes[p.fora] || { nome: "—" }], nomes = c.map(x => x.nome);
+  const c = [clubes[p.casa] || { nome: "—" }, clubes[p.fora] || { nome: "—" }], nomes = c.map(x => x.nome + " Sub-21"); // o time da base: juvenis e formados no clube até 21 anos
   const qual = p.fase ? `${COMPETICAO[p.fase] || "Base"} · ${FASES_DA_COPA[p.copinha_fase] || ""}` : `Liga de base · rodada ${p.rodada}`;
   const pen = p.dados && p.dados.penaltis, quando = new Date(p.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   $("topo").innerHTML = `<div class="mut">🌱 ${esc(qual)} · ${quando}</div>
     <div class="placar" style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:6px">
-      <span class="casa">${esc(nomes[0])}</span>${svgEscudo(c[0].escudo, c[0].sigla, 36)}
+      <span class="casa">${esc(c[0].nome)} <span class="tag" style="font-size:12px;vertical-align:middle">SUB-21</span></span>${svgEscudo(c[0].escudo, c[0].sigla, 36)}
       <b style="font-size:28px">${p.gols_casa == null ? "x" : `${p.gols_casa} x ${p.gols_fora}`}</b>
-      ${svgEscudo(c[1].escudo, c[1].sigla, 36)}<span class="fora">${esc(nomes[1])}</span></div>
+      ${svgEscudo(c[1].escudo, c[1].sigla, 36)}<span class="fora">${esc(c[1].nome)} <span class="tag" style="font-size:12px;vertical-align:middle">SUB-21</span></span></div>
     ${pen ? `<div class="mut" style="text-align:center">Pênaltis: ${pen[0]} x ${pen[1]}</div>` : ""}`;
   document.title = `Trem Soccer · ${nomes[0]} x ${nomes[1]} (base)`;
   if (!p.processada || p.gols_casa == null) { $("corpo").innerHTML = `<div class="card mut">O jogo ainda não aconteceu. O relatório aparece aqui depois do apito.</div>`; return; }
-  if (!p.relatorio) { $("corpo").innerHTML = `<div class="card mut">Este jogo foi disputado antes do relatório completo da base: ficaram só o placar, as notas e o resumo, que aparecem na página do clube.</div>`; return; }
+  if (!p.relatorio) { $("corpo").innerHTML = resumoAntigo(p.dados || {}, nomes); return; }
   const r = p.relatorio;
   r.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   $("corpo").innerHTML = htmlRelatorio(r, { nomes, clubes: c, semPlacar: true });
