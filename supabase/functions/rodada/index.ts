@@ -2603,6 +2603,17 @@ Deno.serve(async (req) => {
     } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
+    // reserva órfã: a chamada morreu (tempo limite) entre reservar e gravar o resultado, e a partida ficou "processada" sem resultado.
+    // 10 min depois do início ela volta para a fila. Só falharia com fila atrasada em mais de 10 min e duas chamadas ao mesmo tempo.
+    try {
+      const presas = ok(await sb.from("partidas").select("id").eq("processada", true)
+        .lte("inicio", new Date(Date.now() - 600000).toISOString()).gte("inicio", new Date(Date.now() - 86400000).toISOString()).limit(500)).map(p => p.id);
+      const comResultado = new Set(presas.length ? ok(await sb.from("resultados").select("partida_id").in("partida_id", presas)).map(r => r.partida_id) : []);
+      for (const id of presas.filter(id => !comResultado.has(id))) {
+        await sb.from("lances").delete().eq("partida_id", id);
+        await sb.from("partidas").update({ processada: false }).eq("id", id);
+      }
+    } catch (e) { /* segue */ }
     const pendentes = ok(await sb.from("partidas").select("*").eq("processada", false).lte("inicio", new Date().toISOString())
       .order("inicio").order("id").limit(MAXIMO_POR_CHAMADA));
     if (!pendentes.length) return json({ calculadas: 0, erros: [] });
