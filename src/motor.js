@@ -50,9 +50,10 @@ export const CONFIG = {
   // instruções
   mentalidadeAtaque: 0.075, // por nível de mentalidade: força no meio e no ataque
   mentalidadeDefesa: 0.065, // por nível de mentalidade ofensiva: força que a defesa perde
-  mentalidadeRetranca: 0.065, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
+  // retranca: 0,065 e ritmo 0,03 até 22/10/2026; o azarão que se fechava não ganhava nada contra o forte (0,46 → 0,47 ponto por jogo, ferramentas/sim_zebra.mjs)
+  mentalidadeRetranca: 0.09, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
   espacoPorMentalidade: 0.2, // por nível de mentalidade de quem defende: espaço para a bola em profundidade do adversário
-  ritmoPorMentalidade: 0.03, // por nível, somando os dois times: jogo mais aberto tem mais ataques
+  ritmoPorMentalidade: 0.08, // por nível, somando os dois times: jogo mais aberto tem mais ataques; o fechado tem menos gols, e jogo de poucos gols é o que dá chance ao azarão
   mentalidadePosse: 0.02,
   agressividadeDefesa: 0.07, // por nível: força nos duelos defensivos
   pressaoDefesa: 0.15, // por nível: força na marcação do meio para a frente (paga o cansaço: a pressão rende no 1º tempo e cobra no 2º)
@@ -836,6 +837,9 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       const primeiros = (t.instr.cobradores.penalti || []).map(id => t.emCampo.find(x => x.j.id === id)).filter(Boolean);
       return [...primeiros, ...t.emCampo.filter(x => !primeiros.includes(x)).sort((a, b) => (a.pos === "GK") - (b.pos === "GK") || b.at[A.fin] - a.at[A.fin])];
     });
+    // com um a menos (expulsão ou lesão sem substituição), o outro time tira da fila os piores batedores de linha até igualar, como na regra
+    const iguais = Math.min(filas[0].length, filas[1].length);
+    filas.forEach(f => { for (let k = f.length - 1; f.length > iguais && k >= 0; k--) if (f[k].pos !== "GK") f.splice(k, 1); });
     const placar = [0, 0], batidas = [0, 0], cobrancas = [];
     const FIM = { gol: "GOL!", fora: "para fora!", trave: "na trave!" };
     const bater = i => {

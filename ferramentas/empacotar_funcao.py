@@ -153,7 +153,7 @@ async function avancarPlayoffs(sb) {
   }
 }
 
-// Liga de base (61_liga_de_base.sql): joga as partidas cuja hora chegou. Só fica o placar, os gols e as notas; o juvenil que jogou ganha um bônus de treino.
+// Liga de base (61_liga_de_base.sql): joga as partidas cuja hora chegou. Ficam o placar, os gols, as notas e o relatório completo (136); o juvenil que jogou ganha um bônus de treino.
 async function jogarBase(sb) {
   const r = await sb.from("base_jogos").select("*").eq("processada", false).lte("inicio", new Date().toISOString()).order("inicio").order("id").limit(25);
   if (r.error || !r.data || !r.data.length) return 0;
@@ -178,8 +178,8 @@ async function jogarBase(sb) {
   const minutosNaBase = {}, chave = (liga, t) => liga + ":" + t;
   for (const k of new Set(jogos.map(p => chave(p.liga_id, p.temporada)))) {
     const [liga, t] = k.split(":").map(Number), m = minutosNaBase[k] = {};
-    for (const q of (await sb.from("base_jogos").select("dados").eq("liga_id", liga).eq("temporada", t).eq("processada", true).not("gols_casa", "is", null)).data || [])
-      for (const x of (q.dados && q.dados.jogadores) || []) if (String(x.id).startsWith("j")) m[x.id] = (m[x.id] || 0) + (x.min || 0);
+    for (const q of (await sb.from("base_jogos").select("jogadores:dados->jogadores").eq("liga_id", liga).eq("temporada", t).eq("processada", true).not("gols_casa", "is", null)).data || [])
+      for (const x of q.jogadores || []) if (String(x.id).startsWith("j")) m[x.id] = (m[x.id] || 0) + (x.min || 0);
   }
   let n = 0;
   for (const p of jogos) {
@@ -191,7 +191,7 @@ async function jogarBase(sb) {
       const lado = id => { const c = clubes[id] || {};
         const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : p.fase === "libjuv" && c.pais && c.pais !== "Brasil" ? CONFIG_LIGA_DE_BASE.nivelDeFora : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil, formacao: formacoes[id], tatica: taticasDaBase[id] });
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
-      const { resultado, minutos } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
+      const { resultado, minutos, lances } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
       // relatório curto: as estatísticas principais de cada lado e as frases do analista (sem os lances, para não pesar no banco)
       const R = resultado.relatorio;
@@ -206,7 +206,10 @@ async function jogarBase(sb) {
           while (pen[0] === pen[1]) { if (rng.chance(0.76)) pen[0]++; if (rng.chance(0.76)) pen[1]++; }
           dados.penaltis = pen; extra.vencedor = pen[0] > pen[1] ? p.casa : p.fora; }
       }
-      const g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, ...extra }).eq("id", p.id);
+      // relatório completo com a narração (136_relatorio_da_base.sql): coluna à parte, lida só quando alguém abre a partida; sem a coluna, grava o curto
+      const relatorio = { ...R, narracao: lances.map(l => l.dados), ...(dados.penaltis ? { penaltis: dados.penaltis } : {}) };
+      let g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, relatorio, ...extra }).eq("id", p.id);
+      if (g.error && /relatorio/.test(g.error.message)) g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, ...extra }).eq("id", p.id);
       if (g.error) throw new Error(g.error.message);
       const treinos = [];
       for (const id of [p.casa, p.fora]) {
