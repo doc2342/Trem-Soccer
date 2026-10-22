@@ -110,7 +110,7 @@ export function timeDaBase(rng, { juvenis = [], profissionais = [], nivel: nivel
 export const INSTRUCOES_DA_BASE = {
   mentalidade: [-2, -1, 0, 1, 2], agressividade: [-2, -1, 0, 1, 2], pressao: [0, 1, 2],
   passe: ["misto", "curto", "longo"], lado: ["misto", "E", "C", "D", "lados"], finalizar: ["misto", "longe", "area"], cruzamento: ["misto", "alto", "rasteiro"],
-  contraAtaque: [false, true], impedimento: [false, true],
+  contraAtaque: [false, true], impedimento: [false, true], cera: [false, true],
 };
 // Só o que é válido passa; o que faltar fica como o bot faria.
 export function instrucoesDaBase(instr) {

@@ -67,14 +67,14 @@ export function taticaDoDirigente(dados, elenco) {
     const instrucoes = {
       mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
       passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"), cruzamento: um(I.cruzamento, ["misto", "alto", "rasteiro"], "misto"),
-      contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true,
+      contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true,
       capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
       cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
       substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
         .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre"), ...(LISTA_POSICOES.includes(s.pos) && s.pos !== "GK" ? { pos: s.pos } : {}) })), // pos: onde o substituto entra (sem ela, na posição de quem sai)
       ordens: (dados.ordens || []).slice(0, 30).map(o => { // sem limite na tela; o 30 só protege a função de uma tática adulterada
         const [k, v] = String(o.muda || "").split(":");
-        if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar", "cruzamento"].includes(k)) return null;
+        if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar", "cruzamento", "cera"].includes(k)) return null;
         return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
       }).filter(Boolean),
     };

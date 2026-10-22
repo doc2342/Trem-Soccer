@@ -139,13 +139,13 @@ async function rodar() {
     `<div class="mut" style="margin:8px 0 4px">Pontos por jogo do mandante (linha) contra o visitante (coluna)</div>` + tabela(["", ...fs.map((_, i) => i + 1)], fs.map((a, i) => [`${i + 1}. ${a}`, ...fs.map(b => a === b ? "—" : f2(m.tabela[a][b]))])) + `</div>`;
   $("saida").innerHTML = h; await pausa();
   // confrontos táticos: cada escolha forte tem uma resposta que a vence; a meta é a resposta certa render 0,3 ponto por jogo ou mais
-  const O = { curto: { passe: "curto" }, longo: { passe: "longo" }, pressao: { pressao: 2 }, contra: { contraAtaque: true }, linha: { impedimento: true }, ofensivo: { mentalidade: 2 }, retranca: { mentalidade: -2 } };
+  const O = { rapido: { finalizar: "longe" }, curto: { passe: "curto" }, longo: { passe: "longo" }, pressao: { pressao: 2 }, contra: { contraAtaque: true }, linha: { impedimento: true }, ofensivo: { mentalidade: 2 }, retranca: { mentalidade: -2 } };
   const testes = [
     ["Bola longa contra pressão alta", O.longo, O.pressao, "vence"], ["Passe curto contra pressão alta", O.curto, O.pressao, "perde"],
     ["Passe curto contra time sem pressão", O.curto, {}, "vence"], ["Bola longa contra time sem pressão", O.longo, {}, "perde"],
     ["Contra-ataque contra time muito ofensivo", O.contra, O.ofensivo, "vence"], ["Contra-ataque contra time neutro", O.contra, {}, "perde"],
     ["Linha de impedimento contra bola longa", O.linha, O.longo, "vence"], ["Linha de impedimento contra passe curto", O.linha, O.curto, "perde"],
-    ["Linha de impedimento contra contra-ataque", O.linha, O.contra, "perde"], ["Passe curto contra retranca", O.curto, O.retranca, "vence"],
+    ["Linha de impedimento contra contra-ataque", O.linha, O.contra, "perde"], ["Resolver rápido contra retranca", O.rapido, O.retranca, "vence"], ["Passe curto contra retranca", O.curto, O.retranca, "equilibra"],
     ["Muito ofensivo contra neutro", O.ofensivo, {}, "equilibra"], ["Retranca contra neutro", O.retranca, {}, "equilibra"],
   ].map(([nome, ia, ib, meta], k) => [nome, confronto({ instrucoes: ia }, { instrucoes: ib }, { pares: 60, neutro: true, semente: 500 + k }), meta]);
   const sinal = (r, meta) => { const d = r.pontosA - r.pontosB, ok = meta === "vence" ? d >= 0.15 : meta === "perde" ? d <= -0.1 : Math.abs(d) < 0.25; return `<span class="${ok ? "ok" : "bad"}">${d >= 0 ? "+" : ""}${f2(d)}</span>`; };

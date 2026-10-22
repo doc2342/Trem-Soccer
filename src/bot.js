@@ -88,7 +88,7 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
     ordens: [
       { min: 0, cond: "umAMenos", muda: { mentalidade: Math.max(-2, mentalidade - 1) } }, // com 10, recuar uma casa: mesmos pontos (sim_mental, com posseNumerica 2), menos gols sofridos
       { min: 70, cond: "perdendo", muda: { mentalidade: Math.min(2, mentalidade + 1) } },
-      { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1) } },
+      { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1), cera: true } }, // a cera só vale enquanto estiver ganhando
     ],
   };
   return { formacao, escalacao, banco, instrucoes, forca };

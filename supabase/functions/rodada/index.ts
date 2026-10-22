@@ -391,11 +391,15 @@ const __motor = (() => {
     // instruções
     mentalidadeAtaque: 0.075, // por nível de mentalidade: força no meio e no ataque
     mentalidadeDefesa: 0.065, // por nível de mentalidade ofensiva: força que a defesa perde
-    // retranca: 0,065 e ritmo 0,03 até 22/10/2026; o azarão que se fechava não ganhava nada contra o forte (0,46 → 0,47 ponto por jogo, ferramentas/sim_zebra.mjs)
-    mentalidadeRetranca: 0.09, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
+    // retranca: 0,065 e ritmo 0,03 até 22/10/2026; o azarão que se fechava não ganhava nada contra o forte (0,46 → 0,47 ponto por jogo, ferramentas/sim_zebra.mjs).
+    // 0,09 até o recuo entregar a posse (mentalidadePosseRetranca): o adversário passou a atacar mais e a defesa recuada ficou mais forte para compensar
+    mentalidadeRetranca: 0.18, // por nível de mentalidade defensiva: força que a defesa ganha (fechar é mais fácil que criar)
     espacoPorMentalidade: 0.2, // por nível de mentalidade de quem defende: espaço para a bola em profundidade do adversário
     ritmoPorMentalidade: 0.08, // por nível, somando os dois times: jogo mais aberto tem mais ataques; o fechado tem menos gols, e jogo de poucos gols é o que dá chance ao azarão
     mentalidadePosse: 0.02,
+    // Recuar entrega a bola: o adversário ataca mais (o "abafa" depois do 1 x 0), cada ataque dele vale menos, e o jogo esfria menos que o
+    // somatório de mentalidades daria. Antes do recuo, a retranca valia como cera (os dois atacavam menos). ferramentas/sim_zebra.mjs
+    mentalidadePosseRetranca: 0.15, ritmoPorRetranca: 0.03, // por nível de mentalidade defensiva (em -2, o adversário fica com 56% dos ataques, eram 50,6%)
     agressividadeDefesa: 0.07, // por nível: força nos duelos defensivos
     pressaoDefesa: 0.15, // por nível: força na marcação do meio para a frente (paga o cansaço: a pressão rende no 1º tempo e cobra no 2º)
     pressaoGasto: 0.25, // por nível: energia gasta a mais
@@ -424,6 +428,9 @@ const __motor = (() => {
     marcacaoDobrada: { limite: 0.4, bonus: 6, peso: 0.8 },
     // por nível de mentalidade de quem defende (só para quem escolheu a instrução): chute de longe contra retranca; área contra retranca e contra time aberto
     finalizarXmentalidade: { longe: 0.15, areaRetranca: 0.1, areaAberto: 0.08 },
+    // Contra a retranca, por nível de mentalidade defensiva: o passe curto não entra na área lotada (logit nos duelos da linha de ataque)
+    // e o chuveirinho (cruzamento alto, por instrução) acha os lados livres (xG do cruzamento). A resposta à retranca é resolver rápido ou cruzar.
+    curtoXretranca: 0.15, altoXretranca: 0.1,
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
     contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.85, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
     // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
@@ -456,6 +463,9 @@ const __motor = (() => {
     // faltas, cartões, lesões e bola parada
     falta: 0.12, // por duelo (alvo: 22 faltas por jogo, com os acréscimos)
     faltaPorAgressividade: 0.2, // por nível: 0,6x a 1,4x faltas entre -2 e +2
+    // Quem faz a falta: sem isto, quem cobre uma zona sozinho (meia e lateral) levava mais cartão que volante e zagueiro, ao contrário do futebol
+    // real (volante, zagueiro e meio-campo na frente; ponta e meia de lado atrás). Ajustado com ferramentas/sim_cartoes.mjs.
+    faltaPorPosicao: { DC: 1.6, SW: 1.6, DMC: 1.3, MC: 1.2, DR: 0.83, DL: 0.83, WBR: 0.8, WBL: 0.8, MR: 0.53, ML: 0.53, AMC: 0.77, AMR: 0.71, AML: 0.71, RW: 0.71, LW: 0.71, FC: 0.83, SC: 1.3 },
     amarelo: 0.47, amareloPorAgressividade: 0.1, vermelhoDireto: 0.003,
     cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
     amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
@@ -463,10 +473,13 @@ const __motor = (() => {
     lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
     maxSubstituicoes: 5,
     acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, acrescimoPorGol: 0.5, acrescimoPorLesao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
+    // Cera (instrução, só vale com o time ganhando): o jogo tem menos ataques, a arbitragem devolve parte do tempo no acréscimo
+    // e cada minuto de cera arrisca um amarelo por retardar o reinício (goleiro mais que os outros; quem já tem amarelo se segura).
+    cera: { ritmo: 0.7, acrescimo: 0.07, amarelo: 0.01, pesoGoleiro: 3 }, // ferramentas/sim_cera.mjs: +0,05 ponto por jogo, ~0,5 amarelo nos jogos em que é usada
     escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
     escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
-    penalti: 0.106, // das faltas no centro do ataque
+    penalti: 0.072, // das faltas no centro do ataque
     faltaDireta: 0.27, // das faltas no ataque que não são pênalti
   };
 
@@ -480,6 +493,7 @@ const __motor = (() => {
     cruzamento: "misto", // misto, alto ou rasteiro
     contraAtaque: false,
     impedimento: false,
+    cera: false, // só vale enquanto o time estiver ganhando
     capitao: null, vice: null, armador: null, alvo: null, // ids de jogadores
     cobradores: { escanteio: [], falta: [], penalti: [] }, // listas de ids, em ordem de preferência
     substituicoes: [], // { min, sai, entra, pos?, cond }
@@ -611,7 +625,7 @@ const __motor = (() => {
     const linha = t.zonas.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
     t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
-      * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + CONFIG.mentalidadePosse * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
+      * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
   }
 
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
@@ -740,6 +754,7 @@ const __motor = (() => {
     const FM = CONFIG.finalizarXmentalidade, m = def.instr.mentalidade;
     if (I.finalizar === "longe" && tipo === "longe") c.xg *= (1 + FM.longe * Math.max(0, -m)) * mod(c.chute, 25, CONFIG.finalizar.longe.qualidade); // time treinado para chutar de fora: o bom chutador rende ainda mais
     if (I.finalizar === "area" && (tipo === "area" || tipo === "profundidade")) c.xg *= m < 0 ? 1 + FM.areaRetranca * m : 1 + FM.areaAberto * m;
+    if (I.cruzamento === "alto" && tipo === "cruzamento") c.xg *= 1 + CONFIG.altoXretranca * Math.max(0, -m);
     c.xg = limitar(c.xg, 0.01, CONFIG.xgMaximo);
     return c;
   }
@@ -957,7 +972,7 @@ const __motor = (() => {
       const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
       // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
       const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
-      const tatico = (contra ? 0 : chuva * CONFIG.chuva[atk.instr.passe] + CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
+      const tatico = (contra ? 0 : chuva * CONFIG.chuva[atk.instr.passe] + CONFIG.passeXpressao[atk.instr.passe][def.instr.pressao][zona[0]] + (atk.instr.passe === "curto" && zona[0] === "A" ? CONFIG.curtoXretranca * Math.min(0, def.instr.mentalidade) : 0) +(atk.instr.contraAtaque && zona[0] === "M" ? CONFIG.contraAtaque.construcao : 0))
         + (ensaiado && zona[0] !== "D" ? CONFIG.ensaio : 0);
       // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
       // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
@@ -969,7 +984,7 @@ const __motor = (() => {
       const folga = tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
       const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
       let venceu = rng.chance(p), parada = false, comFalta = false;
-      if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25))) {
+      if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1))) {
         falta(1 - i, marcador, pivo); comFalta = true;
         if (zona[0] === "A") parada = true; else venceu = true; // falta no ataque vira bola parada; atrás, a jogada segue
       } else {
@@ -1107,13 +1122,33 @@ const __motor = (() => {
       finalizar(i, chance);
     }
 
+    // cera: vale enquanto o time estiver ganhando; o rng só é usado com ela ligada, para não mudar a reprise dos jogos sem cera
+    const naCera = [false, false];
+    let minutosDeCera = 0;
+    function cera() {
+      const g = gols(), C = CONFIG.cera;
+      for (const i of [0, 1]) {
+        const agora = !!times[i].instr.cera && g[i] > g[1 - i];
+        if (agora && !naCera[i]) evento(i, "ordem", `${tm(i)} passa a fazer cera.`);
+        naCera[i] = agora;
+        if (!agora || !rng.chance(C.amarelo)) continue;
+        const jog = sortearPeso(rng, times[i].emCampo, x => (x.pos === "GK" ? C.pesoGoleiro : 1) * (x.amarelos ? CONFIG.cuidadoComAmarelo : 1));
+        if (!jog) continue;
+        jog.amarelos++; jogadores[jog.j.id].amarelos++; estat[i].amarelos++;
+        if (jog.amarelos >= 2) expulsar(i, jog, `Segundo amarelo para ${nm(jog)} por retardar o reinício: está expulso!`);
+        else cartao(i, "amarelo", `Cartão amarelo para ${nm(jog)} por retardar o reinício.`);
+        soltarCartoes();
+      }
+      if (naCera[0] || naCera[1]) minutosDeCera++;
+    }
+
     const minuto = () => {
-      ordensESubstituicoes(0); ordensESubstituicoes(1);
+      ordensESubstituicoes(0); ordensESubstituicoes(1); cera();
       for (const t of times) for (const jog of t.emCampo) {
         const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
         jog.energia = Math.max(0, jog.energia - gasto);
       }
-      const ritmo = CONFIG.ataquesPorMinuto * (1 + CONFIG.ritmoPorMentalidade * (times[0].instr.mentalidade + times[1].instr.mentalidade));
+      const ritmo = CONFIG.ataquesPorMinuto * (1 + times.reduce((s, t) => s + t.instr.mentalidade * (t.instr.mentalidade < 0 ? CONFIG.ritmoPorRetranca : CONFIG.ritmoPorMentalidade), 0)) * (naCera[0] || naCera[1] ? CONFIG.cera.ritmo : 1);
       const n = (rng.chance(Math.min(1, ritmo)) ? 1 : 0) + (rng.chance(Math.max(0, ritmo - 1)) ? 1 : 0);
       for (let k = 0; k <= n; k++) {
         if (sujo || (k === 0 && min % CONFIG.recalcularACada === 1)) {
@@ -1147,12 +1182,12 @@ const __motor = (() => {
     };
     const jogar = (de, ate) => { for (min = de; min <= ate; min++) minuto(); };
     // acréscimos: proporcionais às faltas do tempo e 30 s por substituição, gol e lesão; jogados com o relógio parado no 45 (ou 90)
-    const acrescimos = [], antes = { faltas: 0, subs: 0, gols: 0, lesoes: 0 };
+    const acrescimos = [], antes = { faltas: 0, subs: 0, gols: 0, lesoes: 0, cera: 0 };
     const acrescimo = fim => {
       min = fim; // o for de jogar() sai com min um à frente
-      const C = CONFIG, agora = { faltas: estat[0].faltas + estat[1].faltas, subs: estat[0].substituicoes + estat[1].substituicoes, gols: estat[0].gols + estat[1].gols, lesoes: lesoes.length };
+      const C = CONFIG, agora = { faltas: estat[0].faltas + estat[1].faltas, subs: estat[0].substituicoes + estat[1].substituicoes, gols: estat[0].gols + estat[1].gols, lesoes: lesoes.length, cera: minutosDeCera };
       const d = k => agora[k] - antes[k];
-      const a = Math.max(1, Math.ceil(C.acrescimoPorFalta * d("faltas") + C.acrescimoPorSubstituicao * d("subs") + C.acrescimoPorGol * d("gols") + C.acrescimoPorLesao * d("lesoes") - 1e-9));
+      const a = Math.max(1, Math.ceil(C.acrescimoPorFalta * d("faltas") + C.acrescimoPorSubstituicao * d("subs") + C.acrescimoPorGol * d("gols") + C.acrescimoPorLesao * d("lesoes") + C.cera.acrescimo * d("cera") - 1e-9));
       Object.assign(antes, agora); acrescimos.push(a);
       soltarCartoes(); evento(0, "acrescimo", `A arbitragem dá ${a} ${a > 1 ? "minutos" : "minuto"} de acréscimo.`);
       for (ac = 1; ac <= a; ac++) minuto();
@@ -1303,7 +1338,7 @@ const __bot = (() => {
       ordens: [
         { min: 0, cond: "umAMenos", muda: { mentalidade: Math.max(-2, mentalidade - 1) } }, // com 10, recuar uma casa: mesmos pontos (sim_mental, com posseNumerica 2), menos gols sofridos
         { min: 70, cond: "perdendo", muda: { mentalidade: Math.min(2, mentalidade + 1) } },
-        { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1) } },
+        { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1), cera: true } }, // a cera só vale enquanto estiver ganhando
       ],
     };
     return { formacao, escalacao, banco, instrucoes, forca };
@@ -1487,14 +1522,14 @@ const __rodada = (() => {
       const instrucoes = {
         mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
         passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"), cruzamento: um(I.cruzamento, ["misto", "alto", "rasteiro"], "misto"),
-        contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true,
+        contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true,
         capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
         cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
         substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
           .map(s => ({ min: num(s.min, 0, 89), sai: s.sai, entra: s.entra, cond: um(s.cond, condicoes, "sempre"), ...(LISTA_POSICOES.includes(s.pos) && s.pos !== "GK" ? { pos: s.pos } : {}) })), // pos: onde o substituto entra (sem ela, na posição de quem sai)
         ordens: (dados.ordens || []).slice(0, 30).map(o => { // sem limite na tela; o 30 só protege a função de uma tática adulterada
           const [k, v] = String(o.muda || "").split(":");
-          if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar", "cruzamento"].includes(k)) return null;
+          if (!["mentalidade", "pressao", "contraAtaque", "passe", "finalizar", "cruzamento", "cera"].includes(k)) return null;
           return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
@@ -2073,7 +2108,7 @@ const __ligabase = (() => {
   const INSTRUCOES_DA_BASE = {
     mentalidade: [-2, -1, 0, 1, 2], agressividade: [-2, -1, 0, 1, 2], pressao: [0, 1, 2],
     passe: ["misto", "curto", "longo"], lado: ["misto", "E", "C", "D", "lados"], finalizar: ["misto", "longe", "area"], cruzamento: ["misto", "alto", "rasteiro"],
-    contraAtaque: [false, true], impedimento: [false, true],
+    contraAtaque: [false, true], impedimento: [false, true], cera: [false, true],
   };
   // Só o que é válido passa; o que faltar fica como o bot faria.
   function instrucoesDaBase(instr) {

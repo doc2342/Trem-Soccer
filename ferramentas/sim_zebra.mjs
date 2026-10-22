@@ -26,11 +26,11 @@ const PLANOS = { "padrão": {}, "retranca": { mentalidade: -2 }, "retranca e con
 console.log("\nAzarão (-6) contra o forte de tática padrão: plano do azarão");
 for (const [nome, ins] of Object.entries(PLANOS)) { const r = jogar(-6, ins, {}, 40); console.log(`  ${nome.padEnd(28)} vence ${pc(r.v)}  empata ${pc(r.e)}  pontos/jogo ${f2(r.ppj)}  gols ${f2(r.gols)}`); }
 console.log("\nA resposta do forte (+6) à retranca e contra do azarão");
-for (const [nome, ins] of Object.entries({ "padrão": {}, "trabalhar até a área": { finalizar: "area" }, "passe curto e área": { passe: "curto", finalizar: "area" }, "muito ofensivo": { mentalidade: 2 } })) {
+for (const [nome, ins] of Object.entries({ "padrão": {}, "trabalhar até a área": { finalizar: "area" }, "resolver rápido": { finalizar: "longe" }, "rápido e cruzamento alto": { finalizar: "longe", cruzamento: "alto" }, "muito ofensivo": { mentalidade: 2 } })) {
   const r = jogar(6, ins, { mentalidade: -2, contraAtaque: true }, 70); console.log(`  ${nome.padEnd(28)} forte faz ${f2(r.ppj)} pontos/jogo  gols ${f2(r.gols)}`);
 }
-console.log("\nEntre iguais (meta: retranca equilibra, passe curto vence a retranca)");
-for (const [nome, ia, ib] of [["retranca x neutro", { mentalidade: -2 }, {}], ["retranca e contra x neutro", { mentalidade: -2, contraAtaque: true }, {}], ["passe curto x retranca", { passe: "curto" }, { mentalidade: -2 }],
+console.log("\nEntre iguais (meta: retranca equilibra; resolver rápido e o cruzamento alto vencem a retranca, o passe curto não)");
+for (const [nome, ia, ib] of [["retranca x neutro", { mentalidade: -2 }, {}], ["retranca e contra x neutro", { mentalidade: -2, contraAtaque: true }, {}], ["resolver rápido x retranca", { finalizar: "longe" }, { mentalidade: -2 }], ["cruzamento alto x retranca", { cruzamento: "alto" }, { mentalidade: -2 }], ["passe curto x retranca", { passe: "curto" }, { mentalidade: -2 }],
   ["muito ofensivo x neutro", { mentalidade: 2 }, {}], ["contra x muito ofensivo", { contraAtaque: true }, { mentalidade: 2 }]]) {
   const r = jogar(0, ia, ib, 90), pb = 3 * r.d + r.e; console.log(`  ${nome.padEnd(28)} ${f2(r.ppj)} x ${f2(pb)} (diferença ${(r.ppj - pb >= 0 ? "+" : "") + f2(r.ppj - pb)})  gols ${f2(r.gols)}`);
 }

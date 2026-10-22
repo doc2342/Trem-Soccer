@@ -71,7 +71,7 @@ const nomes = await (await fetch("./dados/nomes.json")).json();
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 
-const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", cruzamento: "misto", lado: "misto", contraAtaque: false, impedimento: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
+const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", cruzamento: "misto", lado: "misto", contraAtaque: false, impedimento: false, cera: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
 const OPCOES = {
   mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
   pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
@@ -82,11 +82,12 @@ const OPCOES = {
   lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
+  cera: ["Cera quando estiver ganhando", [[false, "Não"], [true, "Sim"]]],
 };
 const CONDICOES = [["sempre", "sempre"], ["ganhando", "se estiver ganhando"], ["empatando", "se estiver empatando"], ["perdendo", "se estiver perdendo"], ["umAMenos", "se estiver com um a menos"], ["umAMais", "se estiver com um a mais"]];
 const CONDICOES_SUB = [...CONDICOES, ["cansado", "se ele estiver cansado"], ["amarelo", "se ele tiver amarelo"], ["mal", "só se ele estiver jogando mal"], ["naoBem", "a não ser que ele esteja jogando bem"]];
 const MUDANCAS = [["mentalidade:2", "Mentalidade muito ofensiva"], ["mentalidade:1", "Mentalidade ofensiva"], ["mentalidade:0", "Mentalidade normal"], ["mentalidade:-1", "Mentalidade defensiva"], ["mentalidade:-2", "Mentalidade muito defensiva"],
-  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Resolver rápido"], ["finalizar:area", "Trabalhar até a área"], ["cruzamento:alto", "Cruzamentos altos"], ["cruzamento:rasteiro", "Cruzamentos rasteiros"]];
+  ["pressao:2", "Pressão alta"], ["pressao:1", "Pressão média"], ["pressao:0", "Sem pressão"], ["contraAtaque:true", "Ligar o contra-ataque"], ["contraAtaque:false", "Desligar o contra-ataque"], ["cera:true", "Fazer cera (se estiver ganhando)"], ["cera:false", "Parar a cera"], ["passe:longo", "Bola longa"], ["passe:curto", "Passe curto"], ["finalizar:longe", "Resolver rápido"], ["finalizar:area", "Trabalhar até a área"], ["cruzamento:alto", "Cruzamentos altos"], ["cruzamento:rasteiro", "Cruzamentos rasteiros"]];
 const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], ORDEM_LADO = { E: 0, C: 1, D: 2 };
 // papéis e cobradores: chave → [rótulo, só jogador de linha?, quantos]
 const PAPEIS = { capitao: ["Capitão", false, 1], vice: ["Vice", false, 1], armador: ["Armador", true, 1], alvo: ["Homem-alvo", true, 1], escanteio: ["Escanteios", true, 3], falta: ["Faltas", true, 3], penalti: ["Pênaltis", true, 5] };
@@ -194,7 +195,7 @@ async function previaDoAdversario(B) {
       const dicas = [];
       if (est.contra >= L.contra) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
       if (longa) dicas.push("a linha de impedimento atrapalha a bola longa deles");
-      if (est.posse <= L.posse[0] && est.finalizacoes <= L.finalizacoes[0]) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
+      if (est.posse <= L.posse[0] && est.finalizacoes <= L.finalizacoes[0]) dicas.push("contra retranca, resolva rápido (chute de fora) ou cruze alto: a área lotada não deixa o passe curto entrar, e trabalhar até a área rende pouco");
       if (est.finalizacoes >= L.finalizacoes[1]) dicas.push("time que ataca muito deixa espaço atrás: o contra-ataque e a bola trabalhada até a área rendem mais");
       if (ladoForte) dicas.push(`o ataque deles cai mais pela ${ladoForte}: é o seu lado ${ladoForte === "esquerda" ? "direito" : "esquerdo"} que vai ser mais exigido`);
       if (est.faltas >= L.faltas[1]) dicas.push("eles fazem muita falta: bola parada pode decidir");
@@ -207,7 +208,7 @@ async function previaDoAdversario(B) {
       if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
       if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
       if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
-      if (I.mentalidade < 0) dicas.push("contra retranca, o passe curto é o melhor caminho; a área fica congestionada, então arriscar de longe rende mais que trabalhar até a área");
+      if (I.mentalidade < 0) dicas.push("contra retranca, resolva rápido (chute de fora) ou cruze alto: a área lotada não deixa o passe curto entrar, e trabalhar até a área rende pouco");
       if (I.mentalidade > 0) dicas.push("time ofensivo deixa a área livre: trabalhar a bola até a área rende mais");
       if (I.contraAtaque) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
       h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;

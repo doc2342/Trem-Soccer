@@ -1,4 +1,5 @@
-// Mede faltas e cartões por time e por jogo em cada nível de agressividade, e quantas expulsões são "baratas" (2º amarelo com só 2 faltas) ou cedo (até 45').
+// Mede faltas e cartões por time e por jogo em cada nível de agressividade, e quantas expulsões são "baratas" (2º amarelo com só 2 faltas) ou cedo (até 45');
+// e, no jogo entre bots, os amarelos por posição (meta: volante, zagueiro e meio-campo na frente; ponta e meia de lado atrás).
 // Uso: node ferramentas/sim_cartoes.mjs [jogos por linha]
 import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js"; import { gerarElenco } from "../src/gerador.js"; import { taticaBot } from "../src/bot.js";
@@ -20,13 +21,15 @@ for (const agressividade of [-2, -1, 0, 1, 2]) {
 }
 // jogo inteiro com a tática dos bots dos dois lados: alvo de 22 faltas, 5 amarelos e 0,25 vermelho; gols de bola parada para ver o efeito das faltas
 {
-  const rng = criarRng(91), t = { faltas: 0, amarelos: 0, vermelhos: 0, gols: 0, falta: 0, penalti: 0, escanteio: 0, chutesFalta: 0, penais: 0 };
+  const rng = criarRng(91), porPos = {}, t = { faltas: 0, amarelos: 0, vermelhos: 0, gols: 0, falta: 0, penalti: 0, escanteio: 0, chutesFalta: 0, penais: 0 };
   for (let k = 0; k < N; k++) {
     const a = elenco(1 + k % 20), b = elenco(101 + k % 20);
     const p = simularPartida(rng, prepararTime({ nome: "A", ...a }), prepararTime({ nome: "B", ...b }));
+    for (const j of Object.values(p.jogadores)) { const x = porPos[j.pos.replace(/^(D|WB|M|AM)L$/, "$1R").replace("LW", "RW")] ||= { n: 0, f: 0, a: 0 }; x.n++; x.f += j.faltas; x.a += j.amarelos; }
     for (const e of p.estat) { t.faltas += e.faltas; t.amarelos += e.amarelos; t.vermelhos += e.vermelhos; t.gols += e.gols; }
     for (const l of p.lances) { if (l.tipo === "falta") t.chutesFalta++; if (l.tipo === "penalti") t.penais++; if (l.resultado === "gol" && l.tipo in t) t[l.tipo]++; }
   }
   const f = x => (x / N).toFixed(2);
   console.log(`jogo: ${f(t.faltas)} faltas, ${f(t.amarelos)} amarelos, ${f(t.vermelhos)} vermelhos, ${f(t.gols)} gols (de falta ${f(t.falta)}, pênalti ${f(t.penalti)}, escanteio ${f(t.escanteio)}) | lances de falta ${f(t.chutesFalta)}, pênaltis ${f(t.penais)}`);
-}
+  const x = Object.entries(porPos).filter(([p]) => p !== "GK").sort((a, b) => b[1].a / b[1].n - a[1].a / a[1].n);
+  console.log("por posição (por jogador que entrou): " + x.map(([p, v]) => `${p} ${(v.f / v.n).toFixed(2)}f ${(v.a / v.n).toFixed(3)}am`).join(" · ")); }

@@ -1026,7 +1026,7 @@ async function telaClube(liga, clube) {
   const ROTULOS_DA_BASE = { mentalidade: ["Mentalidade", { "-2": "muito defensiva", "-1": "defensiva", 0: "normal", 1: "ofensiva", 2: "muito ofensiva" }],
     agressividade: ["Agressividade", { "-2": "muito baixa", "-1": "baixa", 0: "normal", 1: "alta", 2: "muito alta" }], pressao: ["Pressão", { 0: "sem pressão", 1: "média", 2: "alta" }],
     passe: ["Passe", { misto: "misto", curto: "curto", longo: "bola longa" }], lado: ["Lado do ataque", { misto: "misto", E: "esquerda", C: "centro", D: "direita", lados: "pelos lados" }],
-    finalizar: ["Finalização", { misto: "misto", longe: "resolver rápido", area: "dentro da área" }], cruzamento: ["Cruzamentos", { misto: "misto", alto: "altos", rasteiro: "rasteiros" }], contraAtaque: ["Contra-ataque", { false: "não", true: "sim" }], impedimento: ["Linha de impedimento", { false: "não", true: "sim" }] };
+    finalizar: ["Finalização", { misto: "misto", longe: "resolver rápido", area: "dentro da área" }], cruzamento: ["Cruzamentos", { misto: "misto", alto: "altos", rasteiro: "rasteiros" }], contraAtaque: ["Contra-ataque", { false: "não", true: "sim" }], impedimento: ["Linha de impedimento", { false: "não", true: "sim" }], cera: ["Cera", { false: "não", true: "sim" }] };
   // Dados que as abinhas da Base dividem: quem joga a base, os números de cada um na liga de base, o esquema e a escalação prevista
   const semJ = id => String(id).replace(/^j/, ""); // a tática da base grava o id do banco, sem o "j"
   const quandoB = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
