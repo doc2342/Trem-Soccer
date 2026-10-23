@@ -69,6 +69,34 @@
   @keyframes placaSobe { 0% { transform:translate(-50%, 140%); } 12%, 86% { transform:translate(-50%, 0); } 100% { transform:translate(-50%, 140%); } }
   @media (max-width:620px) { .placa .linha { font-size:20px; } .placa .num { font-size:64px; } }
   @media (prefers-reduced-motion:reduce) { .placa { animation:placaSome 4s step-end forwards; transform:translate(-50%, 0); } @keyframes placaSome { to { opacity:0; } } }
+  /* disputa de pênaltis: ao vivo na TV (narração no meio, placar e quem já bateu embaixo) e, depois do apito, num card com todas as rodadas.
+     Placar como na TV: faixa dourada, uma bolinha por rodada (verde gol, vermelha erro, a da vez piscando) */
+  .tv.disputa { flex-direction:column; gap:14px; padding:40px 16px 16px; background:radial-gradient(ellipse at 50% 0%, #1d4a33, #0d1220 75%); transition:background .5s; }
+  .tv.disputa.gol { background:radial-gradient(ellipse at 50% 0%, #16653a, #0d1220 75%); } .tv.disputa.erro { background:radial-gradient(ellipse at 50% 0%, #6b1c1c, #0d1220 75%); }
+  .disputa .narr { max-width:640px; min-height:3.6em; display:flex; flex-direction:column; justify-content:center; text-align:center; font-size:22px; line-height:1.35; color:#e5e7eb; animation:fimSobe .4s both; }
+  .disputa .narr b { color:#fff; } .disputa .narr .gol { color:#4ade80; font-weight:600; } .disputa .narr .erro { color:#f87171; font-weight:600; }
+  .disputa .narr .peso { margin-top:6px; font-size:16px; color:#f4d27a; }
+  .dsp .pl, .disputa .pl { width:min(490px, 100%); font-family:var(--display); background:#0b0f19; border-radius:8px; overflow:hidden; box-shadow:0 10px 26px rgba(0,0,0,.45); }
+  .pl .cab { background:linear-gradient(90deg, #b8862b, #f4d27a 55%, #c9973a); color:#1a1306; font-weight:700; font-size:17px; letter-spacing:.14em; text-transform:uppercase; padding:5px 12px; }
+  .pl .cab small { font-size:13px; letter-spacing:.08em; }
+  .pl .lin { display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid #ffffff14; }
+  .pl .lin > i { width:6px; align-self:stretch; background:var(--cor); }
+  .pl .lin > b { width:44px; color:#fff; font-size:21px; letter-spacing:.06em; }
+  .pl .bolas { flex:1; display:flex; gap:5px; flex-wrap:wrap; }
+  .pl .sep { align-self:stretch; border-left:2px dashed #ffffff55; margin:0 2px; }
+  .pl .b { width:24px; height:24px; border-radius:50%; border:2px solid #ffffff33; background:#ffffff0d; display:grid; place-items:center; color:#fff; font-size:14px; font-weight:700; }
+  .pl .b.gol { background:#22c55e; border-color:#bbf7d0; box-shadow:0 0 10px #22c55e88; animation:bolaAcende .5s both; }
+  .pl .b.erro { background:#dc2626; border-color:#fecaca; animation:bolaAcende .5s both; }
+  .pl .b.vez { border-color:#f4d27a; animation:bolaVez 1s ease-in-out infinite; }
+  .pl .tot { width:42px; align-self:stretch; display:grid; place-items:center; background:linear-gradient(180deg, #f4d27a, #c9973a); color:#1a1306; font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .hist { width:min(560px, 100%); display:grid; grid-template-columns:1fr 1fr; gap:4px 18px; font-size:14px; }
+  .hist .ht { font-family:var(--display); font-weight:600; letter-spacing:.06em; text-transform:uppercase; border-bottom:3px solid var(--cor); margin-bottom:4px; padding-bottom:2px; }
+  .hist .ok { color:#4ade80; } .hist .no { color:#f87171; } .hist span { opacity:.7; font-size:12.5px; } .hist a { color:inherit; }
+  .dsp { display:flex; flex-direction:column; align-items:center; gap:12px; } .dsp .pl { width:min(620px, 100%); } .dsp .hist .ok { color:#16a34a; } .dsp .hist .no { color:#dc2626; }
+  @keyframes bolaAcende { from { transform:scale(.3); } 60% { transform:scale(1.25); } }
+  @keyframes bolaVez { 50% { box-shadow:0 0 0 4px #f4d27a55; } }
+  @media (max-width:620px) { .pl .b { width:18px; height:18px; font-size:11px; } .pl .bolas { gap:3px; } .pl .lin > b { font-size:18px; width:38px; } .disputa .narr { font-size:18px; } .hist { font-size:13px; gap:4px 10px; } }
+  @media (prefers-reduced-motion:reduce) { .pl *, .disputa .narr { animation:none !important; } }
   /* aviso de gol: cobre o placar por 4,5 s com a camisa (escudo e patrocínio) nas cores do uniforme; fica fora do #topo, que é redesenhado a cada 10 s */
   /* intervalo: TV com comerciais (master dos dois times e placas sorteadas por jogo, só cosméticas) e faixa de LED como as placas do campo */
   .tv { position:relative; overflow:hidden; border-radius:14px; min-height:250px; display:flex; align-items:center; justify-content:center; padding:34px 18px 22px; color:#fff; background:#0d1220; margin-bottom:12px; transition:background .6s; }
@@ -181,6 +209,7 @@
   <div style="display:flex;gap:12px;align-items:center"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a><button id="som" class="sec" style="margin-left:auto;padding:3px 10px" title="Sons da transmissão"></button><span class="relogio" title="Hora deste aparelho"></span></div>
   <div class="card" id="topo"><div class="mut">Carregando…</div></div>
   <div id="intervalo"></div>
+  <div id="disputaTv"></div>
   <div id="corpo"></div>
 </main>
 
@@ -447,6 +476,69 @@ function placa(d) {
   };
   mostrar();
 }
+// Disputa de pênaltis: o servidor solta uma cobrança a cada "passo" (30 s; nas partidas calculadas antes, menos). Aqui o desfecho só vai ao ar uns
+// 14 s depois (libera_em é empurrado no download; bate_em guarda a hora original): antes disso, o batedor ajeita a bola e corre. Lista, som e
+// cronômetro seguem o libera_em empurrado, então ninguém vê o resultado antes da hora.
+const suspense = passo => Math.min(14000, 0.45 * passo);
+// a disputa acaba quando um não alcança mais o outro nas cinco, ou, nas alternadas, com o mesmo número de cobranças e placar diferente (a regra do motor)
+const decidida = (pl, bt) => bt[0] < 5 || bt[1] < 5 ? pl[0] > pl[1] + 5 - bt[1] || pl[1] > pl[0] + 5 - bt[0] : bt[0] === bt[1] && pl[0] !== pl[1];
+function empurrarCobrancas(lista) {
+  const ini = lista.find(l => l.dados && l.dados.tipo === "penaltis" && l.dados.n < 99999), cob0 = lista.find(l => l.dados && l.dados.tipo === "cobranca");
+  const passo = ini && cob0 ? (new Date(cob0.bate_em || cob0.libera_em) - new Date(ini.libera_em)) / 4 : 30000; // a primeira sai 4 passos depois do aviso
+  lista.forEach(l => { if (l.dados && l.dados.tipo === "cobranca" && !l.bate_em) { l.bate_em = l.libera_em; l.libera_em = new Date(new Date(l.libera_em).getTime() + suspense(passo)).toISOString(); } });
+}
+// n: o batedor; g: o goleiro ("o goleiro" nas partidas calculadas antes de ele ser gravado); G: o mesmo, para começar a frase
+const FRASES_PEN = {
+  prepara: [(n, g) => `${n} pega a bola e ajeita na marca do pênalti.`, (n, g) => `Lá vai ${n} para a cobrança. O estádio prende a respiração.`, (n, g) => `${n} coloca a bola na marca e encara ${g}.`,
+    (n, g) => `${n} beija a bola, põe na marca e dá três passos para trás.`, (n, g, G) => `${G} pula na linha do gol, tentando desconcentrar ${n}.`, (n, g) => `${n} ajeita a meia, olha para um canto… ${g} se mexe na linha.`],
+  corre: [n => `O árbitro autoriza… ${n} corre para a bola…`, n => `${n} toma distância… parte para a bola…`, n => `Apito! ${n} corre…`, n => `${n} vem devagar… dá a paradinha…`, n => `${n} parte em velocidade…`],
+  gol: [(n, g) => `GOL! ${n} desloca ${g}.`, n => `GOL! ${n} bate firme, no cantinho.`, n => `GOL! Com categoria, ${n} manda para a rede.`, (n, g) => `GOL! ${n} bate no meio e ${g} pula para o lado.`,
+    (n, g) => `GOL! De cavadinha! ${n} espera ${g} cair e toca por cima, com uma calma absurda.`, (n, g, G) => `GOL! ${G} chega a tocar na bola, mas a batida de ${n} entra.`, (n, g) => `GOL! Bomba de ${n} no ângulo. Sem chance para ${g}.`],
+  defesa: [(n, g, G) => `DEFENDEU! ${G} adivinha o canto e pega a cobrança de ${n}.`, (n, g) => `DEFENDEU! ${n} bate mal e ${g} segura firme.`, (n, g) => `DEFENDEU! Que defesa de ${g}! Voa no canto e espalma a batida de ${n}.`,
+    (n, g) => `DEFENDEU! ${n} tenta a cavadinha, mas ${g} fica em pé e encaixa.`, (n, g, G) => `DEFENDEU! ${G} espera até o último instante e pega a bola de ${n}.`],
+  fora: [n => `PARA FORA! ${n} isola a cobrança.`, (n, g) => `PARA FORA! ${n} tira demais de ${g} e a bola passa ao lado.`, n => `PARA FORA! ${n} escorrega na hora da batida e a bola vai longe, por cima do gol.`, n => `PARA FORA! ${n} manda por cima do travessão.`],
+  trave: [n => `NA TRAVE! ${n} carimba o poste.`, n => `NA TRAVE! A batida de ${n} explode na trave e volta.`, n => `NO TRAVESSÃO! ${n} enche o pé e a bola explode no travessão.`, (n, g) => `NA TRAVE! ${n} desloca ${g}, mas a bola bate no pé da trave e sai.`],
+};
+const ROTULO_PEN = { gol: "gol", defesa: "defendido", fora: "para fora", trave: "na trave" };
+// placar da disputa (faixa dourada, uma bolinha por rodada; tracejado entre as cinco e as alternadas) e quem bateu de cada lado.
+// cobs: as cobranças que já começaram; saiu(l): o desfecho já está no ar. Ao vivo, passando de 11 rodadas, a faixa fica com as cinco e as 6 últimas; no fim (inteiro), todas.
+function htmlDisputa(cobs, saiu, inteiro = false) {
+  const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}), cor = i => /^#[0-9a-f]{6}$/i.test(u[i].cor1 || "") ? u[i].cor1 : "#888";
+  const feitas = cobs.filter(saiu), placar = feitas.length ? feitas[feitas.length - 1].dados.placar : [0, 0];
+  const porTime = i => cobs.filter(l => l.dados.time === i), n = Math.max(5, porTime(0).length, porTime(1).length);
+  const rodadas = inteiro || n <= 11 ? [...Array(n).keys()] : [0, 1, 2, 3, 4, ...Array.from({ length: 6 }, (_, k) => n - 6 + k)];
+  const bola = l => !l ? `<span class="b"></span>` : !saiu(l) ? `<span class="b vez"></span>` : l.dados.pen === "gol" ? `<span class="b gol"></span>` : `<span class="b erro">✕</span>`;
+  const linha = i => `<div class="lin" style="--cor:${cor(i)}"><i></i><b>${esc(c[i].sigla || c[i].nome.slice(0, 3))}</b><span class="bolas">${rodadas.map((r, j) => (r >= 5 && (!j || rodadas[j - 1] < 5) ? `<span class="sep"></span>` : "") + bola(porTime(i)[r])).join("")}</span><span class="tot">${placar[i]}</span></div>`;
+  const lista = i => feitas.filter(l => l.dados.time === i).map(l => `<div class="${l.dados.pen === "gol" ? "ok" : "no"}">${l.dados.pen === "gol" ? "✓" : "✕"} ${linkJogador(l.dados.quem || "")} <span>${ROTULO_PEN[l.dados.pen] || ""}</span></div>`).join("");
+  return `<div class="pl"><div class="cab">Pênaltis${n > 5 ? ` <small>· ${inteiro ? `${n} rodadas` : "alternadas"}</small>` : ""}</div>${linha(0)}${linha(1)}</div>
+    ${feitas.length ? `<div class="hist">${[0, 1].map(i => `<div><div class="ht" style="--cor:${cor(i)}">${esc(c[i].nome)}</div>${lista(i) || `<div class="mut">–</div>`}</div>`).join("")}</div>` : ""}`;
+}
+// a disputa ao vivo, na TV: a narração da cobrança da vez no meio, o placar embaixo e quem já bateu. Redesenhada a cada segundo, só troca o HTML quando muda.
+function desenharDisputa(lances, agora = Date.now()) {
+  const alvo = $("disputaTv"), ini = lances.find(l => l.dados && l.dados.tipo === "penaltis" && l.dados.n < 99999);
+  if (!ini || new Date(ini.libera_em) > agora) { if (alvo.innerHTML) { alvo.innerHTML = ""; alvo.dataset.html = ""; } return; }
+  const cobs = lances.filter(l => l.dados && l.dados.tipo === "cobranca" && new Date(l.bate_em || l.libera_em) <= agora), saiu = l => new Date(l.libera_em) <= agora;
+  const c = [clubes[partida.casa], clubes[partida.fora]], ult = cobs[cobs.length - 1], vez = ult && !saiu(ult) ? ult : null;
+  // narração: a cobrança da vez (prepara → corre) ou o desfecho da última, até a próxima começar
+  let narr = "A prorrogação termina empatada. A vaga vai ser decidida nos pênaltis.", fase = "";
+  if (ult) {
+    const k = cobs.length - 1, d = ult.dados, nome = `<b>${esc(d.quem || "")}</b>`, g = d.goleiro ? `<b>${esc(d.goleiro)}</b>` : "o goleiro", f = tipo => FRASES_PEN[tipo][(k + (partida.id || 0)) % FRASES_PEN[tipo].length](nome, g, d.goleiro ? g : "O goleiro");
+    const antes = k ? cobs[k - 1].dados.placar : [0, 0], bt = [0, 1].map(i => cobs.slice(0, k).filter(l => l.dados.time === i).length), clube = esc(c[d.time].nome);
+    const depois = gol => { const pl = antes.slice(), b = bt.slice(); if (gol) pl[d.time]++; b[d.time]++; return decidida(pl, b) && (pl[d.time] > pl[1 - d.time]) === gol; };
+    if (vez) {
+      const t = (agora - new Date(vez.bate_em)) / (new Date(vez.libera_em) - new Date(vez.bate_em));
+      narr = t < 0.55 ? `<div>${f("prepara")}</div>` + (depois(true) ? `<div class="peso">Se fizer, o ${clube} vence a disputa.</div>` : depois(false) ? `<div class="peso">Se errar, o ${clube} está fora.</div>` : "") : `<div>${f("corre")}</div>`;
+      fase = t < 0.55 ? "prepara" : "corre";
+    } else {
+      const fim = decidida(d.placar, [0, 1].map(i => bt[i] + (d.time === i))), v = d.placar[0] > d.placar[1] ? 0 : 1;
+      narr = `<div class="${d.pen === "gol" ? "gol" : "erro"}">${f(FRASES_PEN[d.pen] ? d.pen : "defesa")}</div>` + (fim ? `<div class="peso">Fim da disputa: <b>${esc(c[v].nome)}</b> vence por ${d.placar[v]} a ${d.placar[1 - v]}!</div>` : "");
+      fase = d.pen === "gol" ? "gol" : "erro";
+    }
+  }
+  const html = `<div class="tv disputa ${fase}"><span class="selo-tv">Ao vivo · pênaltis</span><div class="narr">${narr}</div>${htmlDisputa(cobs, saiu)}</div>`;
+  if (alvo.dataset.html !== html) { alvo.dataset.html = html; alvo.innerHTML = html; }
+}
+let disputaDemo = null; // na demo, a disputa inventada toma o lugar da de verdade
 // "Sai {0:A}, entra {0:B}." ou "Entra {0:B} no lugar de {0:A}." (troca por lesão)
 function dadosDaPlaca(l) {
   // o texto da lesão traz a jogada antes; o lesionado é quem "se machuca"
@@ -717,7 +809,7 @@ async function atualizar() {
     // duas buscas podem correr juntas (volta à aba + relógio de 10 s) e trazer os mesmos lances: só entra ordem nova
     const tem = new Set(baixados.map(l => l.ordem));
     baixados.push(...novos.filter(l => !tem.has(l.ordem)));
-    baixados.sort((a, b) => a.ordem - b.ordem);
+    baixados.sort((a, b) => a.ordem - b.ordem); empurrarCobrancas(baixados);
     const ultimo = Math.max(0, ...baixados.map(l => new Date(l.libera_em || 0).getTime()));
     adiante = ultimo > agora; proximaBusca = adiante ? Math.max(agora + 60000, ultimo - 60000) : 0; // volta a buscar um minuto antes de acabar o que já tem
   }
@@ -730,7 +822,7 @@ async function atualizar() {
   if (!intervaloMostrado && m.texto.includes("intervalo")) { intervaloMostrado = true; setTimeout(() => cartaoDeIntervalo(narracao), 600); }
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
   if (res) {
-    encerrada = true; clearInterval(relogio); clearInterval(tique);
+    encerrada = true; clearInterval(relogio); clearInterval(tique); if (!disputaDemo) desenharDisputa([]); // o cartão de fim traz o placar dos pênaltis
     // quem acompanhou (ou chegou até 2 minutos depois do apito) vê o cartão de fim de jogo uma vez
     if (!fimMostrado && agora - new Date(res.libera_em || 0).getTime() < 120000) { fimMostrado = true; setTimeout(() => cartaoDeFim({ gols: [res.gols_casa, res.gols_fora], narracao, melhor: res.relatorio.melhor, penaltis: res.relatorio.penaltis }), 600); }
     ultimoFim = { gols: [res.gols_casa, res.gols_fora], narracao, melhor: res.relatorio.melhor, penaltis: res.relatorio.penaltis };
@@ -739,7 +831,10 @@ async function atualizar() {
     const numeros = `
       <div class="mut" style="margin-top:8px;font-size:13px">${esc(clubes[partida.casa].nome)} comandado por ${res.relatorio.comandados[0]}, ${esc(clubes[partida.fora].nome)} por ${res.relatorio.comandados[1]}.</div>`;
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
-    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    // a disputa de pênaltis inteira, com quem bateu de cada lado, no alto do resumo
+    const cobsFim = baixados.filter(l => l.dados && l.dados.tipo === "cobranca");
+    const disputaFim = cobsFim.length ? `<div class="card dsp" data-aba="resumo"><h2 style="align-self:flex-start;margin:0">Disputa de pênaltis</h2>${htmlDisputa(cobsFim, () => true, true)}</div>` : "";
+    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + disputaFim + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
     ligarGraficos($("corpo")); aplicarAba();
     return;
   }
@@ -776,15 +871,15 @@ async function iniciar() {
     atualizar().catch(() => {}); };
   relogio = setInterval(buscar, 10000);
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
-  tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; }, 1000);
+  tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; if (!disputaDemo && !encerrada) desenharDisputa(baixados); }, 1000);
 }
-window.__teste = { SONS, sonsDosLances, avisosDaRodada, outros: () => outros, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
+window.__teste = { SONS, desenharDisputa, htmlDisputa, empurrarCobrancas, sonsDosLances, avisosDaRodada, outros: () => outros, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance
 function demo() {
   const pre = (baixados.find(l => l.dados && l.dados.tipo === "inicio") || {}).dados, esc0 = pre && pre.escalacoes, nomes = i => esc0 ? esc0[i].titulares.map(x => x.nome) : ["Fulano", "Beltrano"], banco = i => esc0 && esc0[i].banco.length ? esc0[i].banco.map(x => x.nome) : ["Sicrano"];
   const sorte = a => a[Math.floor(Math.random() * a.length)], lado = () => Math.random() < 0.5 ? 0 : 1;
   const el = document.createElement("div"); el.style.cssText = "position:fixed;top:10px;right:10px;z-index:40;display:flex;gap:6px;flex-wrap:wrap";
-  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dLes">🚑 Lesão</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button><button id="dTv">📺 TV</button>`;
+  el.innerHTML = `<button id="dGol">⚽ Gol</button><button id="dSub">🔁 Substituição</button><button id="dAcr">⏱️ Acréscimo</button><button id="dAm">🟨 Amarelo</button><button id="dVm">🟥 Vermelho</button><button id="dLes">🚑 Lesão</button><button id="dInt">⏸️ Intervalo</button><button id="dFim">🏁 Fim</button><button id="dTv">📺 TV</button><button id="dPen">🥅 Pênaltis</button>`;
   document.body.append(el);
   $("dGol").onclick = () => { const t = lado(); window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => avisoDeGol({ time: t, quem: sorte(nomes(t)), min: 1 + Math.floor(Math.random() * 90) }), 300); if (somLigado) tocar("gol"); };
   $("dSub").onclick = () => { const t = lado(); placa({ tipo: "substituicao", time: t, sai: sorte(nomes(t)), entra: sorte(banco(t)) }); };
@@ -807,6 +902,14 @@ function demo() {
     cartaoDeFim({ gols, narracao, melhor: { nome: sorte(nomes(t)), nota: 7 + Math.random() * 2, time: t } }); };
   // TV do intervalo a qualquer hora (comercial → placares → comercial → analista); de novo desliga
   $("dTv").onclick = () => { tvForcada = !tvForcada; intervaloComercial(momento()); if (tvForcada) $("intervalo").scrollIntoView({ behavior: "smooth" }); };
+  // disputa inventada com os jogadores desta partida, no ritmo do jogo de verdade (30 s por cobrança); de novo encerra
+  $("dPen").onclick = () => { if (disputaDemo) { clearInterval(disputaDemo); disputaDemo = null; return desenharDisputa([]); }
+    const P = 30000, t0 = Date.now(), pl = [0, 0], bt = [0, 0], lista = [{ libera_em: new Date(t0 - 3 * P).toISOString(), dados: { tipo: "penaltis", n: 98999 } }]; // o aviso "4 passos" antes da primeira, que sai em 1 passo
+    while (!decidida(pl, bt)) { const i = bt[0] > bt[1] ? 1 : 0, r = Math.random(), pen = r < 0.74 ? "gol" : r < 0.88 ? "defesa" : r < 0.97 ? "fora" : "trave", ns = nomes(i).slice().reverse();
+      if (pen === "gol") pl[i]++;
+      lista.push({ libera_em: new Date(t0 + P * lista.length).toISOString(), dados: { tipo: "cobranca", time: i, pen, quem: ns[bt[i]++ % ns.length], goleiro: nomes(1 - i)[0], placar: pl.slice() } }); }
+    empurrarCobrancas(lista); desenharDisputa(lista);
+    disputaDemo = setInterval(() => desenharDisputa(lista), 250); };
 }
 iniciar().then(() => { if (new URLSearchParams(location.search).has("demo")) demo(); }).catch(e => { $("topo").innerHTML = `<div class="bad">Não consegui carregar: ${esc(e.message)}</div>`; });
 </script>

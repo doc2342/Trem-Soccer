@@ -210,11 +210,12 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const nomes = [casa.clube.nome, fora.clube.nome];
     if (p.penaltis) {
       penaltis = p.penaltis.placar;
-      // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos (na escala da transmissão)
-      const passo = minutosTransmissao / 105 * 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
+      // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos de verdade, seja qual for
+      // a escala da transmissão (a página ao vivo usa esse tempo para o batedor se preparar, correr e o desfecho dar para ler)
+      const passo = 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
       const lance = (k, dados) => lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: hora(k), dados: { n: 99000 + k, min: 120, ...dados } });
       lance(-1, { time: 0, tipo: "penaltis", texto: "A prorrogação termina empatada. A vaga vai ser decidida nos pênaltis." });
-      p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, placar: c.placar, texto: c.texto }));
+      p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, ...(c.goleiro ? { goleiro: c.goleiro } : {}), placar: c.placar, texto: c.texto }));
       const v = penaltis[0] > penaltis[1] ? 0 : 1, n = p.penaltis.cobrancas.length;
       lance(n, { n: 99999, time: v, tipo: "penaltis", texto: `Fim da disputa: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]} nos pênaltis. Passa o {${v}:${nomes[v]}}.` });
       fimReal = hora(n);

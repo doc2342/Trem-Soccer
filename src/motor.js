@@ -882,7 +882,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       const { resultado } = chutar({ tipo: "penalti", xg: CONFIG.xgBase.penalti, chute: quem.at[A.fin], defesa: gk ? gk.at[A.um] : 5 }, gk);
       if (resultado === "gol") placar[i]++;
       const fim = FIM[resultado] || (gk ? `${nm(gk)} defende!` : "a bola é defendida!");
-      cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
+      cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, goleiro: gk ? gk.j.nome : null, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
     };
     for (let k = 0; k < 10; k++) { bater(k % 2); if (placar[0] > placar[1] + 5 - batidas[1] || placar[1] > placar[0] + 5 - batidas[0]) break; }
     while (placar[0] === placar[1]) { bater(0); bater(1); }

@@ -1223,7 +1223,7 @@ const __motor = (() => {
         const { resultado } = chutar({ tipo: "penalti", xg: CONFIG.xgBase.penalti, chute: quem.at[A.fin], defesa: gk ? gk.at[A.um] : 5 }, gk);
         if (resultado === "gol") placar[i]++;
         const fim = FIM[resultado] || (gk ? `${nm(gk)} defende!` : "a bola é defendida!");
-        cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
+        cobrancas.push({ time: i, id: quem.j.id, quem: quem.j.nome, goleiro: gk ? gk.j.nome : null, resultado, placar: placar.slice(), texto: `${nm(quem)} cobra: ${fim} Pênaltis: ${placar[0]} x ${placar[1]}.` });
       };
       for (let k = 0; k < 10; k++) { bater(k % 2); if (placar[0] > placar[1] + 5 - batidas[1] || placar[1] > placar[0] + 5 - batidas[0]) break; }
       while (placar[0] === placar[1]) { bater(0); bater(1); }
@@ -1665,11 +1665,12 @@ const __rodada = (() => {
       const nomes = [casa.clube.nome, fora.clube.nome];
       if (p.penaltis) {
         penaltis = p.penaltis.placar;
-        // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos (na escala da transmissão)
-        const passo = minutosTransmissao / 105 * 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
+        // na transmissão: o aviso no apito da prorrogação, a primeira cobrança 2 minutos depois e as outras a cada 30 segundos de verdade, seja qual for
+        // a escala da transmissão (a página ao vivo usa esse tempo para o batedor se preparar, correr e o desfecho dar para ler)
+        const passo = 30000, hora = k => new Date(fimDoJogo + (k < 0 ? 0 : 4 * passo + k * passo)).toISOString();
         const lance = (k, dados) => lances.push({ partida_id: partida.id, ordem: lances.length, min: 120, libera_em: hora(k), dados: { n: 99000 + k, min: 120, ...dados } });
         lance(-1, { time: 0, tipo: "penaltis", texto: "A prorrogação termina empatada. A vaga vai ser decidida nos pênaltis." });
-        p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, placar: c.placar, texto: c.texto }));
+        p.penaltis.cobrancas.forEach((c, k) => lance(k, { time: c.time, tipo: "cobranca", pen: c.resultado, quem: c.quem, ...(c.goleiro ? { goleiro: c.goleiro } : {}), placar: c.placar, texto: c.texto }));
         const v = penaltis[0] > penaltis[1] ? 0 : 1, n = p.penaltis.cobrancas.length;
         lance(n, { n: 99999, time: v, tipo: "penaltis", texto: `Fim da disputa: ${nomes[0]} ${penaltis[0]} x ${penaltis[1]} ${nomes[1]} nos pênaltis. Passa o {${v}:${nomes[v]}}.` });
         fimReal = hora(n);
