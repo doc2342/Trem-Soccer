@@ -564,7 +564,8 @@ export const cargaDoClube = (ligaId, clubeId) => semCarga ? Promise.resolve(null
 export const ultimaNovidade = (ligaId, clubeId) => sb.rpc("ultima_novidade", { p_liga: ligaId, p_clube: clubeId }).then(({ data, error }) => error ? undefined : data);
 
 // ---------- patrocínio (115_patrocinio.sql; sem ele as leituras voltam vazias) ----------
-export const propostasDePatrocinio = () => sb.rpc("propostas_patrocinio").then(({ data, error }) => error ? null : data && data.escolha && !data.escolha.clube_id ? { ...data, escolha: null } : data); // sem escolha, o SQL devolve um registro vazio
+export const semEscolhaVazia = data => data && data.escolha && !data.escolha.clube_id ? { ...data, escolha: null } : data; // sem escolha, o SQL devolve um registro vazio
+export const propostasDePatrocinio = () => sb.rpc("propostas_patrocinio").then(({ data, error }) => error ? null : semEscolhaVazia(data));
 export const escolherPatrocinio = (marca, proposta) => sb.rpc("escolher_patrocinio", { p_marca: marca, p_proposta: proposta }).then(ok);
 export const patrocinioDoClube = (clubeId, temporada) => sb.from("patrocinios").select("*").eq("clube_id", clubeId).eq("temporada", temporada).maybeSingle().then(({ data, error }) => error ? null : data);
 // marca estampada na camisa: a da temporada mais recente de cada clube ({ id: marca })

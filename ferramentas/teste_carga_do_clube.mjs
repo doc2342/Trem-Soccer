@@ -1,4 +1,4 @@
-// Testa o supabase/107_carga_do_clube.sql num Postgres em memória (PGlite), com tabelas mínimas: todas as partes voltam,
+// Testa o supabase/107_carga_do_clube.sql (com o 142 por cima) num Postgres em memória (PGlite), com tabelas mínimas: todas as partes voltam,
 // as regras de leitura (RLS) valem para quem chama, e uma parte que falha some sozinha, sem derrubar as outras.
 // Uso: npm i --no-save @electric-sql/pglite@0.2.17 && node ferramentas/teste_carga_do_clube.mjs
 import { PGlite } from '@electric-sql/pglite';
@@ -46,6 +46,9 @@ create function periodo_de_pre_acordo(p_liga bigint) returns boolean language sq
 create function cotacao_do_agente(p_liga bigint) returns numeric language sql stable as $$ select 0.85 $$;
 create function rodadas_completas(p_liga bigint) returns int language sql stable as $$ select 7 $$;
 create function estatisticas_da_liga(p_liga bigint, p_comp text default 'TODOS') returns jsonb language sql stable as $$ select '{"artilheiros":[]}'::jsonb $$;
+create function registrar_acesso() returns void language sql security definer as $$ update clubes set ultimo_acesso = now() where dono = auth.uid() $$;
+create function ultima_novidade(p_liga bigint, p_clube bigint) returns timestamptz language sql stable as $$ select '2026-10-23 12:00Z'::timestamptz $$;
+create function propostas_patrocinio() returns jsonb language sql stable as $$ select '{"temporada":3,"propostas":[]}'::jsonb $$;
 
 insert into ligas values (1, 3);
 insert into clubes values (10,1,'A','${U}','Luiz','Trem','TRE','{}','{}','equilibrado',now(),now(),false), (11,1,'A','${V}','Ana','Vaca','VAC','{}','{}','equilibrado',now(),now(),false), (12,1,'B',null,null,'Bot','BOT','{}','{}','ofensivo',null,null,false);
@@ -82,6 +85,8 @@ grant usage on schema public, auth to authenticated; grant select, insert on all
 `);
 await db.exec(fs.readFileSync(new URL('../supabase/107_carga_do_clube.sql', import.meta.url), 'utf8'));
 await db.exec(fs.readFileSync(new URL('../supabase/107_carga_do_clube.sql', import.meta.url), 'utf8')); // pode rodar de novo
+for (let i = 0; i < 2; i++) await db.exec(fs.readFileSync(new URL('../supabase/142_carga_traz_o_resto.sql', import.meta.url), 'utf8')); // o 142 também
+await db.exec(`update clubes set ultimo_acesso = '2000-01-01' where id = 10`);
 let falhas = 0;
 const confere = (nome, ok) => { if (!ok) falhas++; console.log(ok ? 'ok  ' : 'FALHA', nome); };
 const carga = async (uid, admin = 'nao', clube = 10) => {
@@ -91,7 +96,7 @@ const carga = async (uid, admin = 'nao', clube = 10) => {
 };
 const CHAVES = ['elenco', 'clubes', 'tatica', 'admin', 'extrato', 'comissao', 'caixa', 'obra', 'janela', 'transferencias', 'propostas', 'livres', 'lancesLivres', 'ofertas', 'tetos', 'relatorios',
   'prePeriodo', 'preContratos', 'cotacao', 'base', 'baseCampeoes', 'premios', 'revelados', 'taticaBase', 'safra', 'rodadasFeitas', 'copa', 'meusJogos', 'partidasDoGrupo', 'resultados', 'trofeus',
-  'meusLances', 'negocios', 'emprestados', 'metas', 'confianca', 'direitos', 'pedidoExtra', 'estatisticas', 'campanhas'];
+  'meusLances', 'negocios', 'emprestados', 'metas', 'confianca', 'direitos', 'pedidoExtra', 'estatisticas', 'campanhas', 'acesso', 'novidade', 'patrocinio'];
 let c = await carga(U);
 const faltam = CHAVES.filter(k => !(k in c));
 confere('todas as partes voltam' + (faltam.length ? ' (faltam: ' + faltam.join(', ') + ')' : ''), !faltam.length);
@@ -112,6 +117,9 @@ confere('campanhas da temporada passada', c.campanhas.length === 2);
 confere('direitos do dirigente', c.direitos === 1);
 confere('pedido extra do próprio dirigente', c.pedidoExtra && c.pedidoExtra.estado === 'pendente');
 confere('cotação numérica', +c.cotacao === 0.85);
+confere('142: acesso registrado', c.acesso === true && (await db.query(`select ultimo_acesso > '2001-01-01' ok from clubes where id = 10`)).rows[0].ok);
+confere('142: última novidade e patrocínio', new Date(c.novidade).getTime() === Date.parse('2026-10-23T12:00Z') && c.patrocinio.temporada === 3);
+confere('142: o trecho entra uma vez só', (await db.query(`select (length(d) - length(replace(d, 'registrar_acesso', ''))) / 16 n from (select pg_get_functiondef('carga_do_clube(bigint,bigint)'::regprocedure) d) x`)).rows[0].n === 1);
 confere('negócios do clube', c.negocios.length === 1 && c.transferencias.length === 2);
 // RLS: o caixa de outro clube não aparece para quem não é dono; o administrador vê, e os direitos voltam nulos (como a leitura antiga)
 c = await carga(V, 'nao', 10);

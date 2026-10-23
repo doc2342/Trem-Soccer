@@ -399,9 +399,12 @@ async function carregar(s) {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
-    if (clube) { registrarAcesso().catch(() => {}); const novidadeP = ultimaNovidade(liga.id, clube.id); Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
+    if (clube) { Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
       // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
-      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await enviarEscudoPendente(clube); await telaClube(liga, clube); carregadoEm = Date.now(); marca = { liga: liga.id, clube: clube.id, novidade: await novidadeP }; if (redesenho) scrollTo(0, rolagem); return; }
+      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await enviarEscudoPendente(clube); await telaClube(liga, clube); carregadoEm = Date.now();
+      // acesso e última novidade vêm na carga (142_carga_traz_o_resto.sql); sem ela, as chamadas avulsas de antes
+      if (!(ultimaCarga && ultimaCarga.acesso)) registrarAcesso().catch(() => {});
+      marca = { liga: liga.id, clube: clube.id, novidade: ultimaCarga && "novidade" in ultimaCarga ? ultimaCarga.novidade : await ultimaNovidade(liga.id, clube.id) }; if (redesenho) scrollTo(0, rolagem); return; }
     const pedido = await meuPedido(usuario.id);
     if (minha !== versao) return;
     if (pedido && pedido.estado === "pendente") telaEspera(pedido);
@@ -447,7 +450,7 @@ async function talvezAtualizar(idade) {
   if (document.querySelector('#app [id$="Painel"]:not(:empty)') || ($("quadroAtr") && !$("quadroAtr").hidden)) return;
   if (marca && marca.novidade !== undefined && !conferindo) {
     conferindo = true;
-    try { const agora = await ultimaNovidade(marca.liga, marca.clube); if (agora !== undefined && agora === marca.novidade) { carregadoEm = Date.now(); return; } }
+    try { const agora = await ultimaNovidade(marca.liga, marca.clube); if (agora !== undefined && new Date(agora).getTime() === new Date(marca.novidade).getTime()) { carregadoEm = Date.now(); return; } }
     finally { conferindo = false; }
   }
   memoriaDaLiga.clear();
@@ -551,14 +554,15 @@ function telaPedidoExtra() {
 }
 
 // ---------- meu clube ----------
+let ultimaCarga = null; // a última carga_do_clube: carregar() tira dela o acesso e a última novidade
 async function telaClube(liga, clube) {
   $("app").onclick = $("app").onchange = null;
   // Carga numa chamada só (107_carga_do_clube.sql, que também fecha os leilões vencidos). Sem o SQL, ou para a parte que falhou lá dentro,
   // cada leitura é feita do jeito antigo: todas juntas, só o mercado esperando os leilões e ofertas vencidos fecharem, e os lances dos livres esperando a lista deles.
   let mercadoAoAbrir = null;
-  const carga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
+  const carga = ultimaCarga = await cargaDoClube(liga.id, clube.id), da = (k, f, como = x => x) => carga && k in carga ? Promise.resolve(como(carga[k])) : f();
   const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
-  const patroP = B.propostasDePatrocinio().catch(() => null); // 115_patrocinio.sql; sem ele vem null e a aba explica
+  const patroP = da("patrocinio", B.propostasDePatrocinio, B.semEscolhaVazia).catch(() => null); // 115_patrocinio.sql; sem ele vem null e a aba explica
   const repatriarP = B.repatriaveis(clube.id).catch(() => []);
   const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], [baseJogos, copinha, libJuvenil],
@@ -2216,8 +2220,10 @@ ${historicoDaBase()}
     const indice = (t, jan) => t * 2 + (jan === "meio" ? 1 : jan === "fim" ? 2 : 0), agora = janela ? indice(liga.temporada, janela) : null;
     const multas = () => negocios.filter(t => t.tipo === "multa");
     const perdas = id => multas().filter(t => t.de_clube === id), minhasCompras = () => multas().filter(t => t.para_clube === clube.id).length;
-    const carregarTravas = () => Promise.all([B.negociosDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null, B.saidasDoClube(clube.id)])
-      .then(([ns, js, ss]) => { if (ss) saidas = ss; if (ns) negocios = ns; if (js) jogos5 = js; });
+    // lidas uma vez por carga da página (a busca no mercado e cada clube visitado usam as mesmas); depois de uma compra a página recarrega inteira
+    let travasP = null;
+    const carregarTravas = () => travasP || (travasP = Promise.all([B.negociosDaTemporada(liga.id, liga.temporada), janela === "meio" ? B.jogosPeloClube(liga.id) : null, B.saidasDoClube(clube.id)])
+      .then(([ns, js, ss]) => { if (ss) saidas = ss; if (ns) negocios = ns; if (js) jogos5 = js; }, e => { travasP = null; throw e; }));
     const mesmaDivisao = j => (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) === DIVISAO(clube.grupo);
     // travas da origem: o jogador some da lista
     const situacao = j => j.salario == null ? "sem contrato" : j.protegido ? "protegido" : (j.protegido_ate != null && j.protegido_ate >= liga.temporada) ? "primeira temporada" : (DIVISAO((cPor[j.clube_id] || {}).grupo) || 1) < DIVISAO(clube.grupo) ? "divisão acima" : j.pais !== meuPais && estrangeiros >= 5 ? "estrangeiros"
