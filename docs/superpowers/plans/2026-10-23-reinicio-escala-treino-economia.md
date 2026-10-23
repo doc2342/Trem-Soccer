@@ -19,7 +19,7 @@
 - Constantes que existem dos dois lados mudam juntas: `TETO_DE_FOLHA` ↔ `divisoes.teto_folha`, `REGUA_DE_FORA.teto` ↔ `teto_do_clube` (última versão em `supabase/140_tetos_com_duas_divisoes.sql`), `PREMIO_MINIMO` ↔ `PREMIOS`.
 - Nota máxima continua 43 (45 com a folga). O motor da partida não muda.
 - `node ferramentas/testes.mjs` precisa passar em todo commit (o hook pre-commit roda).
-- Prazo: domingo 25/10. Ordem: Tarefas 1, 2, 5, 6 e 7 não dependem dos números. A Tarefa 3 depende da 1. A **Tarefa 4 é um ponto de parada**: o dono do projeto aprova o relatório antes da Tarefa 8.
+- Sem prazo rígido (o dono adia a virada se precisar). Ordem: Tarefas 1, 2, 5, 6 e 7 não dependem dos números. A Tarefa 3 depende da 1. A **Tarefa 4 é um ponto de parada**: o dono do projeto aprova o relatório antes da Tarefa 8.
 
 ## Foco da revisão
 
@@ -94,20 +94,32 @@ git commit -m "Treino sem o freio por idade e contado por temporada (A, B e paí
 
 ---
 
-### Tarefa 2: Restos da Série C e o grupo F no saude.mjs
+### Tarefa 2: Fim da divisão 3 e grupos A, B, C e D
+
+**Decidido pelo dono do projeto:** não existe terceira divisão. A Série B é B1 = "B", B2 = "C" e B3 = "D". Se faltar vaga, cria-se a B4 = "E". O grupo "F" some (vira "D" no reinício, que reatribui todos os grupos). Os guardados (grupo "X") continuam como reserva de clubes para uma B4, mas não são divisão.
 
 **Arquivos:**
-- Modificar: `ferramentas/saude.mjs` (`"ABCDE".includes`)
-- Modificar: comentários que falam em "Série C" como divisão que joga, em `src/economia.js`, `src/virada.js` e `src/treino.js`
-- Testar: `ferramentas/teste_saude_grupos.mjs`
+- Modificar: `src/virada.js` (`GRUPOS_DA_B = ["B", "C", "D"]`; `divisaoDoGrupo`; `nomeCurto`; apagar `movimentosDaTransicao`, o parâmetro `transicao` de `planejarVirada` e as chaves `3` de `PREMIOS`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`)
+- Modificar: `src/economia.js` (chaves `3` de `TETO_DE_FOLHA` e `PREMIO_MINIMO`), `src/treino.js` (`ctSemDono` sem 3), `admin.html` (`GRUPOS`, `NIVEL_DO_NOVATO`, `BONUS_DA_C` e a caixa "transição" das linhas 231/566–567), `jogo.html` (colunas de troféus da linha 962 e da base da linha 1188: `["B", "C", "D"]` na Série B e fora a coluna da C), `src/banco.js` (`nomeBaseDoGrupo`: "Série B1/B2/B3/B4" para B/C/D/E)
+- Modificar: `ferramentas/saude.mjs` (`"ABCDE".includes` → `ehDaLiga`)
+- Modificar: `ferramentas/teste_piramide.mjs` (sai a parte da transição; a temporada normal passa a usar B, C e D)
+- Apagar: `ferramentas/ensaio_virada_t14.mjs` (ensaio da transição que já passou)
+- Criar (SQL): a parte de grupos entra no `143_reinicio_da_liga.sql` da Tarefa 7, com `divisao_do_grupo` (última versão em `supabase/114_piramide_t14.sql`) seguindo a regra JS e `delete from divisoes where divisao = 3`.
+- Testar: `ferramentas/teste_grupos.mjs`
 
-**Decisão (minha):** as chaves `3` de `TETO_DE_FOLHA`, `PREMIOS`, `PREMIO_MINIMO`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO` e `ctSemDono` **ficam**, porque os clubes guardados (grupo X) têm `divisao = 3` e as temporadas antigas no histórico também. O comentário passa a dizer "3 = guardados (sem jogo)". Apagar as chaves troca o risco de um `undefined` em silêncio por nenhum ganho.
+**Interfaces:**
+- Produz: `divisaoDoGrupo(g)`: 1 para "A" e países; 2 para os demais, inclusive "X" e qualquer letra nova, como uma B4 "E". `export const ehDaLiga = g => g !== GUARDADO && !PAISES[g]` em `src/virada.js`, que o `saude.mjs` importa.
 
-- [ ] **Passo 1: teste que falha.** Extraia de `saude.mjs` a classificação do grupo para `export const ehDaLiga = g => …`, usando `divisaoDoGrupo`/`GRUPOS_DA_B` de `src/virada.js`. Teste: `assert.equal(ehDaLiga("F"), true); assert.equal(ehDaLiga("ARG"), false); assert.equal(ehDaLiga("X"), false); assert.equal(ehDaLiga("A"), true)`. Se `saude.mjs` rodar a leitura ao vivo quando é importado, ponha a função num pedaço que o teste consiga importar sem rede, como `if (import.meta.url === pathToFileURL(process.argv[1]).href)`.
-- [ ] **Passo 2:** rode `node ferramentas/teste_saude_grupos.mjs` e veja falhar.
-- [ ] **Passo 3:** troque todo `"ABCDE".includes(...)` do `saude.mjs` por `ehDaLiga`. Faça o mesmo no rascunho, se ele for copiado para o repositório (não é).
-- [ ] **Passo 4:** rode `node ferramentas/teste_saude_grupos.mjs && node ferramentas/saude.mjs .`. Esperado: o grupo F aparece como Série B no relatório.
-- [ ] **Passo 5:** commit, com a mensagem "saude.mjs: grupo F é Série B; comentários da divisão 3 = guardados".
+**Por que o guardado fica com divisão 2:** a coluna `divisao` não pode ficar vazia, e o guardado é excluído em todo lugar pelo grupo (`GUARDADO`), não pela divisão. O passo 4 confere isso.
+
+- [ ] **Passo 1: teste que falha.** `teste_grupos.mjs`: `divisaoDoGrupo` dá A→1, ARG→1, B/C/D/E→2, X→2; `GRUPOS_DA_B` é `["B","C","D"]`; `ehDaLiga("D") === true`, `ehDaLiga("X") === false`, `ehDaLiga("URU") === false`; nenhuma das constantes por divisão (`TETO_DE_FOLHA`, `PREMIO_MINIMO`, `PREMIOS`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`, `CONFIG_TREINO.ctSemDono`) tem a chave 3; `nomeCurto`/`nomeBaseDoGrupo("D")` é "Série B3".
+- [ ] **Passo 2:** rode `node ferramentas/teste_grupos.mjs` e veja falhar.
+- [ ] **Passo 3:** faça as mudanças da lista de arquivos.
+- [ ] **Passo 4: varredura.** Rode `grep -rnE "divisao ?(===|==|=|<|>|<=|>=) ?[23]|divisao: ?[23]|\[3\]|\"F\"|'F'|Série C|\"D\", ?\"E\"" src/*.js *.html ferramentas/empacotar_funcao.py supabase/1[0-4]*.sql` e veja cada ocorrência que trata de divisão ou grupo. Nenhuma pode deixar um guardado entrar em liga, copa, base ou mercado. Onde o filtro for só `divisao = 2`, acrescente `grupo <> 'X'`. As funções SQL com esse filtro entram também no 143.
+- [ ] **Passo 5:** rode `node ferramentas/teste_grupos.mjs && python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`.
+- [ ] **Passo 6:** commit, com a mensagem "Sem divisão 3: Série B em B, C e D (B4 = E se precisar); sai a transição T13→T14; saude.mjs conta o grupo D", com `supabase/functions` se mudou.
+
+**Atenção na publicação:** esta tarefa só vai ao ar junto com o reinício (Tarefa 9). Com a liga de hoje (grupo "F" ainda vivo), `GRUPOS_DA_B` novo não acharia o B3.
 
 ---
 
@@ -122,7 +134,7 @@ git commit -m "Treino sem o freio por idade e contado por temporada (A, B e paí
 - Produz: `export function simular({ semente, temporadas, nivel: { A, B, fora }, ajustes }) => [{ t, medidas }]` e a linha de comando `node ferramentas/sim_liga.mjs . [temporadas=10] [CHAVE.caminho=valor …]`. Os ajustes seguem o padrão do `sim_cera.mjs:8`, aplicados sobre o objeto exportado com aquele nome: `CONFIG_TREINO.pontosPorSessao=160`, `TETO_DE_FOLHA.1=22000`, `CURVA_DO_SALARIO=1.14`, `NIVEL.A=32`.
 
 O que o simulador faz (o design, seção 1, tem os detalhes):
-- **Pirâmide da T0:** A com 12 bots, B, C e F com 6 donos e 2 bots cada, e 4 países de 10 clubes. Os elencos saem de `gerarElenco` com `nivel` por série (`NIVEL.A`, `NIVEL.B`, `NIVEL.fora`). Esses três níveis são o botão do ritmo de 4 a 5 temporadas. Na T0→T1 vale a regra da Tarefa 6; depois, o acesso e descenso normal (sobe o vencedor do playoff, caem 3).
+- **Pirâmide da T0:** A com 12 bots, B, C e D com 6 donos e 2 bots cada, e 4 países de 10 clubes. Os elencos saem de `gerarElenco` com `nivel` por série (`NIVEL.A`, `NIVEL.B`, `NIVEL.fora`). Esses três níveis são o botão do ritmo de 4 a 5 temporadas. Na T0→T1 vale a regra da Tarefa 6; depois, o acesso e descenso normal (sobe o vencedor do playoff, caem 3).
 - **Partida:** força do onze mais `rng.normal(0, σ)` (`σ` sobrescrevível, começa em 1,2 como no `sim_escada`). O playoff segue o formato real: 3×6 e 4×5, semifinais, final.
 - **Treino:** `treinar` por rodada de liga com `fator: fatorDaTemporada(rodadas)`. Joga quem está entre os 14 melhores. O CT é o do clube: dono sobe até `CT_DO_DONO` (sobrescrevível, padrão 4) em 3 temporadas; bot usa `ctSemDono`.
 - **Envelhecimento, aposentadoria e reposição:** reaproveite o laço do `sim_escada` apagado (está no git: `git show HEAD~1:ferramentas/sim_escada.mjs`). Base e safra pelos módulos reais.
@@ -173,10 +185,10 @@ assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
 - Produz: `export function gruposDoReinicio({ rng, clubes }) => { [clubeId]: grupo }`. `clubes`: `[{ id, grupo, dono }]`, todos os clubes da liga. Regras:
   - países mantêm o grupo;
   - os clubes do Brasil com dono, embaralhados, vão em rodízio para `GRUPOS_DA_B`, 6 por grupo;
-  - os bots do Brasil (grupos A, B, C, F, D, E, X), embaralhados: os 12 primeiros vão para "A", os 6 seguintes completam B, C e F com 2 cada, e o resto vai para `GUARDADO`.
-  - Se houver mais de 18 donos, os grupos da B passam de 8 (não descarte ninguém) e o número de bots na B diminui para manter 24 na B. Se houver menos de 18, mais bots completam a B.
+  - os bots do Brasil (qualquer grupo que não seja país), embaralhados: os 12 primeiros vão para "A", os seguintes completam cada grupo da B até 8 e o resto vai para `GUARDADO`.
+  - Mais de 24 donos: abre-se o grupo "E" (B4) e os grupos da B são completados com bots até 8 cada; se faltarem bots, erro claro ("faltam N clubes guardados para a B4"). Até 24 donos: 3 grupos, com os donos distribuídos o mais igual possível.
 
-- [ ] **Passo 1: teste que falha.** Com 18 donos e 32 bots do Brasil (ids e grupos como na liga de hoje: A 12 donos; B 1, C 1 e F 4 donos; X 14) mais 40 de países, chame `gruposDoReinicio({ rng: criarRng(3), clubes })` e confira: "A" tem 12 clubes, todos bots; B, C e F têm 8 cada, com 6 donos; X tem 14; todo país manteve o grupo; mesma semente dá o mesmo resultado. Acrescente o caso com 19 donos: B + C + F somam 24, com os 19 donos.
+- [ ] **Passo 1: teste que falha.** Com 18 donos e 32 bots do Brasil (ids e grupos como na liga de hoje: A 12 donos; B 1, C 1 e F 4 donos; X 14) mais 40 de países, chame `gruposDoReinicio({ rng: criarRng(3), clubes })` e confira: "A" tem 12 clubes, todos bots; B, C e D têm 8 cada, com 6 donos; nenhum clube fica em "F"; X tem 14; todo país manteve o grupo; mesma semente dá o mesmo resultado. Casos extras: 19 donos (B + C + D somam 24, com os 19 donos, 6 ou 7 por grupo); 26 donos (abre "E", 4 grupos de 8, e o X diminui).
 - [ ] **Passo 2:** rode `node ferramentas/teste_reinicio.mjs` e veja falhar.
 - [ ] **Passo 3:** implemente.
 - [ ] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs` e veja passar.
@@ -197,26 +209,26 @@ assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
   - sobem os semifinalistas que forem donos ativos (`ativo(clube)`);
   - cada vaga perdida (bot ou dono inativo) vai para o dono ativo do mesmo grupo, fora das semis, com melhor `posicao`; se o grupo não tiver nenhum, para o melhor dono ativo dos outros grupos, por `posicao` e depois `pontos`;
   - sobem no máximo 12; se não houver 12 donos ativos, sobem os que houver e a A é completada pelos bots da A melhor colocados, que ficam;
-  - os bots da A que não ficam descem em serpentina pela classificação da A (1º→B, 2º→C, 3º→F, 4º→F, 5º→C…), com `caiu: true`;
+  - os bots da A que não ficam descem em serpentina pela classificação da A (1º→B, 2º→C, 3º→D, 4º→D, 5º→C…; com a B4, por `GRUPOS_DA_B` mais "E"), com `caiu: true`;
   - os que ficaram na B mantêm o grupo, e cada grupo da B termina com 8.
   - `destino`: "subiu" / "caiu" / "ficou" / "campeão" (1º da A), como em `movimentos`.
 
 - [ ] **Passo 1: testes que falham** (no mesmo arquivo da Tarefa 5)
 
 ```js
-// T0: A = bots 1–12; B, C e F com donos 101–106 / 201–206 / 301–306 e bots 107–108 / 207–208 / 307–308.
-// Semis: B {101, 102, 103, 107}, C {201, 202, 203, 204}, F {301, 302, 303, 304}; 107 é bot; o dono 104 é o melhor fora das semis na B.
+// T0: A = bots 1–12; B, C e D com donos 101–106 / 201–206 / 301–306 e bots 107–108 / 207–208 / 307–308.
+// Semis: B {101, 102, 103, 107}, C {201, 202, 203, 204}, D {301, 302, 303, 304}; 107 é bot; o dono 104 é o melhor fora das semis na B.
 const m = movimentosDoReinicio({ clubes, grupos, partidas, resultados, ativo: c => !!c.dono && c.id !== 304 });
 const subiram = m.lista.filter(x => x.grupo === "A").map(x => x.clube_id).sort((a, b) => a - b);
 assert.deepEqual(subiram, [101, 102, 103, 104, 201, 202, 203, 204, 301, 302, 303, /* vaga do 304 inativo */ 305]);
 assert.equal(m.lista.filter(x => x.caiu).length, 12);
-for (const g of ["B", "C", "F"]) assert.equal(grupoFinal(m, g).length, 8);
+for (const g of ["B", "C", "D"]) assert.equal(grupoFinal(m, g).length, 8);
 assert.equal(m.destino[1], "campeão");
 ```
 
 Acrescente o caso "só 10 donos ativos": sobem 10, os 2 bots melhor colocados da A ficam e caem 10.
 
-No caso de cima, o 305 só entra se for o dono ativo de F fora das semis com melhor posição. Monte as `posicao` para isso.
+No caso de cima, o 305 só entra se for o dono ativo de D fora das semis com melhor posição. Monte as `posicao` para isso.
 - [ ] **Passo 2:** rode e veja falhar.
 - [ ] **Passo 3:** implemente `movimentosDoReinicio` e, em `planejarVirada`, chame-a no lugar de `movimentos` quando `liga.temporada === 0`.
 - [ ] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs && node ferramentas/teste_piramide.mjs` e veja passar.
@@ -280,9 +292,11 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado.
 **Arquivos:**
 - Criar: `docs/superpowers/plans/2026-10-25-roteiro-da-virada.md` (checklist para o administrador)
 
-- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 normalmente (virada só se o dono quiser o registro; o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 143 e o 144 no SQL Editor; (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push; (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/F com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
+- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 (sem virada: o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 143 e o 144 no SQL Editor (o 143 já traz `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`); (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push; (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/D com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
 - [ ] **Passo 2:** `python ferramentas/publicar.py`; commit e push para `main`, com a mensagem "Reinício da liga pronto: roteiro do domingo".
 
-## Pergunta em aberto para o dono do projeto (não bloqueia as Tarefas 1–6)
+## Decisões do dono do projeto depois do plano
 
-- **Histórico das T1–T14:** o plano apaga tudo, como o reinício atual faz e como o "reseta todos os estados" sugere: títulos, artilheiros, prêmios individuais, transferências. Se for para manter o histórico (galeria de campeões, por exemplo), a Tarefa 7 tira essas tabelas da lista. Elas apontam para jogadores que deixam de existir, e isso precisa de cuidado nas telas.
+- O histórico da T1 à T14 é apagado no reinício (Tarefa 7, lista completa).
+- Não existe terceira divisão; se faltar vaga, cria-se a B4 (Tarefas 2 e 5).
+- Os grupos ativos passam a ser A, B, C e D (Tarefa 2).

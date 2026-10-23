@@ -122,3 +122,8 @@ Ordem de trabalho dentro de A: (1) treino e base sozinhos (curva de evolução p
 - Como modelar o dono no simulador, desde que o comportamento seja o de um dirigente ativo razoável.
 - Se o treino por temporada é feito escalando a sessão ou mudando o número de sessões.
 - Nome e estrutura do simulador.
+
+## Decisões depois do plano (23/10)
+- Não existe terceira divisão: saem os valores da divisão 3. Se faltarem vagas, cria-se a B4. Os guardados (X) ficam como reserva de clubes, sem ser divisão.
+- Grupos ativos renomeados: A (Série A), B, C e D (B1, B2 e B3); a B4 seria o E. O antigo F vira D no reinício.
+- O histórico da T1 à T14 é apagado no reinício.
