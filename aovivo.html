@@ -866,8 +866,9 @@ async function iniciar() {
   let consultaDaPartida = 0; // a partida (calculada? público?) é conferida no máximo uma vez por minuto
   // antes do apito nada muda no banco: só o relógio anda (atualizar não consulta nada antes do início)
   const buscar = async () => { if (encerrada || document.hidden) return; if (momento().antes) return atualizar().catch(() => {}); if ((!partida.processada || partida.publico == null) && Date.now() - consultaDaPartida >= 60000) { consultaDaPartida = Date.now(); partida = await partidaPorId(id); }
-    // os outros jogos do grupo: junto com a busca dos lances; no ritmo antigo, a cada 30 segundos
-    if (adiante ? momento().fim || Date.now() >= proximaBusca : ++voltas % 3 === 0) await atualizarRodada().catch(() => {});
+    // resultados do grupo: a regra de acesso só libera cada um no apito final, e o placar dos outros jogos vem com os gols (lancesEGols):
+    // no meio do jogo reler não traz nada, então só no fim; no ritmo antigo (sem o SQL 75), a cada 30 segundos
+    if (adiante ? momento().fim : ++voltas % 3 === 0) await atualizarRodada().catch(() => {});
     atualizar().catch(() => {}); };
   relogio = setInterval(buscar, 10000);
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });

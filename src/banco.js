@@ -120,6 +120,8 @@ export const minhaTatica = clubeId => sb.from("taticas").select("dados, atualiza
 export const salvarTatica = (clubeId, dados) => sb.from("taticas").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
 export const taticaFechada = clubeId => sb.rpc("tatica_fechada", { p_clube: clubeId }).then(ok);
 export const partidasDoGrupo = (ligaId, grupo) => sb.from("partidas").select("*").eq("liga_id", ligaId).eq("grupo", grupo).order("rodada").order("id").then(ok);
+// vários grupos numa leitura só (cada pedido vira linha de log no Supabase)
+export const partidasDosGrupos = (ligaId, grupos) => grupos.length ? sb.from("partidas").select("*").eq("liga_id", ligaId).in("grupo", grupos).order("rodada").order("id").then(ok) : Promise.resolve([]);
 export const partidasDaLiga = ligaId => sb.from("partidas").select("*").eq("liga_id", ligaId).order("rodada").order("id").then(ok);
 // todos os jogos de um clube na temporada (liga, playoff e copa), para o calendário do clube
 export const partidasDoClube = (ligaId, clubeId) => sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, vencedor").eq("liga_id", ligaId).or(`casa.eq.${clubeId},fora.eq.${clubeId}`).order("inicio").order("id").then(ok);

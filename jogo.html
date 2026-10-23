@@ -254,6 +254,7 @@ const daLiga = (nome, f) => (...args) => { const k = nome + JSON.stringify(args)
   return memoriaDaLiga.get(k); };
 const guardar = (nome, args, valor) => { const k = nome + JSON.stringify(args); if (!memoriaDaLiga.has(k)) memoriaDaLiga.set(k, Promise.resolve(valor)); };
 const partidasDoGrupo = daLiga("partidasDoGrupo", B.partidasDoGrupo);
+const partidasDosGrupos = daLiga("partidasDosGrupos", B.partidasDosGrupos);
 const resultadosDe = daLiga("resultadosDe", B.resultadosDe);
 const historicoDoGrupo = daLiga("historicoDoGrupo", B.historicoDoGrupo);
 const estatisticasDaLiga = daLiga("estatisticasDaLiga", B.estatisticasDaLiga);
@@ -1778,7 +1779,8 @@ async function telaClube(liga, clube) {
     const grupos = [...new Set([clube.grupo, ...clubes.filter(c => humanos.has(c.id)).map(c => c.grupo)])];
     const [porGrupo, stats, passada, doGrupo] = await Promise.all([
       // resultados: o grupo do clube com a mesma chave da tabela da Central (uma leitura serve às duas) e os outros grupos numa leitura só
-      Promise.all(grupos.map(g => partidasDoGrupo(liga.id, g))).then(async pss => {
+      Promise.all([partidasDoGrupo(liga.id, grupos[0]), partidasDosGrupos(liga.id, grupos.slice(1))]).then(async ([doClube, resto]) => {
+        const pss = grupos.map((g, i) => i ? resto.filter(p => p.grupo === g) : doClube);
         const rs = (await Promise.all([resultadosDe(pss[0].map(p => p.id)), resultadosDe(pss.slice(1).flat().map(p => p.id))])).flat();
         return grupos.map((g, i) => ({ g, ps: pss[i].filter(p => !p.fase || p.fase === "liga"), rs }));
       }),
