@@ -1,0 +1,9 @@
+#!/bin/sh
+# Antes de cada commit: função do servidor em dia com src/ e todos os testes passando. Pular: git commit --no-verify
+# Ativar (uma vez por clone): git config core.hooksPath ferramentas/hooks
+python ferramentas/empacotar_funcao.py >/dev/null || exit 1
+if ! git diff --quiet -- supabase/functions; then
+  echo "pre-commit: a função do servidor estava desatualizada e foi reempacotada. Confira, faça git add supabase/functions e commite de novo."
+  exit 1
+fi
+node ferramentas/testes.mjs || { echo "pre-commit: teste falhando (acima)."; exit 1; }
