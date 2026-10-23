@@ -5,8 +5,8 @@ import assert from "node:assert";
 import fs from "node:fs";
 let PGlite;
 try { ({ PGlite } = await import("@electric-sql/pglite")); } catch { console.log("SQL: pulado (npm i --no-save @electric-sql/pglite@0.2.17)"); process.exit(0); }
-const pasta = new URL("../supabase/", import.meta.url), arquivos = fs.readdirSync(pasta).filter(f => /^\d+_.*\.sql$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
-// a última definição de cada função nos arquivos numerados
+const pasta = new URL("../supabase/", import.meta.url), arquivos = fs.readdirSync(pasta).filter(f => /^\d+_.*\.sql$/.test(f) && parseInt(f) < 114).sort((a, b) => parseInt(a) - parseInt(b));
+// a última definição de cada função nos arquivos anteriores ao 114 (as posteriores já trazem o remendo)
 const definicao = nome => { let achou = null;
   for (const f of arquivos) { const s = fs.readFileSync(new URL(f, pasta), "utf8"), re = new RegExp(`create or replace function public\\.${nome}\\(.*?\\$\\$.*?\\$\\$;`, "gs"); let m; while ((m = re.exec(s))) achou = m[0]; }
   assert.ok(achou, nome); return achou; };
