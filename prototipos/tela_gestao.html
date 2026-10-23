@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trem Soccer · Cabine (protótipo)</title>
+<!-- protótipo da Central como cabine de sinalização ferroviária: a temporada é uma linha com estações, as pendências são sinais, os jogos ficam num quadro de partidas -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Extra+Condensed:wght@500;700;800&family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --fundo:#0d1110; --painel:#141a18; --painel2:#1a2220; --fio:#2a3633; --tx:#e4ece6; --mut:#7f908a;
+  --sinal:#ffb100; --ok:#3ddc84; --bad:#ff4f3f; --ac:#3ddc84;
+  --tit:"Saira Extra Condensed", "Arial Narrow", sans-serif; --txt:"Overpass", sans-serif; --num:"Overpass Mono", ui-monospace, monospace;
+}
+* { box-sizing:border-box; }
+body { margin:0; color:var(--tx); font:14px/1.45 var(--txt); min-height:100vh;
+  background:
+    linear-gradient(var(--fundo) 0 0) padding-box,
+    var(--fundo);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--fio) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--fio) 45%, transparent) 1px, transparent 1px),
+    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--sinal) 9%, transparent), transparent 55%);
+  background-size:32px 32px, 32px 32px, 100% 100%; }
+main { max-width:1240px; margin:0 auto; padding:14px 16px 50px; }
+.mut { color:var(--mut); }
+.n { font-family:var(--num); }
+
+.e { opacity:0; animation:liga .5s ease-out forwards; animation-delay:calc(var(--i, 0) * 80ms); }
+@keyframes liga { 0% { opacity:0; filter:brightness(2.5); } 40% { opacity:.6; } 55% { opacity:.2; } 100% { opacity:1; filter:none; } }
+@media (prefers-reduced-motion:reduce) { .e, .flap span, .lin .est.agora::after { animation:none !important; opacity:1; } }
+
+/* topo */
+.topo { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding-bottom:12px; border-bottom:1px solid var(--fio); }
+.marca { font:800 30px/1 var(--tit); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.marca span { color:var(--sinal); }
+.clube { display:flex; align-items:center; gap:10px; padding-left:16px; border-left:1px solid var(--fio); }
+.clube b { font:700 20px/1 var(--tit); text-transform:uppercase; letter-spacing:.04em; }
+.clube small { display:block; color:var(--mut); font-size:12px; }
+.relogio { margin-left:auto; display:flex; gap:18px; align-items:center; }
+.relogio div { text-align:right; }
+.relogio small { display:block; font:600 10px var(--num); color:var(--mut); text-transform:uppercase; letter-spacing:.1em; }
+.relogio strong { font:600 22px/1.1 var(--num); color:var(--sinal); }
+
+nav { display:flex; gap:2px; margin:12px 0 16px; overflow-x:auto; scrollbar-width:none; }
+nav a { flex:none; font:700 15px/1 var(--tit); text-transform:uppercase; letter-spacing:.08em; color:var(--mut); text-decoration:none; padding:9px 14px; background:var(--painel); border:1px solid var(--fio); }
+nav a:hover { color:var(--tx); border-color:var(--mut); }
+nav a.on { color:var(--fundo); background:var(--sinal); border-color:var(--sinal); }
+
+/* painéis */
+.grade { display:grid; grid-template-columns:repeat(12, 1fr); gap:12px; }
+.p { background:var(--painel); border:1px solid var(--fio); padding:12px 14px; min-width:0; position:relative; }
+.p::before { content:""; position:absolute; top:-1px; left:-1px; width:14px; height:14px; border-top:2px solid var(--sinal); border-left:2px solid var(--sinal); }
+.p h3 { margin:0 0 10px; font:700 14px/1 var(--tit); text-transform:uppercase; letter-spacing:.14em; color:var(--mut); display:flex; align-items:center; gap:8px; }
+.p h3 .ct { margin-left:auto; font:600 11px var(--num); letter-spacing:0; color:var(--tx); }
+.s12 { grid-column:span 12; } .s8 { grid-column:span 8; } .s7 { grid-column:span 7; } .s5 { grid-column:span 5; } .s4 { grid-column:span 4; }
+
+/* linha da temporada */
+.lin { position:relative; display:grid; grid-template-columns:repeat(38, 1fr); align-items:center; height:64px; }
+.lin::before { content:""; position:absolute; left:0; right:0; top:28px; height:4px; background:var(--fio); }
+.lin .feito { position:absolute; left:0; top:28px; height:4px; background:var(--ac); width:0; animation:corre 1.6s .4s cubic-bezier(.3,.7,.2,1) forwards; }
+@keyframes corre { to { width:calc(var(--k) * 100%); } }
+.est { position:relative; justify-self:center; width:12px; height:12px; border-radius:50%; background:var(--painel); border:2px solid var(--fio); margin-top:-4px; cursor:default; }
+.est.v { border-color:var(--ok); background:var(--ok); } .est.e2 { border-color:var(--sinal); background:var(--sinal); } .est.d { border-color:var(--bad); background:var(--bad); }
+.est.agora { width:18px; height:18px; border:3px solid var(--tx); background:var(--fundo); }
+.est.agora::after { content:""; position:absolute; inset:-8px; border-radius:50%; border:2px solid var(--sinal); animation:pulsa 1.6s infinite; }
+@keyframes pulsa { from { transform:scale(.6); opacity:1; } to { transform:scale(1.5); opacity:0; } }
+.est.turno { outline:1px dashed var(--mut); outline-offset:6px; }
+.lin .rot { position:absolute; top:44px; font:600 10px var(--num); color:var(--mut); transform:translateX(-50%); white-space:nowrap; }
+.lin .rot.alto { top:0; color:var(--tx); }
+.legenda { display:flex; gap:14px; flex-wrap:wrap; font:600 11px var(--num); color:var(--mut); margin-top:6px; }
+.legenda i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+
+/* sinais (pendências) */
+.sinais { list-style:none; margin:0; padding:0; }
+.sinais li { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:9px 0; border-bottom:1px solid var(--fio); }
+.sinais li:last-child { border-bottom:0; }
+.luz { width:26px; height:46px; background:#070908; border-radius:13px; display:flex; flex-direction:column; justify-content:space-around; align-items:center; border:1px solid var(--fio); }
+.luz i { width:10px; height:10px; border-radius:50%; background:#222b28; }
+.luz.r i:nth-child(1) { background:var(--bad); box-shadow:0 0 10px var(--bad); }
+.luz.a i:nth-child(2) { background:var(--sinal); box-shadow:0 0 10px var(--sinal); }
+.luz.g i:nth-child(3) { background:var(--ok); box-shadow:0 0 10px var(--ok); }
+.sinais b { display:block; font-weight:800; }
+.sinais span { color:var(--mut); font-size:13px; }
+.bt { font:700 13px/1 var(--tit); text-transform:uppercase; letter-spacing:.1em; padding:8px 12px; background:transparent; color:var(--tx); border:1px solid var(--mut); cursor:pointer; white-space:nowrap; }
+.bt:hover { background:var(--tx); color:var(--fundo); }
+.bt.forte { background:var(--sinal); color:var(--fundo); border-color:var(--sinal); }
+.bt.forte:hover { filter:brightness(1.15); }
+
+/* quadro de partidas */
+.quadro { width:100%; border-collapse:separate; border-spacing:0 4px; }
+.quadro th { font:600 10px var(--num); color:var(--mut); text-transform:uppercase; letter-spacing:.1em; text-align:left; padding:0 6px; }
+.quadro td { background:#070908; padding:7px 6px; font:600 14px var(--num); color:var(--sinal); text-transform:uppercase; white-space:nowrap; }
+.quadro td:first-child { border-radius:3px 0 0 3px; } .quadro td:last-child { border-radius:0 3px 3px 0; }
+.quadro td.st { color:var(--ok); font-size:12px; }
+.flap span { display:inline-block; min-width:.62em; text-align:center; background:linear-gradient(#1b2220 50%, #121816 50%); margin-right:1px; border-radius:2px; animation:vira .35s steps(1) both; animation-delay:var(--d); }
+@keyframes vira { 0% { color:transparent; } 30% { color:var(--mut); } 100% { color:inherit; } }
+
+/* elenco */
+.elenco { width:100%; border-collapse:collapse; font-size:13px; }
+.elenco th { font:600 10px var(--num); color:var(--mut); text-transform:uppercase; letter-spacing:.08em; text-align:left; padding:4px 6px; border-bottom:1px solid var(--fio); cursor:pointer; user-select:none; }
+.elenco th:hover { color:var(--tx); }
+.elenco td { padding:5px 6px; border-bottom:1px solid color-mix(in srgb, var(--fio) 60%, transparent); white-space:nowrap; }
+.elenco tr:hover td { background:var(--painel2); }
+.pos { font:700 11px var(--num); padding:2px 5px; border:1px solid currentColor; }
+.pos.G { color:#f5c84b; } .pos.D { color:#5fb4ff; } .pos.M { color:var(--ok); } .pos.A { color:#ff7a6e; }
+.barra { width:70px; height:6px; background:var(--fio); display:inline-block; vertical-align:middle; margin-right:6px; }
+.barra i { display:block; height:100%; }
+.ctr.curto { color:var(--bad); font-weight:600; }
+
+/* caixa */
+.cx-top { display:flex; justify-content:space-between; align-items:end; gap:10px; }
+.cx-top strong { font:600 30px/1 var(--num); }
+.grafico { width:100%; height:110px; display:block; margin:8px 0; }
+.mov { display:grid; grid-template-columns:1fr auto; gap:3px 10px; font-size:13px; }
+.mov .n { text-align:right; }
+.teto { margin-top:10px; }
+.teto .tr { height:10px; background:var(--fio); position:relative; }
+.teto .tr i { position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg, var(--ok), var(--sinal)); }
+.teto .tr b { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--bad); }
+
+/* medidores */
+.med { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.med div { background:var(--painel2); border:1px solid var(--fio); padding:10px; }
+.med small { font:600 10px var(--num); color:var(--mut); text-transform:uppercase; letter-spacing:.08em; }
+.med strong { display:block; font:600 24px/1.2 var(--num); }
+
+@media (max-width:900px) {
+  .s8, .s7, .s5, .s4 { grid-column:span 12; }
+  .relogio { margin-left:0; width:100%; justify-content:space-between; }
+  .relogio div { text-align:left; }
+  .lin .rot:not(.alto) { display:none; }
+  .ocultaCel { display:none; }
+  .p { overflow-x:auto; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="topo e" style="--i:0">
+    <div class="marca">Trem <span>Soccer</span></div>
+    <div class="clube">
+      <svg width="34" height="38" viewBox="0 0 58 66" aria-hidden="true"><path d="M29 2 54 10v24c0 15-11 25-25 30C15 59 4 49 4 34V10Z" fill="var(--ac)" stroke="var(--tx)" stroke-width="3"/></svg>
+      <div><b>Ferroviário da Serra</b><small>Série B · temporada 3 · dirigente Elias</small></div>
+    </div>
+    <div class="relogio">
+      <div><small>Escalação fecha em</small><strong class="n" id="cont">22:41:07</strong></div>
+      <div><small>Caixa</small><strong class="n" style="color:var(--tx)">8,4 mi</strong></div>
+      <div><small>Confiança</small><strong class="n" style="color:var(--tx)">68</strong></div>
+    </div>
+  </header>
+
+  <nav class="e" style="--i:1">
+    <a href="#" class="on">Cabine</a><a href="#">Elenco</a><a href="#">Tática</a><a href="#">Base</a><a href="#">Competições</a><a href="#">Mercado</a><a href="#">Clube</a><a href="#">Ajustes</a>
+  </nav>
+
+  <div class="grade">
+    <section class="p s12 e" style="--i:2">
+      <h3>Linha da temporada · Série B <span class="ct">rodada 15 de 38 · 4º lugar · 25 pts</span></h3>
+      <div class="lin" id="lin"></div>
+      <div class="legenda"><span><i style="background:var(--ok)"></i>vitória</span><span><i style="background:var(--sinal)"></i>empate</span><span><i style="background:var(--bad)"></i>derrota</span><span><i style="border:1px dashed var(--mut)"></i>fim do turno</span></div>
+    </section>
+
+    <section class="p s7 e" style="--i:3">
+      <h3>Sinais · o que pede decisão <span class="ct">5 abertos</span></h3>
+      <ul class="sinais">
+        <li><div class="luz r"><i></i><i></i><i></i></div><div><b>Escalação da rodada 15 não confirmada</b><span>O lateral Pedrinho está suspenso e continua no time titular.</span></div><button class="bt forte">Escalar</button></li>
+        <li><div class="luz r"><i></i><i></i><i></i></div><div><b>3 jogadores acima de 85% de carga</b><span>Tiago Moura, Gabriel Siqueira e Wesley Dantas têm risco alto de lesão.</span></div><button class="bt">Treino</button></li>
+        <li><div class="luz a"><i></i><i></i><i></i></div><div><b>Leilão do meia Caio Brandão fecha amanhã, 18h</b><span>A sua oferta de R$ 1,2 mi é a maior. Ainda cabem R$ 0,5 mi no teto da folha.</span></div><button class="bt">Ver</button></li>
+        <li><div class="luz a"><i></i><i></i><i></i></div><div><b>2 contratos acabam no fim da temporada</b><span>Renato Alves (31 anos, força 68) e o goleiro Bruno Paixão.</span></div><button class="bt">Renovar</button></li>
+        <li><div class="luz g"><i></i><i></i><i></i></div><div><b>Patrocínio fechado com o Café Trilho</b><span>A meta é ficar entre os 6 primeiros, e o bônus é de R$ 2,1 mi. Hoje você cumpre.</span></div><button class="bt">Detalhe</button></li>
+      </ul>
+    </section>
+
+    <section class="p s5 e" style="--i:4">
+      <h3>Quadro de partidas</h3>
+      <table class="quadro">
+        <thead><tr><th>Dia</th><th>Comp.</th><th>Adversário</th><th class="ocultaCel">Local</th><th>Sit.</th></tr></thead>
+        <tbody id="quadro"></tbody>
+      </table>
+    </section>
+
+    <section class="p s8 e" style="--i:5">
+      <h3>Elenco · condição <span class="ct">24 jogadores · clique no cabeçalho para ordenar</span></h3>
+      <table class="elenco">
+        <thead><tr><th data-k="pos">Pos</th><th data-k="nome">Jogador</th><th data-k="id" class="ocultaCel">Idade</th><th data-k="f">Força</th><th data-k="c">Carga</th><th data-k="m" class="ocultaCel">Moral</th><th data-k="ct">Contrato</th><th data-k="s" class="ocultaCel">Salário</th></tr></thead>
+        <tbody id="elenco"></tbody>
+      </table>
+    </section>
+
+    <section class="p s4 e" style="--i:6">
+      <h3>Caixa <span class="ct">últimas 14 rodadas</span></h3>
+      <div class="cx-top"><strong>R$ 8,4 mi</strong><span class="n" style="color:var(--ok)">+1,3 mi na temporada</span></div>
+      <svg class="grafico" id="graf" viewBox="0 0 300 110" preserveAspectRatio="none"></svg>
+      <div class="mov">
+        <span>Bilheteria (média por jogo em casa)</span><span class="n" style="color:var(--ok)">+410 mil</span>
+        <span>Patrocínio (por rodada)</span><span class="n" style="color:var(--ok)">+150 mil</span>
+        <span>Folha salarial (por rodada)</span><span class="n" style="color:var(--bad)">−220 mil</span>
+        <span>Manutenção do estádio</span><span class="n" style="color:var(--bad)">−35 mil</span>
+      </div>
+      <div class="teto">
+        <div class="mut" style="font-size:12px;display:flex;justify-content:space-between"><span>Folha 3,1 mi</span><span>teto 3,6 mi</span></div>
+        <div class="tr"><i style="width:86%"></i><b style="left:100%;transform:translateX(-2px)"></b></div>
+      </div>
+      <div class="med" style="margin-top:12px">
+        <div><small>Torcida</small><strong>41,2 mil</strong><span class="mut">humor 11/16</span></div>
+        <div><small>Lotação</small><strong>86%</strong><span class="mut">estádio nív. 3</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+// temporada: 14 rodadas jogadas, a 15ª é a atual
+const res = "VVEDVVEVDVEVVV".split(""), lin = document.getElementById("lin");
+let h = `<div class="feito" style="--k:${14.5 / 38}"></div>`;
+for (let i = 0; i < 38; i++) {
+  const c = i < 14 ? { V: "v", E: "e2", D: "d" }[res[i]] : i === 14 ? "agora" : "";
+  h += `<div class="est ${c}${i === 18 ? " turno" : ""}" title="Rodada ${i + 1}${i < 14 ? " · " + res[i] : ""}"></div>`;
+}
+lin.innerHTML = h;
+[[1, "R1"], [10, "R10"], [15, "R15 · hoje", 1], [19, "fim do 1º turno"], [30, "R30"], [38, "R38"]].forEach(([r, t, alto]) =>
+  lin.insertAdjacentHTML("beforeend", `<span class="rot${alto ? " alto" : ""}" style="left:${(r - .5) / 38 * 100}%">${t}</span>`));
+
+// quadro de partidas: letras viram como placa de estação
+const jogos = [["SÁB 21H", "SÉR B", "CAMPINENSE", "CASA", "EMBARQUE"], ["QUA 19H", "COPA", "TUPI FC", "FORA", "AGENDADO"], ["SÁB 16H", "SÉR B", "ATL CERRADO", "FORA", "AGENDADO"], ["SÁB 21H", "SÉR B", "UNIÃO RIB.", "CASA", "AGENDADO"], ["QUA 21H", "COPA", "TUPI FC", "CASA", "VOLTA"]];
+let d = 0;
+const flap = t => `<span class="flap">${[...t].map(ch => `<span style="--d:${(d += 18)}ms">${ch === " " ? "&nbsp;" : ch}</span>`).join("")}</span>`;
+document.getElementById("quadro").innerHTML = jogos.map(j => `<tr>${j.map((c, k) => `<td class="${k === 3 ? "ocultaCel" : ""}${k === 4 ? " st" : ""}">${flap(c)}</td>`).join("")}</tr>`).join("");
+
+// elenco
+const el = [["G", "Bruno Paixão", 33, 71, 20, 80, 1, 180], ["D", "Wesley Dantas", 27, 74, 88, 70, 3, 210], ["D", "Pedrinho", 24, 66, 60, 45, 2, 120], ["D", "Renato Alves", 31, 68, 55, 75, 1, 190],
+  ["M", "Gabriel Siqueira", 25, 77, 91, 90, 4, 260], ["M", "Caio Lemos", 22, 70, 40, 65, 3, 140], ["M", "Diego Faria", 29, 72, 72, 60, 2, 200], ["A", "Tiago Moura", 26, 80, 87, 95, 3, 320], ["A", "Kauã", 17, 61, 30, 85, 5, 40]]
+  .map(([pos, nome, id, f, c, m, ct, s]) => ({ pos, nome, id, f, c, m, ct, s }));
+const cor = (v, inv) => (inv ? v > 85 : v < 50) ? "var(--bad)" : (inv ? v > 70 : v < 70) ? "var(--sinal)" : "var(--ok)";
+const barra = (v, inv) => `<span class="barra"><i style="width:${v}%;background:${cor(v, inv)}"></i></span><span class="n">${v}</span>`;
+let ord = null;
+function desenhar() {
+  document.getElementById("elenco").innerHTML = el.map(j => `<tr><td><span class="pos ${j.pos}">${j.pos}</span></td><td>${j.nome}</td><td class="n ocultaCel">${j.id}</td><td>${barra(j.f)}</td><td>${barra(j.c, 1)}</td><td class="ocultaCel">${barra(j.m)}</td>
+    <td class="n ctr${j.ct === 1 ? " curto" : ""}">${j.ct === 1 ? "fim da temp." : j.ct + " temp."}</td><td class="n ocultaCel">${j.s} mil</td></tr>`).join("");
+}
+document.querySelectorAll(".elenco th").forEach(th => th.onclick = () => {
+  const k = th.dataset.k, dir = ord === k ? -1 : 1; ord = dir === 1 ? k : null;
+  el.sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * (typeof a[k] === "number" ? -dir : dir)); desenhar();
+});
+desenhar();
+
+// gráfico do caixa
+const cx = [7.1, 7.4, 7.2, 7.8, 7.6, 7.9, 8.3, 8.0, 7.7, 8.1, 8.6, 8.2, 8.0, 8.4], mn = 6.8, mx = 8.8;
+const pt = cx.map((v, i) => [i / (cx.length - 1) * 300, 105 - (v - mn) / (mx - mn) * 100]);
+const lnh = pt.map((p, i) => (i ? "L" : "M") + p.join(" ")).join(" ");
+document.getElementById("graf").innerHTML = `<defs><linearGradient id="gg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--ok)" stop-opacity=".35"/><stop offset="1" stop-color="var(--ok)" stop-opacity="0"/></linearGradient></defs>
+  <path d="${lnh} L300 110 L0 110Z" fill="url(#gg)"/><path d="${lnh}" fill="none" stroke="var(--ok)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+  ${pt.map(p => `<rect x="${p[0] - 1.5}" y="${p[1] - 1.5}" width="3" height="3" fill="var(--tx)"/>`).join("")}`;
+
+// contagem até fechar a escalação
+let t = 22 * 3600 + 41 * 60 + 7;
+setInterval(() => { t--; document.getElementById("cont").textContent = [t / 3600, t / 60 % 60, t % 60].map(x => String(Math.floor(x)).padStart(2, "0")).join(":"); }, 1000);
+</script>
+</body>
+</html>
