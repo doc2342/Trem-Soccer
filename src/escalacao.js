@@ -4,6 +4,9 @@ import { fatorDeMomento } from "./saude.js";
 // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
 export const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 
+// reservas no banco de cada time (jogo, bots e tela)
+export const TAMANHO_DO_BANCO = 9;
+
 export const FORMACOES = {
   "4-4-2": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC"],
   "4-3-3 com pontas": ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "RW", "LW", "SC"],

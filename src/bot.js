@@ -4,7 +4,7 @@ import { IDX, notaNaPosicao, notaComPe } from "./modelo.js";
 import { fatorDeMomento } from "./saude.js";
 // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
 const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
-import { FORMACOES, escalar } from "./escalacao.js";
+import { FORMACOES, escalar, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { avaliarZonas, setorDaPosicao } from "./motor.js";
 
 export const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
@@ -39,14 +39,14 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
   const { formacao, escalacao, forca } = melhor;
 
   // banco: um goleiro, os melhores reservas de cada setor (um para cada 4 titulares do setor, arredondando para cima)
-  // e os melhores que sobraram, até seis de linha
+  // e os melhores que sobraram, até completar o banco
   const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
   const linhaFora = fora.filter(j => j.pos !== "GK");
   const porSetor = ["D", "M", "A"].flatMap(s => {
     const titulares = escalacao.filter(x => x.pos !== "GK" && setorDaPosicao(x.pos) === s).length;
     return linhaFora.filter(j => setorDaPosicao(j.pos) === s).slice(0, Math.ceil(titulares / 4));
   });
-  const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...porSetor, ...linhaFora.filter(j => !porSetor.includes(j)).slice(0, 6 - porSetor.length)];
+  const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...porSetor, ...linhaFora.filter(j => !porSetor.includes(j)).slice(0, TAMANHO_DO_BANCO - 1 - porSetor.length)];
 
   // mentalidade: normal; um nível acima se é favorito, um abaixo se é azarão (o mando já pesa no motor)
   const dif = forcaAdversario == null ? 0 : forca - forcaAdversario;

@@ -4,7 +4,7 @@ import { criarRng } from "./rng.js";
 import { notaNaPosicao, LISTA_POSICOES } from "./modelo.js";
 import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
-import { notaDoMomento } from "./escalacao.js";
+import { notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { montarRelatorio } from "./relatorio.js";
 import { momentoDepois, experienciaDe, experienciaDepois } from "./saude.js";
 
@@ -51,12 +51,12 @@ export function taticaDoDirigente(dados, elenco) {
       livres.splice(livres.indexOf(melhor), 1); jog[i] = melhor.id;
     }
     const emCampo = new Set(jog);
-    const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, 7);
+    const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, TAMANHO_DO_BANCO);
     // banco desfalcado (lesão, suspensão, saída ou titular que foi para o campo): completa com os melhores que sobraram,
     // garantindo um goleiro reserva se houver
     const sobra = elenco.filter(j => !(j.fora > 0) && !emCampo.has(j.id) && !banco.includes(j.id)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
-    if (banco.length < 7 && !banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
-    for (const j of sobra) { if (banco.length >= 7) break; if (j.pos !== "GK") banco.push(j.id); }
+    if (banco.length < TAMANHO_DO_BANCO && !banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
+    for (const j of sobra) { if (banco.length >= TAMANHO_DO_BANCO) break; if (j.pos !== "GK") banco.push(j.id); }
     const noBanco = new Set(banco), I = dados.instr || {};
     const num = (v, min, max) => Math.max(min, Math.min(max, Math.round(+v) || 0));
     const um = (v, lista, padrao) => lista.includes(v) ? v : padrao;

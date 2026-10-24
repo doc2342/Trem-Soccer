@@ -303,6 +303,9 @@ const __escalacao = (() => {
   // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 
+  // reservas no banco de cada time (jogo, bots e tela)
+  const TAMANHO_DO_BANCO = 9;
+
   const FORMACOES = {
     "4-4-2": ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC"],
     "4-3-3 com pontas": ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "RW", "LW", "SC"],
@@ -336,7 +339,7 @@ const __escalacao = (() => {
     }
     return escalacao.filter(Boolean);
   }
-  return { notaDoMomento, FORMACOES, escalar };
+  return { notaDoMomento, TAMANHO_DO_BANCO, FORMACOES, escalar };
 })();
 
 const __motor = (() => {
@@ -551,7 +554,7 @@ const __motor = (() => {
     return centro ? (at[A.mar] * 1.5 + at[A.pos] * 1.5 + at[A.des]) / 4 : (at[A.des] * 1.5 + at[A.vel] + at[A.mar] + at[A.pos] * 0.5) / 4;
   }
 
-  // escalacao: [{ j: jogador, pos }] com 11 nomes; banco: até 7 jogadores; instrucoes: ver INSTRUCOES_PADRAO.
+  // escalacao: [{ j: jogador, pos }] com 11 nomes; banco: até TAMANHO_DO_BANCO (escalacao.js) jogadores; instrucoes: ver INSTRUCOES_PADRAO.
   // O objeto devolvido não muda durante a partida e pode ser reutilizado em várias simulações.
   // prevencao: fração a menos na chance de lesão dos jogadores deste time (preparador de prevenção), de 0 a 1
   function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, mandante = false, prevencao = 0 }) {
@@ -1255,7 +1258,7 @@ const __bot = (() => {
   const { fatorDeMomento } = __saude;
   // nota na posição já com o pé, a forma, a moral e a experiência do jogador: é com ela que o bot (e o botão de escalar os melhores) escolhe
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
-  const { FORMACOES, escalar } = __escalacao;
+  const { FORMACOES, escalar, TAMANHO_DO_BANCO } = __escalacao;
   const { avaliarZonas, setorDaPosicao } = __motor;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
   // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
@@ -1289,14 +1292,14 @@ const __bot = (() => {
     const { formacao, escalacao, forca } = melhor;
 
     // banco: um goleiro, os melhores reservas de cada setor (um para cada 4 titulares do setor, arredondando para cima)
-    // e os melhores que sobraram, até seis de linha
+    // e os melhores que sobraram, até completar o banco
     const fora = elenco.filter(j => !escalacao.some(x => x.j === j)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
     const linhaFora = fora.filter(j => j.pos !== "GK");
     const porSetor = ["D", "M", "A"].flatMap(s => {
       const titulares = escalacao.filter(x => x.pos !== "GK" && setorDaPosicao(x.pos) === s).length;
       return linhaFora.filter(j => setorDaPosicao(j.pos) === s).slice(0, Math.ceil(titulares / 4));
     });
-    const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...porSetor, ...linhaFora.filter(j => !porSetor.includes(j)).slice(0, 6 - porSetor.length)];
+    const banco = [...fora.filter(j => j.pos === "GK").slice(0, 1), ...porSetor, ...linhaFora.filter(j => !porSetor.includes(j)).slice(0, TAMANHO_DO_BANCO - 1 - porSetor.length)];
 
     // mentalidade: normal; um nível acima se é favorito, um abaixo se é azarão (o mando já pesa no motor)
     const dif = forcaAdversario == null ? 0 : forca - forcaAdversario;
@@ -1460,7 +1463,7 @@ const __rodada = (() => {
   const { notaNaPosicao, LISTA_POSICOES } = __modelo;
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
-  const { notaDoMomento } = __escalacao;
+  const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
   const { montarRelatorio } = __relatorio;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
@@ -1506,12 +1509,12 @@ const __rodada = (() => {
         livres.splice(livres.indexOf(melhor), 1); jog[i] = melhor.id;
       }
       const emCampo = new Set(jog);
-      const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, 7);
+      const banco = [...new Set((dados.banco || []).filter(id => porId[id] && !emCampo.has(id) && !fora(id)))].slice(0, TAMANHO_DO_BANCO);
       // banco desfalcado (lesão, suspensão, saída ou titular que foi para o campo): completa com os melhores que sobraram,
       // garantindo um goleiro reserva se houver
       const sobra = elenco.filter(j => !(j.fora > 0) && !emCampo.has(j.id) && !banco.includes(j.id)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
-      if (banco.length < 7 && !banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
-      for (const j of sobra) { if (banco.length >= 7) break; if (j.pos !== "GK") banco.push(j.id); }
+      if (banco.length < TAMANHO_DO_BANCO && !banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
+      for (const j of sobra) { if (banco.length >= TAMANHO_DO_BANCO) break; if (j.pos !== "GK") banco.push(j.id); }
       const noBanco = new Set(banco), I = dados.instr || {};
       const num = (v, min, max) => Math.max(min, Math.min(max, Math.round(+v) || 0));
       const um = (v, lista, padrao) => lista.includes(v) ? v : padrao;

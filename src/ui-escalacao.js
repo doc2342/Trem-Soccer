@@ -4,7 +4,7 @@ import { criarRng } from "./rng.js";
 import { experienciaDe, nivelDoAnalista } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
-import { FORMACOES, escalar, notaDoMomento } from "./escalacao.js";
+import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
 import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
@@ -40,7 +40,7 @@ const HTML = `  <div id="cabecalho"></div>
   <div class="duas">
     <div>
       <div class="card"><h2>Time <span class="tag" title="Arraste um jogador para uma vaga ou para o banco, ou clique na vaga para escolher. Arrastando um titular aparecem as outras posições: solte numa delas para mudar a posição dele.">arraste ou clique na vaga</span></h2><div class="gramado" id="gramado"></div>
-        <h2 style="margin-top:12px">Banco <span class="tag">até 7</span></h2><div class="chips" id="banco"></div>
+        <h2 style="margin-top:12px">Banco <span class="tag">até ${TAMANHO_DO_BANCO}</span></h2><div class="chips" id="banco"></div>
         <div id="validacao" style="margin-top:10px"></div></div>
       <div class="card"><h2>Instruções</h2><div class="row" id="instrucoes"></div></div>
       <div class="card"><h2>Mapa do time <span class="tag" title="Força do time em cada zona do campo, com os jogadores e a mentalidade escolhidos. Mais claro = mais gente e mais qualidade ali.">força por zona</span></h2><div id="minimapa"></div></div>
@@ -75,8 +75,8 @@ const HTML_NOVO = `<div id="cabecalho"></div>
         <div class="t-tatica-botoes"><button type="button" class="t-botao" id="auto">Escalar os melhores</button><button type="button" class="t-botao" id="bot">Deixar o assistente escolher</button></div></div>
       <div id="escolha"></div>
       <div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Guardar esta escalação como…"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div></div>
-    <div class="t-tatica-baixo"><div id="instrucoes"></div>
-    <div class="t-tatica-fim"><div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div><div id="validacao"></div></div></div>
+    <div class="t-tatica-baixo" id="instrucoes"></div>
+    <div class="t-tatica-fim"><div id="validacao"></div><div class="t-tatica-acao"><span id="avisoOnline"></span><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button></div></div>
   </section>
   <div class="soLocal t-tatica-local"><label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label>Perfil<select id="perfil"></select></label></div>
   <div class="t-tatica-corpo">
@@ -99,8 +99,8 @@ const HTML_NOVO = `<div id="cabecalho"></div>
     <button id="jogar">Jogar amistoso</button><span class="mut" id="infoAdv"></span>
   </div>
   <div id="rel"></div>`;
-// instruções na faixa, todas abertas, em três grupos lado a lado. Rótulos longos encurtam no botão (o inteiro fica no title)
-const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade", "impedimento"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Ritmo", ["contraAtaque", "cera"]]];
+// instruções na faixa, todas abertas, em três grupos lado a lado; embaixo, o rodapé com os avisos e o salvar. Rótulos longos encurtam no botão (o inteiro fica no title)
+const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Estratégia", ["contraAtaque", "impedimento", "cera"]]];
 const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem" };
 
 export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
@@ -379,7 +379,7 @@ function validar() {
   if (E.instr.cruzamento === "alto" && melhorNaArea(at => (at[IDX.cab] + at[IDX.for]) / 2) < 25) avisos.push("Cruzamentos altos sem ninguém forte de cabeça na área.");
   if (E.instr.cruzamento === "rasteiro" && melhorNaArea(at => (at[IDX.fin] + at[IDX.vel]) / 2) < 25) avisos.push("Cruzamentos rasteiros sem ninguém rápido e bom de finalização na área.");
   if (cob.AE + cob.AD < 0.3) avisos.push("Sem jogo pelos lados no ataque: a defesa adversária fecha o centro.");
-  esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
+  if (!NOVO) esc11.filter(x => x.j.fora > 0).forEach(x => avisos.push(`${x.j.nome} está fora por ${x.j.motivo || "indisponibilidade"} (${x.j.fora} ${x.j.fora === 1 ? "jogo" : "jogos"}): no jogo ele será trocado pelo melhor disponível para a posição.`));
   esc11.forEach(x => { const f = foraDePosicao(x.j, x.pos); if (f) avisos.push(`${x.j.nome} está ${f.fam === "I" ? "improvisado" : "competente (não natural)"} de ${sg(x.pos)} e perde ${f1(f.perda)} de nota (rende ${f.fam === "I" ? "80" : "93"}%).${f.melhor ? ` ${f.melhor.nome} renderia mais ali (${f1(f.ganho)}).` : ""}`); });
   if (E.banco.length && !E.banco.some(id => (jogDe(id) || {}).pos === "GK")) avisos.push("Banco sem goleiro reserva.");
   const ent = entrosamento(esc11), NOME_SETOR = { D: "a defesa", M: "o meio", A: "o ataque" };
@@ -400,7 +400,7 @@ function htmlGramado(mapa = null) {
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
-  const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
+  const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
 // Mapa do time: força de ataque e de defesa em cada uma das 9 zonas, e as zonas em que o time está acima ou abaixo de um 4-4-2
@@ -422,13 +422,13 @@ function render() {
   guardar("mo_trabalho_" + chaveElenco(), E);
   const V = validar();
   // gramado
-  $("gramado").innerHTML = htmlGramado();
+  $("gramado").innerHTML = htmlGramado(NOVO && sel && sel.tipo === "vaga" && E.vagas[sel.i] !== "GK" ? sel.i : null); // visual novo: vaga escolhida mostra no campo as posições para onde ela pode ir
   // banco
-  if (NOVO) { $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome">${esc(j.nome)}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
-    $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de 7`;
+  if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome">${esc(j.nome)}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
+    $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de ${TAMANHO_DO_BANCO}`;
     const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
     $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
-  else $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  else $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = NOVO ? [...V.erros, ...V.avisos].map(t => `<div class="t-alerta">${esc(t)}</div>`).join("")
     : [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
@@ -440,7 +440,7 @@ function render() {
   if (NOVO) { $("instrucoes").innerHTML = GRUPOS_INSTR.map(([g, ks]) => `<div class="t-instr-grupo"><div class="t-rotulo">${g}</div>${ks.map(k => segmentos([k, OPCOES[k]])).join("")}</div>`).join("");
     raiz.querySelector(".t-tatica-lado").classList.toggle("escolhendo", !!sel);
     const atual = [...E.vagas].sort().join(); // formação marcada: a que tem as mesmas posições do time
-    $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0])}</button>`).join(""); }
+    $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join(""); }
   else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
   if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
@@ -483,7 +483,7 @@ const SETORES = { gol: "Goleiros", defesa: "Defesa", ala: "Defesa", volante: "Me
 const htmlSkills = (j, p) => `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="${(PESOS[POSICOES[p].papel] || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
   <div class="mut" style="column-span:all;font-size:12px;margin-top:4px">Em destaque, os atributos que contam para ${sg(p)}. Experiência ${Math.round(experienciaDe(j))} de 100: quanto mais alta, menos ele oscila de um jogo para o outro e mais rende (até 3%).</div></div>`;
 const SETORES_DA_LISTA = [["Goleiros", "Goleiros"], ["Defesa", "Defesa"], ["Meio-campo", "Meio"], ["Ataque", "Ataque"]];
-// visual novo: a lista mora na faixa escura, um setor por vez (sem rolagem); escolhendo uma vaga, a posição dela muda num campinho
+// visual novo: a lista mora na faixa escura, um setor por vez (sem rolagem); a posição da vaga muda no próprio campo
 function renderEscolhaNova(el) {
   document.body.classList.toggle("escolhendo", !!sel);
   const fecha = `<button type="button" class="t-esc-fecha" data-fechaescolha="1" title="Fechar">✕</button>`;
@@ -499,13 +499,11 @@ function renderEscolhaNova(el) {
     el.innerHTML = `<div class="t-esc-topo"><div class="t-numero-rotulo">${ehCobranca(sel.k) ? `${rot}: ${sel.i + 1}º cobrador` : rot}</div>${fecha}</div><div class="t-esc-lista">${lista.map(x => linha(x.j, x.pos)).join("")}${vazio("Automático")}</div>`;
     return;
   }
-  const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null, jv = pos ? jogDe(E.jog[sel.i]) : null;
+  const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null;
   const setor = setorVisto || (pos ? SETORES[POSICOES[pos].linha] : "Defesa"), nota = j => notaNaPosicao(j, pos || j.pos);
   const lista = elenco.filter(j => SETORES[POSICOES[j.pos].linha] === setor && (!sel || pos || !E.jog.includes(j.id)))
     .sort((a, b) => (a.fora > 0) - (b.fora > 0) || (pos ? 0 : LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos)) || nota(b) - nota(a));
-  const campinho = [...TIRAS, [["GK", 5]]].map((t, k) => t.map(([p, col]) => `<button type="button" data-posvaga="${p}" style="grid-area:${k + 1} / ${col} / auto / span 2" aria-pressed="${p === pos}" title="${POSICOES[p].nome}">${sg(p)}${jv ? ` <b>${f1(notaNaPosicao(jv, p))}</b>` : ""}</button>`).join("")).join("");
   el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>` : ""}
-    ${pos ? `<div class="t-posicoes">${campinho}</div>` : ""}
     <div class="t-segmentos t-esc-setores">${SETORES_DA_LISTA.map(([s, r]) => `<button type="button" data-setor="${s}" aria-pressed="${s === setor}">${r}</button>`).join("")}</div>
     <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span>forma</span><span>moral</span><span>${pos ? sg(pos) : "nota"}</span><span></span></div>
     ${lista.map(j => linha(j, pos || j.pos)).join("")}${sel ? vazio("Deixar vazio") : ""}</div>`;
@@ -565,10 +563,10 @@ function escolher(id) {
     else if (id && E.banco.includes(id)) E.banco = E.banco.map(b => b === id ? antes : b).filter(Boolean); // vem do banco; quem saiu vai para lá
     E.jog[sel.i] = id || null;
   } else {
-    const b = E.banco.slice(); while (b.length < 7) b.push(null);
+    const b = E.banco.slice(); while (b.length < TAMANHO_DO_BANCO) b.push(null);
     const vaga = id ? E.jog.indexOf(id) : -1;
     if (vaga >= 0) E.jog[vaga] = b[sel.i]; // titular vai para o banco; o reserva daquela vaga do banco assume o lugar dele
-    for (let i = 0; i < 7; i++) if (b[i] === id) b[i] = null;
+    for (let i = 0; i < TAMANHO_DO_BANCO; i++) if (b[i] === id) b[i] = null;
     b[sel.i] = id || null; E.banco = b.filter(Boolean);
   }
   sel = null; limparReferencias(); render();
@@ -646,7 +644,7 @@ raiz.addEventListener("click", e => {
   if (d("fechaescolha") !== undefined) { sel = null; return render(); }
   if (d("setor") !== undefined) { setorVisto = d("setor"); return renderEscolha(); }
   if (d("forma") !== undefined) return aplicarFormacao(d("forma"));
-  if (d("posvaga") !== undefined) { E.vagas[sel.i] = d("posvaga"); setorVisto = null; limparReferencias(); return render(); }
+  if (d("novapos") !== undefined && sel && sel.tipo === "vaga") { E.vagas[sel.i] = d("novapos"); setorVisto = null; limparReferencias(); return render(); }
   if (NOVO && (d("vaga") !== undefined || d("banco") !== undefined || d("papslot") !== undefined)) {
     setorVisto = null;
     if (d("papslot") !== undefined) setTimeout(() => $("escolha").scrollIntoView({ behavior: "smooth", block: "nearest" }), 0); }
@@ -673,11 +671,11 @@ $("maisSub").onclick = () => { const tit = titulares(), usados = new Set(E.subs.
 $("maisOrdem").onclick = () => { E.ordens.push({ min: 70, cond: "perdendo", muda: "mentalidade:1" }); editaOrdem = E.ordens.length - 1; render(); };
 $("salvar").onclick = () => { const n = $("nomeSalva").value.trim() || "Escalação " + (Object.keys(ler("mo_salvas_" + chaveElenco()) || {}).length + 1); const s = ler("mo_salvas_" + chaveElenco()) || {}; s[n] = JSON.parse(JSON.stringify(E)); guardar("mo_salvas_" + chaveElenco(), s); $("nomeSalva").value = ""; render(); };
 $("auto").onclick = () => { const disp = elenco.filter(j => !(j.fora > 0)), esc11 = escalar(disp, E.vagas); E.jog = E.vagas.map(() => null); const livres = esc11.slice(); E.vagas.forEach((pos, i) => { const k = livres.findIndex(x => x.pos === pos); if (k >= 0) E.jog[i] = livres.splice(k, 1)[0].j.id; }); E.banco = E.banco.filter(id => !E.jog.includes(id) && porId[id] && !(porId[id].fora > 0)); completarBanco(disp); limparReferencias(); render(); };
-// banco com 7: mantém quem já estava (disponível) e completa com os melhores que sobraram, com um goleiro reserva se houver
+// banco cheio: mantém quem já estava (disponível) e completa com os melhores que sobraram, com um goleiro reserva se houver
 function completarBanco(disp) {
   const sobra = disp.filter(j => !E.jog.includes(j.id) && !E.banco.includes(j.id)).sort((a, b) => notaDoMomento(b, b.pos) - notaDoMomento(a, a.pos));
-  if (E.banco.length < 7 && !E.banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { E.banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
-  for (const j of sobra) { if (E.banco.length >= 7) break; if (j.pos !== "GK") E.banco.push(j.id); }
+  if (E.banco.length < TAMANHO_DO_BANCO && !E.banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { E.banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
+  for (const j of sobra) { if (E.banco.length >= TAMANHO_DO_BANCO) break; if (j.pos !== "GK") E.banco.push(j.id); }
 }
 $("bot").onclick = () => { E = daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" })); sel = null; render(); };
 $("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("formacao").value); $("formacao").value = ""; };
