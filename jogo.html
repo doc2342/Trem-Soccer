@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, botao, manchete, destacar, campoDeZonas, reguaDoJogo, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, manchete, destacar, reguaDoJogo, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1591,15 +1591,15 @@ async function telaClube(liga, clube) {
     if (descartados.length) l.push(item("⚠️", `${descartados.length === 1 ? "Lance descartado" : "Lances descartados"} no fechamento do leilão: ${descartados.map(([h, e]) => `${esc((h.jogadores || {}).nome || "")} (${esc(e.motivo)})`).join(", ")}. O jogador voltou a ficar livre.`, "aviso", "clube:transf"));
     if (cobertos.length) l.push(item("⏳", `O seu lance foi coberto: ${cobertos.map(([h]) => esc((h.jogadores || {}).nome || "")).join(", ")}. Ainda dá para subir, na aba Mercado.`, "aviso", "mercado"));
     if (perdidos.length) l.push(item("❌", `Você perdeu ${perdidos.length === 1 ? "o leilão de" : "os leilões de"} ${perdidos.map(([h, e]) => `${esc((h.jogadores || {}).nome || "")} (para ${lk(e.clube)})`).join(", ")}. Detalhes em Clube, Transferências.`, "", "clube:transf"));
-    elenco.filter(j => j.fora > 0 && j.motivo === "lesão").forEach(j => l.push(item("🩹", `${esc(j.nome)} (${sg(j.pos)}) lesionado: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
-    elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
+    if (!visualNovo) elenco.filter(j => j.fora > 0 && j.motivo === "lesão").forEach(j => l.push(item("🩹", `${esc(j.nome)} (${sg(j.pos)}) lesionado: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
+    if (!visualNovo) elenco.filter(j => j.fora > 0 && j.motivo !== "lesão").forEach(j => l.push(item("🟥", `${esc(j.nome)} (${sg(j.pos)}) suspenso: fora por ${j.fora} ${j.fora === 1 ? "jogo" : "jogos"}.`)));
     const pendurados = elenco.filter(j => j.amarelos === 3 && !(j.fora > 0)); // a suspensão vem no quarto amarelo
-    if (pendurados.length) l.push(item("🟨", `Pendurados (o próximo amarelo suspende): ${pendurados.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
+    if (pendurados.length && !visualNovo) l.push(item("🟨", `Pendurados (o próximo amarelo suspende): ${pendurados.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
     // copa: suspensos, pendurados e quem não pode jogar por ter jogado a copa por outro clube (só enquanto o clube está vivo nela)
     if (vivoNaCopa) {
-      elenco.filter(j => j.foraCopa > 0).forEach(j => l.push(item("⛔", `${esc(j.nome)} (${sg(j.pos)}) suspenso na copa: fora do próximo jogo de copa.`)));
+      if (!visualNovo) elenco.filter(j => j.foraCopa > 0).forEach(j => l.push(item("⛔", `${esc(j.nome)} (${sg(j.pos)}) suspenso na copa: fora do próximo jogo de copa.`)));
       const pendC = elenco.filter(j => j.amarelosCopa >= 1 && !(j.foraCopa > 0) && j.copaClube === clube.id);
-      if (pendC.length) l.push(item("🟨", `Pendurados na copa (o próximo amarelo suspende por um jogo de copa): ${pendC.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
+      if (pendC.length && !visualNovo) l.push(item("🟨", `Pendurados na copa (o próximo amarelo suspende por um jogo de copa): ${pendC.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}.`));
       const travados = elenco.filter(j => j.copaClube != null && j.copaClube !== clube.id);
       if (travados.length) l.push(item("🔒", `Não podem jogar a copa por você (já jogaram por outro clube nesta temporada): ${travados.map(j => esc(j.nome)).join(", ")}.`));
     }
@@ -1921,9 +1921,9 @@ async function telaClube(liga, clube) {
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   devolverBarra();
   // visual novo: topo enxuto (escudo e nome levam aos Ajustes, próximo jogo, barra da conta) e a linha de estações
-  const topoNovo = () => `<header class="t-topo"><button type="button" class="t-topo-clube" data-aba-ir="config" title="Ajustes">${svgEscudo(clube.escudo, clube.sigla, 40)}<span class="t-topo-nome">${esc(clube.nome)}</span></button>
+  const topoNovo = () => `<header class="t-topo"><a class="t-topo-clube" href="#clube=${clube.id}" data-clube="${clube.id}" title="Página do clube">${svgEscudo(clube.escudo, clube.sigla, 40)}<span class="t-topo-nome">${esc(clube.nome)}</span></a>
       <span class="t-topo-prox" id="topoProx"></span>
-      <div class="t-topo-fim"><div id="seloTopo" class="patro-topo t-topo-so-pc" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div><div class="topo-jogo t-topo-so-pc"></div><div class="topo-conta"></div>${admin ? `<a href="admin.html">Admin${pedidosAdm ? ` (${pedidosAdm})` : ""}</a>` : ""}</div></header>
+      <div class="t-topo-fim"><div id="seloTopo" class="patro-topo t-topo-so-pc" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div><div class="topo-jogo t-topo-so-pc"></div><button type="button" class="t-topo-ajustes" data-aba-ir="config" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7 7 0 0 0-1.7-1L15 3h-4l-.3 2.9a7 7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 0 0 1.7 1L11 21h4l.3-2.9a7 7 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button><div class="topo-conta"></div>${admin ? `<a href="admin.html">Admin${pedidosAdm ? ` (${pedidosAdm})` : ""}</a>` : ""}</div></header>
     ${linhaDeEstacoes(ESTACOES, "inicio")}`;
   // Central nova (esqueleto fixo da spec): faixa da tabela → Vestiário → próximo jogo → bastidores → diretoria → amistoso, recolhido.
   // As partes que dependem dos jogos são preenchidas em grupo() (preencherCentralNova). Os ids do amistoso, da chegada e dos murais são os de hoje.
@@ -2854,7 +2854,8 @@ ${historicoDaBase()}
   // próximo jogo · ficha do adversário (tabela, gols, quem comanda) e da sua escalação (fora, pendurados, titular da tática que não pode jogar)
   const fichasDoProximo = (proximo, rival, tab, formaDoRival) => {
     const t = tab.find(x => x.clube.id === rival.id), k = tab.indexOf(t), copa = ehCopa(proximo);
-    const adv = t ? `<b>${k + 1}º</b> · ${t.pts} pts · <b>${t.gp}</b> gols pró, <b>${t.gc}</b> contra` : "de outra divisão";
+    const adv = (t ? `<p><b>Tabela:</b> ${k + 1}º, ${t.pts} pts</p><p><b>Gols:</b> ${t.gp} pró, ${t.gc} contra</p>` : `<p><b>Tabela:</b> de outra divisão</p>`)
+      + `<p><b>Comando:</b> ${rival.dono ? "dirigente" : "bot"}</p>`;
     const ehTit = j => naTatica[j.id] && naTatica[j.id].titular, nome = j => `${esc(j.nome)} <span class="t-ficha-pos">${sg(j.pos)}</span>`;
     const fora = elenco.filter(j => !j.juvenil && (copa ? j.foraCopa > 0 || (j.fora > 0 && j.motivo === "lesão") : j.fora > 0));
     const pend = copa ? [] : elenco.filter(j => !j.juvenil && j.amarelos === 3 && !(j.fora > 0)), titFora = fora.filter(ehTit);
@@ -2863,7 +2864,7 @@ ${historicoDaBase()}
       fora.filter(j => !ehTit(j)).length ? `<p><b>Fora:</b> ${fora.filter(j => !ehTit(j)).map(j => `${nome(j)} (${j.motivo === "lesão" ? "lesão" : "suspensão"})`).join(", ")}</p>` : "",
       pend.length ? `<p><b>Pendurados:</b> ${pend.map(nome).join(", ")}</p>` : "",
     ].filter(Boolean);
-    return `<div class="t-fichas"><div class="t-ficha"><div class="t-numero-rotulo">O adversário</div><p>${adv}${rival.dono ? " · tem dirigente" : " · bot"}</p><p class="t-ficha-estilo" id="cnEstiloRival"></p></div>
+    return `<div class="t-fichas"><div class="t-ficha"><div class="t-numero-rotulo">O adversário</div>${adv}<p class="t-ficha-estilo" id="cnEstiloRival"></p></div>
       <div class="t-ficha"><div class="t-numero-rotulo">Sua escalação</div>${linhas.length ? linhas.join("") : `<p class="t-ficha-ok">Ninguém fora nem pendurado.</p>`}</div></div>`; };
   // o estilo do rival nos últimos jogos (o mesmo da prévia da Tática): só com analista de skill 20 ou mais; chega depois e preenche a ficha
   const estiloDoRival = rival => { const an = (comissaoToda || []).find(t => t.funcao === "analista"), sk = an && an.skill || 0;
@@ -2871,9 +2872,9 @@ ${historicoDaBase()}
     daLiga("estilo:" + rival.id, () => B.partidasDoClube(liga.id, rival.id).then(ps => B.estiloObservado(ps, rival.id, nivelDoAnalista(sk))))().then(est => {
       const el = $("cnEstiloRival"); if (!el || !est) return;
       const L = B.LIMITES_DO_ESTILO, { E, D } = est.corredor, lado = E > D * L.lado ? "esquerda" : D > E * L.lado ? "direita" : null;
-      el.innerHTML = [lado ? `ataca mais pela <b>${lado}</b>` : "ataca pelos dois lados", est.contra >= L.contra ? "joga no <b>contra-ataque</b>" : "",
+      el.innerHTML = "<b>Estilo:</b> " + [lado ? `ataca mais pela ${lado}` : "ataca pelos dois lados", est.contra >= L.contra ? "joga no contra-ataque" : "",
         est.posse >= L.posse[1] ? "gosta de ficar com a bola" : est.posse <= L.posse[0] ? "abre mão da bola" : "", est.faltas >= L.faltas[1] ? "marca duro" : "",
-        est.lancamentos >= L.lancamentos ? "usa a <b>bola longa</b>" : ""].filter(Boolean).join(" · ");
+        est.lancamentos >= L.lancamentos ? "usa a bola longa" : ""].filter(Boolean).join(", ");
     }).catch(() => {}); };
   // o recorte da classificação em volta do clube: o líder, dois acima, o clube, dois abaixo (com as cores das zonas)
   const recorteDaTabela = (tab, faixas) => { const i = tab.findIndex(t => t.clube.id === clube.id); if (i < 0) return "";
@@ -2908,11 +2909,10 @@ ${historicoDaBase()}
         const fina = l.find(x => x.tipo === "resultado"), notas = l.filter(x => x !== fina);
         const nota = (x, k) => `<article class="t-nota${k ? "" : " t-nota-lead"}" data-tipo="${x.tipo}"${x.zona ? ` data-zona="${x.zona}"` : ""}><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
           + `<h4>${esc(x.titulo)}</h4><p>${destacar(x.frase)}</p>${x.acao ? botao(x.acao) : ""}</article>`;
-        const campo = nivelDoAnalista(analista && analista.skill) >= 2 && est && est.zonas ? `<figure class="t-vest-campo"><div class="t-vest-linhas"><span>ataque</span><span>meio</span><span>defesa</span></div>${campoDeZonas(est.zonas, estDeles && estDeles.zonas, notas.map(x => x.zona).filter(Boolean))}<figcaption>Duelos vencidos por zona</figcaption></figure>` : "";
         v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)} ›</a></div>`
           + (fina ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
           + (est && estDeles ? `<div class="t-vest-regua"><div class="t-regua-cab"><span>${esc(clube.nome)}</span><span>${esc(cPor[clube.id === ultimo.casa ? ultimo.fora : ultimo.casa].nome)}</span></div>${reguaDoJogo(est, estDeles)}</div>` : "")
-          + `<div class="t-vest${campo ? "" : " t-vest-sem-campo"}">${campo}<div class="t-vest-notas">${notas.map(nota).join("")}</div></div>`;
+          + (notas.length ? `<div class="t-vest2${notas.length > 1 ? "" : " t-vest2-so"}">${nota(notas[0], 0)}${notas.length > 1 ? `<div class="t-vest2-resto">${notas.slice(1).map((x, k) => nota(x, k + 1)).join("")}</div>` : ""}</div>` : "");
         v.hidden = false;
       }).catch(() => {});
     }

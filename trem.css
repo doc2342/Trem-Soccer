@@ -494,3 +494,14 @@
 /* o meio do placar abre a partida (antes: a prévia; com a bola rolando: ao vivo) */
 a.t-placar-meio { text-decoration:none; color:inherit; padding:6px 8px; } a.t-placar-meio:hover { background:var(--t-placa); }
 .t-cronometro.t-ao-vivo { color:var(--t-marca); font-size:13px; }
+/* vestiário sem o campo: a nota principal à esquerda, as outras empilhadas à direita, ligadas por um fio */
+.t-vest2 { display:grid; grid-template-columns:minmax(0, 1.4fr) minmax(0, 1fr); gap:0 28px; margin-top:16px; }
+.t-vest2.t-vest2-so { grid-template-columns:minmax(0, 1fr); }
+.t-vest2-resto { border-left:1px solid var(--t-fio); padding-left:24px; display:flex; flex-direction:column; }
+.t-vest2-resto .t-nota + .t-nota { border-top:1px solid var(--t-fio); padding-top:14px; }
+.t-vest2 > .t-nota-lead { padding-bottom:0; }
+@media (max-width:720px) { .t-vest2 { grid-template-columns:minmax(0, 1fr); } .t-vest2-resto { border-left:0; padding-left:0; border-top:1px solid var(--t-fio); padding-top:14px; margin-top:16px; } }
+/* cabeçalho: o nome leva à página do clube; a engrenagem, aos Ajustes */
+a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:4px; }
+.t-topo-ajustes { background:none !important; border:0 !important; padding:6px !important; color:var(--t-tinta2) !important; cursor:pointer; display:grid; place-items:center; }
+.t-topo-ajustes:hover { color:var(--t-tinta) !important; } .t-topo-ajustes:hover svg { transform:rotate(45deg); } .t-topo-ajustes svg { transition:transform .3s; }
