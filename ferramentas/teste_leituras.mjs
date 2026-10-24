@@ -85,3 +85,9 @@ assert.equal(pos[0], 1); // o clube 1 vence a 1ª rodada por 2 gols, o único co
 assert.equal(pos[2], classificacao(clubes4, partidas4, resultados4).findIndex(t => t.clube.id === 1) + 1);
 assert.deepEqual(posicoesPorRodada(clubes4, [], [], 1), []);
 assert.equal(posicoesPorRodada(clubes4, partidas4, resultados4.slice(0, 2), 1).length, 1); // rodada sem resultado não entra
+
+// sem calendário (início de temporada, temporada 0): sem "fim da fase"
+assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: null }), { titulo: "5º lugar ·", apagado: "calendário a sortear", destaque: "", frase: "" });
+// Série B desde a T14: os dois primeiros vão à semifinal do playoff, não sobem direto
+assert.equal(leituraDaTabela({ tab, clubeId: 3, faixas: ["", "sobe", "sobe", "playoff", "", "", "cai", "cai"], rodadasRestantes: 8 }).frase, "1 ponto à frente do 4º.");
+assert.equal(leituraDaTabela({ tab, clubeId: 4, faixas: ["sobe", "sobe", "", "", "", "", "", ""], rodadasRestantes: 8 }).destaque, "A 3 pontos da zona da semifinal.");

@@ -59,7 +59,7 @@ export function posicoesPorRodada(clubes, partidas, resultados, clubeId) {
 }
 
 const BOAS = ["camp", "lib", "sul", "sobe", "playoff"];
-const NOME_DA_ZONA = { camp: "liderança", lib: "Libertadores", sul: "Sul-Americana", sobe: "zona de acesso", playoff: "zona do playoff" };
+const NOME_DA_ZONA = { camp: "liderança", lib: "Libertadores", sul: "Sul-Americana", sobe: "zona da semifinal", playoff: "zona do playoff" }; // "sobe" na Série B desde a T14: os dois primeiros vão direto à semifinal do playoff
 const boa = f => (f || "").split(" ").find(t => BOAS.includes(t));
 const cai = f => (f || "").split(" ").includes("cai");
 
@@ -67,7 +67,8 @@ const cai = f => (f || "").split(" ").includes("cai");
 export function leituraDaTabela({ tab, clubeId, faixas, rodadasRestantes }) {
   const i = tab.findIndex(t => t.clube.id === clubeId);
   if (i < 0) return null;
-  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar ·`, apagado: r === 0 ? "fim da fase" : r === 1 ? "1 rodada" : `${r} rodadas`, destaque: "", frase: "" };
+  // rodadasRestantes null: o calendário ainda não foi sorteado
+  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar ·`, apagado: r == null ? "calendário a sortear" : r === 0 ? "fim da fase" : r === 1 ? "1 rodada" : `${r} rodadas`, destaque: "", frase: "" };
   if (tab.every(t => !t.j)) return saida;
   const eu = tab[i].pts;
   if (boa(faixas[i])) {

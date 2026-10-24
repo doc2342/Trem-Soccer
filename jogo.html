@@ -2596,12 +2596,14 @@ ${historicoDaBase()}
   document.querySelectorAll('input[name="cfgCores"]').forEach(r => { r.onchange = () => window.moCores(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
+  // Central nova: o Vestiário e o próximo jogo são preenchidos depois (grupo, relatório), então o clique é delegado no contêiner
+  if ($("cnVestiario")) $("cnVestiario").onclick = $("cnProximo").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
   document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
   // o painel de chegada é redesenhado, então os cliques dele vão por delegação
   $("chegada").onclick = e => {
     if (e.target.id === "chegadaFechar") { marcarChegada("fechado"); return; }
     const a = e.target.closest("[data-aba-ir]"); if (!a) return;
-    if (a.dataset.abaIr === "amistoso") { $("amJogar").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    if (a.dataset.abaIr === "amistoso") { const d = $("amJogar").closest("details"); if (d) d.open = true; $("amJogar").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub);
   };
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
@@ -2781,19 +2783,19 @@ ${historicoDaBase()}
   // classificação e jogos do grupo escolhido
   // Central nova: faixa da tabela (leitura + posição rodada a rodada), Vestiário do último jogo pelo nível do analista e o próximo jogo
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
-    const daLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => daLiga(p) && (p.casa === clube.id || p.fora === clube.id));
+    const ehDaLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => ehDaLiga(p) && (p.casa === clube.id || p.fora === clube.id));
     const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
     const boa = f => /\b(camp|lib|sul|sobe|playoff)\b/.test(f), ultimaBoa = faixas.reduce((u, f, i) => boa(f) ? i + 1 : u, 0);
-    const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.filter(p => !res[p.id]).length });
-    if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}`, ...lt,
+    const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.length ? meusDaLiga.filter(p => !res[p.id]).length : null });
+    if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: meusDaLiga.length ? `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}` : nomeDoGrupo(g), ...lt,
       lado: eu && eu.j ? rotulo("Posição rodada a rodada") + graficoDePosicoes(posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id), tab.length, ultimaBoa || undefined) : "" });
     // Vestiário: o relatório gravado do último jogo; o quanto ele mostra depende do analista de hoje
     const v = $("cnVestiario");
     if (v && ultimo && res[ultimo.id]) {
       const analista = (comissaoToda || []).find(t => t.funcao === "analista"), r = res[ultimo.id];
-      relatorioDaPartida(ultimo.id).then(linha => {
+      daLiga("relatorio:" + ultimo.id, () => relatorioDaPartida(ultimo.id))().then(linha => {
         const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
-        if (!l.length || !$("cnVestiario")) return;
+        if (!l.length || !v.isConnected) return;
         v.innerHTML = rotulo("Vestiário") + `<h2 class="t-secao-titulo">O que levar para o próximo jogo</h2><p class="t-secao-sub"><a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${r.gols_casa} × ${r.gols_fora} ${esc(cPor[ultimo.fora].nome)}</a></p>` + leituras(l);
         v.hidden = false;
       }).catch(() => {});
@@ -2802,9 +2804,9 @@ ${historicoDaBase()}
     const pr = $("cnProximo");
     if (pr) {
       pr.hidden = false;
-      if (!proximo) { pr.innerHTML = rotulo("Próximo jogo") + `<p class="t-secao-sub">Não há mais jogos nesta temporada.</p>`; return; }
+      if (!proximo) { pr.innerHTML = rotulo("Próximo jogo") + `<p class="t-secao-sub">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</p>`; return; }
       const d = new Date(proximo.inicio), casa = proximo.casa === clube.id, mandante = casa ? clube : rival, visitante = casa ? rival : clube;
-      const formaDoRival = partidas.filter(p => (p.casa === rival.id || p.fora === rival.id) && res[p.id] && daLiga(p)).sort((a, b) => new Date(a.inicio) - new Date(b.inicio))
+      const formaDoRival = partidas.filter(p => (p.casa === rival.id || p.fora === rival.id) && res[p.id] && ehDaLiga(p)).sort((a, b) => new Date(a.inicio) - new Date(b.inicio))
         .map(p => { const x = res[p.id], m = p.casa === rival.id ? x.gols_casa : x.gols_fora, o = p.casa === rival.id ? x.gols_fora : x.gols_casa; return m > o ? "V" : m < o ? "D" : "E"; });
       const lp = leituraDoProximoJogo({ tab, clubeId: clube.id, rivalId: rival.id, formaDoRival }), c = climaDaPartida(proximo.id);
       const qual = ehCopa(proximo) ? nomeDaCopa(proximo, true) : proximo.fase && proximo.fase !== "liga" ? nomeDoPlayoff(proximo).replace("Playoff · ", "") : "Rodada " + proximo.rodada;
