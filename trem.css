@@ -566,3 +566,17 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-central .mural > .t-mural-secao { gap:10px; }
 .t-mural-secao > .rot { align-self:flex-start; }
 .t-mural-secao.t-giro-secao > .rot { align-self:stretch; }
+/* ---------- zoom e telas médias: a página se reorganiza antes de espremer ---------- */
+.t-topo-clube { flex-shrink:0; } .t-topo-nome { overflow:visible; text-overflow:clip; }
+@media (max-width:1200px) { .t-topo .topo-jogo { display:none !important; } .t-topo .patro-topo .mut { display:none; } }
+@media (max-width:1000px) { .t-topo .patro-topo { display:none !important; } }
+/* painel: 7 numa linha só em tela larga; abaixo disso, quebra em linhas de no mínimo 150 px */
+@media (min-width:1100px) and (max-width:1279px) { .t-central > .t-painel .t-modulos { grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); } }
+.t-modulo-num { font-size:clamp(26px, 2.4vw, 34px) !important; }
+/* bastidores: 4 colunas só onde cabem */
+@media (max-width:1200px) { .t-central > .t-bastidores > .mural { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+/* duas colunas da Central só a partir de 1024; abaixo, uma coluna (o lado desce) */
+@media (max-width:1100px) { .t-central-grade { grid-template-columns:minmax(0, 1fr) minmax(0, 320px); gap:0 32px; } }
+@media (max-width:1023px) { .t-central-grade { grid-template-columns:minmax(0, 1fr); } .t-central-lado { margin-top:28px; } }
+/* abaixo de 1280 px os módulos se distribuem em linhas e os da última esticam: sem vão em largura nenhuma */
+@media (max-width:1279px) { .t-central > .t-painel .t-modulos { display:flex; flex-wrap:wrap; } .t-central > .t-painel .t-modulo-caixa { flex:1 1 150px; } }

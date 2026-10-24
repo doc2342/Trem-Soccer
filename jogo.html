@@ -2880,7 +2880,7 @@ ${historicoDaBase()}
   const fichasDoProximo = (proximo, rival, tab, formaDoRival) => {
     const t = tab.find(x => x.clube.id === rival.id), k = tab.indexOf(t), copa = ehCopa(proximo);
     const adv = (t ? `<p><b>Tabela:</b> ${k + 1}º, ${t.pts} pts</p><p><b>Gols:</b> ${t.gp} pró, ${t.gc} contra</p>` : `<p><b>Tabela:</b> de outra divisão</p>`)
-      + `<p><b>Comando:</b> ${rival.dono ? "dirigente" : "bot"}</p>`;
+      + `<p><b>Comando:</b> ${rival.dono ? (rival.dirigente ? esc(rival.dirigente) : "dirigente") : "bot"}</p>`; // o nome do dirigente; "dirigente" só se ele não deu nome
     const ehTit = j => naTatica[j.id] && naTatica[j.id].titular, nome = j => `${esc(j.nome)} <span class="t-ficha-pos">${sg(j.pos)}</span>`;
     const fora = elenco.filter(j => !j.juvenil && (copa ? j.foraCopa > 0 || (j.fora > 0 && j.motivo === "lesão") : j.fora > 0));
     const pend = copa ? [] : elenco.filter(j => !j.juvenil && j.amarelos === 3 && !(j.fora > 0)), titFora = fora.filter(ehTit);
