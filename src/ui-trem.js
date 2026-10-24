@@ -38,8 +38,8 @@ export const leituras = lista => lista && lista.length ? `<div class="t-leituras
 
 // as abas do jogo como estações de uma linha; Ajustes fica fora (abre pelo nome do clube no topo)
 export const ESTACOES = [
-  { aba: "inicio", nome: "Central" }, { aba: "elenco", nome: "Elenco" }, { aba: "tatica", nome: "Tática" }, { aba: "base", nome: "Base" },
-  { aba: "mercado", nome: "Mercado", curto: "Merc." }, { aba: "clube", nome: "Clube" }, { aba: "classificacao", nome: "Liga" },
+  { aba: "inicio", nome: "Central" }, { aba: "clube", nome: "Clube" }, { aba: "elenco", nome: "Elenco" }, { aba: "tatica", nome: "Tática" }, { aba: "base", nome: "Base" },
+  { aba: "mercado", nome: "Mercado", curto: "Merc." }, { aba: "classificacao", nome: "Competições", curto: "Compet." },
 ];
 export const linhaDeEstacoes = (estacoes, atual) => `<nav class="t-linha" id="abas" aria-label="Abas do clube">${estacoes.map(e =>
   `<button type="button" class="t-estacao${e.aba === atual ? " ativa" : ""}" data-aba="${esc(e.aba)}"${e.aba === atual ? ' aria-current="page"' : ""}>`

@@ -1729,6 +1729,8 @@ async function telaClube(liga, clube) {
     if (clube.confianca != null && f.conf != null && clube.confianca !== f.conf) l.push(item("🏛️", `Confiança da diretoria: ${f.conf} → ${clube.confianca}. ${fraseDoPresidente(clube.confianca)}`, clube.confianca > f.conf ? "ok" : "aviso"));
     if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; const quem = (extrato || []).filter(x => x.tipo === "olheiro").slice(0, n).map(x => esc(String(x.descricao || "").replace(/^Relatório de olheiro: /, "")));
       l.push(item("🔍", `${n === 1 ? "1 relatório de olheiro comprado" : n + " relatórios de olheiro comprados"}${quem.length ? `: ${quem.join(", ")}` : ""}. Fica na ficha do jogador.`, "", "mercado")); }
+    // visual novo: só os resultados, a mudança na tabela e quem saiu do clube (o resto já aparece em outros blocos da Central)
+    if (visualNovo) l.splice(0, l.length, ...l.filter(h => /class="ic">(⚽|➡️)</.test(h) || h.includes("Na tabela,")));
     const quando = desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
     el.innerHTML = !l.length ? "" : visualNovo // visual novo: um item por vez, com setas e "N de M"
       ? `<div class="card c-chegada t-giro-secao t-giro-manual"><h2>Desde a sua visita <span class="tag">${quando} · <span class="t-giro-conta">1 de ${l.length}</span></span><button class="sec" id="visitaOk">Entendi</button></h2>
