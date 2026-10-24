@@ -337,3 +337,13 @@
 /* o último módulo ocupa o que sobra da linha (7 módulos: sem célula vazia) */
 @media (min-width:1100px) { .t-modulos { grid-template-columns:repeat(4, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(4n+3) { grid-column:span 2; } .t-modulo:last-child:nth-child(4n+2) { grid-column:span 3; } }
 @media (max-width:560px) { .t-modulos { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(odd) { grid-column:span 2; } }
+/* cronômetro do próximo jogo: até o apito e, abaixo, até a tática fechar (vermelho na última hora) */
+.t-cronometro { font:800 15px/1 var(--t-letra); font-variant-numeric:tabular-nums; color:var(--t-tinta); white-space:nowrap; margin-top:4px; }
+.t-cronometro.t-prazo { font:600 11px/1.2 var(--t-letra); color:var(--t-tinta2); margin-top:2px; }
+.t-cronometro.t-urgente { color:var(--t-marca); } .t-cronometro.t-acabou { color:var(--t-tinta3); }
+/* painel tingido: um quadro de números à parte, como num jornal */
+.t-painel { background:var(--t-placa); border-top:2px solid var(--t-tinta); padding:14px 18px 18px; }
+.t-modulos { border-left:0; border-top:0; }
+.t-modulo { background:transparent; border-right:1px solid var(--t-fio) !important; border-bottom:1px solid var(--t-fio) !important; }
+.t-modulo:hover { background:var(--t-fundo); }
+:root[data-tema=escuro] .t-painel { background:var(--t-noite); }

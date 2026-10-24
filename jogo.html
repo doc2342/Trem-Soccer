@@ -1961,9 +1961,10 @@ async function telaClube(liga, clube) {
       m.push(modulo("mercado", "Mercado", janela ? "Aberto" : "Fechado", n ? `${n} ${n === 1 ? "proposta" : "propostas"} para responder` : janela ? "a janela está aberta" : "a janela abre na virada",
         `<div class="t-pop-linha"><b>Janela</b><span>${janela ? "aberta" : "fechada"}</span></div><div class="t-pop-linha"><b>Propostas recebidas</b><span>${recebidas}</span></div><div class="t-pop-linha"><b>Contrapropostas</b><span>${contra}</span></div>`
         + (livres ? `<div class="t-pop-linha"><b>Jogadores livres</b><span>${livres.length}</span></div>` : ""), "mercado", "Abrir o mercado")); }
-    if (treinoLigado) { const prof = elenco.filter(j => !j.juvenil), comFocoN = prof.filter(j => j.treino).length;
-      m.push(modulo("treino", "Treino", `${comFocoN}/${prof.length}`, comFocoN === prof.length ? "todos com foco escolhido" : `${prof.length - comFocoN} sem foco de treino`,
-        `<p class="t-pop-nota">${comFocoN === prof.length ? "Todo o elenco treina num foco escolhido." : `<b>${prof.length - comFocoN} jogadores</b> sem foco escolhido: treinam no padrão.`}</p>`, "treino", "Abrir o treino")); }
+    if (treinoLigado) { const prof = elenco.filter(j => !j.juvenil), escolhidos = prof.filter(j => j.treino && j.treino.p).length, auto = prof.length - escolhidos; // sem foco salvo, o jogador treina no automático da posição
+      m.push(modulo("treino", "Treino", `${prof.length}`, `treinando · ${escolhidos} ${escolhidos === 1 ? "foco escolhido" : "focos escolhidos"}, ${auto} no automático`,
+        `<div class="t-pop-linha"><b>Foco escolhido por você</b><span>${escolhidos}</span></div><div class="t-pop-linha"><b>Foco automático da posição</b><span>${auto}</span></div>`
+        + (auto ? `<p class="t-pop-nota">Quem está no automático treina o foco da própria posição. Escolher o foco acelera o atributo que você quer.</p>` : ""), "treino", "Abrir o treino")); }
     return `<section class="t-painel" id="cnPainel"><div class="t-rotulo">O clube em números</div><div class="t-modulos">${m.join("")}</div></section>`;
   };
   const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
@@ -2654,6 +2655,12 @@ ${historicoDaBase()}
   document.querySelectorAll('input[name="cfgCores"]').forEach(r => { r.onchange = () => window.moCores(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
+  // cronômetros da Central nova (até o apito e até a tática fechar): um só relógio para a página toda
+  if (visualNovo && !window.cronometroCentral) window.cronometroCentral = setInterval(() => document.querySelectorAll(".t-cronometro").forEach(el => {
+    const ms = +el.dataset.ate - Date.now(), r = el.dataset.rotulo || "";
+    if (ms <= 0) { el.textContent = r ? "tática fechada" : "bola rolando"; el.classList.add("t-acabou"); return; }
+    const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, mi = Math.floor(ms / 6e4) % 60, se = Math.floor(ms / 1e3) % 60, z = n => String(n).padStart(2, "0");
+    el.textContent = r + (d ? `${d}d ${h}h ${z(mi)}min` : `${z(h)}:${z(mi)}:${z(se)}`); el.classList.toggle("t-urgente", ms < 36e5); }), 1000);
   // Central nova: o Vestiário e o próximo jogo são preenchidos depois (grupo, relatório), então o clique é delegado no contêiner
   if ($("cnVestiario")) $("cnVestiario").onclick = $("cnProximo").onclick = $("cnPainel").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (!a) return;
     const pop = a.closest("[popover]"); if (pop && pop.hidePopover) pop.hidePopover(); const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); };
@@ -2885,7 +2892,8 @@ ${historicoDaBase()}
         + (x.id === rival.id ? `<span class="t-forma" title="Últimos jogos do rival">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : `<span class="t-placar-voce">você</span>`) + `</div></div>`;
       const posRival = tab.findIndex(t => t.clube.id === rival.id), depois = meus.filter(p => !res[p.id] && p.id !== proximo.id && cPor[p.casa] && cPor[p.fora]).slice(0, 4);
       pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
-        <div class="t-placar">${time(mandante, "casa")}<div class="t-placar-meio"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span></div>${time(visitante, "fora")}</div>
+        <div class="t-placar">${time(mandante, "casa")}<div class="t-placar-meio"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span>
+          <span class="t-cronometro" data-ate="${d.getTime()}"></span>${(seg => seg > 0 ? `<span class="t-cronometro t-prazo" data-ate="${d.getTime() - seg * 1000}" data-rotulo="tática fecha em "></span>` : `<span class="t-placar-hora">tática fecha no apito</span>`)(liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900)}</div>${time(visitante, "fora")}</div>
         <div class="t-jogo-meta">${casa ? "Em casa" : "Fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C${posRival >= 0 ? ` · ${esc(rival.nome)} é o ${posRival + 1}º` : ""}</div>
         ${lp && lp.titulo === "Confronto direto" ? `<p class="t-jogo-leitura"><b>Confronto direto.</b> ${esc(lp.frase)}</p>` : lp && lp.frase ? `<p class="t-jogo-leitura">${esc(lp.frase)}</p>` : ""}
         <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div>
