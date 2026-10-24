@@ -121,7 +121,7 @@ const OPCOES = {
   passe: ["Passe", [["curto", "Curto"], ["misto", "Misto"], ["longo", "Bola longa"]]], // o neutro fica no meio
   finalizar: ["Finalização", [["longe", "Resolver rápido (chute de fora e cruzamento)"], ["misto", "Misto"], ["area", "Trabalhar até a área"]]],
   cruzamento: ["Cruzamentos", [["alto", "Altos (cabeceio)"], ["misto", "Misto"], ["rasteiro", "Rasteiros"]]],
-  lado: ["Lado do ataque", [["E", "Esquerda"], ["C", "Centro"], ["misto", "Livre"], ["lados", "Os dois lados"], ["D", "Direita"]]],
+  lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
   cera: ["Cera quando estiver ganhando", [[false, "Não"], [true, "Sim"]]],
