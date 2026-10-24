@@ -1028,3 +1028,13 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-regua:not(.t-regua-grande) > .t-regua-pede { grid-column:1; grid-row:2; margin:2px 0 0; }
 .t-regua:not(.t-regua-grande) > .t-regua-valor { grid-column:2; grid-row:1 / 3; margin:0; }
 .t-regua:not(.t-regua-grande) > input[type=range], .t-regua:not(.t-regua-grande) > .t-regua-escala { grid-column:1 / -1; }
+/* faixa do mercado: seis números em três colunas */
+@media (min-width:1025px) { .t-mercado-numeros { grid-template-columns:repeat(3, minmax(0, 1fr)); gap:20px 24px; } }
+/* filtro da fita: cada tipo com a sua etiqueta; ligado = contorno vermelho */
+.t-transf-filtro { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 12px; }
+.t-transf-filtro button { display:inline-flex; align-items:center; gap:6px; padding:5px 8px; background:transparent; border:2px solid var(--t-fio); color:var(--t-tinta); font:700 12.5px/1 var(--t-letra); cursor:pointer; }
+.t-transf-filtro button small { font-weight:500; color:var(--t-tinta2); }
+.t-transf-filtro button .t-giro-tipo { padding:3px 6px; }
+.t-transf-filtro button.ligado { border-color:var(--t-marca); background:var(--t-placa); }
+.t-transf-filtro button:hover:not(.ligado) { border-color:var(--t-tinta2); }
+.t-transf[hidden] { display:none; }

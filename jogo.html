@@ -2044,12 +2044,15 @@ async function telaClube(liga, clube) {
     // os números mudam com o momento: no pré-período contam os pré-acordos e pré-contratos; no resto, compras pela multa e propostas
     const minhas = (propostas || []).filter(p => p.vendedor === clube.id || p.comprador === clube.id), esperam = minhas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length;
     const preC = (preContratos || []).filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length;
-    const lado = `<div class="t-elenco-numeros">${caixa == null ? "" : numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: teto ? `folha em ${Math.round(folha / teto * 100)}% do teto` : "para gastar" })}
-      ${prePeriodo && !janela ? numero({ rotulo: "Pré-acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : `${minhas.filter(p => p.estado === "pendente").length} em conversa` })
-        + numero({ rotulo: "Pré-contratos", valor: preC, sufixo: "de 2", legenda: "propostas a quem fica livre" })
-        : numero({ rotulo: "Compras pela multa", valor: comprei, sufixo: `de ${limite}`, legenda: `perdeu ${perdi} de 3` })
-        + (propostas == null ? "" : numero({ rotulo: "Propostas", valor: esperam, legenda: esperam ? "esperam você" : "nenhuma esperando" }))}
-      ${livres == null ? "" : numero({ rotulo: "Leilões", valor: meusLeiloes, sufixo: "de 3", legenda: "ao mesmo tempo" })}</div>`;
+    // todos os limites da temporada; pré-acordos só no pré-período, propostas no resto do ano
+    const agente = janelaDeSaidas ? [vendasDeSaida, SAIDAS, "na janela de saídas"] : [vendasPeloAgente, VENDAS_PELO_AGENTE, "nesta temporada"];
+    const lado = `<div class="t-elenco-numeros t-mercado-numeros">${caixa == null ? "" : numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: teto ? `folha em ${Math.round(folha / teto * 100)}% do teto` : "para gastar" })}
+      ${numero({ rotulo: "Compras pela multa", valor: comprei, sufixo: `de ${limite}`, legenda: `perdeu ${perdi} de 3` })}
+      ${propostas == null ? "" : numero({ rotulo: "Vendas pelo agente", valor: agente[0], sufixo: `de ${agente[1]}`, legenda: agente[2] })}
+      ${livres == null ? "" : numero({ rotulo: "Leilões", valor: meusLeiloes, sufixo: "de 3", legenda: "ao mesmo tempo" })}
+      ${propostas == null ? "" : numero({ rotulo: "Pré-contratos", valor: preC, sufixo: "de 2", legenda: "a quem fica livre na virada" })}
+      ${propostas == null ? "" : prePeriodo && !janela ? numero({ rotulo: "Pré-acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : "valem na virada" })
+        : numero({ rotulo: "Propostas", valor: esperam, legenda: esperam ? "esperam você" : "nenhuma esperando" })}</div>`;
     const f = faixaFoco({ rotulo: "Mercado", titulo: janela ? "Janela aberta" : "Janela fechada", apagado: quando, frase, lado });
     return f.replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
   };
@@ -2349,10 +2352,12 @@ ${historicoDaBase()}
       ${ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).map(j => `<tr class="clk" data-oferta="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="esq">${esc(cPor[j.clube_id].nome)}</td><td>${dinheiro(j.salario)}</td><td><b>${dinheiro(Math.round(3.75 * j.salario))}</b></td><td>${ateQuando(j.oferta_liga_ate)}</td></tr>`).join("")}</table></div>
       <div id="ofertaPainel" style="margin-top:10px"></div></div>`}`}
     </div><div data-msecao="hist">
-    ${visualNovo ? `<section class="t-setor">${rotulo("Últimas transferências")}${transferencias.length ? transferencias.slice(0, 40).map(t => { const tipo = t.repatriado ? "repatriado" : t.tipo;
-      return `<div class="t-transf${t.para_clube === clube.id || t.de_clube === clube.id ? " t-transf-eu" : ""}" data-tipo="${esc(tipo || "")}"><span class="t-giro-tipo">${t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência"}</span>
+    ${visualNovo ? (() => { const nomeT = t => t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência", lista = transferencias.slice(0, 200);
+      const tipos = [...new Map(lista.map(t => [nomeT(t), t.repatriado ? "repatriado" : t.tipo])).entries()], conta = n => lista.filter(t => nomeT(t) === n).length;
+      return `<section class="t-setor">${rotulo("Últimas transferências")}${lista.length ? `<div class="t-transf-filtro" id="transfFiltro"><button type="button" data-ftipo="" class="ligado">Todas <small>${lista.length}</small></button><button type="button" data-ftipo="eu">Do meu clube <small>${lista.filter(t => t.para_clube === clube.id || t.de_clube === clube.id).length}</small></button>${tipos.map(([n, tipo]) => `<button type="button" data-ftipo="${esc(n)}" data-tipo="${esc(tipo || "")}"><span class="t-giro-tipo">${esc(n)}</span><small>${conta(n)}</small></button>`).join("")}</div>` : ""}${lista.length ? lista.map(t => { const tipo = t.repatriado ? "repatriado" : t.tipo;
+      return `<div class="t-transf${t.para_clube === clube.id || t.de_clube === clube.id ? " t-transf-eu" : ""}" data-tipo="${esc(tipo || "")}" data-nome-tipo="${esc(nomeT(t))}"><span class="t-giro-tipo">${nomeT(t)}</span>
         <div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div><div class="t-transf-rota">${t.de_clube ? lk(t.de_clube) : "livre"}<b>›</b>${lk(t.para_clube)}</div>
-        <div class="t-transf-valor">${t.valor ? dinheiro(t.valor) : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando">Temp. ${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim" : t.janela === "saida" ? "saídas" : "meio") : ""}</div></div>`; }).join("") : `<div class="t-mjog-mais">Nenhuma transferência ainda.</div>`}</section>` : `
+        <div class="t-transf-valor">${t.valor ? dinheiro(t.valor) : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando">Temp. ${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim" : t.janela === "saida" ? "saídas" : "meio") : ""}</div></div>`; }).join("") : `<div class="t-mjog-mais">Nenhuma transferência ainda.</div>`}</section>`; })() : `
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}`}
     </div>
@@ -2770,6 +2775,12 @@ ${historicoDaBase()}
       catch (err) { $("crAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("crFazer")) $("crFazer").disabled = false; }
     };
     alvo.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  if ($("transfFiltro")) $("transfFiltro").onclick = e => {
+    const b = e.target.closest("[data-ftipo]"); if (!b) return;
+    const f = b.classList.contains("ligado") ? "" : b.dataset.ftipo;
+    $("transfFiltro").querySelectorAll("[data-ftipo]").forEach(x => x.classList.toggle("ligado", x.dataset.ftipo === f));
+    document.querySelectorAll(".t-transf").forEach(r => { r.hidden = f === "eu" ? !r.classList.contains("t-transf-eu") : !!f && r.dataset.nomeTipo !== f; });
   };
   if ($("livresLista")) $("livresLista").onclick = e => {
     const tr = e.target.closest("[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
