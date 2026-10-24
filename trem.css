@@ -398,3 +398,14 @@
 #cnVestiario .t-materia-notas .t-leitura-titulo { font-size:16px; text-transform:none; font-weight:800; font-stretch:75%; }
 /* a diretoria, quando vai para a coluna principal, ganha o mesmo respiro dos outros blocos de lá */
 .t-central-principal > #cnDiretoria { margin-top:36px; }
+/* painel logo abaixo da faixa, colado nela: a manchete e, embaixo, a régua de números do clube */
+.t-central > #cnFoco + .t-painel { margin-top:0; border-top:0; padding-top:12px; }
+.t-central > #cnFoco + .t-painel > .t-rotulo { display:none; } /* colado na faixa, o painel dispensa o título */
+/* diretoria na largura toda: à esquerda a confiança e a projeção, à direita a palavra do presidente e a meta */
+.t-diretoria-larga { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); column-gap:56px; border-top:2px solid var(--t-tinta); padding-top:14px; margin-top:44px; align-items:start; }
+.t-diretoria-larga > .t-rotulo { grid-column:1 / -1; }
+.t-diretoria-larga > .t-diretoria-cab { grid-column:1; grid-row:2; } .t-diretoria-larga > .t-barra { grid-column:1; grid-row:3; }
+.t-diretoria-larga > .t-diretoria-escala { grid-column:1; grid-row:4; } .t-diretoria-larga > #termometro { grid-column:1; grid-row:5; }
+.t-diretoria-larga > .t-diretoria-frase { grid-column:2; grid-row:2 / 4; margin:0; font-size:clamp(20px, 2.4vw, 28px); align-self:end; }
+.t-diretoria-larga > .t-diretoria-meta { grid-column:2; grid-row:4; margin-top:8px; } .t-diretoria-larga > :is(.t-botoes, .t-numero-legenda) { grid-column:2; grid-row:5; }
+@media (max-width:720px) { .t-diretoria-larga { grid-template-columns:minmax(0, 1fr); } .t-diretoria-larga > * { grid-column:1 !important; grid-row:auto !important; } .t-diretoria-larga > .t-diretoria-frase { margin-top:14px; } }
