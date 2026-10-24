@@ -182,3 +182,56 @@
 .t-central .card.c-chegada > h2 .tag { letter-spacing:0; text-transform:none; font-weight:500; }
 .t-central .card.c-chegada .barra-passos { height:4px; border-radius:0; background:var(--t-placa); } .t-central .card.c-chegada .barra-passos i { background:var(--t-marca); border-radius:0; }
 .t-central .card.c-chegada button { border-radius:0; }
+
+/* ======================================================================================================
+   Camada de compatibilidade: as telas que ainda não foram refeitas usam as peças do estilo.css (card, kpi,
+   tag, botões, tabelas, sub-abas). Com a chave, as variáveis delas passam a ser as do visual novo e a forma
+   das peças segue a gramática (sem caixa arredondada, rótulo da marca nos títulos, números em Archivo estreita).
+   Sai na virada, junto com o estilo.css velho.
+   ====================================================================================================== */
+:root[data-visual=novo] {
+  --display:"Archivo", "Arial Narrow", sans-serif; --body:"Archivo", "Arial Narrow", sans-serif;
+  --bg:var(--t-fundo); --card:var(--t-celula); --campo:var(--t-fundo); --hover:var(--t-placa); --pp:var(--t-placa); --line:var(--t-fio);
+  --tx:var(--t-tinta); --mut:var(--t-tinta2); --ok:var(--t-ok); --bad:var(--t-erro);
+  --sombra:none; --sombra-alta:0 18px 40px rgba(0,0,0,.18); --vidro:var(--t-placa); --trilho:var(--t-fio);
+}
+:root[data-visual=novo] main { max-width:1240px; padding-left:clamp(16px, 3vw, 32px); padding-right:clamp(16px, 3vw, 32px); }
+/* cartão: sem caixa arredondada nem sombra; o título vira o rótulo da marca, maior */
+:root[data-visual=novo] .card { border-radius:0; box-shadow:none; border:0; border-top:1px solid var(--t-fio); background:transparent; padding:22px 0 8px; margin-top:20px; }
+:root[data-visual=novo] .card > h2, :root[data-visual=novo] .card > summary > h2, :root[data-visual=novo] .card > summary h2 {
+  font:800 15px/1.2 var(--t-letra); font-stretch:75%; letter-spacing:.12em; text-transform:uppercase; color:var(--t-tinta); }
+:root[data-visual=novo] .card > h2::before, :root[data-visual=novo] .card > summary > h2::before { content:""; display:inline-block; width:18px; height:4px; background:var(--t-marca); margin-right:10px; vertical-align:middle; }
+:root[data-visual=novo] .card h2 .tag, :root[data-visual=novo] .card h2 span.mut { font:500 12px var(--t-letra); letter-spacing:0; text-transform:none; color:var(--t-tinta2); }
+/* números do topo de cada aba: grandes e estreitos, legenda pequena, sem caixa */
+:root[data-visual=novo] .kpis { gap:0; border-top:1px solid var(--t-fio); border-bottom:1px solid var(--t-fio); margin-top:18px; }
+:root[data-visual=novo] .kpi { border:0; border-left:1px solid var(--t-fio); border-radius:0; box-shadow:none; background:transparent; padding:16px 20px; }
+:root[data-visual=novo] .kpi:first-child { border-left:0; padding-left:0; }
+:root[data-visual=novo] .kpi .kl { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; color:var(--t-tinta2); }
+:root[data-visual=novo] .kpi .kv { font:900 40px/1.05 var(--t-letra); font-stretch:64%; color:var(--t-tinta); margin-top:6px; }
+:root[data-visual=novo] .kpi .kv small { font:500 15px var(--t-letra); color:var(--t-tinta2); }
+/* botões: retos; o principal na cor do clube, o secundário com fio */
+:root[data-visual=novo] button, :root[data-visual=novo] select, :root[data-visual=novo] input { border-radius:0; font-family:var(--t-letra); }
+:root[data-visual=novo] button:not(.t-botao):not(.t-estacao):not(.t-topo-clube):not(.sub) { font-weight:700; }
+:root[data-visual=novo] button.sec { background:transparent; color:var(--t-tinta); border-color:var(--t-tinta3); font-weight:500; }
+:root[data-visual=novo] button.sec:hover { border-color:var(--t-tinta); }
+/* sub-abas (Elenco · Treino · Números…): texto com sublinhado da marca na ativa, como abas de jornal */
+:root[data-visual=novo] .subabas { gap:0 22px; border-bottom:1px solid var(--t-fio); margin-top:20px; }
+:root[data-visual=novo] .sub { border:0; border-radius:0; background:none; padding:10px 0; margin-bottom:-1px; color:var(--t-tinta2); font:700 13px/1 var(--t-letra); letter-spacing:.06em; text-transform:uppercase; border-bottom:3px solid transparent; }
+:root[data-visual=novo] .sub.ativa { color:var(--t-tinta); background:none; border-bottom-color:var(--t-marca); }
+:root[data-visual=novo] .sub .qt { border-radius:0; background:var(--t-marca); color:#fff; }
+/* tabelas: cabeçalho em caixa-alta com fio forte, números tabulares */
+:root[data-visual=novo] th { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; color:var(--t-tinta2); border-bottom:2px solid var(--t-tinta); padding:8px 6px; }
+:root[data-visual=novo] td { border-bottom-color:var(--t-fio); padding:7px 6px; }
+:root[data-visual=novo] .nota { color:var(--t-tinta); font-weight:800; }
+/* etiquetas e avisos */
+:root[data-visual=novo] .aviso { color:var(--t-atencao); }
+:root[data-visual=novo] details > summary { cursor:pointer; }
+@media (max-width:720px) { :root[data-visual=novo] .kpi { border-left:0; padding:12px 0; border-top:1px solid var(--t-fio); } :root[data-visual=novo] .kpis { border-top:0; } }
+/* pílulas de posição, titular/reserva e fichas: retas, como o resto */
+:root[data-visual=novo] :where(.pp, .chip, .chipf, .act, .qt, .gol, .lesao, .gh, .tag) { border-radius:2px; }
+/* quadros das finanças e aviso da janela: como os números do topo */
+:root[data-visual=novo] .fq { border:0; border-left:1px solid var(--t-fio); border-radius:0; box-shadow:none; background:transparent; padding:14px 20px; }
+:root[data-visual=novo] .fgrade { gap:0 !important; border-top:1px solid var(--t-fio); border-bottom:1px solid var(--t-fio); }
+:root[data-visual=novo] .fgrade > .fq:first-child { border-left:0; padding-left:0; }
+:root[data-visual=novo] .fv { font:900 40px/1.05 var(--t-letra); font-stretch:64%; }
+:root[data-visual=novo] .janela { border-radius:0; }
