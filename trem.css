@@ -306,3 +306,34 @@
 /* amistoso na coluna do lado */
 .t-amistoso select { width:100%; }
 .t-amistoso-linha { display:flex; gap:8px; margin-top:8px; } .t-amistoso-linha select { flex:1; }
+/* ---------- painel "O clube em números": módulos de um número e uma frase; o detalhe num popover nativo ---------- */
+.t-painel { border-top:2px solid var(--t-tinta); padding-top:14px; margin-top:36px; }
+.t-modulos { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 168px), 1fr)); border-left:1px solid var(--t-fio); border-top:1px solid var(--t-fio); }
+.t-modulo { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; background:var(--t-celula); color:var(--t-tinta); border:0 !important; border-right:1px solid var(--t-fio) !important; border-bottom:1px solid var(--t-fio) !important; padding:14px 16px 16px; cursor:pointer; min-width:0; position:relative; transition:background .15s; }
+.t-modulo:hover { background:var(--t-placa); }
+.t-modulo::after { content:"+"; position:absolute; top:10px; right:12px; font:400 18px/1 var(--t-letra); color:var(--t-tinta3); transition:color .15s, transform .2s; }
+.t-modulo:hover::after { color:var(--t-marca); transform:rotate(90deg); }
+.t-modulo-rot { font:700 10px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-modulo-num { font:900 34px/1 var(--t-letra) !important; font-stretch:62% !important; text-transform:uppercase; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.t-modulo-linha { font-size:12.5px; line-height:1.35; color:var(--t-tinta2); font-weight:400; }
+/* popover: cartão por cima de tudo, centrado no PC e como folha que sobe no celular */
+.t-pop { border:0; padding:0; margin:auto; width:min(440px, calc(100vw - 32px)); max-height:min(80vh, 640px); overflow:auto; background:var(--t-fundo); color:var(--t-tinta); box-shadow:0 30px 70px rgba(0,0,0,.35); border-top:4px solid var(--t-marca); }
+.t-pop::backdrop { background:rgba(12,16,22,.45); backdrop-filter:blur(2px); }
+.t-pop-cab { display:flex; justify-content:space-between; align-items:center; padding:16px 20px 0; } .t-pop-cab .t-rotulo { margin:0; }
+.t-pop-fechar { background:none !important; border:0 !important; font:300 28px/1 var(--t-letra) !important; color:var(--t-tinta2) !important; padding:0 4px !important; cursor:pointer; }
+.t-pop-corpo { padding:12px 20px 4px; }
+.t-pop .t-botoes { padding:0 20px 20px; }
+.t-pop-linha { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid var(--t-fio); font-size:14px; }
+.t-pop-linha span { color:var(--t-tinta2); text-align:right; } .t-pop-linha .ok { color:var(--t-ok); font-weight:700; } .t-pop-linha .bad { color:var(--t-erro); font-weight:700; }
+.t-pop-linha .t-apagado-tx { color:var(--t-tinta3); }
+.t-pop-nota { font-size:13.5px; color:var(--t-tinta2); margin:12px 0 0; } .t-pop-nota b { color:var(--t-tinta); }
+.t-pop .t-barra { margin:10px 0 0; } .t-pop .t-tabela td, .t-pop .t-tabela th { padding:7px 6px; }
+.t-pop .t-tabela tr.sobe td:first-child, .t-pop .t-tabela tr.camp td:first-child { box-shadow:inset 3px 0 var(--t-ok); }
+.t-pop .t-tabela tr.playoff td:first-child, .t-pop .t-tabela tr.lib td:first-child { box-shadow:inset 3px 0 var(--casa); }
+.t-pop .t-tabela tr.sul td:first-child { box-shadow:inset 3px 0 var(--sul); } .t-pop .t-tabela tr.cai td:first-child { box-shadow:inset 3px 0 var(--t-erro); }
+.t-pop .t-reticencias td { text-align:center; color:var(--t-tinta3); border:0; padding:2px; }
+@media (prefers-reduced-motion:no-preference) { .t-pop:popover-open { animation:t-pop .22s cubic-bezier(.2, .8, .2, 1); } @keyframes t-pop { from { opacity:0; transform:translateY(12px); } } }
+@media (max-width:560px) { .t-pop { margin:auto 0 0; width:100vw; max-width:100vw; max-height:85vh; } .t-modulo-num { font-size:28px !important; } }
+/* o último módulo ocupa o que sobra da linha (7 módulos: sem célula vazia) */
+@media (min-width:1100px) { .t-modulos { grid-template-columns:repeat(4, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(4n+3) { grid-column:span 2; } .t-modulo:last-child:nth-child(4n+2) { grid-column:span 3; } }
+@media (max-width:560px) { .t-modulos { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(odd) { grid-column:span 2; } }
