@@ -64,32 +64,27 @@ const HTML = `  <div id="cabecalho"></div>
   </div>
   <div id="rel"></div>`;
 
-// visual novo: a faixa escura é a própria tática (campo, banco ao lado, instruções e o botão de salvar); o resto embaixo
+// visual novo: o adversário numa faixa curta em cima; embaixo, a tática inteira num bloco só (campo, banco, instruções, papéis, substituições, ordens e o salvar)
 const HTML_NOVO = `<div id="cabecalho"></div>
   <div id="online" hidden><b id="nomeOnline" hidden></b></div>
-  <section class="t-faixa t-sangra t-tatica">
-    <div class="t-tatica-time"><div class="t-rotulo" id="rotTatica">Tática</div>
+  <section id="previa" class="t-faixa t-sangra t-tatica-adv" hidden></section>
+  <section class="t-faixa t-tatica">
+    <div class="t-tatica-time"><div class="t-tatica-cab"><div class="t-rotulo" id="rotTatica">Tática</div><div class="t-tatica-forca" id="forcaCampo"></div></div>
       <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div></div>
     <div class="t-tatica-lado"><div class="t-rotulo">Elenco e formação</div>
       <div class="t-tatica-montar"><div class="t-formacoes" id="formacao"></div>
         <div class="t-tatica-botoes"><button type="button" class="t-botao" id="auto">Escalar os melhores</button><button type="button" class="t-botao" id="bot">Deixar o assistente escolher</button></div></div>
       <div id="escolha"></div>
-      <div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Guardar esta escalação como…"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div></div>
+      <div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Guardar esta escalação como…"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div>
+      <div class="t-tatica-fim"><div id="validacao"></div><div class="t-tatica-acao"><span id="avisoOnline"></span><span class="t-tatica-prazo" id="prazoTatica"></span><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button></div></div></div>
     <div class="t-tatica-baixo" id="instrucoes"></div>
-    <div class="t-tatica-fim"><div id="validacao"></div><div class="t-tatica-acao"><span id="avisoOnline"></span><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button></div></div>
+    <div class="t-tatica-baixo t-tatica-extras">
+      <section><div class="t-rotulo">Capitão e cobradores <span id="nPapeis"></span></div><div id="papeis"></div></section>
+      <section><div class="t-rotulo">Substituições <span id="nSubs"></span></div><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></section>
+      <section><div class="t-rotulo">Ordens condicionais <span id="nOrdens"></span></div><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></section>
+    </div>
   </section>
   <div class="soLocal t-tatica-local"><label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label>Perfil<select id="perfil"></select></label></div>
-  <div class="t-tatica-corpo">
-    <div>
-      <section id="previa" hidden></section>
-      <section class="t-tatica-bloco"><div class="t-rotulo">Mapa do time</div><div id="minimapa"></div></section>
-    </div>
-    <div>
-      <section class="t-tatica-bloco"><div class="t-rotulo">Capitão e cobradores <span id="nPapeis"></span></div><div id="papeis"></div></section>
-      <section class="t-tatica-bloco"><div class="t-rotulo">Substituições <span id="nSubs"></span></div><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></section>
-      <section class="t-tatica-bloco"><div class="t-rotulo">Ordens condicionais <span id="nOrdens"></span></div><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></section>
-    </div>
-  </div>
   <div class="card row soLocal">
     <label class="soLocal">Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
     <label class="soLocal">Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
@@ -134,7 +129,8 @@ const LINHAS = ["ataque", "meia", "meio", "volante", "ala", "defesa", "gol"], OR
 // papéis e cobradores: chave → [rótulo, só jogador de linha?, quantos]
 const PAPEIS = { capitao: ["Capitão", false, 1], vice: ["Vice", false, 1], armador: ["Armador", true, 1], alvo: ["Homem-alvo", true, 1], escanteio: ["Escanteios", true, 3], falta: ["Faltas", true, 3], penalti: ["Pênaltis", true, 5] };
 const ehCobranca = k => k in INSTR.cobradores;
-const curto = j => j ? j.nome.split(" ").slice(-1)[0] : "";
+// nome de campo, como no Brasil: o primeiro nome; se outro da lista (o elenco) tiver o mesmo, primeiro e último
+const curto = (j, lista = elenco) => { if (!j) return ""; const n = j.nome.split(" "), p = n[0]; return n.length > 1 && lista.some(o => o.id !== j.id && o.nome.split(" ")[0] === p) ? `${p} ${n[n.length - 1]}` : p; };
 const NOME_ZONA = { DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", AE: "ataque pela esquerda", AC: "centro do ataque", AD: "ataque pela direita" };
 
 // Libertadores e Sul-Americana (rodada.js): tiram do jogo a lesão e a suspensão continental; a da liga e a da copa não valem.
@@ -144,6 +140,10 @@ const paraALib = (lista, jogo) => lista.map(j => {
   if (jogo.grupo === "REC" || !foraDoContinental(j)) return j.fora > 0 ? { ...j, fora: 0, motivo: null } : j;
   return { ...j, fora: j.foraLib, motivo: "suspensão continental" };
 });
+let prazoDaTatica = null; // visual novo: hora em que a tática fecha (início do jogo menos o prazo da liga)
+setInterval(() => { const el = $("prazoTatica"); if (!el || prazoDaTatica == null) return; const ms = prazoDaTatica - Date.now(), z = n => String(n).padStart(2, "0");
+  const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, mi = Math.floor(ms / 6e4) % 60, se = Math.floor(ms / 1e3) % 60;
+  el.innerHTML = ms <= 0 ? "Tática fechada" : `Fecha em <b>${d ? `${d}d ${h}h ${z(mi)}min` : `${z(h)}:${z(mi)}:${z(se)}`}</b>`; el.classList.toggle("t-urgente", ms < 36e5); }, 1000);
 let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null, proximoJogo = null;
 // elenco visto pela copa: "fora" passa a ser a indisponibilidade na copa, com o motivo certo
 const paraACopa = (lista, clubeId) => lista.map(j => {
@@ -199,12 +199,21 @@ function sedeNaPrevia() {
 }
 // visual novo: a prévia abre a aba como faixa de foco (adversário, como enfrentar, seu onze × o deles); o resto vai para o relatório dobrável
 const ladoDoDuelo = () => { const m = forcaMinha(); return forcaAdv == null ? "" : m >= forcaAdv + 0.5 ? "mais forte" : m <= forcaAdv - 0.5 ? "mais fraco" : "parelho"; };
-const faixaDaTatica = ({ rot, adv, formacao, dica, clima, semAnalista }) => `<div class="t-rotulo">Próximo adversário · ${esc(rot)}</div>
+const faixaDaTatica = ({ rot, adv, formacao, dica, clima, semAnalista, pendurados }) => `<div><div class="t-rotulo">Próximo adversário · ${esc(rot)}</div>
   <h3 class="t-adv-nome">${esc(adv.nome)} <span>${formacao ? `${formacao} provável` : adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></h3>
-  <p class="t-adv-frase">${dica ? `<b>Como enfrentar:</b> ${esc(dica)}.` : semAnalista ? "<b>Sem analista,</b> você só conhece o time do último jogo." : "Nada no jeito deles pede uma resposta especial."}</p>
+  <p class="t-adv-frase">${dica ? `<b>Como enfrentar:</b> ${esc(dica)}.` : semAnalista ? "<b>Sem analista,</b> você só conhece o time do último jogo." : "Nada no jeito deles pede uma resposta especial."}</p>${pendurados || ""}</div>
   <div class="t-duelo"><div class="t-numero"><div class="t-numero-rotulo">Seu onze</div><div class="t-numero-valor" id="nossoOnze">${f1(forcaMinha())}</div><div class="t-numero-legenda" id="nossoOnzeLeg">${ladoDoDuelo()}</div></div>
     ${forcaAdv == null ? "" : `<div class="t-numero"><div class="t-numero-rotulo">O deles</div><div class="t-numero-valor">${f1(forcaAdv)}</div><div class="t-numero-legenda">nota média do onze</div></div>`}
     <div class="t-numero"><div class="t-numero-rotulo">Tempo</div><div class="t-duelo-tempo">${esc(clima.nome)}, ${clima.temp} °C</div><div class="t-numero-legenda">${esc(efeitoDoClima(clima) || "")}</div></div></div>`;
+// visual novo: a nota do seu onze também em cima do campo, onde se mexe no time
+const mostrarForca = () => { if ($("forcaCampo")) $("forcaCampo").innerHTML = `<span>Seu onze</span><b>${f1(forcaMinha())}</b>`; };
+// relatório em três colunas para bater o olho: quem joga, como jogam, como enfrentar
+const relatorioNovo = ({ onze, obs, formacao, tracos, deOnde, dicas, fonte }) => `<div class="t-rel">
+  <div><div class="t-numero-rotulo">Time provável · ${formacao}${obs && obs.jogos > 1 ? ` · últimos ${obs.jogos} jogos` : ""}</div><ol class="t-rel-onze">${onze.map(v => `<li><span class="t-bola ${corDoSetor(v.pos)}">${sg(v.pos)}</span><span class="t-rel-nome" title="${esc(v.j.nome)}">${esc(curto(v.j, onze.map(x => x.j)))}</span><b>${f1(notaNaPosicao(v.j, v.pos))}</b><em>${v.substituto ? "subst." : obs && v.vezes < v.de ? `${v.vezes}/${v.de}` : ""}</em></li>`).join("")}</ol>
+    ${obs ? "" : `<div class="t-rel-pe">O que o bot escalaria: eles ainda não jogaram.</div>`}</div>
+  <div><div class="t-numero-rotulo">Como jogam${deOnde ? ` · ${esc(deOnde)}` : ""}</div>${tracos ? `<dl class="t-rel-tracos">${tracos.map(([r, v, n]) => `<div><dt>${r}</dt><dd><b>${esc(v)}</b>${n ? `<span>${esc(n)}</span>` : ""}</dd></div>`).join("")}</dl>` : `<div class="t-rel-pe">O analista ainda não lê o estilo (precisa de skill 20).</div>`}</div>
+  <div><div class="t-numero-rotulo">Como enfrentar</div>${dicas ? (dicas.length ? `<ul class="t-rel-dicas">${dicas.map(d => `<li>${esc(d[0].toUpperCase() + d.slice(1))}.</li>`).join("")}</ul>` : `<div class="t-rel-pe">Nada no jeito deles pede uma resposta especial: jogue o seu jogo.</div>`) : `<div class="t-rel-pe">O analista ainda não diz como enfrentar (precisa de skill 35).</div>`}</div>
+  <div class="t-rel-fonte">${fonte}</div></div>`;
 const relatorioDobrado = corpo => `<details class="t-dobra"><summary>${rotulo("Relatório do analista")}</summary><div class="t-relatorio">${corpo}</div></details>`;
 async function previaDoAdversario(B) {
   const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
@@ -212,9 +221,18 @@ async function previaDoAdversario(B) {
   const analista = comissao.find(t => t.funcao === "analista");
   const jogo = proximoJogo, copa = B.ehCopa(jogo);
   el.hidden = false;
-  if (!jogo) { el.innerHTML = `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
+  if (!jogo) { el.innerHTML = NOVO ? `<div><div class="t-rotulo">Próximo adversário</div><p class="t-adv-frase">Nenhuma partida marcada.</p></div>` : `<h2>Próximo adversário</h2><div class="mut">Nenhuma partida marcada.</div>`; return; }
   const clima = climaDaPartida(jogo.id), emCasa = jogo.casa === clubeOnline.id, adv = await B.clubePorId(emCasa ? jogo.fora : jogo.casa);
   const dia = new Date(jogo.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  // pendurados (liga): quem leva o próximo amarelo fica fora do jogo de liga seguinte a este
+  const penduradosJ = copa ? [] : elenco.filter(j => j.amarelos >= 3 && !(j.fora > 0));
+  let pendurados = "";
+  if (penduradosJ.length) {
+    const prox = ((await B.sb.from("partidas").select("id, rodada, fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(8)).data || [])
+      .find(p => p.id !== jogo.id && !B.ehCopa(p) && new Date(p.inicio) > new Date(jogo.inicio));
+    const advDepois = prox && await B.clubePorId(prox.casa === clubeOnline.id ? prox.fora : prox.casa).catch(() => null);
+    pendurados = `<p class="t-adv-pendurados"><b>Pendurados:</b> ${penduradosJ.map(j => esc(curto(j))).join(", ")}. Com mais um amarelo, ${penduradosJ.length > 1 ? "ficam" : "fica"} fora ${advDepois ? `da rodada ${prox.rodada}, contra o ${esc(advDepois.nome)}` : "do jogo de liga seguinte"}.</p>`;
+  }
   const sd = copa ? sedeDoJogo(jogo, await B.ligaAtual()) : null; // final em sede real (132_estadio_real.sql)
   const rot = `${copa ? (B.FASES_DA_COPA[jogo.copa_fase] || "Copa") + (jogo.fase === "lib" ? " · " + B.nomeDoGrupo(jogo.grupo) : "") : jogo.fase === "liga" ? "Rodada " + jogo.rodada : B.nomeDoPlayoff(jogo)} · ${dia} · ${sd ? SEDES[sd].nome : copa ? "campo neutro" : emCasa ? "em casa" : "fora"}`;
   const linhaDaSede = sd ? `<div><a href="sede.html?s=${sd}" style="color:var(--ac)">${SEDES[sd].nome}</a>, ${SEDES[sd].cidade} · ${SEDES[sd].lugares.toLocaleString("pt-BR")} lugares · público das duas torcidas, renda meio a meio</div>` : "";
@@ -228,14 +246,14 @@ async function previaDoAdversario(B) {
   const partidasAdv = jogo.liga_id ? await B.partidasDoClube(jogo.liga_id, adv.id) : null;
   const obs = partidasAdv ? B.escalacaoObservada(await B.escalacoesRecentes(partidasAdv, adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
   const onzeVisto = obs ? `<div style="margin-top:6px">Time provável <span class="mut">(${obs.jogos === 1 ? "o do último jogo" : `quem mais jogou nos últimos ${obs.jogos} jogos`})</span>: ${obs.vagas.map(v => `${esc(v.j.nome)} <span class="mut">${sg(v.pos)}${v.substituto ? ", substituto" : obs.jogos > 1 ? ` ${v.vezes}/${v.de}` : ""}</span>`).join(" · ")}</div>` : "";
-  if (!analista && NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, clima, semAnalista: true }) + relatorioDobrado(topo + onzeVisto); return; }
+  if (!analista && NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, clima, semAnalista: true, pendurados }) + relatorioDobrado(topo + onzeVisto); return; }
   if (!analista) { el.innerHTML = topo + onzeVisto + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe${obs ? ": o time do último jogo" : ""}. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia acompanha 2 ou 3 jogos e mostra o estilo de jogo e como enfrentar.</div>`; return; }
   const t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
   const onze = obs ? obs.vagas : t.escalacao;
   const conta = linhas => onze.filter(x => linhas.includes(POSICOES[x.pos].linha)).length;
   const media = lista => lista.length ? lista.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / lista.length : 0;
   forcaAdv = media(onze); const forca = forcaAdv;
-  const formacao = `${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}`; let dica = null;
+  const formacao = `${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}`; let dica = null, dicas = null, tracos = null, deOnde = "";
   let h = topo + `<div style="margin-top:6px">Formação provável: <b>${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</b> <span class="mut">(${onze.map(x => sg(x.pos)).join(" · ")})</span></div>${onzeVisto}
     <div>Nota média do onze deles: <b class="nota">${f1(forca)}</b> <span class="mut" id="comparaOnze">${comparaOnze()}</span></div>`;
   // estilo: o que eles mostraram nos mesmos jogos (relatório público e narração); sem jogos ainda, o que o bot faria com esse elenco
@@ -243,15 +261,21 @@ async function previaDoAdversario(B) {
   if (est) {
     const L = B.LIMITES_DO_ESTILO, f = x => x.toLocaleString("pt-BR", { maximumFractionDigits: 1 }), { E, D } = est.corredor;
     const ladoForte = E > D * L.lado ? "esquerda" : D > E * L.lado ? "direita" : null, longa = est.lancamentos >= L.lancamentos;
-    const tracos = [
+    deOnde = est.jogos === 1 ? "no último jogo" : `por jogo, nos últimos ${est.jogos}`;
+    tracos = [["Posse", f(est.posse) + "%", est.posse >= L.posse[1] ? "gosta da bola" : est.posse <= L.posse[0] ? "abre mão da bola" : ""],
+      ["Finalizações", f(est.finalizacoes), est.finalizacoes >= L.finalizacoes[1] ? "ataca muito" : est.finalizacoes <= L.finalizacoes[0] ? "cria pouco" : ""],
+      ["Contra-ataques", f(est.contra), est.contra >= L.contra ? "joga no contra-ataque" : ""],
+      ["Faltas", f(est.faltas), est.faltas >= L.faltas[1] ? "marca duro" : est.faltas <= L.faltas[0] ? "marca leve" : ""],
+      ["Ataca pela", ladoForte || "os dois lados", ""], ...(longa ? [["Saída", "bola longa", "desde a defesa"]] : [])];
+    const frases = [
       `posse de <b>${f(est.posse)}%</b>${est.posse >= L.posse[1] ? " (gosta de ficar com a bola)" : est.posse <= L.posse[0] ? " (abre mão da bola)" : ""}`,
       `<b>${f(est.finalizacoes)}</b> finalizações por jogo${est.finalizacoes >= L.finalizacoes[1] ? " (ataca muito)" : est.finalizacoes <= L.finalizacoes[0] ? " (cria pouco)" : ""}`,
       `<b>${f(est.contra)}</b> contra-ataques por jogo${est.contra >= L.contra ? " (<b>joga no contra-ataque</b>)" : ""}`,
       `<b>${f(est.faltas)}</b> faltas por jogo${est.faltas >= L.faltas[1] ? " (marca duro)" : est.faltas <= L.faltas[0] ? " (marca leve)" : ""}`,
       ladoForte ? `ataca mais pela <b>${ladoForte}</b>` : "ataca pelos dois lados", ...(longa ? ["usa a <b>bola longa</b> desde a defesa"] : [])];
-    h += `<div>${est.jogos === 1 ? "No último jogo" : `Nos últimos ${est.jogos} jogos`}: ${tracos.join(" · ")}</div>`;
+    h += `<div>${est.jogos === 1 ? "No último jogo" : `Nos últimos ${est.jogos} jogos`}: ${frases.join(" · ")}</div>`;
     if (sk >= 35) {
-      const dicas = [];
+      dicas = [];
       if (est.contra >= L.contra) dicas.push("eles jogam no contra-ataque: mentalidade muito ofensiva é arriscada, e a linha de impedimento também");
       if (longa) dicas.push("a linha de impedimento atrapalha a bola longa deles");
       if (est.posse <= L.posse[0] && est.finalizacoes <= L.finalizacoes[0]) dicas.push("contra retranca, resolva rápido (chute de fora) ou cruze alto: a área lotada não deixa o passe curto entrar, e trabalhar até a área rende pouco");
@@ -262,9 +286,10 @@ async function previaDoAdversario(B) {
       h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no jeito deles pede uma resposta especial: jogue o seu jogo."}</div>`;
     }
   } else {
+    if (sk >= 20) { deOnde = "o que o bot faria com esse elenco"; tracos = [["Pressão", ["baixa", "média", "alta"][I.pressao] || "média", ""], ["Passe", { curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto", ""], ["Mentalidade", I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal", ""], ...(I.contraAtaque ? [["Contra-ataque", "sim", ""]] : []), ...(I.impedimento ? [["Impedimento", "faz a linha", ""]] : [])]; }
     if (sk >= 20) h += `<div>Estilo provável: pressão <b>${["baixa", "média", "alta"][I.pressao] || "média"}</b> · passe <b>${{ curto: "curto", longo: "longo", misto: "misto" }[I.passe] || "misto"}</b> · mentalidade <b>${I.mentalidade > 0 ? "ofensiva" : I.mentalidade < 0 ? "defensiva" : "normal"}</b>${I.contraAtaque ? " · joga no <b>contra-ataque</b>" : ""}${I.impedimento ? " · faz <b>linha de impedimento</b>" : ""}</div>`;
     if (sk >= 35) {
-      const dicas = [];
+      dicas = [];
       if (I.pressao >= 2) dicas.push("contra pressão alta, a bola longa rende mais e o passe curto sofre"); else if (I.pressao <= 0) dicas.push("sem pressão do outro lado, o passe curto funciona bem");
       if (I.passe === "longo") dicas.push("a linha de impedimento atrapalha a bola longa deles");
       if (I.mentalidade >= 2) dicas.push("time muito ofensivo deixa espaço para o contra-ataque");
@@ -275,8 +300,9 @@ async function previaDoAdversario(B) {
       h += `<div style="margin-top:4px">💡 ${dicas.length ? "Como enfrentar: " + dicas.join("; ") + "." : "Nada no estilo deles pede uma resposta especial: jogue o seu jogo."}</div>`;
     }
   }
-  h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação${est ? " e o estilo são o que eles mostraram em campo" : " é a que eles usaram"}${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}${est ? "" : "; o estilo ainda é o que o bot faria com esse elenco"}.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
-  if (NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, formacao, dica, clima }) + relatorioDobrado(h); return; }
+  const fonte = `Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação${est ? " e o estilo são o que eles mostraram em campo" : " é a que eles usaram"}${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}${est ? "" : "; o estilo ainda é o que o bot faria com esse elenco"}.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}`;
+  h += `<div class="mut" style="font-size:12px;margin-top:6px">${fonte}</div>`;
+  if (NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, formacao, dica, clima, pendurados }) + relatorioDobrado(relatorioNovo({ onze, obs, formacao, tracos, deOnde, dicas, fonte })); mostrarForca(); return; }
   el.innerHTML = h;
 }
 async function iniciarOnline(sessaoDeTeste) {
@@ -309,6 +335,12 @@ async function iniciarOnline(sessaoDeTeste) {
   // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
   // a suspensão da liga não vale na copa
   proximoJogo = (await B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
+  // teste de tela (?simular na URL): sem jogo marcado, finge uma rodada de liga amanhã contra o último adversário. Só na tela, nada vai ao banco.
+  if (!proximoJogo && new URLSearchParams(location.search).has("simular")) {
+    const ult = (await B.sb.from("partidas").select("id, liga_id, rodada, casa, fora").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", true).order("inicio", { ascending: false }).limit(1).maybeSingle()).data;
+    if (ult) proximoJogo = { ...ult, id: ult.id + 1e6, fase: "liga", grupo: null, copa_fase: null, rodada: (ult.rodada || 0) + 1, casa: ult.fora, fora: ult.casa, inicio: new Date(Date.now() + 864e5).toISOString() };
+  }
+  if (proximoJogo) { const liga = await B.ligaAtual().catch(() => null), seg = liga && liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900; prazoDaTatica = new Date(proximoJogo.inicio).getTime() - seg * 1000; }
   if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
   if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco, proximoJogo);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
@@ -402,8 +434,8 @@ function htmlGramado(mapa = null) {
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}"${NOVO ? ` style="top:${ALTURA_DA_FAIXA[FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha]]}%"` : ""}>${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""} ${!j && tirados.some(t => t.i === i) ? "falta" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
-      <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span>${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
+      <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span>${NOVO && j && j.amarelos >= 3 && !(j.fora > 0) ? `<i class="t-pendurado" title="Pendurado: o próximo amarelo suspende"></i>` : ""}${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? (NOVO ? esc(curto(j)) : `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>`) : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? (NOVO ? "" : ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>`) : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
@@ -433,7 +465,7 @@ function render() {
   // gramado
   $("gramado").innerHTML = htmlGramado(NOVO && sel && sel.tipo === "vaga" && E.vagas[sel.i] !== "GK" ? sel.i : null); // visual novo: vaga escolhida mostra no campo as posições para onde ela pode ir
   // banco
-  if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome">${esc(j.nome)}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
+  if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curto(j))}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
     $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de ${TAMANHO_DO_BANCO}`;
     const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
     $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
@@ -451,8 +483,9 @@ function render() {
     const atual = [...E.vagas].sort().join(); // formação marcada: a que tem as mesmas posições do time
     $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join(""); }
   else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
-  $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
+  if ($("minimapa")) $("minimapa").innerHTML = htmlMiniMapa(V.esc11); // o visual novo não tem o mapa do time
   if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
+  mostrarForca();
   if ($("nossoOnze")) { $("nossoOnze").textContent = f1(forcaMinha()); $("nossoOnzeLeg").textContent = ladoDoDuelo(); }
   // papéis
   const tit = titulares(), linha = tit.filter(j => E.vagas[E.jog.indexOf(j.id)] !== "GK");
@@ -644,6 +677,7 @@ window.addEventListener("pointerup", e => {
 window.addEventListener("pointercancel", () => { const tinhaMapa = arrasto && arrasto.mapa !== undefined; fimDoArrasto(); if (tinhaMapa) render(); });
 
 // eventos
+window.addEventListener("keydown", e => { if (e.key === "Escape" && sel && !(e.target.closest && e.target.closest("input, select, textarea"))) { sel = null; render(); } });
 raiz.addEventListener("click", e => {
   const t = e.target;
   if (ignorarClique || t.closest("select, input")) return;
@@ -653,6 +687,7 @@ raiz.addEventListener("click", e => {
   if (d("fechaescolha") !== undefined) { sel = null; return render(); }
   if (d("setor") !== undefined) { setorVisto = d("setor"); return renderEscolha(); }
   if (d("forma") !== undefined) return aplicarFormacao(d("forma"));
+  if (d("novapos") !== undefined && sel && sel.tipo === "vaga" && d("novapos") === E.vagas[sel.i]) { sel = null; return render(); } // o próprio jogador: cancela
   if (d("novapos") !== undefined && sel && sel.tipo === "vaga") { E.vagas[sel.i] = d("novapos"); setorVisto = null; limparReferencias(); return render(); }
   if (NOVO && (d("vaga") !== undefined || d("banco") !== undefined || d("papslot") !== undefined)) {
     setorVisto = null;
@@ -663,6 +698,7 @@ raiz.addEventListener("click", e => {
   if (d("banco") !== undefined) { const i = +d("banco"); sel = sel && sel.tipo === "banco" && sel.i === i ? null : { tipo: "banco", i }; return render(); }
   if (d("tirapapel") !== undefined) { const [k, i] = d("tirapapel").split(":"); definirPapel(k, +i, null); sel = null; return render(); }
   if (d("papslot") !== undefined) { const [k, i] = d("papslot").split(":"); sel = sel && sel.tipo === "papel" && sel.k === k && sel.i === +i ? null : { tipo: "papel", k, i: +i }; return render(); }
+  if (NOVO && sel && t.closest("#gramado")) { sel = null; return render(); } // clique no gramado vazio cancela a escolha
   if (d("editasub") !== undefined) { editaSub = editaSub === +d("editasub") ? null : +d("editasub"); return render(); }
   if (d("editaordem") !== undefined) { editaOrdem = editaOrdem === +d("editaordem") ? null : +d("editaordem"); return render(); }
   if (d("tirasub") !== undefined) { E.subs.splice(+d("tirasub"), 1); editaSub = null; return render(); }
