@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, botao, manchete, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, manchete, destacar, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -2851,21 +2851,25 @@ ${historicoDaBase()}
 
   // classificação e jogos do grupo escolhido
   // Central nova: faixa da tabela (leitura + posição rodada a rodada), Vestiário do último jogo pelo nível do analista e o próximo jogo
+  // o recorte da classificação em volta do clube: o líder, dois acima, o clube, dois abaixo (com as cores das zonas)
+  const recorteDaTabela = (tab, faixas) => { const i = tab.findIndex(t => t.clube.id === clube.id); if (i < 0) return "";
+    const de = Math.max(0, Math.min(i - 2, tab.length - 5)), linhas = [...new Set([0, ...tab.slice(de, de + 5).map((t, k) => de + k)])];
+    return `<div class="t-rotulo">Classificação</div><table class="t-tabela t-recorte"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
+      + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq">${esc(tab[k].clube.nome)}</td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`; };
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
     const ehDaLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => ehDaLiga(p) && (p.casa === clube.id || p.fora === clube.id));
     const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
     const boa = f => /\b(camp|lib|sul|sobe|playoff)\b/.test(f), ultimaBoa = faixas.reduce((u, f, i) => boa(f) ? i + 1 : u, 0);
     const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.length ? meusDaLiga.filter(p => !res[p.id]).length : null });
     if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: meusDaLiga.length ? `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}` : nomeDoGrupo(g), ...lt,
-      lado: eu && eu.j ? rotulo("Posição rodada a rodada") + graficoDePosicoes(posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id), tab.length, ultimaBoa || undefined) : "" });
+      lado: recorteDaTabela(tab, faixas) });
     // painel: o módulo da Liga (posição, distância do líder e o recorte da tabela em volta do clube)
     const modLiga = $("mod-liga"), iEu = tab.findIndex(t => t.clube.id === clube.id);
     if (modLiga && iEu >= 0) {
       modLiga.querySelector(".t-modulo-num").textContent = `${iEu + 1}º`;
       modLiga.querySelector(".t-modulo-linha").textContent = eu.j ? `${eu.v}-${eu.e}-${eu.d} · ${eu.pts} pts · ${iEu ? `${tab[0].pts - eu.pts} do líder` : "líder"}` : "temporada começando";
-      const de = Math.max(0, Math.min(iEu - 2, tab.length - 5)), linhas = [...new Set([0, ...tab.slice(de, de + 5).map((t, k) => de + k)])];
-      $("previa-liga").innerHTML = `<table class="t-tabela"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
-        + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq">${esc(tab[k].clube.nome)}</td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`;
+      const pos = posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id);
+      $("previa-liga").innerHTML = pos.length > 1 ? `<div class="t-numero-rotulo">Posição rodada a rodada</div><div class="t-previa-grafico">${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}</div>` : "";
     }
     // Vestiário: o relatório gravado do último jogo; o quanto ele mostra depende do analista de hoje
     const v = $("cnVestiario");
@@ -2874,8 +2878,12 @@ ${historicoDaBase()}
       daLiga("relatorio:" + ultimo.id, () => relatorioDaPartida(ultimo.id))().then(linha => {
         const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
         if (!l.length || !v.isConnected) return;
+        const fina = l.find(x => x.tipo === "resultado"), resto = l.filter(x => x !== fina), [principal, ...notas] = resto.length ? resto : [fina];
+        const nota = x => `<article class="t-nota" data-tipo="${x.tipo}"><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
+          + `<h4>${esc(x.titulo)}</h4><p>${destacar(x.frase)}</p>${x.acao ? botao(x.acao) : ""}</article>`;
         v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}</a></div>`
-          + `<div class="t-materia${l.length > 1 ? "" : " t-materia-so"}"><div class="t-materia-principal">${leitura(l[0])}</div>${l.length > 1 ? `<aside class="t-materia-notas"><div class="t-numero-rotulo">Em resumo</div>${l.slice(1).map(leitura).join("")}</aside>` : ""}</div>`;
+          + (fina && resto.length ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
+          + `<div class="t-materia${notas.length ? "" : " t-materia-so"}"><div class="t-materia-principal">${leitura(principal)}</div>${notas.length ? `<aside class="t-materia-notas">${notas.map(nota).join("")}</aside>` : ""}</div>`;
         v.hidden = false;
       }).catch(() => {});
     }
@@ -2973,8 +2981,7 @@ ${historicoDaBase()}
         const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
         if (visualNovo) { // a projeção: de quanto para quanto, a conta em uma linha e a marca na barra
           const c = clube.confianca, proj = Math.max(0, Math.min(100, c + v.total)), pos = tab.indexOf(eu) + 1, naMeta = pos >= minhaMeta.faixa_min && pos <= minhaMeta.faixa_max;
-          $("termometro").innerHTML = `<div class="t-projecao"><span>Se a temporada terminasse hoje</span><b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${c} → ${proj}</b></div>
-            <div class="t-projecao-conta">liga ${sinal(v.liga)} · finanças ${sinal(v.financas)} · a copa conta no fim</div>`;
+          $("termometro").innerHTML = `<div class="t-projecao"><span>Se a temporada terminasse hoje</span><b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${c} → ${proj}</b><span class="t-projecao-conta">liga ${sinal(v.liga)} · finanças ${sinal(v.financas)} · a copa conta no fim</span></div>`;
           const m = document.querySelector(".t-barra-proj"); if (m) { m.style.left = proj + "%"; m.hidden = false; }
           const hoje = $("dirHoje"); if (hoje) { hoje.textContent = `hoje: ${pos}º`; hoje.className = naMeta ? "ok" : "bad"; }
         } else

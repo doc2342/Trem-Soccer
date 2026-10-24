@@ -409,3 +409,34 @@
 .t-diretoria-larga > .t-diretoria-frase { grid-column:2; grid-row:2 / 4; margin:0; font-size:clamp(20px, 2.4vw, 28px); align-self:end; }
 .t-diretoria-larga > .t-diretoria-meta { grid-column:2; grid-row:4; margin-top:8px; } .t-diretoria-larga > :is(.t-botoes, .t-numero-legenda) { grid-column:2; grid-row:5; }
 @media (max-width:720px) { .t-diretoria-larga { grid-template-columns:minmax(0, 1fr); } .t-diretoria-larga > * { grid-column:1 !important; grid-row:auto !important; } .t-diretoria-larga > .t-diretoria-frase { margin-top:14px; } }
+/* faixa: o recorte da classificação sobre o fundo escuro */
+.t-faixa .t-recorte { color:var(--t-noite-tx); }
+.t-faixa .t-recorte th { color:var(--t-noite-mut); border-bottom:2px solid var(--t-noite-tx); }
+.t-faixa .t-recorte td { border-bottom:1px solid var(--t-noite-fio); padding:8px 6px; font-size:14px; }
+.t-faixa .t-recorte tr.t-eu td { background:rgba(255,255,255,.08); font-weight:800; }
+.t-faixa .t-recorte tr.sobe td:first-child, .t-faixa .t-recorte tr.camp td:first-child { box-shadow:inset 3px 0 var(--t-ok); }
+.t-faixa .t-recorte tr.playoff td:first-child, .t-faixa .t-recorte tr.lib td:first-child { box-shadow:inset 3px 0 var(--casa); }
+.t-faixa .t-recorte tr.sul td:first-child { box-shadow:inset 3px 0 var(--sul); } .t-faixa .t-recorte tr.cai td:first-child { box-shadow:inset 3px 0 var(--t-erro); }
+.t-faixa .t-recorte .t-reticencias td { text-align:center; color:var(--t-noite-mut); border:0; padding:2px; }
+/* o gráfico, agora na prévia do módulo Liga (fundo claro) */
+.t-previa-grafico { background:var(--t-noite); padding:10px 12px 6px; margin-top:6px; }
+/* vestiário: placar, linha fina e a matéria; as notas com um rótulo só */
+.t-materia-fina { font-size:15px; color:var(--t-tinta2); margin:8px 0 0; padding-bottom:14px; border-bottom:1px solid var(--t-fio); }
+.t-materia { margin-top:16px; }
+.t-materia-notas { gap:0; }
+.t-nota { padding:0 0 14px; } .t-nota + .t-nota { border-top:1px solid var(--t-fio); padding-top:14px; }
+.t-nota h4 { font:800 17px/1.2 var(--t-letra); font-stretch:75%; margin:6px 0 4px; }
+.t-nota p { font-size:13.5px; color:var(--t-tinta2); margin:0; line-height:1.45; }
+.t-nota .t-botao { margin-top:10px; }
+.t-nota[data-tipo=funcionou] .t-leitura-tipo { color:var(--t-ok); } .t-nota[data-tipo=falhou] .t-leitura-tipo { color:var(--t-marca); }
+.t-nota[data-tipo=atencao] .t-leitura-tipo { color:var(--t-atencao); } .t-nota[data-tipo=desfalque] .t-leitura-tipo { color:var(--t-erro); }
+.t-nota[data-tipo=bloqueada] .t-leitura-tipo { color:var(--t-tinta3); }
+/* diretoria: confiança alinhada ao número, projeção numa linha, a frase centrada na altura da barra */
+.t-diretoria-larga > .t-diretoria-cab { align-items:baseline; } .t-diretoria-larga > .t-diretoria-cab span { font:700 10.5px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-diretoria-larga > .t-diretoria-frase { grid-row:2 / 5; align-self:center; }
+.t-diretoria-larga > .t-diretoria-meta { grid-row:5; font-size:14px; margin-top:12px; }
+.t-diretoria-larga .t-projecao { justify-content:flex-start; flex-wrap:wrap; gap:4px 12px; margin-top:16px; }
+.t-diretoria-larga .t-projecao b { font-size:24px; } .t-diretoria-larga .t-projecao-conta { margin:0; flex-basis:100%; }
+/* diretoria: o número encosta no rótulo ("55 CONFIANÇA"), em vez de ficar na outra ponta */
+.t-diretoria-larga > .t-diretoria-cab { flex-direction:row-reverse; justify-content:flex-end; gap:12px; }
+.t-materia-fina b { color:var(--t-tinta); }
