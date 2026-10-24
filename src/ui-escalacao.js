@@ -104,7 +104,7 @@ raiz.innerHTML = NOVO ? HTML_NOVO : HTML;
 const $ = id => raiz.querySelector("#" + id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const f1 = v => v.toFixed(1).replace(".", ",");
-const nomes = await (await fetch("./dados/nomes.json")).json();
+const nomes = online ? null : await (await fetch("./dados/nomes.json")).json(); // só o modo local gera elencos
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 
@@ -331,30 +331,29 @@ async function iniciarOnline(sessaoDeTeste) {
       location.href = "jogo.html";
     };
   } catch (e) { $("cabecalho").innerHTML = `<div class="row" style="margin-bottom:10px"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>`; }
-  elenco = (await B.elencoDoClube(clubeOnline.id)).filter(j => !j.juvenil); // juvenil não joga partida oficial
+  // tudo de uma vez: em sequência eram oito idas ao banco antes de a tela aparecer
+  const [todos, prox, [liga, clubes], salva, fechada] = await Promise.all([B.elencoDoClube(clubeOnline.id),
+    B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle(),
+    B.ligaAtual().then(l => Promise.all([l, B.clubesDaLiga(l.id)])), B.minhaTatica(clubeOnline.id), B.taticaFechada(clubeOnline.id)]);
+  elenco = todos.filter(j => !j.juvenil); // juvenil não joga partida oficial
   // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
   // a suspensão da liga não vale na copa
-  proximoJogo = (await B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle()).data || null;
+  proximoJogo = prox.data || null;
   // teste de tela (?simular na URL): sem jogo marcado, finge uma rodada de liga amanhã contra o último adversário. Só na tela, nada vai ao banco.
   if (!proximoJogo && new URLSearchParams(location.search).has("simular")) {
     const ult = (await B.sb.from("partidas").select("id, liga_id, rodada, casa, fora").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", true).order("inicio", { ascending: false }).limit(1).maybeSingle()).data;
     if (ult) proximoJogo = { ...ult, id: ult.id + 1e6, fase: "liga", grupo: null, copa_fase: null, rodada: (ult.rodada || 0) + 1, casa: ult.fora, fora: ult.casa, inicio: new Date(Date.now() + 864e5).toISOString() };
   }
-  if (proximoJogo) { const liga = await B.ligaAtual().catch(() => null), seg = liga && liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900; prazoDaTatica = new Date(proximoJogo.inicio).getTime() - seg * 1000; }
+  if (proximoJogo) { const seg = liga && liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900; prazoDaTatica = new Date(proximoJogo.inicio).getTime() - seg * 1000; }
   if (proximoJogo && proximoJogo.fase === "copa") elenco = paraACopa(elenco, clubeOnline.id);
   if (proximoJogo && proximoJogo.fase === "lib") elenco = paraALib(elenco, proximoJogo);
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
-  const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
   salvoComo = JSON.stringify(E); tirados = [];
   limparReferencias(); // a tática salva pode citar quem já saiu do clube ou quem está fora do jogo
   const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const situacao = async () => {
-    const fechada = await B.taticaFechada(clubeOnline.id);
-    $("avisoOnline").innerHTML = fechada ? `<span class="aviso">A tática está fechada: há um jogo começando ou em cálculo. O que você salvar agora só vale depois dele.</span>`
-      : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, seu time é escalado como se fosse um bot.";
-  };
-  await situacao();
+  $("avisoOnline").innerHTML = fechada ? `<span class="aviso">A tática está fechada: há um jogo começando ou em cálculo. O que você salvar agora só vale depois dele.</span>`
+    : salva ? `Tática salva em ${quando(salva.atualizada_em)}.` : "Você ainda não salvou uma tática: enquanto não salvar, seu time é escalado como se fosse um bot.";
   previaDoAdversario(B).then(sedeNaPrevia).catch(() => { $("previa").hidden = true; }); // sem esperar: a prévia aparece quando ficar pronta
   $("salvarOnline").onclick = async () => {
     const V = validar();
@@ -365,7 +364,7 @@ async function iniciarOnline(sessaoDeTeste) {
     $("salvarOnline").disabled = false;
   };
   // amistosos: contra qualquer clube da liga, quantas vezes quiser; o adversário joga com a tática de bot e nada fica gravado
-  const liga = await B.ligaAtual(), outros = (await B.clubesDaLiga(liga.id)).filter(c => c.id !== clubeOnline.id);
+  const outros = clubes.filter(c => c.id !== clubeOnline.id);
   $("rotuloAdv").hidden = false;
   $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">${esc(B.nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
   const mesmoGrupo = outros.find(c => c.grupo === clubeOnline.grupo); if (mesmoGrupo) $("advOnline").value = mesmoGrupo.id;
