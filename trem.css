@@ -347,3 +347,54 @@
 .t-modulo { background:transparent; border-right:1px solid var(--t-fio) !important; border-bottom:1px solid var(--t-fio) !important; }
 .t-modulo:hover { background:var(--t-fundo); }
 :root[data-tema=escuro] .t-painel { background:var(--t-noite); }
+/* ---------- nova ordem da Central: painel e bastidores na largura toda ---------- */
+.t-central > .t-painel { margin-top:44px; }
+.t-central > .t-painel .t-modulos { grid-template-columns:repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+@media (min-width:1100px) { .t-central > .t-painel .t-modulos { grid-template-columns:repeat(var(--n, 7), minmax(0, 1fr)); } .t-central > .t-painel .t-modulo-caixa:last-child { grid-column:auto; } }
+.t-modulo-caixa { position:relative; display:flex; min-width:0; } .t-modulo-caixa > .t-modulo { flex:1; }
+.t-modulo::after { content:"›"; font-size:20px; } .t-modulo:hover::after { transform:translateX(3px); }
+@media (min-width:1100px) { .t-modulo-caixa:last-child:nth-child(4n+3) { grid-column:auto; } }
+/* prévia: só em aparelho com mouse; abre embaixo do módulo, sem clique */
+.t-previa { display:none; }
+@media (hover:hover) and (pointer:fine) {
+  .t-previa:has(.t-previa-corpo:not(:empty)) { display:block; position:absolute; top:calc(100% - 4px); left:-1px; z-index:30; width:max(100%, 320px); background:var(--t-fundo); border-top:3px solid var(--t-marca); box-shadow:0 22px 50px rgba(0,0,0,.22);
+    padding:12px 16px 12px; opacity:0; visibility:hidden; transform:translateY(6px); transition:opacity .15s, transform .15s, visibility 0s .15s; pointer-events:none; }
+  .t-modulo-caixa:hover .t-previa, .t-modulo-caixa:focus-within .t-previa { opacity:1; visibility:visible; transform:none; transition-delay:.12s, .12s, 0s; }
+  .t-modulos > .t-modulo-caixa:nth-last-child(-n+2) .t-previa { left:auto; right:-1px; } /* as últimas abrem para dentro da tela */
+}
+.t-previa-pe { font:700 11px/1 var(--t-letra); letter-spacing:.1em; text-transform:uppercase; color:var(--t-marca); margin-top:10px; }
+.t-previa .t-tabela td, .t-previa .t-tabela th { padding:6px 5px; font-size:13px; }
+.t-previa .t-tabela tr.sobe td:first-child, .t-previa .t-tabela tr.camp td:first-child { box-shadow:inset 3px 0 var(--t-ok); }
+.t-previa .t-tabela tr.playoff td:first-child, .t-previa .t-tabela tr.lib td:first-child { box-shadow:inset 3px 0 var(--casa); }
+.t-previa .t-tabela tr.sul td:first-child { box-shadow:inset 3px 0 var(--sul); } .t-previa .t-tabela tr.cai td:first-child { box-shadow:inset 3px 0 var(--t-erro); }
+.t-previa .t-reticencias td { text-align:center; color:var(--t-tinta3); border:0; padding:2px; }
+.t-previa .t-pop-linha { padding:7px 0; font-size:13px; }
+/* bastidores na largura toda, em 4 colunas */
+.t-central > .t-bastidores > .mural { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+@media (max-width:960px) { .t-central > .t-bastidores > .mural { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+@media (max-width:560px) { .t-central > .t-bastidores > .mural { grid-template-columns:minmax(0, 1fr); } }
+/* rodapé: o amistoso numa linha só */
+.t-rodape-central { margin-top:36px; border-top:1px solid var(--t-fio); padding-top:14px; }
+.t-rodape-central .t-amistoso { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; align-items:center; gap:10px 16px; }
+.t-rodape-central .t-amistoso .t-rotulo { margin:0; } .t-rodape-central .t-amistoso-linha { margin:0; }
+.t-rodape-central #amInfo { grid-column:1 / -1; }
+@media (max-width:720px) { .t-rodape-central .t-amistoso { grid-template-columns:minmax(0, 1fr); } }
+/* ---------- vestiário como matéria: a manchete e, ao lado, "em resumo" ---------- */
+.t-materia-cab { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; } .t-materia-cab .t-rotulo { margin:0; }
+.t-materia-jogo { font-size:13px; color:var(--t-tinta2); text-decoration:none; } .t-materia-jogo b { color:var(--t-tinta); } .t-materia-jogo:hover { color:var(--t-tinta); }
+.t-materia { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr); gap:0 28px; margin-top:12px; }
+.t-materia.t-materia-so { grid-template-columns:minmax(0, 1fr); }
+.t-materia .t-leitura { background:none; border:0; padding:0; }
+.t-materia-principal .t-leitura-titulo { font-size:clamp(30px, 4vw, 44px); font-weight:900; font-stretch:62%; text-transform:uppercase; line-height:.95; margin:4px 0 8px; }
+.t-materia-principal .t-leitura-frase { font-size:17px; color:var(--t-tinta); }
+.t-materia-notas { border-left:1px solid var(--t-fio); padding-left:22px; display:flex; flex-direction:column; gap:14px; }
+.t-materia-notas .t-leitura + .t-leitura { border-top:1px solid var(--t-fio); padding-top:14px; }
+.t-materia-notas .t-leitura-titulo { font-size:16px; } .t-materia-notas .t-leitura-frase { font-size:13.5px; }
+@media (max-width:720px) { .t-materia { grid-template-columns:minmax(0, 1fr); } .t-materia-notas { border-left:0; padding-left:0; border-top:1px solid var(--t-fio); padding-top:14px; margin-top:16px; } }
+/* a matéria não herda a grade antiga do vestiário (flex-basis, fios laterais) */
+#cnVestiario .t-materia .t-leitura { flex:none; border:0; padding:0; }
+#cnVestiario .t-materia-notas .t-leitura + .t-leitura { border-top:1px solid var(--t-fio); padding-top:14px; }
+#cnVestiario .t-materia-principal .t-leitura-titulo { font-size:clamp(30px, 4vw, 44px); }
+#cnVestiario .t-materia-notas .t-leitura-titulo { font-size:16px; text-transform:none; font-weight:800; font-stretch:75%; }
+/* a diretoria, quando vai para a coluna principal, ganha o mesmo respiro dos outros blocos de lá */
+.t-central-principal > #cnDiretoria { margin-top:36px; }

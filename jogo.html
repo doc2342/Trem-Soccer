@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, botao, manchete, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, manchete, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1928,9 +1928,9 @@ async function telaClube(liga, clube) {
   // Central nova (esqueleto fixo da spec): faixa da tabela → Vestiário → próximo jogo → bastidores → diretoria → amistoso, recolhido.
   // As partes que dependem dos jogos são preenchidas em grupo() (preencherCentralNova). Os ids do amistoso, da chegada e dos murais são os de hoje.
   // Central nova · painel "O clube em números": um número e uma frase por área; o detalhe abre num popover nativo (sem poluir a tela)
-  const modulo = (id, rot, num, linha, corpo, ir, rotIr) => `<button type="button" class="t-modulo" popovertarget="pop-${id}" id="mod-${id}"><span class="t-modulo-rot">${rot}</span><b class="t-modulo-num">${num}</b><span class="t-modulo-linha">${linha}</span></button>
-    <div popover id="pop-${id}" class="t-pop"><div class="t-pop-cab"><div class="t-rotulo">${rot}</div><button type="button" class="t-pop-fechar" popovertarget="pop-${id}" popovertargetaction="hide" aria-label="Fechar">×</button></div>
-      <div class="t-pop-corpo">${corpo}</div>${ir ? `<div class="t-botoes"><button type="button" class="t-botao t-botao-principal" data-aba-ir="${ir}">${rotIr}</button></div>` : ""}</div>`;
+  // o clique leva direto à aba (o mesmo custo da linha de estações); no PC, passar o mouse mostra uma prévia do detalhe, sem clique
+  const modulo = (id, rot, num, linha, corpo, ir, rotIr) => `<div class="t-modulo-caixa"><button type="button" class="t-modulo" data-aba-ir="${ir}" id="mod-${id}" title="${rotIr}"><span class="t-modulo-rot">${rot}</span><b class="t-modulo-num">${num}</b><span class="t-modulo-linha">${linha}</span></button>
+    <div class="t-previa" aria-hidden="true"><div class="t-previa-corpo" id="previa-${id}">${corpo}</div><div class="t-previa-pe">${rotIr} ›</div></div></div>`;
   const situacaoNaCopa = (jogos, diretos = []) => { const meus = jogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ult = meus[meus.length - 1];
     if (!ult) return diretos.includes(clube.id) ? { vivo: true, txt: `entra ${naFase(2)}` } : null;
     const v = quemPassou(ult), adv = cPor[ult.casa === clube.id ? ult.fora : ult.casa];
@@ -1938,9 +1938,7 @@ async function telaClube(liga, clube) {
       : ult.copa_fase === 6 ? { vivo: false, campeao: true, txt: "campeão" } : { vivo: true, txt: `classificado, ${naFase(ult.copa_fase + 1)}` }; };
   const painelDoClube = () => {
     const m = [];
-    m.push(`<button type="button" class="t-modulo" popovertarget="pop-liga" id="mod-liga"><span class="t-modulo-rot">Liga</span><b class="t-modulo-num">—</b><span class="t-modulo-linha">carregando a tabela</span></button>
-      <div popover id="pop-liga" class="t-pop"><div class="t-pop-cab"><div class="t-rotulo">${esc(nomeDoGrupo(clube.grupo))}</div><button type="button" class="t-pop-fechar" popovertarget="pop-liga" popovertargetaction="hide" aria-label="Fechar">×</button></div><div class="t-pop-corpo" id="popLigaCorpo"></div>
-      <div class="t-botoes"><button type="button" class="t-botao t-botao-principal" data-aba-ir="classificacao">Ver a tabela inteira</button></div></div>`);
+    m.push(modulo("liga", "Liga", "—", "carregando a tabela", "", "classificacao", "Ver a tabela"));
     const copas = [["Copa do Brasil", situacaoNaCopa(copaJogos, ((liga.copa && liga.copa.diretos) || []).map(Number)), "classificacao:copa"], [CONTINENTAIS.LIB[1], situacaoNaCopa(libJogos), "classificacao:lib"], [CONTINENTAIS.SUL[1], situacaoNaCopa(sulJogos), "classificacao:sul"]].filter(x => x[1]);
     if (copas.length) { const vivas = copas.filter(x => x[1].vivo).length, campeao = copas.find(x => x[1].campeao);
       m.push(modulo("copas", "Copas", campeao ? "Campeão" : vivas ? (vivas === 1 ? "Viva" : `${vivas} vivas`) : "Fora", `${esc(copas[0][0])}: ${copas[0][1].txt}`,
@@ -1965,7 +1963,7 @@ async function telaClube(liga, clube) {
       m.push(modulo("treino", "Treino", `${prof.length}`, `treinando · ${escolhidos} ${escolhidos === 1 ? "foco escolhido" : "focos escolhidos"}, ${auto} no automático`,
         `<div class="t-pop-linha"><b>Foco escolhido por você</b><span>${escolhidos}</span></div><div class="t-pop-linha"><b>Foco automático da posição</b><span>${auto}</span></div>`
         + (auto ? `<p class="t-pop-nota">Quem está no automático treina o foco da própria posição. Escolher o foco acelera o atributo que você quer.</p>` : ""), "treino", "Abrir o treino")); }
-    return `<section class="t-painel" id="cnPainel"><div class="t-rotulo">O clube em números</div><div class="t-modulos">${m.join("")}</div></section>`;
+    return `<section class="t-painel" id="cnPainel"><div class="t-rotulo">O clube em números</div><div class="t-modulos" style="--n:${m.length}">${m.join("")}</div></section>`;
   };
   const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
     <div id="cnFoco"></div>
@@ -1973,24 +1971,27 @@ async function telaClube(liga, clube) {
       <div class="t-central-principal">
         <section id="cnProximo" hidden></section>
         <section id="cnVestiario" hidden></section>
-        ${painelDoClube()}
-        <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
       </div>
       <aside class="t-central-lado">
-        <div id="desdeVisita"></div><div id="chegada">${chegada()}</div>
+        <div id="desdeVisita"></div>
         <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
+        <div id="chegada">${chegada()}</div>
         ${clube.confianca == null ? "" : (() => { const c = clube.confianca;
           const meta = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `terminar em ${minhaMeta.faixa_min}º` : `terminar entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º`) : null;
-          return `<section class="t-lado-bloco t-diretoria"><div class="t-rotulo">Diretoria</div><div class="t-diretoria-cab"><span>Confiança</span><b>${c}</b></div>
+          return `<section class="t-lado-bloco t-diretoria" id="cnDiretoria"><div class="t-rotulo">Diretoria</div><div class="t-diretoria-cab"><span>Confiança</span><b>${c}</b></div>
             <div class="t-barra t-barra-confianca"><i style="width:${c}%"></i><span class="t-barra-proj" hidden title="Se a temporada terminasse hoje"></span></div><div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div>
             <div id="termometro"></div>
             <p class="t-diretoria-frase">“${esc(fraseDoPresidente(c))}”</p>${meta ? `<div class="t-diretoria-meta"><b>Meta:</b> ${meta} <span id="dirHoje"></span></div>` : ""}
             ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</section>`; })()}
-        <section class="t-lado-bloco t-amistoso"><div class="t-rotulo">Amistoso</div>
+      </aside>
+    </div>
+    ${painelDoClube()}
+    <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
+    <div class="t-rodape-central">
+        <section class="t-amistoso"><div class="t-rotulo">Amistoso</div>
           <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
           <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
           <div id="amInfo" class="t-numero-legenda"></div></section>
-      </aside>
     </div>
     <div id="amRel"></div>
     </section>`;
@@ -2661,9 +2662,18 @@ ${historicoDaBase()}
     if (ms <= 0) { el.textContent = r ? "tática fechada" : "bola rolando"; el.classList.add("t-acabou"); return; }
     const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, mi = Math.floor(ms / 6e4) % 60, se = Math.floor(ms / 1e3) % 60, z = n => String(n).padStart(2, "0");
     el.textContent = r + (d ? `${d}d ${h}h ${z(mi)}min` : `${z(h)}:${z(mi)}:${z(se)}`); el.classList.toggle("t-urgente", ms < 36e5); }), 1000);
+  // Central nova: as duas colunas mudam de altura com o que cada clube tem (agenda, vestiário, pendências);
+  // a diretoria vai para o fim da coluna que ficou mais curta, para não sobrar buraco embaixo de uma delas
+  const equilibrarCentral = () => { const dir = $("cnDiretoria"), esq = document.querySelector(".t-central-principal"), lado = document.querySelector(".t-central-lado");
+    if (!dir || !esq || !lado || getComputedStyle(lado).display === "none") return;
+    if (innerWidth <= 960) { if (dir.parentNode !== lado) lado.append(dir); return; } // uma coluna só: a diretoria fica com o resto do que é seu
+    const h = el => el.getBoundingClientRect().height - (dir.parentNode === el ? dir.getBoundingClientRect().height : 0), alvo = h(esq) < h(lado) ? esq : lado;
+    if (dir.parentNode !== alvo) alvo.append(dir); };
+  window.equilibrarCentral = equilibrarCentral;
+  if (visualNovo && !window.equilibrioLigado) { window.equilibrioLigado = true; addEventListener("resize", () => window.equilibrarCentral && window.equilibrarCentral()); }
   // Central nova: o Vestiário e o próximo jogo são preenchidos depois (grupo, relatório), então o clique é delegado no contêiner
   if ($("cnVestiario")) $("cnVestiario").onclick = $("cnProximo").onclick = $("cnPainel").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (!a) return;
-    const pop = a.closest("[popover]"); if (pop && pop.hidePopover) pop.hidePopover(); const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); };
+    const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); };
   document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
   // o painel de chegada é redesenhado, então os cliques dele vão por delegação
   $("chegada").onclick = e => {
@@ -2863,7 +2873,7 @@ ${historicoDaBase()}
       modLiga.querySelector(".t-modulo-num").textContent = `${iEu + 1}º`;
       modLiga.querySelector(".t-modulo-linha").textContent = eu.j ? `${eu.pts} pts · ${iEu ? `${tab[0].pts - eu.pts} do líder` : "líder"}` : "temporada começando";
       const de = Math.max(0, Math.min(iEu - 2, tab.length - 5)), linhas = [...new Set([0, ...tab.slice(de, de + 5).map((t, k) => de + k)])];
-      $("popLigaCorpo").innerHTML = `<table class="t-tabela"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
+      $("previa-liga").innerHTML = `<table class="t-tabela"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
         + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq">${esc(tab[k].clube.nome)}</td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`;
     }
     // Vestiário: o relatório gravado do último jogo; o quanto ele mostra depende do analista de hoje
@@ -2873,8 +2883,9 @@ ${historicoDaBase()}
       daLiga("relatorio:" + ultimo.id, () => relatorioDaPartida(ultimo.id))().then(linha => {
         const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
         if (!l.length || !v.isConnected) return;
-        v.innerHTML = rotulo("Vestiário") + `<h2 class="t-secao-titulo">O que levar para o próximo jogo</h2><p class="t-secao-sub"><a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${r.gols_casa} × ${r.gols_fora} ${esc(cPor[ultimo.fora].nome)}</a></p>` + leituras(l);
-        v.hidden = false;
+        v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}</a></div>`
+          + `<div class="t-materia${l.length > 1 ? "" : " t-materia-so"}"><div class="t-materia-principal">${leitura(l[0])}</div>${l.length > 1 ? `<aside class="t-materia-notas"><div class="t-numero-rotulo">Em resumo</div>${l.slice(1).map(leitura).join("")}</aside>` : ""}</div>`;
+        v.hidden = false; equilibrarCentral();
       }).catch(() => {});
     }
     // próximo jogo: escudos, nomes grandes, forma, a leitura e as duas ações
@@ -2893,13 +2904,14 @@ ${historicoDaBase()}
       const posRival = tab.findIndex(t => t.clube.id === rival.id), depois = meus.filter(p => !res[p.id] && p.id !== proximo.id && cPor[p.casa] && cPor[p.fora]).slice(0, 4);
       pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
         <div class="t-placar">${time(mandante, "casa")}<div class="t-placar-meio"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span>
-          <span class="t-cronometro" data-ate="${d.getTime()}"></span>${(seg => seg > 0 ? `<span class="t-cronometro t-prazo" data-ate="${d.getTime() - seg * 1000}" data-rotulo="tática fecha em "></span>` : `<span class="t-placar-hora">tática fecha no apito</span>`)(liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900)}</div>${time(visitante, "fora")}</div>
+          <span class="t-cronometro" data-ate="${d.getTime()}"></span>${(seg => seg >= 60 ? `<span class="t-cronometro t-prazo" data-ate="${d.getTime() - seg * 1000}" data-rotulo="tática fecha em "></span>` : `<span class="t-placar-hora">tática fecha no apito</span>`)(liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900)}</div>${time(visitante, "fora")}</div>
         <div class="t-jogo-meta">${casa ? "Em casa" : "Fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C${posRival >= 0 ? ` · ${esc(rival.nome)} é o ${posRival + 1}º` : ""}</div>
         ${lp && lp.titulo === "Confronto direto" ? `<p class="t-jogo-leitura"><b>Confronto direto.</b> ${esc(lp.frase)}</p>` : lp && lp.frase ? `<p class="t-jogo-leitura">${esc(lp.frase)}</p>` : ""}
         <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div>
         ${depois.length ? `<div class="t-agenda"><div class="t-numero-rotulo">Depois</div>${depois.map(p => { const emCasa = p.casa === clube.id, adv = cPor[emCasa ? p.fora : p.casa], dp = new Date(p.inicio);
           return `<a class="t-agenda-jogo" href="aovivo.html?id=${p.id}"><span class="t-agenda-dia">${esc(dp.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }))}</span>${svgEscudo(adv.escudo, adv.sigla, 22)}<span class="t-agenda-rival">${esc(adv.nome)}</span><span class="t-agenda-onde">${ehCopa(p) ? esc(nomeDaCopa(p, true)) : p.fase && p.fase !== "liga" ? "Playoff" : "R" + p.rodada} · ${emCasa ? "casa" : "fora"}</span></a>`; }).join("")}</div>` : ""}</div>`;
     }
+    equilibrarCentral();
   }
   async function grupo(g) {
     if ($("compHist")) $("compHist").innerHTML = "";
