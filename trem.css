@@ -638,3 +638,12 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-giro-resolver { height:176px; } .t-resolver-paginas .t-giro-item { text-align:left; }
 .t-resolver-paginas .mural > div { padding:8px 0 8px 10px !important; font-size:13.5px; }
 .t-ficha-alerta .t-botao-link { font-size:13px; padding:0 0 1px !important; margin-left:4px; }
+/* celular: nome, engrenagem e Sair na mesma linha; o próximo jogo embaixo */
+@media (max-width:560px) {
+  .t-topo { gap:4px 8px; padding:8px 12px; } .t-topo-clube svg { width:32px; height:32px; } .t-topo-nome { font-size:18px; }
+  .t-topo-fim { gap:8px; } .t-topo-fim .topo-conta button, .t-topo-fim a { font-size:13px; padding:4px 8px; } .t-topo-ajustes { padding:2px !important; }
+}
+/* celular: nada pode passar da largura (o navegador reduziria o zoom da página toda e a linha de estações sairia da tela) */
+@media (max-width:1023px) { .t-previa { display:none !important; } }
+@media (max-width:720px) { .t-estacao { font-size:9.5px; letter-spacing:0; min-width:0; overflow:hidden; } .t-estacao > span { display:block; max-width:100%; overflow:hidden; text-overflow:clip; white-space:nowrap; } }
+:root[data-visual=novo] body { overflow-x:clip; }
