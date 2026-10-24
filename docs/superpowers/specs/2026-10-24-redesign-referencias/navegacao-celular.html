@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap" rel="stylesheet">
+<style>
+:root{--placa:#f4f4f1;--fio:#e3e3de;--tinta:#111418;--tinta2:#5d636b;--noite:#121a24;--noite2:#1b2633;--noitefio:#2c3846;--noitetx:#eef2f6;--noitemut:#8e9aa8;--clube:#d7261e;--ok:#16834a}
+*{box-sizing:border-box;margin:0}
+body{background:var(--placa);color:var(--tinta);font-family:Archivo,sans-serif;font-weight:300;padding:32px 16px 80px}
+.wrap{max-width:1100px;margin:0 auto}
+.rot{display:flex;align-items:center;gap:10px;font-weight:700;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--tinta2)}
+.rot::before{content:"";width:18px;height:4px;background:var(--clube)}
+h1{font-weight:900;font-stretch:64%;font-size:48px;line-height:.95;text-transform:uppercase;margin:10px 0 8px}
+.lead{color:var(--tinta2);max-width:760px;font-size:15px;line-height:1.5;margin-bottom:28px}
+.ops{display:flex;flex-wrap:wrap;gap:40px;justify-content:center}
+.op{cursor:pointer;width:340px}
+.op .cab{display:flex;gap:10px;align-items:baseline;margin-bottom:10px}
+.op .L{font-weight:900;font-stretch:64%;font-size:30px;color:var(--clube)}
+.op h3{font-weight:800;font-stretch:75%;font-size:19px;text-transform:uppercase}
+.op p.d{font-size:13px;color:var(--tinta2);line-height:1.45;margin-top:12px}
+.cel{width:340px;height:680px;border:10px solid #0b0d10;border-radius:38px;overflow:hidden;background:#fff;display:flex;flex-direction:column;box-shadow:0 18px 40px rgba(0,0,0,.18)}
+.op.selected .cel{box-shadow:0 0 0 4px var(--clube),0 18px 40px rgba(0,0,0,.18)}
+.sb{height:26px;flex-shrink:0;font-size:10px;font-weight:700;display:flex;justify-content:space-between;padding:7px 22px 0;background:var(--noite);color:var(--noitetx)}
+.topoA{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--noite);color:var(--noitetx);font-weight:800;font-stretch:70%;font-size:16px;text-transform:uppercase;flex-shrink:0}
+.topoA i{width:18px;height:22px;background:var(--clube);clip-path:polygon(0 0,100% 0,100% 60%,50% 100%,0 60%)}
+.topoA span{margin-left:auto;font-weight:600;font-stretch:100%;font-size:10.5px;color:var(--noitemut);text-transform:none}
+.rola{flex:1;overflow:hidden}
+.faixa{background:radial-gradient(120% 120% at 100% 0,#3a1c22 0,transparent 55%),var(--noite);color:var(--noitetx);padding:18px 18px 20px}
+.faixa .rot{color:var(--noitemut);font-size:9.5px}
+.gr{font-weight:900;font-stretch:62%;font-size:46px;line-height:.92;text-transform:uppercase;margin:8px 0 10px}
+.gr i{font-style:normal;color:var(--noitemut)}
+.faixa p{color:var(--noitemut);font-size:12.5px;line-height:1.45} .faixa p b{color:var(--noitetx);font-weight:700}
+.faixa svg{display:block;margin-top:12px;width:100%;height:46px}
+.linha{stroke:var(--clube);stroke-width:2.5;fill:none}
+.card{padding:14px 18px;border-bottom:1px solid var(--fio)}
+.tg{font-weight:700;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;display:flex;gap:6px;align-items:center}
+.tg::before{content:"";width:8px;height:8px;background:currentColor}
+.card b{display:block;font-weight:800;font-stretch:75%;font-size:18px;margin:5px 0 3px}
+.card p{color:var(--tinta2);font-size:12px;line-height:1.4}
+.bt{display:inline-block;margin-top:9px;background:var(--tinta);color:#fff;font-weight:700;font-size:11px;padding:8px 12px}
+/* B3: sete vagões */
+.trilho{flex-shrink:0;background:var(--noite);padding:8px 6px 16px;border-top:3px solid #000}
+.trem{display:grid;grid-template-columns:1.35fr repeat(6,1fr);gap:2px;align-items:end}
+.trem a{background:var(--noite2);color:var(--noitemut);font-weight:700;font-stretch:72%;font-size:10.5px;text-transform:uppercase;text-align:center;padding:12px 0 9px;border-radius:3px;position:relative}
+.trem a::after{content:"";position:absolute;bottom:-6px;left:4px;right:4px;height:5px;background:radial-gradient(circle at 3px 2.5px,#000 2.5px,transparent 3px) left/8px 5px no-repeat,radial-gradient(circle at 3px 2.5px,#000 2.5px,transparent 3px) right/8px 5px no-repeat}
+.trem a.loc{background:var(--clube);color:#fff;border-radius:12px 3px 3px 3px}
+.trem a.on{background:var(--noitetx);color:var(--tinta)}
+/* C2: linha embaixo com nomes */
+.lin{flex-shrink:0;background:#fff;border-top:1px solid var(--fio);padding:12px 6px 16px}
+.est{display:grid;grid-template-columns:repeat(7,1fr);position:relative}
+.est::before{content:"";position:absolute;top:6px;left:calc(100%/14);right:calc(100%/14);height:3px;background:var(--tinta)}
+.est a{display:flex;flex-direction:column;align-items:center;gap:7px;font-weight:700;font-stretch:72%;font-size:10.5px;text-transform:uppercase;color:var(--tinta2);position:relative}
+.est a::before{content:"";width:15px;height:15px;border-radius:50%;background:#fff;border:3px solid var(--tinta);box-sizing:border-box}
+.est a.on{color:var(--tinta)} .est a.on::before{background:var(--clube);border-color:var(--clube);transform:scale(1.3)}
+.pergunta{margin:44px auto 0;max-width:900px;padding:20px;border-left:4px solid var(--clube);background:#fff;font-size:15px;line-height:1.5}
+</style></head><body><div class="wrap">
+<div class="rot">Navegação no celular · versão 2</div>
+<h1>Todas as abas à vista, embaixo</h1>
+<p class="lead">As duas mostram as sete abas com nome, ao alcance do polegar. Muda o desenho: vagões ou estações. Aqui estou na aba Tática, para dar para ver como fica a aba atual.</p>
+<div class="ops">
+
+<div class="op" data-choice="B3-vagoes" onclick="toggleSelect(this)">
+  <div class="cab"><span class="L">B3</span><h3>Sete vagões</h3></div>
+  <div class="cel"><div class="sb"><span>21:04</span><span>●●● 82%</span></div>
+    <div class="topoA"><i></i>Ferroviário<span>Rodada 15 · sáb 21h</span></div>
+    <div class="rola">
+      <div class="faixa"><div class="rot">Série B · rodada 14 de 22</div><div class="gr">4º lugar ·<br><i>8 rodadas</i></div><p><b>Precisa de 2 pontos para o G-4.</b> 3 dos 8 jogos são contra quem está acima.</p><svg viewBox="0 0 200 46" preserveAspectRatio="none"><polyline class="linha" points="0,40 25,32 45,36 70,22 95,24 115,16 135,26 160,10 185,13 200,12"/></svg></div>
+      <div class="card"><span class="tg" style="color:var(--clube)">Desfalque</span><b>Edinho está suspenso</b><p>O volante tomou o terceiro amarelo.</p><span class="bt">Escolher o substituto</span></div>
+      <div class="card"><span class="tg" style="color:var(--ok)">Funcionou</span><b>O meio venceu o jogo</b><p>58% dos ataques pelo meio.</p></div>
+    </div>
+    <div class="trilho"><div class="trem"><a class="loc">Central</a><a>Elenco</a><a class="on">Tática</a><a>Base</a><a>Merc.</a><a>Clube</a><a>Liga</a></div></div>
+  </div>
+  <p class="d">A composição inteira: a locomotiva na cor do clube, e o vagão aceso é onde você está. Fica escura e pesada embaixo, combinando com a faixa do topo. “Mercado” precisa encurtar para caber.</p>
+</div>
+
+<div class="op" data-choice="C2-linha" onclick="toggleSelect(this)">
+  <div class="cab"><span class="L">C2</span><h3>Linha com estações</h3></div>
+  <div class="cel"><div class="sb"><span>21:04</span><span>●●● 82%</span></div>
+    <div class="topoA"><i></i>Ferroviário<span>Rodada 15 · sáb 21h</span></div>
+    <div class="rola">
+      <div class="faixa"><div class="rot">Série B · rodada 14 de 22</div><div class="gr">4º lugar ·<br><i>8 rodadas</i></div><p><b>Precisa de 2 pontos para o G-4.</b> 3 dos 8 jogos são contra quem está acima.</p><svg viewBox="0 0 200 46" preserveAspectRatio="none"><polyline class="linha" points="0,40 25,32 45,36 70,22 95,24 115,16 135,26 160,10 185,13 200,12"/></svg></div>
+      <div class="card"><span class="tg" style="color:var(--clube)">Desfalque</span><b>Edinho está suspenso</b><p>O volante tomou o terceiro amarelo.</p><span class="bt">Escolher o substituto</span></div>
+      <div class="card"><span class="tg" style="color:var(--ok)">Funcionou</span><b>O meio venceu o jogo</b><p>58% dos ataques pelo meio.</p></div>
+    </div>
+    <div class="lin"><div class="est"><a>Central</a><a>Elenco</a><a class="on">Tática</a><a>Base</a><a>Merc.</a><a>Clube</a><a>Liga</a></div></div>
+  </div>
+  <p class="d">Mais leve: um fio com bolinhas e nomes embaixo, e a estação atual em vermelho. Perde a locomotiva, porque todas as estações têm o mesmo peso.</p>
+</div>
+
+</div>
+<div class="pergunta">No PC, a escolhida vai para o topo com os nomes inteiros. Qual das duas?</div>
+</div></body></html>
