@@ -990,3 +990,20 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-olheiro-cab { flex-direction:column; gap:2px; }
 @media (max-width:720px) { .t-boleta-dur > * { padding:7px 4px !important; line-height:1.15 !important; } .t-boleta-dur > * small { display:block; margin:2px 0 0; } .t-boleta-modos > * { font-size:10.5px !important; } }
 .t-transf .t-giro-tipo { letter-spacing:.08em; overflow:hidden; text-overflow:ellipsis; }
+/* Mercado, rodada 4: uma família de letra na boleta (máquina só no cabeçalho), olheiro como a duração, multa no centro */
+.t-boleta .t-boleta-rot { font:700 11px/1.3 var(--t-letra); letter-spacing:.14em; color:#6b6047; }
+.t-boleta .t-boleta-rot b { color:var(--t-marca); letter-spacing:0; font-size:13px; }
+.t-boleta .t-segmentos > * { font:600 13px/1 var(--t-letra) !important; letter-spacing:0; }
+.t-boleta .t-segmentos > * small { font-weight:500; }
+.t-regua-escala { font:500 12px/1.3 var(--t-letra); color:#6b6047; margin-top:2px; }
+.t-regua-valor { align-items:baseline; }
+.t-regua-valor input { font:900 30px/1 var(--t-letra) !important; font-stretch:64%; padding:0 2px 2px 0; }
+.t-regua-grande .t-regua-valor input { font-size:46px !important; }
+.t-regua-valor span { font:600 15px var(--t-letra); color:#6b6047; }
+.t-regua input[type=range] { margin:8px 0 2px; height:8px; }
+.t-boleta-preco { text-align:center; }
+.t-boleta-preco > span:last-child { font:500 13px/1.3 var(--t-letra); }
+.t-boleta-nota { font-size:12.5px; }
+.t-olheiro { margin-top:20px; padding:14px 0 0; border:0; border-top:1px dashed var(--t-papel-fio); background:none; }
+.t-boleta .t-segmentos > .t-feito { opacity:.5; cursor:default; }
+.t-regua-valor input { font-stretch:64% !important; }
