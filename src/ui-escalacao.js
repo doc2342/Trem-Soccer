@@ -101,7 +101,7 @@ const HTML_NOVO = `<div id="cabecalho"></div>
   <div id="rel"></div>`;
 // instruções na faixa, todas abertas, em três grupos lado a lado; embaixo, o rodapé com os avisos e o salvar. Rótulos longos encurtam no botão (o inteiro fica no title)
 const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Estratégia", ["contraAtaque", "impedimento", "cera"]]];
-const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem" };
+const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem", "Trabalhar até a área": "Até a área", "Resolver rápido (chute de fora e cruzamento)": "Rápido" };
 
 export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
 raiz.innerHTML = NOVO ? HTML_NOVO : HTML;
@@ -389,7 +389,8 @@ function validar() {
 
 // Faixas do campo e as posições de cada uma, para as tiras que aparecem ao arrastar um titular (coluna inicial numa grade de 10).
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
-// mapa: índice da vaga que está sendo arrastada (mostra as tiras de posições), ou null
+// mapa: índice da vaga que está sendo arrastada ou escolhida (mostra as posições para onde ela pode ir), ou null
+const ALTURA_DA_TIRA = [9, 26, 42, 58, 75]; // altura (% do campo) de cada faixa de TIRAS: ataque, meia, meio, volante/ala, defesa
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
 function htmlGramado(mapa = null) {
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
@@ -400,6 +401,8 @@ function htmlGramado(mapa = null) {
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
+  // visual novo: as posições possíveis num mapa fixo por cima do campo (círculos tracejados, a nota do jogador embaixo); o campo não muda de altura
+  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_TIRA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${sg(p)}</span>${j ? `<span class="t-pos-nota">${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
   const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
