@@ -515,3 +515,14 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-placar a.t-jogo-nome:hover { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:4px; }
 .t-placar a.t-placar-escudo { display:block; line-height:0; }
 .t-nota[data-tipo=destaque] .t-leitura-tipo { color:var(--t-ok); }
+/* recorte da tabela: o nome de cada clube abre a página dele */
+.t-faixa .t-recorte a { color:inherit; text-decoration:none; } .t-faixa .t-recorte a:hover { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:3px; }
+/* fundos: a coluna do lado vira um quadro cinza (passos, pendências, amistoso) e o vestiário também; o resto fica no branco */
+.t-central-lado { background:var(--t-placa); padding:4px 20px 20px; border-top:2px solid var(--t-tinta); gap:0; }
+.t-central-lado > .t-lado-bloco, .t-central-lado > #chegada > .t-lado-bloco { border-top:1px solid var(--t-fio); padding-top:16px; margin-top:16px; }
+.t-central-lado > :is(#chegada, .t-lado-bloco):first-of-type, .t-central-lado > #desdeVisita:empty + #chegada > .t-lado-bloco { border-top:0; margin-top:6px; }
+.t-central-lado .mural > div[data-aba-ir]:hover { background:var(--t-fundo); }
+.t-central-lado select { background:var(--t-fundo); }
+#cnVestiario { background:var(--t-placa); padding:14px 20px 20px; }
+#cnVestiario .t-regua-linha::after { background:linear-gradient(90deg, var(--t-tinta) var(--nos), var(--t-fio) var(--nos)); }
+@media (max-width:960px) { .t-central-lado { margin-top:28px; } }

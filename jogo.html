@@ -2879,7 +2879,7 @@ ${historicoDaBase()}
   const recorteDaTabela = (tab, faixas) => { const i = tab.findIndex(t => t.clube.id === clube.id); if (i < 0) return "";
     const de = Math.max(0, Math.min(i - 2, tab.length - 5)), linhas = [...new Set([0, ...tab.slice(de, de + 5).map((t, k) => de + k)])];
     return `<div class="t-rotulo">Classificação</div><table class="t-tabela t-recorte"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
-      + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq">${esc(tab[k].clube.nome)}</td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`; };
+      + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq"><a href="#clube=${tab[k].clube.id}" data-clube="${tab[k].clube.id}">${esc(tab[k].clube.nome)}</a></td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`; };
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
     const ehDaLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => ehDaLiga(p) && (p.casa === clube.id || p.fora === clube.id));
     const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
