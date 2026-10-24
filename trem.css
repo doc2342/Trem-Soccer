@@ -148,3 +148,27 @@
   .t-sobe { animation:t-sobe .7s cubic-bezier(.2, .7, .2, 1) both; animation-delay:calc(var(--i, 0) * 110ms); }
   @keyframes t-sobe { from { opacity:.001; transform:translateY(16px); } }
 }
+
+/* ---------- Central ---------- */
+.t-central > #cnFoco { margin-top:0; }
+.t-jogo { border:1px solid var(--t-fio); padding:22px clamp(16px, 3vw, 28px); background:var(--t-celula); }
+.t-jogo-lados { display:flex; align-items:center; justify-content:center; gap:clamp(12px, 4vw, 40px); margin:18px 0; flex-wrap:wrap; }
+.t-jogo-lado { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; }
+.t-jogo-nome { font:900 clamp(26px, 6vw, 46px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; text-align:center; overflow-wrap:anywhere; }
+.t-jogo-x { font:900 34px/1 var(--t-letra); color:var(--t-marca); }
+.t-jogo .t-leitura-frase b { color:var(--t-tinta); }
+/* bastidores: os murais de hoje, sem caixa, em duas colunas no PC */
+.t-bastidores-grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap:8px 40px; }
+.t-bastidores .mural .rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-marca); margin:14px 0 6px; }
+.t-bastidores .mural > div { padding:8px 0; border-bottom:1px solid var(--t-fio); background:none; }
+/* diretoria: a frase do presidente e a confiança 0–100 com a marca em 50 */
+.t-diretoria { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr); gap:24px 48px; align-items:end; border-top:1px solid var(--t-fio); padding-top:28px; }
+.t-diretoria-frase p { font:italic 300 clamp(20px, 3vw, 26px)/1.25 var(--t-letra); margin:0 0 10px; }
+.t-diretoria-cab { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; color:var(--t-tinta2); }
+.t-diretoria-cab b { font:900 44px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); }
+.t-barra-confianca { margin-top:10px; } .t-barra-confianca::after { content:""; position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--t-tinta2); }
+.t-diretoria-escala { display:flex; justify-content:space-between; font-size:11px; color:var(--t-tinta3); margin-top:6px; }
+@media (max-width:720px) { .t-diretoria { grid-template-columns:minmax(0, 1fr); } }
+/* amistoso: recolhido no fim */
+.t-amistoso > summary { cursor:pointer; list-style:none; } .t-amistoso > summary::-webkit-details-marker { display:none; }
+.t-amistoso > summary::after { content:"+"; margin-left:8px; color:var(--t-tinta); } .t-amistoso[open] > summary::after { content:"−"; }

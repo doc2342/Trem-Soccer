@@ -244,7 +244,7 @@ import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClub
 import * as B from "./src/banco.js";
 import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS, CIDADES, cidadeDoEstadio, SEDES, sedeDoJogo } from "./src/estadio.js";
 import { MARCAS, selo as seloMarca, PROPOSTAS, jogoPatrocinado } from "./src/patrocinio.js";
-import { cargaDoClube, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
+import { cargaDoClube, relatorioDaPartida, doElenco, separarBase, filtrarTrofeus, campeaoDaSerie, liberados, escalacoesRecentes, escalacaoObservada } from "./src/banco.js";
 // Leituras da liga que nenhuma ação do dirigente muda (jogos, resultados, histórico, estatísticas, prêmios, copa, base): ficam guardadas
 // entre as recargas causadas por ações (contratar, propor, comprar relatório…). A entrada na página e a recarga automática com novidade
 // limpam a memória e leem tudo de novo. Erro não fica guardado.
@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { esc as escT, rotulo, faixa, numero, botao, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1915,6 +1915,26 @@ async function telaClube(liga, clube) {
       <span class="t-topo-prox" id="topoProx"></span>
       <div class="t-topo-fim"><div id="seloTopo" class="patro-topo t-topo-so-pc" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div><div class="topo-jogo t-topo-so-pc"></div><div class="topo-conta"></div>${admin ? `<a href="admin.html">Admin${pedidosAdm ? ` (${pedidosAdm})` : ""}</a>` : ""}</div></header>
     ${linhaDeEstacoes(ESTACOES, "inicio")}`;
+  // Central nova (esqueleto fixo da spec): faixa da tabela → Vestiário → próximo jogo → bastidores → diretoria → amistoso, recolhido.
+  // As partes que dependem dos jogos são preenchidas em grupo() (preencherCentralNova). Os ids do amistoso, da chegada e dos murais são os de hoje.
+  const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
+    <div id="cnFoco"></div>
+    <div id="desdeVisita"></div><div id="chegada">${chegada()}</div>
+    <section class="t-secao" id="cnVestiario" hidden></section>
+    <section class="t-secao" id="cnProximo" hidden></section>
+    <section class="t-secao t-bastidores"><div class="t-rotulo">Bastidores</div><div class="t-bastidores-grade"><div class="mural" id="muralClube">${muralDoClube()}</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div></section>
+    ${clube.confianca == null ? "" : (() => { const c = clube.confianca;
+      const meta = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `terminar em ${minhaMeta.faixa_min}º` : `terminar entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º`) : null;
+      return `<section class="t-secao t-diretoria"><div class="t-diretoria-frase"><p>“${esc(fraseDoPresidente(c))}”</p><div class="t-numero-rotulo">Palavra do presidente${meta ? ` · meta: ${meta}` : ""}</div></div>
+        <div><div class="t-diretoria-cab"><span>Confiança da diretoria</span><b>${c}</b></div><div class="t-barra t-barra-confianca"><i style="width:${c}%"></i></div>
+          <div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div><div id="termometro" class="t-numero-legenda"></div>
+          ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</div></section>`; })()}
+    <details class="t-secao t-amistoso"><summary class="t-rotulo">Amistoso</summary>
+      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
+        <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button type="button" class="t-botao" id="amJogar">Jogar amistoso</button></div>
+      <div id="amInfo" class="t-numero-legenda"></div></details>
+    <div id="amRel"></div>
+    </section>`;
   $("app").innerHTML = `${visualNovo ? topoNovo() : `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
@@ -1924,7 +1944,7 @@ async function telaClube(liga, clube) {
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`}
-    <section data-secao="inicio">
+    ${visualNovo ? centralNova() : `    <section data-secao="inicio">
     ${kpisDaCentral()}
     <div id="desdeVisita" class="c-chegada-box"></div>
     <div id="chegada" class="c-chegada-box">${chegada()}</div>
@@ -1963,7 +1983,7 @@ async function telaClube(liga, clube) {
     </div>
     </div>
     <div id="amRel"></div>
-    </section>
+    </section>`}
     <section data-secao="classificacao">
     ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["sul", "🌐 Sul-Americana", "Sul-Am."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
     <div data-parte="comp:liga"><div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
@@ -2759,6 +2779,41 @@ ${historicoDaBase()}
   if (clubeAberto && paginaDoClube) paginaDoClube(clubeAberto);
 
   // classificação e jogos do grupo escolhido
+  // Central nova: faixa da tabela (leitura + posição rodada a rodada), Vestiário do último jogo pelo nível do analista e o próximo jogo
+  function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
+    const daLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => daLiga(p) && (p.casa === clube.id || p.fora === clube.id));
+    const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
+    const boa = f => /\b(camp|lib|sul|sobe|playoff)\b/.test(f), ultimaBoa = faixas.reduce((u, f, i) => boa(f) ? i + 1 : u, 0);
+    const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.filter(p => !res[p.id]).length });
+    if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}`, ...lt,
+      lado: eu && eu.j ? rotulo("Posição rodada a rodada") + graficoDePosicoes(posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id), tab.length, ultimaBoa || undefined) : "" });
+    // Vestiário: o relatório gravado do último jogo; o quanto ele mostra depende do analista de hoje
+    const v = $("cnVestiario");
+    if (v && ultimo && res[ultimo.id]) {
+      const analista = (comissaoToda || []).find(t => t.funcao === "analista"), r = res[ultimo.id];
+      relatorioDaPartida(ultimo.id).then(linha => {
+        const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
+        if (!l.length || !$("cnVestiario")) return;
+        v.innerHTML = rotulo("Vestiário") + `<h2 class="t-secao-titulo">O que levar para o próximo jogo</h2><p class="t-secao-sub"><a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} ${r.gols_casa} × ${r.gols_fora} ${esc(cPor[ultimo.fora].nome)}</a></p>` + leituras(l);
+        v.hidden = false;
+      }).catch(() => {});
+    }
+    // próximo jogo: escudos, nomes grandes, forma, a leitura e as duas ações
+    const pr = $("cnProximo");
+    if (pr) {
+      pr.hidden = false;
+      if (!proximo) { pr.innerHTML = rotulo("Próximo jogo") + `<p class="t-secao-sub">Não há mais jogos nesta temporada.</p>`; return; }
+      const d = new Date(proximo.inicio), casa = proximo.casa === clube.id, mandante = casa ? clube : rival, visitante = casa ? rival : clube;
+      const formaDoRival = partidas.filter(p => (p.casa === rival.id || p.fora === rival.id) && res[p.id] && daLiga(p)).sort((a, b) => new Date(a.inicio) - new Date(b.inicio))
+        .map(p => { const x = res[p.id], m = p.casa === rival.id ? x.gols_casa : x.gols_fora, o = p.casa === rival.id ? x.gols_fora : x.gols_casa; return m > o ? "V" : m < o ? "D" : "E"; });
+      const lp = leituraDoProximoJogo({ tab, clubeId: clube.id, rivalId: rival.id, formaDoRival }), c = climaDaPartida(proximo.id);
+      const qual = ehCopa(proximo) ? nomeDaCopa(proximo, true) : proximo.fase && proximo.fase !== "liga" ? nomeDoPlayoff(proximo).replace("Playoff · ", "") : "Rodada " + proximo.rodada;
+      pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}<div class="t-numero-rotulo">${esc(d.toLocaleString("pt-BR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))} · ${casa ? "em casa" : "fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C</div>
+        <div class="t-jogo-lados">${[mandante, visitante].map(x => `<div class="t-jogo-lado">${svgEscudo(x.escudo, x.sigla, 56)}<span class="t-jogo-nome">${esc(x.nome)}</span>${x.id === rival.id ? `<span class="t-forma">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : ""}</div>`).join(`<span class="t-jogo-x">×</span>`)}</div>
+        ${lp ? `<p class="t-leitura-frase"><b>${esc(lp.titulo)}.</b> ${esc(lp.frase)}</p>` : ""}
+        <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div></div>`;
+    }
+  }
   async function grupo(g) {
     if ($("compHist")) $("compHist").innerHTML = "";
     if (g === "COPA") return telaDaCopa();
@@ -2802,11 +2857,11 @@ ${historicoDaBase()}
       const meus = [...partidas, ...copaTodos].filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => new Date(a.inicio) - new Date(b.inicio) || a.id - b.id);
       const proximos = meus.filter(p => !res[p.id]).slice(0, 5), proximo = proximos[0];
       const rival = proximo ? cPor[proximo.casa === clube.id ? proximo.fora : proximo.casa] : null, ultimo = meus.filter(p => res[p.id]).pop();
-      $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
+      if ($("proximos")) $("proximos").innerHTML = proximos.length ? proximos.map((p, k) => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], aoVivo = new Date(p.inicio).getTime() <= agora;
         return `<a class="tile ${k ? "" : "prox"}" href="aovivo.html?id=${p.id}"><div class="tl">${ehCopa(p) ? nomeDaCopa(p, true) : `${p.fase && p.fase !== "liga" ? nomeDoPlayoff(p).replace("Playoff · ", "") : "Rodada " + p.rodada} · ${casa ? "casa" : "fora"}`}</div>${svgEscudo(adv.escudo, adv.sigla, 40)}<div class="tn">${esc(adv.nome)}</div><div class="td">${aoVivo ? `<b class="aviso">ao vivo</b>` : quando(p.inicio)}</div></a>`; }).join("")
         : `<div class="mut" style="grid-column:1/-1">${!partidas.length ? "O calendário ainda não foi gerado." : (k => k < 0 ? "Não há mais jogos nesta temporada." : `Temporada encerrada: você terminou em <b>${k + 1}º lugar</b>, com ${tabG[k].pts} pontos. A próxima começa depois da virada, feita pelo administrador.`)(tabG.findIndex(t => t.clube.id === clube.id))}</div>`;
       const linha = (rot, v) => `<div class="pj"><span>${rot}</span><span>${v}</span></div>`;
-      $("proximo").innerHTML = (ultimo ? linha("Último jogo", `<a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` <span class="mut">· ${nomeDaCopa(ultimo)}</span>` : ""}`) : "")
+      if ($("proximo")) $("proximo").innerHTML = (ultimo ? linha("Último jogo", `<a class="lk" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${res[ultimo.id].gols_casa} x ${res[ultimo.id].gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}${penais(res[ultimo.id])}</a>${ehCopa(ultimo) ? ` <span class="mut">· ${nomeDaCopa(ultimo)}</span>` : ""}`) : "")
         + (rival ? linha("Adversário", `${lk(rival.id)} <span class="mut">· ${rival.dono ? "tem dirigente: a tática é segredo" : `bot, joga com ${estiloDe(rival)}`}</span>`) : "")
         + (rival && formaDe(rival.id) ? linha("Forma dele", formaDe(rival.id)) : "")
         + (proximo ? (c => linha("Previsão", `${c.nome.toLowerCase()}, ${c.temp} °C${efeitoDoClima(c) ? ` <span class="mut">(${efeitoDoClima(c)})</span>` : ""}`))(climaDaPartida(proximo.id))
@@ -2828,10 +2883,11 @@ ${historicoDaBase()}
         const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
         $("termometro").innerHTML = `Se a temporada terminasse hoje: <b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${sinal(v.total)}</b> (liga ${sinal(v.liga)} pela posição média entre a tabela e os pontos esperados, ${String(avaliada).replace(".", ",")}º; finanças ${sinal(v.financas)}). A copa entra no fim.`; }
       const faixa = i => faixaDaTabela(serie, i, tab.length, tab);
-      $("miniTabela").className = "";
+      if ($("miniTabela")) { $("miniTabela").className = "";
       $("miniTabela").innerHTML = `<table class="mini" style="width:100%"><tr><th></th><th class="esq">${esc(nomeDoGrupo(g))}</th><th>J</th><th>SG</th><th>PTS</th></tr>
         ${tab.map((t, i) => `<tr class="${faixa(i)}"><td>${i + 1}</td><td class="esq ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}</td><td>${t.j}</td><td>${t.gp - t.gc}</td><td><b>${t.pts}</b></td></tr>`).join("")}</table>
-        <div class="mut" style="margin-top:6px;font-size:12px">${serie <= 1 ? `<span class="ok">▌</span> campeão · <span style="color:var(--lib)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana${serie ? ` · <span class="bad">▌</span> rebaixamento${vagasDaA(tab) ? " · vagas já com a Copa do Brasil" : ""}` : ""}` : LEGENDA_DA_B}</div>`;
+        <div class="mut" style="margin-top:6px;font-size:12px">${serie <= 1 ? `<span class="ok">▌</span> campeão · <span style="color:var(--lib)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana${serie ? ` · <span class="bad">▌</span> rebaixamento${vagasDaA(tab) ? " · vagas já com a Copa do Brasil" : ""}` : ""}` : LEGENDA_DA_B}</div>`; }
+      if (visualNovo) preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa });
     }
   }
   // Competições: cada aba interna desenha nos dois quadros da tela (campeonatos, copa, estatísticas, federação, maiores campeões)
