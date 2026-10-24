@@ -12,8 +12,8 @@ export function faixa({ rotulo: r, titulo, apagado, destaque, frase, lado, numer
     + `${texto ? `<p class="t-faixa-frase">${texto}</p>` : ""}${numeros ? `<div class="t-faixa-numeros">${numeros}</div>` : ""}</div>${lado ? `<div class="t-faixa-lado">${lado}</div>` : ""}</section>`;
 }
 
-export const numero = ({ rotulo: r, valor, sufixo, legenda }) => `<div class="t-numero">${r ? `<div class="t-numero-rotulo">${esc(r)}</div>` : ""}`
-  + `<div class="t-numero-valor">${esc(valor)}${sufixo ? `<small>${esc(sufixo)}</small>` : ""}</div>${legenda ? `<div class="t-numero-legenda">${esc(legenda)}</div>` : ""}</div>`;
+export const numero = ({ rotulo: r, valor, sufixo, legenda, tom }) => `<div class="t-numero">${r ? `<div class="t-numero-rotulo">${esc(r)}</div>` : ""}` // tom: "ok" | "bad" (valor em verde ou vermelho)
+  + `<div class="t-numero-valor${tom ? " " + tom : ""}">${esc(valor)}${sufixo ? `<small>${esc(sufixo)}</small>` : ""}</div>${legenda ? `<div class="t-numero-legenda">${esc(legenda)}</div>` : ""}</div>`;
 
 // tipo: "principal" (cor do clube), "normal" (tinta) ou "link" (sublinhado na marca). abaIr → botão; href → link
 export function botao({ texto, abaIr, href, tipo = "normal" }) {

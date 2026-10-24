@@ -1543,7 +1543,7 @@ async function telaClube(liga, clube) {
     const n = rodadasDoGrupo, tv = Math.round((liga.receita_tv || 0) / n), pat = Math.round((liga.receita_patrocinio || 0) / n), sal = Math.round(folhaPaga / n);
     // bilheteria: só nos jogos em casa (metade das rodadas); público limitado pelos lugares do estádio
     const temTorcida = clube.torcida != null, lugares = lugaresDoEstadio(clube.estadio_nivel);
-    const publico = temTorcida ? Math.min(lugares, Math.round((clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida)) * bonusDoEstadio(clube.estadio_nivel))) : 0;
+    const demanda = temTorcida ? Math.round((clube.torcida * (0.85 + 0.3 * clube.humor / 16) + 0.1 * (liga.torcida_base || clube.torcida)) * bonusDoEstadio(clube.estadio_nivel)) : 0, publico = Math.min(lugares, demanda);
     // 10% da bilheteria vão para o fundo da liga (53_fundo_da_liga.sql)
     // comida e bebida: todo o público, sem a taxa do fundo (118_comida_no_estadio.sql); operação do jogo por torcedor (122)
     const porJogo = Math.round(publico * (liga.preco_ingresso || 0) / 1000 * 0.9) + Math.round(publico * comidaPorTorcedor(clube.estadio_nivel, clube.humor) / 1000)
@@ -1599,52 +1599,68 @@ async function telaClube(liga, clube) {
     const detalhe = grupos.length ? `<details style="margin-top:12px"><summary style="cursor:pointer"><b>Extrato rodada a rodada</b> <span class="mut">(${extrato.length} lançamentos)</span></summary>
       <div style="max-height:320px;overflow:auto;margin-top:6px"><table class="mini" style="width:100%"><tr><th class="esq">Rodada</th><th class="esq">Lançamentos</th><th>Saldo</th></tr>${grupos.map(g => `<tr><td class="esq" style="white-space:nowrap">T${g.temporada} · ${g.rodada == null ? "fora de rodada" : rotRodada(g.rodada)}</td><td class="esq">${g.itens.map(i => `${esc(i.descricao || i.tipo)} <span class="${cor(i.valor)}">${sinal(i.valor)}</span>`).join(" · ")}</td><td class="${cor(g.total)}" style="white-space:nowrap"><b>${sinal(g.total)}</b></td></tr>`).join("")}</table></div></details>`
       : `<div class="mut" style="margin-top:8px">Ainda não há lançamentos: eles aparecem a cada rodada de liga calculada.</div>`;
-    if (visualNovo) return financasNova({ ultima, PERIODOS, fluxo, linhas, soma, grupos, sinal, cor, tv, pat, sal, com, man, porJogo, emCasa, fora, saldo, temTorcida, lugares, publico, humor, pct, detalhe });
+    if (visualNovo) return financasNova({ ultima, PERIODOS, fluxo, linhas, soma, grupos, sinal, cor, tv, pat, sal, com, man, porJogo, emCasa, fora, saldo, temTorcida, lugares, publico, demanda, humor, pct, detalhe });
     return `${geral}${vermelho()}<div class="g2"><div><div class="card"><h2>Movimento <span class="tag">valores em milhares (mil) e milhões (mi)</span></h2>${resumo}${grafico}${detalhe}</div></div>
       <div>${folhaHtml}${previsao}${carne()}</div></div>`;
   };
-  // visual novo: faixa com o caixa, barras de receita e despesa por período, o que cada rodada rende daqui para a frente e a curva do caixa
-  const financasNova = ({ ultima, PERIODOS, fluxo, linhas, soma, grupos, sinal, cor, tv, pat, sal, com, man, porJogo, emCasa, fora, saldo, temTorcida, lugares, publico, humor, pct, detalhe }) => {
+  // visual novo: faixa com o caixa e o ritmo por rodada, barras de receita e despesa por período, o que cada rodada rende, o estádio que lota e a curva do caixa
+  const financasNova = ({ ultima, PERIODOS, fluxo, linhas, soma, grupos, sinal, cor, tv, pat, sal, com, man, porJogo, emCasa, fora, saldo, temTorcida, lugares, publico, demanda, humor, pct, detalhe }) => {
     const desta = fluxo(PERIODOS[1]), temDesta = extrato.some(PERIODOS[1]), anterior = extrato.some(PERIODOS[2]) ? fluxo(PERIODOS[2]) : null;
-    const frase = temDesta ? `Na temporada ${liga.temporada}, entraram ${dinheiro(desta.entra)} e saíram ${dinheiro(-desta.sai)}.` : "Sem lançamentos nesta temporada ainda.";
+    const tom = v => v < 0 ? "bad" : v > 0 ? "ok" : "";
+    // ritmo: a média por rodada vezes as rodadas de liga que faltam (prêmio e imposto só na virada)
+    const feitas = rodadasFeitas != null ? rodadasFeitas : ultima && ultima.rodada < 100 ? ultima.rodada : 0, restantes = Math.max(0, rodadasDoGrupo - feitas);
+    const salarios = (linhas.find(c => c.nome === "Salários e luvas") || { v: [0, 0, 0] }).v[1], fatia = temDesta && desta.entra > 0 ? Math.round(-salarios / desta.entra * 100) : 0;
+    const frase = (restantes ? `No ritmo atual, o caixa ${saldo < 0 ? "cai" : "sobe"} mais ${dinheiro(Math.abs(saldo * restantes))} nas ${restantes} rodadas de liga que faltam, antes do prêmio e do imposto da virada.` : "A liga acabou: falta a virada, com o prêmio e o imposto.")
+      + (fatia ? ` A folha leva ${fatia}% do que entra.` : "");
     const socios = clube.carne != null && clube.carne_temporada === liga.temporada ? clube.carne : null;
-    const lado = `<div class="t-elenco-numeros">${ultima ? numero({ rotulo: `Rodada ${rotRodada(ultima.rodada)}`, valor: sinal(fluxo(PERIODOS[0]).saldo), legenda: "última calculada" }) : ""}
-      ${temDesta ? numero({ rotulo: `Temporada ${liga.temporada}`, valor: sinal(desta.saldo), legenda: "saldo até agora" }) : ""}
-      ${temContratos && teto ? numero({ rotulo: "Folha", valor: `${Math.round(pct * 100)}%`, sufixo: "do teto", legenda: teto - folha < 0 ? `acima em ${dinheiro(folha - teto)}` : `sobram ${dinheiro(teto - folha)}` }) : ""}
-      ${anterior ? numero({ rotulo: `Temporada ${liga.temporada - 1}`, valor: sinal(anterior.saldo), legenda: "saldo final" }) : socios != null ? numero({ rotulo: "Sócios", valor: socios.toLocaleString("pt-BR"), legenda: "nesta temporada" }) : ""}</div>`;
-    const topo = faixaFoco({ rotulo: "Finanças · caixa", titulo: dinheiro(caixa), apagado: caixa < 0 ? "no vermelho" : "em caixa", destaque: temDesta ? `Saldo de ${sinal(desta.saldo)}.` : "", frase, lado })
+    const lado = `<div class="t-elenco-numeros">${ultima ? (v => numero({ rotulo: `Rodada ${rotRodada(ultima.rodada)}`, valor: sinal(v), legenda: "última calculada", tom: tom(v) }))(fluxo(PERIODOS[0]).saldo) : ""}
+      ${anterior ? numero({ rotulo: `Temporada ${liga.temporada - 1}`, valor: sinal(anterior.saldo), legenda: "saldo final", tom: tom(anterior.saldo) }) : ""}
+      ${temContratos && teto ? numero({ rotulo: "Folha", valor: `${Math.round(pct * 100)}%`, sufixo: "do teto", legenda: teto - folha < 0 ? `acima em ${dinheiro(folha - teto)}` : `sobram ${dinheiro(teto - folha)}`, tom: pct > 1 ? "bad" : "" }) : ""}
+      ${socios != null ? numero({ rotulo: "Sócios", valor: socios.toLocaleString("pt-BR"), legenda: "nesta temporada" }) : ""}</div>`;
+    const topo = faixaFoco({ rotulo: "Finanças · caixa", titulo: dinheiro(caixa), apagado: caixa < 0 ? "no vermelho" : "em caixa", destaque: saldo < 0 ? `Perdendo ${dinheiro(-saldo)} por rodada.` : saldo > 0 ? `Ganhando ${dinheiro(saldo)} por rodada.` : "", frase, lado,
+      numeros: saldo < 0 && temContratos ? `<div class="t-botoes">${botao({ texto: "Ver os salários", abaIr: "elenco" })}</div>` : "" })
       .replace("t-faixa t-sangra", `t-faixa t-sangra${caixa < 0 ? " t-faixa-vermelho" : ""}`);
-    // barras: receitas e despesas de cada período, na mesma escala dentro do período
+    // barras: receitas e despesas de cada período, na mesma escala dentro do período; o valor fica colado na ponta da barra
     const nomes = ["Última rodada", `Temporada ${liga.temporada}`, `Temporada ${liga.temporada - 1}`], tem = PERIODOS.map(f => extrato.some(f)), inicial = tem[1] ? 1 : tem.indexOf(true);
-    const barras = i => { const l = linhas.map(c => [c.nome, c.v[i]]).filter(x => x[1]).sort((a, b) => (b[1] > 0) - (a[1] > 0) || Math.abs(b[1]) - Math.abs(a[1]));
+    const barras = i => { const l = linhas.map(c => [c.nome, c.v[i]]).filter(x => x[1]).sort((a, b) => (b[1] > 0) - (a[1] > 0) || (a[0] === "Outros") - (b[0] === "Outros") || Math.abs(b[1]) - Math.abs(a[1]));
       const max = Math.max(1, ...l.map(x => Math.abs(x[1]))), s = soma(PERIODOS[i]);
-      return `<div class="t-fbarras" data-fpainel="${i}"${i === inicial ? "" : " hidden"}>${l.map(([n, v]) => `<div class="t-fbarra ${v < 0 ? "sai" : "entra"}"><span>${n}</span><div class="t-barra"><i style="width:${Math.max(1, Math.round(Math.abs(v) / max * 100))}%"></i></div><b>${sinal(v)}</b></div>`).join("")}
-        <div class="t-fbarra t-fbarra-saldo"><span>Saldo</span><span></span><b class="${cor(s)}">${sinal(s)}</b></div></div>`; };
+      return `<div class="t-fbarras" data-fpainel="${i}"${i === inicial ? "" : " hidden"}>${l.map(([n, v]) => `<div class="t-fbarra ${v < 0 ? "sai" : "entra"}"><span>${n}</span><div class="t-fpista"><i style="width:${Math.max(0.5, Math.abs(v) / max * 80).toFixed(1)}%"></i><b>${sinal(v)}</b></div></div>`).join("")}
+        <div class="t-fbarra t-fbarra-saldo"><span>Saldo</span><b class="${cor(s)}">${sinal(s)}</b></div></div>`; };
     const movimento = inicial < 0 ? "" : `<section class="t-secao">${rotulo("De onde vem e para onde vai")}
       <div class="t-segmentos t-fper" id="fPeriodos">${nomes.map((n, i) => tem[i] ? `<button data-fper="${i}" aria-pressed="${i === inicial}">${n}</button>` : "").join("")}</div>
       ${nomes.map((n, i) => tem[i] ? barras(i) : "").join("")}</section>`;
+    // estádio lotado: quanto a mais um jogo em casa renderia no próximo nível (mesmo valor líquido por torcedor de hoje)
+    let estadio = "";
+    if (temTorcida && demanda > lugares) {
+      const n = clube.estadio_nivel || 0, prox = n + 1, emObra = obra && obra.estrutura === "estadio";
+      if (prox > NIVEL_MAXIMO_DO_ESTADIO) estadio = `<div class="t-foport"><div><h3>O estádio lota.</h3><p>A torcida pediria cerca de ${demanda.toLocaleString("pt-BR")} lugares, e o estádio já está no nível máximo.</p></div></div>`;
+      else { const novos = lugaresDoEstadio(prox), ganho = Math.round((Math.min(demanda, novos) - lugares) * porJogo / Math.max(1, publico));
+        estadio = `<div class="t-foport"><div><h3>O estádio lota.</h3><p>A torcida pediria cerca de <b>${demanda.toLocaleString("pt-BR")}</b> lugares e cabem ${lugares.toLocaleString("pt-BR")}. No nível ${prox} (${novos.toLocaleString("pt-BR")} lugares), cada jogo em casa renderia cerca de <b class="ok">${sinal(ganho)}</b> a mais.</p></div>
+          <div class="t-foport-acao">${emObra ? `<p>Obra em andamento: faltam ${obra.rodadas_restantes} rodadas.</p>` : `${botao({ texto: "Ampliar o estádio", abaIr: "clube:estadio", tipo: "principal" })}<small>${dinheiro(CUSTO.estadio[prox])} · ${PRAZO[prox]} rodadas</small>`}</div></div>`; }
+    }
     // por rodada: o que entra e sai daqui para a frente (a mesma conta da previsão do visual antigo)
     const partes = [["TV", tv], ["patrocínio", pat], ["salários", -sal], ["comissão técnica", -com], ["manutenção", -man]].filter(x => x[1]);
     const porRodada = `<section class="t-secao">${rotulo("Cada rodada, daqui para a frente")}
-      <div class="t-fprev">${temTorcida ? numero({ rotulo: "Jogo em casa", valor: sinal(emCasa), legenda: `com ${dinheiro(porJogo)} de bilheteria e comida` }) + numero({ rotulo: "Jogo fora", valor: sinal(fora), legenda: "sem bilheteria" }) : ""}
-        ${numero({ rotulo: temTorcida ? "Média" : "Saldo", valor: sinal(saldo), legenda: "por rodada de liga" })}
+      <div class="t-fprev">${temTorcida ? numero({ rotulo: "Jogo em casa", valor: sinal(emCasa), legenda: `com ${dinheiro(porJogo)} de bilheteria e comida`, tom: tom(emCasa) }) + numero({ rotulo: "Jogo fora", valor: sinal(fora), legenda: "sem bilheteria", tom: tom(fora) }) : ""}
+        ${numero({ rotulo: temTorcida ? "Média" : "Saldo", valor: sinal(saldo), legenda: "por rodada de liga", tom: tom(saldo) })}
         ${temTorcida ? numero({ rotulo: "Público", valor: publico.toLocaleString("pt-BR"), legenda: `de ${lugares.toLocaleString("pt-BR")} lugares · torcida ${humor}` }) : ""}</div>
-      <p class="t-fpartes">${partes.map(([n, v]) => `${n} <b class="${cor(v)}">${sinal(v)}</b>`).join(" · ")}${socios ? ` · ${socios.toLocaleString("pt-BR")} sócios-torcedores` : ""}</p>
-      ${temTorcida && publico >= lugares ? `<p class="t-falerta">O estádio lota: há torcida para mais lugares.</p>` : ""}
+      <p class="t-fpartes">${partes.map(([n, v]) => `${n} <b class="${cor(v)}">${sinal(v)}</b>`).join(" · ")}</p>
+      ${estadio}
       <details class="t-fajuda"><summary>Prêmio e imposto no fim da temporada</summary><p>Na virada entram o prêmio da liga e o imposto sobre o lucro, em faixas: ${FAIXAS_DO_IMPOSTO.map(([de, tx], i) => `${Math.round(tx * 100)}% ${i + 1 < FAIXAS_DO_IMPOSTO.length ? `de ${dinheiro(Math.round(de * teto))} a ${dinheiro(Math.round(FAIXAS_DO_IMPOSTO[i + 1][0] * teto))}` : `acima de ${dinheiro(Math.round(de * teto))}`}`).join(", ")}; até ${dinheiro(Math.round(teto / 4))} não paga nada.</p></details></section>`;
-    // curva do caixa: do saldo de hoje para trás, descontando cada rodada
+    // curva do caixa: do saldo de hoje para trás, descontando cada rodada; uma marca em cada virada de temporada
     let curva = "";
     if (grupos.length >= 2) {
       const pts = []; let c = caixa;
-      for (const g of grupos) { pts.unshift({ c, rot: `T${g.temporada}${g.rodada == null ? "" : " · " + rotRodada(g.rodada)}` }); c -= g.total; }
-      pts.unshift({ c, rot: "" });
-      const vs = pts.map(p => p.c), min = Math.min(...vs), max = Math.max(...vs), L = 1000, A = 140, x = k => 8 + k * (L - 16) / (pts.length - 1), y = v => 10 + (A - 20) * (1 - (v - min) / (max - min || 1));
-      curva = `<section class="t-secao">${rotulo("O caixa ao longo do tempo")}<p class="t-fpartes">de ${dinheiro(pts[0].c)} a ${dinheiro(caixa)} · menor <b>${dinheiro(Math.min(...vs))}</b> · maior <b>${dinheiro(max)}</b></p>
-        <svg class="t-grafico t-fcurva" viewBox="0 0 ${L} ${A}" role="img" aria-label="Evolução do caixa">${min < 0 ? `<line x1="0" x2="${L}" y1="${y(0)}" y2="${y(0)}" stroke="var(--t-erro)" stroke-dasharray="6 5"/>` : ""}
+      for (const g of grupos) { pts.unshift({ c, t: g.temporada, rot: `T${g.temporada}${g.rodada == null ? "" : " · " + rotRodada(g.rodada)}` }); c -= g.total; }
+      pts.unshift({ c, t: pts[0].t, rot: "" });
+      const vs = pts.map(p => p.c), min = Math.min(...vs), max = Math.max(...vs), L = 1000, A = 120, x = k => 8 + k * (L - 16) / (pts.length - 1), y = v => 24 + (A - 32) * (1 - (v - min) / (max - min || 1));
+      const viradas = pts.map((p, k) => k && p.t !== pts[k - 1].t ? `<line x1="${x(k - 0.5).toFixed(1)}" x2="${x(k - 0.5).toFixed(1)}" y1="18" y2="${A}" stroke="var(--t-tinta3)" stroke-dasharray="4 4"/><text x="${(x(k - 0.5) + 6).toFixed(1)}" y="14" class="t-fcurva-t">T${p.t}</text>` : "").join("");
+      curva = `<section class="t-secao">${rotulo("O caixa ao longo do tempo")}<p class="t-fpartes">de ${dinheiro(pts[0].c)} a ${dinheiro(caixa)} · menor <b>${dinheiro(min)}</b> · maior <b>${dinheiro(max)}</b> · os saltos são as viradas (prêmio menos imposto)</p>
+        <svg class="t-grafico t-fcurva" viewBox="0 0 ${L} ${A}" role="img" aria-label="Evolução do caixa">${viradas}${min < 0 ? `<line x1="0" x2="${L}" y1="${y(0)}" y2="${y(0)}" stroke="var(--t-erro)" stroke-dasharray="6 5"/>` : ""}
           <polyline class="t-grafico-linha" points="${pts.map((p, k) => `${x(k).toFixed(1)},${y(p.c).toFixed(1)}`).join(" ")}"/>
           ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.c).toFixed(1)}" r="9" fill="transparent"><title>${p.rot ? p.rot + ": " : ""}${dinheiro(p.c)}</title></circle>`).join("")}</svg></section>`;
     }
-    return `<div class="t-financas">${topo}${vermelho()}${movimento}${porRodada}${curva}<section class="t-secao t-fextrato">${detalhe}</section></div>`;
+    return `<div class="t-financas" id="fNova">${topo}${vermelho()}${movimento}${porRodada}${curva}<section class="t-secao t-fextrato">${detalhe}</section></div>`;
   };
   // clube no vermelho: caixa negativo bloqueia aumentos, renovações e obras; abaixo do limite, corre o prazo para escolher uma saída
   const vermelho = () => {
@@ -2533,6 +2549,7 @@ ${historicoDaBase()}
       catch (err) { e.target.disabled = false; aviso(err.message); }
     });
   }
+  if ($("fNova")) $("fNova").addEventListener("click", e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } });
   if ($("fPeriodos")) $("fPeriodos").onclick = e => { const b = e.target.closest("[data-fper]"); if (!b) return;
     $("fPeriodos").querySelectorAll("[data-fper]").forEach(x => x.setAttribute("aria-pressed", x === b));
     document.querySelectorAll("[data-fpainel]").forEach(p => { p.hidden = p.dataset.fpainel !== b.dataset.fper; }); };
