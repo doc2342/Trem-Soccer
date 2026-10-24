@@ -152,8 +152,8 @@ CSS primeiro. Uma entrada orquestrada por tela (subida em cascata, como `.sobe` 
 
 ## Decisões minhas (o dono pode reverter)
 
-- **Referência visual de aceite:** as nove imagens que o dono escolheu estão em `2026-10-24-redesign-referencias/` (01 a 09), e o modelo de navegação no celular em `navegacao-celular.html` (C2 e B3). Quando um recorte aparece em mais de um protótipo, vale a imagem.
-- **Ordem com o reinício:** as abas Liga e Clube (finanças) são redesenhadas **depois** que as tarefas do reinício que mexem nelas entrarem (`docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md`: grupos B/C/D, receitas por temporada), para nunca desenhar as duas estruturas. As outras abas não dependem do reinício.
+- **Referências visuais:** as nove imagens que o dono escolheu estão em `2026-10-24-redesign-referencias/` (01 a 09), e o modelo de navegação no celular em `navegacao-celular.html` (C2 e B3). São **direção, não cópia** (palavras do dono): mostram o tom e a hierarquia; quem constrói adapta o que precisar.
+- **Convivência com o reinício:** nenhuma aba espera o reinício. Enquanto a chave não vira, uma aba redesenhada existe em duas versões; se uma tarefa do reinício (`docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md`: grupos B/C/D, receitas por temporada, previsão do treino) mexer numa aba já refeita, a mudança entra nas duas versões até a virada.
 - **Home:** substitui o `index.html` só na virada. O bilhete de cadastro usa o mesmo login de hoje (`src/ui-login.js`, código por e-mail) e leva ao `jogo.html`; a home não ganha fluxo de login próprio.
 - **Modo "tela de PC no celular" (`mo_tela=pc`)** continua: nele, o celular recebe o layout de PC (linha em cima).
 - **Claro como padrão** só vale na virada; até lá, quem não ligou a chave continua com o tema de hoje.
@@ -163,5 +163,5 @@ CSS primeiro. Uma entrada orquestrada por tela (subida em cascata, como `.sobe` 
 
 - Valores exatos de cor, especialmente o tom de erro/derrota e o tratamento das faixas no escuro (decidir lado a lado nos dois temas).
 - Nome e formato exato da chave e das funções de montagem.
-- Qual peça usar em cada bloco de cada aba, seguindo a gramática e partindo dos recortes aprovados.
+- Qual peça usar em cada bloco de cada aba, seguindo a gramática e partindo dos recortes aprovados (como direção, não como molde).
 - Quais notas cortar, quais viram "?" e quais viram aviso condicional: critério da regra 4.
