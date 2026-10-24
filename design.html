@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR" data-visual="novo" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trem Soccer · Peças do visual novo</title>
+<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="trem.css">
+<style>
+  /* só desta página de referência: os quadros de cor e a troca de tema */
+  .ref-cores { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:1px; background:var(--t-fio); border:1px solid var(--t-fio); }
+  .ref-cores div { background:var(--t-celula); padding:12px; font-size:12.5px; } .ref-cores i { display:block; height:44px; margin-bottom:8px; }
+  .ref-grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap:28px; align-items:start; }
+  .ref-tema { display:flex; gap:8px; }
+  .ref-jogo { border:1px solid var(--t-fio); padding:22px; } .ref-jogo .lados { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:14px 0; }
+  .ref-jogo .nome { font:900 clamp(28px, 6vw, 44px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; }
+  .ref-jogo .x { font:900 34px/1 var(--t-letra); color:var(--t-marca); }
+  .ref-escudo { width:34px; height:40px; background:var(--ac); clip-path:polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%); }
+</style>
+</head>
+<body>
+<!-- Página de referência das peças do visual novo (não é tela do jogador): força data-visual="novo" só aqui, sem mexer na escolha de quem abre.
+     Dados fictícios. Serve para conferir cada peça nos dois temas e decidir valores (o tom de erro ao lado da marca, a faixa no escuro). -->
+<header class="t-topo">
+  <button class="t-topo-clube" type="button"><span class="ref-escudo"></span><span class="t-topo-nome">Ferroviário</span></button>
+  <span class="t-topo-prox t-topo-so-pc">Rodada 15 · <b>sáb, 21h</b> · Campinense</span>
+  <div class="t-topo-fim"><div class="ref-tema"><button class="t-botao" id="claro" type="button">Claro</button><button class="t-botao" id="escuro" type="button">Escuro</button></div></div>
+</header>
+<div id="linha"></div>
+<main class="t-pagina">
+  <div id="faixa"></div>
+
+  <section class="t-secao"><div class="t-rotulo">Vestiário</div><h2 class="t-secao-titulo">O que levar para a rodada 16</h2>
+    <p class="t-secao-sub">Ferroviário 2 × 1 Campinense</p><div id="vestiario"></div></section>
+
+  <section class="t-secao ref-grade">
+    <div class="ref-jogo"><div class="t-rotulo">Próximo jogo · rodada 15</div>
+      <div class="t-numero-rotulo">Sábado, 21h · Estádio da Rotunda</div>
+      <div class="lados"><span class="ref-escudo"></span><span class="nome">Ferroviário</span><span class="x">×</span><span class="nome">Campinense</span></div>
+      <p class="t-leitura-frase"><b style="color:var(--t-tinta)">Confronto direto.</b> O Campinense está a 1 ponto de você. Chega com 3 vitórias seguidas.</p>
+      <div class="t-botoes" id="botoesJogo"></div></div>
+    <div><div class="t-rotulo">Números</div><div class="ref-grade" style="gap:18px">
+      <div id="n1"></div><div id="n2"></div><div id="n3"></div></div>
+      <div class="t-rotulo" style="margin-top:28px">Instruções</div>
+      <div class="t-segmentos"><button type="button">Defensiva</button><button type="button" class="ativo">Equilibrada</button><button type="button">Ofensiva</button></div>
+      <div class="t-rotulo" style="margin-top:28px">Forma</div><span class="t-forma"><i class="V">V</i><i class="V">V</i><i class="E">E</i><i class="D">D</i><i class="V">V</i></span></div>
+  </section>
+
+  <section class="t-secao ref-grade">
+    <div><div class="t-rotulo">Documento</div>
+      <div class="t-documento"><div class="t-documento-cab"><span>Boleta de negociação</span><span>Nº 04112</span></div>
+        <div class="t-documento-titulo">Higor Sobral</div><div class="t-numero-legenda" style="color:inherit">SA · 24 anos · União Bitola Larga · nota 41</div>
+        <div style="margin-top:14px"><div class="t-documento-campo"><span>Multa rescisória (5×)</span><span>8,60 mi</span></div>
+          <div class="t-documento-campo"><span>Salário × 1</span><span>1,72 mi</span></div>
+          <div class="t-documento-total"><span>Caixa depois</span><span style="color:var(--t-erro)">−180 mil</span></div></div></div></div>
+    <div><div class="t-rotulo">Tabela</div>
+      <table class="t-tabela"><tr><th></th><th class="t-esq">Série B</th><th>J</th><th>SG</th><th>Pts</th></tr>
+        <tr><td>3</td><td class="t-esq">União Bitola Larga</td><td>14</td><td>6</td><td>25</td></tr>
+        <tr class="t-eu"><td>4</td><td class="t-esq">Ferroviário</td><td>14</td><td>4</td><td>24</td></tr>
+        <tr><td>5</td><td class="t-esq">Campinense</td><td>14</td><td>3</td><td>23</td></tr></table>
+      <div class="t-rotulo" style="margin-top:28px">Confiança da diretoria</div>
+      <div class="t-barra"><i style="width:68%"></i></div><div class="t-numero-legenda">68 de 100 · meta: terminar entre os 4</div></div>
+  </section>
+
+  <section class="t-secao"><div class="t-rotulo">Cores</div><div class="ref-cores" id="cores"></div></section>
+  <section class="t-secao"><div class="t-fita t-sangra">&nbsp; GOL Renan Patos · Ferroviário de Itaquera ▸ Real Dormente · empréstimo &nbsp;·&nbsp; VOL Allan Itapipoca · União Bitola Larga ▸ Locomotiva</div></section>
+</main>
+<script type="module">
+import { faixa, leituras, botao, numero, linhaDeEstacoes, ESTACOES, graficoDePosicoes, rotulo } from "./src/ui-trem.js";
+const $ = id => document.getElementById(id);
+document.documentElement.style.setProperty("--ac", "hsl(152 60% 30%)"); document.documentElement.style.setProperty("--ac-tx", "#ffffff");
+$("linha").innerHTML = linhaDeEstacoes(ESTACOES, "inicio");
+$("linha").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) $("linha").innerHTML = linhaDeEstacoes(ESTACOES, b.dataset.aba); };
+$("faixa").innerHTML = faixa({ rotulo: "Série B · rodada 14 de 22", titulo: "4º lugar ·", apagado: "8 rodadas", destaque: "A 2 pontos da zona de acesso.", frase: "",
+  lado: rotulo("Posição rodada a rodada") + graficoDePosicoes([9, 7, 8, 6, 6, 5, 7, 5, 4, 5, 4, 4, 5, 4], 12, 2) });
+$("vestiario").innerHTML = leituras([
+  { tipo: "falhou", titulo: "Pela nossa defesa direita", frase: "O adversário venceu 64% dos duelos ali.", acao: { texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" } },
+  { tipo: "desfalque", titulo: "Edinho está suspenso", frase: "Fora do próximo jogo. Biel saiu lesionado: 2 jogos.", acao: { texto: "Escolher o substituto", abaIr: "tatica" } },
+  { tipo: "funcionou", titulo: "O ataque pelo centro funcionou", frase: "62% dos duelos vencidos ali.", acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } },
+  { tipo: "atencao", titulo: "Terminaram cansados", frase: "Tiago Moura, Juninho e Fabinho." },
+  { tipo: "resultado", titulo: "O jogo", frase: "O placar reflete o jogo: 1,84 de xG nosso contra 0,92 do adversário." },
+  { tipo: "bloqueada", titulo: "Por onde o jogo foi decidido", frase: "Contrate um analista para ver as zonas do jogo.", acao: { texto: "Ver a comissão", abaIr: "clube", tipo: "link" } },
+]);
+$("botoesJogo").innerHTML = botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" }) + botao({ texto: "Ver o rival", href: "#" });
+$("n1").innerHTML = numero({ rotulo: "Caixa", valor: "4,2", sufixo: "mi", legenda: "+620 mil na rodada" });
+$("n2").innerHTML = numero({ rotulo: "Folha", valor: "3,1", sufixo: "mi", legenda: "teto 3,4 mi" });
+$("n3").innerHTML = numero({ rotulo: "Torcida", valor: "92", sufixo: "%", legenda: "lotação esperada" });
+const COR = ["--t-marca", "--t-erro", "--t-ok", "--t-atencao", "--t-tinta", "--t-tinta2", "--t-noite", "--t-papel", "--ac"];
+const cores = () => { const s = getComputedStyle(document.documentElement); $("cores").innerHTML = COR.map(c => `<div><i style="background:var(${c})"></i><b>${c}</b><br>${s.getPropertyValue(c).trim()}</div>`).join(""); };
+const tema = t => { document.documentElement.dataset.tema = t; cores(); };
+$("claro").onclick = () => tema("claro"); $("escuro").onclick = () => tema("escuro");
+if (/escuro/.test(location.hash)) tema("escuro"); else cores();
+</script>
+</body>
+</html>
