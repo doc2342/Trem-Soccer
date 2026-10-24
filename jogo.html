@@ -1746,8 +1746,9 @@ async function telaClube(liga, clube) {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
       const ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
-      return `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
+      const bloco = `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
         + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
+      return visualNovo ? `<div class="t-mural-secao">${bloco}</div>` : bloco; // visual novo: cada seção num bloco da grade dos bastidores
     }).join("");
     return html || item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut");
   };
@@ -2822,9 +2823,14 @@ ${historicoDaBase()}
         .map(p => { const x = res[p.id], m = p.casa === rival.id ? x.gols_casa : x.gols_fora, o = p.casa === rival.id ? x.gols_fora : x.gols_casa; return m > o ? "V" : m < o ? "D" : "E"; });
       const lp = leituraDoProximoJogo({ tab, clubeId: clube.id, rivalId: rival.id, formaDoRival }), c = climaDaPartida(proximo.id);
       const qual = ehCopa(proximo) ? nomeDaCopa(proximo, true) : proximo.fase && proximo.fase !== "liga" ? nomeDoPlayoff(proximo).replace("Playoff · ", "") : "Rodada " + proximo.rodada;
-      pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}<div class="t-numero-rotulo">${esc(d.toLocaleString("pt-BR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))} · ${casa ? "em casa" : "fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C</div>
-        <div class="t-jogo-lados">${[mandante, visitante].map(x => `<div class="t-jogo-lado">${svgEscudo(x.escudo, x.sigla, 56)}<div class="t-jogo-quem"><span class="t-jogo-nome">${esc(x.nome)}</span>${x.id === rival.id ? `<span class="t-forma">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : ""}</div></div>`).join(`<span class="t-jogo-x">×</span>`)}</div>
-        ${lp ? `<p class="t-leitura-frase"><b>${esc(lp.titulo)}.</b> ${esc(lp.frase)}</p>` : ""}
+      // um placar: mandante à esquerda e visitante à direita, os nomes encostados no "×", a hora no meio; o rival leva a forma
+      const time = (x, lado) => `<div class="t-placar-time t-placar-${lado}">${svgEscudo(x.escudo, x.sigla, 52)}<div class="t-placar-quem"><span class="t-jogo-nome">${esc(x.nome)}</span>`
+        + (x.id === rival.id ? `<span class="t-forma" title="Últimos jogos do rival">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : `<span class="t-placar-voce">você</span>`) + `</div></div>`;
+      const posRival = tab.findIndex(t => t.clube.id === rival.id);
+      pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
+        <div class="t-placar">${time(mandante, "casa")}<div class="t-placar-meio"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span></div>${time(visitante, "fora")}</div>
+        <div class="t-jogo-meta">${casa ? "Em casa" : "Fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C${posRival >= 0 ? ` · ${esc(rival.nome)} é o ${posRival + 1}º` : ""}</div>
+        ${lp && lp.titulo === "Confronto direto" ? `<p class="t-jogo-leitura"><b>Confronto direto.</b> ${esc(lp.frase)}</p>` : lp && lp.frase ? `<p class="t-jogo-leitura">${esc(lp.frase)}</p>` : ""}
         <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div></div>`;
     }
   }
