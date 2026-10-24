@@ -1744,12 +1744,29 @@ async function telaClube(liga, clube) {
   // o mural mostra só as manchetes (as de mais peso, com o seu clube na frente); o resto fica fechado em "Mais notícias"
   const PESO_DA_NOTICIA = { "🏆": 6, "🌎": 5, "🌐": 4, "🎟️": 3, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
   const SECOES_DO_MURAL = [["jogos", "Últimos jogos", 3], ["liga", "Na liga", 3], ["copas", "Outras competições", 2], ["mercado", "Mercado", 2]];
+  // visual novo · bastidores: o mercado como um painel que gira pelas últimas transferências (as mesmas da carga da página)
+  // os tipos gravados em transferencias.tipo (bot: negócio entre clubes do bot)
+  const TIPO_DA_TRANSFERENCIA = { multa: "Pela multa", negociada: "Negociada", bot: "Entre bots", leilao: "Leilão", livre: "Livre", emprestimo: "Empréstimo", agente: "Pelo agente", agente_vermelho: "Clube no vermelho", divida: "Clube no vermelho" };
+  const painelDoMercado = () => {
+    const ts = (transferencias || []).filter(t => cPor[t.para_clube]).slice(0, 8);
+    if (!ts.length) return "";
+    const escudo = id => cPor[id] ? `<a href="#clube=${id}" data-clube="${id}" title="${esc(cPor[id].nome)}">${svgEscudo(cPor[id].escudo, cPor[id].sigla, 40)}</a>` : `<span class="t-giro-sem">livre</span>`;
+    const cartao = (t, k) => { const tipo = t.repatriado ? "repatriado" : t.tipo;
+      return `<article class="t-giro-item${k ? "" : " ativo"}" data-tipo="${esc(tipo)}"><div class="t-giro-tipo">${t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência"}</div>
+        <div class="t-giro-escudos">${escudo(t.de_clube)}<span class="t-giro-seta">→</span>${escudo(t.para_clube)}</div>
+        <div class="t-giro-jogador">${lj(t.jogador_id, t.jogador)} <span>${esc(sg(t.pos || ""))}</span></div>
+        <div class="t-giro-para">${t.de_clube && cPor[t.de_clube] ? `${esc(cPor[t.de_clube].nome)} → ` : ""}${esc(cPor[t.para_clube].nome)}</div>
+        ${t.valor ? `<div class="t-giro-valor">${dinheiro(t.valor)}</div>` : ""}</article>`; };
+    return `<div class="t-mural-secao t-giro-secao"><div class="rot">Mercado</div><div class="t-giro" aria-live="polite">${ts.map(cartao).join("")}</div>
+      <div class="t-giro-pontos">${ts.map((t, k) => `<button type="button" aria-label="Transferência ${k + 1}" class="${k ? "" : "ativo"}" data-giro="${k}"></button>`).join("")}</div>
+      ${livres && livres.length ? `<div data-aba-ir="mercado"><span><b>${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"}</b> no mercado.</span><span class="vai">›</span></div>` : ""}</div>`; };
   const desenharMural = secoes => {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
       const ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
       const bloco = `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
         + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
+      if (visualNovo && k === "mercado" && painelDoMercado()) return painelDoMercado();
       return visualNovo ? `<div class="t-mural-secao">${bloco}</div>` : bloco; // visual novo: cada seção num bloco da grade dos bastidores
     }).join("");
     return html || item("📰", "Nenhuma notícia ainda. Jogos, artilharia e transferências da liga aparecem aqui.", "mut");
@@ -2657,6 +2674,13 @@ ${historicoDaBase()}
   document.querySelectorAll('input[name="cfgCores"]').forEach(r => { r.onchange = () => window.moCores(r.value); });
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
+  // painel do mercado: gira a cada 5 s (não gira com o mouse em cima nem com "reduzir movimento"); os pontos trocam à mão
+  const giroPara = (caixa, n) => { const itens = caixa.querySelectorAll(".t-giro-item"), pontos = caixa.querySelectorAll(".t-giro-pontos button");
+    itens.forEach((el, k) => el.classList.toggle("ativo", k === n)); pontos.forEach((el, k) => el.classList.toggle("ativo", k === n)); };
+  if (visualNovo && !window.giroDoMercado) window.giroDoMercado = setInterval(() => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    document.querySelectorAll(".t-giro-secao").forEach(c => { if (c.matches(":hover")) return; const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + 1) % itens.length); }); }, 5000);
+  if (visualNovo && !window.giroCliques) { window.giroCliques = true; // um ouvinte só: as notícias da liga são redesenhadas depois da carga
+    document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-giro]"), c = b && b.closest(".t-giro-secao"); if (c) giroPara(c, +b.dataset.giro); }); }
   // cronômetros da Central nova (até o apito e até a tática fechar): um só relógio para a página toda
   if (visualNovo && !window.cronometroCentral) window.cronometroCentral = setInterval(() => document.querySelectorAll(".t-cronometro").forEach(el => {
     const ms = +el.dataset.ate - Date.now(), r = el.dataset.rotulo || "";

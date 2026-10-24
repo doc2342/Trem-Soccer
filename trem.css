@@ -526,3 +526,23 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 #cnVestiario { background:var(--t-placa); padding:14px 20px 20px; }
 #cnVestiario .t-regua-linha::after { background:linear-gradient(90deg, var(--t-tinta) var(--nos), var(--t-fio) var(--nos)); }
 @media (max-width:960px) { .t-central-lado { margin-top:28px; } }
+/* bastidores · mercado: um cartão por transferência, girando; a cor diz o tipo */
+.t-giro { position:relative; min-height:178px; }
+.t-giro-item { position:absolute; inset:0; padding:12px 0 0; opacity:0; visibility:hidden; transform:translateY(6px); transition:opacity .4s, transform .4s, visibility 0s .4s; }
+.t-giro-item.ativo { opacity:1; visibility:visible; transform:none; transition-delay:0s; position:relative; }
+.t-giro-tipo { display:inline-block; font:700 10px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:#fff; background:var(--t-tinta2); padding:4px 7px; }
+.t-giro-item[data-tipo=multa] .t-giro-tipo { background:var(--t-negociada, #d97706); } .t-giro-item[data-tipo=negociada] .t-giro-tipo { background:#2563c9; }
+.t-giro-item[data-tipo=leilao] .t-giro-tipo { background:var(--t-ok); } .t-giro-item[data-tipo=emprestimo] .t-giro-tipo { background:#7c5cc4; }
+.t-giro-item[data-tipo=livre] .t-giro-tipo, .t-giro-item[data-tipo=repatriado] .t-giro-tipo { background:var(--t-tinta); } .t-giro-item[data-tipo=divida] .t-giro-tipo { background:var(--t-erro); }
+.t-giro-escudos { display:flex; align-items:center; gap:12px; margin:12px 0 10px; } .t-giro-escudos a { line-height:0; }
+.t-giro-seta { font:900 22px/1 var(--t-letra); color:var(--t-marca); }
+.t-giro-sem { font:700 10px/1 var(--t-letra); letter-spacing:.1em; text-transform:uppercase; color:var(--t-tinta3); border:1px dashed var(--t-tinta3); padding:13px 6px; }
+.t-giro-jogador { font:800 17px/1.15 var(--t-letra); font-stretch:75%; } .t-giro-jogador a { color:var(--t-tinta); text-decoration:none; } .t-giro-jogador span { font:600 11px var(--t-letra); color:var(--t-tinta3); }
+.t-giro-para { font-size:12.5px; color:var(--t-tinta2); margin-top:3px; }
+.t-giro-valor { font:900 26px/1 var(--t-letra); font-stretch:64%; margin-top:8px; font-variant-numeric:tabular-nums; }
+.t-giro-pontos { display:flex; gap:6px; margin:10px 0 6px; }
+.t-giro-pontos button { width:18px !important; height:4px !important; padding:0 !important; border:0 !important; background:var(--t-fio) !important; cursor:pointer; }
+.t-giro-pontos button.ativo { background:var(--t-marca) !important; }
+@media (prefers-reduced-motion:reduce) { .t-giro-item { transition:none; } }
+.t-giro-item[data-tipo=bot] .t-giro-tipo { background:var(--t-tinta2); } .t-giro-item[data-tipo=agente] .t-giro-tipo { background:#0f8a7c; }
+.t-giro-item[data-tipo=agente_vermelho] .t-giro-tipo { background:var(--t-erro); }
