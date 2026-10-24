@@ -588,3 +588,28 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-pl-placar { font:900 16px/1 var(--t-letra); font-stretch:70%; font-variant-numeric:tabular-nums; color:var(--t-tinta); text-decoration:none; padding:3px 7px; background:var(--t-placa); white-space:nowrap; }
 .t-pl-placar:hover { background:var(--t-tinta); color:var(--t-fundo); }
 .t-pl.t-pl-meu .t-pl-time span { font-weight:800; } .t-pl.t-pl-meu .t-pl-placar { background:var(--t-tinta); color:var(--t-fundo); }
+/* ---------- Central em linhas: o bloco principal dá a altura; o lateral ocupa essa altura e rola por dentro (nunca sobra buraco) ---------- */
+.t-linha-central { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 360px); gap:0 32px; margin-top:32px; }
+.t-cel-lado { position:relative; background:var(--t-placa); border-top:2px solid var(--t-tinta); min-height:0; }
+.t-cel-rolo { position:absolute; inset:0; overflow-y:auto; padding:4px 20px 20px; scrollbar-width:thin; scrollbar-color:var(--t-tinta3) transparent; }
+.t-cel-rolo > :empty { display:none; }
+.t-cel-rolo > * + *:not(:empty), .t-cel-rolo > #chegada:not(:empty) > .t-lado-bloco { border-top:1px solid var(--t-fio); margin-top:16px; padding-top:14px; }
+.t-cel-rolo > :first-child:not(:empty) > .t-lado-bloco, .t-cel-rolo > :first-child:not(:empty) .card { border-top:0 !important; margin-top:6px; }
+.t-cel-rolo > #desdeVisita:empty + #chegada > .t-lado-bloco { border-top:0; margin-top:6px; padding-top:14px; }
+.t-cel-rolo .t-lado-bloco { border-top:0; padding-top:14px; }
+.t-cel-rolo .mural > div[data-aba-ir]:hover { background:var(--t-fundo); }
+.t-cel-rolo select { background:var(--t-fundo); }
+/* o fim do rolo esmaece quando há mais embaixo */
+.t-cel-lado::after { content:""; position:absolute; left:0; right:0; bottom:0; height:28px; background:linear-gradient(transparent, var(--t-placa)); pointer-events:none; }
+/* lateral vazia (sem visita nova, passos concluídos): o principal ocupa a largura toda */
+.t-linha-central:not(:has(.t-cel-rolo > :not(:empty))) { grid-template-columns:minmax(0, 1fr); } .t-linha-central:not(:has(.t-cel-rolo > :not(:empty))) > .t-cel-lado { display:none; }
+/* principal escondido (sem jogo marcado, sem último jogo): o lateral volta a ter a própria altura */
+.t-linha-central:has(> .t-cel > section[hidden]) > .t-cel-lado .t-cel-rolo { position:static; } .t-linha-central:has(> .t-cel > section[hidden]) > .t-cel-lado::after { display:none; }
+.t-linha-central:has(> .t-cel > section[hidden]) { grid-template-columns:minmax(0, 1fr); }
+/* celular e telas médias: uma coluna, nada rola por dentro */
+@media (max-width:1023px) { .t-linha-central { grid-template-columns:minmax(0, 1fr); } .t-cel-lado { margin-top:24px; } .t-cel-rolo { position:static; } .t-cel-lado::after { display:none; } }
+/* bastidores: duas abinhas na coluna de jogos (notícias | placares) */
+.t-abinhas-cab { display:flex !important; gap:14px; } .t-abinhas-cab button { background:none !important; border:0 !important; padding:0 0 6px !important; font:700 10.5px/1.2 var(--t-letra) !important; letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta3) !important; cursor:pointer; border-bottom:2px solid transparent !important; margin-bottom:-9px; }
+.t-abinhas[data-aberta=noticias] [data-abinha=noticias], .t-abinhas[data-aberta=placares] [data-abinha=placares] { color:var(--t-tinta) !important; border-bottom-color:var(--t-marca) !important; }
+.t-abinha { display:none; flex-direction:column; gap:10px; } .t-abinhas[data-aberta=noticias] [data-abinha-corpo=noticias], .t-abinhas[data-aberta=placares] [data-abinha-corpo=placares] { display:flex; }
+.t-central .t-abinha > .t-pl { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--t-fio); font-size:13px; }

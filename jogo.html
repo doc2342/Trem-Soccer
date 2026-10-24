@@ -1779,7 +1779,13 @@ async function telaClube(liga, clube) {
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
       let ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
       // visual novo: os placares da rodada (t-pl) vêm primeiro, todos à vista, na ordem em que chegaram; as manchetes ficam no "Mais"
-      const pl = ord.filter(h => h.startsWith('<div class="t-pl')); if (pl.length) { ord = [...secoes[k].filter(h => h.startsWith('<div class="t-pl')), ...ord.filter(h => !h.startsWith('<div class="t-pl'))]; n = pl.length; }
+      const pl = ord.filter(h => h.startsWith('<div class="t-pl'));
+      if (pl.length) { // visual novo: duas abas na coluna, as notícias (aberta) e os placares da rodada
+        const noticias = ord.filter(h => !h.startsWith('<div class="t-pl')), nn = Math.min(n, noticias.length);
+        return `<div class="t-mural-secao t-abinhas" data-aberta="noticias"><div class="rot t-abinhas-cab"><button type="button" data-abinha="noticias">Notícias</button><button type="button" data-abinha="placares">Placares</button></div>`
+          + `<div class="t-abinha" data-abinha-corpo="noticias">${noticias.slice(0, nn).map(h => h.replace(/^<div/, "<div data-manchete")).join("")}${noticias.length > nn ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${noticias.length - nn}</summary><div class="mural">${noticias.slice(nn).join("")}</div></details></div>` : ""}</div>`
+          + `<div class="t-abinha" data-abinha-corpo="placares">${pl.join("")}</div></div>`;
+      }
       const bloco = `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
         + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
       if (visualNovo && k === "mercado" && painelDoMercado()) return painelDoMercado();
@@ -2017,20 +2023,19 @@ async function telaClube(liga, clube) {
   const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
     <div id="cnFoco"></div>
     ${painelDoClube()}
-    <div class="t-central-grade">
-      <div class="t-central-principal">
-        <section id="cnProximo" hidden></section>
-        <section id="cnVestiario" hidden></section>
-      </div>
-      <aside class="t-central-lado">
-        <div id="desdeVisita"></div>
-        <div id="chegada">${chegada()}</div>
+    <div class="t-linha-central">
+      <div class="t-cel"><section id="cnProximo" hidden></section></div>
+      <aside class="t-cel-lado"><div class="t-cel-rolo"><div id="desdeVisita"></div><div id="chegada">${chegada()}</div></div></aside>
+    </div>
+    <div class="t-linha-central">
+      <div class="t-cel"><section id="cnVestiario" hidden></section></div>
+      <aside class="t-cel-lado"><div class="t-cel-rolo">
         <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
         <section class="t-lado-bloco t-amistoso-lado"><div class="t-rotulo">Amistoso</div>
           <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
           <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
           <div id="amInfo" class="t-numero-legenda"></div></section>
-      </aside>
+      </div></aside>
     </div>
     ${diretoriaNova()}
     <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
@@ -2703,6 +2708,8 @@ ${historicoDaBase()}
     itens.forEach((el, k) => el.classList.toggle("ativo", k === n)); if (conta) conta.textContent = `${n + 1} de ${itens.length}`; };
   if (visualNovo && !window.giroDoMercado) window.giroDoMercado = setInterval(() => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     document.querySelectorAll(".t-giro-secao").forEach(c => { if (c.matches(":hover")) return; const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + 1) % itens.length); }); }, 5000);
+  if (visualNovo && !window.abinhasLigadas) { window.abinhasLigadas = true;
+    document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-abinha]"), c = b && b.closest(".t-abinhas"); if (c) c.dataset.aberta = b.dataset.abinha; }); }
   if (visualNovo && !window.giroCliques) { window.giroCliques = true; // um ouvinte só: as notícias da liga são redesenhadas depois da carga
     document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-giro-passo]"), c = b && b.closest(".t-giro-secao"); if (!c) return;
       const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + +b.dataset.giroPasso + itens.length) % itens.length); }); }
