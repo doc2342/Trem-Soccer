@@ -69,18 +69,14 @@ const HTML_NOVO = `<div id="cabecalho"></div>
   <div id="online" hidden><b id="nomeOnline" hidden></b></div>
   <section class="t-faixa t-sangra t-tatica">
     <div class="t-tatica-time"><div class="t-rotulo" id="rotTatica">Tática</div>
-      <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div><div id="validacao"></div></div>
-    <div class="t-tatica-lado">
-      <div class="t-segmentos t-tatica-abas"><button type="button" data-painel="instr">Instruções</button><button type="button" data-painel="elenco">Elenco e formação</button></div>
-      <div id="painelInstr"><div id="instrucoes"></div>
-        <details class="t-mais"><summary>Mais instruções</summary><div id="instrucoes2"></div></details></div>
-      <div id="painelElenco" hidden>
-        <div class="t-tatica-montar"><div class="t-instr"><div class="t-numero-rotulo">Formação</div><div class="t-formacoes" id="formacao"></div></div>
-          <div class="t-tatica-botoes"><button type="button" class="t-botao" id="auto">Escalar os melhores</button><button type="button" class="t-botao" id="bot">Deixar o assistente escolher</button></div></div>
-        <div id="escolha"></div>
-        <details class="t-mais"><summary>Escalações guardadas</summary><div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Nome da escalação"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div></details>
-      </div>
-      <div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div></div>
+      <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div></div>
+    <div class="t-tatica-lado"><div class="t-rotulo">Elenco e formação</div>
+      <div class="t-tatica-montar"><div class="t-formacoes" id="formacao"></div>
+        <div class="t-tatica-botoes"><button type="button" class="t-botao" id="auto">Escalar os melhores</button><button type="button" class="t-botao" id="bot">Deixar o assistente escolher</button></div></div>
+      <div id="escolha"></div>
+      <div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Guardar esta escalação como…"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div></div>
+    <div class="t-tatica-baixo"><div id="instrucoes"></div>
+    <div class="t-tatica-fim"><div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div><div id="validacao"></div></div></div>
   </section>
   <div class="soLocal t-tatica-local"><label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label>Perfil<select id="perfil"></select></label></div>
   <div class="t-tatica-corpo">
@@ -103,8 +99,8 @@ const HTML_NOVO = `<div id="cabecalho"></div>
     <button id="jogar">Jogar amistoso</button><span class="mut" id="infoAdv"></span>
   </div>
   <div id="rel"></div>`;
-// instruções que ficam na faixa; as outras vão para "Mais instruções". Rótulos longos encurtam no botão (o inteiro fica no title)
-const INSTR_DA_FAIXA = ["mentalidade", "pressao", "passe", "lado"];
+// instruções na faixa, todas abertas, em três grupos lado a lado. Rótulos longos encurtam no botão (o inteiro fica no title)
+const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade", "impedimento"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Ritmo", ["contraAtaque", "cera"]]];
 const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem" };
 
 export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
@@ -163,7 +159,7 @@ const momento = v => { const n = v == null ? 50 : v; return n >= 65 ? "ok" : n <
 const GRUPOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
 let skillsDe = null; // jogador com os atributos abertos na lista de escolha
 let editaSub = null, editaOrdem = null; // índice da substituição/ordem aberta para edição (as outras aparecem numa linha só)
-let painel = "instr", setorVisto = null; // visual novo: aba do lado da faixa (instruções ou elenco) e o setor escolhido na lista
+let setorVisto = null; // visual novo: o setor escolhido na lista do elenco
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
@@ -441,10 +437,8 @@ function render() {
   // instruções
   const segmentos = ([k, [nome, ops]]) => `<div class="t-instr"><div class="t-numero-rotulo">${nome}</div><div class="t-segmentos">${ops.map(([v, t]) =>
     `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k]) === String(v)}" title="${t}">${CURTO[t] || t.split(" (")[0]}</button>`).join("")}</div></div>`;
-  if (NOVO) { $("instrucoes").innerHTML = Object.entries(OPCOES).filter(([k]) => INSTR_DA_FAIXA.includes(k)).map(segmentos).join("");
-    $("instrucoes2").innerHTML = Object.entries(OPCOES).filter(([k]) => !INSTR_DA_FAIXA.includes(k)).map(segmentos).join("");
-    raiz.querySelectorAll("[data-painel]").forEach(b => b.setAttribute("aria-pressed", b.dataset.painel === painel));
-    $("painelInstr").hidden = painel !== "instr"; $("painelElenco").hidden = painel !== "elenco"; $("painelElenco").classList.toggle("escolhendo", !!sel);
+  if (NOVO) { $("instrucoes").innerHTML = GRUPOS_INSTR.map(([g, ks]) => `<div class="t-instr-grupo"><div class="t-rotulo">${g}</div>${ks.map(k => segmentos([k, OPCOES[k]])).join("")}</div>`).join("");
+    raiz.querySelector(".t-tatica-lado").classList.toggle("escolhendo", !!sel);
     const atual = [...E.vagas].sort().join(); // formação marcada: a que tem as mesmas posições do time
     $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0])}</button>`).join(""); }
   else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
@@ -650,12 +644,11 @@ raiz.addEventListener("click", e => {
   if (d("apaga") !== undefined) { const s = ler("mo_salvas_" + chaveElenco()) || {}; delete s[d("apaga")]; guardar("mo_salvas_" + chaveElenco(), s); return render(); }
   if (d("carrega") !== undefined) { const s = (ler("mo_salvas_" + chaveElenco()) || {})[d("carrega")]; if (s) { E = JSON.parse(JSON.stringify(s)); sel = null; render(); } return; }
   if (d("fechaescolha") !== undefined) { sel = null; return render(); }
-  if (d("painel") !== undefined) { painel = d("painel"); return render(); }
   if (d("setor") !== undefined) { setorVisto = d("setor"); return renderEscolha(); }
   if (d("forma") !== undefined) return aplicarFormacao(d("forma"));
   if (d("posvaga") !== undefined) { E.vagas[sel.i] = d("posvaga"); setorVisto = null; limparReferencias(); return render(); }
   if (NOVO && (d("vaga") !== undefined || d("banco") !== undefined || d("papslot") !== undefined)) {
-    painel = "elenco"; setorVisto = null;
+    setorVisto = null;
     if (d("papslot") !== undefined) setTimeout(() => $("escolha").scrollIntoView({ behavior: "smooth", block: "nearest" }), 0); }
   if (d("skills") !== undefined) { skillsDe = skillsDe === d("skills") ? null : d("skills"); return renderEscolha(); }
   if (d("escolhe") !== undefined) return escolher(d("escolhe"));

@@ -687,7 +687,8 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:720px) { .t-jog { grid-template-columns:38px minmax(0, 1fr) 24px 40px 44px 22px; gap:8px; padding-left:6px; padding-right:4px; } .t-jog-sal, .t-jog-cab > :nth-child(6) { display:none; } .t-jog-nota { font-size:24px; } .t-jog-nome { font-size:14px; } .t-jog-nome .bnd { display:none; } .t-elenco-numeros { gap:16px 20px; } }
 
 /* ---------- Tática (src/ui-escalacao.js com NOVO): a faixa escura é a tática (campo + banco ao lado | instruções + salvar) ---------- */
-.t-tatica { grid-template-columns:minmax(0, 1.45fr) minmax(0, 1fr); align-items:start; }
+.t-tatica { grid-template-columns:minmax(0, 1.45fr) minmax(0, 1fr); align-items:stretch; }
+.t-tatica-time { display:flex; flex-direction:column; } .t-tatica-grade { flex:1; } /* o campo estica até a altura da lista ao lado */
 .t-tatica-grade { display:grid; grid-template-columns:minmax(0, 1fr) 190px; gap:18px; }
 .t-tatica-lado { border-left:1px solid var(--t-noite-fio); padding-left:clamp(16px, 3vw, 36px); min-width:0; }
 /* campo: gramado listrado, áreas, meio e círculo; cada vaga é uma bolinha com a posição e o nome embaixo */
@@ -722,7 +723,11 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-reserva.vazia { border-style:dashed; color:var(--t-noite-mut); } .t-reserva.vazia .t-bola { background:none; border-style:dashed; border-color:var(--t-noite-fio); }
 .t-reserva.fora .t-bola { background:#b7791f; } .t-reserva.fora .t-reserva-nome { text-decoration:line-through; }
 /* instruções: segmentos no escuro, como na referência */
-#taticaFora #instrucoes, #taticaFora #instrucoes2 { display:grid; gap:16px; }
+/* embaixo, na largura toda: as instruções em três grupos (Postura | Com a bola | Ritmo), e sob o Ritmo o botão de salvar e os avisos */
+.t-tatica-baixo { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0 clamp(16px, 3vw, 36px); border-top:1px solid var(--t-noite-fio); padding-top:24px; }
+.t-tatica-baixo #instrucoes { display:contents; }
+.t-instr-grupo { display:flex; flex-direction:column; gap:14px; min-width:0; } .t-instr-grupo:nth-child(-n+2) { grid-row:span 2; }
+.t-tatica-fim { grid-column:3; grid-row:2; min-width:0; }
 .t-instr { min-width:0; display:flex; flex-direction:column; gap:7px; } .t-tatica .t-instr .t-numero-rotulo { color:var(--t-noite-mut); }
 .t-tatica .t-segmentos { border-color:var(--t-noite-fio); display:flex; }
 .t-tatica .t-segmentos > * { flex:1; border-left-color:var(--t-noite-fio); color:var(--t-noite-mut); padding:9px 4px; font-size:13px; line-height:1.15; min-width:0; }
@@ -730,20 +735,19 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-mais { margin-top:16px; } .t-mais > summary { cursor:pointer; color:var(--t-noite-mut); font:700 10.5px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; list-style:none; }
 .t-mais > summary::-webkit-details-marker { display:none; }
 .t-mais > summary::after { content:" ▸"; } .t-mais[open] > summary::after { content:" ▾"; } .t-mais[open] > summary { margin-bottom:14px; }
-.t-tatica-acao { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:24px; }
+.t-tatica-acao { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:22px; }
 :root[data-visual=novo] .t-tatica #salvarOnline { background:var(--t-marca); color:#fff; min-height:48px; padding:12px 26px; font-size:15px; }
 .t-tatica-acao #avisoOnline { color:var(--t-noite-mut); font-size:13px; } .t-tatica-acao #avisoOnline .ok { color:#7fd6a3; } .t-tatica-acao #avisoOnline .bad, .t-tatica-acao #avisoOnline .aviso { color:#f0b46a; }
 .t-tatica #validacao { margin-top:14px; display:flex; flex-direction:column; gap:8px; } .t-tatica #validacao:empty { display:none; }
 .t-tatica .t-alerta { margin:0; background:none; border-left-color:#f0b46a; color:var(--t-noite-tx); padding:2px 0 2px 12px; font-size:14px; }
-/* painel do lado: abas Instruções | Elenco e formação; formação, montar o time, a lista e as escalações guardadas, tudo no escuro */
-.t-tatica-abas { margin-bottom:20px; } .t-tatica .t-tatica-abas > * { padding:11px 6px; font-weight:700; letter-spacing:.04em; }
+/* ao lado do campo: formação, montar o time, a lista do elenco e as escalações guardadas, tudo no escuro */
 .t-formacoes { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); border:1px solid var(--t-noite-fio); }
 .t-formacoes > button { background:transparent; border:0; border-left:1px solid var(--t-noite-fio); border-top:1px solid var(--t-noite-fio); color:var(--t-noite-mut); font:500 12.5px/1.15 var(--t-letra); padding:9px 4px; cursor:pointer; min-width:0; }
 .t-formacoes > button:nth-child(4n+1) { border-left:0; } .t-formacoes > button:nth-child(-n+4) { border-top:0; }
 .t-formacoes > button:hover, .t-tatica .t-segmentos > :hover:not([aria-pressed=true]) { color:var(--t-noite-tx); background:var(--t-noite2); }
 .t-formacoes > [aria-pressed=true] { background:var(--t-noite-tx); color:var(--t-noite); font-weight:700; }
 .t-tatica-botoes { display:flex; gap:8px; margin:12px 0 20px; } .t-tatica-botoes > * { flex:1; }
-#painelElenco.escolhendo .t-tatica-montar { display:none; }
+.t-tatica-lado.escolhendo .t-tatica-montar { display:none; }
 .t-esc-topo { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; } .t-esc-topo .t-numero-rotulo { color:var(--t-noite-tx); }
 .t-esc-fecha { background:transparent; border:1px solid var(--t-noite-fio); color:var(--t-noite-tx); width:32px; height:32px; cursor:pointer; font-size:14px; }
 /* a posição da vaga: um campinho com as posições (e a nota do jogador em cada uma) */
@@ -764,7 +768,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-esc-cab { cursor:default; border-bottom-color:var(--t-noite-tx); padding-top:0; } .t-esc-cab:hover { background:none; }
 .t-esc-cab > span { color:var(--t-noite-mut); font:700 10px/1 var(--t-letra); letter-spacing:.06em; text-transform:uppercase; text-align:right; }
 .t-tatica .skills { columns:2; color:var(--t-noite-tx); border-bottom:1px solid var(--t-noite-fio); background:var(--t-noite2); } .t-tatica .skills .mut { color:var(--t-noite-mut); }
-.t-tatica-salvas { display:flex; gap:8px; } .t-tatica-salvas input { flex:1; min-width:0; background:transparent; border:1px solid var(--t-noite-fio); color:var(--t-noite-tx); padding:8px 10px; }
+.t-tatica-salvas { display:flex; gap:8px; margin-top:16px; } .t-tatica-salvas input { flex:1; min-width:0; background:transparent; border:1px solid var(--t-noite-fio); color:var(--t-noite-tx); padding:8px 10px; }
 .t-tatica #salvas { margin-top:10px; } .t-tatica #salvas:empty { display:none; } .t-tatica #salvas .chip { background:transparent; border-color:var(--t-noite-fio); color:var(--t-noite-tx); }
 .t-tatica-local { display:flex; gap:12px; padding:16px 0; } .t-tatica-local label { display:flex; flex-direction:column; gap:4px; font-size:12px; }
 .t-tatica-corpo { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:0 40px; align-items:start; }
@@ -776,7 +780,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-duelo { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; border-top:1px solid var(--t-fio); border-bottom:1px solid var(--t-fio); padding:12px 0; }
 .t-duelo .t-numero-valor { font-size:38px; margin-top:4px; } .t-duelo-tempo { font-weight:700; font-size:15px; margin-top:8px; }
 .t-relatorio { display:flex; flex-direction:column; gap:6px; font-size:14px; line-height:1.5; }
-@media (max-width:1024px) { .t-tatica { grid-template-columns:minmax(0, 1fr); } .t-tatica-lado { border-left:0; padding-left:0; border-top:1px solid var(--t-noite-fio); padding-top:20px; } .t-tatica-corpo { grid-template-columns:minmax(0, 1fr); } }
+@media (max-width:1024px) { .t-tatica { grid-template-columns:minmax(0, 1fr); } .t-tatica-baixo { grid-template-columns:minmax(0, 1fr); gap:24px; } .t-instr-grupo:nth-child(-n+2), .t-tatica-fim { grid-row:auto; grid-column:auto; } .t-tatica-lado { border-left:0; padding-left:0; border-top:1px solid var(--t-noite-fio); padding-top:20px; } .t-tatica-corpo { grid-template-columns:minmax(0, 1fr); } }
 @media (max-width:620px) {
   .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-tatica .gramado { min-height:470px; }
   :root[data-visual=novo] .t-tatica .vaga .vpos { width:38px; height:38px; font-size:11.5px; }
