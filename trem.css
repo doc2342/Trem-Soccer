@@ -905,3 +905,38 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:720px) { .t-transf { grid-template-columns:minmax(0, 1fr) 70px; gap:4px 10px; } .t-transf .t-giro-tipo { grid-column:1 / -1; } .t-transf-rota { grid-column:1; } .t-transf-quando { display:none; } .t-transf-valor { grid-row:2 / 4; grid-column:2; } }
 .t-transf .t-giro-tipo { white-space:nowrap; }
 @media (max-width:720px) { .t-boleta-modos > * { letter-spacing:0 !important; font-size:11px !important; } }
+
+/* Mercado, rodada 2: janela fechada em vermelho; boleta com UM número em destaque (o preço), régua de valor e carimbo */
+.t-janela-fechada .t-faixa-titulo { color:var(--t-marca); }
+.t-janela-fechada .t-faixa-titulo .t-apagado { color:var(--t-noite-tx); }
+.t-boleta .t-segmentos > [aria-pressed=true] { background:var(--t-marca); border-color:var(--t-marca); color:#fff; }
+.t-boleta .t-segmentos { border-color:var(--t-papel-fio); } .t-boleta .t-segmentos > * { border-left-color:var(--t-papel-fio); }
+.t-boleta-preco { margin-top:18px; padding:12px 0 14px; border-top:2px solid var(--t-papel-tinta); border-bottom:1px dashed var(--t-papel-fio); }
+.t-boleta-preco .t-boleta-rot { margin-top:0; display:block; }
+.t-boleta-preco b { display:block; font:900 54px/1 var(--t-letra); font-stretch:62%; color:var(--t-marca); margin:4px 0 2px; font-variant-numeric:tabular-nums; }
+.t-boleta-preco > span:last-child { font:500 13px/1.3 var(--t-maquina); color:#5c5340; }
+.t-regua { margin-top:4px; }
+.t-regua .t-boleta-rot { display:block; }
+.t-regua-valor { display:flex; align-items:baseline; gap:6px; margin-top:4px; }
+.t-regua-valor input { width:130px; background:transparent; border:0; border-bottom:2px solid var(--t-papel-tinta); color:var(--t-papel-tinta); font:700 22px/1.2 var(--t-maquina); padding:2px 0; }
+.t-regua-valor input:focus { outline:none; border-bottom-color:var(--t-marca); }
+.t-regua-valor span { font:500 13px var(--t-maquina); color:#7a6f52; }
+.t-regua-grande { margin-top:18px; padding-bottom:12px; border-bottom:1px dashed var(--t-papel-fio); }
+.t-regua-grande .t-regua-valor input { width:180px; font:900 46px/1 var(--t-letra); font-stretch:62%; color:var(--t-marca); border-bottom-color:var(--t-marca); }
+.t-regua input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:12px; margin:10px 0 4px; background:#ddd5bd; border-radius:0; cursor:pointer; }
+.t-regua input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:22px; background:var(--t-papel-tinta); border:0; }
+.t-regua input[type=range]::-moz-range-thumb { width:14px; height:22px; background:var(--t-papel-tinta); border:0; border-radius:0; }
+.t-regua input[type=range]:focus-visible::-webkit-slider-thumb { background:var(--t-marca); }
+.t-regua-escala { display:flex; justify-content:space-between; font:500 11.5px var(--t-maquina); color:#7a6f52; }
+.t-boleta-acao { background:var(--t-marca); color:#fff; }
+.t-boleta-acao:hover:not(:disabled) { background:var(--t-papel-tinta); }
+.t-carimbo { margin:20px auto 4px; width:max-content; max-width:100%; transform:rotate(-4deg); border:3px solid var(--t-marca); outline:1px solid var(--t-marca); outline-offset:3px; color:var(--t-marca); padding:8px 18px 6px; text-align:center; font:900 30px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; letter-spacing:.06em; opacity:.88; }
+.t-carimbo small { display:block; font:600 11px/1.4 var(--t-maquina); letter-spacing:.14em; margin-top:3px; }
+.t-boleta-olheiro { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; padding-top:12px; }
+.t-boleta-olheiro .t-boleta-rot { margin:0; flex-basis:100%; }
+.t-boleta-link { background:none; border:0; padding:0; color:var(--t-papel-tinta); font:600 12.5px var(--t-letra); text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:3px; cursor:pointer; }
+.t-boleta-link:hover { color:var(--t-marca); }
+.t-faixa-mercado .t-faixa-titulo { font-size:clamp(40px, 6.4vw, 76px); }
+.t-faixa-mercado .t-faixa-titulo .t-apagado { font-size:.5em; margin-top:6px; }
+.t-mercado { grid-template-columns:minmax(0, 1fr) 400px; }
+.t-boleta-modos > * { letter-spacing:0 !important; }
