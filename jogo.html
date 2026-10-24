@@ -1586,6 +1586,10 @@ async function telaClube(liga, clube) {
     const pelo = []; for (const r of [...renovam].sort((a, b) => b.s - a.s)) { if (folha <= (liga.teto_folha || Infinity) || n <= 16) break; folha -= r.s * peso(r.j); n--; pelo.push(r.j); }
     return { vencem, saem, renovam, pelo };
   };
+  // visual novo: o item do mural reduzido ao começo (a manchete em negrito, sem os dois-pontos); o texto inteiro vai para o title
+  const alertaCurto = h => { const m = /<b>([\s\S]*?)<\/b>/.exec(h); if (!m) return h;
+    const inteiro = h.replace(/<[^>]+>/g, "").replace(/›\s*$/, "").trim(), curto = m[1].replace(/<[^>]+>/g, "").replace(/[:.]\s*$/, "");
+    return h.replace(/(<span class="ic">[^<]*<\/span>)<span class="([^"]*)">[\s\S]*?<\/span>(?=<span class="vai">|<\/div>$)/, `$1<span class="$2">${esc(curto)}</span>`).replace(/^<div/, `<div title="${esc(inteiro)}"`); }; // só o texto (o ícone fica)
   const muralDoClube = () => {
     const l = [];
     if (pedidosAdm) l.push(item("📝", `${pedidosAdm} ${pedidosAdm === 1 ? "pedido de clube esperando" : "pedidos de clube esperando"} a sua aprovação. <a class="lk" href="admin.html">Abrir a Administração</a>.`, "aviso"));
@@ -1640,6 +1644,7 @@ async function telaClube(liga, clube) {
     }
     if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
+    if (visualNovo) return l.map(alertaCurto).join("") || item("✅", "Nada para resolver.", "mut");
     const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
     if (celular && resto.length) return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}` : "")
       + `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">${urg.length ? "" : "Nada para resolver · "}Ver mais ${resto.length} ${resto.length === 1 ? "aviso" : "avisos"}</summary><div class="mural">${resto.join("")}</div></details></div>`;
@@ -1663,7 +1668,12 @@ async function telaClube(liga, clube) {
       [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
     ].filter(Boolean);
     const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
-    if (visualNovo) { const prox = passos.find(x => !x[0]), resto = passos.filter(x => !x[0] && x !== prox);
+    if (visualNovo) { const faltam = passos.filter(x => !x[0]);
+      return `<section class="t-lado-bloco t-passos t-giro-secao t-giro-manual"><div class="t-passos-cab"><div class="t-rotulo">Primeiros passos · ${feitos} de ${passos.length}</div><button type="button" class="t-botao-link t-botao" id="chegadaFechar">Esconder</button></div>
+        <div class="t-barra"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
+        <div class="t-giro-palco"><button type="button" class="t-giro-seta-bt" data-giro-passo="-1" aria-label="Passo anterior">‹</button><div class="t-giro t-giro-passos">${faltam.map(([, , t, d, ir], k) => `<div class="t-giro-item${k ? "" : " ativo"}"><h3 class="t-leitura-titulo">${t}</h3><p class="t-leitura-frase">${d}</p><button type="button" class="t-botao t-botao-link" data-aba-ir="${ir}">Fazer agora ›</button></div>`).join("")}</div><button type="button" class="t-giro-seta-bt" data-giro-passo="1" aria-label="Próximo passo">›</button></div>
+        <div class="t-numero-legenda">faltam <span class="t-giro-conta">1 de ${faltam.length}</span></div></section>`; }
+    if (false) { const prox = passos.find(x => !x[0]), resto = passos.filter(x => !x[0] && x !== prox);
       return `<section class="t-lado-bloco t-passos"><div class="t-passos-cab"><div class="t-rotulo">Primeiros passos · ${feitos} de ${passos.length}</div><button type="button" class="t-botao-link t-botao" id="chegadaFechar">Esconder</button></div>
         <div class="t-barra"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
         <h3 class="t-leitura-titulo">${prox[2]}</h3><p class="t-leitura-frase">${prox[3]}</p><div class="t-botoes"><button type="button" class="t-botao t-botao-principal" data-aba-ir="${prox[4]}">Fazer agora</button></div>
@@ -1719,8 +1729,12 @@ async function telaClube(liga, clube) {
     if (clube.confianca != null && f.conf != null && clube.confianca !== f.conf) l.push(item("🏛️", `Confiança da diretoria: ${f.conf} → ${clube.confianca}. ${fraseDoPresidente(clube.confianca)}`, clube.confianca > f.conf ? "ok" : "aviso"));
     if (relatorios && f.rel != null && relatorios.length > f.rel) { const n = relatorios.length - f.rel; const quem = (extrato || []).filter(x => x.tipo === "olheiro").slice(0, n).map(x => esc(String(x.descricao || "").replace(/^Relatório de olheiro: /, "")));
       l.push(item("🔍", `${n === 1 ? "1 relatório de olheiro comprado" : n + " relatórios de olheiro comprados"}${quem.length ? `: ${quem.join(", ")}` : ""}. Fica na ficha do jogador.`, "", "mercado")); }
-    el.innerHTML = l.length ? `<div class="card c-chegada"><h2>Desde a sua última visita <span class="tag">${desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-        <button class="sec" id="visitaOk" style="float:right;padding:2px 10px;font-size:12.5px">Entendi</button></h2><div class="mural">${l.join("")}</div></div>` : "";
+    const quando = desde.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    el.innerHTML = !l.length ? "" : visualNovo // visual novo: um item por vez, com setas e "N de M"
+      ? `<div class="card c-chegada t-giro-secao t-giro-manual"><h2>Desde a sua visita <span class="tag">${quando} · <span class="t-giro-conta">1 de ${l.length}</span></span><button class="sec" id="visitaOk">Entendi</button></h2>
+        <div class="t-giro-palco"><button type="button" class="t-giro-seta-bt" data-giro-passo="-1" aria-label="Anterior">‹</button><div class="t-giro t-giro-curto">${l.map((h, k) => `<div class="t-giro-item${k ? "" : " ativo"}"><div class="mural">${h}</div></div>`).join("")}</div><button type="button" class="t-giro-seta-bt" data-giro-passo="1" aria-label="Próximo">›</button></div></div>`
+      : `<div class="card c-chegada"><h2>Desde a sua última visita <span class="tag">${quando}</span>
+        <button class="sec" id="visitaOk" style="float:right;padding:2px 10px;font-size:12.5px">Entendi</button></h2><div class="mural">${l.join("")}</div></div>`;
     el.onclick = e => {
       if (e.target.id === "visitaOk") { guardarVisita(pos); el.innerHTML = ""; return; }
       const a = e.target.closest("[data-aba-ir]"); if (!a) return;
@@ -2707,7 +2721,7 @@ ${historicoDaBase()}
   const giroPara = (caixa, n) => { const itens = caixa.querySelectorAll(".t-giro-item"), conta = caixa.querySelector(".t-giro-conta");
     itens.forEach((el, k) => el.classList.toggle("ativo", k === n)); if (conta) conta.textContent = `${n + 1} de ${itens.length}`; };
   if (visualNovo && !window.giroDoMercado) window.giroDoMercado = setInterval(() => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    document.querySelectorAll(".t-giro-secao").forEach(c => { if (c.matches(":hover")) return; const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + 1) % itens.length); }); }, 5000);
+    document.querySelectorAll(".t-giro-secao:not(.t-giro-manual)").forEach(c => { if (c.matches(":hover")) return; const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + 1) % itens.length); }); }, 5000);
   if (visualNovo && !window.abinhasLigadas) { window.abinhasLigadas = true;
     document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-abinha]"), c = b && b.closest(".t-abinhas"); if (c) c.dataset.aberta = b.dataset.abinha; }); }
   if (visualNovo && !window.giroCliques) { window.giroCliques = true; // um ouvinte só: as notícias da liga são redesenhadas depois da carga
@@ -2933,7 +2947,7 @@ ${historicoDaBase()}
     }).catch(() => {}); };
   // o recorte da classificação em volta do clube: o líder, dois acima, o clube, dois abaixo (com as cores das zonas)
   const recorteDaTabela = (tab, faixas) => { const i = tab.findIndex(t => t.clube.id === clube.id); if (i < 0) return "";
-    const de = Math.max(0, Math.min(i - 2, tab.length - 5)), linhas = [...new Set([0, ...tab.slice(de, de + 5).map((t, k) => de + k)])];
+    const de = Math.max(0, Math.min(i - 2, tab.length - 5)), linhas = tab.slice(de, de + 5).map((t, k) => de + k);
     return `<div class="t-rotulo">Classificação</div><table class="t-tabela t-recorte"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
       + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq"><a href="#clube=${tab[k].clube.id}" data-clube="${tab[k].clube.id}">${esc(tab[k].clube.nome)}</a></td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`; };
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
