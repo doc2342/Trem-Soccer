@@ -32,7 +32,7 @@ const HTML = `  <div id="cabecalho"></div>
     <label class="soLocal">Perfil<select id="perfil"></select></label>
     <label>Formação pronta<select id="formacao"></select></label>
     <button class="sec" id="auto">Escalar os melhores</button>
-    <button class="sec" id="bot">Deixar o bot montar tudo</button>
+    <button class="sec" id="bot">Deixar o assistente escolher</button>
     <span class="row" style="margin-left:auto"><input id="nomeSalva" placeholder="Nome da escalação" style="width:150px"><button class="sec" id="salvar">Salvar</button></span>
     <div class="chips" id="salvas" style="flex-basis:100%"></div>
   </div>
@@ -69,26 +69,29 @@ const HTML_NOVO = `<div id="cabecalho"></div>
   <div id="online" hidden><b id="nomeOnline" hidden></b></div>
   <section class="t-faixa t-sangra t-tatica">
     <div class="t-tatica-time"><div class="t-rotulo" id="rotTatica">Tática</div>
-      <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div></div>
-    <div class="t-tatica-lado"><div class="t-rotulo">Instruções</div><div id="instrucoes"></div>
-      <details class="t-mais"><summary>Mais instruções</summary><div id="instrucoes2"></div></details>
-      <div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div>
-      <div id="validacao"></div></div>
+      <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div><div id="validacao"></div></div>
+    <div class="t-tatica-lado">
+      <div class="t-segmentos t-tatica-abas"><button type="button" data-painel="instr">Instruções</button><button type="button" data-painel="elenco">Elenco e formação</button></div>
+      <div id="painelInstr"><div id="instrucoes"></div>
+        <details class="t-mais"><summary>Mais instruções</summary><div id="instrucoes2"></div></details></div>
+      <div id="painelElenco" hidden>
+        <div class="t-tatica-montar"><div class="t-instr"><div class="t-numero-rotulo">Formação</div><div class="t-formacoes" id="formacao"></div></div>
+          <div class="t-tatica-botoes"><button type="button" class="t-botao" id="auto">Escalar os melhores</button><button type="button" class="t-botao" id="bot">Deixar o assistente escolher</button></div></div>
+        <div id="escolha"></div>
+        <details class="t-mais"><summary>Escalações guardadas</summary><div class="t-tatica-salvas"><input id="nomeSalva" placeholder="Nome da escalação"><button type="button" class="t-botao" id="salvar">Guardar</button></div><div class="chips" id="salvas"></div></details>
+      </div>
+      <div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div></div>
   </section>
-  <div class="t-tatica-ferramentas">
-    <label class="soLocal">Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label class="soLocal">Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label class="soLocal">Perfil<select id="perfil"></select></label>
-    <label>Formação pronta<select id="formacao"></select></label><button class="sec" id="auto">Escalar os melhores</button><button class="sec" id="bot">Deixar o bot montar tudo</button>
-    <span class="t-tatica-salvas"><input id="nomeSalva" placeholder="Nome da escalação"><button class="sec" id="salvar">Guardar</button></span>
-    <div class="chips" id="salvas"></div>
-  </div>
+  <div class="soLocal t-tatica-local"><label>Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label>Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label>Perfil<select id="perfil"></select></label></div>
   <div class="t-tatica-corpo">
-    <div><div id="escolha"></div></div>
     <div>
       <section id="previa" hidden></section>
+      <section class="t-tatica-bloco"><div class="t-rotulo">Mapa do time</div><div id="minimapa"></div></section>
+    </div>
+    <div>
       <section class="t-tatica-bloco"><div class="t-rotulo">Capitão e cobradores <span id="nPapeis"></span></div><div id="papeis"></div></section>
       <section class="t-tatica-bloco"><div class="t-rotulo">Substituições <span id="nSubs"></span></div><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></section>
       <section class="t-tatica-bloco"><div class="t-rotulo">Ordens condicionais <span id="nOrdens"></span></div><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></section>
-      <section class="t-tatica-bloco"><div class="t-rotulo">Mapa do time</div><div id="minimapa"></div></section>
     </div>
   </div>
   <div class="card row soLocal">
@@ -160,6 +163,7 @@ const momento = v => { const n = v == null ? 50 : v; return n >= 65 ? "ok" : n <
 const GRUPOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
 let skillsDe = null; // jogador com os atributos abertos na lista de escolha
 let editaSub = null, editaOrdem = null; // índice da substituição/ordem aberta para edição (as outras aparecem numa linha só)
+let painel = "instr", setorVisto = null; // visual novo: aba do lado da faixa (instruções ou elenco) e o setor escolhido na lista
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
@@ -395,7 +399,7 @@ function htmlGramado(mapa = null) {
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
-      <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span><select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
+      <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span>${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
       <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
@@ -438,7 +442,11 @@ function render() {
   const segmentos = ([k, [nome, ops]]) => `<div class="t-instr"><div class="t-numero-rotulo">${nome}</div><div class="t-segmentos">${ops.map(([v, t]) =>
     `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k]) === String(v)}" title="${t}">${CURTO[t] || t.split(" (")[0]}</button>`).join("")}</div></div>`;
   if (NOVO) { $("instrucoes").innerHTML = Object.entries(OPCOES).filter(([k]) => INSTR_DA_FAIXA.includes(k)).map(segmentos).join("");
-    $("instrucoes2").innerHTML = Object.entries(OPCOES).filter(([k]) => !INSTR_DA_FAIXA.includes(k)).map(segmentos).join(""); }
+    $("instrucoes2").innerHTML = Object.entries(OPCOES).filter(([k]) => !INSTR_DA_FAIXA.includes(k)).map(segmentos).join("");
+    raiz.querySelectorAll("[data-painel]").forEach(b => b.setAttribute("aria-pressed", b.dataset.painel === painel));
+    $("painelInstr").hidden = painel !== "instr"; $("painelElenco").hidden = painel !== "elenco"; $("painelElenco").classList.toggle("escolhendo", !!sel);
+    const atual = [...E.vagas].sort().join(); // formação marcada: a que tem as mesmas posições do time
+    $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0])}</button>`).join(""); }
   else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
   if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
@@ -478,8 +486,39 @@ function render() {
 }
 
 const SETORES = { gol: "Goleiros", defesa: "Defesa", ala: "Defesa", volante: "Meio-campo", meio: "Meio-campo", meia: "Meio-campo", ataque: "Ataque" };
+const htmlSkills = (j, p) => `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="${(PESOS[POSICOES[p].papel] || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
+  <div class="mut" style="column-span:all;font-size:12px;margin-top:4px">Em destaque, os atributos que contam para ${sg(p)}. Experiência ${Math.round(experienciaDe(j))} de 100: quanto mais alta, menos ele oscila de um jogo para o outro e mais rende (até 3%).</div></div>`;
+const SETORES_DA_LISTA = [["Goleiros", "Goleiros"], ["Defesa", "Defesa"], ["Meio-campo", "Meio"], ["Ataque", "Ataque"]];
+// visual novo: a lista mora na faixa escura, um setor por vez (sem rolagem); escolhendo uma vaga, a posição dela muda num campinho
+function renderEscolhaNova(el) {
+  document.body.classList.toggle("escolhendo", !!sel);
+  const fecha = `<button type="button" class="t-esc-fecha" data-fechaescolha="1" title="Fechar">✕</button>`;
+  const vazio = rot => `<div class="t-esc" data-escolhe=""><span class="t-bola"></span><span class="t-esc-nome">${rot}</span></div>`;
+  const onde = j => j.fora > 0 ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : E.jog.includes(j.id) ? "em campo" : E.banco.includes(j.id) ? "banco" : "";
+  const linha = (j, p) => { const fam = familiaridade(j, p), fora = j.fora > 0;
+    return `<div class="t-esc${E.jog.includes(j.id) ? " titular" : E.banco.includes(j.id) ? " reserva" : ""}${fora ? " indisp" : ""}" ${fora ? `title="Fora do próximo jogo: não pode ser escalado"` : `data-escolhe="${j.id}" data-arrasta="${j.id}"`}>
+      <span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-esc-nome" title="${esc(j.nome)}, ${j.idade} anos${j.pe ? ", pé " + NOME_DO_PE[j.pe] : ""}">${esc(j.nome)}</span><span class="t-esc-onde">${onde(j)}</span>
+      <span class="t-esc-mo ${momento(j.forma)}" title="Forma">${j.forma == null ? 50 : j.forma}</span><span class="t-esc-mo ${momento(j.moral)}" title="Moral">${j.moral == null ? 50 : j.moral}</span>
+      <span class="t-esc-nota${fam === "I" ? " bad" : fam === "C" ? " aviso" : ""}"${fam !== "N" ? ` title="${NOME_FAMILIARIDADE[fam]} de ${sg(p)}"` : ""}>${f1(notaNaPosicao(j, p))}</span><button type="button" class="t-esc-info" data-skills="${j.id}" title="Atributos">i</button></div>${skillsDe === j.id ? htmlSkills(j, p) : ""}`; };
+  if (sel && sel.tipo === "papel") {
+    const [rot, deLinha] = PAPEIS[sel.k], lista = escalacaoAtual().filter(x => !deLinha || x.pos !== "GK").sort((a, b) => notaNaPosicao(b.j, b.pos) - notaNaPosicao(a.j, a.pos));
+    el.innerHTML = `<div class="t-esc-topo"><div class="t-numero-rotulo">${ehCobranca(sel.k) ? `${rot}: ${sel.i + 1}º cobrador` : rot}</div>${fecha}</div><div class="t-esc-lista">${lista.map(x => linha(x.j, x.pos)).join("")}${vazio("Automático")}</div>`;
+    return;
+  }
+  const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null, jv = pos ? jogDe(E.jog[sel.i]) : null;
+  const setor = setorVisto || (pos ? SETORES[POSICOES[pos].linha] : "Defesa"), nota = j => notaNaPosicao(j, pos || j.pos);
+  const lista = elenco.filter(j => SETORES[POSICOES[j.pos].linha] === setor && (!sel || pos || !E.jog.includes(j.id)))
+    .sort((a, b) => (a.fora > 0) - (b.fora > 0) || (pos ? 0 : LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos)) || nota(b) - nota(a));
+  const campinho = [...TIRAS, [["GK", 5]]].map((t, k) => t.map(([p, col]) => `<button type="button" data-posvaga="${p}" style="grid-area:${k + 1} / ${col} / auto / span 2" aria-pressed="${p === pos}" title="${POSICOES[p].nome}">${sg(p)}${jv ? ` <b>${f1(notaNaPosicao(jv, p))}</b>` : ""}</button>`).join("")).join("");
+  el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>` : ""}
+    ${pos ? `<div class="t-posicoes">${campinho}</div>` : ""}
+    <div class="t-segmentos t-esc-setores">${SETORES_DA_LISTA.map(([s, r]) => `<button type="button" data-setor="${s}" aria-pressed="${s === setor}">${r}</button>`).join("")}</div>
+    <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span>forma</span><span>moral</span><span>${pos ? sg(pos) : "nota"}</span><span></span></div>
+    ${lista.map(j => linha(j, pos || j.pos)).join("")}${sel ? vazio("Deixar vazio") : ""}</div>`;
+}
 function renderEscolha() {
   const el = $("escolha");
+  if (NOVO) return renderEscolhaNova(el);
   if (sel && sel.tipo === "papel") return renderEscolhaPapel(el);
   const pos = sel && sel.tipo === "vaga" ? E.vagas[sel.i] : null;
   const nota = j => pos ? notaNaPosicao(j, pos) : notaNaPosicao(j, j.pos);
@@ -499,8 +538,7 @@ function renderEscolha() {
     <div class="lista" style="max-height:340px;overflow-y:auto;overflow-x:hidden">${lista.map((j, k) => { const fam = pos ? familiaridade(j, pos) : "N", p = pos || j.pos;
       return `${!pos && (k === 0 || setorDe(lista[k - 1]) !== setorDe(j)) ? `<div class="setor">${setorDe(j)}</div>` : ""}<div class="item ${situacao(j)}${fora(j) ? " indisp" : ""}" ${fora(j) ? `title="Fora do próximo jogo: não pode ser escalado"` : `data-escolhe="${j.id}" data-arrasta="${j.id}"`}><span class="pega" title="Arrastar">⠿</span>${pp(j.pos)}<span class="nm">${esc(j.nome)} <span class="tag">${j.idade}</span>${j.fora > 0 ? ` <span class="bad">${j.motivo || "fora"} ${j.fora}j</span>` : ""}${j.amarelos ? " " + "🟨".repeat(j.amarelos) : ""}${onde(j) ? ` <span class="tag">${onde(j)}</span>` : ""}${fam !== "N" ? ` <span class="${fam === "I" ? "bad" : "aviso"}" style="font-size:12px">${NOME_FAMILIARIDADE[fam].toLowerCase()}</span>` : ""}${j.pe ? ` <span class="${peNaPosicao(j.pe, p) === "trocado" ? "aviso" : "mut"}" style="font-size:12px" title="Pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, p) === "trocado" ? ": pé trocado para este lado. Cruza pior; se for ponta ou meia-atacante, finaliza melhor" : peNaPosicao(j.pe, p) === "natural" ? ": no lado do pé bom, cruza melhor" : ""}">pé ${j.pe === "A" ? "E/D" : j.pe}${peNaPosicao(j.pe, p) === "trocado" ? " ⇄" : ""}</span>` : ""}</span>
         <span class="dir"><span class="mo ${momento(j.forma)}" title="Forma">${j.forma == null ? 50 : j.forma}</span><span class="mo ${momento(j.moral)}" title="Moral">${j.moral == null ? 50 : j.moral}</span><span class="nota" style="min-width:34px;text-align:right">${f1(nota(j))}</span><button class="info" data-skills="${j.id}" title="Atributos">i</button></span></div>
-        ${skillsDe === j.id ? `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="${(PESOS[POSICOES[p].papel] || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
-          <div class="mut" style="column-span:all;font-size:12px;margin-top:4px">Em destaque, os atributos que contam para ${sg(p)}. Experiência ${Math.round(experienciaDe(j))} de 100: quanto mais alta, menos ele oscila de um jogo para o outro e mais rende (até 3%).</div></div>` : ""}`; }).join("")}
+        ${skillsDe === j.id ? htmlSkills(j, p) : ""}`; }).join("")}
     ${sel ? `<div class="item" data-escolhe=""><span class="mut">Deixar vazio</span></div>` : ""}</div>`;
 }
 
@@ -612,6 +650,13 @@ raiz.addEventListener("click", e => {
   if (d("apaga") !== undefined) { const s = ler("mo_salvas_" + chaveElenco()) || {}; delete s[d("apaga")]; guardar("mo_salvas_" + chaveElenco(), s); return render(); }
   if (d("carrega") !== undefined) { const s = (ler("mo_salvas_" + chaveElenco()) || {})[d("carrega")]; if (s) { E = JSON.parse(JSON.stringify(s)); sel = null; render(); } return; }
   if (d("fechaescolha") !== undefined) { sel = null; return render(); }
+  if (d("painel") !== undefined) { painel = d("painel"); return render(); }
+  if (d("setor") !== undefined) { setorVisto = d("setor"); return renderEscolha(); }
+  if (d("forma") !== undefined) return aplicarFormacao(d("forma"));
+  if (d("posvaga") !== undefined) { E.vagas[sel.i] = d("posvaga"); setorVisto = null; limparReferencias(); return render(); }
+  if (NOVO && (d("vaga") !== undefined || d("banco") !== undefined || d("papslot") !== undefined)) {
+    painel = "elenco"; setorVisto = null;
+    if (d("papslot") !== undefined) setTimeout(() => $("escolha").scrollIntoView({ behavior: "smooth", block: "nearest" }), 0); }
   if (d("skills") !== undefined) { skillsDe = skillsDe === d("skills") ? null : d("skills"); return renderEscolha(); }
   if (d("escolhe") !== undefined) return escolher(d("escolhe"));
   if (d("vaga") !== undefined) { const i = +d("vaga"); sel = sel && sel.tipo === "vaga" && sel.i === i ? null : { tipo: "vaga", i }; return render(); }
@@ -647,7 +692,7 @@ $("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("for
 $("jogar").onclick = jogar;
 
 $("perfil").innerHTML = Object.entries(PERFIS).map(([k, p]) => `<option value="${k}">${p.nome}</option>`).join("");
-$("formacao").innerHTML = `<option value="">escolher…</option>` + Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("");
+if (!NOVO) $("formacao").innerHTML = `<option value="">escolher…</option>` + Object.keys(FORMACOES).map(k => `<option>${k}</option>`).join("");
 if (ONLINE) await iniciarOnline(sessao); else novoElenco();
 return { sujo: () => !!E && salvoComo !== null && JSON.stringify(E) !== salvoComo, iniciarOnline, estado: () => E, elenco: () => elenco, jogar, validar, escolher, selecionar: s => { sel = s; render(); }, aplicarFormacao, render };
 }
