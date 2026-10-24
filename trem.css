@@ -531,9 +531,9 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-giro-item { position:absolute; inset:0; padding:12px 0 0; opacity:0; visibility:hidden; transform:translateY(6px); transition:opacity .4s, transform .4s, visibility 0s .4s; }
 .t-giro-item.ativo { opacity:1; visibility:visible; transform:none; transition-delay:0s; position:relative; }
 .t-giro-tipo { display:inline-block; font:700 10px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:#fff; background:var(--t-tinta2); padding:4px 7px; }
-.t-giro-item[data-tipo=multa] .t-giro-tipo { background:var(--t-negociada, #d97706); } .t-giro-item[data-tipo=negociada] .t-giro-tipo { background:#2563c9; }
-.t-giro-item[data-tipo=leilao] .t-giro-tipo { background:var(--t-ok); } .t-giro-item[data-tipo=emprestimo] .t-giro-tipo { background:#7c5cc4; }
-.t-giro-item[data-tipo=livre] .t-giro-tipo, .t-giro-item[data-tipo=repatriado] .t-giro-tipo { background:var(--t-tinta); } .t-giro-item[data-tipo=divida] .t-giro-tipo { background:var(--t-erro); }
+[data-tipo=multa] .t-giro-tipo { background:var(--t-negociada, #d97706); } [data-tipo=negociada] .t-giro-tipo { background:#2563c9; }
+[data-tipo=leilao] .t-giro-tipo { background:var(--t-ok); } [data-tipo=emprestimo] .t-giro-tipo { background:#7c5cc4; }
+[data-tipo=livre] .t-giro-tipo, [data-tipo=repatriado] .t-giro-tipo { background:var(--t-tinta); } [data-tipo=divida] .t-giro-tipo { background:var(--t-erro); }
 .t-giro-escudos { display:flex; align-items:center; gap:12px; margin:12px 0 10px; } .t-giro-escudos a { line-height:0; }
 .t-giro-seta { font:900 22px/1 var(--t-letra); color:var(--t-marca); }
 .t-giro-sem { font:700 10px/1 var(--t-letra); letter-spacing:.1em; text-transform:uppercase; color:var(--t-tinta3); border:1px dashed var(--t-tinta3); padding:13px 6px; }
@@ -544,8 +544,8 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-giro-pontos button { width:18px !important; height:4px !important; padding:0 !important; border:0 !important; background:var(--t-fio) !important; cursor:pointer; }
 .t-giro-pontos button.ativo { background:var(--t-marca) !important; }
 @media (prefers-reduced-motion:reduce) { .t-giro-item { transition:none; } }
-.t-giro-item[data-tipo=bot] .t-giro-tipo { background:var(--t-tinta2); } .t-giro-item[data-tipo=agente] .t-giro-tipo { background:#0f8a7c; }
-.t-giro-item[data-tipo=agente_vermelho] .t-giro-tipo { background:var(--t-erro); }
+[data-tipo=bot] .t-giro-tipo { background:var(--t-tinta2); } [data-tipo=agente] .t-giro-tipo { background:#0f8a7c; }
+[data-tipo=agente_vermelho] .t-giro-tipo { background:var(--t-erro); }
 /* setas laterais no lugar da barra de pontos */
 .t-giro-palco { display:grid; grid-template-columns:28px minmax(0, 1fr) 28px; align-items:center; gap:6px; }
 .t-giro-seta-bt { width:28px; height:44px; padding:0 !important; border:1px solid var(--t-fio) !important; background:var(--t-fundo) !important; color:var(--t-tinta) !important; font:400 24px/1 var(--t-letra) !important; cursor:pointer; }
@@ -839,3 +839,69 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:620px) { :root[data-visual=novo] #taticaFora #escolha { display:block; } } /* no celular a lista fica na aba; escolhendo, vira a folha presa embaixo */
 .t-juvenis :is(.t-jog-contr, .t-jog-sal, .t-jog-cab > :nth-child(4), .t-jog-cab > :nth-child(6)) { visibility:hidden; }
 .t-tatica-lado #salvarOnline { flex:1 1 100%; }
+
+/* ---------- Mercado: lista à esquerda, boleta de papel à direita ---------- */
+.t-busca { margin-top:22px; }
+.t-busca > .row { gap:10px 14px; align-items:end; padding:14px 0 16px; border-bottom:2px solid var(--t-tinta); }
+.t-busca > .row label { font:700 10px/1.2 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-busca > .row label:has(input[type=checkbox]) { font:500 13px/1.2 var(--t-letra); letter-spacing:0; text-transform:none; color:var(--t-tinta); }
+.t-mercado { display:grid; grid-template-columns:minmax(0, 1fr) 380px; gap:0 36px; align-items:start; margin-top:4px; }
+.t-mjog { grid-template-columns:44px minmax(0, 1.3fr) minmax(0, 1fr) 30px 56px 78px 24px; }
+.t-mjog-clube { font-size:13px; color:var(--t-tinta2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.t-mjog-clube a.lk { color:inherit; text-decoration:none; } .t-mjog-clube a.lk:hover { text-decoration:underline; }
+.t-mjog-multa { text-align:right; font:800 15px/1.1 var(--t-letra); color:var(--t-marca); }
+.t-mjog-multa small { display:block; font:600 11px/1.2 var(--t-letra); color:var(--t-tinta2); }
+.t-mjog-trava { opacity:.5; } .t-mjog-trava .t-mjog-multa { color:var(--t-tinta2); }
+.t-jog.t-mjog-on { background:var(--t-placa); border-left-color:var(--t-marca); opacity:1; }
+.t-mjog-mais { padding:12px 8px; font-size:13px; color:var(--t-tinta2); }
+#mPainel { position:sticky; top:16px; margin-top:14px; }
+#mPainel:empty { min-height:300px; border:2px dashed var(--t-fio); display:grid; place-items:center; }
+#mPainel:empty::before { content:"Escolha um jogador na lista para abrir a boleta."; max-width:200px; text-align:center; font:500 14px/1.4 var(--t-letra); color:var(--t-tinta2); }
+.t-boleta { padding-top:20px; }
+.t-boleta-fechar { position:absolute; top:10px; right:12px; background:none; border:0; font:400 24px/1 var(--t-letra); color:#7a6f52; cursor:pointer; padding:2px 6px; }
+.t-boleta .t-documento-cab { padding-right:26px; }
+.t-boleta-quem { font-size:13.5px; color:#5c5340; } .t-boleta-quem b { color:var(--t-papel-tinta); }
+.t-boleta .t-segmentos { border-color:var(--t-papel-tinta); margin-top:8px; }
+.t-boleta .t-segmentos > * { border-left-color:var(--t-papel-tinta); color:var(--t-papel-tinta); padding:10px 6px; font-size:13px; }
+.t-boleta .t-segmentos > [aria-pressed=true] { background:var(--t-papel-tinta); color:var(--t-papel); }
+.t-boleta-modos { margin:16px 0 4px; } .t-boleta-modos > * { font:800 13px/1 var(--t-letra) !important; text-transform:uppercase; letter-spacing:.04em; }
+.t-boleta-rot { margin-top:16px; font:600 10.5px/1.3 var(--t-maquina); letter-spacing:.14em; text-transform:uppercase; color:#7a6f52; }
+.t-boleta-rot b { color:var(--t-papel-tinta); }
+.t-boleta-dur > * { font-family:var(--t-maquina) !important; font-size:12px !important; }
+.t-boleta-campo { display:grid; grid-template-columns:1fr auto; align-items:end; gap:2px 12px; }
+.t-boleta-campo .t-boleta-rot { margin-top:14px; }
+.t-boleta-campo input { grid-row:span 2; width:120px; background:transparent; border:0; border-bottom:2px solid var(--t-papel-tinta); color:var(--t-papel-tinta); font:600 18px/1.4 var(--t-maquina); text-align:right; padding:2px 0; }
+.t-boleta-leg { font-size:12px; color:#7a6f52; }
+.t-boleta-conta { margin-top:18px; border-top:2px dashed var(--t-papel-tinta); padding-top:6px; }
+.t-boleta-neg { color:var(--t-erro); }
+.t-boleta-acao { display:block; width:100%; margin-top:16px; padding:14px; border:0; background:var(--t-papel-tinta); color:var(--t-papel); font:900 18px/1 var(--t-letra); font-stretch:70%; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.t-boleta-acao:hover:not(:disabled) { background:var(--t-marca); }
+.t-boleta-acao:disabled { opacity:.38; cursor:not-allowed; }
+.t-boleta-sec { margin-top:8px; padding:8px 10px; background:transparent; border:1px solid var(--t-papel-tinta); color:var(--t-papel-tinta); font:600 12.5px/1 var(--t-letra); cursor:pointer; }
+.t-boleta-sec:disabled { opacity:.4; cursor:not-allowed; }
+.t-boleta > .t-boleta-sec, [data-boleta-parte] > .t-boleta-sec { width:100%; }
+.t-boleta-nota { margin:10px 0 0; font-size:12px; line-height:1.45; color:#7a6f52; }
+.t-boleta-aviso { margin-top:14px; padding:8px 10px; border-left:3px solid var(--t-erro); background:rgba(180,64,26,.08); font-size:13px; line-height:1.4; }
+.t-boleta-olheiro { margin-top:18px; border-top:1px dashed var(--t-papel-fio); }
+.t-boleta-relatorios { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; } .t-boleta-relatorios .t-boleta-sec { margin-top:6px; }
+#mAviso:not(:empty) { margin-top:10px; font-size:13px; }
+@media (max-width:1024px) { .t-mercado { grid-template-columns:minmax(0, 1fr); } #mPainel { position:static; order:-1; } #mPainel:empty { display:none; } }
+@media (max-width:720px) { .t-mjog { grid-template-columns:38px minmax(0, 1fr) 24px 40px 64px 22px; } .t-mjog-clube, .t-mjog.t-jog-cab > :nth-child(3) { display:none; } }
+.t-mjog.t-jog-cab > :nth-child(3) { text-align:left; }
+.t-boleta .t-segmentos > *, .t-boleta-sec { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-boleta-modos > * { font-size:12px !important; } .t-boleta-dur > * { font-size:11.5px !important; } .t-boleta-relatorios .t-boleta-sec { font-size:11.5px; padding:8px 4px; }
+.t-boleta-campo input { width:104px; }
+
+/* Mercado: transferências, uma por linha, com o tipo na cor do painel da Central */
+.t-transf { display:grid; grid-template-columns:150px minmax(0, 1fr) minmax(0, 1.3fr) 84px 150px; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid var(--t-fio); border-left:3px solid transparent; font-variant-numeric:tabular-nums; }
+.t-transf.t-transf-eu { border-left-color:var(--t-marca); background:var(--t-placa); }
+.t-transf .t-giro-tipo { justify-self:start; }
+.t-transf-jog { font-weight:700; font-size:15px; display:flex; align-items:center; gap:7px; white-space:nowrap; overflow:hidden; min-width:0; }
+.t-transf-jog a.lk { color:inherit; text-decoration:none; overflow:hidden; text-overflow:ellipsis; }
+.t-transf-rota { font-size:13.5px; color:var(--t-tinta2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.t-transf-rota a.lk { color:inherit; } .t-transf-rota b { color:var(--t-marca); margin:0 6px; }
+.t-transf-valor { font:900 22px/1 var(--t-letra); font-stretch:64%; text-align:right; }
+.t-transf-quando { font-size:12px; color:var(--t-tinta3); text-align:right; }
+@media (max-width:720px) { .t-transf { grid-template-columns:minmax(0, 1fr) 70px; gap:4px 10px; } .t-transf .t-giro-tipo { grid-column:1 / -1; } .t-transf-rota { grid-column:1; } .t-transf-quando { display:none; } .t-transf-valor { grid-row:2 / 4; grid-column:2; } }
+.t-transf .t-giro-tipo { white-space:nowrap; }
+@media (max-width:720px) { .t-boleta-modos > * { letter-spacing:0 !important; font-size:11px !important; } }
