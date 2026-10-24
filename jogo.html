@@ -2023,16 +2023,20 @@ async function telaClube(liga, clube) {
   const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
     <div id="cnFoco"></div>
     ${painelDoClube()}
-    <section class="t-faixa-larga" id="cnProximo" hidden></section>
-    <section class="t-para-voce"><div class="t-rotulo">Para você</div><div class="t-cartoes">
-      <div class="t-cartao-caixa" id="desdeVisita"></div><div class="t-cartao-caixa" id="chegada">${chegada()}</div>
-        <section class="t-cartao"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
-        <section class="t-cartao t-amistoso-lado"><div class="t-rotulo">Amistoso</div>
+    <div class="t-linha-central">
+      <div class="t-cel"><section id="cnProximo" hidden></section></div>
+      <aside class="t-cel-lado"><div class="t-cel-rolo"><div id="desdeVisita"></div><div id="chegada">${chegada()}</div></div></aside>
+    </div>
+    <div class="t-linha-central">
+      <div class="t-cel"><section id="cnVestiario" hidden></section></div>
+      <aside class="t-cel-lado"><div class="t-cel-rolo">
+        <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
+        <section class="t-lado-bloco t-amistoso-lado"><div class="t-rotulo">Amistoso</div>
           <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
           <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
           <div id="amInfo" class="t-numero-legenda"></div></section>
-    </div></section>
-    <section class="t-faixa-larga" id="cnVestiario" hidden></section>
+      </div></aside>
+    </div>
     ${diretoriaNova()}
     <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
 
@@ -2961,9 +2965,9 @@ ${historicoDaBase()}
         const nota = (x, k) => `<article class="t-nota${k ? "" : " t-nota-lead"}" data-tipo="${x.tipo}"${x.zona ? ` data-zona="${x.zona}"` : ""}><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", destaque: "Destaque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
           + `<h4>${esc(x.titulo)}</h4><p>${destacar(x.frase)}</p>${x.acao ? botao(x.acao) : ""}</article>`;
         v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)} ›</a></div>`
-          + `<div class="t-vest-grade"><div class="t-vest-esq">` + (fina ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
+          + (fina ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
           + (est && estDeles ? `<div class="t-vest-regua"><div class="t-regua-cab"><span>${esc(clube.nome)}</span><span>${esc(cPor[clube.id === ultimo.casa ? ultimo.fora : ultimo.casa].nome)}</span></div>${reguaDoJogo(est, estDeles)}</div>` : "")
-          + `</div><div class="t-vest-dir">${notas.map(nota).join("")}</div></div>`;
+          + (notas.length ? `<div class="t-vest2${notas.length > 1 ? "" : " t-vest2-so"}">${nota(notas[0], 0)}${notas.length > 1 ? `<div class="t-vest2-resto">${notas.slice(1).map((x, k) => nota(x, k + 1)).join("")}</div>` : ""}</div>` : "");
         v.hidden = false;
       }).catch(() => {});
     }
@@ -2982,16 +2986,15 @@ ${historicoDaBase()}
       const time = (x, lado) => `<div class="t-placar-time t-placar-${lado}"><a href="#clube=${x.id}" data-clube="${x.id}" class="t-placar-escudo" title="Página do clube">${svgEscudo(x.escudo, x.sigla, 52)}</a><div class="t-placar-quem"><a href="#clube=${x.id}" data-clube="${x.id}" class="t-jogo-nome" title="Página do clube">${esc(x.nome)}</a>`
         + `<span class="t-forma" title="Últimos 5 jogos na liga">${forma[x.id].slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` + `</div></div>`;
       const posRival = tab.findIndex(t => t.clube.id === rival.id), depois = meus.filter(p => !res[p.id] && p.id !== proximo.id && cPor[p.casa] && cPor[p.fora]).slice(0, 4);
-      pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}<div class="t-jogo-grade"><div class="t-jogo-esq">
+      pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
         <div class="t-placar">${time(mandante, "casa")}<a class="t-placar-meio" href="aovivo.html?id=${proximo.id}" title="Abrir a partida"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span>
           <span class="t-cronometro" data-ate="${d.getTime()}"></span>${(seg => seg >= 60 ? `<span class="t-cronometro t-prazo" data-ate="${d.getTime() - seg * 1000}" data-rotulo="tática fecha em "></span>` : `<span class="t-placar-hora">tática fecha no apito</span>`)(liga.prazo_escalacao_seg != null ? liga.prazo_escalacao_seg : 900)}</a>${time(visitante, "fora")}</div>
         <div class="t-jogo-meta">${casa ? "Em casa" : "Fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C${posRival >= 0 ? ` · ${esc(rival.nome)} é o ${posRival + 1}º` : ""}</div>
         ${lp && lp.titulo === "Confronto direto" ? `<p class="t-jogo-leitura"><b>Confronto direto.</b> ${esc(lp.frase)}</p>` : lp && lp.frase ? `<p class="t-jogo-leitura">${esc(lp.frase)}</p>` : ""}
-        <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div>
-        </div><div class="t-jogo-dir">
         ${fichasDoProximo(proximo, rival, tab, formaDoRival)}
+        <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div>
         ${depois.length ? `<div class="t-agenda"><div class="t-numero-rotulo">Depois</div>${depois.map(p => { const emCasa = p.casa === clube.id, adv = cPor[emCasa ? p.fora : p.casa], dp = new Date(p.inicio);
-          return `<a class="t-agenda-jogo" href="aovivo.html?id=${p.id}"><span class="t-agenda-dia">${esc(dp.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }))}</span>${svgEscudo(adv.escudo, adv.sigla, 22)}<span class="t-agenda-rival">${esc(adv.nome)}</span><span class="t-agenda-onde">${ehCopa(p) ? esc(nomeDaCopa(p, true)) : p.fase && p.fase !== "liga" ? "Playoff" : "R" + p.rodada} · ${emCasa ? "casa" : "fora"}</span></a>`; }).join("")}</div>` : ""}</div></div></div>`;
+          return `<a class="t-agenda-jogo" href="aovivo.html?id=${p.id}"><span class="t-agenda-dia">${esc(dp.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }))}</span>${svgEscudo(adv.escudo, adv.sigla, 22)}<span class="t-agenda-rival">${esc(adv.nome)}</span><span class="t-agenda-onde">${ehCopa(p) ? esc(nomeDaCopa(p, true)) : p.fase && p.fase !== "liga" ? "Playoff" : "R" + p.rodada} · ${emCasa ? "casa" : "fora"}</span></a>`; }).join("")}</div>` : ""}</div>`;
       estiloDoRival(rival);
     }
   }
