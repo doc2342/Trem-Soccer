@@ -33,18 +33,28 @@
     }
     return null;
   }
+  // Visual novo (em teste até a virada): mo_visual = "novo" põe data-visual="novo" no <html> e carrega o trem.css depois do estilo.css.
+  // ?visual=novo e ?visual=velho no endereço ligam e desligam. Com ele, o tema padrão é o claro ("auto" segue o aparelho).
+  var pedido = /[?&]visual=(novo|velho)\b/.exec(location.search || "");
+  if (pedido) gravar("mo_visual", pedido[1] === "novo" ? "novo" : "");
+  var visualNovo = ler("mo_visual") === "novo";
+  if (visualNovo) {
+    document.documentElement.setAttribute("data-visual", "novo");
+    var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "trem.css"; document.head.appendChild(css);
+  }
+  window.moVisual = function (v) { gravar("mo_visual", v); location.reload(); }; // "novo" ou "" (o de hoje)
   function aplicarTema() {
-    var raiz = document.documentElement, t = ler("mo_tema"), claro = t ? t === "claro" : !!(claroDoAparelho && claroDoAparelho.matches), a = acento(ler("mo_cor").split(","), claro);
+    var raiz = document.documentElement, t = ler("mo_tema"), claro = t === "claro" || t !== "escuro" && (!t && visualNovo || !!(claroDoAparelho && claroDoAparelho.matches)), a = acento(ler("mo_cor").split(","), claro);
     raiz.setAttribute("data-tema", claro ? "claro" : "escuro");
     if (ler("mo_cores")) raiz.setAttribute("data-cores", ler("mo_cores")); else raiz.removeAttribute("data-cores");
     if (a) { raiz.style.setProperty("--ac", a[0]); raiz.style.setProperty("--ac-tx", a[1]); } else { raiz.style.removeProperty("--ac"); raiz.style.removeProperty("--ac-tx"); }
   }
-  window.moTema = function (t) { gravar("mo_tema", t); aplicarTema(); }; // "claro", "escuro" ou "" (automático)
+  window.moTema = function (t) { gravar("mo_tema", t); aplicarTema(); }; // "claro", "escuro", "auto" ou "" (o padrão: automático, ou claro com o visual novo)
   window.moCores = function (c) { gravar("mo_cores", c); aplicarTema(); }; // cores de mandante × visitante: "" (turquesa × âmbar) ou "roxo"
   window.moCor = function (escudo) { var c = escudo ? [escudo.cor1, escudo.cor2].join(",") : ""; if (c !== ler("mo_cor")) { gravar("mo_cor", c); aplicarTema(); } };
   if (claroDoAparelho && claroDoAparelho.addEventListener) claroDoAparelho.addEventListener("change", aplicarTema);
   aplicarTema();
-  var ARQUIVOS = ["atualiza.js", "estilo.css", "admin.html", "aovivo.html", "calibragem.html", "elenco.html", "escalacao.html", "guia.html", "index.html", "jogador.html", "jogo.html", "partida.html", "partida_base.html", "relatorio.html", "sede.html", "temporada.html", "src/banco.js", "src/bandeiras.js", "src/base.js", "src/bot.js", "src/camisa.js", "src/diretoria.js", "src/economia.js", "src/escalacao.js", "src/escudo.js", "src/estadio.js", "src/gerador.js", "src/ligabase.js", "src/mercadobots.js", "src/modelo.js", "src/motor.js", "src/patrocinio.js", "src/relatorio.js", "src/rng.js", "src/rodada.js", "src/saude.js", "src/siglas.js", "src/treino.js", "src/ui-escalacao.js", "src/ui-graficos.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-visual.js", "src/virada.js"];
+  var ARQUIVOS = ["atualiza.js", "estilo.css", "trem.css", "admin.html", "aovivo.html", "calibragem.html", "elenco.html", "escalacao.html", "guia.html", "index.html", "jogador.html", "jogo.html", "partida.html", "partida_base.html", "relatorio.html", "sede.html", "temporada.html", "src/banco.js", "src/bandeiras.js", "src/base.js", "src/bot.js", "src/camisa.js", "src/diretoria.js", "src/economia.js", "src/escalacao.js", "src/escudo.js", "src/estadio.js", "src/gerador.js", "src/ligabase.js", "src/mercadobots.js", "src/modelo.js", "src/motor.js", "src/patrocinio.js", "src/relatorio.js", "src/rng.js", "src/rodada.js", "src/saude.js", "src/siglas.js", "src/treino.js", "src/ui-escalacao.js", "src/ui-graficos.js", "src/ui-login.js", "src/ui-relatorio.js", "src/ui-visual.js", "src/virada.js"];
   var ja = sessionStorage.getItem("mo_recarregou");
   function renovar() {
     if (ja) return;
