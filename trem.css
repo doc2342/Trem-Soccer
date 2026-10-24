@@ -1038,3 +1038,28 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-transf-filtro button.ligado { border-color:var(--t-marca); background:var(--t-placa); }
 .t-transf-filtro button:hover:not(.ligado) { border-color:var(--t-tinta2); }
 .t-transf[hidden] { display:none; }
+
+/* Clube › Finanças: faixa com o caixa, barras de receita (verde) e despesa (vermelho), números por rodada, curva do caixa */
+.t-faixa-vermelho .t-faixa-titulo { color:var(--t-marca); }
+.t-fper { max-width:520px; margin:0 0 20px; }
+.t-fbarras { display:grid; gap:9px; }
+.t-fbarras[hidden] { display:none; }
+.t-fbarra { display:grid; grid-template-columns:minmax(150px, 230px) minmax(0, 1fr) 96px; align-items:center; gap:18px; font-size:15px; }
+.t-fbarra .t-barra { height:16px; }
+.t-fbarra.entra .t-barra > i { background:var(--t-ok); } .t-fbarra.sai .t-barra > i { background:var(--t-erro); }
+.t-fbarra > b { text-align:right; font-variant-numeric:tabular-nums; } .t-fbarra.entra > b { color:var(--t-ok); } .t-fbarra.sai > b { color:var(--t-erro); }
+.t-fbarra-saldo { border-top:2px solid var(--t-tinta); padding-top:10px; margin-top:4px; font-weight:700; }
+.t-fbarra-saldo > b { font:900 26px/1 var(--t-letra); font-stretch:64%; }
+.t-fprev { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:22px 28px; }
+.t-fpartes { color:var(--t-tinta2); font-size:13.5px; margin:14px 0 0; } .t-fpartes b { font-weight:700; }
+.t-fpartes b.ok { color:var(--t-ok); } .t-fpartes b.bad { color:var(--t-erro); }
+.t-falerta { border-left:3px solid var(--t-atencao); padding-left:10px; margin:12px 0 0; font-weight:600; }
+.t-fajuda { margin-top:12px; font-size:13px; color:var(--t-tinta2); } .t-fajuda summary { cursor:pointer; } .t-fajuda p { margin:8px 0 0; max-width:760px; }
+.t-fcurva { width:100%; height:auto; display:block; margin-top:10px; }
+.t-fextrato details > div { max-height:none !important; overflow:visible !important; }
+@media (max-width:720px) {
+  .t-fbarra { grid-template-columns:minmax(0, 1fr) auto; gap:4px 12px; font-size:14px; }
+  .t-fbarra .t-barra { grid-column:1 / -1; grid-row:2; height:10px; }
+  .t-fbarra-saldo > span:nth-child(2) { display:none; }
+  .t-fprev { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
