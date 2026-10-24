@@ -381,6 +381,15 @@ function barraNoCabecalho(cab) { cab.querySelector(".topo-jogo").append(...pecas
 // ponytail: só no aparelho onde o pedido foi feito; noutro aparelho o dirigente envia pelas Configurações
 const chaveDoEscudo = () => "ts_escudo_pendente:" + usuario.id;
 const escudoPendente = () => { try { return localStorage.getItem(chaveDoEscudo()); } catch (x) { return null; } };
+// ponytail: o pedido de clube não guarda o nome do dirigente no banco; fica no aparelho, como o escudo, e vai para definirDirigente na primeira abertura
+const chaveDoDirigente = () => "ts_dirigente_pendente:" + usuario.id;
+async function gravarDirigentePendente(clube) {
+  let nome = null; try { nome = localStorage.getItem(chaveDoDirigente()); } catch (x) {}
+  if (!nome) return;
+  try { localStorage.removeItem(chaveDoDirigente()); } catch (x) {}
+  if (clube.dirigente || clube.dirigente === undefined) return; // já tem nome, ou o banco ainda não tem a coluna
+  try { await definirDirigente(nome); clube.dirigente = nome; } catch (x) {}
+}
 async function enviarEscudoPendente(clube) {
   const img = escudoPendente(); if (!img) return;
   try { localStorage.removeItem(chaveDoEscudo()); } catch (x) {}
@@ -405,7 +414,7 @@ async function carregar(s) {
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
     if (clube) { Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
       // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
-      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await enviarEscudoPendente(clube); await telaClube(liga, clube); carregadoEm = Date.now();
+      if (clube.paraquedas != null && clube.paraquedas === liga.temporada && clube.divisao > 1) { const acima = await valoresDaDivisao(liga.id, clube.divisao - 1); if (acima) { liga.teto_folha = acima.teto_folha; liga.receita_tv += Math.round((acima.receita_tv - liga.receita_tv) / 2); liga.paraquedas = true; } } await enviarEscudoPendente(clube); gravarDirigentePendente(clube); await telaClube(liga, clube); carregadoEm = Date.now();
       // acesso e última novidade vêm na carga (142_carga_traz_o_resto.sql); sem ela, as chamadas avulsas de antes
       if (!(ultimaCarga && ultimaCarga.acesso)) registrarAcesso().catch(() => {});
       marca = { liga: liga.id, clube: clube.id, novidade: ultimaCarga && "novidade" in ultimaCarga ? ultimaCarga.novidade : await ultimaNovidade(liga.id, clube.id) }; if (redesenho) scrollTo(0, rolagem); return; }
@@ -477,7 +486,7 @@ function telaEspera(p) {
 // ---------- criar o clube ----------
 async function telaCriar(liga, recusado) {
   const clubes = await clubesDaLiga(liga.id), vagas = clubes.filter(c => !c.dono).length;
-  const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme };
+  const v = visualAleatorio(criarRng(Date.now() % 1e9)), F = { nome: "", sigla: "", escudo: v.escudo, uniforme: v.uniforme, dirigente: "" };
   let img = null; // escudo enviado (data URL), opcional
   const desenhar = (aviso = "") => {
     $("app").innerHTML = `<div class="card"><h2>Criar o seu clube</h2>
@@ -485,6 +494,7 @@ async function telaCriar(liga, recusado) {
       ${recusado ? `<div class="aviso" style="margin-bottom:10px">O pedido anterior (${esc(recusado.nome)}) foi recusado${recusado.motivo ? `: ${esc(recusado.motivo)}` : "."} Você pode enviar outro.</div>` : ""}
       ${vagas ? `<div class="duas"><div>
         <div class="row"><label style="flex:1;min-width:160px">Nome do clube<input id="cNome" maxlength="30" value="${esc(F.nome)}"></label><label>Sigla (3 letras)<input id="cSigla" maxlength="3" style="width:90px;text-transform:uppercase" value="${esc(F.sigla)}"></label></div>
+        <label style="margin-top:12px">Seu nome de dirigente (obrigatório): é o que os outros veem na tabela e nas notícias<input id="cDirigente" maxlength="24" required value="${esc(F.dirigente)}" placeholder="de 2 a 24 letras"></label>
         <label style="margin-top:12px">Escudo próprio (opcional): uma imagem PNG, JPG ou WebP no lugar do desenho<input type="file" id="cArquivo" accept="image/png,image/jpeg,image/webp"></label>
         <div id="cEnvio" class="mut" style="margin-top:6px;font-size:12.5px">${img ? `<div class="row" style="align-items:center"><img src="${img}" width="64" height="64" alt="Escudo" style="object-fit:contain"><span>Vira o escudo assim que o clube for aprovado. Prefira fundo transparente.</span><button type="button" class="sec" id="cTirar">Tirar</button></div>` : ""}</div>
         <div class="mut" style="margin-top:8px;font-size:12.5px">Depois que o clube for aprovado, dá para mudar tudo nas Configurações.</div>
@@ -492,6 +502,7 @@ async function telaCriar(liga, recusado) {
         <button id="cCriar" style="margin-top:12px;width:100%">Enviar o pedido</button>${aviso ? `<div class="bad" style="margin-top:8px">${esc(aviso)}</div>` : ""}</div></div>` : `<div class="bad">Todas as vagas estão ocupadas.</div>`}</div>`;
     if (!vagas) return;
     $("cNome").oninput = e => { F.nome = e.target.value; };
+    $("cDirigente").oninput = e => { F.dirigente = e.target.value; };
     $("cArquivo").onchange = async e => { const arq = e.target.files[0]; if (!arq) return;
       try { const b = await reduzirImagem(arq); img = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }); desenhar(); }
       catch (err) { $("cEnvio").innerHTML = `<span class="bad">${esc(err.message)}</span>`; } };
@@ -499,8 +510,10 @@ async function telaCriar(liga, recusado) {
     const ed = editorVisual($("cVisual"), F, { sigla: () => F.sigla });
     $("cSigla").oninput = e => { F.sigla = e.target.value.toUpperCase(); ed.atualizarPrevia(); };
     $("cCriar").onclick = async () => {
+      const dir = F.dirigente.trim();
+      if (dir.length < 2 || dir.length > 24) { desenhar("Escreva o seu nome de dirigente, de 2 a 24 letras."); return; }
       $("cCriar").disabled = true; $("cCriar").textContent = "Enviando…";
-      try { await pedirClube(F.nome, F.sigla, F.escudo, F.uniforme); try { if (img) localStorage.setItem(chaveDoEscudo(), img); else localStorage.removeItem(chaveDoEscudo()); } catch (x) {} await carregar({ user: usuario }); }
+      try { await pedirClube(F.nome, F.sigla, F.escudo, F.uniforme); try { if (img) localStorage.setItem(chaveDoEscudo(), img); else localStorage.removeItem(chaveDoEscudo()); localStorage.setItem(chaveDoDirigente(), dir); } catch (x) {} await carregar({ user: usuario }); }
       catch (e) { desenhar(e.message); }
     };
   };
