@@ -334,9 +334,9 @@
 .t-pop .t-reticencias td { text-align:center; color:var(--t-tinta3); border:0; padding:2px; }
 @media (prefers-reduced-motion:no-preference) { .t-pop:popover-open { animation:t-pop .22s cubic-bezier(.2, .8, .2, 1); } @keyframes t-pop { from { opacity:0; transform:translateY(12px); } } }
 @media (max-width:560px) { .t-pop { margin:auto 0 0; width:100vw; max-width:100vw; max-height:85vh; } .t-modulo-num { font-size:28px !important; } }
-/* o último módulo ocupa o que sobra da linha (7 módulos: sem célula vazia) */
-@media (min-width:1100px) { .t-modulos { grid-template-columns:repeat(4, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(4n+3) { grid-column:span 2; } .t-modulo:last-child:nth-child(4n+2) { grid-column:span 3; } }
-@media (max-width:560px) { .t-modulos { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-modulo:last-child:nth-child(odd) { grid-column:span 2; } }
+/* o último módulo ocupa o que sobra da linha (7 módulos: sem célula vazia); conta só os botões, não os popovers ao lado */
+@media (min-width:1100px) { .t-modulos { grid-template-columns:repeat(4, minmax(0, 1fr)); } .t-modulo:last-of-type:nth-of-type(4n+3) { grid-column:span 2; } .t-modulo:last-of-type:nth-of-type(4n+2) { grid-column:span 3; } }
+@media (max-width:560px) { .t-modulos { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-modulo:last-of-type:nth-of-type(odd) { grid-column:span 2; } }
 /* cronômetro do próximo jogo: até o apito e, abaixo, até a tática fechar (vermelho na última hora) */
 .t-cronometro { font:800 15px/1 var(--t-letra); font-variant-numeric:tabular-nums; color:var(--t-tinta); white-space:nowrap; margin-top:4px; }
 .t-cronometro.t-prazo { font:600 11px/1.2 var(--t-letra); color:var(--t-tinta2); margin-top:2px; }
