@@ -2934,7 +2934,7 @@ ${historicoDaBase()}
     const pend = copa ? [] : elenco.filter(j => !j.juvenil && j.amarelos === 3 && !(j.fora > 0)), titFora = fora.filter(ehTit);
     const linhas = [
       ...titFora.map(j => { const lesao = copa ? j.fora > 0 && j.motivo === "lesão" : j.motivo === "lesão", n = copa && !lesao ? j.foraCopa : j.fora;
-        return `<p class="t-ficha-alerta"><b>${esc(j.nome)}</b> <span class="t-ficha-pos">${sg(j.pos)}</span> está <b>${lesao ? "lesionado" : copa ? "suspenso na copa" : "suspenso"}</b> por ${n} ${n === 1 ? "jogo" : "jogos"} e é titular da sua tática. Sem troca, o banco entra no lugar. <button type="button" class="t-botao t-botao-link" data-aba-ir="tatica">Trocar ›</button></p>`; }),
+        return `<p class="t-ficha-alerta"><b>${esc(j.nome)}</b> <span class="t-ficha-pos">${sg(j.pos)}</span> está <b>${lesao ? "lesionado" : copa ? "suspenso na copa" : "suspenso"}</b> por ${n} ${n === 1 ? "jogo" : "jogos"}. <button type="button" class="t-botao t-botao-link" data-aba-ir="tatica">Trocar ›</button></p>`; }),
       fora.filter(j => !ehTit(j)).length ? `<p><b>Fora:</b> ${fora.filter(j => !ehTit(j)).map(j => `${nome(j)} (${j.motivo === "lesão" ? "lesão" : "suspensão"})`).join(", ")}</p>` : "",
       pend.length ? `<p><b>Pendurados:</b> ${pend.map(nome).join(", ")}</p>` : "",
     ].filter(Boolean);
