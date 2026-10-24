@@ -22,10 +22,17 @@ export function botao({ texto, abaIr, href, tipo = "normal" }) {
     : `<button type="button" class="${classe}"${abaIr ? ` data-aba-ir="${esc(abaIr)}"` : ""}>${esc(texto)}</button>`;
 }
 
+// destaque de jornal: os números da frase em negrito (63%, 2,03, 2 jogos, 3 pontos); escapa antes, então não abre brecha para HTML
+export const destacar = texto => esc(texto).replace(/\d+(?:[.,]\d+)?%?(?: (?:jogos?|pontos?|rodadas?|mi|mil)\b)?/g, n => `<b>${n}</b>`);
+
+// manchete: num item de mural (html já montado), o começo do texto em negrito, até os dois-pontos ou o fim da primeira frase.
+// Só mexe quando esse trecho é texto ou link de clube (<a>); com outra tag no meio, devolve o item como veio
+export const manchete = html => html.replace(/^(\s*<div[^>]*>(?:<span class="ic">[^<]*<\/span>)?<span class="[^"]*">)((?:[^<]|<a [^>]*>[^<]*<\/a>){3,200}?[:.])(?=\s|<\/span>)/, "$1<b>$2</b>");
+
 const NOME_DO_TIPO = { funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", resultado: "O jogo", bloqueada: "Analista" };
 // leitura: dado → frase → ação. Mesmo formato que src/leituras.js devolve
 export const leitura = ({ tipo, titulo, frase, acao }) => `<article class="t-leitura" data-tipo="${esc(tipo)}"><div class="t-leitura-tipo">${esc(NOME_DO_TIPO[tipo] || tipo)}</div>`
-  + `<h3 class="t-leitura-titulo">${esc(titulo)}</h3><p class="t-leitura-frase">${esc(frase)}</p>${acao ? botao(acao) : ""}</article>`;
+  + `<h3 class="t-leitura-titulo">${esc(titulo)}</h3><p class="t-leitura-frase">${destacar(frase)}</p>${acao ? botao(acao) : ""}</article>`;
 
 export const leituras = lista => lista && lista.length ? `<div class="t-leituras">${lista.map(leitura).join("")}</div>` : "";
 

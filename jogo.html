@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, botao, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, manchete, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1557,7 +1557,9 @@ async function telaClube(liga, clube) {
   const telaPequena = telaDePc || Math.min(screen.width, screen.height) < 820, celular = telaPequena && !telaDePc;
   // murais da Central
   // ir: aba (ou "aba:interna") que a linha abre ao ser clicada
-  const item = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
+  const itemVelho = (ic, texto, classe = "", ir = "") => `<div${classe === "aviso" || classe === "bad" ? ' class="urg"' : ""}${ir ? ` data-aba-ir="${ir}" title="Clique para abrir"` : ""}><span class="ic">${ic}</span><span class="${classe}">${texto}</span>${ir ? '<span class="vai">›</span>' : ""}</div>`;
+  // visual novo: o começo de cada item (até os dois-pontos ou a primeira frase) em negrito, como manchete de jornal
+  const item = (...a) => visualNovo ? manchete(itemVelho(...a)) : itemVelho(...a);
   const lk = id => cPor[id] ? `<a class="lk" href="#clube=${id}" data-clube="${id}">${esc(cPor[id].nome)}</a>` : /^arq:/.test(id) ? `<span class="mut">${esc(id.slice(4))}</span>` : "—";
   const nomes = l2 => l2.slice(0, 6).map(j => esc(j.nome)).join(", ") + (l2.length > 6 ? " e outros" : "");
   // renovação automática (99_renovacao_automatica.sql): na virada quem vence renova por uma temporada, pelo maior entre o salário e o de mercado,
@@ -1929,6 +1931,7 @@ async function telaClube(liga, clube) {
       <div class="t-central-principal">
         <section id="cnProximo" hidden></section>
         <section id="cnVestiario" hidden></section>
+        <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
       </div>
       <aside class="t-central-lado">
         <div id="desdeVisita"></div><div id="chegada">${chegada()}</div>
@@ -1941,7 +1944,6 @@ async function telaClube(liga, clube) {
             ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</section>`; })()}
       </aside>
     </div>
-    <section class="t-secao t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
     <details class="t-secao t-amistoso"><summary class="t-rotulo">Amistoso</summary>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button type="button" class="t-botao" id="amJogar">Jogar amistoso</button></div>

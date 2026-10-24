@@ -207,8 +207,8 @@
 .t-central .mural > div[data-aba-ir]:hover { background:var(--t-placa); }
 .t-central .mural details summary { font-size:12.5px; color:var(--t-tinta2); padding:8px 0; }
 /* bastidores: as notícias da liga em colunas, como num jornal */
-.t-bastidores { border-top:2px solid var(--t-tinta); padding-top:14px; margin-top:44px; }
-.t-bastidores > .mural { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:8px 40px; align-items:start; } /* uma seção por bloco: nada se parte entre colunas */
+.t-bastidores { border-top:2px solid var(--t-tinta); padding-top:14px; margin-top:36px; }
+.t-bastidores > .mural { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:18px 36px; align-items:start; } /* uma seção por bloco: nada se parte entre colunas */
 .t-mural-secao { display:flex; flex-direction:column; min-width:0; }
 .t-bastidores .mural .rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta); margin:6px 0 4px; padding-bottom:8px; border-bottom:1px solid var(--t-tinta); }
 .t-bastidores .mural > div[data-manchete] { font-size:14px; }
@@ -275,3 +275,7 @@
 :root[data-visual=novo] .fv { font:900 40px/1.05 var(--t-letra); font-stretch:64%; }
 :root[data-visual=novo] .janela { border-radius:0; }
 .t-central-lado > :empty { display:none; } /* "desde a sua visita" vazio não empurra a coluna */
+/* manchetes: o negrito do começo de cada item pesa como título de nota de jornal */
+.t-central .mural b { font-weight:700; color:var(--t-tinta); }
+.t-bastidores .mural > .t-mural-secao > div[data-manchete]:first-of-type { font-size:15.5px; } /* a primeira nota de cada seção é a maior */
+.t-leitura-frase b { color:var(--t-tinta); font-weight:800; }

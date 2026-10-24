@@ -45,3 +45,15 @@ assert.match(graficoDePosicoes([9, 7, 4], 12, 4), /t-grafico-zona/);
 assert.ok(!graficoDePosicoes([9, 7, 4], 12).includes("t-grafico-zona"));
 assert.equal(graficoDePosicoes([], 12), "");
 assert.match(graficoDePosicoes([3], 8), /t-grafico-ponto/); // uma rodada só: o ponto, sem linha quebrada
+// destaques: números da frase da leitura em negrito (como num jornal), sem abrir brecha para HTML
+assert.match(leitura({ tipo: "falhou", titulo: "a", frase: "O adversário venceu 63% dos duelos ali." }), /venceu <b>63%<\/b> dos duelos/);
+assert.match(leitura({ tipo: "resultado", titulo: "a", frase: "2,03 de xG nosso contra 0,67" }), /<b>2,03<\/b> de xG nosso contra <b>0,67<\/b>/);
+assert.match(leitura({ tipo: "desfalque", titulo: "a", frase: "Fora por 2 jogos." }), /Fora por <b>2 jogos<\/b>\./);
+assert.match(leitura({ tipo: "x", titulo: "a", frase: "<i>1</i>" }), /&lt;i&gt;<b>1<\/b>&lt;\/i&gt;/); // a tag da entrada sai escapada; só o negrito do número é nosso
+// manchete: o começo da notícia em negrito (até os dois-pontos, ou a primeira frase)
+import { manchete } from "../src/ui-trem.js";
+assert.equal(manchete('<div><span class="">Noite de Pedrinho: 3 gols no 3 a 0.</span></div>'), '<div><span class=""><b>Noite de Pedrinho:</b> 3 gols no 3 a 0.</span></div>');
+assert.equal(manchete('<div class="urg"><span class="aviso">18 contratos vencem no fim. Renovam sozinhos.</span></div>'), '<div class="urg"><span class="aviso"><b>18 contratos vencem no fim.</b> Renovam sozinhos.</span></div>');
+// link de clube no meio da manchete entra no negrito; outra tag (img, span) não
+assert.equal(manchete('<div><span class="">A base do <a class="lk" href="#c">Trem</a> revelou uma joia: Laerte</span></div>'), '<div><span class=""><b>A base do <a class="lk" href="#c">Trem</a> revelou uma joia:</b> Laerte</span></div>');
+assert.equal(manchete('<div><span class="">Com <img src="x"> imagem: fica</span></div>'), '<div><span class="">Com <img src="x"> imagem: fica</span></div>');
