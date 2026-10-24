@@ -505,3 +505,13 @@ a.t-placar-meio { text-decoration:none; color:inherit; padding:6px 8px; } a.t-pl
 a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:4px; }
 .t-topo-ajustes { background:none !important; border:0 !important; padding:6px !important; color:var(--t-tinta2) !important; cursor:pointer; display:grid; place-items:center; }
 .t-topo-ajustes:hover { color:var(--t-tinta) !important; } .t-topo-ajustes:hover svg { transform:rotate(45deg); } .t-topo-ajustes svg { transition:transform .3s; }
+/* amistoso na coluna do lado: adversário, mando e o botão; o relatório abre por cima, num painel largo */
+.t-amistoso-lado select { width:100%; } .t-amistoso-lado .t-amistoso-linha { display:flex; gap:8px; margin-top:8px; } .t-amistoso-lado .t-amistoso-linha select { flex:1; }
+.t-amistoso-lado #amInfo { margin-top:8px; }
+.t-pop.t-pop-largo { width:min(980px, calc(100vw - 32px)); max-height:min(88vh, 900px); }
+.t-pop-largo .t-pop-corpo { padding-bottom:20px; }
+/* placar: escudo e nome de cada time levam à página do clube */
+.t-placar a.t-jogo-nome, .t-placar a.t-placar-escudo { color:inherit; text-decoration:none; }
+.t-placar a.t-jogo-nome:hover { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:4px; }
+.t-placar a.t-placar-escudo { display:block; line-height:0; }
+.t-nota[data-tipo=destaque] .t-leitura-tipo { color:var(--t-ok); }

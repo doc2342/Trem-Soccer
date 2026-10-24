@@ -43,6 +43,8 @@ export function leiturasDoVestiario({ relatorio, lado, nivel, elenco }) {
     const nossa = melhorZona(estat[lado]);
     if (nossa && nossa.taxa > 0.5) l.push({ tipo: "funcionou", zona: nossa.zona, titulo: TITULO_DO_ATAQUE[nossa.zona], frase: `${pc(nossa.taxa)} dos duelos vencidos ali.`, acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } });
   }
+  const m = relatorio.melhor; // o melhor em campo, pela nota do relatório: entra com o analista nível 3, como no comentário pós-jogo
+  if (nivel >= 3 && m && m.time === lado) l.push({ tipo: "destaque", titulo: `${m.nome} foi o melhor em campo`, frase: `Nota ${String(m.nota).replace(".", ",")} no jogo.` });
   const cansados = (relatorio.jogadores || []).filter(j => j.time === lado && j.saiu === null && j.pos !== "GK" && j.energia < CANSADO);
   if (cansados.length) l.push({ tipo: "atencao", titulo: "Terminaram cansados", frase: lista(cansados.slice(0, 3).map(j => j.nome)) + "." });
   const resumo = relatorio.analise && relatorio.analise[lado] && relatorio.analise[lado][0];

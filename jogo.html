@@ -1985,17 +1985,16 @@ async function telaClube(liga, clube) {
         <div id="desdeVisita"></div>
         <div id="chegada">${chegada()}</div>
         <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
+        <section class="t-lado-bloco t-amistoso-lado"><div class="t-rotulo">Amistoso</div>
+          <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
+          <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
+          <div id="amInfo" class="t-numero-legenda"></div></section>
       </aside>
     </div>
     ${diretoriaNova()}
     <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
-    <div class="t-rodape-central">
-        <section class="t-amistoso"><div class="t-rotulo">Amistoso</div>
-          <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
-          <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
-          <div id="amInfo" class="t-numero-legenda"></div></section>
-    </div>
-    <div id="amRel"></div>
+
+    <div popover id="popAmistoso" class="t-pop t-pop-largo"><div class="t-pop-cab"><div class="t-rotulo">Amistoso · relatório</div><button type="button" class="t-pop-fechar" popovertarget="popAmistoso" popovertargetaction="hide" aria-label="Fechar">×</button></div><div class="t-pop-corpo" id="amRel"></div></div>
     </section>`;
   $("app").innerHTML = `${visualNovo ? topoNovo() : `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
@@ -2902,12 +2901,12 @@ ${historicoDaBase()}
     if (v && ultimo && res[ultimo.id]) {
       const analista = (comissaoToda || []).find(t => t.funcao === "analista"), r = res[ultimo.id];
       daLiga("relatorio:" + ultimo.id, () => relatorioDaPartida(ultimo.id))().then(linha => {
-        const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
+        const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco: [] }); // quem está fora aparece em "Sua escalação"
         if (!l.length || !v.isConnected) return;
         // vestiário: o placar e a linha fina; embaixo, o campo do jogo (duelos vencidos por zona, as zonas citadas acesas) e o resumo em lista
         const lado = ultimo.casa === clube.id ? 0 : 1, estat = linha && linha.relatorio && linha.relatorio.estat, est = estat && estat[lado], estDeles = estat && estat[1 - lado];
         const fina = l.find(x => x.tipo === "resultado"), notas = l.filter(x => x !== fina);
-        const nota = (x, k) => `<article class="t-nota${k ? "" : " t-nota-lead"}" data-tipo="${x.tipo}"${x.zona ? ` data-zona="${x.zona}"` : ""}><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
+        const nota = (x, k) => `<article class="t-nota${k ? "" : " t-nota-lead"}" data-tipo="${x.tipo}"${x.zona ? ` data-zona="${x.zona}"` : ""}><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", destaque: "Destaque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
           + `<h4>${esc(x.titulo)}</h4><p>${destacar(x.frase)}</p>${x.acao ? botao(x.acao) : ""}</article>`;
         v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)} ›</a></div>`
           + (fina ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
@@ -2928,7 +2927,7 @@ ${historicoDaBase()}
       const lp = leituraDoProximoJogo({ tab, clubeId: clube.id, rivalId: rival.id, formaDoRival }), c = climaDaPartida(proximo.id);
       const qual = ehCopa(proximo) ? nomeDaCopa(proximo, true) : proximo.fase && proximo.fase !== "liga" ? nomeDoPlayoff(proximo).replace("Playoff · ", "") : "Rodada " + proximo.rodada;
       // um placar: mandante à esquerda e visitante à direita, os nomes encostados no "×", a hora no meio; o rival leva a forma
-      const time = (x, lado) => `<div class="t-placar-time t-placar-${lado}">${svgEscudo(x.escudo, x.sigla, 52)}<div class="t-placar-quem"><span class="t-jogo-nome">${esc(x.nome)}</span>`
+      const time = (x, lado) => `<div class="t-placar-time t-placar-${lado}"><a href="#clube=${x.id}" data-clube="${x.id}" class="t-placar-escudo" title="Página do clube">${svgEscudo(x.escudo, x.sigla, 52)}</a><div class="t-placar-quem"><a href="#clube=${x.id}" data-clube="${x.id}" class="t-jogo-nome" title="Página do clube">${esc(x.nome)}</a>`
         + `<span class="t-forma" title="Últimos 5 jogos na liga">${forma[x.id].slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` + `</div></div>`;
       const posRival = tab.findIndex(t => t.clube.id === rival.id), depois = meus.filter(p => !res[p.id] && p.id !== proximo.id && cPor[p.casa] && cPor[p.fora]).slice(0, 4);
       pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
@@ -3210,7 +3209,7 @@ ${historicoDaBase()}
       $("amInfo").textContent = `${adv.nome} (tática de bot, ${estiloDe(adv)}): ${dele.formacao}, nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
       $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1], ordens: partida.ordens, clubes: casa ? [clube, adv] : [adv, clube] });
       ligarGraficos($("amRel"));
-      $("amRel").scrollIntoView({ behavior: "smooth", block: "start" });
+      if ($("popAmistoso") && $("popAmistoso").showPopover) $("popAmistoso").showPopover(); else $("amRel").scrollIntoView({ behavior: "smooth", block: "start" }); // visual novo: o relatório abre por cima
     } catch (e) { $("amInfo").innerHTML = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }
     $("amJogar").disabled = false;
   };

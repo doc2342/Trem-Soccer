@@ -97,3 +97,9 @@ assert.ok(leiturasDoVestiario({ relatorio: fraco, lado: 0, nivel: 3, elenco: [] 
 // cada leitura de zona diz qual zona do nosso campo ela cita (para o campo do vestiário acender)
 assert.equal(v3.find(l => l.tipo === "falhou").zona, "DD");
 assert.equal(v3.find(l => l.tipo === "funcionou").zona, "AC");
+// destaque: o melhor em campo do nosso lado (com o analista nível 3), como "o que deu certo" de todo jogo
+const comMelhor = { ...rel, melhor: { nome: "Pedrinho Pitimbu", time: 0, nota: 8.4 } };
+const dst = leiturasDoVestiario({ relatorio: comMelhor, lado: 0, nivel: 3, elenco: [] }).find(l => l.tipo === "destaque");
+assert.deepEqual(dst, { tipo: "destaque", titulo: "Pedrinho Pitimbu foi o melhor em campo", frase: "Nota 8,4 no jogo." });
+assert.ok(!leiturasDoVestiario({ relatorio: comMelhor, lado: 0, nivel: 2, elenco: [] }).some(l => l.tipo === "destaque")); // só com analista nível 3
+assert.ok(!leiturasDoVestiario({ relatorio: comMelhor, lado: 1, nivel: 3, elenco: [] }).some(l => l.tipo === "destaque")); // o melhor era do outro lado
