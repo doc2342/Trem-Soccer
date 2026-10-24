@@ -1764,7 +1764,9 @@ async function telaClube(liga, clube) {
   const desenharMural = secoes => {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
-      const ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
+      let ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
+      // visual novo: os placares da rodada (t-pl) vêm primeiro, todos à vista, na ordem em que chegaram; as manchetes ficam no "Mais"
+      const pl = ord.filter(h => h.startsWith('<div class="t-pl')); if (pl.length) { ord = [...secoes[k].filter(h => h.startsWith('<div class="t-pl')), ...ord.filter(h => !h.startsWith('<div class="t-pl'))]; n = pl.length; }
       const bloco = `<div class="rot">${titulo}</div>` + ord.slice(0, n).map(h => h.replace(/^<div/, "<div data-manchete")).join("")
         + (ord.length > n ? `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">Mais ${ord.length - n}</summary><div class="mural">${ord.slice(n).join("")}</div></details></div>` : "");
       if (visualNovo && k === "mercado" && painelDoMercado()) return painelDoMercado();
@@ -1830,6 +1832,14 @@ async function telaClube(liga, clube) {
     const rodadas = porGrupo.map(({ ps }) => { const feitas = ps.filter(p => res[p.id]), ultima = feitas.length ? Math.max(...feitas.map(p => p.rodada)) : 0; return { feitas, ultima, daRodada: feitas.filter(p => p.rodada === ultima) }; });
     // gols da última rodada de todos os grupos numa leitura só
     const golsSeq = {}; (await golsDasPartidas(rodadas.flatMap(x => x.daRodada).filter(p => humanos.has(p.casa) || humanos.has(p.fora)).map(p => p.id))).sort((a, b) => a.libera_em.localeCompare(b.libera_em)).forEach(x => (golsSeq[x.partida_id] = golsSeq[x.partida_id] || []).push({ t: +x.time, min: x.min, quem: x.quem }));
+    const placares = [];
+    if (visualNovo && porGrupo.length && rodadas[0].daRodada.length) {
+      // nome curto (até 12 letras) ou a sigla, para o placar caber na coluna; o nome inteiro fica no title
+      const curto = c => c.nome.length <= 12 ? c.nome : c.sigla || c.nome;
+      const linhaDoJogo = p => { const r = res[p.id], lado = (id, k) => cPor[id] ? `<a class="t-pl-time t-pl-${k}" href="#clube=${id}" data-clube="${id}" title="${esc(cPor[id].nome)}">${k ? svgEscudo(cPor[id].escudo, cPor[id].sigla, 20) + `<span>${esc(curto(cPor[id]))}</span>` : `<span>${esc(curto(cPor[id]))}</span>` + svgEscudo(cPor[id].escudo, cPor[id].sigla, 20)}</a>` : "";
+        return `<div class="t-pl${p.casa === clube.id || p.fora === clube.id ? " t-pl-meu" : ""}" data-clube="${p.casa === clube.id || p.fora === clube.id ? clube.id : ""}">${lado(p.casa, 0)}<a class="t-pl-placar" href="aovivo.html?id=${p.id}" title="Ver o jogo">${r.gols_casa} × ${r.gols_fora}</a>${lado(p.fora, 1)}</div>`; };
+      placares.push(...rodadas[0].daRodada.slice().sort((a, b) => (b.casa === clube.id || b.fora === clube.id) - (a.casa === clube.id || a.fora === clube.id)).map(linhaDoJogo));
+    }
     for (const [i, { g, ps, rs }] of porGrupo.entries()) {
       const { feitas, ultima, daRodada } = rodadas[i];
       if (!feitas.length) continue;
@@ -1875,7 +1885,7 @@ async function telaClube(liga, clube) {
     });
     if (jogadas <= 3) passada.filter(x => humanos.has(x.clube_id) && x.destino && x.destino !== "ficou").forEach(x => l.push(item(x.destino === "caiu" ? "⬇️" : x.destino === "subiu" ? "⬆️" : "🏆",
       x.destino === "caiu" ? `${lk(x.clube_id)} foi rebaixado na temporada ${liga.temporada - 1} (${x.posicao}º do ${nomeDoGrupo(x.grupo)}).` : x.destino === "subiu" ? `${lk(x.clube_id)} conquistou o acesso na temporada ${liga.temporada - 1}.` : `${lk(x.clube_id)} foi campeão do ${nomeDoGrupo(x.grupo)} na temporada ${liga.temporada - 1}.`)));
-    return { jogos, liga: l };
+    return { jogos: placares.length ? [...placares, ...jogos] : jogos, liga: l };
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 

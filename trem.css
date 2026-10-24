@@ -580,3 +580,11 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:1023px) { .t-central-grade { grid-template-columns:minmax(0, 1fr); } .t-central-lado { margin-top:28px; } }
 /* abaixo de 1280 px os módulos se distribuem em linhas e os da última esticam: sem vão em largura nenhuma */
 @media (max-width:1279px) { .t-central > .t-painel .t-modulos { display:flex; flex-wrap:wrap; } .t-central > .t-painel .t-modulo-caixa { flex:1 1 150px; } }
+/* bastidores · últimos jogos: placares da rodada com escudos; o placar abre o jogo; o jogo do clube em destaque */
+.t-central .mural > .t-mural-secao > .t-pl { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--t-fio); font-size:13px; }
+.t-pl-time { display:flex; align-items:center; gap:6px; min-width:0; color:var(--t-tinta); text-decoration:none; }
+.t-pl-time span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-pl-0 { justify-content:flex-end; text-align:right; }
+.t-pl-time svg { flex-shrink:0; width:20px; height:20px; }
+.t-pl-placar { font:900 16px/1 var(--t-letra); font-stretch:70%; font-variant-numeric:tabular-nums; color:var(--t-tinta); text-decoration:none; padding:3px 7px; background:var(--t-placa); white-space:nowrap; }
+.t-pl-placar:hover { background:var(--t-tinta); color:var(--t-fundo); }
+.t-pl.t-pl-meu .t-pl-time span { font-weight:800; } .t-pl.t-pl-meu .t-pl-placar { background:var(--t-tinta); color:var(--t-fundo); }
