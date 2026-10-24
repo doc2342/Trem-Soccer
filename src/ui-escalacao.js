@@ -12,7 +12,7 @@ import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS } from "./siglas.js";
 import { SEDES, sedeDoJogo, chaveDaFinal, configDaSede, desenharEstadio } from "./estadio.js";
-import { faixa as faixaFoco, rotulo } from "./ui-trem.js";
+import { rotulo } from "./ui-trem.js";
 
 const NOVO = typeof document !== "undefined" && document.documentElement.dataset.visual === "novo"; // visual novo (mo_visual): prévia vira faixa de foco, instruções em botões
 
@@ -64,8 +64,48 @@ const HTML = `  <div id="cabecalho"></div>
   </div>
   <div id="rel"></div>`;
 
+// visual novo: a faixa escura é a própria tática (campo, banco ao lado, instruções e o botão de salvar); o resto embaixo
+const HTML_NOVO = `<div id="cabecalho"></div>
+  <div id="online" hidden><b id="nomeOnline" hidden></b></div>
+  <section class="t-faixa t-sangra t-tatica">
+    <div class="t-tatica-time"><div class="t-rotulo" id="rotTatica">Tática</div>
+      <div class="t-tatica-grade"><div class="gramado" id="gramado"></div><div class="t-banco"><div class="t-numero-rotulo" id="nBanco">Banco</div><div id="banco"></div></div></div></div>
+    <div class="t-tatica-lado"><div class="t-rotulo">Instruções</div><div id="instrucoes"></div>
+      <details class="t-mais"><summary>Mais instruções</summary><div id="instrucoes2"></div></details>
+      <div class="t-tatica-acao"><button id="salvarOnline" class="t-botao t-botao-principal">Salvar para o próximo jogo</button><span id="avisoOnline"></span></div>
+      <div id="validacao"></div></div>
+  </section>
+  <div class="t-tatica-ferramentas">
+    <label class="soLocal">Elenco (semente)<input id="semente" type="number" value="1" style="width:90px"></label><label class="soLocal">Nível<input id="nivel" type="number" min="15" max="42" value="30" style="width:80px"></label><label class="soLocal">Perfil<select id="perfil"></select></label>
+    <label>Formação pronta<select id="formacao"></select></label><button class="sec" id="auto">Escalar os melhores</button><button class="sec" id="bot">Deixar o bot montar tudo</button>
+    <span class="t-tatica-salvas"><input id="nomeSalva" placeholder="Nome da escalação"><button class="sec" id="salvar">Guardar</button></span>
+    <div class="chips" id="salvas"></div>
+  </div>
+  <div class="t-tatica-corpo">
+    <div><div id="escolha"></div></div>
+    <div>
+      <section id="previa" hidden></section>
+      <section class="t-tatica-bloco"><div class="t-rotulo">Capitão e cobradores <span id="nPapeis"></span></div><div id="papeis"></div></section>
+      <section class="t-tatica-bloco"><div class="t-rotulo">Substituições <span id="nSubs"></span></div><div id="subs"></div><button class="sec" id="maisSub">Adicionar substituição</button></section>
+      <section class="t-tatica-bloco"><div class="t-rotulo">Ordens condicionais <span id="nOrdens"></span></div><div id="ordens"></div><button class="sec" id="maisOrdem">Adicionar ordem</button></section>
+      <section class="t-tatica-bloco"><div class="t-rotulo">Mapa do time</div><div id="minimapa"></div></section>
+    </div>
+  </div>
+  <div class="card row soLocal">
+    <label class="soLocal">Nível do adversário<input id="nivelAdv" type="number" min="15" max="42" value="30" style="width:90px"></label>
+    <label class="soLocal">Elenco do adversário<input id="sementeAdv" type="number" value="7" style="width:90px"></label>
+    <label id="rotuloAdv" hidden>Adversário<select id="advOnline"></select></label>
+    <label>Mando<select id="mando"><option value="casa">Jogo em casa</option><option value="fora">Jogo fora</option></select></label>
+    <label>Analista<select id="analista"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3" selected>Nível 3</option></select></label>
+    <button id="jogar">Jogar amistoso</button><span class="mut" id="infoAdv"></span>
+  </div>
+  <div id="rel"></div>`;
+// instruções que ficam na faixa; as outras vão para "Mais instruções". Rótulos longos encurtam no botão (o inteiro fica no title)
+const INSTR_DA_FAIXA = ["mentalidade", "pressao", "passe", "lado"];
+const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem" };
+
 export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
-raiz.innerHTML = HTML;
+raiz.innerHTML = NOVO ? HTML_NOVO : HTML;
 
 const $ = id => raiz.querySelector("#" + id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -157,15 +197,13 @@ function sedeNaPrevia() {
 }
 // visual novo: a prévia abre a aba como faixa de foco (adversário, como enfrentar, seu onze × o deles); o resto vai para o relatório dobrável
 const ladoDoDuelo = () => { const m = forcaMinha(); return forcaAdv == null ? "" : m >= forcaAdv + 0.5 ? "mais forte" : m <= forcaAdv - 0.5 ? "mais fraco" : "parelho"; };
-const faixaDaTatica = ({ rot, adv, formacao, dica, clima, semAnalista }) => faixaFoco({ rotulo: rot, titulo: adv.nome, apagado: formacao ? `${formacao} provável` : adv.dono ? "comandado por dirigente" : "comandado pelo bot",
-  destaque: dica ? "Como enfrentar:" : semAnalista ? "Sem analista," : "", frase: dica ? dica + "." : semAnalista ? "você só conhece o time do último jogo." : "nada no jeito deles pede uma resposta especial.",
-  numeros: `<div class="t-tatica-acao" id="acaoTatica"></div>`,
-  lado: `<div class="t-duelo"><div class="t-numero"><div class="t-numero-rotulo">Seu onze</div><div class="t-numero-valor" id="nossoOnze">${f1(forcaMinha())}</div><div class="t-numero-legenda" id="nossoOnzeLeg">${ladoDoDuelo()}</div></div>
-    ${forcaAdv == null ? "" : `<div class="t-numero"><div class="t-numero-rotulo">O deles</div><div class="t-numero-valor">${f1(forcaAdv)}</div><div class="t-numero-legenda">nota média do onze</div></div>`}</div>
-    <div class="t-numero-legenda t-duelo-tempo">${esc(clima.nome)}, ${clima.temp} °C${efeitoDoClima(clima) ? ` · ${esc(efeitoDoClima(clima))}` : ""}</div>` });
+const faixaDaTatica = ({ rot, adv, formacao, dica, clima, semAnalista }) => `<div class="t-rotulo">Próximo adversário · ${esc(rot)}</div>
+  <h3 class="t-adv-nome">${esc(adv.nome)} <span>${formacao ? `${formacao} provável` : adv.dono ? "comandado por dirigente" : "comandado pelo bot"}</span></h3>
+  <p class="t-adv-frase">${dica ? `<b>Como enfrentar:</b> ${esc(dica)}.` : semAnalista ? "<b>Sem analista,</b> você só conhece o time do último jogo." : "Nada no jeito deles pede uma resposta especial."}</p>
+  <div class="t-duelo"><div class="t-numero"><div class="t-numero-rotulo">Seu onze</div><div class="t-numero-valor" id="nossoOnze">${f1(forcaMinha())}</div><div class="t-numero-legenda" id="nossoOnzeLeg">${ladoDoDuelo()}</div></div>
+    ${forcaAdv == null ? "" : `<div class="t-numero"><div class="t-numero-rotulo">O deles</div><div class="t-numero-valor">${f1(forcaAdv)}</div><div class="t-numero-legenda">nota média do onze</div></div>`}
+    <div class="t-numero"><div class="t-numero-rotulo">Tempo</div><div class="t-duelo-tempo">${esc(clima.nome)}, ${clima.temp} °C</div><div class="t-numero-legenda">${esc(efeitoDoClima(clima) || "")}</div></div></div>`;
 const relatorioDobrado = corpo => `<details class="t-dobra"><summary>${rotulo("Relatório do analista")}</summary><div class="t-relatorio">${corpo}</div></details>`;
-// o botão de salvar e o aviso descem do cartão de cima para dentro da faixa
-const acaoNaFaixa = () => { const ac = $("acaoTatica"); if (!ac) return; $("salvarOnline").classList.add("t-botao", "t-botao-principal"); ac.append($("salvarOnline"), $("avisoOnline")); $("online").hidden = true; };
 async function previaDoAdversario(B) {
   const el = $("previa"), comissao = await B.treinadoresDoClube(clubeOnline.id);
   if (comissao == null) return; // comissão técnica ainda não ligada no banco
@@ -188,7 +226,7 @@ async function previaDoAdversario(B) {
   const partidasAdv = jogo.liga_id ? await B.partidasDoClube(jogo.liga_id, adv.id) : null;
   const obs = partidasAdv ? B.escalacaoObservada(await B.escalacoesRecentes(partidasAdv, adv.id, nivelDoAnalista(analista && analista.skill)), disponiveis, notaNaPosicao) : null;
   const onzeVisto = obs ? `<div style="margin-top:6px">Time provável <span class="mut">(${obs.jogos === 1 ? "o do último jogo" : `quem mais jogou nos últimos ${obs.jogos} jogos`})</span>: ${obs.vagas.map(v => `${esc(v.j.nome)} <span class="mut">${sg(v.pos)}${v.substituto ? ", substituto" : obs.jogos > 1 ? ` ${v.vezes}/${v.de}` : ""}</span>`).join(" · ")}</div>` : "";
-  if (!analista && NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, clima, semAnalista: true }) + relatorioDobrado(topo + onzeVisto); acaoNaFaixa(); return; }
+  if (!analista && NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, clima, semAnalista: true }) + relatorioDobrado(topo + onzeVisto); return; }
   if (!analista) { el.innerHTML = topo + onzeVisto + `<div class="aviso" style="margin-top:6px">Sem analista, é só isso que você sabe${obs ? ": o time do último jogo" : ""}. Com um analista na comissão (Estruturas, Treinamento, "Ver candidatos"), a prévia acompanha 2 ou 3 jogos e mostra o estilo de jogo e como enfrentar.</div>`; return; }
   const t = taticaBot(disponiveis, { mandante: !emCasa && !copa, perfil: adv.perfil, chuva: clima.chuva }), I = t.instrucoes, sk = analista.skill || 0;
   const onze = obs ? obs.vagas : t.escalacao;
@@ -236,7 +274,7 @@ async function previaDoAdversario(B) {
     }
   }
   h += `<div class="mut" style="font-size:12px;margin-top:6px">Prévia de ${esc(analista.nome)} (analista, skill ${sk})${sk < 20 ? "; com skill 20 ele aponta o estilo de jogo, e com 35 diz como enfrentar" : sk < 35 ? "; com skill 35 ele diz como enfrentar" : ""}. ${obs ? `A escalação${est ? " e o estilo são o que eles mostraram em campo" : " é a que eles usaram"}${sk < 25 ? "; com skill 25 ele acompanha 3 jogos" : ""}${est ? "" : "; o estilo ainda é o que o bot faria com esse elenco"}.` : adv.dono ? "Eles ainda não jogaram nesta temporada: é o que o bot faria com esse elenco, e o dirigente pode escalar e jogar diferente." : "Quem está suspenso ou lesionado já ficou de fora."}</div>`;
-  if (NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, formacao, dica, clima }) + relatorioDobrado(h); acaoNaFaixa(); return; }
+  if (NOVO) { el.innerHTML = faixaDaTatica({ rot, adv, formacao, dica, clima }) + relatorioDobrado(h); return; }
   el.innerHTML = h;
 }
 async function iniciarOnline(sessaoDeTeste) {
@@ -358,7 +396,7 @@ function htmlGramado(mapa = null) {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span><select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
@@ -386,15 +424,21 @@ function render() {
   // gramado
   $("gramado").innerHTML = htmlGramado();
   // banco
-  $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
+  if (NOVO) { $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome">${esc(j.nome)}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
+    $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de 7`;
+    const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
+    $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
+  else $("banco").innerHTML = Array.from({ length: 7 }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = NOVO ? [...V.erros, ...V.avisos].map(t => `<div class="t-alerta">${esc(t)}</div>`).join("")
     : [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
   renderEscolha();
   // instruções
-  if (NOVO) $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<div class="t-instr t-instr-${ops.length}"><div class="t-numero-rotulo">${nome}</div><div class="t-segmentos">${ops.map(([v, t]) =>
-    `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k]) === String(v)}" title="${t}">${t.split(" (")[0]}</button>`).join("")}</div></div>`).join("");
+  const segmentos = ([k, [nome, ops]]) => `<div class="t-instr"><div class="t-numero-rotulo">${nome}</div><div class="t-segmentos">${ops.map(([v, t]) =>
+    `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k]) === String(v)}" title="${t}">${CURTO[t] || t.split(" (")[0]}</button>`).join("")}</div></div>`;
+  if (NOVO) { $("instrucoes").innerHTML = Object.entries(OPCOES).filter(([k]) => INSTR_DA_FAIXA.includes(k)).map(segmentos).join("");
+    $("instrucoes2").innerHTML = Object.entries(OPCOES).filter(([k]) => !INSTR_DA_FAIXA.includes(k)).map(segmentos).join(""); }
   else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   $("minimapa").innerHTML = htmlMiniMapa(V.esc11);
   if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
@@ -413,7 +457,7 @@ function render() {
     <b>Escanteios</b><div class="chips">${cobs("escanteio")}</div>
     <b>Faltas</b><div class="chips">${cobs("falta")}</div>
     <b>Pênaltis</b><div class="chips">${cobs("penalti")}</div></div>
-    <div class="mut" style="font-size:12px;margin-top:6px">Clique numa ficha e escolha o jogador, ou arraste um titular até ela. Em "auto" o jogo escolhe o melhor em campo; nos cobradores vale a ordem.</div>`;
+    <div class="mut soNovoNao" style="font-size:12px;margin-top:6px">Clique numa ficha e escolha o jogador, ou arraste um titular até ela. Em "auto" o jogo escolhe o melhor em campo; nos cobradores vale a ordem.</div>`;
   // substituições e ordens
   const reservas = E.banco.map(jogDe).filter(Boolean), posDe = id => E.vagas[E.jog.indexOf(id)] || null;
   const sele = (attr, ops, atual) => `<select ${attr}>${ops.map(([v, t]) => `<option value="${v}" ${String(v) === String(atual) ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
