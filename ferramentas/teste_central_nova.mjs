@@ -13,3 +13,5 @@ assert.match(html, /daLiga\("relatorio:" \+ ultimo\.id, \(\) => relatorioDaParti
 assert.match(html, /partidas\.length \? "Não há mais jogos nesta temporada\." : "O calendário ainda não foi gerado\."/);
 // no PC a linha fica presa no topo, como as abas de hoje (as barras presas descontam a altura dela)
 assert.match(css, /\.t-linha \{[^}]*position:sticky; top:0/);
+// no celular a linha é fixa embaixo: precisa soltar o top:0 do PC, senão estica pela tela inteira e cobre a página
+assert.match(css, /\.t-linha \{ position:fixed; top:auto;/);

@@ -41,7 +41,7 @@ export function leiturasDoVestiario({ relatorio, lado, nivel, elenco }) {
   }
   if (nivel >= 2) {
     const nossa = melhorZona(estat[lado]);
-    if (nossa) l.push({ tipo: "funcionou", titulo: TITULO_DO_ATAQUE[nossa.zona], frase: `${pc(nossa.taxa)} dos duelos vencidos ali.`, acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } });
+    if (nossa && nossa.taxa > 0.5) l.push({ tipo: "funcionou", titulo: TITULO_DO_ATAQUE[nossa.zona], frase: `${pc(nossa.taxa)} dos duelos vencidos ali.`, acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } });
   }
   const cansados = (relatorio.jogadores || []).filter(j => j.time === lado && j.saiu === null && j.pos !== "GK" && j.energia < CANSADO);
   if (cansados.length) l.push({ tipo: "atencao", titulo: "Terminaram cansados", frase: lista(cansados.slice(0, 3).map(j => j.nome)) + "." });

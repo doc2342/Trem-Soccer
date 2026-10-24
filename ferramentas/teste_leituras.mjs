@@ -91,3 +91,6 @@ assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRe
 // Série B desde a T14: os dois primeiros vão à semifinal do playoff, não sobem direto
 assert.equal(leituraDaTabela({ tab, clubeId: 3, faixas: ["", "sobe", "sobe", "playoff", "", "", "cai", "cai"], rodadasRestantes: 8 }).frase, "1 ponto à frente do 4º.");
 assert.equal(leituraDaTabela({ tab, clubeId: 4, faixas: ["sobe", "sobe", "", "", "", "", "", ""], rodadasRestantes: 8 }).destaque, "A 3 pontos da zona da semifinal.");
+// "funcionou" só quando a melhor zona venceu mais da metade dos duelos (33% não é sucesso)
+const fraco = { estat: [{ zonas: zonas({ AE: [2, 6], AC: [3, 6], AD: [1, 7] }) }, { zonas: zonas({}) }], jogadores: [], analise: [["ok"], []] };
+assert.ok(leiturasDoVestiario({ relatorio: fraco, lado: 0, nivel: 3, elenco: [] }).every(l => l.tipo !== "funcionou"));
