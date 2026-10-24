@@ -290,6 +290,7 @@ function acertarSalarioPelaDuracao() {
     const pede = minimoPelaDuracao(+sel.dataset.mercado, +sel.value), minimo = Math.max(+campo.dataset.base, sel.dataset.luvas ? salarioMinimoComLuvas(pede) : pede);
     if (+campo.min !== minimo) campo.min = minimo;
     if (sel.dataset.visto !== sel.value) { sel.dataset.visto = sel.value; if (+campo.value < Math.max(minimo, pede)) campo.value = Math.max(minimo, pede); campo.dispatchEvent(new Event("input")); }
+    acertarRegua(campo);
   });
 }
 document.addEventListener("change", e => { if (e.target && e.target.matches && e.target.matches("select[data-prog]")) acertarSalarioPelaDuracao(); });
@@ -298,18 +299,36 @@ new MutationObserver(acertarSalarioPelaDuracao).observe(document.documentElement
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".t-boleta [data-dur], .t-boleta [data-modo]"); if (!b) return;
   b.parentNode.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  if (b.dataset.dur) { const sel = document.getElementById(b.dataset.dur); sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); acertarRegua(document.getElementById(sel.dataset.prog)); }
+  if (b.dataset.dur) { const sel = document.getElementById(b.dataset.dur); sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); }
   else b.closest(".t-boleta").querySelectorAll("[data-boleta-parte]").forEach(p => { p.hidden = p.dataset.boletaParte !== b.dataset.modo; });
 });
+// régua: o campo escondido (id, em milhares) é o que as ações leem; a pessoa digita em milhões ou arrasta a barra
+const emMi = v => (+v / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 document.addEventListener("input", e => {
   const t = e.target, bol = t.closest && t.closest(".t-boleta"); if (!bol) return;
-  if (t.type === "range") { document.getElementById(t.dataset.de).value = t.value; return; }
-  acertarRegua(t);
+  if (t.type === "range") { document.getElementById(t.dataset.de).value = t.value; const mi = document.getElementById(t.dataset.de + "Mi"); if (mi) mi.value = emMi(t.value); }
+  else if (t.dataset.mi) { const v = Math.round(parseFloat(t.value.replace(/\./g, "").replace(",", ".")) * 1000); if (Number.isFinite(v)) { document.getElementById(t.dataset.mi).value = v; const r = bol.querySelector(`input[type=range][data-de="${t.dataset.mi}"]`); if (r) r.value = v; } }
 });
-function acertarRegua(campo) { // a barra segue o campo digitado (e o mínimo, que sobe com a duração)
+document.addEventListener("change", e => { const t = e.target; if (t.dataset && t.dataset.mi) t.value = emMi(document.getElementById(t.dataset.mi).value); });
+function acertarRegua(campo) { // a barra e o valor em milhões seguem o campo (e o mínimo, que sobe com a duração)
   const r = campo && document.querySelector(`.t-boleta input[type=range][data-de="${campo.id}"]`); if (!r) return;
-  r.min = campo.min; r.value = campo.value; const p = r.parentNode.querySelector("[data-pede]"); if (p && p.textContent.startsWith("pede")) p.textContent = "pede " + dinheiro(+campo.min);
+  r.min = campo.min; r.value = campo.value; const mi = document.getElementById(campo.id + "Mi"); if (mi && mi !== document.activeElement) mi.value = emMi(campo.value); // não mexe enquanto a pessoa digita
+  const p = r.parentNode.querySelector("[data-pede]"), txt = "pede " + dinheiro(+campo.min);
+  if (p && p.textContent.startsWith("pede") && p.textContent !== txt) p.textContent = txt; // só quando muda: o observador da página roda a cada mudança no DOM
 }
+const reguaDaBoleta = (rot, id, min, max, valor, passo, grande) => `<div class="t-regua${grande ? " t-regua-grande" : ""}"><label class="t-boleta-rot" for="${id}Mi">${rot}</label>
+  <div class="t-regua-valor"><input id="${id}Mi" data-mi="${id}" inputmode="decimal" autocomplete="off" value="${emMi(valor)}"><span>mi</span></div>
+  <input id="${id}" type="number" step="${passo}" min="${min}" max="${max}" value="${valor}" hidden>
+  <input type="range" data-de="${id}" min="${min}" max="${max}" step="${passo}" value="${valor}" aria-label="${rot}">
+  <div class="t-regua-escala"><span data-pede>${grande ? "mín. " : "pede "}${dinheiro(min)}</span><span>máx. ${dinheiro(max)}</span></div></div>`;
+const duracaoDaBoleta = (sel, campo, mercado) => `<div class="t-boleta-rot">Duração do contrato</div><div class="t-segmentos t-boleta-dur">${[[1, ""], [2, "+10%"], [3, "+20%"]].map(([v, t]) => `<button type="button" data-dur="${sel}" data-v="${v}" aria-pressed="${v === 2}">${v} temp.${t ? ` <small>${t}</small>` : ""}</button>`).join("")}</div>
+  <select id="${sel}" data-prog="${campo}" data-mercado="${mercado}" hidden><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>`;
+const notaDaBoleta = t => `<p class="t-boleta-nota">${t}</p>`;
+// cabeçalho comum: tipo do documento, escudo do clube dono (se houver), nome e a linha do jogador (essa só aparece quando a lista não está ao lado)
+const cabDaBoleta = (doc, j, escudo, linha, fechar) => `<button type="button" class="t-boleta-fechar" id="${fechar}" title="Fechar">×</button>
+  <div class="t-documento-cab"><span>${doc}</span><span>Nº ${String(j.id).padStart(5, "0")}</span></div>
+  <div class="t-boleta-topo">${escudo || ""}<div class="t-documento-titulo">${esc(j.nome)}</div></div>
+  <div class="t-boleta-quem">${linha}</div>`;
 import { prepararTime, simularPartida } from "./src/motor.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./src/bot.js";
 import { montarRelatorio } from "./src/relatorio.js";
@@ -2012,9 +2031,14 @@ async function telaClube(liga, clube) {
     const quando = janela ? (fim ? `até ${dh(fim)}` : janela === "meio" ? "janela do meio" : "janela de início") : abre ? `abre em ${dh(abre)}` : "abre na virada";
     const frase = janela ? "Compras pela multa, vendas e propostas valem." : prePeriodo ? "A liga acabou. Até a virada, só pré-acordos entre dirigentes e até 2 propostas de pré-contrato."
       : "Compra pela multa e propostas esperam a janela. Livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo.";
-    const lado = `<div class="t-elenco-numeros">${caixa == null ? "" : numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: "para gastar" })}
-      ${teto ? numero({ rotulo: "Folha", valor: `${Math.round(folha / teto * 100)}%`, sufixo: "do teto", legenda: `sobram ${dinheiro(Math.max(0, teto - folha))}` }) : ""}
-      ${numero({ rotulo: "Compras pela multa", valor: comprei, sufixo: `de ${limite}`, legenda: `perdeu ${perdi} de 3` })}
+    // os números mudam com o momento: no pré-período contam os pré-acordos e pré-contratos; no resto, compras pela multa e propostas
+    const minhas = (propostas || []).filter(p => p.vendedor === clube.id || p.comprador === clube.id), esperam = minhas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length;
+    const preC = (preContratos || []).filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length;
+    const lado = `<div class="t-elenco-numeros">${caixa == null ? "" : numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: teto ? `folha em ${Math.round(folha / teto * 100)}% do teto` : "para gastar" })}
+      ${prePeriodo && !janela ? numero({ rotulo: "Pré-acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : `${minhas.filter(p => p.estado === "pendente").length} em conversa` })
+        + numero({ rotulo: "Pré-contratos", valor: preC, sufixo: "de 2", legenda: "propostas a quem fica livre" })
+        : numero({ rotulo: "Compras pela multa", valor: comprei, sufixo: `de ${limite}`, legenda: `perdeu ${perdi} de 3` })
+        + (propostas == null ? "" : numero({ rotulo: "Propostas", valor: esperam, legenda: esperam ? "esperam você" : "nenhuma esperando" }))}
       ${livres == null ? "" : numero({ rotulo: "Leilões", valor: meusLeiloes, sufixo: "de 3", legenda: "ao mesmo tempo" })}</div>`;
     const f = faixaFoco({ rotulo: "Mercado", titulo: janela ? "Janela aberta" : "Janela fechada", apagado: quando, frase, lado });
     return f.replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
@@ -2281,7 +2305,25 @@ ${historicoDaBase()}
     ${preContratos && preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length ? `<div class="card"><h2>Pré-contratos <span class="tag">${preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length} de 2 · resolvidos na virada: leva quem ofereceu o maior salário</span></h2>
       ${preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).map(x => `<div>${x.jogadores ? `${pp(x.jogadores.pos)} <b>${esc(x.jogadores.nome)}</b> <span class="mut">(${x.jogadores.idade})</span>` : "Jogador"} · ${dinheiro(x.salario)} por ${x.temporadas} ${x.temporadas === 1 ? "temporada" : "temporadas"}</div>`).join("")}</div>` : ""}
     </div><div data-msecao="livres">
-    ${livres == null ? "" : `<div class="card"><h2>Jogadores livres <span class="tag">o primeiro lance abre o leilão · leva quem oferecer o maior salário</span></h2>${(() => {
+    ${livres == null ? "" : visualNovo ? (() => { // visual novo: livres e ofertas em linhas, com a boleta ao lado
+      const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
+      const fase = j => !j.livre_ate ? `<span class="t-ljog-espera">sem lance</span>` : new Date(j.livre_ate) <= new Date() ? "encerrando"
+        : `até ${ateQuando(j.livre_ate)}${entradaAte(j) && entradaAte(j) <= new Date() ? `<small>só quem já deu lance</small>` : ""}`;
+      const ofs = ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]);
+      return `<div class="t-mercado"><div>
+        <section class="t-setor">${rotulo(`Jogadores livres · ${livres.length}`)}
+          <p class="t-mercado-regra">O primeiro lance abre um leilão de ${duracaoDoLeilao}; leva quem oferecer o maior salário. Você está em <b>${meusLeiloes} de 3</b> leilões.</p>
+          ${livres.length ? `<div id="livresLista"><div class="t-jog t-jog-cab t-ljog"><span></span><span>Jogador</span><span>Id.</span><span>Nota</span><span>Pede</span><span>Maior lance</span><span>Leilão</span><span></span></div>
+          ${livres.map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })).sort((a, b) => b.nota - a.nota).map(j => { const m = maior(j.id);
+            return `<div class="t-jog t-ljog clk" data-livre="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}</div><div class="t-jog-id">${j.idade}</div><div class="t-jog-nota">${f1(j.nota)}</div>
+              <div class="t-jog-sal">${dinheiro(j.salario_mercado)}</div><div class="t-ljog-lance${m && m.clube_id === clube.id ? " t-meu" : ""}">${m ? `${dinheiro(m.salario)}<small>${esc((cPor[m.clube_id] || {}).nome || "—")}${m.clube_id === j.livre_abriu ? " ★" : ""}</small>` : "—"}</div>
+              <div class="t-ljog-fase">${fase(j)}</div>${botaoInfo(j)}</div>`; }).join("")}</div>` : `<div class="t-mjog-mais">Nenhum jogador livre. Eles aparecem depois da virada, quando contratos vencem sem renovação.</div>`}</section>
+        ${ofs.length ? `<section class="t-setor">${rotulo(`Ofertas de clubes no vermelho · ${ofs.length}`)}<p class="t-mercado-regra">75% da multa rescisória, valendo mesmo com a janela fechada.</p>
+          <div id="ofertasLista"><div class="t-jog t-jog-cab t-ojog"><span></span><span>Jogador</span><span>Clube</span><span>Id.</span><span>Nota</span><span>Preço</span><span>Até</span></div>
+          ${ofs.map(j => `<div class="t-jog t-ojog clk" data-oferta="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}</div><div class="t-mjog-clube">${esc(cPor[j.clube_id].nome)}</div><div class="t-jog-id">${j.idade}</div>
+            <div class="t-jog-nota">${f1(notaNaPosicao(j, j.pos))}</div><div class="t-mjog-multa">${dinheiro(Math.round(3.75 * j.salario))}</div><div class="t-ljog-fase">${ateQuando(j.oferta_liga_ate)}</div></div>`).join("")}</div></section>` : ""}
+        </div><aside class="t-boleta-lugar"><div id="livrePainel"></div><div id="ofertaPainel"></div></aside></div>`; })() : `
+    ${`<div class="card"><h2>Jogadores livres <span class="tag">o primeiro lance abre o leilão · leva quem oferecer o maior salário</span></h2>${(() => {
       if (!livres.length) return `<div class="mut">Nenhum jogador livre. Eles aparecem depois da virada, quando contratos vencem sem renovação.</div>`;
       const maior = id => lancesLivres.filter(l => l.jogador_id === id).sort((a, b) => b.salario - a.salario || new Date(a.criada_em) - new Date(b.criada_em))[0];
       const fase = j => !j.livre_ate ? `<span class="mut">aguarda o 1º lance</span>` : new Date(j.livre_ate) <= new Date() ? "encerrando"
@@ -2295,12 +2337,12 @@ ${historicoDaBase()}
     ${livres == null || !ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).length ? "" : `<div class="card"><h2>Ofertas de clubes no vermelho <span class="tag">75% da multa rescisória · vale mesmo com a janela fechada</span></h2>
       <div class="rolagem" id="ofertasLista"><table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th>Salário</th><th>Preço</th><th>Até</th></tr>
       ${ofertas.filter(j => j.clube_id !== clube.id && cPor[j.clube_id]).map(j => `<tr class="clk" data-oferta="${j.id}"><td>${pp(j.pos)}</td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td><td class="esq">${esc(cPor[j.clube_id].nome)}</td><td>${dinheiro(j.salario)}</td><td><b>${dinheiro(Math.round(3.75 * j.salario))}</b></td><td>${ateQuando(j.oferta_liga_ate)}</td></tr>`).join("")}</table></div>
-      <div id="ofertaPainel" style="margin-top:10px"></div></div>`}
+      <div id="ofertaPainel" style="margin-top:10px"></div></div>`}`}
     </div><div data-msecao="hist">
     ${visualNovo ? `<section class="t-setor">${rotulo("Últimas transferências")}${transferencias.length ? transferencias.slice(0, 40).map(t => { const tipo = t.repatriado ? "repatriado" : t.tipo;
       return `<div class="t-transf${t.para_clube === clube.id || t.de_clube === clube.id ? " t-transf-eu" : ""}" data-tipo="${esc(tipo || "")}"><span class="t-giro-tipo">${t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência"}</span>
         <div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div><div class="t-transf-rota">${t.de_clube ? lk(t.de_clube) : "livre"}<b>›</b>${lk(t.para_clube)}</div>
-        <div class="t-transf-valor">${t.valor ? dinheiro(t.valor) : "—"}</div><div class="t-transf-quando">T${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "saídas" : "meio") : ""}</div></div>`; }).join("") : `<div class="t-mjog-mais">Nenhuma transferência ainda.</div>`}</section>` : `
+        <div class="t-transf-valor">${t.valor ? dinheiro(t.valor) : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando">Temp. ${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim" : t.janela === "saida" ? "saídas" : "meio") : ""}</div></div>`; }).join("") : `<div class="t-mjog-mais">Nenhuma transferência ainda.</div>`}</section>` : `
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}`}
     </div>
@@ -2533,37 +2575,29 @@ ${historicoDaBase()}
       const modos = [["multa", "Multa"], ...(podeProposta ? [["proposta", !janela && prePeriodo ? "Pré-acordo" : "Proposta"]] : []), ...(podePre ? [["pre", "Pré-contrato"]] : [])];
       const inicial = (motivo || !janela) && modos.length > 1 ? modos[1][0] : "multa";
       const parte = (k, html) => `<div data-boleta-parte="${k}"${k === inicial ? "" : " hidden"}>${html}</div>`;
-      const aviso = t => `<div class="t-boleta-aviso">${t}</div>`, nota = t => `<p class="t-boleta-nota">${t}</p>`;
+      const aviso = t => `<div class="t-boleta-aviso">${t}</div>`;
       const abre = liga.janela_meio_abre && new Date(liga.janela_meio_abre) > new Date() ? `abre em ${new Date(liga.janela_meio_abre).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : "abre na virada";
       const carimbo = `<div class="t-carimbo">Janela fechada<small>${abre}</small></div>`;
-      const duracao = (sel, campo) => `<div class="t-boleta-rot">Duração do contrato</div><div class="t-segmentos t-boleta-dur">${[[1, "1 temp."], [2, "2 · +10%"], [3, "3 · +20%"]].map(([v, t]) => `<button type="button" data-dur="${sel}" data-v="${v}" aria-pressed="${v === 2}">${t}</button>`).join("")}</div>
-        <select id="${sel}" data-prog="${campo}" data-mercado="${mercado}" hidden><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option></select>`;
-      // valor digitado em milhares + barra entre o mínimo e o máximo; os dois andam juntos (ouvinte no topo do arquivo)
-      const regua = (rot, id, min, max, valor, passo, grande) => `<div class="t-regua${grande ? " t-regua-grande" : ""}"><label class="t-boleta-rot" for="${id}">${rot}</label>
-        <div class="t-regua-valor"><input id="${id}" type="number" step="${passo}" min="${min}" max="${max}" value="${valor}"><span>mil</span></div>
-        <input type="range" data-de="${id}" min="${min}" max="${max}" step="${passo}" value="${valor}" aria-label="${rot}">
-        <div class="t-regua-escala"><span data-pede>${grande ? "mín. " : "pede "}${dinheiro(min)}</span><span>máx. ${dinheiro(max)}</span></div></div>`;
-      const salario = (id, min = minimo, valor = min) => regua("Salário por temporada", id, min, Math.max(min, maximo), valor, 5);
-      return `<div class="t-documento t-boleta"><button type="button" class="t-boleta-fechar" id="mFechar" title="Fechar">×</button>
-        <div class="t-documento-cab"><span>Boleta de negociação</span><span>Nº ${String(j.id).padStart(5, "0")}</span></div>
-        <div class="t-documento-titulo">${esc(j.nome)}</div>
-        <div class="t-boleta-quem">${sg(j.pos)} · ${j.idade} anos · ${esc(c.nome)} · nota <b>${f1(notaNaPosicao(j, j.pos))}</b></div>
+      const salario = (id, min = minimo, valor = min) => reguaDaBoleta("Salário por temporada", id, min, Math.max(min, maximo), valor, 5);
+      const rel = relatorioDe(j.id), olheiro = relatorios == null ? "" : `<div class="t-olheiro"><div class="t-olheiro-cab"><span class="t-boleta-rot">Relatório do olheiro</span>${rel ? `<span class="t-olheiro-teto">teto <b>${rel.minimo}–${rel.maximo}</b></span>` : `<span class="t-olheiro-dica">até onde o treino pode levá-lo</span>`}</div>
+        <div class="t-olheiro-ops">${[[1, "Simples", 25, 16], [2, "Bom", 75, 8], [3, "Completo", 200, 4]].map(([n, nome, preco, larg]) => (relatorios || []).some(r => r.jogador_id === +j.id && r.nivel === n) ? `<span class="t-olheiro-op t-feito">${nome}<small>comprado</small></span>`
+          : `<button class="t-olheiro-op" data-relatorio="${n}" title="Mostra o teto dele numa faixa de ${larg} pontos de nota">${nome}<small>${dinheiro(preco)} · faixa de ${larg}</small></button>`).join("")}</div></div>`;
+      return `<div class="t-documento t-boleta">${cabDaBoleta("Boleta de negociação", j, `<a class="t-boleta-escudo" href="#clube=${j.clube_id}" data-clube="${j.clube_id}" title="${esc(c.nome)}">${svgEscudo(c.escudo, c.sigla, 44)}</a>`, `${sg(j.pos)} · ${j.idade} anos · ${esc(c.nome)} · nota <b>${f1(notaNaPosicao(j, j.pos))}</b>`, "mFechar")}
         ${modos.length > 1 ? `<div class="t-segmentos t-boleta-modos">${modos.map(([k, t]) => `<button type="button" data-modo="${k}" aria-pressed="${k === inicial}">${t}</button>`).join("")}</div>` : ""}
         ${parte("multa", motivo ? aviso(`Não dá para comprar pela multa: ${porqueNao}.`) : `${trava ? aviso(`Por enquanto você não pode: ${esc(trava[1])}.`) : ""}
           <div class="t-boleta-preco"><span class="t-boleta-rot">Multa rescisória</span><b>${dinheiro(multa)}</b>${caixa == null ? "" : `<span${caixa - multa < 0 ? ` class="t-boleta-neg"` : ""}>seu caixa fica em ${dinheiro(caixa - multa)}</span>`}</div>
-          ${duracao("mTemporadas", "mSalario")}${salario("mSalario")}
-          ${janela ? `<button class="t-boleta-acao" id="mComprar" ${trava ? "disabled" : ""}>Contratar agora</button>${nota("Pela multa o jogador vem na hora.")}` : carimbo}`)}
+          ${duracaoDaBoleta("mTemporadas", "mSalario", mercado)}${salario("mSalario")}
+          ${janela ? `<button class="t-boleta-acao" id="mComprar" ${trava ? "disabled" : ""}>Contratar agora</button>${notaDaBoleta("Pela multa o jogador vem na hora.")}` : carimbo}`)}
         ${podeProposta ? parte("proposta", (f => `${travaP ? aviso(`Por enquanto você não pode: ${esc(travaP)}.`) : ""}
-          ${regua(`Oferta ao clube${j.a_venda ? ` · à venda por ${dinheiro(j.preco_pedido)}` : ""}`, "pValor", f.minimo, f.maximo, Math.min(f.maximo, Math.max(f.minimo, j.preco_pedido || multa)), 50, true)}
-          ${duracao("pTemporadas", "pSalario")}${salario("pSalario")}
+          ${reguaDaBoleta(`Oferta ao clube${j.a_venda ? ` · à venda por ${dinheiro(j.preco_pedido)}` : ""}`, "pValor", f.minimo, f.maximo, Math.min(f.maximo, Math.max(f.minimo, j.preco_pedido || multa)), 10, true)}
+          ${duracaoDaBoleta("pTemporadas", "pSalario", mercado)}${salario("pSalario")}
           ${janela || prePeriodo ? `<button class="t-boleta-acao" id="pEnviar" ${!travaP && (janela || (j.idade < 37 && !j.juvenil)) ? "" : "disabled"}>${janela ? "Enviar a proposta" : "Propor pré-acordo"}</button>
-          ${nota(janela ? "O dono aceita, recusa ou pede outro valor." : "Se o dono aceitar, o negócio acontece na virada e não se desfaz.")}` : carimbo}
+          ${notaDaBoleta(janela ? "O dono aceita, recusa ou pede outro valor." : "Se o dono aceitar, o negócio acontece na virada e não se desfaz.")}` : carimbo}
           ${temEmprestimo && j.idade <= 23 && !j.juvenil && janela ? `<button class="t-boleta-sec" id="pEmprestimo">Pedir por empréstimo · salário meio a meio</button>` : ""}`)(faixaDaNegociacao(baseNeg))) : ""}
-        ${podePre ? parte("pre", `${duracao("pcTemporadas", "pcSalario")}${salario("pcSalario", mercado, meuPre ? meuPre.salario : mercado)}
+        ${podePre ? parte("pre", `${duracaoDaBoleta("pcTemporadas", "pcSalario", mercado)}${salario("pcSalario", mercado, meuPre ? meuPre.salario : mercado)}
           <button class="t-boleta-acao" id="pcEnviar" ${j.idade >= 39 ? "disabled" : ""}>${meuPre ? "Mudar a proposta" : "Propor pré-contrato"}</button>
-          ${nota(`Se ele ficar livre na virada, vai para quem ofereceu o maior salário. Você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas.`)}`) : ""}
-        ${relatorios == null ? "" : `<div class="t-boleta-olheiro"><span class="t-boleta-rot">Olheiro${(r => r ? ` · teto <b>${r.minimo}–${r.maximo}</b>` : "")(relatorioDe(j.id))}</span>
-          ${[[1, "Simples", 25, 16], [2, "Bom", 75, 8], [3, "Completo", 200, 4]].map(([n, nome, preco, larg]) => (relatorios || []).some(r => r.jogador_id === +j.id && r.nivel === n) ? "" : `<button class="t-boleta-link" data-relatorio="${n}" title="Mostra o teto dele numa faixa de ${larg} pontos de nota">${nome} · ${preco} mil</button>`).join("")}</div>`}
+          ${notaDaBoleta(`Se ele ficar livre na virada, vai para quem ofereceu o maior salário. Você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas.`)}`) : ""}
+        ${olheiro}
         <div id="mAviso"></div></div>`;
     };
     // painel de um jogador de outro clube: compra pela multa e proposta. Serve à lista do mercado e à página do clube.
@@ -2598,7 +2632,7 @@ ${historicoDaBase()}
         catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; if ($("pcEnviar")) $("pcEnviar").disabled = false; }
       };
       alvo.querySelectorAll("[data-relatorio]").forEach(b => { b.onclick = async () => {
-        if (!confirm(`Comprar o relatório ${b.textContent.trim().replace(" · ", " de ")} sobre ${j.nome}? O valor sai do caixa na hora.`)) return;
+        if (!confirm(`Comprar o relatório ${b.firstChild.textContent.trim()} (${b.lastChild.textContent.split(" · ")[0]}) sobre ${j.nome}? O valor sai do caixa na hora.`)) return;
         b.disabled = true;
         try { recado = await comprarRelatorio(j.id, +b.dataset.relatorio); await carregar({ user: usuario }); }
         catch (err) { $("mAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; b.disabled = false; }
@@ -2706,9 +2740,15 @@ ${historicoDaBase()}
   // jogadores livres (lance no leilão) e ofertas de clubes no vermelho (compra por 75% da multa)
   // regras do leilão dos livres (supabase/25_regras_do_leilao.sql)
   function entradaAte(j) { return j.livre_inicio ? new Date(+new Date(j.livre_inicio) + (liga.horas_leilao == null ? 48 : +liga.horas_leilao) * 2700000) : null; }
-  const contratoRapido = (alvo, j, minimo, textoDoBotao, explicacao, acao) => {
+  const contratoRapido = (alvo, j, minimo, textoDoBotao, explicacao, acao, novo) => {
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
-    alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${sg(j.pos)} · ${j.idade} anos
+    ["livrePainel", "ofertaPainel"].forEach(id => { if ($(id) && $(id) !== alvo) $(id).innerHTML = ""; });
+    // visual novo: a mesma boleta do mercado (novo: doc, escudo, rot, valor, legenda, nota)
+    if (visualNovo && novo) alvo.innerHTML = `<div class="t-documento t-boleta">${cabDaBoleta(novo.doc, j, novo.escudo, `${sg(j.pos)} · ${j.idade} anos · nota <b>${f1(notaNaPosicao(j, j.pos))}</b>`, "crFechar")}
+      <div class="t-boleta-preco"><span class="t-boleta-rot">${novo.rot}</span><b>${novo.valor}</b>${novo.legenda ? `<span>${novo.legenda}</span>` : ""}</div>
+      ${duracaoDaBoleta("crTemporadas", "crSalario", j.salario_mercado || j.salario || 0)}${reguaDaBoleta("Salário por temporada", "crSalario", minimo, Math.max(minimo, maximo), minimo, 5)}
+      <button class="t-boleta-acao" id="crFazer">${textoDoBotao}</button>${novo.nota ? notaDaBoleta(novo.nota) : ""}<div id="crAviso"></div></div>`;
+    else alvo.innerHTML = `<div class="card" style="margin:0;border-color:var(--ac)"><b>${esc(j.nome)}</b> · ${sg(j.pos)} · ${j.idade} anos
       <div class="mut" style="margin:4px 0">${explicacao} Pode ganhar até ${dinheiro(maximo)}; sobram ${dinheiro(teto - folha)} até o seu teto de folha.</div>
       <div class="row"><label>Salário (em milhares por temporada)<input id="crSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:150px"></label>
         <label>Contrato de<select id="crTemporadas" data-prog="crSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
@@ -2722,7 +2762,7 @@ ${historicoDaBase()}
     alvo.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
   if ($("livresLista")) $("livresLista").onclick = e => {
-    const tr = e.target.closest("tr[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
+    const tr = e.target.closest("[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
     const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = !!j.livre_ate;
     const maior = lancesLivres.filter(l => l.jogador_id === j.id && l.clube_id !== clube.id).reduce((m, l) => Math.max(m, l.salario), 0);
     const meu = lancesLivres.find(l => l.jogador_id === j.id && l.clube_id === clube.id), retaFinal = aberto && new Date(j.livre_ate) - new Date() <= 180000;
@@ -2732,14 +2772,20 @@ ${historicoDaBase()}
     contratoRapido($("livrePainel"), j, minimo, aberto ? "Dar o lance" : "Abrir o leilão",
       aberto ? `Leilão até ${ateQuando(j.livre_ate)}. Ele pede pelo menos ${dinheiro(j.salario_mercado)}${maior ? `; o maior lance de outro clube é de ${dinheiro(maior)}` : ""}. ${meu ? ` O seu lance é de ${dinheiro(meu.salario)}.` : ""}${retaFinal ? " Reta final: o lance precisa superar o maior em 5% e estende o leilão em 3 minutos." : ""}${j.livre_abriu === clube.id ? " Você abriu este leilão: terminando na frente, assina por 10% a menos." : ""} Não há valor a pagar a clube nenhum.`
              : `Ninguém deu lance ainda. O seu abre o leilão, que dura ${duracaoDoLeilao}: nesse prazo os outros clubes podem cobrir, e leva quem oferecer o maior salário. Por abrir, se terminar na frente você assina por 10% a menos (nunca abaixo do que ele pede). Ele pede pelo menos ${dinheiro(j.salario_mercado)}.`,
-      (salario, temporadas) => darLanceLivre(j.id, salario, temporadas));
+      (salario, temporadas) => darLanceLivre(j.id, salario, temporadas),
+      { doc: aberto ? "Lance no leilão" : "Abrir leilão", escudo: `<span class="t-boleta-livre">Livre</span>`, rot: maior ? "Maior lance de outro clube" : "Ele pede",
+        valor: dinheiro(maior || j.salario_mercado), legenda: aberto ? `leilão até ${ateQuando(j.livre_ate)}${meu ? ` · o seu lance: ${dinheiro(meu.salario)}` : ""}` : "ninguém deu lance ainda",
+        nota: aberto ? `${retaFinal ? "Reta final: o lance precisa superar o maior em 5% e estende o leilão em 3 minutos. " : ""}${j.livre_abriu === clube.id ? "Você abriu: terminando na frente, assina por 10% a menos. " : ""}Leva quem oferecer o maior salário; não se paga nada a clube.`
+          : `Seu lance abre o leilão de ${duracaoDoLeilao}. Quem abre e termina na frente assina por 10% a menos.` });
   };
   if ($("ofertasLista")) $("ofertasLista").onclick = e => {
-    const tr = e.target.closest("tr[data-oferta]"); if (!tr) return;
+    const tr = e.target.closest("[data-oferta]"); if (!tr) return;
     const j = ofertas.find(x => String(x.id) === tr.dataset.oferta), preco = Math.round(3.75 * j.salario);
     contratoRapido($("ofertaPainel"), j, Math.max(j.salario || 0, j.salario_mercado || 0), `Pagar ${dinheiro(preco)} e contratar`,
       `${esc(cPor[j.clube_id].nome)} está no vermelho e oferece o jogador por ${dinheiro(preco)} (seu caixa: ${dinheiro(caixa)}).`,
-      (salario, temporadas) => comprarOfertaDaLiga(j.id, salario, temporadas));
+      (salario, temporadas) => comprarOfertaDaLiga(j.id, salario, temporadas),
+      { doc: "Oferta de clube no vermelho", escudo: `<a class="t-boleta-escudo" href="#clube=${j.clube_id}" data-clube="${j.clube_id}" title="${esc(cPor[j.clube_id].nome)}">${svgEscudo(cPor[j.clube_id].escudo, cPor[j.clube_id].sigla, 44)}</a>`,
+        rot: "Preço (75% da multa)", valor: dinheiro(preco), legenda: caixa == null ? "" : `seu caixa fica em ${dinheiro(caixa - preco)}`, nota: `Oferta válida até ${ateQuando(j.oferta_liga_ate)}, mesmo com a janela fechada.` });
   };
   // negociações: responder às propostas recebidas e cuidar das enviadas
   if ($("negociacoes")) $("negociacoes").onclick = async e => {

@@ -938,5 +938,55 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-boleta-link:hover { color:var(--t-marca); }
 .t-faixa-mercado .t-faixa-titulo { font-size:clamp(40px, 6.4vw, 76px); }
 .t-faixa-mercado .t-faixa-titulo .t-apagado { font-size:.5em; margin-top:6px; }
-.t-mercado { grid-template-columns:minmax(0, 1fr) 400px; }
+@media (min-width:1025px) { .t-mercado { grid-template-columns:minmax(0, 1fr) 400px; } }
 .t-boleta-modos > * { letter-spacing:0 !important; }
+
+/* Mercado, rodada 3: escudo na boleta, valores em milhões, olheiro em destaque, livres e ofertas, filtros legíveis */
+.t-boleta-topo { display:flex; align-items:center; gap:12px; margin-top:8px; }
+.t-boleta-topo .t-documento-titulo { margin:0; min-width:0; overflow-wrap:anywhere; }
+.t-boleta-escudo { line-height:0; flex-shrink:0; }
+.t-boleta-livre { flex-shrink:0; border:2px solid var(--t-papel-tinta); padding:6px 8px; font:800 11px/1 var(--t-maquina); letter-spacing:.12em; text-transform:uppercase; }
+.t-boleta-quem { margin-top:4px; }
+@media (min-width:1025px) { .t-mercado .t-boleta-quem { display:none; } } /* a lista ao lado já mostra posição, idade, clube e nota */
+.t-boleta-dur > * small { font-size:.85em; opacity:.75; margin-left:2px; }
+.t-boleta-dur > [aria-pressed=true] small { opacity:.9; }
+.t-regua-valor input[data-mi] { text-align:left; }
+/* olheiro: uma caixa própria, com o teto em destaque quando já há relatório */
+.t-olheiro { margin-top:18px; padding:12px; border:2px solid var(--t-papel-tinta); background:rgba(42,36,25,.04); }
+.t-olheiro-cab { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.t-olheiro-cab .t-boleta-rot { margin:0; color:var(--t-papel-tinta); }
+.t-olheiro-dica { font-size:12px; color:#7a6f52; }
+.t-olheiro-teto { font:500 13px var(--t-maquina); } .t-olheiro-teto b { font:900 26px/1 var(--t-letra); font-stretch:64%; color:var(--t-marca); }
+.t-olheiro-ops { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:10px; }
+.t-olheiro-op { padding:9px 4px 8px; border:1px solid var(--t-papel-tinta); background:var(--t-papel); color:var(--t-papel-tinta); font:800 13px/1.1 var(--t-letra); text-align:center; cursor:pointer; }
+.t-olheiro-op small { display:block; margin-top:3px; font:500 10.5px var(--t-maquina); color:#7a6f52; }
+button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marca); color:#fff; } button.t-olheiro-op:hover small { color:#fff; }
+.t-olheiro-op.t-feito { opacity:.45; cursor:default; }
+/* filtros: números e textos do tamanho do resto da tela */
+.t-busca > .row input:not([type=checkbox]), .t-busca > .row select { font-size:15px; height:38px; padding:0 10px; }
+.t-busca .chipf { font-size:14px; padding:6px 10px; }
+/* livres e ofertas */
+.t-boleta-lugar { position:sticky; top:16px; margin-top:44px; }
+.t-boleta-lugar:not(:has(.t-boleta, .card)) { min-height:300px; border:2px dashed var(--t-fio); display:grid; place-items:center; }
+.t-boleta-lugar:not(:has(.t-boleta, .card))::before { content:"Escolha um jogador na lista para abrir a boleta."; max-width:200px; text-align:center; font:500 14px/1.4 var(--t-letra); color:var(--t-tinta2); }
+.t-mercado-regra { margin:0 0 8px; font-size:13.5px; color:var(--t-tinta2); } .t-mercado-regra b { color:var(--t-tinta); }
+.t-ljog { grid-template-columns:44px minmax(0, 1fr) 30px 56px 64px 110px 104px 24px; }
+.t-ojog { grid-template-columns:44px minmax(0, 1fr) minmax(0, .8fr) 30px 56px 78px 90px; }
+.t-ljog.t-jog-cab > :nth-child(n+6), .t-ojog.t-jog-cab > :nth-child(3) { text-align:left; }
+.t-ljog-lance { font-weight:700; font-size:14px; } .t-ljog-lance.t-meu { color:var(--t-marca); }
+.t-ljog-lance small, .t-ljog-fase small { display:block; font-weight:500; font-size:11px; color:var(--t-tinta2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-ljog-fase { font-size:12.5px; color:var(--t-tinta2); }
+.t-ljog-espera { color:var(--t-tinta3); }
+.t-jog.t-mjog-on { background:var(--t-placa); border-left-color:var(--t-marca); }
+@media (max-width:1024px) { .t-boleta-lugar { position:static; order:-1; margin-top:0; } .t-boleta-lugar:not(:has(.t-boleta, .card)) { display:none; } }
+@media (max-width:720px) { .t-ljog { grid-template-columns:38px minmax(0, 1fr) 40px 64px 22px; } .t-ljog > :nth-child(3), .t-ljog > :nth-child(6), .t-ljog > :nth-child(7) { display:none; }
+  .t-ojog { grid-template-columns:38px minmax(0, 1fr) 40px 64px; } .t-ojog > :nth-child(3), .t-ojog > :nth-child(4), .t-ojog > :nth-child(7) { display:none; } }
+/* fita de transferências: etiquetas da mesma largura, rota sem sublinhado, valor perto da rota */
+@media (min-width:721px) { .t-transf { grid-template-columns:156px minmax(0, 1fr) minmax(0, 1.2fr) 80px 120px; } }
+.t-transf .t-giro-tipo { justify-self:stretch; text-align:center; }
+.t-transf-rota a.lk { text-decoration:none; color:var(--t-tinta); } .t-transf-rota a.lk:hover { text-decoration:underline; }
+.t-transf-sem { font:500 12px var(--t-letra); color:var(--t-tinta3); text-transform:lowercase; }
+.t-regua-valor input[data-mi] { field-sizing:content; min-width:4ch; width:auto; padding-right:4px; }
+.t-olheiro-cab { flex-direction:column; gap:2px; }
+@media (max-width:720px) { .t-boleta-dur > * { padding:7px 4px !important; line-height:1.15 !important; } .t-boleta-dur > * small { display:block; margin:2px 0 0; } .t-boleta-modos > * { font-size:10.5px !important; } }
+.t-transf .t-giro-tipo { letter-spacing:.08em; overflow:hidden; text-overflow:ellipsis; }
