@@ -1015,3 +1015,10 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
     repeating-linear-gradient(-45deg, #c9bf9f 0 3px, #ddd5bd 3px 6px); }
 .t-regua-escala { text-align:initial; }
 .t-regua-pede { font:600 12.5px/1.2 var(--t-letra); color:#6b6047; margin-top:4px; }
+/* filtros do mercado: posição na cor do setor (contorno desligado, fundo ligado); lado e pé em vermelho quando ligados */
+.t-busca .chipf { --cor:var(--t-marca); background:transparent; border:2px solid var(--t-fio); color:var(--t-tinta2); font-weight:700; }
+.t-busca .chipf[data-chip=linhas] { border-color:var(--cor); color:var(--cor); }
+.t-busca .chipf[data-v=gol] { --cor:#c9781a; } .t-busca .chipf[data-v=defesa] { --cor:#2d6cc0; }
+.t-busca .chipf[data-v="volante,ala"], .t-busca .chipf[data-v=meio], .t-busca .chipf[data-v=meia] { --cor:#357f3c; } .t-busca .chipf[data-v=ataque] { --cor:#c0332e; }
+.t-busca .chipf.ligado { background:var(--cor); border-color:var(--cor); color:#fff; }
+.t-busca .chipf:hover:not(.ligado) { border-color:var(--cor); color:var(--cor); }
