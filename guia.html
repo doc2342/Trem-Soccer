@@ -155,7 +155,7 @@ const secoes = [
   <ul>
     <li>A peneira é um botão em Base, uma vez por temporada, liberado depois da rodada ${CONFIG_BASE.rodadaDaPeneira}.</li>
     <li>Base de nível mais alto traz gente mais pronta: a nota de chegada fica perto de 15 mais 1,5 por nível. O talento não depende da base. A cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes; base melhor dá mais chance.</li>
-    <li>O jovem chega como juvenil: sem contrato nem salário. Treina, joga a base, mas não joga partida oficial e não sai pela multa. A partir dos 18 anos pode ser vendido por proposta aceita, só com a janela aberta (nunca em pré-acordo); a faixa de valor é calculada sobre o salário de mercado dele, e ele chega ao comprador profissional, com o contrato da proposta. Para usá-lo, profissionalize-o na ficha dele (contrato de 1 a 3 temporadas pelo salário de mercado). Quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.</li>
+    <li>O jovem chega como juvenil: sem contrato nem salário. Treina, joga a base, mas não joga partida oficial e não sai pela multa. A partir dos 18 anos pode ser vendido por proposta aceita, só com a janela aberta (nunca em acordo); a faixa de valor é calculada sobre o salário de mercado dele, e ele chega ao comprador profissional, com o contrato da proposta. Para usá-lo, profissionalize-o na ficha dele (contrato de 1 a 3 temporadas pelo salário de mercado). Quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.</li>
     <li>O elenco comporta ${LIMITE_DE_CONTRATADOS} jogadores com contrato e ${LIMITE_DE_JUVENIS} juvenis.</li>
     <li>Formado no clube: sem multa rescisória e sem pré-contrato até os ${CONFIG_BASE.idadeDeJuvenil} anos, conta ${pct(PESO_DO_FORMADO)} do salário no teto de folha e rende ao clube formador uma parte de toda venda futura dele entre outros clubes: 3% por temporada que passou no clube, da chegada à base até a saída (mínimo 3%, máximo 15%; empréstimo não conta como saída).</li>
     <li>Jovem que não serve pode ser dispensado: vira jogador livre.</li>
@@ -172,12 +172,12 @@ const secoes = [
     <li>Para jogador de outro clube, compre um relatório no painel dele: faixa larga, média ou estreita, com preço crescente.</li>
   </ul>`],
 ["mercado", "Mercado", `
-  <p>Há vários jeitos de contratar e de vender; quase todos dependem da janela, que a faixa colorida no topo do Mercado mostra aberta, fechada ou em pré-acordos, com data.</p>
+  <p>Há vários jeitos de contratar e de vender; quase todos dependem da janela, que a faixa colorida no topo do Mercado mostra aberta, fechada ou em acordos, com data.</p>
   <h3>Janelas</h3>
   <ul>
     <li>Início: abre na virada da temporada e fecha na véspera da rodada 3.</li>
     <li>Meio: abre no dia seguinte às oitavas da Copa do Brasil e fecha na véspera das quartas.</li>
-    <li>Pré-acordos: depois da última rodada e até a virada, dirigentes podem fechar negócios entre si que acontecem na virada e não se desfazem, e fazer até 2 propostas de pré-contrato a jogadores com contrato acabando.</li>
+    <li>Acordos: depois da última rodada e até a virada, dirigentes podem fechar negócios entre si que acontecem na virada e não se desfazem, e fazer até 2 propostas de pré-contrato a jogadores com contrato acabando.</li>
     <li>Com a janela fechada continuam valendo: leilão de jogadores livres, ofertas de clubes no vermelho e a lista de transferência (só o anúncio).</li>
   </ul>
   <h3>Como contratar</h3>
@@ -186,7 +186,7 @@ const secoes = [
     ["Proposta a outro dirigente", "Entre 3 e 7,5 vezes o salário", "O dono aceita, recusa ou contrapropõe. Dá para pedir empréstimo até a virada, com o salário meio a meio"],
     ["Jogador livre", "Só o salário", "Leilão aberto: leva o maior salário. A duração acompanha o ritmo do calendário e aparece na tela. No máximo 3 leilões ao mesmo tempo, e os lances em que você está na frente contam juntos no teto da folha"],
     ["Oferta de clube no vermelho", "3,75 vezes o salário", "Sem janela e sem contar nos limites da multa"],
-    ["Pré-contrato", "Só o salário", "No período de pré-acordos, até 2 propostas a jogadores de outros dirigentes com contrato acabando; na virada leva o maior salário"],
+    ["Pré-contrato", "Só o salário", "No período de acordos, até 2 propostas a jogadores de outros dirigentes com contrato acabando; na virada leva o maior salário"],
   ])}
   <h3>Como vender</h3>
   ${tabela(["Caminho", "Quanto rende", "Regras principais"], [
@@ -194,7 +194,7 @@ const secoes = [
     ["Agente", "De 1 a 2,5 vezes o salário de mercado", `Venda garantida a um clube do bot; o preço do dia aparece na tela e cai a cada venda. Só na janela, até ${VENDAS_PELO_AGENTE} por temporada`],
     ["Empréstimo a bot", "Metade do salário", "O jogador joga pelo bot até a virada e volta"],
     ["Dispensa", "Nada até 21 anos ou com 31 ou mais; de 22 a 30, 50% do salário que falta até o fim do contrato", "O jogador vira livre e vai a leilão; quem dispensou não o contrata de novo nesta temporada nem na seguinte"],
-    ["Pré-acordo", "O combinado", "Proposta entre dirigentes no período de pré-acordos; acontece na virada"],
+    ["Acordo", "O combinado", "Proposta entre dirigentes no período de acordos; acontece na virada"],
   ])}
   <h3>Travas</h3>
   <ul>

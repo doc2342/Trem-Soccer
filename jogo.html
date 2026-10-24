@@ -1353,7 +1353,7 @@ async function telaClube(liga, clube) {
   // Clube, Transferências: o resultado dos meus lances nos leilões de livres e todas as entradas e saídas do clube
   const abaTransferencias = () => {
     const quando = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-    const TIPO = { livre: "livre (leilão)", multa: "multa rescisória", negociada: "negociação", divida: "clube no vermelho", agente: "venda pelo agente", agente_vermelho: "venda pelo agente (vermelho)", bot: "negócio com bot", pre: "pré-acordo", emprestimo: "empréstimo" };
+    const TIPO = { livre: "livre (leilão)", multa: "multa rescisória", negociada: "negociação", divida: "clube no vermelho", agente: "venda pelo agente", agente_vermelho: "venda pelo agente (vermelho)", bot: "negócio com bot", pre: "acordo", emprestimo: "empréstimo" };
     const situacao = h => { const e = estadoDoLance(h);
       if (e.tipo === "frente") return `<span class="aviso">⏳ em andamento · você está na frente</span>`;
       if (e.tipo === "coberto") return `<span class="bad">⏳ em andamento · coberto por ${lk(e.maior.clube_id)} (${dinheiro(e.maior.salario)})</span>`;
@@ -2027,7 +2027,7 @@ async function telaClube(liga, clube) {
     const comprei = transferencias.filter(t => daTemp(t) && t.para_clube === clube.id).length, perdi = transferencias.filter(t => daTemp(t) && t.de_clube === clube.id).length;
     const limite = 4 + (clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? clube.multas_extra : 0);
     const pendentes = (propostas || []).filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length;
-    return `<div class="kpis">${kpi("Janela", janela ? `<span class="ok">aberta</span>` : prePeriodo ? `<span class="aviso">pré-acordos</span>` : `<span class="bad">fechada</span>`, janela ? (fim ? `até ${dh(fim)}` : janela === "meio" ? "janela do meio" : "janela de início") : prePeriodo ? "a janela abre na virada" : abre ? `abre em ${dh(abre)}` : "abre na virada")}
+    return `<div class="kpis">${kpi("Janela", janela ? `<span class="ok">aberta</span>` : prePeriodo ? `<span class="aviso">acordos</span>` : `<span class="bad">fechada</span>`, janela ? (fim ? `até ${dh(fim)}` : janela === "meio" ? "janela do meio" : "janela de início") : prePeriodo ? "a janela abre na virada" : abre ? `abre em ${dh(abre)}` : "abre na virada")}
       ${caixa == null ? "" : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
       ${kpi("Compras pela multa", `${comprei}<small> de ${limite}</small>`, `você perdeu ${perdi} de 3 nesta temporada`)}
       ${livres == null ? "" : kpi("Leilões", `${meusLeiloes}<small> de 3</small>`, pendentes ? `${pendentes} ${pendentes === 1 ? "proposta espera" : "propostas esperam"} você` : "ao mesmo tempo")}</div>`;
@@ -2039,19 +2039,19 @@ async function telaClube(liga, clube) {
     const comprei = transferencias.filter(t => daTemp(t) && t.para_clube === clube.id).length, perdi = transferencias.filter(t => daTemp(t) && t.de_clube === clube.id).length;
     const limite = 4 + (clube.multas_extra > 0 && clube.multas_extra_temporada === liga.temporada ? clube.multas_extra : 0);
     const quando = janela ? (fim ? `até ${dh(fim)}` : janela === "meio" ? "janela do meio" : "janela de início") : abre ? `abre em ${dh(abre)}` : "abre na virada";
-    const frase = janela ? "Compras pela multa, vendas e propostas valem." : prePeriodo ? "A liga acabou. Até a virada, só pré-acordos entre dirigentes e até 2 propostas de pré-contrato."
+    const frase = janela ? "Compras pela multa, vendas e propostas valem." : prePeriodo ? "A liga acabou. Até a virada, só acordos entre dirigentes e até 2 propostas de pré-contrato."
       : "Compra pela multa e propostas esperam a janela. Livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo.";
-    // os números mudam com o momento: no pré-período contam os pré-acordos e pré-contratos; no resto, compras pela multa e propostas
+    // os números mudam com o momento: no pré-período contam os acordos e pré-contratos; no resto, compras pela multa e propostas
     const minhas = (propostas || []).filter(p => p.vendedor === clube.id || p.comprador === clube.id), esperam = minhas.filter(p => (p.vendedor === clube.id && p.estado === "pendente") || (p.comprador === clube.id && p.estado === "contra")).length;
     const preC = (preContratos || []).filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length;
-    // todos os limites da temporada; pré-acordos só no pré-período, propostas no resto do ano
+    // todos os limites da temporada; acordos só no pré-período, propostas no resto do ano
     const agente = janelaDeSaidas ? [vendasDeSaida, SAIDAS, "na janela de saídas"] : [vendasPeloAgente, VENDAS_PELO_AGENTE, "nesta temporada"];
     const lado = `<div class="t-elenco-numeros t-mercado-numeros">${caixa == null ? "" : numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: teto ? `folha em ${Math.round(folha / teto * 100)}% do teto` : "para gastar" })}
       ${numero({ rotulo: "Compras pela multa", valor: comprei, sufixo: `de ${limite}`, legenda: `perdeu ${perdi} de 3` })}
       ${propostas == null ? "" : numero({ rotulo: "Vendas pelo agente", valor: agente[0], sufixo: `de ${agente[1]}`, legenda: agente[2] })}
       ${livres == null ? "" : numero({ rotulo: "Leilões", valor: meusLeiloes, sufixo: "de 3", legenda: "ao mesmo tempo" })}
       ${propostas == null ? "" : numero({ rotulo: "Pré-contratos", valor: preC, sufixo: "de 2", legenda: "a quem fica livre na virada" })}
-      ${propostas == null ? "" : prePeriodo && !janela ? numero({ rotulo: "Pré-acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : "valem na virada" })
+      ${propostas == null ? "" : prePeriodo && !janela ? numero({ rotulo: "Acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : "valem na virada" })
         : numero({ rotulo: "Propostas", valor: esperam, legenda: esperam ? "esperam você" : "nenhuma esperando" })}</div>`;
     const f = faixaFoco({ rotulo: "Mercado", titulo: janela ? "Janela aberta" : "Janela fechada", apagado: quando, frase, lado });
     return f.replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
@@ -2270,7 +2270,7 @@ ${historicoDaBase()}
       const dataHora = t => new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
       if (janela) { const fim = janela === "meio" ? liga.janela_meio_fecha : liga.janela_inicio_fecha;
         return `<div class="janela aberta"><span class="jl">🟢 Janela aberta</span><span>${janela === "meio" ? "Janela do meio" : "Janela de início"}: compras, vendas e propostas valem ${fim ? `até <b>${dataHora(fim)}</b>` : janela === "meio" ? "até o fim da rodada 11" : liga.janela_inicio_fecha === undefined ? "até pouco antes de a rodada 2 começar" : "até a véspera da rodada 3 (a data aparece quando o calendário for gerado)"}.</span></div>`; }
-      if (prePeriodo) return `<div class="janela pre"><span class="jl">🟡 Pré-acordos</span><span>A liga acabou e a janela só abre na virada. Até lá, dirigentes podem fechar <b>pré-acordos</b> entre si (o negócio acontece na virada e não se desfaz) e fazer até 2 propostas de <b>pré-contrato</b> a jogadores de outros clubes com dirigente cujo contrato acaba. Compra pela multa e venda pelo agente esperam a janela.</span></div>`;
+      if (prePeriodo) return `<div class="janela pre"><span class="jl">🟡 Acordos</span><span>A liga acabou e a janela só abre na virada. Até lá, dirigentes podem fechar <b>acordos</b> entre si (o negócio acontece na virada e não se desfaz) e fazer até 2 propostas de <b>pré-contrato</b> a jogadores de outros clubes com dirigente cujo contrato acaba. Compra pela multa e venda pelo agente esperam a janela.</span></div>`;
       const abre = liga.janela_meio_abre && new Date(liga.janela_meio_abre) > new Date() ? `A próxima abre em <b>${dataHora(liga.janela_meio_abre)}</b> e vai até ${dataHora(liga.janela_meio_fecha)}.` : "A próxima abre na virada da temporada.";
       return `<div class="janela fechada"><span class="jl">🔴 Janela fechada</span><span>Compras pela multa, vendas pelo agente e propostas só com a janela aberta. ${abre} Jogadores livres, ofertas de clubes no vermelho e a lista de transferência seguem valendo.</span></div>`;
     })()}
@@ -2306,7 +2306,7 @@ ${historicoDaBase()}
     </div><div data-msecao="neg">
     ${propostas == null ? "" : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
       const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
-      const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada", anulada: "anulada pelo administrador", pre: "pré-acordo fechado: acontece na virada" };
+      const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada", anulada: "anulada pelo administrador", pre: "acordo fechado: acontece na virada" };
       const recebidas = propostas.filter(p => p.vendedor === clube.id), enviadas = propostas.filter(p => p.comprador === clube.id);
       const linhaR = p => `<tr><td class="esq">${nomeJ(p)}</td><td class="esq">${outro(p.comprador)}</td><td><b>${p.emprestimo ? "empréstimo" : dinheiro(p.valor)}</b></td><td>${p.estado === "contra" ? `você pediu ${dinheiro(p.contra_valor)}` : ESTADO[p.estado] || p.estado}</td>
         <td class="esq">${p.estado === "pendente" ? `<button data-prop="${p.id}" data-acao="aceitar">Aceitar</button> ${p.emprestimo ? "" : `<button class="sec" data-prop="${p.id}" data-acao="contrapropor">Pedir outro valor</button> `}<button class="sec" data-prop="${p.id}" data-acao="recusar">Recusar</button>` : `<span class="mut">${esc(p.motivo || "")}</span>`}</td></tr>`;
@@ -2587,7 +2587,7 @@ ${historicoDaBase()}
     const boletaNova = (j, { motivo, porqueNao, trava, multa, minimo, baseNeg, travaP }) => {
       const c = cPor[j.clube_id], mercado = j.salario_mercado || j.salario || 0, meuPre = (preContratos || []).find(x => x.jogador_id === +j.id && x.clube_id === clube.id);
       const podeProposta = propostas != null && c.dono && baseNeg != null, podePre = prePeriodo && c.dono && j.contrato_ate != null && j.contrato_ate <= liga.temporada && j.aposenta_em == null;
-      const modos = [["multa", "Multa"], ...(podeProposta ? [["proposta", !janela && prePeriodo ? "Pré-acordo" : "Proposta"]] : []), ...(podePre ? [["pre", "Pré-contrato"]] : [])];
+      const modos = [["multa", "Multa"], ...(podeProposta ? [["proposta", !janela && prePeriodo ? "Acordo" : "Proposta"]] : []), ...(podePre ? [["pre", "Pré-contrato"]] : [])];
       const inicial = (motivo || !janela) && modos.length > 1 ? modos[1][0] : "multa";
       const parte = (k, html) => `<div data-boleta-parte="${k}"${k === inicial ? "" : " hidden"}>${html}</div>`;
       const aviso = t => `<div class="t-boleta-aviso">${t}</div>`;
@@ -2606,7 +2606,7 @@ ${historicoDaBase()}
         ${podeProposta ? parte("proposta", (f => `${travaP ? aviso(`Por enquanto você não pode: ${esc(travaP)}.`) : ""}
           ${reguaDaBoleta(`Oferta ao clube${j.a_venda ? ` · à venda por ${dinheiro(j.preco_pedido)}` : ""}`, "pValor", f.minimo, f.maximo, Math.min(f.maximo, Math.max(f.minimo, j.preco_pedido || multa)), 10, true)}
           ${duracaoDaBoleta("pTemporadas", "pSalario", mercado)}${salario("pSalario")}
-          ${janela || prePeriodo ? `<button class="t-boleta-acao" id="pEnviar" ${!travaP && (janela || (j.idade < 37 && !j.juvenil)) ? "" : "disabled"}>${janela ? "Enviar a proposta" : "Propor pré-acordo"}</button>
+          ${janela || prePeriodo ? `<button class="t-boleta-acao" id="pEnviar" ${!travaP && (janela || (j.idade < 37 && !j.juvenil)) ? "" : "disabled"}>${janela ? "Enviar a proposta" : "Propor acordo"}</button>
           ${notaDaBoleta(janela ? "O dono aceita, recusa ou pede outro valor." : "Se o dono aceitar, o negócio acontece na virada e não se desfaz.")}` : carimbo}
           ${temEmprestimo && j.idade <= 23 && !j.juvenil && janela ? `<button class="t-boleta-sec" id="pEmprestimo">Pedir por empréstimo · salário meio a meio</button>` : ""}`)(faixaDaNegociacao(baseNeg))) : ""}
         ${podePre ? parte("pre", `${duracaoDaBoleta("pcTemporadas", "pcSalario", mercado)}${salario("pcSalario", mercado, meuPre ? meuPre.salario : mercado)}
@@ -2631,7 +2631,7 @@ ${historicoDaBase()}
           <div class="row" style="margin-top:6px"><label>Valor para o clube (em milhares)<input id="pValor" type="number" step="50" min="${faixaDaNegociacao(baseNeg).minimo}" max="${faixaDaNegociacao(baseNeg).maximo}" value="${Math.min(faixaDaNegociacao(baseNeg).maximo, Math.max(faixaDaNegociacao(baseNeg).minimo, j.preco_pedido || multa))}" style="width:140px"></label>
             <label>Salário do jogador<input id="pSalario" type="number" step="5" min="${minimo}" max="${maximo}" value="${minimo}" style="width:120px"></label>
             <label>Contrato de<select id="pTemporadas" data-prog="pSalario" data-mercado="${j.salario_mercado || j.salario || 0}"><option value="1">1 temporada</option><option value="2" selected>2 temporadas (+10%)</option><option value="3">3 temporadas (+20%)</option></select></label>
-            ${travaP ? `<div class="aviso" style="margin:6px 0;flex-basis:100%">Por enquanto você não pode fazer proposta: ${esc(travaP)}.</div>` : ""}<button class="sec" id="pEnviar" ${!travaP && (janela || (prePeriodo && j.idade < 37 && !j.juvenil)) ? "" : "disabled"} title="${travaP ? esc(travaP) : janela ? "" : prePeriodo ? "Pré-acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor pré-acordo" : "Enviar a proposta"}</button></div>${temEmprestimo && j.idade <= 23 && !j.juvenil ? `<div class="row" style="margin-top:6px;align-items:center"><button class="sec" id="pEmprestimo" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pedir por empréstimo</button><span class="mut">até a virada da temporada · salário meio a meio (${dinheiro(Math.round(j.salario / 2))} para cada clube, e metade em cada folha) · o dono aceita ou recusa</span></div>` : ""}</div>` : ""}
+            ${travaP ? `<div class="aviso" style="margin:6px 0;flex-basis:100%">Por enquanto você não pode fazer proposta: ${esc(travaP)}.</div>` : ""}<button class="sec" id="pEnviar" ${!travaP && (janela || (prePeriodo && j.idade < 37 && !j.juvenil)) ? "" : "disabled"} title="${travaP ? esc(travaP) : janela ? "" : prePeriodo ? "Acordo: se o dono aceitar, o negócio acontece na virada e não se desfaz" : "A janela está fechada"}">${!janela && prePeriodo ? "Propor acordo" : "Enviar a proposta"}</button></div>${temEmprestimo && j.idade <= 23 && !j.juvenil ? `<div class="row" style="margin-top:6px;align-items:center"><button class="sec" id="pEmprestimo" ${janela ? "" : "disabled"} title="${janela ? "" : "A janela está fechada"}">Pedir por empréstimo</button><span class="mut">até a virada da temporada · salário meio a meio (${dinheiro(Math.round(j.salario / 2))} para cada clube, e metade em cada folha) · o dono aceita ou recusa</span></div>` : ""}</div>` : ""}
         ${!prePeriodo || !cPor[j.clube_id].dono || j.contrato_ate == null || j.contrato_ate > liga.temporada || j.aposenta_em != null ? "" : (meu => `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px"><b>✍️ Pré-contrato</b> <span class="mut">· o contrato dele acaba nesta temporada · você fez ${(preContratos || []).filter(x => x.temporada === liga.temporada).length} de 2 propostas</span>
           <div class="mut" style="margin:4px 0">Se ele não renovar e ficar livre na virada, vai para quem ofereceu o maior salário, sem pagar nada ao clube. As propostas são fechadas: ninguém vê a dos outros.${meu ? ` A sua está em <b>${dinheiro(meu.salario)}</b> por ${meu.temporadas} ${meu.temporadas === 1 ? "temporada" : "temporadas"}.` : ""}</div>
           <div class="row"><label>Salário (em milhares por temporada)<input id="pcSalario" type="number" step="5" min="${j.salario_mercado || j.salario || 0}" value="${meu ? meu.salario : j.salario_mercado || j.salario || 0}" style="width:150px"></label>
