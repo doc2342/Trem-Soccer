@@ -473,3 +473,24 @@
 .t-vest-linhas { display:grid; grid-template-rows:repeat(3, 64px); gap:2px; padding:8px 0; align-items:center; }
 .t-vest-linhas span { font:700 9px/1 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; color:var(--t-tinta3); writing-mode:vertical-rl; transform:rotate(180deg); justify-self:center; }
 .t-zona b { font-size:22px; }
+/* ---------- vestiário: a régua do jogo (nós × eles) ---------- */
+.t-vest-regua { margin-top:14px; padding-bottom:14px; border-bottom:1px solid var(--t-fio); }
+.t-regua-cab { display:flex; justify-content:space-between; font:700 10px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); margin-bottom:6px; }
+.t-regua { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap:4px 28px; }
+.t-regua-linha { display:grid; grid-template-columns:44px minmax(0, 1fr) 44px; align-items:center; gap:8px; font-size:13.5px; font-variant-numeric:tabular-nums; padding:5px 0 7px; position:relative; }
+.t-regua-linha > :first-child { text-align:left; } .t-regua-linha > :last-child { text-align:right; }
+.t-regua-linha > span:not(.t-regua-nome) { color:var(--t-tinta2); } .t-regua-linha > b { color:var(--t-tinta); font-weight:800; }
+.t-regua-nome { text-align:center; font-size:11.5px; color:var(--t-tinta2); }
+.t-regua-linha::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px; background:linear-gradient(90deg, var(--t-tinta) var(--nos), var(--t-fio) var(--nos)); }
+/* ---------- próximo jogo: fichas do adversário e da sua escalação ---------- */
+.t-fichas { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap:0 24px; margin:18px 0 4px; border-top:1px solid var(--t-fio); text-align:left; }
+.t-ficha { padding-top:12px; } .t-ficha + .t-ficha { border-left:1px solid var(--t-fio); padding-left:24px; }
+.t-ficha p { font-size:13.5px; color:var(--t-tinta2); margin:6px 0 0; line-height:1.45; } .t-ficha p b { color:var(--t-tinta); }
+.t-ficha-pos { font-size:11px; color:var(--t-tinta3); }
+.t-ficha-alerta { border-left:3px solid var(--t-marca); padding-left:8px; } .t-ficha-alerta b { color:var(--t-marca) !important; }
+.t-ficha-ok { color:var(--t-ok) !important; }
+.t-ficha-estilo:empty { display:none; }
+@media (max-width:560px) { .t-ficha + .t-ficha { border-left:0; padding-left:0; border-top:1px solid var(--t-fio); margin-top:12px; } }
+/* o meio do placar abre a partida (antes: a prévia; com a bola rolando: ao vivo) */
+a.t-placar-meio { text-decoration:none; color:inherit; padding:6px 8px; } a.t-placar-meio:hover { background:var(--t-placa); }
+.t-cronometro.t-ao-vivo { color:var(--t-marca); font-size:13px; }

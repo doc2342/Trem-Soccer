@@ -74,3 +74,14 @@ export function campoDeZonas(nossas, deles, destaques = []) {
     return `<div class="t-zona${destaques.includes(z) ? " t-zona-destaque" : ""}" data-zona="${z}" data-nivel="${nivel}" title="${NOMES_DAS_ZONAS[z]}"><b>${t == null ? "—" : Math.round(t * 100) + "%"}</b></div>`;
   }).join("")}</div>`;
 }
+
+// régua do último jogo: uma linha por estatística, nós à esquerda e eles à direita, a barra dividida na proporção; o maior em negrito.
+// nos/eles: a estatística do relatório (xg, posse, finalizacoes, noGol, faltas, escanteios)
+const LINHAS_DA_REGUA = [["xg", "xG", v => v.toFixed(2).replace(".", ",")], ["posse", "Posse", v => Math.round(v) + "%"], ["finalizacoes", "Finalizações"], ["noGol", "No gol"], ["faltas", "Faltas"], ["escanteios", "Escanteios"]];
+export function reguaDoJogo(nos, eles) {
+  if (!nos || !eles) return "";
+  return `<div class="t-regua">${LINHAS_DA_REGUA.filter(([k]) => nos[k] != null && eles[k] != null).map(([k, nome, f = v => String(Math.round(v))]) => {
+    const a = +nos[k] || 0, b = +eles[k] || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (v, maior) => maior ? `<b>${f(v)}</b>` : `<span>${f(v)}</span>`;
+    return `<div class="t-regua-linha" style="--nos:${pct}%">${lado(a, a > b)}<span class="t-regua-nome">${nome}</span>${lado(b, b > a)}</div>`;
+  }).join("")}</div>`;
+}

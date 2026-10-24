@@ -73,3 +73,12 @@ assert.match(cz, /data-zona="DC"[^>]*data-nivel="bom"[^>]*><b>75%<\/b>/);
 assert.match(campoDeZonas({ ...nossas, ME: [1, 1] }, deles, []), /data-zona="ME"[^>]*data-nivel="pouco"[^>]*><b>—<\/b>/); // menos de 6 duelos: sem número
 assert.match(campoDeZonas(nossas, null, []), /data-zona="DD"[^>]*data-nivel="pouco"/); // sem os dados deles, a defesa fica sem número
 assert.equal(campoDeZonas(null, deles, []), "");
+// régua de estatísticas do último jogo: nós × eles, barra proporcional, o maior em negrito; posse em %, xG com vírgula
+import { reguaDoJogo } from "../src/ui-trem.js";
+const rg = reguaDoJogo({ xg: 2.034, posse: 54, finalizacoes: 14, noGol: 6, faltas: 9, escanteios: 5 }, { xg: 0.67, posse: 46, finalizacoes: 6, noGol: 2, faltas: 12, escanteios: 3 });
+assert.equal((rg.match(/class="t-regua-linha"/g) || []).length, 6);
+assert.match(rg, /<b>2,03<\/b><span class="t-regua-nome">xG<\/span><span>0,67<\/span>/);
+assert.match(rg, /<b>54%<\/b><span class="t-regua-nome">Posse<\/span><span>46%<\/span>/);
+assert.match(rg, /<span>9<\/span><span class="t-regua-nome">Faltas<\/span><b>12<\/b>/); // o maior em negrito, de qualquer lado
+assert.match(rg, /style="--nos:70%"/); // finalizações: 14 de 20
+assert.equal(reguaDoJogo(null, {}), "");
