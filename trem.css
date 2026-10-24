@@ -647,3 +647,57 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:1023px) { .t-previa { display:none !important; } }
 @media (max-width:720px) { .t-estacao { font-size:9.5px; letter-spacing:0; min-width:0; overflow:hidden; } .t-estacao > span { display:block; max-width:100%; overflow:hidden; text-overflow:clip; white-space:nowrap; } }
 :root[data-visual=novo] body { overflow-x:clip; }
+
+/* ---------- abas redesenhadas (Elenco, Tática…): mesmo recuo da Central; a faixa abre a aba ---------- */
+.t-aba.t-pagina { padding-left:0; padding-right:0; }
+.t-aba > .t-faixa { margin-bottom:6px; }
+.t-alerta { border-left:4px solid var(--t-atencao); background:var(--t-placa); padding:12px 16px; margin:18px 0 0; font-size:14px; line-height:1.45; }
+.t-atencao { color:var(--t-atencao); }
+.t-dobra { margin-top:30px; } .t-dobra > summary { list-style:none; cursor:pointer; } .t-dobra > summary::-webkit-details-marker { display:none; }
+.t-dobra > summary .t-rotulo::after { content:"▸ mostrar"; margin-left:4px; color:var(--t-tinta3); letter-spacing:.1em; }
+.t-dobra[open] > summary .t-rotulo::after { content:"▾ esconder"; }
+
+/* faixa do Elenco: quatro números em grade 2×2 */
+.t-elenco-numeros { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:22px 28px; }
+.t-elenco-numeros .t-numero-rotulo { color:var(--t-noite-mut); }
+
+/* Elenco: zonas em duas colunas; cada jogador uma linha (posição · nome e linha apagada · nota grande · salário · i) */
+.t-elenco { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0 40px; align-items:start; }
+.t-elenco > .t-jog { min-width:0; }
+.t-setor { margin-top:30px; min-width:0; }
+.t-setor .t-rotulo { margin-bottom:4px; }
+.t-jog { display:grid; grid-template-columns:44px minmax(0, 1fr) 58px 64px 26px; align-items:center; gap:12px; padding:10px 8px 10px 10px; border-bottom:1px solid var(--t-fio); border-left:3px solid transparent; }
+.t-jog.clk { cursor:pointer; } .t-jog.clk:hover { background:var(--t-placa); }
+.t-jog-tit { border-left-color:var(--ac); } .t-jog-res { border-left-color:var(--t-tinta3); }
+.t-jog .pp { justify-self:start; }
+.t-jog-quem { min-width:0; }
+.t-jog-nome { font-weight:700; font-size:15px; display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; }
+.t-jog-nome a.lk { color:inherit; text-decoration:none; overflow:hidden; text-overflow:ellipsis; } .t-jog-nome a.lk:hover { text-decoration:underline; }
+.t-jog-nome svg { flex-shrink:0; }
+.t-jog-linha { font-size:12.5px; color:var(--t-tinta2); margin-top:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.t-jog-linha .bnd { width:15px; height:10px; }
+.t-jog-nota { font:900 30px/1 var(--t-letra); font-stretch:64%; text-align:right; font-variant-numeric:tabular-nums; }
+.t-jog-sal { text-align:right; font-size:13px; color:var(--t-tinta2); font-variant-numeric:tabular-nums; }
+.t-jog .info { justify-self:end; }
+@media (max-width:1024px) { .t-elenco { grid-template-columns:minmax(0, 1fr); } }
+@media (max-width:720px) { .t-jog { grid-template-columns:40px minmax(0, 1fr) 46px 24px; gap:10px; } .t-jog-sal { display:none; } .t-jog-nota { font-size:26px; } .t-elenco-numeros { gap:16px 20px; } }
+
+/* ---------- Tática (src/ui-escalacao.js com NOVO): faixa = o próximo adversário; instruções em botões segmentados ---------- */
+:root[data-visual=novo] .soNovoNao { display:none; }
+#taticaFora #previa { padding:0; border:0; background:none; box-shadow:none; }
+#taticaFora #previa > .t-faixa { margin:0 0 6px; }
+.t-duelo { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:22px 28px; }
+.t-duelo .t-numero-valor { font-size:64px; } .t-duelo .t-numero-rotulo { color:var(--t-noite-mut); }
+.t-duelo-tempo { margin-top:18px; padding-top:12px; border-top:1px solid var(--t-noite-fio); }
+.t-faixa .t-faixa-numeros:has(.t-tatica-acao) { border-top:0; padding-top:0; }
+.t-tatica-acao { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+.t-tatica-acao #avisoOnline { margin:0 !important; color:var(--t-noite-mut); font-size:13px; }
+.t-tatica-acao #avisoOnline .ok { color:#7fd6a3; } .t-tatica-acao #avisoOnline .bad, .t-tatica-acao #avisoOnline .aviso { color:#f0b46a; }
+.t-relatorio { display:flex; flex-direction:column; gap:6px; font-size:14px; line-height:1.5; max-width:110ch; }
+#taticaFora #instrucoes { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); grid-auto-flow:row dense; gap:16px 20px; }
+.t-instr { min-width:0; display:flex; flex-direction:column; gap:6px; }
+.t-instr-5, .t-instr-3:has([data-instrv^="finalizar"]) { grid-column:1 / -1; }
+.t-instr .t-segmentos > * { padding:10px 6px; font-size:13px; line-height:1.15; }
+#taticaFora #validacao:empty { display:none; }
+#taticaFora .t-alerta { margin:8px 0 0; }
+@media (max-width:720px) { #taticaFora #instrucoes { grid-template-columns:minmax(0, 1fr); } .t-instr .t-segmentos > * { font-size:12px; padding:10px 3px; } .t-duelo .t-numero-valor { font-size:48px; } }
