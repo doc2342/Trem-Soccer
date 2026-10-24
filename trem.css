@@ -553,3 +553,16 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-giro-conta { float:right; letter-spacing:.04em; text-transform:none; color:var(--t-tinta3); font-weight:500; }
 .t-giro-secao .t-giro-livres { margin-top:10px; }
 .t-bastidores .mural .t-giro-secao > .rot { display:flex; justify-content:space-between; align-items:baseline; gap:10px; } .t-giro-conta { float:none; }
+/* painel do mercado com altura fixa: os cartões ficam todos sobrepostos e as setas não mudam de lugar entre uma transferência e outra */
+.t-giro { height:200px; min-height:0; }
+.t-giro-item, .t-giro-item.ativo { position:absolute; inset:0; }
+.t-giro-para { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-giro-jogador { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-giro-palco { align-items:center; }
+/* as seções dos bastidores são colunas esticadas (a regra dos itens de mural, em linha e pela base, não vale para elas) */
+.t-central .mural > .t-mural-secao { flex-direction:column; align-items:stretch; padding:0; border:0; gap:0; }
+.t-giro-palco { width:100%; }
+/* bastidores: o respiro entre as notas e o título sublinhado só no tamanho do texto, como antes */
+.t-central .mural > .t-mural-secao { gap:10px; }
+.t-mural-secao > .rot { align-self:flex-start; }
+.t-mural-secao.t-giro-secao > .rot { align-self:stretch; }
