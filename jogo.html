@@ -1648,6 +1648,11 @@ async function telaClube(liga, clube) {
       [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
     ].filter(Boolean);
     const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
+    if (visualNovo) { const prox = passos.find(x => !x[0]), resto = passos.filter(x => !x[0] && x !== prox);
+      return `<section class="t-lado-bloco t-passos"><div class="t-passos-cab"><div class="t-rotulo">Primeiros passos · ${feitos} de ${passos.length}</div><button type="button" class="t-botao-link t-botao" id="chegadaFechar">Esconder</button></div>
+        <div class="t-barra"><i style="width:${Math.round(100 * feitos / passos.length)}%"></i></div>
+        <h3 class="t-leitura-titulo">${prox[2]}</h3><p class="t-leitura-frase">${prox[3]}</p><div class="t-botoes"><button type="button" class="t-botao t-botao-principal" data-aba-ir="${prox[4]}">Fazer agora</button></div>
+        ${resto.length ? `<details class="t-passos-resto"><summary>${resto.length === 1 ? "Falta mais 1 passo" : `Faltam mais ${resto.length} passos`}</summary>${resto.map(([, , t, , ir]) => `<button type="button" class="t-botao t-botao-link" data-aba-ir="${ir}">${t}</button>`).join("")}</details>` : ""}</section>`; }
     return `<div class="card c-chegada"><h2>Primeiros passos <span class="tag">${feitos} de ${passos.length}</span>
         <button class="sec" id="chegadaFechar" style="float:right;padding:2px 10px;font-size:12.5px">Esconder</button></h2>
       <div class="mut" style="margin-bottom:6px">Bem-vindo à ${esc(liga.nome)}! As rodadas são calculadas no horário marcado, mesmo com você fora do jogo. Todas as regras estão no <a class="lk" href="guia.html" style="color:var(--ac)">📖 Guia do dirigente</a>.</div>
@@ -1919,16 +1924,23 @@ async function telaClube(liga, clube) {
   // As partes que dependem dos jogos são preenchidas em grupo() (preencherCentralNova). Os ids do amistoso, da chegada e dos murais são os de hoje.
   const centralNova = () => `<section data-secao="inicio" class="t-pagina t-central">
     <div id="cnFoco"></div>
-    <div id="desdeVisita"></div><div id="chegada">${chegada()}</div>
-    <section class="t-secao" id="cnVestiario" hidden></section>
-    <section class="t-secao" id="cnProximo" hidden></section>
-    <section class="t-secao t-bastidores"><div class="t-rotulo">Bastidores</div><div class="t-bastidores-grade"><div class="mural" id="muralClube">${muralDoClube()}</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div></section>
-    ${clube.confianca == null ? "" : (() => { const c = clube.confianca;
-      const meta = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `terminar em ${minhaMeta.faixa_min}º` : `terminar entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º`) : null;
-      return `<section class="t-secao t-diretoria"><div class="t-diretoria-frase"><p>“${esc(fraseDoPresidente(c))}”</p><div class="t-numero-rotulo">Palavra do presidente${meta ? ` · meta: ${meta}` : ""}</div></div>
-        <div><div class="t-diretoria-cab"><span>Confiança da diretoria</span><b>${c}</b></div><div class="t-barra t-barra-confianca"><i style="width:${c}%"></i></div>
-          <div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div><div id="termometro" class="t-numero-legenda"></div>
-          ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</div></section>`; })()}
+    <div class="t-central-grade">
+      <div class="t-central-principal">
+        <section id="cnProximo" hidden></section>
+        <section id="cnVestiario" hidden></section>
+      </div>
+      <aside class="t-central-lado">
+        <div id="desdeVisita"></div><div id="chegada">${chegada()}</div>
+        <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
+        ${clube.confianca == null ? "" : (() => { const c = clube.confianca;
+          const meta = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `terminar em ${minhaMeta.faixa_min}º` : `terminar entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º`) : null;
+          return `<section class="t-lado-bloco t-diretoria"><div class="t-rotulo">Diretoria</div><div class="t-diretoria-cab"><span>Confiança</span><b>${c}</b></div>
+            <div class="t-barra t-barra-confianca"><i style="width:${c}%"></i></div><div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div>
+            <p class="t-diretoria-frase">“${esc(fraseDoPresidente(c))}”</p>${meta ? `<div class="t-numero-legenda">Meta: ${meta}</div>` : ""}<div id="termometro" class="t-numero-legenda"></div>
+            ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</section>`; })()}
+      </aside>
+    </div>
+    <section class="t-secao t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
     <details class="t-secao t-amistoso"><summary class="t-rotulo">Amistoso</summary>
       <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
         <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button type="button" class="t-botao" id="amJogar">Jogar amistoso</button></div>
@@ -2811,7 +2823,7 @@ ${historicoDaBase()}
       const lp = leituraDoProximoJogo({ tab, clubeId: clube.id, rivalId: rival.id, formaDoRival }), c = climaDaPartida(proximo.id);
       const qual = ehCopa(proximo) ? nomeDaCopa(proximo, true) : proximo.fase && proximo.fase !== "liga" ? nomeDoPlayoff(proximo).replace("Playoff · ", "") : "Rodada " + proximo.rodada;
       pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}<div class="t-numero-rotulo">${esc(d.toLocaleString("pt-BR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))} · ${casa ? "em casa" : "fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C</div>
-        <div class="t-jogo-lados">${[mandante, visitante].map(x => `<div class="t-jogo-lado">${svgEscudo(x.escudo, x.sigla, 56)}<span class="t-jogo-nome">${esc(x.nome)}</span>${x.id === rival.id ? `<span class="t-forma">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : ""}</div>`).join(`<span class="t-jogo-x">×</span>`)}</div>
+        <div class="t-jogo-lados">${[mandante, visitante].map(x => `<div class="t-jogo-lado">${svgEscudo(x.escudo, x.sigla, 56)}<div class="t-jogo-quem"><span class="t-jogo-nome">${esc(x.nome)}</span>${x.id === rival.id ? `<span class="t-forma">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : ""}</div></div>`).join(`<span class="t-jogo-x">×</span>`)}</div>
         ${lp ? `<p class="t-leitura-frase"><b>${esc(lp.titulo)}.</b> ${esc(lp.frase)}</p>` : ""}
         <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div></div>`;
     }

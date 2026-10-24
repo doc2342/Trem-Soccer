@@ -151,37 +151,70 @@
   @keyframes t-sobe { from { opacity:.001; transform:translateY(16px); } }
 }
 
-/* ---------- Central ---------- */
-.t-central > #cnFoco { margin-top:0; }
-.t-jogo { border:1px solid var(--t-fio); padding:22px clamp(16px, 3vw, 28px); background:var(--t-celula); }
-.t-jogo-lados { display:flex; align-items:center; justify-content:center; gap:clamp(12px, 4vw, 40px); margin:18px 0; flex-wrap:wrap; }
-.t-jogo-lado { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; }
-.t-jogo-nome { font:900 clamp(26px, 6vw, 46px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; text-align:center; overflow-wrap:anywhere; }
-.t-jogo-x { font:900 34px/1 var(--t-letra); color:var(--t-marca); }
+/* ---------- Central: uma largura só; faixa no alto, duas colunas (jogo e vestiário | o que é seu), bastidores embaixo ---------- */
+.t-central > #cnFoco .t-faixa { margin-left:0; margin-right:0; }
+.t-central-grade { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 360px); gap:0 48px; margin-top:32px; align-items:start; }
+.t-central-principal > section + section { margin-top:36px; }
+.t-central-lado { display:flex; flex-direction:column; gap:28px; }
+@media (max-width:960px) { .t-central-grade { grid-template-columns:minmax(0, 1fr); } .t-central-lado { margin-top:36px; } }
+.t-lado-bloco { border-top:2px solid var(--t-tinta); padding-top:14px; }
+.t-lado-bloco .t-rotulo { margin-bottom:10px; }
+/* próximo jogo: uma faixa horizontal compacta */
+.t-jogo { border-top:2px solid var(--t-tinta); padding-top:14px; }
+.t-jogo-lados { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:16px; margin:14px 0 12px; }
+.t-jogo-lado { display:flex; align-items:center; gap:12px; min-width:0; }
+.t-jogo-lado:last-child { flex-direction:row-reverse; text-align:right; }
+.t-jogo-lado svg { width:44px; height:44px; flex-shrink:0; }
+.t-jogo-quem { display:flex; flex-direction:column; gap:6px; min-width:0; } .t-jogo-lado:last-child .t-jogo-quem { align-items:flex-end; }
+.t-jogo-nome { font:900 clamp(20px, 2.4vw, 28px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; overflow-wrap:anywhere; }
+.t-jogo-x { font:900 28px/1 var(--t-letra); color:var(--t-marca); }
 .t-jogo .t-leitura-frase b { color:var(--t-tinta); }
-/* bastidores: os murais de hoje, sem caixa, em duas colunas no PC */
-.t-bastidores-grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap:8px 40px; }
-.t-bastidores .mural .rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-marca); margin:14px 0 6px; }
-.t-bastidores .mural > div { padding:8px 0; border-bottom:1px solid var(--t-fio); background:none; }
-/* diretoria: a frase do presidente e a confiança 0–100 com a marca em 50 */
-.t-diretoria { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.4fr); gap:24px 48px; align-items:end; border-top:1px solid var(--t-fio); padding-top:28px; }
-.t-diretoria-frase p { font:italic 300 clamp(20px, 3vw, 26px)/1.25 var(--t-letra); margin:0 0 10px; }
+@media (max-width:560px) { .t-jogo-lados { grid-template-columns:minmax(0, 1fr); } .t-jogo-x { display:none; } .t-jogo-lado:last-child { flex-direction:row; text-align:left; } .t-jogo-lado:last-child .t-jogo-quem { align-items:flex-start; } }
+/* vestiário: a leitura mais importante em destaque, as outras menores embaixo */
+#cnVestiario .t-secao-titulo { font-size:clamp(26px, 4vw, 40px); }
+#cnVestiario .t-leituras { display:flex; flex-wrap:wrap; } /* as menores dividem a largura que sobrar, sem buraco */
+#cnVestiario .t-leitura { flex:1 1 220px; }
+#cnVestiario .t-leitura:first-child { flex-basis:100%; padding:24px 26px; }
+#cnVestiario .t-leitura:first-child .t-leitura-titulo { font-size:clamp(24px, 3.4vw, 34px); font-weight:900; font-stretch:64%; text-transform:uppercase; }
+#cnVestiario .t-leitura:first-child .t-leitura-frase { font-size:16px; color:var(--t-tinta); }
+#cnVestiario .t-leitura:not(:first-child) .t-leitura-titulo { font-size:17px; }
+#cnVestiario .t-leitura:not(:first-child) .t-leitura-frase { font-size:13px; }
+/* primeiros passos: progresso, o próximo passo e o resto recolhido */
+.t-passos-cab { display:flex; justify-content:space-between; align-items:baseline; gap:10px; } .t-passos-cab .t-rotulo { margin:0; }
+.t-passos .t-barra { height:4px; margin:10px 0 14px; } .t-passos .t-barra > i { background:var(--t-marca); }
+.t-passos .t-leitura-titulo { font-size:18px; margin-bottom:4px; }
+.t-passos-resto { margin-top:14px; font-size:13px; color:var(--t-tinta2); } .t-passos-resto summary { cursor:pointer; }
+.t-passos-resto .t-botao-link { display:flex; margin-top:8px; font-weight:500; border-bottom-width:1px; }
+/* "desde a sua última visita" (cartão de hoje) e os murais: sem caixa, sem emoji, linhas finas */
+.t-central .card.c-chegada { background:none; border:0; border-top:2px solid var(--t-tinta); border-radius:0; box-shadow:none; padding:14px 0 0; margin:0; }
+.t-central .card.c-chegada > h2 { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font:700 11.5px/1.2 var(--t-letra); letter-spacing:.18em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-central .card.c-chegada > h2::before { content:""; width:18px; height:4px; background:var(--t-marca); flex-shrink:0; }
+.t-central .card.c-chegada > h2 .tag { letter-spacing:0; text-transform:none; font-weight:500; }
+.t-central .card.c-chegada button { border-radius:0; margin-left:auto; }
+.t-central .mural .ic { display:none; }
+:root[data-visual=novo] .t-central .mural .aviso, :root[data-visual=novo] .t-central .mural .bad { color:var(--t-tinta); } /* o traço da marca à esquerda já diz que é urgente */
+.t-resolver > .rot:first-child { display:none; } /* o bloco já tem o rótulo */
+.t-resolver > .rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); margin:14px 0 2px; }
+.t-central .mural > div { display:flex; gap:8px; align-items:baseline; padding:9px 0; border:0; border-bottom:1px solid var(--t-fio); border-radius:0; background:none; font-size:13.5px; line-height:1.45; }
+.t-central .mural > div .vai { margin-left:auto; color:var(--t-tinta3); }
+.t-central .mural > div.urg { border-left:3px solid var(--t-marca); padding-left:10px; }
+.t-central .mural > div[data-aba-ir]:hover { background:var(--t-placa); }
+.t-central .mural details summary { font-size:12.5px; color:var(--t-tinta2); padding:8px 0; }
+/* bastidores: as notícias da liga em colunas, como num jornal */
+.t-bastidores { border-top:2px solid var(--t-tinta); padding-top:14px; margin-top:44px; }
+.t-bastidores .mural { display:block; column-width:300px; column-gap:40px; }
+.t-bastidores .mural > * { break-inside:avoid; }
+.t-bastidores .mural .rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-marca); margin:6px 0 2px; break-after:avoid; }
+.t-bastidores .mural > div[data-manchete] { font-size:14px; }
+/* diretoria na coluna do lado */
 .t-diretoria-cab { display:flex; justify-content:space-between; align-items:baseline; font-size:13px; color:var(--t-tinta2); }
 .t-diretoria-cab b { font:900 44px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); }
-.t-barra-confianca { margin-top:10px; } .t-barra-confianca::after { content:""; position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--t-tinta2); }
+.t-barra-confianca { margin-top:8px; } .t-barra-confianca::after { content:""; position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--t-tinta2); }
 .t-diretoria-escala { display:flex; justify-content:space-between; font-size:11px; color:var(--t-tinta3); margin-top:6px; }
-@media (max-width:720px) { .t-diretoria { grid-template-columns:minmax(0, 1fr); } }
+.t-diretoria-frase { font:italic 300 18px/1.35 var(--t-letra); margin:14px 0 6px; }
 /* amistoso: recolhido no fim */
 .t-amistoso > summary { cursor:pointer; list-style:none; } .t-amistoso > summary::-webkit-details-marker { display:none; }
 .t-amistoso > summary::after { content:"+"; margin-left:8px; color:var(--t-tinta); } .t-amistoso[open] > summary::after { content:"−"; }
-
-/* Central: "Desde a sua última visita" e "Primeiros passos" (cartões de hoje, mesmos ids) no visual novo: sem caixa, rótulo da marca */
-.t-central .card.c-chegada { background:none; border:0; border-top:1px solid var(--t-fio); border-radius:0; box-shadow:none; padding:22px 0 0; margin:28px 0 0; }
-.t-central .card.c-chegada > h2 { display:flex; align-items:center; gap:10px; font:700 11.5px/1.2 var(--t-letra); letter-spacing:.18em; text-transform:uppercase; color:var(--t-tinta2); }
-.t-central .card.c-chegada > h2::before { content:""; width:18px; height:4px; background:var(--t-marca); flex-shrink:0; }
-.t-central .card.c-chegada > h2 .tag { letter-spacing:0; text-transform:none; font-weight:500; }
-.t-central .card.c-chegada .barra-passos { height:4px; border-radius:0; background:var(--t-placa); } .t-central .card.c-chegada .barra-passos i { background:var(--t-marca); border-radius:0; }
-.t-central .card.c-chegada button { border-radius:0; }
 
 /* ======================================================================================================
    Camada de compatibilidade: as telas que ainda não foram refeitas usam as peças do estilo.css (card, kpi,
@@ -235,3 +268,4 @@
 :root[data-visual=novo] .fgrade > .fq:first-child { border-left:0; padding-left:0; }
 :root[data-visual=novo] .fv { font:900 40px/1.05 var(--t-letra); font-stretch:64%; }
 :root[data-visual=novo] .janela { border-radius:0; }
+.t-central-lado > :empty { display:none; } /* "desde a sua visita" vazio não empurra a coluna */
