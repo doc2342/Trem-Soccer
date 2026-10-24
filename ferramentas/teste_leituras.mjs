@@ -94,3 +94,6 @@ assert.equal(leituraDaTabela({ tab, clubeId: 4, faixas: ["sobe", "sobe", "", "",
 // "funcionou" só quando a melhor zona venceu mais da metade dos duelos (33% não é sucesso)
 const fraco = { estat: [{ zonas: zonas({ AE: [2, 6], AC: [3, 6], AD: [1, 7] }) }, { zonas: zonas({}) }], jogadores: [], analise: [["ok"], []] };
 assert.ok(leiturasDoVestiario({ relatorio: fraco, lado: 0, nivel: 3, elenco: [] }).every(l => l.tipo !== "funcionou"));
+// cada leitura de zona diz qual zona do nosso campo ela cita (para o campo do vestiário acender)
+assert.equal(v3.find(l => l.tipo === "falhou").zona, "DD");
+assert.equal(v3.find(l => l.tipo === "funcionou").zona, "AC");

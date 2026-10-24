@@ -1,6 +1,6 @@
 // Leituras do visual novo: frases que dizem o que os números significam para o clube (regra 2 da spec do redesign,
 // docs/superpowers/specs/2026-10-24-redesign-identidade-design.md). Puro e determinístico: o mesmo dado dá sempre a mesma frase.
-// Uma leitura tem o formato que leitura() de src/ui-trem.js recebe: { tipo, titulo, frase, acao?: { texto, abaIr, tipo? } }.
+// Uma leitura tem o formato que leitura() de src/ui-trem.js recebe: { tipo, titulo, frase, acao?: { texto, abaIr, tipo? }, zona? } (zona: a do nosso campo que ela cita).
 import { classificacao } from "./rodada.js";
 
 const pc = v => Math.round(v * 100) + "%";
@@ -29,7 +29,7 @@ export function leiturasDoVestiario({ relatorio, lado, nivel, elenco }) {
   const estat = relatorio.estat || [], l = [];
   if (nivel >= 2) {
     const deles = melhorZona(estat[1 - lado]);
-    if (deles && deles.taxa > 0.5) l.push({ tipo: "falhou", titulo: TITULO_DA_DEFESA[ESPELHO[deles.zona]], frase: `O adversário venceu ${pc(deles.taxa)} dos duelos ali.`,
+    if (deles && deles.taxa > 0.5) l.push({ tipo: "falhou", zona: ESPELHO[deles.zona], titulo: TITULO_DA_DEFESA[ESPELHO[deles.zona]], frase: `O adversário venceu ${pc(deles.taxa)} dos duelos ali.`,
       acao: { texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" } });
   }
   const fora = (elenco || []).filter(j => !j.juvenil && j.fora > 0);
@@ -41,7 +41,7 @@ export function leiturasDoVestiario({ relatorio, lado, nivel, elenco }) {
   }
   if (nivel >= 2) {
     const nossa = melhorZona(estat[lado]);
-    if (nossa && nossa.taxa > 0.5) l.push({ tipo: "funcionou", titulo: TITULO_DO_ATAQUE[nossa.zona], frase: `${pc(nossa.taxa)} dos duelos vencidos ali.`, acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } });
+    if (nossa && nossa.taxa > 0.5) l.push({ tipo: "funcionou", zona: nossa.zona, titulo: TITULO_DO_ATAQUE[nossa.zona], frase: `${pc(nossa.taxa)} dos duelos vencidos ali.`, acao: { texto: "Manter a tática", abaIr: "tatica", tipo: "link" } });
   }
   const cansados = (relatorio.jogadores || []).filter(j => j.time === lado && j.saiu === null && j.pos !== "GK" && j.energia < CANSADO);
   if (cansados.length) l.push({ tipo: "atencao", titulo: "Terminaram cansados", frase: lista(cansados.slice(0, 3).map(j => j.nome)) + "." });

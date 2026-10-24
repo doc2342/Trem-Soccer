@@ -59,3 +59,18 @@ export function graficoDePosicoes(posicoes, total, linha) {
     + `<circle class="t-grafico-ponto" cx="${x(n - 1).toFixed(1)}" cy="${y(ultimo).toFixed(1)}" r="5"/><text x="${(x(n - 1) + 9).toFixed(1)}" y="${(y(ultimo) + 4).toFixed(1)}">${ultimo}º</text>`
     + `<text x="${m.e}" y="${A - 4}">R1</text><text x="${(L - m.d - 18).toFixed(0)}" y="${A - 4}">R${n}</text></svg>`;
 }
+
+// campo do vestiário: as 9 zonas (ataque em cima, defesa embaixo). Ataque e meio: a taxa de duelos que vencemos ali (nossas zonas).
+// Defesa: quanto seguramos o ataque deles na zona espelhada (o ataque pela esquerda deles chega na nossa defesa direita) — a mesma conta
+// da leitura "falhou". nossas/deles: { AE: [ganhos, perdidos], ... } do relatório; destaques: zonas citadas pelas leituras. Menos de 6 duelos: sem número.
+const NOMES_DAS_ZONAS = { AE: "ataque pela esquerda", AC: "ataque pelo centro", AD: "ataque pela direita", ME: "meio esquerdo", MC: "centro do meio", MD: "meio direito", DE: "defesa esquerda", DC: "centro da defesa", DD: "defesa direita" };
+const ESPELHO_DA_DEFESA = { DD: "AE", DC: "AC", DE: "AD" };
+export function campoDeZonas(nossas, deles, destaques = []) {
+  if (!nossas) return "";
+  const taxa = z => { if (ESPELHO_DA_DEFESA[z]) { const [g, p] = (deles || {})[ESPELHO_DA_DEFESA[z]] || [0, 0]; return g + p >= 6 ? p / (g + p) : null; }
+    const [g, p] = nossas[z] || [0, 0]; return g + p >= 6 ? g / (g + p) : null; };
+  return `<div class="t-campo" role="img" aria-label="Duelos vencidos por zona">${["AE", "AC", "AD", "ME", "MC", "MD", "DE", "DC", "DD"].map(z => {
+    const t = taxa(z), nivel = t == null ? "pouco" : t >= 0.55 ? "bom" : t <= 0.45 ? "ruim" : "meio";
+    return `<div class="t-zona${destaques.includes(z) ? " t-zona-destaque" : ""}" data-zona="${z}" data-nivel="${nivel}" title="${NOMES_DAS_ZONAS[z]}"><b>${t == null ? "—" : Math.round(t * 100) + "%"}</b></div>`;
+  }).join("")}</div>`;
+}

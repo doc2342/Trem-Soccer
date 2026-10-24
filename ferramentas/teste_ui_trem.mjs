@@ -60,3 +60,16 @@ assert.equal(manchete('<div><span class="">Com <img src="x"> imagem: fica</span>
 // faixa com números embaixo da frase (html montado pela tela)
 assert.match(faixa({ rotulo: "x", titulo: "3º lugar ·", frase: "a", numeros: "<span>36 pts</span>" }), /t-faixa-frase">a<\/p><div class="t-faixa-numeros"><span>36 pts<\/span><\/div>/);
 assert.ok(!faixa({ rotulo: "x", titulo: "a" }).includes("t-faixa-numeros"));
+// campo de zonas do vestiário: ataque e meio com os nossos duelos; a defesa com quanto seguramos o ataque deles (zona espelhada: AE deles = nossa DD)
+import { campoDeZonas } from "../src/ui-trem.js";
+const nossas = { AE: [3, 5], AC: [6, 2], AD: [4, 4], ME: [4, 4], MC: [5, 5], MD: [4, 4], DE: [1, 1], DC: [1, 1], DD: [1, 1] };
+const deles = { AE: [6, 2], AC: [2, 6], AD: [3, 5] };
+const cz = campoDeZonas(nossas, deles, ["DD"]);
+assert.equal((cz.match(/class="t-zona/g) || []).length, 9);
+assert.ok(cz.indexOf('data-zona="AE"') < cz.indexOf('data-zona="DE"')); // o ataque vem antes (em cima)
+assert.match(cz, /data-zona="AC"[^>]*data-nivel="bom"[^>]*><b>75%<\/b>/);
+assert.match(cz, /class="t-zona t-zona-destaque" data-zona="DD"[^>]*data-nivel="ruim"[^>]*><b>25%<\/b>/); // seguramos 2 de 8 ataques deles pela AE
+assert.match(cz, /data-zona="DC"[^>]*data-nivel="bom"[^>]*><b>75%<\/b>/);
+assert.match(campoDeZonas({ ...nossas, ME: [1, 1] }, deles, []), /data-zona="ME"[^>]*data-nivel="pouco"[^>]*><b>—<\/b>/); // menos de 6 duelos: sem número
+assert.match(campoDeZonas(nossas, null, []), /data-zona="DD"[^>]*data-nivel="pouco"/); // sem os dados deles, a defesa fica sem número
+assert.equal(campoDeZonas(null, deles, []), "");

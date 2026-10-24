@@ -440,3 +440,36 @@
 /* diretoria: o número encosta no rótulo ("55 CONFIANÇA"), em vez de ficar na outra ponta */
 .t-diretoria-larga > .t-diretoria-cab { flex-direction:row-reverse; justify-content:flex-end; gap:12px; }
 .t-materia-fina b { color:var(--t-tinta); }
+/* módulo: número, linha curta (tinta) e detalhe (apagado), sempre nessa ordem */
+.t-modulo-linha { font-size:12.5px; color:var(--t-tinta); font-weight:600; line-height:1.3; }
+.t-modulo-detalhe { font-size:12px; color:var(--t-tinta2); line-height:1.3; margin-top:-2px; }
+.t-modulo-detalhe:empty { display:none; }
+/* diretoria: a frase e a meta centradas no espaço à direita da barra */
+.t-diretoria-larga > .t-diretoria-frase, .t-diretoria-larga > .t-diretoria-meta { justify-self:center; text-align:center; max-width:30ch; }
+.t-diretoria-larga > .t-diretoria-meta { max-width:none; }
+/* ---------- vestiário: o campo do último jogo e, ao lado, o resumo ---------- */
+.t-vest { display:grid; grid-template-columns:minmax(0, 220px) minmax(0, 1fr); gap:20px 28px; margin-top:16px; align-items:start; }
+.t-vest.t-vest-sem-campo { grid-template-columns:minmax(0, 1fr); }
+.t-vest-campo { margin:0; }
+.t-vest-campo figcaption { font-size:11px; color:var(--t-tinta3); margin-top:6px; text-align:center; }
+.t-campo { display:grid; grid-template-columns:repeat(3, 1fr); grid-auto-rows:64px; gap:2px; padding:6px; position:relative;
+  background:repeating-linear-gradient(0deg, #1b4d33 0 32px, #1f5639 32px 64px); border:2px solid #e9f2ec; outline:1px solid #1b4d33; }
+.t-campo::before { content:""; position:absolute; left:6px; right:6px; top:50%; border-top:2px solid rgba(255,255,255,.55); } /* linha do meio */
+.t-campo::after { content:""; position:absolute; left:50%; bottom:0; width:40%; height:22%; transform:translateX(-50%); border:2px solid rgba(255,255,255,.55); border-bottom:0; } /* a nossa área */
+.t-zona { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; background:rgba(255,255,255,.08); color:#fff; position:relative; z-index:1; }
+.t-zona b { font:900 20px/1 var(--t-letra); font-stretch:64%; } .t-zona span { font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; opacity:.75; }
+.t-zona[data-nivel=bom] { background:rgba(63,178,122,.55); } .t-zona[data-nivel=ruim] { background:rgba(215,38,30,.62); }
+.t-zona[data-nivel=pouco] b { opacity:.5; }
+.t-zona-destaque { outline:3px solid #fff; outline-offset:-3px; }
+.t-vest-notas { display:flex; flex-direction:column; }
+.t-vest-notas .t-nota { padding:0 0 14px; } .t-vest-notas .t-nota + .t-nota { border-top:1px solid var(--t-fio); padding-top:14px; }
+.t-nota-lead h4 { font:900 clamp(24px, 3vw, 32px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; margin:6px 0 8px; }
+.t-nota-lead p { font-size:15.5px; color:var(--t-tinta); }
+@media (max-width:560px) { .t-vest { grid-template-columns:minmax(0, 1fr); } .t-vest-campo { max-width:260px; } }
+/* campo: rótulos de linha à esquerda (ataque, meio, defesa), números grandes nas zonas */
+.t-vest { grid-template-columns:minmax(0, 250px) minmax(0, 1fr); }
+.t-vest-campo { display:grid; grid-template-columns:auto minmax(0, 1fr); column-gap:6px; }
+.t-vest-campo figcaption { grid-column:2; }
+.t-vest-linhas { display:grid; grid-template-rows:repeat(3, 64px); gap:2px; padding:8px 0; align-items:center; }
+.t-vest-linhas span { font:700 9px/1 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; color:var(--t-tinta3); writing-mode:vertical-rl; transform:rotate(180deg); justify-self:center; }
+.t-zona b { font-size:22px; }

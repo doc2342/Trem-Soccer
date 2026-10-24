@@ -305,7 +305,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, botao, manchete, destacar, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, botao, manchete, destacar, campoDeZonas, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1929,7 +1929,7 @@ async function telaClube(liga, clube) {
   // As partes que dependem dos jogos são preenchidas em grupo() (preencherCentralNova). Os ids do amistoso, da chegada e dos murais são os de hoje.
   // Central nova · painel "O clube em números": um número e uma frase por área; o detalhe abre num popover nativo (sem poluir a tela)
   // o clique leva direto à aba (o mesmo custo da linha de estações); no PC, passar o mouse mostra uma prévia do detalhe, sem clique
-  const modulo = (id, rot, num, linha, corpo, ir, rotIr) => `<div class="t-modulo-caixa"><button type="button" class="t-modulo" data-aba-ir="${ir}" id="mod-${id}" title="${rotIr}"><span class="t-modulo-rot">${rot}</span><b class="t-modulo-num">${num}</b><span class="t-modulo-linha">${linha}</span></button>
+  const modulo = (id, rot, num, linha, corpo, ir, rotIr, detalhe = "") => `<div class="t-modulo-caixa"><button type="button" class="t-modulo" data-aba-ir="${ir}" id="mod-${id}" title="${rotIr}"><span class="t-modulo-rot">${rot}</span><b class="t-modulo-num">${num}</b><span class="t-modulo-linha">${linha}</span><span class="t-modulo-detalhe">${detalhe}</span></button>
     <div class="t-previa" aria-hidden="true"><div class="t-previa-corpo" id="previa-${id}">${corpo}</div><div class="t-previa-pe">${rotIr} ›</div></div></div>`;
   const situacaoNaCopa = (jogos, diretos = []) => { const meus = jogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ult = meus[meus.length - 1];
     if (!ult) return diretos.includes(clube.id) ? { vivo: true, txt: `entra ${naFase(2)}` } : null;
@@ -1941,28 +1941,28 @@ async function telaClube(liga, clube) {
     m.push(modulo("liga", "Liga", "—", "carregando a tabela", "", "classificacao", "Ver a tabela"));
     const copas = [["Copa do Brasil", situacaoNaCopa(copaJogos, ((liga.copa && liga.copa.diretos) || []).map(Number)), "classificacao:copa"], [CONTINENTAIS.LIB[1], situacaoNaCopa(libJogos), "classificacao:lib"], [CONTINENTAIS.SUL[1], situacaoNaCopa(sulJogos), "classificacao:sul"]].filter(x => x[1]);
     if (copas.length) { const vivas = copas.filter(x => x[1].vivo).length, campeao = copas.find(x => x[1].campeao);
-      m.push(modulo("copas", "Copas", campeao ? "Campeão" : vivas ? (vivas === 1 ? "Viva" : `${vivas} vivas`) : "Fora", `${esc(copas[0][0])}: ${copas[0][1].txt}`,
-        copas.map(([nome, st]) => `<div class="t-pop-linha"><b>${esc(nome)}</b><span class="${st.campeao ? "ok" : st.vivo ? "" : "t-apagado-tx"}">${st.txt}</span></div>`).join(""), copas[0][2], "Ver a chave")); }
+      m.push(modulo("copas", "Copas", campeao ? "Campeão" : vivas ? (vivas === 1 ? "Viva" : `${vivas} vivas`) : "Fora", esc(copas[0][0]),
+        copas.map(([nome, st]) => `<div class="t-pop-linha"><b>${esc(nome)}</b><span class="${st.campeao ? "ok" : st.vivo ? "" : "t-apagado-tx"}">${st.txt}</span></div>`).join(""), copas[0][2], "Ver a chave", copas[0][1].txt)); }
     const juvenis = elenco.filter(j => j.juvenil), nota = j => notaNaPosicao(j, j.pos), tetoJ = j => tetoDe[j.id] ? (tetoDe[j.id].minimo + tetoDe[j.id].maximo) / 2 : nota(j);
     if (juvenis.length) { const ord = juvenis.slice().sort((a, b) => tetoJ(b) - tetoJ(a)), pr = ord[0], aos21 = juvenis.filter(j => j.idade >= 21).length;
-      m.push(modulo("base", "Base", `${juvenis.length}`, `juvenis · promessa: ${esc(pr.nome)}`,
+      m.push(modulo("base", "Base", `${juvenis.length}`, "juvenis no elenco",
         ord.slice(0, 4).map(j => `<div class="t-pop-linha"><b>${esc(j.nome)}</b><span>${sg(j.pos)} · ${j.idade} anos · nota ${String(Math.round(nota(j) * 10) / 10).replace(".", ",")}${tetoDe[j.id] ? ` · teto ${tetoDe[j.id].minimo}–${tetoDe[j.id].maximo}` : ""}</span></div>`).join("")
-        + (aos21 ? `<p class="t-pop-nota"><b>${aos21} com 21 anos:</b> sem contrato até a virada, ficam livres.</p>` : ""), "base", "Abrir a base")); }
+        + (aos21 ? `<p class="t-pop-nota"><b>${aos21} com 21 anos:</b> sem contrato até a virada, ficam livres.</p>` : ""), "base", "Abrir a base", `promessa: ${esc(pr.nome)}`)); }
     if (caixa != null) { const pct = teto ? Math.round(100 * folha / teto) : null;
-      m.push(modulo("financas", "Finanças", dinheiro(caixa), pct != null ? `folha em ${pct}% do teto` : "caixa",
-        `<div class="t-pop-linha"><b>Caixa</b><span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span></div>` + (teto ? `<div class="t-pop-linha"><b>Folha</b><span>${dinheiro(folha)} de ${dinheiro(teto)}</span></div><div class="t-barra"><i style="width:${Math.min(100, pct)}%"></i></div><p class="t-pop-nota">Sobram <b>${dinheiro(Math.max(0, teto - folha))}</b> para salários.</p>` : ""), "financas", "Abrir as finanças")); }
+      m.push(modulo("financas", "Finanças", dinheiro(caixa), "em caixa",
+        `<div class="t-pop-linha"><b>Caixa</b><span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span></div>` + (teto ? `<div class="t-pop-linha"><b>Folha</b><span>${dinheiro(folha)} de ${dinheiro(teto)}</span></div><div class="t-barra"><i style="width:${Math.min(100, pct)}%"></i></div><p class="t-pop-nota">Sobram <b>${dinheiro(Math.max(0, teto - folha))}</b> para salários.</p>` : ""), "financas", "Abrir as finanças", pct != null ? `folha em ${pct}% do teto` : "")); }
     if (clube.estadio_nivel) { const lug = lugaresDoEstadio(clube.estadio_nivel);
-      m.push(modulo("estadio", "Estádio", lug.toLocaleString("pt-BR"), `lugares · nível ${clube.estadio_nivel}${clube.humor != null ? ` · torcida ${nomeDoHumor(clube.humor).toLowerCase()}` : ""}`,
+      m.push(modulo("estadio", "Estádio", lug.toLocaleString("pt-BR"), `lugares · nível ${clube.estadio_nivel}`,
         (clube.torcida != null ? `<div class="t-pop-linha"><b>Torcida</b><span>${clube.torcida.toLocaleString("pt-BR")} torcedores</span></div>` : "") + (clube.humor != null ? `<div class="t-pop-linha"><b>Humor</b><span>${nomeDoHumor(clube.humor)} (${String(clube.humor).replace(".", ",")} de 16)</span></div>` : "")
-        + (obra ? `<p class="t-pop-nota"><b>Obra em andamento:</b> ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)}, nível ${obra.nivel_alvo}.</p>` : ""), "clube", "Abrir o clube")); }
+        + (obra ? `<p class="t-pop-nota"><b>Obra em andamento:</b> ${esc((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura)}, nível ${obra.nivel_alvo}.</p>` : ""), "clube", "Abrir o clube", clube.humor != null ? `torcida ${nomeDoHumor(clube.humor).toLowerCase()}` : "")); }
     if (janela !== undefined) { const recebidas = (propostas || []).filter(p => p.vendedor === clube.id && p.estado === "pendente").length, contra = (propostas || []).filter(p => p.comprador === clube.id && p.estado === "contra").length, n = recebidas + contra;
-      m.push(modulo("mercado", "Mercado", janela ? "Aberto" : "Fechado", n ? `${n} ${n === 1 ? "proposta" : "propostas"} para responder` : janela ? "a janela está aberta" : "a janela abre na virada",
+      m.push(modulo("mercado", "Mercado", janela ? "Aberto" : "Fechado", n ? `${n} ${n === 1 ? "proposta" : "propostas"} para responder` : "nenhuma proposta",
         `<div class="t-pop-linha"><b>Janela</b><span>${janela ? "aberta" : "fechada"}</span></div><div class="t-pop-linha"><b>Propostas recebidas</b><span>${recebidas}</span></div><div class="t-pop-linha"><b>Contrapropostas</b><span>${contra}</span></div>`
-        + (livres ? `<div class="t-pop-linha"><b>Jogadores livres</b><span>${livres.length}</span></div>` : ""), "mercado", "Abrir o mercado")); }
+        + (livres ? `<div class="t-pop-linha"><b>Jogadores livres</b><span>${livres.length}</span></div>` : ""), "mercado", "Abrir o mercado", janela ? "a janela está aberta" : "a janela abre na virada")); }
     if (treinoLigado) { const prof = elenco.filter(j => !j.juvenil), escolhidos = prof.filter(j => j.treino && j.treino.p).length, auto = prof.length - escolhidos; // sem foco salvo, o jogador treina no automático da posição
-      m.push(modulo("treino", "Treino", `${prof.length}`, `treinando · ${escolhidos} ${escolhidos === 1 ? "foco escolhido" : "focos escolhidos"}, ${auto} no automático`,
+      m.push(modulo("treino", "Treino", `${prof.length}`, "jogadores treinando",
         `<div class="t-pop-linha"><b>Foco escolhido por você</b><span>${escolhidos}</span></div><div class="t-pop-linha"><b>Foco automático da posição</b><span>${auto}</span></div>`
-        + (auto ? `<p class="t-pop-nota">Quem está no automático treina o foco da própria posição. Escolher o foco acelera o atributo que você quer.</p>` : ""), "treino", "Abrir o treino")); }
+        + (auto ? `<p class="t-pop-nota">Quem está no automático treina o foco da própria posição. Escolher o foco acelera o atributo que você quer.</p>` : ""), "treino", "Abrir o treino", auto ? `${auto} no foco automático` : "todos no foco escolhido")); }
     return `<section class="t-painel" id="cnPainel"><div class="t-rotulo">O clube em números</div><div class="t-modulos" style="--n:${m.length}">${m.join("")}</div></section>`;
   };
   // diretoria na largura toda: confiança e projeção | a palavra do presidente e a meta
@@ -2867,7 +2867,8 @@ ${historicoDaBase()}
     const modLiga = $("mod-liga"), iEu = tab.findIndex(t => t.clube.id === clube.id);
     if (modLiga && iEu >= 0) {
       modLiga.querySelector(".t-modulo-num").textContent = `${iEu + 1}º`;
-      modLiga.querySelector(".t-modulo-linha").textContent = eu.j ? `${eu.v}-${eu.e}-${eu.d} · ${eu.pts} pts · ${iEu ? `${tab[0].pts - eu.pts} do líder` : "líder"}` : "temporada começando";
+      modLiga.querySelector(".t-modulo-linha").textContent = eu.j ? `${eu.pts} pts · ${eu.v}V ${eu.e}E ${eu.d}D` : "temporada começando";
+      modLiga.querySelector(".t-modulo-detalhe").textContent = !eu.j ? "" : iEu ? `${tab[0].pts - eu.pts || "empatado"}${tab[0].pts - eu.pts ? " atrás" : ""} do líder` : `${eu.pts - tab[1].pts} à frente do 2º`;
       const pos = posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id);
       $("previa-liga").innerHTML = pos.length > 1 ? `<div class="t-numero-rotulo">Posição rodada a rodada</div><div class="t-previa-grafico">${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}</div>` : "";
     }
@@ -2878,12 +2879,15 @@ ${historicoDaBase()}
       daLiga("relatorio:" + ultimo.id, () => relatorioDaPartida(ultimo.id))().then(linha => {
         const l = leiturasDoVestiario({ relatorio: linha && linha.relatorio, lado: ultimo.casa === clube.id ? 0 : 1, nivel: nivelDoAnalista(analista && analista.skill), elenco });
         if (!l.length || !v.isConnected) return;
-        const fina = l.find(x => x.tipo === "resultado"), resto = l.filter(x => x !== fina), [principal, ...notas] = resto.length ? resto : [fina];
-        const nota = x => `<article class="t-nota" data-tipo="${x.tipo}"><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
+        // vestiário: o placar e a linha fina; embaixo, o campo do jogo (duelos vencidos por zona, as zonas citadas acesas) e o resumo em lista
+        const lado = ultimo.casa === clube.id ? 0 : 1, estat = linha && linha.relatorio && linha.relatorio.estat, est = estat && estat[lado], estDeles = estat && estat[1 - lado];
+        const fina = l.find(x => x.tipo === "resultado"), notas = l.filter(x => x !== fina);
+        const nota = (x, k) => `<article class="t-nota${k ? "" : " t-nota-lead"}" data-tipo="${x.tipo}"${x.zona ? ` data-zona="${x.zona}"` : ""}><div class="t-leitura-tipo">${{ funcionou: "Funcionou", falhou: "Falhou", atencao: "Atenção", desfalque: "Desfalque", bloqueada: "Analista" }[x.tipo] || ""}</div>`
           + `<h4>${esc(x.titulo)}</h4><p>${destacar(x.frase)}</p>${x.acao ? botao(x.acao) : ""}</article>`;
-        v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)}</a></div>`
-          + (fina && resto.length ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
-          + `<div class="t-materia${notas.length ? "" : " t-materia-so"}"><div class="t-materia-principal">${leitura(principal)}</div>${notas.length ? `<aside class="t-materia-notas">${notas.map(nota).join("")}</aside>` : ""}</div>`;
+        const campo = nivelDoAnalista(analista && analista.skill) >= 2 && est && est.zonas ? `<figure class="t-vest-campo"><div class="t-vest-linhas"><span>ataque</span><span>meio</span><span>defesa</span></div>${campoDeZonas(est.zonas, estDeles && estDeles.zonas, notas.map(x => x.zona).filter(Boolean))}<figcaption>Duelos vencidos por zona</figcaption></figure>` : "";
+        v.innerHTML = `<div class="t-materia-cab">${rotulo("Vestiário")}<a class="t-materia-jogo" href="aovivo.html?id=${ultimo.id}">${esc(cPor[ultimo.casa].nome)} <b>${r.gols_casa} × ${r.gols_fora}</b> ${esc(cPor[ultimo.fora].nome)} ›</a></div>`
+          + (fina ? `<p class="t-materia-fina">${destacar(fina.frase)}</p>` : "")
+          + `<div class="t-vest${campo ? "" : " t-vest-sem-campo"}">${campo}<div class="t-vest-notas">${notas.map(nota).join("")}</div></div>`;
         v.hidden = false;
       }).catch(() => {});
     }
