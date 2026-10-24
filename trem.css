@@ -546,3 +546,10 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (prefers-reduced-motion:reduce) { .t-giro-item { transition:none; } }
 .t-giro-item[data-tipo=bot] .t-giro-tipo { background:var(--t-tinta2); } .t-giro-item[data-tipo=agente] .t-giro-tipo { background:#0f8a7c; }
 .t-giro-item[data-tipo=agente_vermelho] .t-giro-tipo { background:var(--t-erro); }
+/* setas laterais no lugar da barra de pontos */
+.t-giro-palco { display:grid; grid-template-columns:28px minmax(0, 1fr) 28px; align-items:center; gap:6px; }
+.t-giro-seta-bt { width:28px; height:44px; padding:0 !important; border:1px solid var(--t-fio) !important; background:var(--t-fundo) !important; color:var(--t-tinta) !important; font:400 24px/1 var(--t-letra) !important; cursor:pointer; }
+.t-giro-seta-bt:hover { border-color:var(--t-tinta) !important; color:var(--t-marca) !important; }
+.t-giro-conta { float:right; letter-spacing:.04em; text-transform:none; color:var(--t-tinta3); font-weight:500; }
+.t-giro-secao .t-giro-livres { margin-top:10px; }
+.t-bastidores .mural .t-giro-secao > .rot { display:flex; justify-content:space-between; align-items:baseline; gap:10px; } .t-giro-conta { float:none; }

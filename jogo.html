@@ -1757,9 +1757,10 @@ async function telaClube(liga, clube) {
         <div class="t-giro-jogador">${lj(t.jogador_id, t.jogador)} <span>${esc(sg(t.pos || ""))}</span></div>
         <div class="t-giro-para">${t.de_clube && cPor[t.de_clube] ? `${esc(cPor[t.de_clube].nome)} → ` : ""}${esc(cPor[t.para_clube].nome)}</div>
         ${t.valor ? `<div class="t-giro-valor">${dinheiro(t.valor)}</div>` : ""}</article>`; };
-    return `<div class="t-mural-secao t-giro-secao"><div class="rot">Mercado</div><div class="t-giro" aria-live="polite">${ts.map(cartao).join("")}</div>
-      <div class="t-giro-pontos">${ts.map((t, k) => `<button type="button" aria-label="Transferência ${k + 1}" class="${k ? "" : "ativo"}" data-giro="${k}"></button>`).join("")}</div>
-      ${livres && livres.length ? `<div data-aba-ir="mercado"><span><b>${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"}</b> no mercado.</span><span class="vai">›</span></div>` : ""}</div>`; };
+    // setas nas laterais para trocar à mão; o contador diz em qual das últimas transferências se está
+    return `<div class="t-mural-secao t-giro-secao"><div class="rot">Mercado <span class="t-giro-conta">1 de ${ts.length}</span></div>
+      <div class="t-giro-palco"><button type="button" class="t-giro-seta-bt" data-giro-passo="-1" aria-label="Transferência anterior">‹</button><div class="t-giro" aria-live="polite">${ts.map(cartao).join("")}</div><button type="button" class="t-giro-seta-bt" data-giro-passo="1" aria-label="Próxima transferência">›</button></div>
+      ${livres && livres.length ? `<div data-aba-ir="mercado" class="t-giro-livres"><span><b>${livres.length} ${livres.length === 1 ? "jogador livre" : "jogadores livres"}</b> no mercado.</span><span class="vai">›</span></div>` : ""}</div>`; };
   const desenharMural = secoes => {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
@@ -2675,12 +2676,13 @@ ${historicoDaBase()}
   // o mural da liga é redesenhado quando as notícias chegam: cliques por delegação
   if ($("muralLiga")) $("muralLiga").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } };
   // painel do mercado: gira a cada 5 s (não gira com o mouse em cima nem com "reduzir movimento"); os pontos trocam à mão
-  const giroPara = (caixa, n) => { const itens = caixa.querySelectorAll(".t-giro-item"), pontos = caixa.querySelectorAll(".t-giro-pontos button");
-    itens.forEach((el, k) => el.classList.toggle("ativo", k === n)); pontos.forEach((el, k) => el.classList.toggle("ativo", k === n)); };
+  const giroPara = (caixa, n) => { const itens = caixa.querySelectorAll(".t-giro-item"), conta = caixa.querySelector(".t-giro-conta");
+    itens.forEach((el, k) => el.classList.toggle("ativo", k === n)); if (conta) conta.textContent = `${n + 1} de ${itens.length}`; };
   if (visualNovo && !window.giroDoMercado) window.giroDoMercado = setInterval(() => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     document.querySelectorAll(".t-giro-secao").forEach(c => { if (c.matches(":hover")) return; const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + 1) % itens.length); }); }, 5000);
   if (visualNovo && !window.giroCliques) { window.giroCliques = true; // um ouvinte só: as notícias da liga são redesenhadas depois da carga
-    document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-giro]"), c = b && b.closest(".t-giro-secao"); if (c) giroPara(c, +b.dataset.giro); }); }
+    document.addEventListener("click", e => { const b = e.target.closest && e.target.closest("[data-giro-passo]"), c = b && b.closest(".t-giro-secao"); if (!c) return;
+      const itens = c.querySelectorAll(".t-giro-item"), k = [...itens].findIndex(el => el.classList.contains("ativo")); giroPara(c, (k + +b.dataset.giroPasso + itens.length) % itens.length); }); }
   // cronômetros da Central nova (até o apito e até a tática fechar): um só relógio para a página toda
   if (visualNovo && !window.cronometroCentral) window.cronometroCentral = setInterval(() => document.querySelectorAll(".t-cronometro").forEach(el => {
     const ms = +el.dataset.ate - Date.now(), r = el.dataset.rotulo || "";
