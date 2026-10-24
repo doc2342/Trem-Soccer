@@ -118,10 +118,10 @@ const OPCOES = {
   mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
   pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
   agressividade: ["Agressividade", [[-2, "Muito baixa"], [-1, "Baixa"], [0, "Normal"], [1, "Alta"], [2, "Muito alta"]]],
-  passe: ["Passe", [["misto", "Misto"], ["curto", "Curto"], ["longo", "Bola longa"]]],
-  finalizar: ["Finalização", [["misto", "Misto"], ["longe", "Resolver rápido (chute de fora e cruzamento)"], ["area", "Trabalhar até a área"]]],
-  cruzamento: ["Cruzamentos", [["misto", "Misto"], ["alto", "Altos (cabeceio)"], ["rasteiro", "Rasteiros"]]],
-  lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
+  passe: ["Passe", [["curto", "Curto"], ["misto", "Misto"], ["longo", "Bola longa"]]], // o neutro fica no meio
+  finalizar: ["Finalização", [["longe", "Resolver rápido (chute de fora e cruzamento)"], ["misto", "Misto"], ["area", "Trabalhar até a área"]]],
+  cruzamento: ["Cruzamentos", [["alto", "Altos (cabeceio)"], ["misto", "Misto"], ["rasteiro", "Rasteiros"]]],
+  lado: ["Lado do ataque", [["E", "Esquerda"], ["C", "Centro"], ["misto", "Livre"], ["lados", "Os dois lados"], ["D", "Direita"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
   cera: ["Cera quando estiver ganhando", [[false, "Não"], [true, "Sim"]]],
@@ -161,6 +161,8 @@ let skillsDe = null; // jogador com os atributos abertos na lista de escolha
 let editaSub = null, editaOrdem = null; // índice da substituição/ordem aberta para edição (as outras aparecem numa linha só)
 let setorVisto = null; // visual novo: o setor escolhido na lista do elenco
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
+let tirados = []; // quem a tática salva escalava mas está fora do próximo jogo: { j, i (vaga) ou null (banco) }
+const motivoCurto = j => j.motivo === "lesão" ? "lesionado" : /suspens/.test(j.motivo || "") ? "suspenso" : "fora deste jogo";
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
 // a prévia do adversário compara o onze deles com o seu; render() refaz essa parte a cada mudança na escalação
@@ -312,8 +314,8 @@ async function iniciarOnline(sessaoDeTeste) {
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
   const salva = await B.minhaTatica(clubeOnline.id);
   E = salva && salva.dados && salva.dados.vagas ? salva.dados : daTatica(taticaBot(elenco, { mandante: true }));
-  salvoComo = JSON.stringify(E);
-  limparReferencias(); // a tática salva pode citar quem já saiu do clube
+  salvoComo = JSON.stringify(E); tirados = [];
+  limparReferencias(); // a tática salva pode citar quem já saiu do clube ou quem está fora do jogo
   const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const situacao = async () => {
     const fechada = await B.taticaFechada(clubeOnline.id);
@@ -326,7 +328,7 @@ async function iniciarOnline(sessaoDeTeste) {
     const V = validar();
     if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }
     $("salvarOnline").disabled = true;
-    try { await B.salvarTatica(clubeOnline.id, E); salvoComo = JSON.stringify(E); dispatchEvent(new Event("taticaSalva")); $("avisoOnline").innerHTML = `<span class="ok">Tática salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
+    try { await B.salvarTatica(clubeOnline.id, E); salvoComo = JSON.stringify(E); tirados = []; dispatchEvent(new Event("taticaSalva")); $("avisoOnline").innerHTML = `<span class="ok">Tática salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
     catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${/row-level security/.test(e.message) ? "Não deu para salvar: a tática está fechada para o jogo que vai começar." : esc(e.message)}</span>`; }
     $("salvarOnline").disabled = false;
   };
@@ -340,15 +342,17 @@ async function iniciarOnline(sessaoDeTeste) {
   sel = null; limparReferencias(); render();
 }
 function aplicarFormacao(nome) {
-  const esc11 = escalar(elenco, FORMACOES[nome]);
+  const esc11 = escalar(elenco.filter(j => !(j.fora > 0)), FORMACOES[nome]);
   E.vagas = esc11.map(x => x.pos); E.jog = esc11.map(x => x.j.id);
   E.banco = E.banco.filter(id => !E.jog.includes(id));
   limparReferencias(); render();
 }
 // Tira das instruções quem saiu do time ou do banco.
 function limparReferencias() {
-  // quem saiu do clube (vendido, dispensado, comprado pela multa) some da escalação guardada: a vaga fica vazia e o banco encolhe
-  E.jog = E.jog.map(id => (id && porId[id] ? id : null)); E.banco = E.banco.filter(id => porId[id]);
+  // quem saiu do clube (vendido, dispensado, comprado pela multa) some da escalação guardada: a vaga fica vazia e o banco encolhe.
+  // Quem está fora do próximo jogo (lesão, suspensão, trava de copa) também sai: não dá para escalar; a vaga fica vazia e avisada
+  E.jog = E.jog.map((id, i) => { if (id && porId[id] && porId[id].fora > 0) { tirados.push({ j: porId[id], i }); return null; } return id && porId[id] ? id : null; });
+  E.banco = E.banco.filter(id => { if (porId[id] && porId[id].fora > 0) tirados.push({ j: porId[id], i: null }); return porId[id] && !(porId[id].fora > 0); });
   const emCampo = new Set(E.jog.filter(Boolean)), noBanco = new Set(E.banco);
   for (const k of ["capitao", "vice", "armador", "alvo"]) if (!emCampo.has(E.instr[k])) E.instr[k] = null;
   for (const k in E.instr.cobradores) E.instr.cobradores[k] = E.instr.cobradores[k].filter(id => emCampo.has(id));
@@ -366,7 +370,8 @@ function foraDePosicao(j, pos) {
 
 function validar() {
   const esc11 = escalacaoAtual(), erros = [], avisos = [];
-  if (esc11.length < 11) erros.push(`Faltam ${11 - esc11.length} jogadores no time.`);
+  if (esc11.length < 11 && !tirados.some(t => t.i !== null && !E.jog[t.i])) erros.push(`Faltam ${11 - esc11.length} jogadores no time.`);
+  for (const t of tirados) if (t.i === null || !E.jog[t.i]) erros.unshift(`${t.j.nome} está ${motivoCurto(t.j)} e saiu ${t.i === null ? "do banco" : `do time: escolha quem joga de ${sg(E.vagas[t.i])}`}.`);
   const goleiros = E.vagas.filter(p => p === "GK").length;
   if (goleiros !== 1) erros.push(goleiros ? "O time só pode ter um goleiro." : "O time precisa de um goleiro.");
   const cob = Object.fromEntries(ZONAS.map(z => [z, 0]));
@@ -390,19 +395,20 @@ function validar() {
 // Faixas do campo e as posições de cada uma, para as tiras que aparecem ao arrastar um titular (coluna inicial numa grade de 10).
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 // mapa: índice da vaga que está sendo arrastada ou escolhida (mostra as posições para onde ela pode ir), ou null
-const ALTURA_DA_TIRA = [9, 26, 42, 58, 75]; // altura (% do campo) de cada faixa de TIRAS: ataque, meia, meio, volante/ala, defesa
+// visual novo: altura (% do campo, de cima) de cada faixa: ataque, meia, meio, volante/ala, defesa, gol. O meio fica no círculo central
+const ALTURA_DA_FAIXA = [14, 31, 48, 63, 77, 94];
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
 function htmlGramado(mapa = null) {
-  const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x: i, col }) => {
+  const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}"${NOVO ? ` style="top:${ALTURA_DA_FAIXA[FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha]]}%"` : ""}>${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
-    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
+    return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""} ${!j && tirados.some(t => t.i === i) ? "falta" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span>${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>` : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>` : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
   // visual novo: as posições possíveis num mapa fixo por cima do campo (círculos tracejados, a nota do jogador embaixo); o campo não muda de altura
-  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_TIRA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${sg(p)}</span>${j ? `<span class="t-pos-nota">${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
+  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${sg(p)}</span>${j ? `<span class="t-pos-nota">${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
   const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
@@ -433,7 +439,7 @@ function render() {
     $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
   else $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
-  $("validacao").innerHTML = NOVO ? [...V.erros, ...V.avisos].map(t => `<div class="t-alerta">${esc(t)}</div>`).join("")
+  $("validacao").innerHTML = NOVO ? [...V.erros.map(t => `<div class="t-alerta erro">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="t-alerta">${esc(t)}</div>`)].join("")
     : [...V.erros.map(t => `<div class="bad">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="aviso">${esc(t)}</div>`)].join("") || `<div class="ok">Escalação válida, sem avisos.</div>`;
   $("jogar").disabled = V.erros.length > 0;
   renderEscolha();
@@ -680,7 +686,7 @@ function completarBanco(disp) {
   if (E.banco.length < TAMANHO_DO_BANCO && !E.banco.some(id => porId[id].pos === "GK")) { const g = sobra.find(j => j.pos === "GK"); if (g) { E.banco.push(g.id); sobra.splice(sobra.indexOf(g), 1); } }
   for (const j of sobra) { if (E.banco.length >= TAMANHO_DO_BANCO) break; if (j.pos !== "GK") E.banco.push(j.id); }
 }
-$("bot").onclick = () => { E = daTatica(taticaBot(elenco, { mandante: $("mando").value === "casa" })); sel = null; render(); };
+$("bot").onclick = () => { E = daTatica(taticaBot(elenco.filter(j => !(j.fora > 0)), { mandante: $("mando").value === "casa" })); sel = null; render(); };
 $("formacao").onchange = () => { if ($("formacao").value) aplicarFormacao($("formacao").value); $("formacao").value = ""; };
 ["semente", "nivel", "perfil"].forEach(id => $(id).onchange = () => { if (!ONLINE) novoElenco(); });
 $("jogar").onclick = jogar;

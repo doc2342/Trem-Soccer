@@ -697,6 +697,12 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
   background:radial-gradient(circle at 50% 50%, transparent 11%, #2e6b48 11.2%, #2e6b48 11.6%, transparent 11.8%) center / 100% auto no-repeat,
     linear-gradient(transparent calc(50% - 1px), #2e6b48 calc(50% - 1px), #2e6b48 calc(50% + 1px), transparent calc(50% + 1px)),
     repeating-linear-gradient(180deg, #1d4a33 0 9.09%, #1a432e 9.09% 18.18%); }
+/* cada faixa numa altura fixa (ALTURA_DA_FAIXA em ui-escalacao.js), como num campo de verdade: o meio no círculo central */
+:root[data-visual=novo] .t-tatica .gramado > .fila { position:absolute; left:6px; right:6px; transform:translateY(-50%); margin:0; }
+.t-tatica .vaga.falta .nome { color:#ff8a7a; font-weight:800; } :root[data-visual=novo] .t-tatica .vaga.falta .vpos { border-color:#ff8a7a; border-style:dashed; animation:t-pisca 1.4s ease-in-out infinite; }
+@keyframes t-pisca { 50% { box-shadow:0 0 0 6px rgba(255,138,122,.25); } }
+@media (prefers-reduced-motion:reduce) { :root[data-visual=novo] .t-tatica .vaga.falta .vpos { animation:none; } }
+.t-tatica .t-alerta.erro { border-left-color:#ff5a4a; font-weight:700; }
 .t-tatica .gramado::before, .t-tatica .gramado::after { content:""; position:absolute; left:25%; right:25%; height:15%; border:2px solid #2e6b48; pointer-events:none; }
 .t-tatica .gramado::before { top:-2px; border-top:0; } .t-tatica .gramado::after { bottom:-2px; border-bottom:0; }
 :root[data-visual=novo] .t-tatica .vaga { background:none; border:0; box-shadow:none; padding:2px; display:flex; flex-direction:column; align-items:center; gap:3px; position:relative; z-index:1; }
@@ -711,7 +717,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 :root[data-visual=novo] .t-tatica .vaga.fora select, :root[data-visual=novo] .t-tatica .vaga.fora .vpos { background-color:#b7791f !important; }
 .t-tatica .vaga.fora .nome { text-decoration:none; }
 .t-tatica .vaga.fora .det .bad { color:#f0c35a; font-weight:700; letter-spacing:.12em; text-transform:uppercase; font-size:10px; }
-:root[data-visual=novo] .t-tatica .vaga.vazia select { background-color:transparent !important; border-style:dashed; }
+:root[data-visual=novo] .t-tatica .vaga.vazia :is(select, .vpos) { background-color:transparent !important; border-style:dashed; }
 .t-tatica .vaga.vazia .nome { color:rgba(255,255,255,.6); font-weight:500; }
 .t-tatica .vaga.alvo select, .t-tatica .vaga.alvo .vpos { outline:3px solid #fff; outline-offset:3px; }
 /* banco: os 7 em coluna ao lado do campo */
@@ -762,7 +768,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 /* lista do elenco: colunas alinhadas, um setor por vez */
 .t-esc { display:grid; grid-template-columns:30px minmax(0, 1fr) 62px 38px 38px 40px 22px; align-items:center; gap:8px; padding:3px 6px; border-bottom:1px solid var(--t-noite-fio); border-left:3px solid transparent; color:var(--t-noite-tx); font-size:13px; cursor:pointer; touch-action:none; }
 .t-esc:hover { background:var(--t-noite2); } .t-esc.titular { border-left-color:var(--t-ok); } .t-esc.reserva { border-left-color:#5b8fd6; }
-.t-esc.indisp { opacity:.45; cursor:not-allowed; }
+.t-esc.indisp { cursor:not-allowed; } .t-esc.indisp > :not(.t-esc-onde) { opacity:.4; } .t-esc.indisp .t-esc-onde { color:#ff8a7a; font-weight:700; text-transform:uppercase; font-size:10.5px; letter-spacing:.08em; }
 .t-esc .t-bola { width:30px; height:30px; font-size:10px; box-shadow:none; border-width:1.5px; } .t-esc > .t-bola:not([class*=s-]) { background:none; border-style:dashed; border-color:var(--t-noite-fio); }
 .t-esc-nome { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-esc-onde { color:var(--t-noite-mut); font-size:12px; white-space:nowrap; }
 .t-esc-mo { text-align:right; font-size:12.5px; color:var(--t-noite-mut); font-variant-numeric:tabular-nums; } .t-esc-mo.ok { color:#7fd6a3; } .t-esc-mo.bad { color:#ff8a7a; }
@@ -785,7 +791,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-relatorio { display:flex; flex-direction:column; gap:6px; font-size:14px; line-height:1.5; }
 @media (max-width:1024px) { .t-tatica { grid-template-columns:minmax(0, 1fr); } .t-tatica-baixo { grid-template-columns:minmax(0, 1fr); gap:24px; } .t-tatica-lado { border-left:0; padding-left:0; border-top:1px solid var(--t-noite-fio); padding-top:20px; } .t-tatica-corpo { grid-template-columns:minmax(0, 1fr); } }
 @media (max-width:620px) {
-  .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-tatica .gramado { min-height:470px; }
+  .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-tatica .gramado { min-height:540px; }
   :root[data-visual=novo] .t-tatica .vaga .vpos { width:38px; height:38px; font-size:11.5px; }
   .t-tatica .vaga .nome { font-size:11px; }
   #taticaFora #banco { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); }
