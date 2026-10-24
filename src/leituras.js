@@ -68,7 +68,7 @@ export function leituraDaTabela({ tab, clubeId, faixas, rodadasRestantes }) {
   const i = tab.findIndex(t => t.clube.id === clubeId);
   if (i < 0) return null;
   // rodadasRestantes null: o calendário ainda não foi sorteado
-  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar ·`, apagado: r == null ? "calendário a sortear" : r === 0 ? "fim da fase" : r === 1 ? "1 rodada" : `${r} rodadas`, destaque: "", frase: "" };
+  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar ·`, apagado: r == null ? "calendário a sortear" : r === 0 ? "fim da fase" : r === 1 ? "falta 1 rodada" : `faltam ${r} rodadas`, destaque: "", frase: "" };
   if (tab.every(t => !t.j)) return saida;
   const eu = tab[i].pts;
   if (boa(faixas[i])) {

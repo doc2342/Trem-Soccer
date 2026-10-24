@@ -6,10 +6,10 @@ export const esc = s => s == null ? "" : String(s).replace(/[&<>"]/g, c => ({ "&
 export const rotulo = texto => `<div class="t-rotulo">${esc(texto)}</div>`;
 
 // faixa de foco: UMA por tela. titulo + apagado ("4º lugar ·" / "8 rodadas"); destaque em negrito antes da frase; lado: HTML (gráfico, números)
-export function faixa({ rotulo: r, titulo, apagado, destaque, frase, lado }) {
+export function faixa({ rotulo: r, titulo, apagado, destaque, frase, lado, numeros }) { // numeros: HTML (a linha de números embaixo da frase)
   const texto = [destaque ? `<b>${esc(destaque)}</b>` : "", esc(frase || "")].filter(Boolean).join(" ");
   return `<section class="t-faixa t-sangra"><div>${rotulo(r)}<h1 class="t-faixa-titulo">${esc(titulo)}${apagado ? ` <span class="t-apagado">${esc(apagado)}</span>` : ""}</h1>`
-    + `${texto ? `<p class="t-faixa-frase">${texto}</p>` : ""}</div>${lado ? `<div class="t-faixa-lado">${lado}</div>` : ""}</section>`;
+    + `${texto ? `<p class="t-faixa-frase">${texto}</p>` : ""}${numeros ? `<div class="t-faixa-numeros">${numeros}</div>` : ""}</div>${lado ? `<div class="t-faixa-lado">${lado}</div>` : ""}</section>`;
 }
 
 export const numero = ({ rotulo: r, valor, sufixo, legenda }) => `<div class="t-numero">${r ? `<div class="t-numero-rotulo">${esc(r)}</div>` : ""}`

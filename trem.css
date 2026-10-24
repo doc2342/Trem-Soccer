@@ -43,7 +43,7 @@
   display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); gap:28px 40px; padding:36px clamp(16px, 4vw, 40px); }
 .t-faixa .t-rotulo { color:var(--t-noite-mut); }
 .t-faixa-titulo { font:900 clamp(44px, 9vw, 96px)/.9 var(--t-letra); font-stretch:62%; text-transform:uppercase; margin:6px 0 14px; overflow-wrap:anywhere; }
-.t-faixa-titulo .t-apagado { color:var(--t-noite-mut); display:block; }
+.t-faixa-titulo .t-apagado { color:var(--t-noite-mut); display:block; font-size:.6em; margin-top:.12em; } /* "faltam 2 rodadas": complemento, numa linha */
 .t-faixa-frase { color:var(--t-noite-mut); font-size:16px; line-height:1.5; max-width:46ch; margin:0; }
 .t-faixa-frase b { color:var(--t-noite-tx); font-weight:700; }
 .t-faixa-lado { border-left:1px solid var(--t-noite-fio); padding-left:clamp(16px, 3vw, 36px); min-width:0; }
@@ -176,15 +176,18 @@
 .t-jogo-leitura { font-size:14.5px; color:var(--t-tinta2); text-align:center; margin:6px 0 0; } .t-jogo-leitura b { color:var(--t-tinta); }
 .t-jogo .t-botoes { justify-content:center; }
 @media (max-width:560px) { .t-placar { gap:10px; } .t-placar-time { flex-direction:column; text-align:center; gap:8px; } .t-placar-casa .t-placar-quem, .t-placar-quem { align-items:center; } .t-placar-time svg { width:40px; height:40px; } }
-/* vestiário: a leitura mais importante em destaque, as outras menores embaixo */
+/* vestiário: UM bloco, como uma matéria — a leitura principal em cima, as outras como notas abaixo, separadas só por fios */
+#cnVestiario { border-top:2px solid var(--t-tinta); padding-top:14px; }
 #cnVestiario .t-secao-titulo { font-size:clamp(26px, 4vw, 40px); }
-#cnVestiario .t-leituras { display:flex; flex-wrap:wrap; } /* as menores dividem a largura que sobrar, sem buraco */
-#cnVestiario .t-leitura { flex:1 1 220px; }
-#cnVestiario .t-leitura:first-child { flex-basis:100%; padding:24px 26px; }
-#cnVestiario .t-leitura:first-child .t-leitura-titulo { font-size:clamp(24px, 3.4vw, 34px); font-weight:900; font-stretch:64%; text-transform:uppercase; }
-#cnVestiario .t-leitura:first-child .t-leitura-frase { font-size:16px; color:var(--t-tinta); }
+#cnVestiario .t-leituras { display:flex; flex-wrap:wrap; border:0; }
+#cnVestiario .t-leitura { flex:1 1 200px; background:none; border:0; border-left:1px solid var(--t-fio); padding:14px 20px 4px; }
+#cnVestiario .t-leitura:first-child { flex-basis:100%; border-left:0; border-bottom:1px solid var(--t-fio); padding:6px 0 20px; }
+#cnVestiario .t-leitura:nth-child(2) { border-left:0; padding-left:0; }
+#cnVestiario .t-leitura:first-child .t-leitura-titulo { font-size:clamp(28px, 3.8vw, 40px); font-weight:900; font-stretch:62%; text-transform:uppercase; line-height:.95; }
+#cnVestiario .t-leitura:first-child .t-leitura-frase { font-size:17px; color:var(--t-tinta); }
 #cnVestiario .t-leitura:not(:first-child) .t-leitura-titulo { font-size:17px; }
-#cnVestiario .t-leitura:not(:first-child) .t-leitura-frase { font-size:13px; }
+#cnVestiario .t-leitura:not(:first-child) .t-leitura-frase { font-size:13.5px; }
+@media (max-width:560px) { #cnVestiario .t-leitura:not(:first-child) { flex-basis:100%; border-left:0; padding-left:0; border-bottom:1px solid var(--t-fio); padding-bottom:12px; } }
 /* primeiros passos: progresso, o próximo passo e o resto recolhido */
 .t-passos-cab { display:flex; justify-content:space-between; align-items:baseline; gap:10px; } .t-passos-cab .t-rotulo { margin:0; }
 .t-passos .t-barra { height:4px; margin:10px 0 14px; } .t-passos .t-barra > i { background:var(--t-marca); }
@@ -279,3 +282,27 @@
 .t-central .mural b { font-weight:700; color:var(--t-tinta); }
 .t-bastidores .mural > .t-mural-secao > div[data-manchete]:first-of-type { font-size:15.5px; } /* a primeira nota de cada seção é a maior */
 .t-leitura-frase b { color:var(--t-tinta); font-weight:800; }
+/* faixa: a linha de números embaixo da frase */
+.t-faixa-numeros { display:flex; flex-wrap:wrap; gap:6px 22px; margin-top:18px; padding-top:14px; border-top:1px solid var(--t-noite-fio); font-size:12.5px; color:var(--t-noite-mut); }
+.t-faixa-numeros b { font:900 24px/1 var(--t-letra); font-stretch:64%; color:var(--t-noite-tx); margin-right:4px; font-variant-numeric:tabular-nums; }
+/* placar das notas: link para o jogo */
+.t-central .t-placar-link { font-weight:800; white-space:nowrap; }
+/* agenda: os jogos depois do próximo, para planejar quando poupar */
+.t-agenda { margin-top:20px; border-top:1px solid var(--t-fio); padding-top:12px; }
+.t-agenda .t-numero-rotulo { margin-bottom:6px; }
+.t-agenda-jogo { display:grid; grid-template-columns:92px 22px minmax(0, 1fr) auto; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--t-fio); color:var(--t-tinta); text-decoration:none; font-size:14px; }
+.t-agenda-jogo:hover { background:var(--t-placa); }
+.t-agenda-dia { font:700 11px/1 var(--t-letra); letter-spacing:.06em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-agenda-rival { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.t-agenda-onde { font-size:12px; color:var(--t-tinta2); white-space:nowrap; }
+/* diretoria: projeção e meta */
+.t-barra-proj { position:absolute; top:-5px; bottom:-5px; width:3px; margin-left:-1px; background:var(--t-marca); }
+.t-projecao { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-top:16px; font-size:13px; color:var(--t-tinta2); }
+.t-projecao b { font:900 26px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); white-space:nowrap; }
+.t-projecao b.ok { color:var(--t-ok); } .t-projecao b.bad { color:var(--t-erro); }
+.t-projecao-conta { font-size:12px; color:var(--t-tinta3); margin-top:2px; }
+.t-diretoria-meta { font-size:13px; color:var(--t-tinta2); } .t-diretoria-meta b { color:var(--t-tinta); }
+.t-diretoria-meta .ok { color:var(--t-ok); font-weight:700; } .t-diretoria-meta .bad { color:var(--t-erro); font-weight:700; }
+/* amistoso na coluna do lado */
+.t-amistoso select { width:100%; }
+.t-amistoso-linha { display:flex; gap:8px; margin-top:8px; } .t-amistoso-linha select { flex:1; }

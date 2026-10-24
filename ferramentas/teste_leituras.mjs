@@ -57,13 +57,13 @@ const nomes = ["Locomotiva", "Real Dormente", "União Bitola Larga", "Campinense
 const pts = [30, 28, 26, 25, 23, 20, 15, 10];
 const tab = nomes.map((nome, i) => ({ clube: { id: i + 1, nome }, j: 14, pts: pts[i] }));
 const faixas = ["sobe", "sobe", "playoff", "playoff", "", "", "cai", "cai"];
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 5, faixas, rodadasRestantes: 8 }), { titulo: "5º lugar ·", apagado: "8 rodadas", destaque: "A 2 pontos da zona do playoff.", frase: "" });
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 3, faixas, rodadasRestantes: 1 }), { titulo: "3º lugar ·", apagado: "1 rodada", destaque: "", frase: "3 pontos à frente do 5º." });
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 5, faixas, rodadasRestantes: 8 }), { titulo: "5º lugar ·", apagado: "faltam 8 rodadas", destaque: "A 2 pontos da zona do playoff.", frase: "" });
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 3, faixas, rodadasRestantes: 1 }), { titulo: "3º lugar ·", apagado: "falta 1 rodada", destaque: "", frase: "3 pontos à frente do 5º." });
 assert.deepEqual(leituraDaTabela({ tab, clubeId: 1, faixas, rodadasRestantes: 8 }).frase, "4 pontos à frente do 3º.");
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 7, faixas, rodadasRestantes: 8 }), { titulo: "7º lugar ·", apagado: "8 rodadas", destaque: "Na zona de rebaixamento.", frase: "5 pontos para sair." });
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 7, faixas, rodadasRestantes: 8 }), { titulo: "7º lugar ·", apagado: "faltam 8 rodadas", destaque: "Na zona de rebaixamento.", frase: "5 pontos para sair." });
 assert.equal(leituraDaTabela({ tab, clubeId: 6, faixas, rodadasRestantes: 0 }).apagado, "fim da fase");
 const tabZerada = tab.map(t => ({ ...t, j: 0, pts: 0 }));
-assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: 14 }), { titulo: "5º lugar ·", apagado: "14 rodadas", destaque: "", frase: "" });
+assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: 14 }), { titulo: "5º lugar ·", apagado: "faltam 14 rodadas", destaque: "", frase: "" });
 assert.equal(leituraDaTabela({ tab, clubeId: 99, faixas, rodadasRestantes: 8 }), null);
 const empate = tab.map(t => t.clube.id === 4 ? { ...t, pts: 23 } : t);
 assert.equal(leituraDaTabela({ tab: empate, clubeId: 3, faixas, rodadasRestantes: 8 }).frase, "3 pontos à frente do 5º.");

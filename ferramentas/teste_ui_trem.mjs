@@ -57,3 +57,6 @@ assert.equal(manchete('<div class="urg"><span class="aviso">18 contratos vencem 
 // link de clube no meio da manchete entra no negrito; outra tag (img, span) não
 assert.equal(manchete('<div><span class="">A base do <a class="lk" href="#c">Trem</a> revelou uma joia: Laerte</span></div>'), '<div><span class=""><b>A base do <a class="lk" href="#c">Trem</a> revelou uma joia:</b> Laerte</span></div>');
 assert.equal(manchete('<div><span class="">Com <img src="x"> imagem: fica</span></div>'), '<div><span class="">Com <img src="x"> imagem: fica</span></div>');
+// faixa com números embaixo da frase (html montado pela tela)
+assert.match(faixa({ rotulo: "x", titulo: "3º lugar ·", frase: "a", numeros: "<span>36 pts</span>" }), /t-faixa-frase">a<\/p><div class="t-faixa-numeros"><span>36 pts<\/span><\/div>/);
+assert.ok(!faixa({ rotulo: "x", titulo: "a" }).includes("t-faixa-numeros"));

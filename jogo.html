@@ -1761,9 +1761,11 @@ async function telaClube(liga, clube) {
   const Quem = id => dirDe(id) || lk(id); // o dirigente pelo nome; sem nome, o clube
   // Manchete de jornal: curta, cada clube citado uma vez só (ou o placar com os dois nomes, ou os nomes e o placar "3 a 0"), moldes diferentes.
   function noticiaDoDuelo(p, r, x) {
-    const um = lista => lista[(p.id * 7 + x.rodada) % lista.length], pl = `${lk(p.casa)} ${r.gols_casa} x ${r.gols_fora} ${lk(p.fora)}`;
+    // visual novo: o placar de cada nota abre o jogo
+    const jogoLk = t => visualNovo ? `<a class="lk t-placar-link" href="aovivo.html?id=${p.id}">${t}</a>` : t;
+    const um = lista => lista[(p.id * 7 + x.rodada) % lista.length], pl = `${lk(p.casa)} ${jogoLk(`${r.gols_casa} x ${r.gols_fora}`)} ${lk(p.fora)}`;
     const dif = r.gols_casa - r.gols_fora, v = dif > 0 ? p.casa : dif < 0 ? p.fora : null, d = v === p.casa ? p.fora : p.casa, ladoV = v === p.casa ? 0 : 1;
-    const V = lk(v), D = lk(d), A = lk(p.casa), B = lk(p.fora), s = `${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}`; // placar com o vencedor na frente
+    const V = lk(v), D = lk(d), A = lk(p.casa), B = lk(p.fora), s = jogoLk(`${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}`); // placar com o vencedor na frente
     const conta = {}; x.gols.forEach(g => { if (g.quem) conta[g.quem] = (conta[g.quem] || 0) + 1; });
     const [heroi, nh] = Object.entries(conta).sort((a, b) => b[1] - a[1])[0] || [], ult = x.gols[x.gols.length - 1];
     const tr = x.turno && x.turno.r, venceuTurno = tr ? (tr.gols_casa > tr.gols_fora ? x.turno.p.casa : tr.gols_casa < tr.gols_fora ? x.turno.p.fora : null) : undefined;
@@ -1939,15 +1941,16 @@ async function telaClube(liga, clube) {
         ${clube.confianca == null ? "" : (() => { const c = clube.confianca;
           const meta = minhaMeta ? (minhaMeta.faixa_min === minhaMeta.faixa_max ? `terminar em ${minhaMeta.faixa_min}º` : `terminar entre o ${minhaMeta.faixa_min}º e o ${minhaMeta.faixa_max}º`) : null;
           return `<section class="t-lado-bloco t-diretoria"><div class="t-rotulo">Diretoria</div><div class="t-diretoria-cab"><span>Confiança</span><b>${c}</b></div>
-            <div class="t-barra t-barra-confianca"><i style="width:${c}%"></i></div><div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div>
-            <p class="t-diretoria-frase">“${esc(fraseDoPresidente(c))}”</p>${meta ? `<div class="t-numero-legenda">Meta: ${meta}</div>` : ""}<div id="termometro" class="t-numero-legenda"></div>
+            <div class="t-barra t-barra-confianca"><i style="width:${c}%"></i><span class="t-barra-proj" hidden title="Se a temporada terminasse hoje"></span></div><div class="t-diretoria-escala"><span>0 · demissão</span><span>50</span><span>100 · ídolo</span></div>
+            <div id="termometro"></div>
+            <p class="t-diretoria-frase">“${esc(fraseDoPresidente(c))}”</p>${meta ? `<div class="t-diretoria-meta"><b>Meta:</b> ${meta} <span id="dirHoje"></span></div>` : ""}
             ${pedidoExtra && pedidoExtra.estado === "pendente" ? `<div class="t-numero-legenda">Pedido do clube extra (${esc(pedidoExtra.nome)}, ${esc(pedidoExtra.pais)}) esperando o administrador.</div>` : extraLiberado ? `<div class="t-botoes"><button type="button" class="t-botao" id="pedirExtra">Pedir o clube extra</button></div>` : ""}</section>`; })()}
+        <section class="t-lado-bloco t-amistoso"><div class="t-rotulo">Amistoso</div>
+          <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
+          <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
+          <div id="amInfo" class="t-numero-legenda"></div></section>
       </aside>
     </div>
-    <details class="t-secao t-amistoso"><summary class="t-rotulo">Amistoso</summary>
-      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
-        <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button type="button" class="t-botao" id="amJogar">Jogar amistoso</button></div>
-      <div id="amInfo" class="t-numero-legenda"></div></details>
     <div id="amRel"></div>
     </section>`;
   $("app").innerHTML = `${visualNovo ? topoNovo() : `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
@@ -2802,7 +2805,9 @@ ${historicoDaBase()}
     const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
     const boa = f => /\b(camp|lib|sul|sobe|playoff)\b/.test(f), ultimaBoa = faixas.reduce((u, f, i) => boa(f) ? i + 1 : u, 0);
     const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.length ? meusDaLiga.filter(p => !res[p.id]).length : null });
-    if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: meusDaLiga.length ? `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}` : nomeDoGrupo(g), ...lt,
+    const numeros = eu && eu.j ? [[eu.pts, "pontos"], [`${eu.v}-${eu.e}-${eu.d}`, "V-E-D"], [(eu.gp - eu.gc > 0 ? "+" : "") + (eu.gp - eu.gc), "saldo"], [tab[0].pts - eu.pts || "—", tab[0].clube.id === clube.id ? "você lidera" : "do líder"]]
+      .map(([n, r]) => `<span><b>${n}</b> ${r}</span>`).join("") : "";
+    if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ numeros, rotulo: meusDaLiga.length ? `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}` : nomeDoGrupo(g), ...lt,
       lado: eu && eu.j ? rotulo("Posição rodada a rodada") + graficoDePosicoes(posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id), tab.length, ultimaBoa || undefined) : "" });
     // Vestiário: o relatório gravado do último jogo; o quanto ele mostra depende do analista de hoje
     const v = $("cnVestiario");
@@ -2828,12 +2833,14 @@ ${historicoDaBase()}
       // um placar: mandante à esquerda e visitante à direita, os nomes encostados no "×", a hora no meio; o rival leva a forma
       const time = (x, lado) => `<div class="t-placar-time t-placar-${lado}">${svgEscudo(x.escudo, x.sigla, 52)}<div class="t-placar-quem"><span class="t-jogo-nome">${esc(x.nome)}</span>`
         + (x.id === rival.id ? `<span class="t-forma" title="Últimos jogos do rival">${formaDoRival.slice(-5).map(f => `<i class="${f}">${f}</i>`).join("")}</span>` : `<span class="t-placar-voce">você</span>`) + `</div></div>`;
-      const posRival = tab.findIndex(t => t.clube.id === rival.id);
+      const posRival = tab.findIndex(t => t.clube.id === rival.id), depois = meus.filter(p => !res[p.id] && p.id !== proximo.id && cPor[p.casa] && cPor[p.fora]).slice(0, 4);
       pr.innerHTML = `<div class="t-jogo">${rotulo("Próximo jogo · " + qual)}
         <div class="t-placar">${time(mandante, "casa")}<div class="t-placar-meio"><span class="t-jogo-x">×</span><span class="t-placar-hora">${esc(d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</span></div>${time(visitante, "fora")}</div>
         <div class="t-jogo-meta">${casa ? "Em casa" : "Fora"} · ${esc(c.nome.toLowerCase())}, ${c.temp} °C${posRival >= 0 ? ` · ${esc(rival.nome)} é o ${posRival + 1}º` : ""}</div>
         ${lp && lp.titulo === "Confronto direto" ? `<p class="t-jogo-leitura"><b>Confronto direto.</b> ${esc(lp.frase)}</p>` : lp && lp.frase ? `<p class="t-jogo-leitura">${esc(lp.frase)}</p>` : ""}
-        <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div></div>`;
+        <div class="t-botoes">${botao({ texto: "Ajustar a tática", abaIr: "tatica", tipo: "principal" })}<a class="t-botao" data-clube="${rival.id}" href="#clube=${rival.id}">Ver o rival</a></div>
+        ${depois.length ? `<div class="t-agenda"><div class="t-numero-rotulo">Depois</div>${depois.map(p => { const emCasa = p.casa === clube.id, adv = cPor[emCasa ? p.fora : p.casa], dp = new Date(p.inicio);
+          return `<a class="t-agenda-jogo" href="aovivo.html?id=${p.id}"><span class="t-agenda-dia">${esc(dp.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }))}</span>${svgEscudo(adv.escudo, adv.sigla, 22)}<span class="t-agenda-rival">${esc(adv.nome)}</span><span class="t-agenda-onde">${ehCopa(p) ? esc(nomeDaCopa(p, true)) : p.fase && p.fase !== "liga" ? "Playoff" : "R" + p.rodada} · ${emCasa ? "casa" : "fora"}</span></a>`; }).join("")}</div>` : ""}</div>`;
     }
   }
   async function grupo(g) {
@@ -2903,6 +2910,13 @@ ${historicoDaBase()}
         $("kpiProxD").innerHTML = d ? `${proximo.casa === clube.id ? "em casa" : "fora"} x ${esc(rival.nome)} · ${d.toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" })}${jp && jp.id === proximo.id ? `<div style="margin-top:4px;color:var(--ac)">${seloMarca(jp.marca, 18)} ${esc(jp.nome)}</div>` : ""}` : "nenhum jogo marcado"; }
       if ($("termometro") && minhaMeta && eu && eu.j) { const avaliada = (tab.indexOf(eu) + 1 + posicaoPelosEsperados(tab)[clube.id]) / 2, sinal = x => (x > 0 ? "+" : "") + x;
         const v = variacaoDaConfianca({ avaliada, faixa: [minhaMeta.faixa_min, minhaMeta.faixa_max], vermelho: caixa != null && caixa < 0 });
+        if (visualNovo) { // a projeção: de quanto para quanto, a conta em uma linha e a marca na barra
+          const c = clube.confianca, proj = Math.max(0, Math.min(100, c + v.total)), pos = tab.indexOf(eu) + 1, naMeta = pos >= minhaMeta.faixa_min && pos <= minhaMeta.faixa_max;
+          $("termometro").innerHTML = `<div class="t-projecao"><span>Se a temporada terminasse hoje</span><b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${c} → ${proj}</b></div>
+            <div class="t-projecao-conta">liga ${sinal(v.liga)} · finanças ${sinal(v.financas)} · a copa conta no fim</div>`;
+          const m = document.querySelector(".t-barra-proj"); if (m) { m.style.left = proj + "%"; m.hidden = false; }
+          const hoje = $("dirHoje"); if (hoje) { hoje.textContent = `hoje: ${pos}º`; hoje.className = naMeta ? "ok" : "bad"; }
+        } else
         $("termometro").innerHTML = `Se a temporada terminasse hoje: <b class="${v.total > 0 ? "ok" : v.total < 0 ? "bad" : ""}">${sinal(v.total)}</b> (liga ${sinal(v.liga)} pela posição média entre a tabela e os pontos esperados, ${String(avaliada).replace(".", ",")}º; finanças ${sinal(v.financas)}). A copa entra no fim.`; }
       const faixa = i => faixaDaTabela(serie, i, tab.length, tab);
       if ($("miniTabela")) { $("miniTabela").className = "";
