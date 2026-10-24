@@ -305,6 +305,8 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
+import { esc as escT, rotulo, faixa, numero, botao, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
 // visual novo ligado (mo_visual, no atualiza.js): até a virada, as telas refeitas só aparecem com ele
@@ -1908,7 +1910,12 @@ async function telaClube(liga, clube) {
   let temaEscolhido = "", coresEscolhidas = ""; try { temaEscolhido = localStorage.getItem("mo_tema") || ""; coresEscolhidas = localStorage.getItem("mo_cores") || ""; } catch (e) {}
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   devolverBarra();
-  $("app").innerHTML = `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
+  // visual novo: topo enxuto (escudo e nome levam aos Ajustes, próximo jogo, barra da conta) e a linha de estações
+  const topoNovo = () => `<header class="t-topo"><button type="button" class="t-topo-clube" data-aba-ir="config" title="Ajustes">${svgEscudo(clube.escudo, clube.sigla, 40)}<span class="t-topo-nome">${esc(clube.nome)}</span></button>
+      <span class="t-topo-prox" id="topoProx"></span>
+      <div class="t-topo-fim"><div id="seloTopo" class="patro-topo t-topo-so-pc" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div><div class="topo-jogo t-topo-so-pc"></div><div class="topo-conta"></div>${admin ? `<a href="admin.html">Admin${pedidosAdm ? ` (${pedidosAdm})` : ""}</a>` : ""}</div></header>
+    ${linhaDeEstacoes(ESTACOES, "inicio")}`;
+  $("app").innerHTML = `${visualNovo ? topoNovo() : `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
         ${clube.dirigente === undefined ? "" : `<div style="font-size:15px">${clube.dirigente ? esc(clube.dirigente) : `<a class="lk aviso" data-aba-ir="config:geral">Dirigente sem nome: defina nas configurações</a>`}</div>`}
         <div class="mut"><span class="so-pc">${esc(liga.nome)}<br>Temporada ${liga.temporada} · ${esc(nomeDoGrupo(clube.grupo))}</span><span class="so-cel">T${liga.temporada} · ${esc(nomeBaseDoGrupo(clube.grupo).replace(/^(Brasileiro|Campeonato) /, ""))}</span></div></div>
@@ -1916,7 +1923,7 @@ async function telaClube(liga, clube) {
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
     <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
-      .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>
+      .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`}
     <section data-secao="inicio">
     ${kpisDaCentral()}
     <div id="desdeVisita" class="c-chegada-box"></div>
@@ -2153,7 +2160,7 @@ ${historicoDaBase()}
     <div data-parte="clube:patrocinio">${abaPatrocinio()}</div>
     </section>
 `;
-  barraNoCabecalho($("app").querySelector(".card.topo"));
+  barraNoCabecalho($("app").querySelector(".card.topo, .t-topo"));
 
   // antecipação do prêmio
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
@@ -2539,7 +2546,7 @@ ${historicoDaBase()}
     if (k !== "clubeVisto" && !enderecoParado) marcarEndereco("#" + (g ? g + ":" + sub : k), !historico && doEndereco(location.hash)[0] !== k);
     abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
-    document.querySelectorAll(".aba").forEach(b => b.classList.toggle("ativa", b.dataset.aba === k));
+    document.querySelectorAll("#abas [data-aba]").forEach(b => { b.classList.toggle("ativa", b.dataset.aba === k); if (b.classList.contains("t-estacao")) { if (b.dataset.aba === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); } });
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
     if (k === "mercado" && mercadoAoAbrir) { const f = mercadoAoAbrir; mercadoAoAbrir = null; f(); }
@@ -2561,7 +2568,7 @@ ${historicoDaBase()}
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
-  new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
+  new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") && getComputedStyle($("abas")).position !== "fixed" ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgVisualNovo")) { $("cfgVisualNovo").onclick = () => window.moVisual("novo"); $("cfgVisualVelho").onclick = () => window.moVisual(""); }
   const trocarTema = t => { window.moTema(t); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
@@ -2809,6 +2816,8 @@ ${historicoDaBase()}
       resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
       const eu = tab.find(t => t.clube.id === clube.id);
       if (eu && $("kpiPos")) { $("kpiPos").innerHTML = `${tab.indexOf(eu) + 1}º<small> de ${tab.length}</small>`; $("kpiPosD").textContent = `${eu.pts} pts em ${eu.j} jogos · ${nomeDoGrupo(g)}`; }
+      if ($("topoProx")) { const d = proximo && new Date(proximo.inicio);
+        $("topoProx").innerHTML = d ? `${ehCopa(proximo) ? esc(nomeDaCopa(proximo, true)) : proximo.fase && proximo.fase !== "liga" ? esc(nomeDoPlayoff(proximo).replace("Playoff · ", "")) : "Rodada " + proximo.rodada} · <b>${d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</b> · ${proximo.casa === clube.id ? "em casa" : "fora"} × ${esc(rival.nome)}` : ""; }
       if ($("kpiProx")) { const d = proximo && new Date(proximo.inicio);
         $("kpiProx").textContent = d ? d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—";
         // jogo patrocinado da rodada (src/patrocinio.js): o selo da marca embaixo do próximo jogo
