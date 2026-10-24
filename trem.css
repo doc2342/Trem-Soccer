@@ -634,3 +634,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-cel-rolo .card.c-chegada.t-giro-secao { padding-bottom:4px; }
 .t-cel-rolo .t-passos .t-barra { margin:8px 0 10px; } .t-cel-rolo .t-passos .t-numero-legenda { margin-top:2px; }
 .t-cel-rolo .card.c-chegada.t-giro-secao > h2 { margin-bottom:4px; }
+/* para resolver em páginas de 4 (altura fixa) */
+.t-giro-resolver { height:176px; } .t-resolver-paginas .t-giro-item { text-align:left; }
+.t-resolver-paginas .mural > div { padding:8px 0 8px 10px !important; font-size:13.5px; }
+.t-ficha-alerta .t-botao-link { font-size:13px; padding:0 0 1px !important; margin-left:4px; }

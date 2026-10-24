@@ -1644,7 +1644,9 @@ async function telaClube(liga, clube) {
     }
     if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
-    if (visualNovo) return l.map(alertaCurto).join("") || item("✅", "Nada para resolver.", "mut");
+    if (visualNovo) { const a = l.map(alertaCurto); if (!a.length) return item("✅", "Nada para resolver.", "mut"); if (a.length <= 4) return a.join("");
+      const pags = []; for (let k = 0; k < a.length; k += 4) pags.push(a.slice(k, k + 4));
+      return `<div class="t-giro-secao t-giro-manual t-resolver-paginas"><div class="t-giro-palco"><button type="button" class="t-giro-seta-bt" data-giro-passo="-1" aria-label="Avisos anteriores">‹</button><div class="t-giro t-giro-resolver">${pags.map((g, k) => `<div class="t-giro-item${k ? "" : " ativo"}"><div class="mural">${g.join("")}</div></div>`).join("")}</div><button type="button" class="t-giro-seta-bt" data-giro-passo="1" aria-label="Mais avisos">›</button></div><div class="t-numero-legenda"><span class="t-giro-conta">1 de ${pags.length}</span> · ${a.length} avisos</div></div>`; }
     const urg = l.filter(x => x.startsWith('<div class="urg"')), resto = l.filter(x => !x.startsWith('<div class="urg"'));
     if (celular && resto.length) return (urg.length ? `<div class="rot">Para resolver</div>${urg.join("")}` : "")
       + `<div><details style="flex:1"><summary style="cursor:pointer" class="mut">${urg.length ? "" : "Nada para resolver · "}Ver mais ${resto.length} ${resto.length === 1 ? "aviso" : "avisos"}</summary><div class="mural">${resto.join("")}</div></details></div>`;
@@ -2931,7 +2933,8 @@ ${historicoDaBase()}
     const fora = elenco.filter(j => !j.juvenil && (copa ? j.foraCopa > 0 || (j.fora > 0 && j.motivo === "lesão") : j.fora > 0));
     const pend = copa ? [] : elenco.filter(j => !j.juvenil && j.amarelos === 3 && !(j.fora > 0)), titFora = fora.filter(ehTit);
     const linhas = [
-      titFora.length ? `<p class="t-ficha-alerta"><b>${titFora.length === 1 ? "Titular" : "Titulares"} da sua tática fora:</b> ${titFora.map(nome).join(", ")}. O banco entra no lugar.</p>` : "",
+      ...titFora.map(j => { const lesao = copa ? j.fora > 0 && j.motivo === "lesão" : j.motivo === "lesão", n = copa && !lesao ? j.foraCopa : j.fora;
+        return `<p class="t-ficha-alerta"><b>${esc(j.nome)}</b> <span class="t-ficha-pos">${sg(j.pos)}</span> está <b>${lesao ? "lesionado" : copa ? "suspenso na copa" : "suspenso"}</b> por ${n} ${n === 1 ? "jogo" : "jogos"} e é titular da sua tática. Sem troca, o banco entra no lugar. <button type="button" class="t-botao t-botao-link" data-aba-ir="tatica">Trocar ›</button></p>`; }),
       fora.filter(j => !ehTit(j)).length ? `<p><b>Fora:</b> ${fora.filter(j => !ehTit(j)).map(j => `${nome(j)} (${j.motivo === "lesão" ? "lesão" : "suspensão"})`).join(", ")}</p>` : "",
       pend.length ? `<p><b>Pendurados:</b> ${pend.map(nome).join(", ")}</p>` : "",
     ].filter(Boolean);
