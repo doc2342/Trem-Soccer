@@ -613,3 +613,35 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-abinhas[data-aberta=noticias] [data-abinha=noticias], .t-abinhas[data-aberta=placares] [data-abinha=placares] { color:var(--t-tinta) !important; border-bottom-color:var(--t-marca) !important; }
 .t-abinha { display:none; flex-direction:column; gap:10px; } .t-abinhas[data-aberta=noticias] [data-abinha-corpo=noticias], .t-abinhas[data-aberta=placares] [data-abinha-corpo=placares] { display:flex; }
 .t-central .t-abinha > .t-pl { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--t-fio); font-size:13px; }
+/* ---------- Central em faixas na largura toda (nenhum bloco variável fica pareado com outro) ---------- */
+.t-faixa-larga { margin-top:36px; }
+/* próximo jogo: placar, contexto e botões | fichas e agenda */
+.t-jogo-grade { display:grid; grid-template-columns:minmax(0, 1.15fr) minmax(0, 1fr); gap:0 40px; align-items:start; }
+.t-jogo-dir > .t-fichas { margin-top:14px; border-top:0; } .t-jogo-dir .t-ficha:first-child { padding-top:4px; }
+.t-jogo-dir > .t-agenda { margin-top:14px; }
+@media (max-width:900px) { .t-jogo-grade { grid-template-columns:minmax(0, 1fr); } .t-jogo-dir > .t-fichas { border-top:1px solid var(--t-fio); } }
+/* vestiário: linha fina e régua | notas */
+.t-vest-grade { display:grid; grid-template-columns:minmax(0, 1.3fr) minmax(0, 1fr); gap:0 36px; align-items:start; margin-top:4px; }
+.t-vest-grade .t-materia-fina { border-bottom:0; padding-bottom:0; }
+.t-vest-grade .t-vest-regua { border-bottom:0; }
+.t-vest-dir { border-left:1px solid var(--t-fio); padding-left:28px; display:flex; flex-direction:column; }
+.t-vest-dir .t-nota { padding:12px 0 14px; } .t-vest-dir .t-nota + .t-nota { border-top:1px solid var(--t-fio); }
+.t-vest-dir .t-nota-lead h4 { font-size:clamp(24px, 2.6vw, 30px); }
+@media (max-width:900px) { .t-vest-grade { grid-template-columns:minmax(0, 1fr); } .t-vest-dir { border-left:0; padding-left:0; border-top:1px solid var(--t-fio); margin-top:14px; } }
+/* "Para você": cartões separados lado a lado, todos com a altura do mais alto; os vazios somem e os outros se espalham */
+.t-para-voce { margin-top:36px; border-top:2px solid var(--t-tinta); padding-top:14px; }
+.t-cartoes { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap:16px; align-items:stretch; }
+.t-cartoes > :empty { display:none; }
+.t-cartao, .t-cartao-caixa > section, .t-cartao-caixa > .card { background:var(--t-placa); padding:14px 18px 18px; height:100%; box-sizing:border-box; }
+.t-cartao-caixa { display:flex; } .t-cartao-caixa > * { flex:1; }
+.t-cartao .t-rotulo { margin-bottom:10px; }
+.t-cartoes .card.c-chegada { border-top:0 !important; margin:0 !important; padding:14px 18px 18px !important; }
+.t-cartoes .mural > div[data-aba-ir]:hover { background:var(--t-fundo); }
+.t-cartoes select { background:var(--t-fundo); }
+.t-cartoes .t-passos { border-top:0; }
+/* "desde a sua visita" também é um cartão cinza (a regra antiga do cartão de chegada tirava o fundo) */
+:root[data-visual=novo] .t-cartoes .t-cartao-caixa > .card.c-chegada { background:var(--t-placa); }
+.t-cartoes .card.c-chegada > h2::before { display:none; } .t-cartoes .card.c-chegada > h2 { display:flex; }
+.t-cartoes .card.c-chegada > h2::after { content:none; }
+/* o placar na metade da faixa: nomes um pouco menores para caber numa linha */
+.t-jogo-grade .t-jogo-nome { font-size:clamp(18px, 2vw, 26px); }
