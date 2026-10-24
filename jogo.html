@@ -299,7 +299,10 @@ new MutationObserver(acertarSalarioPelaDuracao).observe(document.documentElement
 document.addEventListener("click", e => {
   const b = e.target.closest && e.target.closest(".t-boleta [data-dur], .t-boleta [data-modo]"); if (!b) return;
   b.parentNode.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  if (b.dataset.dur) { const sel = document.getElementById(b.dataset.dur); sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+  if (b.dataset.dur) { // se o salário estava no pedido, acompanha a duração para cima e para baixo; um valor escolhido acima do pedido fica
+    const sel = document.getElementById(b.dataset.dur), campo = document.getElementById(sel.dataset.prog), noPedido = +campo.value <= +campo.min;
+    sel.value = b.dataset.v; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    if (noPedido) { campo.value = campo.min; acertarRegua(campo); } }
   else b.closest(".t-boleta").querySelectorAll("[data-boleta-parte]").forEach(p => { p.hidden = p.dataset.boletaParte !== b.dataset.modo; });
 });
 // régua: o campo escondido (id, em milhares) é o que as ações leem; a pessoa digita em milhões ou arrasta a barra

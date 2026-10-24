@@ -1022,3 +1022,9 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-busca .chipf[data-v="volante,ala"], .t-busca .chipf[data-v=meio], .t-busca .chipf[data-v=meia] { --cor:#357f3c; } .t-busca .chipf[data-v=ataque] { --cor:#c0332e; }
 .t-busca .chipf.ligado { background:var(--cor); border-color:var(--cor); color:#fff; }
 .t-busca .chipf:hover:not(.ligado) { border-color:var(--cor); color:var(--cor); }
+/* salário como linha de documento: rótulo e "pede" à esquerda, valor à direita; o valor em destaque (oferta) segue no centro, como a multa */
+.t-regua:not(.t-regua-grande) { display:grid; grid-template-columns:1fr auto; align-items:end; column-gap:12px; text-align:left; }
+.t-regua:not(.t-regua-grande) > .t-boleta-rot { grid-column:1; grid-row:1; }
+.t-regua:not(.t-regua-grande) > .t-regua-pede { grid-column:1; grid-row:2; margin:2px 0 0; }
+.t-regua:not(.t-regua-grande) > .t-regua-valor { grid-column:2; grid-row:1 / 3; margin:0; }
+.t-regua:not(.t-regua-grande) > input[type=range], .t-regua:not(.t-regua-grande) > .t-regua-escala { grid-column:1 / -1; }
