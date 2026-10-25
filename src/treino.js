@@ -3,24 +3,24 @@
 // O talento oculto define o teto da nota do jogador. A velocidade é proporcional ao CAMINHO dele (da nota de partida, igual para todos, até o teto):
 // todo jogador percorre a mesma fração do caminho por temporada, então teto alto e teto baixo chegam na mesma idade. Sobre isso entram a idade,
 // o centro de treinamento, o trabalho em equipe, ter jogado e os treinadores (cada atributo pertence a uma área de treino, e a qualidade da área
-// depende de quem trabalha nela). Não há empurrão para quem está atrasado; há só um freio: ninguém anda mais rápido que a curva do melhor caso.
+// depende de quem trabalha nela). Não há empurrão para quem está atrasado nem freio para quem está adiantado.
+// A temporada rende o mesmo em qualquer grupo: a sessão vale rodadasDeReferencia / rodadas do grupo (fatorDaTemporada).
 // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto, TETO_DO_TALENTO } from "./modelo.js";
 import { criarRng } from "./rng.js";
 
 export const CONFIG_TREINO = {
   pontosPorNivel: 100,
+  rodadasDeReferencia: 22,    // rodadas da Série A: a temporada de treino é medida nelas
   pontosPorSessao: 150,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,5 ponto de atributo por sessão
   partePrincipal: 0.7,
   ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
   equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe
   bonusPorJogar: 0.1, minutosParaBonus: 45,
-  teto: TETO_DO_TALENTO,      // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 38 / 35 / 32 em A / B / C)
+  teto: TETO_DO_TALENTO,      // teto da nota = 23 + 0,20 × talento (1 a 100): de 23 a 43 (liga madura: titulares em 37–38 / 36–37 / 33–34 em A / B / países)
   // caminho: os pontos da sessão são multiplicados por (teto − partida) / divisor. Sem saber o teto (tela sem olheiro), vale o teto típico.
   caminho: { partida: 15, divisor: 26, minimo: 6, tetoTipico: 36 },
   folga: [1 / 3, 1 / 18],     // teto que cede: fração dos jogadores que passa do teto em 1 ponto ou mais, e em 2
-  // freio: fração do caminho que o melhor caso tem feito em cada idade; quem passa dela treina mais devagar (até o piso), nunca mais rápido
-  freio: { curva: [[16, 0.05], [18, 0.36], [20, 0.62], [22, 0.82], [24, 0.96], [25, 1.03], [31, 1.06]], forca: 6, piso: 0.3 },
   // treinadores: a qualidade da área (0 a 50) vira um multiplicador dos pontos dos atributos dela
   treinador: [0.9, 0.25],     // área sem treinador, 90%; qualidade 50, 115%
   parteDoGeral: 0.6,          // treinador "geral" soma 60% de cada skill nas quatro áreas com treinador designado, por cima do designado
@@ -149,17 +149,12 @@ export function folgaDoTeto(id, tal) {
 }
 export const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
 
-// Fração do caminho que o melhor caso tem feito na idade (interpolação da curva do freio). A idade é contada no meio da temporada.
-export function alvoDaIdade(idade) {
-  const c = CONFIG_TREINO.freio.curva, a = idade + 0.5;
-  if (a <= c[0][0]) return c[0][1];
-  for (let k = 1; k < c.length; k++) if (a <= c[k][0]) return c[k - 1][1] + (c[k][1] - c[k - 1][1]) * (a - c[k - 1][0]) / (c[k][0] - c[k - 1][0]);
-  return c[c.length - 1][1];
-}
-// Multiplicador do caminho: proporcional ao tamanho do caminho do jogador e freado quando ele está adiante da curva. teto: o teto da nota.
+// Fração de sessão que vale cada rodada: o grupo com menos rodadas treina mais por rodada e soma o mesmo na temporada (1 sem rodadas)
+export const fatorDaTemporada = rodadas => rodadas > 0 ? CONFIG_TREINO.rodadasDeReferencia / rodadas : 1;
+// Multiplicador do caminho: proporcional ao tamanho do caminho do jogador. teto: o teto da nota.
 export function fatorDoCaminho(j, teto) {
-  const C = CONFIG_TREINO, cam = Math.max(C.caminho.minimo, teto - C.caminho.partida), feito = (notaDeTeto(j) - C.caminho.partida) / cam;
-  return cam / C.caminho.divisor * Math.max(C.freio.piso, Math.min(1, 1 + C.freio.forca * (alvoDaIdade(j.idade) - feito)));
+  const C = CONFIG_TREINO;
+  return Math.max(C.caminho.minimo, teto - C.caminho.partida) / C.caminho.divisor;
 }
 // Pontos de uma sessão para o jogador, antes de dividir pelos focos. tal: talento (só o servidor sabe); teto: estimativa do teto, para as telas
 // (meio da faixa do olheiro). Sem nenhum dos dois, a conta usa o teto típico e serve só de referência.
