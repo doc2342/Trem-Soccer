@@ -1,6 +1,7 @@
 // Camisa e uniforme (desenho de 20/10/2026, protótipo em prototipos/camisa_v2): silhueta de camisa de verdade, contorno fino, volume por sombra.
 // u: { padrao, cor1, cor2, cor3 (opcional: filetes e terceira cor), gola, golaTipo, manga, manga2, textura, friso/corFriso (ombro),
-//      frisoCalcao/corFrisoCalcao, frisoMeiao/corFrisoMeiao, calcao, meiao, chuteira, marca (url da arte do patrocínio), escudoSvg (já posicionado) }
+//      frisoCalcao/corFrisoCalcao, frisoMeiao/corFrisoMeiao, calcao, barraCalcao, meiao, chuteira,
+//      corFilete (filete da gola, dos punhos, da faixa com filete e da barra do calção; sem ela, a cor3), marca (url da arte do patrocínio), escudoSvg (já posicionado) }
 // O src/escudo.js (svgUniforme) prepara o escudo no peito e a arte do patrocínio e chama este.
 const hexOk = c => /^#[0-9a-fA-F]{6}$/.test(c || "");
 const cor = (c, p) => hexOk(c) ? c : p;
@@ -21,13 +22,14 @@ const PUNHO_D = "M196 90 C186 97 174 102 162 104 L159.5 97 C172 95 183 90 193.5 
 
 const R = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
 const faixas = (n, f) => Array.from({ length: n }, (_, i) => f(i - (n - 1) / 2, i)).join("");
-// desenhos no espaço da camisa (200 x 220); lisa: true = mangas na cor principal (o desenho não passa para elas)
+// desenhos no espaço da camisa (200 x 220); lisa: true = mangas na cor principal (o desenho não passa para elas); peito: [y, altura] do patrocínio
 export const DESENHOS = {
   liso: { nome: "Liso", d: () => "" },
   listras: { nome: "Listras verticais", d: (c2, c3) => faixas(7, (k, i) => R(100 + k * 28 - 7, 0, 14, 220, c3 && i % 2 ? c3 : c2)) },
   listrasFinas: { nome: "Listras finas", d: (c2) => faixas(11, k => R(100 + k * 16 - 1.2, 0, 2.4, 220, c2)) },
   horizontais: { nome: "Listras horizontais", d: (c2, c3) => faixas(7, (k, i) => R(0, 116 + k * 32 - 8, 200, 16, c3 && i % 2 ? c3 : c2)) },
-  faixa: { nome: "Faixa no peito", lisa: true, d: (c2, c3) => c3 ? R(0, 84, 200, 16, c2) + R(0, 100, 200, 16, c3) : R(0, 84, 200, 36, c2) },
+  faixa: { nome: "Faixa no peito", lisa: true, peito: [84, 36], d: (c2, c3) => c3 ? R(0, 84, 200, 16, c2) + R(0, 100, 200, 16, c3) : R(0, 84, 200, 36, c2) },
+  faixaFilete: { nome: "Faixa no peito com filete", lisa: true, peito: [84, 32], d: (c2, c3, f) => R(0, 84, 200, 32, c2) + (f ? R(0, 116, 200, 4, f) : "") },
   faixaV: { nome: "Faixa vertical", lisa: true, d: (c2, c3) => R(72, 0, 56, 220, c2) + (c3 ? R(64, 0, 8, 220, c3) + R(128, 0, 8, 220, c3) : "") },
   diagonal: { nome: "Faixa diagonal", lisa: true, d: (c2, c3) => `<g transform="rotate(-32 100 110)">${c3 ? R(78, -120, 6, 460, c3) + R(116, -120, 6, 460, c3) : ""}${R(84, -120, 32, 460, c2)}</g>` },
   diagonal2: { nome: "Faixa diagonal (invertida)", lisa: true, d: (c2, c3) => `<g transform="rotate(32 100 110)">${c3 ? R(78, -120, 6, 460, c3) + R(116, -120, 6, 460, c3) : ""}${R(84, -120, 32, 460, c2)}</g>` },
@@ -52,7 +54,7 @@ export const TEXTURAS = {
   ondas: { nome: "Ondas", p: `width="24" height="9"><path d="M0 4.5 Q6 0 12 4.5 T24 4.5" fill="none" stroke="#000" stroke-opacity=".06" stroke-width="1.4"/>` },
   losangos: { nome: "Losangos", p: `width="16" height="16"><path d="M8 0 L16 8 L8 16 L0 8 Z" fill="none" stroke="#000" stroke-opacity=".09" stroke-width="1.4"/>` },
 };
-export const FRISOS = { nenhum: "Nenhum", um: "Um friso", tres: "Três frisos" };
+export const FRISOS = { nenhum: "Nenhum", um: "Um friso", dois: "Dois frisos largos", tres: "Três frisos" };
 
 // Número da camisa, pela posição na escalação (os jogadores não têm número próprio): goleiro 1, laterais 2 e 6, zagueiros 3 e 4,
 // volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; quem sobra pega o primeiro número livre; o banco vai do 12 em diante.
@@ -75,10 +77,10 @@ export function numerosDaCamisa(esc) {
 }
 
 // de trás o decote é raso: o recorte da frente é coberto com o tecido e a gola vira uma faixa alta
-function golaDeTras(g, c1, desenho, id) {
+function golaDeTras(g, c1, desenho, id, f) {
   const tampa = "M75 11.6 C84 15.5 116 15.5 125 11.6 C116 23.5 84 23.5 75 11.6 Z";
   return `<clipPath id="k${id}"><path d="${tampa}"/></clipPath><g clip-path="url(#k${id})">${R(0, 0, 200, 220, c1)}${desenho}<rect width="200" height="220" fill="url(#v${id})"/></g>
-    <path d="M73.5 10.5 C84 17.5 116 17.5 126.5 10.5 L123 9 C112 14 88 14 77 9 Z" fill="${g}" filter="url(#s${id})"/><path d="M75 10 C84 16 116 16 125 10" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".6"/>`;
+    <path d="M73.5 10.5 C84 17.5 116 17.5 126.5 10.5 L123 9 C112 14 88 14 77 9 Z" fill="${g}" filter="url(#s${id})"/><path d="M75 10 C84 16 116 16 125 10" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".6"/>${f ? `<path d="M75.5 11.2 C85 16.6 115 16.6 124.5 11.2" fill="none" stroke="${f}" stroke-width="1.4"/>` : ""}`;
 }
 
 // nome em arco e número grandes nas costas; a cor contrasta com a cor principal e leva contorno, para aparecer em listras e xadrez
@@ -91,34 +93,34 @@ function nomeENumero({ nome = "", numero = "" }, u, c1) {
     ${n ? `<text x="100" y="${n.length > 1 ? 142 : 143}" ${fonte} stroke-width="4" font-size="${n.length > 1 ? 86 : 90}" letter-spacing="-2">${n}</text>` : ""}`;
 }
 
-function golaSvg(tipo, g, c1, id) {
+function golaSvg(tipo, g, c1, id, f) {
   const dentro = `<path d="M78 12.5 C88 7 112 7 122 12.5 C114 21 86 21 78 12.5 Z" fill="${c1}"/><path d="M78 12.5 C88 7 112 7 122 12.5 C114 21 86 21 78 12.5 Z" fill="#000" fill-opacity=".38"/>`;
   const sombra = `filter="url(#s${id})"`;
   const canelura = `<path d="M75.5 11 C83.5 23.8 116.5 23.8 124.5 11" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width=".6"/>`;
   if (tipo === "v") return `<path d="M81 11 L100 30 L119 11 C112 6 88 6 81 11 Z" fill="${c1}"/><path d="M81 11 L100 30 L119 11 C112 6 88 6 81 11 Z" fill="#000" fill-opacity=".38"/>
     <path d="M80 11 C88 6.5 112 6.5 120 11" fill="none" stroke="${g}" stroke-width="2.6"/>
-    <path d="M74.5 10.5 L100 37 L125.5 10.5 L119 11 L100 30 L81 11 Z" fill="${g}" ${sombra}/><path d="M76 11.4 L100 35.5 L124 11.4" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width=".7"/><path d="M78 11 L100 33 L122 11" fill="none" stroke="#000" stroke-opacity=".14" stroke-width=".6"/>`;
+    <path d="M74.5 10.5 L100 37 L125.5 10.5 L119 11 L100 30 L81 11 Z" fill="${g}" ${sombra}/><path d="M76 11.4 L100 35.5 L124 11.4" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width=".7"/><path d="M78 11 L100 33 L122 11" fill="none" stroke="#000" stroke-opacity=".14" stroke-width=".6"/>${f ? `<path d="M81.6 11.6 L100 30.6 L118.4 11.6" fill="none" stroke="${f}" stroke-width="1.6"/>` : ""}`;
   if (tipo === "polo") return `${dentro}<path d="M96.5 22 H103.5 V52 H96.5 Z" fill="#000" fill-opacity=".1"/><path d="M100 22 V52" stroke="#000" stroke-opacity=".25" stroke-width=".8"/>
     <circle cx="100" cy="33" r="1.5" fill="${g}"/><circle cx="100" cy="44" r="1.5" fill="${g}"/>
     <path d="M73 10 C86 2 114 2 127 10 L123 13 C112 7.5 88 7.5 77 13 Z" fill="${g}"/>
     <path d="M73 10 C78 16 84 20 100 23 L91 39 C84 30 77 20 73 10 Z" fill="${g}" ${sombra}/><path d="M127 10 C122 16 116 20 100 23 L109 39 C116 30 123 20 127 10 Z" fill="${g}" ${sombra}/>`;
   return `${dentro}<path d="M78 12.5 C88 6.5 112 6.5 122 12.5" fill="none" stroke="${g}" stroke-width="3.6"/><path d="M78 12.5 C88 6.5 112 6.5 122 12.5" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="3.6"/>
     <path d="M73.5 10.5 C82 25.5 118 25.5 126.5 10.5 L121.5 12.2 C114 20 86 20 78.5 12.2 Z" fill="${g}" ${sombra}/>${canelura}
-    <path d="M76 11.4 C84 22.6 116 22.6 124 11.4" fill="none" stroke="#000" stroke-opacity=".14" stroke-width=".6"/>`;
+    <path d="M76 11.4 C84 22.6 116 22.6 124 11.4" fill="none" stroke="#000" stroke-opacity=".14" stroke-width=".6"/>${f ? `<path d="M79.2 12.8 C86.5 20.9 113.5 20.9 120.8 12.8" fill="none" stroke="${f}" stroke-width="1.6"/>` : ""}`;
 }
 
 // camisa sozinha (completo = false) ou uniforme inteiro (com calção e meião)
 // costas = { nome, numero }: a camisa vista de trás (desenho espelhado, gola alta, nome e número; sem escudo nem patrocínio)
 export function svgCamisa(u = {}, largura = 200, completo = false, costas = null) {
   const id = "cv" + (++serie), des = DESENHOS[u.padrao] || DESENHOS.liso;
-  const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), c3 = cor(u.cor3, null);
+  const c1 = cor(u.cor1, "#0b3d91"), c2 = cor(u.cor2, "#ffffff"), c3 = cor(u.cor3, null), f = cor(u.corFilete, c3);
   const g = cor(u.gola, c2 === c1 ? contraste(c1) : c2);
   let mE = cor(u.manga, des.cruzada ? c2 : null), mD = cor(u.manga2, des.cruzada && !hexOk(u.manga) ? c1 : mE);
   if (costas) [mE, mD] = [mD, mE]; // de trás, cada manga troca de lado
-  const desenho = costas ? `<g transform="translate(200 0) scale(-1 1)">${des.d(c2, c3)}</g>` : des.d(c2, c3);
+  const desenho = costas ? `<g transform="translate(200 0) scale(-1 1)">${des.d(c2, c3, f)}</g>` : des.d(c2, c3, f);
   const tex = TEXTURAS[u.textura] ? TEXTURAS[u.textura].p : null, fc = cor(u.corFriso, g);
   const linha = (dx, dy, w) => `<path d="M${79 + dx} ${12.6 + dy} C${69 + dx} ${18 + dy} ${55 + dx} ${23 + dy} ${44 + dx} ${27 + dy} C${34 + dx} ${30 + dy} ${26 + dx} ${36 + dy} ${22 + dx} ${45 + dy} L${7 + dx} ${83 + dy}" fill="none" stroke="${fc}" stroke-width="${w}"/>`;
-  const frisos = u.friso === "tres" ? linha(1, 3, 2) + linha(2.6, 7, 2) + linha(4.2, 11, 2) : u.friso === "um" ? linha(1.6, 4.5, 3) : "";
+  const frisos = u.friso === "tres" ? linha(1, 3, 2) + linha(2.6, 7, 2) + linha(4.2, 11, 2) : u.friso === "dois" ? linha(1.8, 5, 3.8) + linha(4.2, 11.5, 3.8) : u.friso === "um" ? linha(1.6, 4.5, 3) : "";
   // calção e meião: sem escolha, um friso na cor da gola (como hoje); "nenhum" tira
   const fCal = { tipo: FRISOS[u.frisoCalcao] ? u.frisoCalcao : "um", cor: cor(u.corFrisoCalcao, null) }, fMei = { tipo: FRISOS[u.frisoMeiao] ? u.frisoMeiao : "um", cor: cor(u.corFrisoMeiao, null) };
   const fundo = (clip, manga) => manga ? `<path d="${clip}" fill="${manga}"/>` : `<g clip-path="url(#${clip === TRONCO ? "t" : clip === MANGA_E ? "e" : "d"}${id})">${R(0, 0, 200, 220, c1)}${des.lisa && clip !== TRONCO ? "" : desenho}</g>`;
@@ -134,10 +136,10 @@ export function svgCamisa(u = {}, largura = 200, completo = false, costas = null
     ${tex ? `<pattern id="x${id}" patternUnits="userSpaceOnUse" ${tex}</pattern>` : ""}
     <filter id="b${id}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
     <filter id="s${id}" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="1.2" stdDeviation="1" flood-opacity=".35"/></filter></defs>
-    ${completo ? calcaoEMeiao(cal, mei, fCal.cor || fr, fCal.tipo, fMei.cor || (fr === mei ? contraste(mei) : fr), fMei.tipo, cor(u.chuteira, "#111111"), id) : ""}
+    ${completo ? calcaoEMeiao(cal, mei, fCal.cor || fr, fCal.tipo, fMei.cor || (fr === mei ? contraste(mei) : fr), fMei.tipo, cor(u.chuteira, "#111111"), id, cor(u.barraCalcao, null), f) : ""}
     ${fundo(MANGA_E, mE)}<path d="${MANGA_E}" fill="url(#m${id})"/>
     ${fundo(MANGA_D, mD)}<path d="${MANGA_D}" fill="url(#n${id})"/>
-    <path d="${PUNHO_E}" fill="${g}"/><path d="${PUNHO_D}" fill="${g}"/>${c3 ? `<path d="M5.6 86.6 C16 93.4 27 98 39.2 100.4" fill="none" stroke="${c3}" stroke-width="1.8"/><path d="M194.4 86.6 C184 93.4 173 98 160.8 100.4" fill="none" stroke="${c3}" stroke-width="1.8"/>` : ""}
+    <path d="${PUNHO_E}" fill="${g}"/><path d="${PUNHO_D}" fill="${g}"/>${f ? `<path d="M5.6 86.6 C16 93.4 27 98 39.2 100.4" fill="none" stroke="${f}" stroke-width="1.8"/><path d="M194.4 86.6 C184 93.4 173 98 160.8 100.4" fill="none" stroke="${f}" stroke-width="1.8"/>` : ""}
     ${fundo(TRONCO)}
     ${tex ? `<g clip-path="url(#t${id})"><rect width="200" height="220" fill="url(#x${id})"/></g><g clip-path="url(#e${id})"><rect width="200" height="220" fill="url(#x${id})"/></g><g clip-path="url(#d${id})"><rect width="200" height="220" fill="url(#x${id})"/></g>` : ""}
     ${frisos ? [0, 1].map(lado => `<g${lado ? ' transform="translate(200 0) scale(-1 1)"' : ""}>${["t", "e"].map(p => `<g clip-path="url(#${p}${id})">${frisos}</g>`).join("")}</g>`).join("") : ""}
@@ -145,12 +147,12 @@ export function svgCamisa(u = {}, largura = 200, completo = false, costas = null
       <g filter="url(#b${id})" fill="none" stroke-linecap="round"><path d="M53 88 Q66 104 63 128" stroke="#000" stroke-opacity=".11" stroke-width="5"/><path d="M147 88 Q134 104 137 128" stroke="#000" stroke-opacity=".11" stroke-width="5"/>
         <path d="M60 70 Q72 74 78 86" stroke="#fff" stroke-opacity=".14" stroke-width="5"/><path d="M76 192 Q100 200 126 194" stroke="#000" stroke-opacity=".07" stroke-width="5"/><path d="M118 140 Q126 160 122 182" stroke="#000" stroke-opacity=".05" stroke-width="6"/></g></g>
     <path d="M44 26 C49 44 51 62 50 82 M156 26 C151 44 149 62 150 82" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="1"/>
-    ${costas ? golaDeTras(g, c1, desenho, id) + nomeENumero(costas, u, c1) : golaSvg(u.golaTipo, g, c1, id) + (u.escudoSvg || "")}
-    ${u.marca && !costas ? `<image href="${u.marca}" x="58" y="${des === DESENHOS.faixa ? 84 : 82}" width="84" height="${des === DESENHOS.faixa ? 36 : 44}" preserveAspectRatio="xMidYMid meet"/>` : ""}
+    ${costas ? golaDeTras(g, c1, desenho, id, f) + nomeENumero(costas, u, c1) : golaSvg(u.golaTipo, g, c1, id, f) + (u.escudoSvg || "")}
+    ${u.marca && !costas ? `<image href="${u.marca}" x="58" y="${des.peito ? des.peito[0] : 82}" width="84" height="${des.peito ? des.peito[1] : 44}" preserveAspectRatio="xMidYMid meet"/>` : ""}
     <path d="M76 12 C68 17 54 22 44 26 C34 29 26 35 22 44 L4 90 C14 97 26 102 38 104 L50 82 C49 120 50 168 51 206 Q100 214 149 206 C150 168 151 120 150 82 L162 104 C174 102 186 97 196 90 L178 44 C174 35 166 29 156 26 C146 22 132 17 124 12" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
 }
 
-function calcaoEMeiao(cal, mei, fr, tipoCal, frMei, tipoMei, chu, id) {
+function calcaoEMeiao(cal, mei, fr, tipoCal, frMei, tipoMei, chu, id, barra, f) {
   // o calção começa por baixo da barra da camisa (y 196); o meião logo abaixo, como num uniforme estendido
   const C = "M50 196 Q100 200 150 196 L157 270 Q133 275 108 271 L100 248 L92 271 Q67 275 43 270 Z";
   const meiao = x => `M${x} 276 H${x + 30} V322 H${x} Z`;
@@ -161,7 +163,8 @@ function calcaoEMeiao(cal, mei, fr, tipoCal, frMei, tipoMei, chu, id) {
   const v = `<linearGradient id="w${id}" gradientUnits="userSpaceOnUse" x1="43" x2="157" y1="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".24"/><stop offset=".38" stop-color="#fff" stop-opacity=".08"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".26"/></linearGradient>`;
   return `<defs>${v}<clipPath id="c${id}"><path d="${C}"/></clipPath></defs><path d="${C}" fill="${cal}"/>
     <g clip-path="url(#c${id})"><rect x="0" y="190" width="200" height="90" fill="url(#w${id})"/>
-      ${tipoCal === "nenhum" ? "" : (tipoCal === "tres" ? [-5, 0, 5] : [0]).map(o => `<path d="M${53 + o} 204 L${45 + o} 269 M${147 - o} 204 L${155 - o} 269" stroke="${fr}" stroke-width="${tipoCal === "tres" ? 2.2 : 4}"/>`).join("")}<path d="M100 248 L100 214" stroke="#000" stroke-opacity=".12" stroke-width="2"/></g>
+      ${tipoCal === "nenhum" ? "" : ({ tres: [-5, 0, 5], dois: [-2.4, 2.4] }[tipoCal] || [0]).map(o => `<path d="M${53 + o} 204 L${45 + o} 269 M${147 - o} 204 L${155 - o} 269" stroke="${fr}" stroke-width="${{ tres: 2.2, dois: 3 }[tipoCal] || 4}"/>`).join("")}
+      ${barra ? `<path d="M40 270 Q67 275 92 271 M108 271 Q133 275 160 270" fill="none" stroke="${barra}" stroke-width="9"/>${f ? `<path d="M40 265 Q67 270 93.5 266 M106.5 266 Q133 270 160 265" fill="none" stroke="${f}" stroke-width="1.6"/>` : ""}` : ""}<path d="M100 248 L100 214" stroke="#000" stroke-opacity=".12" stroke-width="2"/></g>
     <path d="${C}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2" stroke-linejoin="round"/>
-    ${[61, 109].map(x => `<path d="${meiao(x)}" fill="${mei}"/>${tipoMei === "nenhum" ? "" : (tipoMei === "tres" ? [280, 285, 290] : [282]).map(y => `<rect x="${x}" y="${y}" width="30" height="${tipoMei === "tres" ? 2.5 : 5}" fill="${frMei}"/>`).join("")}<path d="${meiao(x)}" fill="url(#w${id})"/><path d="${meiao(x)}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2"/>${chuteira(x)}`).join("")}`;
+    ${[61, 109].map(x => `<path d="${meiao(x)}" fill="${mei}"/>${tipoMei === "nenhum" ? "" : ({ tres: [280, 285, 290], dois: [280, 286] }[tipoMei] || [282]).map(y => `<rect x="${x}" y="${y}" width="30" height="${{ tres: 2.5, dois: 3.5 }[tipoMei] || 5}" fill="${frMei}"/>`).join("")}<path d="${meiao(x)}" fill="url(#w${id})"/><path d="${meiao(x)}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.2"/>${chuteira(x)}`).join("")}`;
 }

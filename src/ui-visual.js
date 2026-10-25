@@ -34,9 +34,9 @@ export function editorVisual(raiz, F, opcoes = {}) {
     const blocoUniforme = `<div class="row"><label>Desenho da camisa${sel("padrao", PADROES_CAMISA, "liso")}</label><label>Gola${sel("golaTipo", GOLAS, "redonda")}</label><label>Textura${sel("textura", TEXTURAS, "nenhuma")}</label></div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "cor1", "Cor principal")}${paleta("uniforme", "cor2", "Segunda cor")}${paleta("uniforme", "cor3", "Terceira cor (filetes e alguns desenhos)", "nenhuma")}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "manga", "Manga da esquerda", "igual à camisa")}${paleta("uniforme", "manga2", "Manga da direita", "igual à outra manga")}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola e punhos", "automática")}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "gola", "Gola e punhos", "automática")}${paleta("uniforme", "corFilete", "Filetes (gola, punhos, faixa com filete e barra do calção)", "terceira cor")}</div>
         <div class="row" style="margin-top:6px"><label>Friso no ombro${sel("friso", FRISOS, "nenhum")}</label>${u.friso && u.friso !== "nenhum" ? paleta("uniforme", "corFriso", "Cor do friso do ombro", "cor da gola") : ""}</div>
-        <div class="row" style="margin-top:6px">${paleta("uniforme", "calcao", "Calção")}<label>Friso do calção${sel("frisoCalcao", FRISOS, "um")}</label>${u.frisoCalcao !== "nenhum" ? paleta("uniforme", "corFrisoCalcao", "Cor do friso do calção", "cor da gola") : ""}</div>
+        <div class="row" style="margin-top:6px">${paleta("uniforme", "calcao", "Calção")}${paleta("uniforme", "barraCalcao", "Barra do calção", "nenhuma")}<label>Friso do calção${sel("frisoCalcao", FRISOS, "um")}</label>${u.frisoCalcao !== "nenhum" ? paleta("uniforme", "corFrisoCalcao", "Cor do friso do calção", "cor da gola") : ""}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "meiao", "Meião", "igual ao calção")}<label>Friso do meião${sel("frisoMeiao", FRISOS, "um")}</label>${u.frisoMeiao !== "nenhum" ? paleta("uniforme", "corFrisoMeiao", "Cor do friso do meião", "cor da gola") : ""}</div>
         <div class="row" style="margin-top:6px">${paleta("uniforme", "chuteira", "Chuteira", "preta")}</div>`;
     if (parte) { // uma parte só, para as abas das Configurações
