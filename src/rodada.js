@@ -1,7 +1,7 @@
 // Calendário, cálculo de uma partida da liga e classificação.
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado.
 import { criarRng } from "./rng.js";
-import { notaNaPosicao, LISTA_POSICOES } from "./modelo.js";
+import { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES } from "./modelo.js";
 import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
@@ -295,6 +295,47 @@ export const rodadasDeLiga = (partidas, g) => Math.max(0, ...partidas.filter(p =
 export function vencedorDoGrupo(partidas, resultados, g) {
   const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
   return vencedorDoConfronto(partidas.filter(p => p.grupo === g && p.fase === "final"), res);
+}
+
+// ---------- fim da temporada: tabela final e prêmios ----------
+// O servidor fecha a temporada sozinho uma hora depois do último jogo (145_fechamento_da_temporada.sql) e a virada (virada.js) usa as mesmas contas.
+// prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
+// pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
+export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
+export const PREMIOS_DE_FORA = [9000, 5000]; // campeonato de outro país (REGUA_DE_FORA, em virada.js)
+export const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
+  const [topo, fundo] = fora ? PREMIOS_DE_FORA : PREMIOS[divisao] || PREMIOS[2];
+  return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));
+};
+// Clube GUARDADO fica no grupo "X": sem partidas, fora de liga, copa, base e mercado; envelhece na virada e volta numa expansão.
+export const GUARDADO = "X";
+// tabela final de cada grupo, com o prêmio da liga (as linhas do histórico, sem o destino)
+export function classificacaoFinal(clubes, partidas, resultados) {
+  const linhas = [];
+  for (const g of [...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO).sort()) { // guardado não tem tabela nem histórico
+    const doGrupo = clubes.filter(c => c.grupo === g);
+    classificacao(doGrupo, partidas.filter(p => p.grupo === g), resultados).forEach((t, i) => linhas.push({ clube_id: t.clube.id, divisao: t.clube.divisao, grupo: g, posicao: i + 1,
+      pontos: t.pts, vitorias: t.v, empates: t.e, derrotas: t.d, gols_pro: t.gp, gols_contra: t.gc, premio: premioDaLiga(t.clube.divisao, i + 1, doGrupo.length, !!PAISES[g]) }));
+  }
+  return linhas;
+}
+// fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff sem ter sido o campeão)
+export const BONUS_DA_C = [0, 800, 400, 300, 200];
+export const BONUS_DO_ACESSO_NA_C = 600;
+export function meritoDaSerieC(linhas, subiram = []) {
+  const merito = linhas.filter(x => x.divisao === 3 && x.posicao <= 4).map(x => ({ clube_id: x.clube_id, valor: BONUS_DA_C[x.posicao], descricao: `Fundo da liga: bônus pelo ${x.posicao}º lugar na Série C` }));
+  for (const id of subiram) { const x = linhas.find(c => c.clube_id === id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: id, valor: BONUS_DO_ACESSO_NA_C, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
+  return merito;
+}
+// técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
+export const mediaDosOnze = (elenco = []) => { const n = elenco.map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 11); return n.length ? n.reduce((s, x) => s + x, 0) / n.length : 0; };
+export function tecnicosDoAno(linhas, elencos) {
+  return [...new Set(linhas.map(x => x.grupo))].map(g => {
+    const l = linhas.filter(x => x.grupo === g), forca = Object.fromEntries(l.map(x => [x.clube_id, mediaDosOnze(elencos[x.clube_id])]));
+    const esperada = Object.fromEntries([...l].sort((a, b) => forca[b.clube_id] - forca[a.clube_id]).map((x, i) => [x.clube_id, i + 1]));
+    const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
+    return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
+  });
 }
 // Devolve os jogos a criar agora, de todos os grupos da segunda divisão em diante, cada um na fase em que está:
 // { jogos: [{ grupo, rodada, fase, etapa, casa, fora }] } ou { erro }. O grupo avança quando a liga DELE termina.

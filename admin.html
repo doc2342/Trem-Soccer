@@ -22,7 +22,7 @@ import { sb } from "./src/banco.js";
 import { SEDES, FINAIS } from "./src/estadio.js";
 import { notaBruta, paisDoGrupo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
-import { gerarTabela, calcularPartida, aplicarSituacao, classificacao } from "./src/rodada.js";
+import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
@@ -562,18 +562,12 @@ async function tela(aviso = "") {
         try {
           await guardarEstatisticas(liga.id); // artilheiros e demais listas da temporada, antes de a virada apagar as partidas
           // fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff) e prêmios individuais
-          const BONUS_DA_C = [0, 800, 400, 300, 200], merito = [];
-          for (const x of plano.classificacao.filter(x => x.divisao === 3 && x.posicao <= 4)) merito.push({ clube_id: x.clube_id, valor: BONUS_DA_C[x.posicao], descricao: `Fundo da liga: bônus pelo ${x.posicao}º lugar na Série C` });
-          if (!$("transicao").checked) for (const m of plano.movimentos.filter(m => !m.caiu)) { /* na transição a C não teve playoff */ const x = plano.classificacao.find(c => c.clube_id === m.clube_id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: m.clube_id, valor: 600, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
+          // (se o servidor já fechou a temporada, 145_fechamento_da_temporada.sql, tudo isto já foi pago e as chamadas não repetem nada)
+          const merito = meritoDaSerieC(plano.classificacao, $("transicao").checked ? [] : plano.movimentos.filter(m => !m.caiu).map(m => m.clube_id)); // na transição a C não teve playoff
           const premiosDoFundo = [await premiarTemporada(liga.id, merito), await premiarLigaDeBase(liga.id)].filter(Boolean).join(" ");
           await selecaoDaTemporada(liga.id); // os onze de melhor nota de cada série, só de honra
           // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
-          const forca = id => { const n = (elencos[id] || []).map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 11); return n.length ? n.reduce((s, x) => s + x, 0) / n.length : 0; };
-          await premiarTecnicos(liga.id, [...new Set(plano.classificacao.map(x => x.grupo))].map(g => {
-            const l = plano.classificacao.filter(x => x.grupo === g), esperada = Object.fromEntries([...l].sort((a, b) => forca(b.clube_id) - forca(a.clube_id)).map((x, i) => [x.clube_id, i + 1]));
-            const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
-            return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
-          }));
+          await premiarTecnicos(liga.id, tecnicosDoAno(plano.classificacao, elencos));
           // diretoria: confiança de cada clube com dirigente (meta da temporada, ou a força do elenco sem meta), antes de a virada apagar as partidas
           let confianca = "";
           try {

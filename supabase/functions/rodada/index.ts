@@ -1460,7 +1460,7 @@ const __rodada = (() => {
   // Calendário, cálculo de uma partida da liga e classificação.
   // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado.
   const { criarRng } = __rng;
-  const { notaNaPosicao, LISTA_POSICOES } = __modelo;
+  const { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES } = __modelo;
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
   const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
@@ -1754,6 +1754,47 @@ const __rodada = (() => {
     const res = Object.fromEntries(resultados.map(r => [r.partida_id, r]));
     return vencedorDoConfronto(partidas.filter(p => p.grupo === g && p.fase === "final"), res);
   }
+
+  // ---------- fim da temporada: tabela final e prêmios ----------
+  // O servidor fecha a temporada sozinho uma hora depois do último jogo (145_fechamento_da_temporada.sql) e a virada (virada.js) usa as mesmas contas.
+  // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
+  // pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
+  const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
+  const PREMIOS_DE_FORA = [9000, 5000]; // campeonato de outro país (REGUA_DE_FORA, em virada.js)
+  const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
+    const [topo, fundo] = fora ? PREMIOS_DE_FORA : PREMIOS[divisao] || PREMIOS[2];
+    return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));
+  };
+  // Clube GUARDADO fica no grupo "X": sem partidas, fora de liga, copa, base e mercado; envelhece na virada e volta numa expansão.
+  const GUARDADO = "X";
+  // tabela final de cada grupo, com o prêmio da liga (as linhas do histórico, sem o destino)
+  function classificacaoFinal(clubes, partidas, resultados) {
+    const linhas = [];
+    for (const g of [...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO).sort()) { // guardado não tem tabela nem histórico
+      const doGrupo = clubes.filter(c => c.grupo === g);
+      classificacao(doGrupo, partidas.filter(p => p.grupo === g), resultados).forEach((t, i) => linhas.push({ clube_id: t.clube.id, divisao: t.clube.divisao, grupo: g, posicao: i + 1,
+        pontos: t.pts, vitorias: t.v, empates: t.e, derrotas: t.d, gols_pro: t.gp, gols_contra: t.gc, premio: premioDaLiga(t.clube.divisao, i + 1, doGrupo.length, !!PAISES[g]) }));
+    }
+    return linhas;
+  }
+  // fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff sem ter sido o campeão)
+  const BONUS_DA_C = [0, 800, 400, 300, 200];
+  const BONUS_DO_ACESSO_NA_C = 600;
+  function meritoDaSerieC(linhas, subiram = []) {
+    const merito = linhas.filter(x => x.divisao === 3 && x.posicao <= 4).map(x => ({ clube_id: x.clube_id, valor: BONUS_DA_C[x.posicao], descricao: `Fundo da liga: bônus pelo ${x.posicao}º lugar na Série C` }));
+    for (const id of subiram) { const x = linhas.find(c => c.clube_id === id); if (x && x.divisao === 3 && x.posicao !== 1) merito.push({ clube_id: id, valor: BONUS_DO_ACESSO_NA_C, descricao: "Fundo da liga: bônus pelo acesso no playoff" }); }
+    return merito;
+  }
+  // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
+  const mediaDosOnze = (elenco = []) => { const n = elenco.map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 11); return n.length ? n.reduce((s, x) => s + x, 0) / n.length : 0; };
+  function tecnicosDoAno(linhas, elencos) {
+    return [...new Set(linhas.map(x => x.grupo))].map(g => {
+      const l = linhas.filter(x => x.grupo === g), forca = Object.fromEntries(l.map(x => [x.clube_id, mediaDosOnze(elencos[x.clube_id])]));
+      const esperada = Object.fromEntries([...l].sort((a, b) => forca[b.clube_id] - forca[a.clube_id]).map((x, i) => [x.clube_id, i + 1]));
+      const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
+      return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
+    });
+  }
   // Devolve os jogos a criar agora, de todos os grupos da segunda divisão em diante, cada um na fase em que está:
   // { jogos: [{ grupo, rodada, fase, etapa, casa, fora }] } ou { erro }. O grupo avança quando a liga DELE termina.
   function proximaFaseDosPlayoffs({ clubes, partidas, resultados }) {
@@ -1790,7 +1831,7 @@ const __rodada = (() => {
     if (!jogos.length) return { erro: esperando.length ? `Ainda em jogo: ${esperando.join(", ")}.` : "Os playoffs já foram todos criados." };
     return { jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal, BONUS_DA_C, BONUS_DO_ACESSO_NA_C, meritoDaSerieC, mediaDosOnze, tecnicosDoAno, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
@@ -2361,7 +2402,7 @@ const __mercadobots = (() => {
   return { CONFIG_MERCADO_BOTS, negociosEntreBots, comprasDeListados, livresParaOsBots };
 })();
 // <<< motor embutido
-const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT } = __rodada;
+const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
@@ -2459,6 +2500,37 @@ async function avancarPlayoffs(sb) {
     for (const g of new Set(r.jogos.map(j => j.grupo)))
       await sb.from("partidas").insert(r.jogos.filter(j => j.grupo === g).map(j => { const ini = inicio(j);
         return { liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, copa_fase: null, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(ini + (liga.minutos_transmissao || 0) * 60000).toISOString() }; }));
+  }
+}
+
+// Fechamento da temporada (145_fechamento_da_temporada.sql): uma hora depois do fim do último jogo, com todos os playoffs jogados, a tabela final
+// vai para o histórico (a lista de campeões) e os prêmios são pagos: o da liga, os do fundo, seleção, técnico do ano e bônus de patrocínio.
+// A virada, depois, só completa quem sobe e quem cai (e cobra o imposto). Sem o 145, a leitura de temporada_fechada falha e nada acontece.
+const ESPERA_DO_FECHAMENTO = 3600000;
+async function fecharTemporadas(sb) {
+  for (const liga of (await sb.from("ligas").select("id, temporada, temporada_fechada, pausada, copa")).data || []) {
+    if (liga.pausada || liga.temporada_fechada === liga.temporada) continue;
+    const ultima = (await sb.from("partidas").select("fim").eq("liga_id", liga.id).order("fim", { ascending: false, nullsFirst: false }).limit(1)).data || [];
+    if (!ultima.length || Date.now() - new Date(ultima[0].fim).getTime() < ESPERA_DO_FECHAMENTO) continue;
+    const { count, error } = await sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id).eq("processada", false);
+    if (error || count) continue;
+    const partidas = [];
+    for (let de = 0; ; de += 1000) { // em páginas: o banco devolve no máximo mil linhas por consulta
+      const l = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora").eq("liga_id", liga.id).or("fase.is.null,fase.in.(liga,pre,semi,final)").order("id").range(de, de + 999)).data || [];
+      partidas.push(...l); if (l.length < 1000) break;
+    }
+    const clubes = (await sb.from("clubes").select("id, nome, grupo, divisao, dono").eq("liga_id", liga.id)).data || [];
+    // playoff de acesso: sem a final criada em todo grupo que disputa, a temporada ainda não acabou (avancarPlayoffs cria a fase seguinte)
+    const semPlayoffs = !!(liga.copa || {}).sem_playoffs;
+    const comPlayoff = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].filter(g => clubes.filter(c => c.grupo === g).length >= CLASSIFICADOS_DO_PLAYOFF && partidas.some(p => p.grupo === g));
+    if (!semPlayoffs && comPlayoff.some(g => !partidas.some(p => p.grupo === g && p.fase === "final"))) continue;
+    const resultados = [], ids = partidas.map(p => p.id), agora = new Date().toISOString();
+    for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));
+    const elencos = {};
+    for (let i = 0; i < clubes.length; i += 10) for (const j of (await sb.from("jogadores").select("clube_id, at, pos").in("clube_id", clubes.slice(i, i + 10).map(c => c.id))).data || []) (elencos[j.clube_id] = elencos[j.clube_id] || []).push(j);
+    const linhas = classificacaoFinal(clubes, partidas, resultados);
+    const subiram = semPlayoffs ? [] : [...new Set(clubes.filter(c => c.divisao === 3).map(c => c.grupo))].map(g => vencedorDoGrupo(partidas, resultados, g)).filter(Boolean);
+    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas, subiram), p_tecnicos: tecnicosDoAno(linhas, elencos) });
   }
 }
 
@@ -2606,6 +2678,7 @@ Deno.serve(async (req) => {
       }
     } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
+    try { await fecharTemporadas(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     // reserva órfã: a chamada morreu (tempo limite) entre reservar e gravar o resultado, e a partida ficou "processada" sem resultado.
     // 10 min depois do início ela volta para a fila. Só falharia com fila atrasada em mais de 10 min e duas chamadas ao mesmo tempo.

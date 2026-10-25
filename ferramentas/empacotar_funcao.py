@@ -52,7 +52,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 '''
 
 RODAPE = r'''// <<< motor embutido
-const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT } = __rodada;
+const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
@@ -150,6 +150,37 @@ async function avancarPlayoffs(sb) {
     for (const g of new Set(r.jogos.map(j => j.grupo)))
       await sb.from("partidas").insert(r.jogos.filter(j => j.grupo === g).map(j => { const ini = inicio(j);
         return { liga_id: liga.id, grupo: j.grupo, rodada: j.rodada, fase: j.fase, copa_fase: null, casa: j.casa, fora: j.fora, inicio: new Date(ini).toISOString(), fim: new Date(ini + (liga.minutos_transmissao || 0) * 60000).toISOString() }; }));
+  }
+}
+
+// Fechamento da temporada (145_fechamento_da_temporada.sql): uma hora depois do fim do último jogo, com todos os playoffs jogados, a tabela final
+// vai para o histórico (a lista de campeões) e os prêmios são pagos: o da liga, os do fundo, seleção, técnico do ano e bônus de patrocínio.
+// A virada, depois, só completa quem sobe e quem cai (e cobra o imposto). Sem o 145, a leitura de temporada_fechada falha e nada acontece.
+const ESPERA_DO_FECHAMENTO = 3600000;
+async function fecharTemporadas(sb) {
+  for (const liga of (await sb.from("ligas").select("id, temporada, temporada_fechada, pausada, copa")).data || []) {
+    if (liga.pausada || liga.temporada_fechada === liga.temporada) continue;
+    const ultima = (await sb.from("partidas").select("fim").eq("liga_id", liga.id).order("fim", { ascending: false, nullsFirst: false }).limit(1)).data || [];
+    if (!ultima.length || Date.now() - new Date(ultima[0].fim).getTime() < ESPERA_DO_FECHAMENTO) continue;
+    const { count, error } = await sb.from("partidas").select("id", { count: "exact", head: true }).eq("liga_id", liga.id).eq("processada", false);
+    if (error || count) continue;
+    const partidas = [];
+    for (let de = 0; ; de += 1000) { // em páginas: o banco devolve no máximo mil linhas por consulta
+      const l = (await sb.from("partidas").select("id, grupo, rodada, fase, casa, fora").eq("liga_id", liga.id).or("fase.is.null,fase.in.(liga,pre,semi,final)").order("id").range(de, de + 999)).data || [];
+      partidas.push(...l); if (l.length < 1000) break;
+    }
+    const clubes = (await sb.from("clubes").select("id, nome, grupo, divisao, dono").eq("liga_id", liga.id)).data || [];
+    // playoff de acesso: sem a final criada em todo grupo que disputa, a temporada ainda não acabou (avancarPlayoffs cria a fase seguinte)
+    const semPlayoffs = !!(liga.copa || {}).sem_playoffs;
+    const comPlayoff = [...new Set(clubes.filter(c => c.divisao > 1).map(c => c.grupo))].filter(g => clubes.filter(c => c.grupo === g).length >= CLASSIFICADOS_DO_PLAYOFF && partidas.some(p => p.grupo === g));
+    if (!semPlayoffs && comPlayoff.some(g => !partidas.some(p => p.grupo === g && p.fase === "final"))) continue;
+    const resultados = [], ids = partidas.map(p => p.id), agora = new Date().toISOString();
+    for (let i = 0; i < ids.length; i += 200) resultados.push(...((await sb.from("resultados").select("partida_id, gols_casa, gols_fora").in("partida_id", ids.slice(i, i + 200)).lte("libera_em", agora)).data || []));
+    const elencos = {};
+    for (let i = 0; i < clubes.length; i += 10) for (const j of (await sb.from("jogadores").select("clube_id, at, pos").in("clube_id", clubes.slice(i, i + 10).map(c => c.id))).data || []) (elencos[j.clube_id] = elencos[j.clube_id] || []).push(j);
+    const linhas = classificacaoFinal(clubes, partidas, resultados);
+    const subiram = semPlayoffs ? [] : [...new Set(clubes.filter(c => c.divisao === 3).map(c => c.grupo))].map(g => vencedorDoGrupo(partidas, resultados, g)).filter(Boolean);
+    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas, subiram), p_tecnicos: tecnicosDoAno(linhas, elencos) });
   }
 }
 
@@ -297,6 +328,7 @@ Deno.serve(async (req) => {
       }
     } catch (e) { /* segue */ }
     try { await avancarPlayoffs(sb); } catch (e) { /* segue */ }
+    try { await fecharTemporadas(sb); } catch (e) { /* segue */ }
     try { await jogarBase(sb); } catch (e) { /* liga de base: sem efeito antes do 61_liga_de_base.sql */ }
     // reserva órfã: a chamada morreu (tempo limite) entre reservar e gravar o resultado, e a partida ficou "processada" sem resultado.
     // 10 min depois do início ela volta para a fila. Só falharia com fila atrasada em mais de 10 min e duas chamadas ao mesmo tempo.

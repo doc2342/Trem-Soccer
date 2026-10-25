@@ -5,15 +5,10 @@ import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
 import { salarioDeMercado, TETO_DE_FOLHA, PESO_DO_FORMADO } from "./economia.js";
-import { classificacao } from "./rodada.js";
 
-// prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
-// pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
-export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
-export const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
-  const [topo, fundo] = fora ? REGUA_DE_FORA.premios : PREMIOS[divisao] || PREMIOS[2];
-  return Math.round(topo - (topo - fundo) * (posicao - 1) / Math.max(1, clubes - 1));
-};
+// prêmio da liga e tabela final: moram em rodada.js, porque o servidor também usa (fecha a temporada sozinho)
+import { PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal } from "./rodada.js";
+export { PREMIOS, premioDaLiga, GUARDADO };
 export const chanceDeAposentar = idade => idade >= 40 ? 1 : idade < 35 ? 0 : (idade - 34) * 0.2; // 20% aos 35 … 80% aos 38
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
 export const REPOSICAO = { abaixoDoAposentado: 5 }; // o jovem que repõe o aposentado no bot chega até 5 pontos de nota abaixo dele
@@ -28,7 +23,7 @@ export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -8, 3: -20 };
 // de nota 28 e talento +14, o campeão tem onze de ~38,5 nas primeiras temporadas e ~40,4 na liga madura, com folha de até ~23,9 mi.
 // O teto de 20 mi é o mesmo do banco (teto_do_clube, 140_tetos_com_duas_divisoes.sql). O prêmio da liga é maior que o da Série A porque a folha é
 // maior e TV, patrocínio e ingresso são os da Série A: sem ele o clube ficaria no vermelho e venderia jogador ao banco.
-export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 20000, premios: [9000, 5000] };
+export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 20000, premios: PREMIOS_DE_FORA };
 // Safra de cada país, sorteada à parte (não tira raro do Brasil): em média 0,15 de teto 43 e 0,3 de teto 42 por temporada, a mesma
 // proporção do Brasil por clube.
 export const SAFRA_DE_FORA = [{ nivel: 43, tal: 100, quantos: [[0, 0.85], [1, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.7], [1, 0.3]] }];
@@ -44,8 +39,7 @@ const numero = id => +String(id).replace(/^j/, "");
 import { DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, vencedorDoGrupo, proximaFaseDosPlayoffs } from "./rodada.js";
 export { DESCENSO_DA_PRIMEIRA, vencedorDoPlayoff, proximaFaseDosPlayoffs };
 // Pirâmide desde a T14: Série A de 12 e grupos de 8 na Série B (B1 = "B", B2 = "C", B3 = "F"; "D" e "E" foram a Série C até a T13).
-// Clube GUARDADO fica no grupo "X": sem partidas, fora de liga, copa, base e mercado; envelhece na virada e volta numa expansão.
-export const GUARDADO = "X";
+// Clube GUARDADO fica no grupo "X" (rodada.js): sem partidas, fora de liga, copa, base e mercado; envelhece na virada e volta numa expansão.
 export const GRUPOS_DA_B = ["B", "C", "F"];
 export const divisaoDoGrupo = g => PAISES[g] || g === "A" ? 1 : g === GUARDADO || g === "D" || g === "E" ? 3 : 2;
 // força do onze, a mesma do raio-x (ferramentas/saude.mjs): o melhor goleiro e os 10 melhores de linha, pela nota na posição principal
@@ -118,15 +112,9 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   const resumo = { grupos: {}, aposentados: [], novos: [], livres: [], renovadosDono: [], cresceram: 0, cairam: 0, renovados: 0, reajustados: 0 };
   const grupoNovo = {}; // grupo em que cada clube que sobe ou cai vai jogar
 
-  for (const g of [...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO).sort()) { // guardado não tem tabela nem histórico
-    const doGrupo = clubes.filter(c => c.grupo === g);
-    resumo.grupos[g] = classificacao(doGrupo, partidas.filter(p => p.grupo === g), resultados).map((t, i) => {
-      const linha = { clube_id: t.clube.id, divisao: t.clube.divisao, grupo: g, posicao: i + 1, pontos: t.pts, vitorias: t.v, empates: t.e, derrotas: t.d,
-        gols_pro: t.gp, gols_contra: t.gc, premio: premioDaLiga(t.clube.divisao, i + 1, doGrupo.length, !!PAISES[g]) };
-      plano.classificacao.push(linha);
-      return { ...linha, nome: t.clube.nome, dono: !!t.clube.dono };
-    });
-  }
+  plano.classificacao = classificacaoFinal(clubes, partidas, resultados);
+  const doClube = Object.fromEntries(clubes.map(c => [c.id, c]));
+  for (const l of plano.classificacao) (resumo.grupos[l.grupo] = resumo.grupos[l.grupo] || []).push({ ...l, nome: doClube[l.clube_id].nome, dono: !!doClube[l.clube_id].dono });
 
   // acesso e descenso (só quando há mais de uma divisão), só entre os clubes do Brasil: o campeonato de outro país não sobe nem cai ninguém
   const doBrasil = clubes.filter(c => !PAISES[c.grupo] && c.grupo !== GUARDADO);
