@@ -82,6 +82,42 @@ export function gruposDoReinicio({ rng, clubes }) {
   resto.forEach(c => { destino[c.id] = GUARDADO; });
   return destino;
 }
+// Virada da temporada 0: sobem os donos ativos que chegaram às semifinais da B (no máximo 12). A vaga de bot ou de dono inativo passa ao dono ativo
+// de melhor posição do mesmo grupo e, faltando, ao melhor dono ativo dos outros. Os bots da A que não ficam descem em serpentina pela classificação.
+export function movimentosDoReinicio({ clubes, grupos, partidas, resultados, ativo }) {
+  const porId = Object.fromEntries(clubes.map(c => [c.id, c])), gruposB = Object.keys(grupos).filter(g => g !== "A").sort();
+  const linhas = gruposB.flatMap(g => grupos[g]);
+  const semis = new Set(partidas.filter(p => p.fase === "semi").flatMap(p => [p.casa, p.fora]));
+  const melhor = (a, b) => a.posicao - b.posicao || b.pontos - a.pontos, sobem = [], vagasDe = {};
+  const livre = l => !sobem.includes(l) && ativo(porId[l.clube_id]);
+  for (const g of gruposB) {
+    const quem = grupos[g].filter(l => semis.has(l.clube_id) && livre(l));
+    sobem.push(...quem);
+    vagasDe[g] = grupos[g].filter(l => semis.has(l.clube_id)).length - quem.length;
+  }
+  let faltam = 0;
+  for (const g of gruposB) {
+    const entram = grupos[g].filter(l => !semis.has(l.clube_id) && livre(l)).sort(melhor).slice(0, vagasDe[g]);
+    sobem.push(...entram); faltam += vagasDe[g] - entram.length;
+  }
+  if (faltam > 0) sobem.push(...linhas.filter(livre).sort(melhor).slice(0, faltam));
+  const sobiram = sobem.sort(melhor).slice(0, 12), subiu = new Set(sobiram.map(l => l.clube_id));
+  const destino = {}, lista = sobiram.map(l => ({ clube_id: l.clube_id, grupo: "A", divisao: 1, caiu: false }));
+  const daA = [...(grupos.A || [])].sort(melhor), ficam = daA.slice(0, 12 - sobiram.length), saem = daA.slice(12 - sobiram.length);
+  // vagas que cada grupo da B abriu; a serpentina (B C D D C B …) pula o grupo que já está completo
+  const vagas = Object.fromEntries(gruposB.map(g => [g, grupos[g].filter(l => subiu.has(l.clube_id)).length]));
+  const n = gruposB.length, serp = k => { const r = k % (2 * n); return gruposB[r < n ? r : 2 * n - 1 - r]; };
+  let k = 0;
+  for (const l of saem) {
+    while (!vagas[serp(k)]) k++;
+    const g = serp(k++); vagas[g]--;
+    lista.push({ clube_id: l.clube_id, grupo: g, divisao: 2, caiu: true });
+  }
+  Object.values(grupos).flat().forEach(l => { destino[l.clube_id] = "ficou"; });
+  if (grupos.A && grupos.A.length) destino[daA[0].clube_id] = "campeão";
+  lista.forEach(x => { if (!(x.caiu && destino[x.clube_id] === "campeão")) destino[x.clube_id] = x.caiu ? "caiu" : "subiu"; });
+  return { destino, lista };
+}
 const nomeCurto = g => ({ B: "Série B1", C: "Série B2", D: "Série B3", E: "Série B4" })[g] || "chave " + g;
 
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
@@ -116,7 +152,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   if (semMovimentos) Object.values(resumo.grupos).flat().concat(plano.classificacao).forEach(l => { if (!PAISES[l.grupo]) l.destino = l.posicao === 1 && l.divisao === 1 ? "campeão" : "ficou"; });
   else if (new Set(doBrasil.map(c => c.divisao)).size > 1) {
     const grupos = Object.fromEntries(Object.entries(resumo.grupos).filter(([g]) => !PAISES[g]));
-    const m = movimentos({ rng, clubes: doBrasil, grupos, partidas, resultados });
+    const m = liga.temporada === 0 ? movimentosDoReinicio({ clubes: doBrasil, grupos, partidas, resultados, ativo }) : movimentos({ rng, clubes: doBrasil, grupos, partidas, resultados });
     plano.movimentos = m.lista;
     m.lista.forEach(x => { grupoNovo[x.clube_id] = x.grupo; });
     const para = Object.fromEntries(m.lista.map(x => [x.clube_id, x.grupo]));

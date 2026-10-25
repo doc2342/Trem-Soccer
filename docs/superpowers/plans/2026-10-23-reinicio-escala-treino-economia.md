@@ -188,11 +188,11 @@ assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
   - os bots do Brasil (qualquer grupo que não seja país), embaralhados: os 12 primeiros vão para "A", os seguintes completam cada grupo da B até 8 e o resto vai para `GUARDADO`.
   - Mais de 24 donos: abre-se o grupo "E" (B4) e os grupos da B são completados com bots até 8 cada; se faltarem bots, erro claro ("faltam N clubes guardados para a B4"). Até 24 donos: 3 grupos, com os donos distribuídos o mais igual possível.
 
-- [ ] **Passo 1: teste que falha.** Com 18 donos e 32 bots do Brasil (ids e grupos como na liga de hoje: A 12 donos; B 1, C 1 e F 4 donos; X 14) mais 40 de países, chame `gruposDoReinicio({ rng: criarRng(3), clubes })` e confira: "A" tem 12 clubes, todos bots; B, C e D têm 8 cada, com 6 donos; nenhum clube fica em "F"; X tem 14; todo país manteve o grupo; mesma semente dá o mesmo resultado. Casos extras: 19 donos (B + C + D somam 24, com os 19 donos, 6 ou 7 por grupo); 26 donos (abre "E", 4 grupos de 8, e o X diminui).
-- [ ] **Passo 2:** rode `node ferramentas/teste_reinicio.mjs` e veja falhar.
-- [ ] **Passo 3:** implemente.
-- [ ] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs` e veja passar.
-- [ ] **Passo 5:** commit, com a mensagem "Reinício: sorteio dos grupos da temporada 0 (donos na B, 6 por grupo)".
+- [x] **Passo 1: teste que falha.** Com 18 donos e 32 bots do Brasil (ids e grupos como na liga de hoje: A 12 donos; B 1, C 1 e F 4 donos; X 14) mais 40 de países, chame `gruposDoReinicio({ rng: criarRng(3), clubes })` e confira: "A" tem 12 clubes, todos bots; B, C e D têm 8 cada, com 6 donos; nenhum clube fica em "F"; X tem 14; todo país manteve o grupo; mesma semente dá o mesmo resultado. Casos extras: 19 donos (B + C + D somam 24, com os 19 donos, 6 ou 7 por grupo); 26 donos (abre "E", 4 grupos de 8, e o X diminui).
+- [x] **Passo 2:** rode `node ferramentas/teste_reinicio.mjs` e veja falhar.
+- [x] **Passo 3:** implemente.
+- [x] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs` e veja passar.
+- [x] **Passo 5:** commit, com a mensagem "Reinício: sorteio dos grupos da temporada 0 (donos na B, 6 por grupo)".
 
 ---
 
@@ -213,7 +213,7 @@ assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
   - os que ficaram na B mantêm o grupo, e cada grupo da B termina com 8.
   - `destino`: "subiu" / "caiu" / "ficou" / "campeão" (1º da A), como em `movimentos`.
 
-- [ ] **Passo 1: testes que falham** (no mesmo arquivo da Tarefa 5)
+- [x] **Passo 1: testes que falham** (no mesmo arquivo da Tarefa 5)
 
 ```js
 // T0: A = bots 1–12; B, C e D com donos 101–106 / 201–206 / 301–306 e bots 107–108 / 207–208 / 307–308.
@@ -229,10 +229,10 @@ assert.equal(m.destino[1], "campeão");
 Acrescente o caso "só 10 donos ativos": sobem 10, os 2 bots melhor colocados da A ficam e caem 10.
 
 No caso de cima, o 305 só entra se for o dono ativo de D fora das semis com melhor posição. Monte as `posicao` para isso.
-- [ ] **Passo 2:** rode e veja falhar.
-- [ ] **Passo 3:** implemente `movimentosDoReinicio` e, em `planejarVirada`, chame-a no lugar de `movimentos` quando `liga.temporada === 0`.
-- [ ] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs && node ferramentas/teste_piramide.mjs` e veja passar.
-- [ ] **Passo 5:** rode `python ferramentas/empacotar_funcao.py` (por garantia; `virada.js` não está nos `MODULOS` hoje, então nada deve mudar) e faça o commit com a mensagem "Virada da temporada 0: sobem os semifinalistas donos de cada grupo da B".
+- [x] **Passo 2:** rode e veja falhar.
+- [x] **Passo 3:** implemente `movimentosDoReinicio` e, em `planejarVirada`, chame-a no lugar de `movimentos` quando `liga.temporada === 0`.
+- [x] **Passo 4:** rode `node ferramentas/teste_reinicio.mjs && node ferramentas/teste_piramide.mjs` e veja passar.
+- [x] **Passo 5:** rode `python ferramentas/empacotar_funcao.py` (por garantia; `virada.js` não está nos `MODULOS` hoje, então nada deve mudar) e faça o commit com a mensagem "Virada da temporada 0: sobem os semifinalistas donos de cada grupo da B".
 
 ---
 
