@@ -1280,15 +1280,14 @@ async function telaClube(liga, clube) {
     const comEu = comp === "TODOS" || comp === clube.grupo || comp === "COPA";
     const frase = !lider ? "" : iEu === 0 ? "É do seu clube." : eu ? `No ${clube.nome}, ${eu.nome} é o ${iEu + 1}º, com ${txt(eu)}.` : comEu ? "Ninguém do seu clube entre os 20 primeiros." : "";
     const topo5 = linhas.slice(0, 5), maior = lider ? val(lider) || 1 : 1;
-    const curto = n => { const p = n.split(" ")[0]; return topo5.filter(o => o.nome.split(" ")[0] === p).length > 1 ? `${p} ${n.split(" ").at(-1)}` : p; };
-    const lado = topo5.length > 1 ? `<div class="t-numero-rotulo">Os ${topo5.length} primeiros</div><div class="t-st-barras">${topo5.map((x, i) => `<div class="t-st-b${x.clube === clube.id ? " t-eu" : ""}"><span>${i + 1}. ${(c => c ? svgEscudo(c.escudo, c.sigla, 18) + " " : "")(cPor[x.clube])}${esc(curto(x.nome))} <small>${esc((cPor[x.clube] || {}).nome || "")}</small></span><b>${lista === "notas" ? num((+x.nota).toFixed(2)) : lista === "cartoes" ? `${x.vm ? x.vm + "V · " : ""}${x.am}A` : val(x)}</b><i style="width:${Math.max(3, val(x) / maior * 100)}%"></i></div>`).join("")}</div>` : "";
+    const lado = topo5.length > 1 ? `<div class="t-numero-rotulo">Os ${topo5.length} primeiros</div><div class="t-st-barras">${topo5.map((x, i) => `<div class="t-st-b${x.clube === clube.id ? " t-eu" : ""}"><span>${i + 1}. ${(c => c ? svgEscudo(c.escudo, c.sigla, 18) + " " : "")(cPor[x.clube])}${esc(x.nome)} <small>${esc((cPor[x.clube] || {}).nome || "")}</small></span><b>${lista === "notas" ? num((+x.nota).toFixed(2)) : lista === "cartoes" ? `${x.vm ? x.vm + "V · " : ""}${x.am}A` : val(x)}</b><i style="width:${Math.max(3, val(x) / maior * 100)}%"></i></div>`).join("")}</div>` : "";
     const gols = cl.reduce((t, x) => t + x.gp, 0), iAt = cl.findIndex(x => x.clube === clube.id), pubs = cl.filter(x => x.publico != null);
     const numeros = d && d.jogos ? `<div class="t-elenco-numeros">${numero({ rotulo: "Partidas", valor: String(d.jogos), legenda: "encerradas" })}
       ${numero({ rotulo: "Gols", valor: String(gols), legenda: `${num((gols / d.jogos).toFixed(2))} por jogo` })}
       ${numero({ rotulo: "Seu ataque", valor: iAt >= 0 ? `${iAt + 1}º` : "—", legenda: iAt >= 0 ? `${cl[iAt].gp} gols em ${cl[iAt].j} jogos` : "seu clube não joga" })}
       ${numero({ rotulo: "Público médio", valor: pubs.length ? `${num((pubs.reduce((t, x) => t + x.publico, 0) / pubs.length / 1000).toFixed(1))} mil` : "—", legenda: "por jogo" })}</div>` : "";
     const rot = `Estatísticas · ${nomeDaComp} · temporada ${temp || liga.temporada}`;
-    const topo = lider ? faixaFoco({ rotulo: `${rot} · ${nomeLista}`, titulo: lider.nome, apagado: (cPor[lider.clube] || {}).nome || "",
+    const topo = lider ? faixaFoco({ rotulo: `${rot} · ${nomeLista}`, titulo: lider.nome.split(" ")[0], apagado: (cPor[lider.clube] || {}).nome || "",
         destaque: `${txt(lider)[0].toUpperCase()}${txt(lider).slice(1)} em ${lider.j} ${lider.j === 1 ? "jogo" : "jogos"}.`, frase, lado, numeros })
       : faixaFoco({ rotulo: rot, titulo: nomeLista, apagado: !d ? "sem números" : !d.jogos ? "nenhum jogo encerrado" : "ninguém na lista", numeros,
         frase: !d ? (temp ? "Não há estatísticas guardadas dessa competição nessa temporada." : "As estatísticas aparecem quando o administrador ligar a soma no banco.") : !d.jogos ? "Nenhuma partida encerrada nessa competição ainda." : "" });
