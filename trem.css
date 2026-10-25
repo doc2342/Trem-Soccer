@@ -1400,7 +1400,7 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-jog-camisa svg { display:block; width:30px; height:auto; }
 
 /* ---------- página do jogador (jogador.html) ---------- */
-.t-jp-faixa { grid-template-columns:minmax(0, 1fr) auto; align-items:center; padding:30px clamp(16px, 4vw, 36px); --ac:var(--t-marca); --line:var(--t-noite-fio); --mut:var(--t-noite-mut); }
+.t-jp-faixa { grid-template-columns:minmax(0, 1fr) auto; gap:24px 36px; align-items:center; padding:30px clamp(16px, 4vw, 36px); --ac:var(--t-marca); --line:var(--t-noite-fio); --mut:var(--t-noite-mut); }
 .t-jp-nome { font-size:clamp(40px, 7vw, 80px); margin:4px 0 12px; }
 .t-jp-sub { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; color:var(--t-noite-mut); font-size:13.5px; } .t-jp-sub b { color:var(--t-noite-tx); } .t-jp-sub svg { flex:none; }
 .t-jp-chave { display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 34px; margin-top:22px; }
@@ -1408,12 +1408,11 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-jp-notas b { display:block; font:900 80px/.85 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; color:var(--t-marca); }
 .t-jp-notas b.t-jp-teto { color:var(--t-noite-tx); }
 .t-jp-notas span { display:block; margin-top:8px; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); }
-.t-jp-chave { flex-direction:column; align-items:flex-start; }
-.t-jp-temp { border-top:1px solid var(--t-noite-fio); padding-top:14px; }
+.t-jp-temp { grid-column:1 / -1; justify-self:stretch; border-top:1px solid var(--t-noite-fio); padding-top:14px; }
 .t-jp-temp-rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-tx); margin-bottom:10px; }
-.t-jp-temp-num { display:flex; gap:26px; } .t-jp-temp-num span { display:block; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); margin-bottom:6px; }
+.t-jp-temp-num { display:flex; justify-content:space-between; gap:20px; } .t-jp-temp-num span { display:block; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); margin-bottom:6px; }
 .t-jp-temp-num b { font:900 28px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
-.t-jp-lado { display:flex; align-items:center; gap:10px; }
+.t-jp-lado { display:grid; grid-template-columns:auto auto; align-items:center; gap:4px 10px; }
 .t-jp-lado .t-qa-camisa svg { width:150px; } .t-jp-lado .t-qa-radar svg { width:270px; } /* rótulos do radar a 12 */
 .t-jp .t-qa-numeros { background:var(--t-celula); border:1px solid var(--t-fio); border-top:0; }
 .t-jp .t-qa-fatos { padding:10px 14px; font-size:13.5px; }
@@ -1433,9 +1432,9 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-jp-ev { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:2px 0; } .t-jp-ev > b { color:var(--t-marca); } .t-jp-ev strong { font-weight:800; }
 .t-jp-premio .t-giro-tipo { background:var(--t-atencao); } .t-jp-mut { color:var(--t-tinta2); }
 @media (max-width:720px) and (pointer:coarse) {
-  .t-jp-faixa { grid-template-columns:minmax(0, 1fr); } .t-jp-lado { justify-content:space-around; border-top:1px solid var(--t-noite-fio); padding-top:16px; }
+  .t-jp-faixa { grid-template-columns:minmax(0, 1fr); } .t-jp-lado { justify-content:space-around; justify-items:center; border-top:1px solid var(--t-noite-fio); padding-top:16px; }
   .t-jp-lado .t-qa-camisa svg { width:96px; } .t-jp-lado .t-qa-radar svg { width:200px; } .t-jp-notas b { font-size:60px; }
-  .t-jp-temp-num { gap:20px; }
+
   .t-jp .t-qa-numeros { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-jp .t-qa-num:nth-child(3) { border-left:0; } .t-jp .t-qa-num:nth-child(n+3) { border-top:1px solid var(--t-fio); }
   .t-jp-cab { flex-direction:column; gap:4px; }
   .t-jp-atr { grid-auto-flow:row; grid-template-columns:repeat(2, minmax(0, 1fr)); }
