@@ -1,5 +1,5 @@
-// Confere o fechamento da temporada: as contas de src/rodada.js (tabela final, mérito da Série C, técnico do ano) e o
-// 145_fechamento_da_temporada.sql num Postgres em memória (PGlite, se instalado). Uso: node ferramentas/teste_fechamento_sql.mjs
+// Confere o fechamento da temporada: as contas de src/rodada.js (tabela final, mérito da Série C, técnico do ano), o
+// 145_fechamento_da_temporada.sql e o aviso ao agendamento (146_fechamento_no_cron.sql) num Postgres em memória (PGlite, se instalado). Uso: node ferramentas/teste_fechamento_sql.mjs
 import assert from "node:assert";
 import fs from "node:fs";
 const { classificacaoFinal, meritoDaSerieC, tecnicosDoAno } = await import(new URL("../src/rodada.js", import.meta.url));
@@ -26,16 +26,16 @@ create role anon; create role authenticated; create role service_role;
 create schema auth;
 create function auth.role() returns text language sql as $$ select nullif(current_setting('teste.role', true), '') $$;
 create function public.eh_admin() returns boolean language sql as $$ select coalesce(current_setting('teste.admin', true), '') = '1' $$;
-create table ligas (id bigint primary key, temporada int, copa jsonb, fundo_taca int default 0);
+create table ligas (id bigint primary key, temporada int, copa jsonb, fundo_taca int default 0, pausada boolean default false, bots_mercado text);
 create table clubes (id bigint primary key, liga_id bigint, grupo text, divisao int, dono uuid, dirigente text, premio_antecipado int default 0, paraquedas int, carne int default 0, torcida int default 1000);
-create table partidas (id serial primary key, liga_id bigint, grupo text, rodada int, fase text, copa_fase int, casa bigint, fora bigint, fim timestamptz, processada boolean default true, vencedor bigint);
+create table partidas (id serial primary key, liga_id bigint, grupo text, rodada int, fase text, copa_fase int, casa bigint, fora bigint, inicio timestamptz, fim timestamptz, processada boolean default true, vencedor bigint);
 create table resultados (partida_id int, gols_casa int, gols_fora int, relatorio jsonb default '{}', efeitos jsonb, libera_em timestamptz default now());
 create table financas (clube_id bigint primary key, caixa int default 0);
 create table lancamentos (clube_id bigint, temporada int, rodada int, tipo text, valor int, descricao text);
 create table historico (liga_id bigint, temporada int, clube_id bigint, divisao int, grupo text, posicao int, pontos int, vitorias int, empates int, derrotas int,
   gols_pro int, gols_contra int, premio int, destino text, copa text, supercopa boolean, lib text, sul text, recopa boolean, primary key (liga_id, temporada, clube_id));
 create table premios_individuais (liga_id bigint, temporada int, comp text, premio text, jogador_id text, jogador text, pos text, clube_id bigint, valor int, numero numeric, unique (liga_id, temporada, comp, premio));
-create table base_jogos (liga_id bigint, temporada int, grupo text, fase text, casa bigint, fora bigint, gols_casa int, gols_fora int, processada boolean);
+create table base_jogos (liga_id bigint, temporada int, grupo text, fase text, inicio timestamptz, casa bigint, fora bigint, gols_casa int, gols_fora int, processada boolean);
 create table base_campeoes (liga_id bigint, temporada int, grupo text, clube_id bigint);
 create table patrocinios (liga_id bigint, temporada int, clube_id bigint, meta int, bonus int, travado boolean, bonus_pago int);
 create table jogadores (id serial primary key, clube_id bigint, idade int, at smallint[], salario int, salario_mercado int, contrato_ate int, amarelos int, fora_jogos int, fora_motivo text, juvenil boolean);
@@ -47,19 +47,30 @@ create function premiar_temporada(bigint, jsonb) returns text language sql as $$
 create function vaga_da_selecao(text) returns text language sql as $$ select $1 $$;
 create function imposto_do_lucro(int, int) returns int language sql as $$ select 0 $$;
 create function teto_do_clube(bigint) returns int language sql as $$ select 0 $$;
-insert into ligas values (1, 1, null), (2, 1, null);
+create function janela_do_mercado(bigint) returns text language sql as $$ select null::text $$;
+create function listados_para_os_bots(bigint) returns setof int language sql as $$ select 1 where false $$;
+insert into ligas values (1, 1, '{"sem_playoffs": true}'), (2, 1, '{"sem_playoffs": true}');
 insert into clubes (id, liga_id, grupo, divisao) select g, case when g <= 4 then 1 else 2 end, 'D', 3 from generate_series(1, 8) g;
 insert into financas (clube_id) select g from generate_series(1, 8) g;
 insert into patrocinios values (1, 1, 1, 2, 300, true, null), (1, 1, 4, 2, 300, true, null);
-insert into partidas (liga_id, grupo, rodada, fase, casa, fora, fim) values (1, 'D', 1, 'liga', 1, 2, now() + interval '1 hour'), (2, 'D', 1, 'liga', 5, 6, now() - interval '2 hours');
+insert into partidas (liga_id, grupo, rodada, fase, casa, fora, fim) values (1, 'D', 1, 'liga', 1, 2, now() + interval '1 hour'), (2, 'D', 1, 'liga', 5, 6, now() - interval '2 hours'),
+  (1, 'D', 9, 'final', 1, 2, now() - interval '3 hours'), (2, 'D', 9, 'final', 5, 6, now() - interval '3 hours'); -- com a final criada, o aviso dos playoffs (67) fica quieto
 insert into resultados (partida_id, gols_casa, gols_fora) values (1, 1, 0), (2, 1, 0);
 `);
 const sql = fs.readFileSync(new URL("../supabase/145_fechamento_da_temporada.sql", import.meta.url), "utf8").replace(/^notify .*$/m, "");
 await db.exec(sql); await db.exec(sql); // pode rodar duas vezes
+const cron = fs.readFileSync(new URL("../supabase/146_fechamento_no_cron.sql", import.meta.url), "utf8");
+await db.exec(cron); await db.exec(cron);
+const temTrabalho = async () => (await q(`select tarefas_do_minuto() t`))[0].t;
 const caixa = async id => (await q(`select caixa from financas where clube_id = $1`, [id]))[0].caixa;
 const fechar = (liga, temporada = 1) => q(`select fechar_temporada($1, $2, $3::jsonb, $4::jsonb, $5::jsonb) r`,
   [liga, temporada, JSON.stringify(linhas), JSON.stringify(meritoDaSerieC(linhas, [3])), JSON.stringify(tecnicosDoAno(linhas, {}))]).then(r => r[0].r);
 
+// agendamento: a liga 2 acabou há duas horas e não foi fechada → chama a função; a liga 1 ainda está em jogo
+assert.strictEqual(await temTrabalho(), true);
+await q(`update ligas set temporada_fechada = 1 where id = 2`);
+assert.strictEqual(await temTrabalho(), false);
+await q(`update ligas set temporada_fechada = null where id = 2`);
 // sem ser servidor nem administrador: barrado
 await assert.rejects(fechar(1), /Sem permissão/);
 await q(`select set_config('teste.role', 'service_role', false)`);
