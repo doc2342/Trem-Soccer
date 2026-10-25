@@ -1825,3 +1825,31 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-bj-rev { display:grid; grid-template-columns:110px minmax(0, 1fr) 96px 110px; align-items:center; gap:10px; padding:9px 8px; border-bottom:1px solid var(--t-fio); font-variant-numeric:tabular-nums; }
 .t-bj-nota { text-align:right; font-size:13px; color:var(--t-tinta2); white-space:nowrap; } .t-bj-nota b { font:900 22px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); }
 @media (max-width:720px) and (pointer:coarse) { .t-bj-rev { grid-template-columns:minmax(0, 1fr) auto; gap:4px 10px; } .t-bj-rev .t-transf-quando { display:none; } .t-bj-rev .t-bj-nota { grid-row:1 / 3; grid-column:2; } }
+
+/* ---------- Página de outro clube (#clube=ID, paginaDoClube no visual novo): faixa do clube, time provável, elenco + boleta, estádio, histórico ---------- */
+.t-cv-volta { display:flex; justify-content:flex-end; margin-bottom:12px; }
+.t-cv-titulo { display:flex; align-items:center; gap:20px; } .t-cv-titulo > svg { flex:none; }
+.t-cv-lado { display:flex; align-items:center; gap:24px; } .t-cv-lado > svg { flex:none; } .t-cv-lado .t-elenco-numeros { flex:1; min-width:0; }
+.t-cv-admin { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.t-cv-tatica .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-cv-tatica .gramado { min-height:640px; }
+.t-cv-titulo .t-faixa-titulo { font-size:clamp(40px, 6vw, 76px); }
+.t-cv-tatica .t-tatica-lado { display:flex; flex-direction:column; gap:32px; } .t-cv-tatica .t-cv-estadio { margin-top:auto; }
+.t-cv-jogo, .t-cv-venda { display:grid; grid-template-columns:44px minmax(0, 1fr) auto; align-items:center; gap:12px; padding:9px 8px; border-bottom:1px solid var(--t-fio); color:inherit; text-decoration:none; font-variant-numeric:tabular-nums; }
+.t-cv-jogo:hover, .t-cv-venda.clk:hover { background:var(--t-placa); }
+.t-cv-jogo-quem, .t-cv-venda-nome { min-width:0; font-size:14px; font-weight:600; } .t-cv-jogo-quem small, .t-cv-venda-nome small { display:block; margin-top:2px; font-size:12.5px; font-weight:500; color:var(--t-tinta2); }
+.t-cv-venda b { font:900 22px/1 var(--t-letra); font-stretch:64%; white-space:nowrap; }
+#cvPainel { position:sticky; top:16px; margin-top:14px; }
+#cvPainel:empty { min-height:300px; border:2px dashed var(--t-fio); display:grid; place-items:center; }
+#cvPainel:empty::before { content:"Escolha um jogador no campo ou na lista para abrir a boleta."; max-width:220px; text-align:center; font:500 14px/1.4 var(--t-letra); color:var(--t-tinta2); }
+#cvEstadio { min-height:240px; margin-bottom:16px; }
+.t-cv-estadio-tipo { margin:0 0 16px; font-size:14px; color:var(--t-tinta2); }
+.t-cv-temp { display:grid; grid-template-columns:64px minmax(0, 1fr) 52px 52px 96px minmax(0, 1.6fr); align-items:center; gap:12px; padding:9px 8px; border-bottom:1px solid var(--t-fio); font-size:14px; font-variant-numeric:tabular-nums; }
+.t-cv-temp-cab { font:700 10.5px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); border-bottom:2px solid var(--t-tinta); }
+.t-cv-temp > b { font:900 22px/1 var(--t-letra); font-stretch:64%; }
+.t-cv-temp-dest { font-size:13px; color:var(--t-tinta2); }
+.t-cv-temp-dest em { font:800 10.5px/1 var(--t-letra); font-style:normal; letter-spacing:.12em; text-transform:uppercase; color:#fff; background:var(--t-tinta2); padding:4px 7px; margin-right:8px; }
+.t-cv-temp-dest em[data-d="campeão"] { background:var(--t-marca); } .t-cv-temp-dest em[data-d=subiu] { background:var(--t-ok); } .t-cv-temp-dest em[data-d=caiu] { background:var(--t-tinta); }
+@media (max-width:1024px) and (pointer:coarse) { #cvPainel { position:static; order:-1; } #cvPainel:empty { display:none; } }
+@media (max-width:720px) and (pointer:coarse) { .t-cv-lado { flex-direction:column; } .t-cv-titulo > svg { width:56px; height:56px; } :root[data-visual=novo] .t-cv-tatica .gramado { min-height:540px; }
+  .t-cv-elenco .t-mjog { grid-template-columns:38px minmax(0, 1fr) 24px 40px 64px 22px; } .t-cv-elenco .t-mjog .t-mjog-clube, .t-cv-elenco .t-mjog.t-jog-cab > :nth-child(3) { display:none; }
+  .t-cv-temp { grid-template-columns:52px minmax(0, 1fr) 40px 40px; } .t-cv-temp > :nth-child(5), .t-cv-temp-cab > :nth-child(6) { display:none; } .t-cv-temp-dest { grid-column:1 / -1; } }

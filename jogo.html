@@ -3354,7 +3354,7 @@ ${historicoDaBase()}`}
           ${telaPequena ? `<div style="margin-top:12px"><b>Tela</b><div class="mut" style="margin:4px 0 8px">No celular, dá para ver a página inteira de computador com o zoom reduzido, como no Dugout.</div><button class="sec" id="cfgTela">${telaDePc ? "📱 Usar a tela de celular" : "🖥️ Usar a tela de computador"}</button></div>` : ""}</div>
       </div></div></div>
     </section>
-    <section data-secao="clubeVisto"><div id="cvCorpo"></div></section>
+    <section data-secao="clubeVisto"${visualNovo ? ` class="t-pagina t-aba"` : ""}><div id="cvCorpo"></div></section>
     <section data-secao="mercado"${visualNovo ? ` class="t-pagina t-aba"` : ""}>
     ${janela === undefined ? "" : visualNovo ? faixaDoMercado() : kpisDoMercado()}
     ${janela === undefined || visualNovo ? "" : (() => {
@@ -3843,7 +3843,72 @@ ${historicoDaBase()}`}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        $("cvCorpo").innerHTML = `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
+        // visual novo: faixa do clube, o time provável no campo (camisas dele), elenco com a boleta ao lado, estádio, histórico e a estante
+        const novo = () => {
+          const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+          const dia = d => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          const fita = feitos.length ? `<div class="t-cal-fita" style="--n:${feitos.length}" title="Do primeiro jogo ao último">${feitos.map(p => { const x = placar(p, id);
+            return `<a href="aovivo.html?id=${p.id}" data-v="${x.v}" title="${esc((cPor[p.casa] || {}).nome || "")} ${res[p.id].gols_casa} x ${res[p.id].gols_fora} ${esc((cPor[p.fora] || {}).nome || "")} · ${competicao(p)}">${x.v}</a>`; }).join("")}</div>` : "";
+          const onze = provavel ? provavel.escalacao.filter(x => x.j) : [], forca = onze.length ? onze.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / onze.length : null;
+          const folha = l.reduce((s, j) => s + (j.salario || 0), 0), idade = l.length ? l.reduce((s, j) => s + j.idade, 0) / l.length : null;
+          const lado = `<div class="t-cv-lado">${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 92)}<div class="t-elenco-numeros">
+            ${numero({ rotulo: "Elenco", valor: String(l.length), sufixo: "jogadores", legenda: idade == null ? "" : `média de ${f1(idade)} anos` })}
+            ${numero({ rotulo: "Folha", valor: folha ? dinheiro(folha) : "—", legenda: "salários por temporada" })}
+            ${numero({ rotulo: "Força do onze", valor: forca == null ? "—" : f1(forca), legenda: "média do time provável" })}
+            ${meu ? numero({ rotulo: "Torcida", valor: c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", legenda: "torcedores" })
+              : numero({ rotulo: "Contra você", valor: contraFeitos.length ? `${conta("V")}V · ${conta("E")}E · ${conta("D")}D` : "—", legenda: contraFeitos.length ? "nesta temporada" : "ainda não jogaram", tom: conta("V") > conta("D") ? "ok" : conta("V") < conta("D") ? "bad" : "" })}</div></div>`;
+          const quem = c.dono ? `${c.dirigente || "dirigente sem nome"}${c.ultimo_acesso ? ` · visto ${ateQuando(c.ultimo_acesso)}` : ""}` : `sem dono · o bot joga ${(e => /^sem /.test(e) ? e : "com " + e)(estiloDe(c))}`;
+          const topo = faixaFoco({ rotulo: `${nomeDoGrupo(c.grupo)}${c.pais ? " · " + c.pais : ""} · ${quem}`, titulo: c.nome,
+            destaque: eu && eu.j ? `${pos + 1}º de ${tab.length}, ${pl(eu.pts, "ponto", "pontos")}.` : "Ainda não jogou nesta temporada.",
+            frase: eu && eu.j ? `${eu.v}V · ${eu.e}E · ${eu.d}D em ${pl(eu.j, "jogo", "jogos")} de liga; ${pl(eu.gp, "gol", "gols")} marcados e ${eu.gc} sofridos.` : "", lado, numeros: fita })
+            .replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-cv-titulo">${svgEscudo(c.escudo, c.sigla, 84)}<div>${h}</div></div>`);
+          // campo: o time provável com as camisas do clube; clicar numa camisa abre a boleta
+          const numeros = numerosDaCamisa({ titulares: onze.map(x => ({ nome: x.j.nome, pos: x.pos, numero: x.j.numero })), banco: [] });
+          const curtoN = j => { const n = j.nome.split(" "), p = n[0]; return n.length > 1 && onze.some(o => o.j.id !== j.id && o.j.nome.split(" ")[0] === p) ? `${p} ${n[n.length - 1]}` : p; };
+          const filas = provavel ? filasDoCampo(provavel.escalacao, x => x.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}" style="top:${ALTURA_DA_FAIXA[FAIXA_BASE[POSICOES[fila.itens[0].x.pos].linha]]}%">${fila.itens.map(({ x, col }) =>
+            `<div class="vaga${x.j ? "" : " vazia"}"${x.j ? ` data-cvjog="${x.j.id}"` : ""} style="${fila.grade && col ? `grid-column:${col} / span 2;` : ""}cursor:${meu || !x.j ? "default" : "pointer"}"${observada && x.j ? ` title="${x.substituto ? "Não jogou nesta vaga nos jogos vistos: é o melhor disponível" : `Titular nesta vaga em ${x.vezes} dos ${x.de} jogos vistos`}"` : ""}>
+              <span class="pp vpos ${corDoSetor(x.pos)}${x.j ? " camisa" : ""}">${x.j ? svgCamisa(x.pos === "GK" ? GOLEIRO_DA_BASE : c.uniforme || {}, 44, false, { numero: numeros.get(x.j.nome) || "" }) : sg(x.pos)}</span>
+              <div class="nome">${x.j ? esc(curtoN(x.j)) : "—"}</div><div class="det">${x.j ? `<span class="pp vsig ${corDoSetor(x.pos)}">${sg(x.pos)}</span><span class="nota">${f1(notaNaPosicao(x.j, x.pos))}</span>` : "&nbsp;"}</div></div>`).join("")}</div>`).join("") : "";
+          const formacao = provavel ? (bot ? bot.formacao : `${["defesa", "ala"].map(k => onze.filter(x => POSICOES[x.pos].linha === k).length).reduce((a, b) => a + b)}-${onze.filter(x => ["volante", "meio", "meia"].includes(POSICOES[x.pos].linha)).length}-${onze.filter(x => POSICOES[x.pos].linha === "ataque").length}`) : "";
+          const comoSabe = observada ? `${observada.jogos === 1 ? "O time do último jogo" : `O que mais jogou nos últimos ${observada.jogos} jogos`}. ${analista ? `Visto pelo seu analista, ${esc(analista.nome)}` : "Sem analista, você só sabe o time do último jogo"}${nJogos < 3 ? `; ${analista ? "com skill 25" : "com um analista"} ele acompanha ${nJogos + 1} jogos` : ""}.`
+            : bot ? `O melhor onze pelo elenco: ${feitos.length ? "ninguém dos últimos jogos está mais no clube" : "ainda não jogou nesta temporada"}.` : "";
+          const time = `<div class="t-tatica-time"><div class="t-tatica-cab"><div class="t-rotulo">Time provável${formacao ? " · " + formacao : ""}</div><div class="t-tatica-forca"><span>Onze</span><b>${forca == null ? "—" : f1(forca)}</b></div></div>
+            ${provavel ? `<div class="t-tatica-grade"><div class="gramado">${filas}</div></div>` : `<p class="t-fajuda">Elenco curto demais para montar um time.</p>`}${comoSabe ? `<p class="t-fajuda">${comoSabe}</p>` : ""}</div>`;
+          // ao lado do campo: os jogos contra o seu clube e quem está à venda
+          const jogo = p => { const x = feitos.includes(p) ? placar(p, clube.id) : null;
+            return `<a class="t-cv-jogo" href="aovivo.html?id=${p.id}"><span class="t-cal-v" data-v="${x ? x.v : ""}">${x ? x.v : ""}</span><span class="t-cv-jogo-quem">${competicao(p)} · ${p.casa === clube.id ? "em casa" : "fora"}<small>${dia(p.inicio)}</small></span><span class="t-cal-placar">${x ? `${res[p.id].gols_casa} x ${res[p.id].gols_fora}` : `<span class="mut">${quando(p.inicio)}</span>`}</span></a>`; };
+          const venda = j => `<div class="t-cv-venda${meu ? "" : " clk"}" data-cvjog="${j.id}">${pp(j.pos)}<span class="t-cv-venda-nome">${esc(j.nome)}<small>${j.idade} anos · nota ${f1(j.nota)}</small></span><b>${dinheiro(j.preco_pedido)}</b></div>`;
+          const ladoT = [meu ? "" : `<div>${rotulo(`Contra o ${clube.nome}`)}${contra.length ? contra.map(jogo).join("") : `<p class="t-fajuda">Os dois clubes não se enfrentam nesta temporada.</p>`}</div>`,
+            aVenda.length ? `<div>${rotulo(`À venda · ${aVenda.length}`)}${aVenda.map(venda).join("")}${meu ? "" : `<p class="t-fajuda">Clique para fazer uma proposta.</p>`}</div>` : ""].join("");
+          const tatica = () => `<section class="t-faixa t-tatica t-cv-tatica">${time}<div class="t-tatica-lado">${ladoT}${estadio}</div></section>`;
+          // elenco por setor, com a multa (ou por que não dá) e a boleta ao lado
+          const linhaJ = j => { const s = situacao(j);
+            return `<div class="t-jog t-mjog${meu ? "" : " clk"}" data-cvjog="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}${bandeira(j.pais)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
+              <div class="t-mjog-clube">${j.salario == null ? "—" : dinheiro(j.salario)}${j.contrato_ate == null ? "" : `<small> até T${j.contrato_ate}</small>`}</div><div class="t-jog-id">${j.idade}</div><div class="t-jog-nota">${f1(j.nota)}</div>
+              <div class="t-mjog-multa">${s ? `<small>${s}</small>` : dinheiro(multaDe(j))}</div>${botaoInfo(j)}</div>`; };
+          const setores = ZONAS_DO_ELENCO.map(([titulo, linhas]) => (z => z.length ? `<section class="t-setor">${rotulo(`${titulo} · ${z.length}`)}${z.map(linhaJ).join("")}</section>` : "")(l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota))).join("");
+          const elenco = `<section class="t-secao">${rotulo(`Elenco · ${l.length}`)}<div class="${meu ? "" : "t-mercado t-cv-elenco"}"><div><div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Salário</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div>${setores}</div>${meu ? "" : `<aside id="cvPainel"></aside>`}</div></section>`;
+          // estádio e estruturas
+          const cfg = c.estadio_nivel != null ? configDoClube(c, null) : null;
+          const estadio = `<div class="t-cv-estadio">${rotulo(cfg ? cfg.nomeEstadio || "Estádio" : "Estruturas")}${cfg ? `<p class="t-cv-estadio-tipo">${MODELOS[cfg.modelo] || ""} · ${CIDADES[cidadeDoEstadio(cfg)]} · arraste para girar</p><div id="cvEstadio"></div>` : ""}
+            <div class="t-elenco-numeros">${numero({ rotulo: "Estádio", valor: c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", legenda: c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "" })}
+            ${numero({ rotulo: "Torcida", valor: c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", legenda: "torcedores" })}
+            ${numero({ rotulo: "CT", valor: c.ct_nivel != null ? `nível ${c.ct_nivel}` : "—", legenda: "centro de treinamento" })}
+            ${numero({ rotulo: "Base", valor: c.base_nivel != null ? `nível ${c.base_nivel}` : "—", legenda: "categorias de base" })}</div></div>`;
+          // histórico: as temporadas e os maiores negócios
+          const DEST = { "campeão": "Campeão", subiu: "Subiu", caiu: "Caiu", guardado: "Guardado" };
+          const temporadas = `<section class="t-secao">${rotulo("Temporadas anteriores")}${hist.length ? `<div class="t-cv-temp t-cv-temp-cab"><span>Temp.</span><span>Divisão</span><span>Pos.</span><span>Pts</span><span>V · E · D</span><span>Destino e copas</span></div>${hist.map(h => `<div class="t-cv-temp"><span>T${h.temporada}</span><span>${esc(nomeDoGrupo(h.grupo))}</span><b>${h.posicao}º</b><span>${h.pontos}</span><span>${h.vitorias} · ${h.empates} · ${h.derrotas}</span>
+            <span class="t-cv-temp-dest">${DEST[h.destino] ? `<em data-d="${esc(h.destino)}">${DEST[h.destino]}</em>` : ""}${[h.copa && `Copa: ${esc(h.copa)}`, h.lib && `Libertadores: ${esc(h.lib)}`, h.sul && `Sul-Americana: ${esc(h.sul)}`, h.recopa && "Recopa: campeão"].filter(Boolean).join(" · ")}</span></div>`).join("")}` : `<p class="t-fajuda">Primeira temporada do clube na liga.</p>`}</section>`;
+          const nomeT = t => t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência";
+          const negociosH = `<section class="t-secao">${rotulo("Maiores negócios")}${maiores.length ? maiores.map(t => { const entrou = t.para_clube === id;
+            return `<div class="t-transf" data-tipo="${esc(t.repatriado ? "repatriado" : t.tipo || "")}"><span class="t-giro-tipo">${esc(nomeT(t))}</span><div class="t-transf-jog">${pp(t.pos || "")}${t.jogador_id ? lj(t.jogador_id, t.jogador || "") : esc(t.jogador || "")}</div>
+              <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lkE(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lkE(t.para_clube)}` : "dispensado"}</div>
+              <div class="t-transf-valor ${entrou ? "bad" : "ok"}">${entrou ? "−" : "+"}${dinheiro(t.valor)}</div><div class="t-transf-quando">Temp. ${t.temporada}</div></div>`; }).join("") : `<p class="t-fajuda">Nenhuma compra ou venda com valor ainda.</p>`}</section>`;
+          const admin_ = admin && c.escudo && c.escudo.img ? `<p class="t-fajuda t-cv-admin">Administração: este clube usa uma imagem como escudo. <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca do escudo</button></p>` : "";
+          return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}${tatica()}${elenco}${temporadas}${negociosH}
+            <section class="t-secao">${rotulo("Estante")}${estanteDe(id)}</section></div>`;
+        };
+        $("cvCorpo").innerHTML = visualNovo ? novo() : `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <div class="patro-topo">${patroMaster(marcas[id])}</div>
@@ -3886,7 +3951,9 @@ ${historicoDaBase()}`}
         if (c.estadio_nivel != null) montarEstadio("cvEstadio", configDoClube(c, null));
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
         if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
-        $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (tr && !meu && !e.target.closest("[data-info]")) abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
+        $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (!tr || meu || e.target.closest("[data-info]") || e.target.closest("a")) return;
+          $("cvCorpo").querySelectorAll(".t-mjog").forEach(x => x.classList.toggle("t-mjog-on", x.dataset.cvjog === tr.dataset.cvjog));
+          abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
       } catch (err) { $("cvCorpo").innerHTML = `<div class="card bad">${esc(err.message)}</div>`; }
     };
     mercadoAoAbrir = buscar; // a lista de todos os jogadores (duas leituras de 1.000) só é lida quando a aba Mercado abre
