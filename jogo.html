@@ -116,7 +116,7 @@
   .sub { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:600; }
   .sub.ativa { color:var(--tx); background:var(--hover); border-color:var(--ac); } .sub .sc { display:none; }
   .sub .qt { background:var(--ac); color:var(--ac-tx); border-radius:999px; padding:0 6px; font-size:12px; margin-left:4px; }
-  @media (max-width:620px) and (pointer:coarse) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
+  @media (max-width:620px) and (pointer:coarse) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; position:sticky; top:var(--abas-h, 0px); z-index:19; background:var(--bg); padding:6px 0; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
   .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
   @media (max-width:620px) and (pointer:coarse) {
     .abas { display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:0; overflow:visible; }
@@ -3124,7 +3124,7 @@ ${historicoDaBase()}`}
     <div id="quadroAtr" class="quadro-atr" hidden></div>
     <section data-secao="config">
     ${subAbas("ajuste", [["geral", "⚙️ Configurações", "Geral"], ["escudo", "🛡️ Escudo", "Escudo"], ["titular", "👕 Uniforme casa", "Casa"], ["reserva", "🎽 Uniforme visitante", "Visitante"], ["guia", "📖 Guia do dirigente", "Guia"]])}
-    <div class="card" id="cfgBarra" style="position:sticky;top:var(--abas-h, 0px);z-index:5"><div class="row" style="align-items:center"><button id="cfgSalvarVisual" disabled>Salvar escudo e uniformes</button><span id="cfgVisualAviso" class="mut">Escudo e uniformes salvos.</span></div></div>
+    <div class="card" id="cfgBarra" style="position:sticky;top:calc(var(--abas-h, 0px) + var(--sub-h, 0px));z-index:5"><div class="row" style="align-items:center"><button id="cfgSalvarVisual" disabled>Salvar escudo e uniformes</button><span id="cfgVisualAviso" class="mut">Escudo e uniformes salvos.</span></div></div>
     <div data-parte="ajuste:escudo"><div class="card"><h2>Escudo</h2><div id="cfgEscudo"></div></div>
       <div class="card"><h2>Escudo enviado</h2><div>
             <div class="mut" style="margin:4px 0 8px;font-size:12.5px">Uma imagem sua no lugar do escudo desenhado: PNG, JPG ou WebP. A página reduz para 128 × 128 (até 100 KB) antes de enviar; prefira fundo transparente. O desenho continua guardado e volta se a imagem sair. O administrador pode pedir a troca.</div>
@@ -3833,11 +3833,14 @@ ${historicoDaBase()}`}
         redesenha(); redesenharChegada();
       }
     }; }
-  document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
+  document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); voltarAoTopo(b); } }; });
   if ($("recNovo")) recordesDaLiga(liga.id, trofeusDoId).then(d => { $("recNovo").innerHTML = recordesNovos(d); });
   if ($("recClube")) $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga.filter(h => n.rodada <= RODADAS_DA_SAFRA || !h.includes("revelou"))] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
+  // sub-abas presas no celular: ao trocar de parte com a página rolada, a parte nova abre no topo; --sub-h é a altura delas (barra do Ajustes fica logo abaixo)
+  const voltarAoTopo = b => { const s = b.closest("[data-secao]"); if (s && s.getBoundingClientRect().top < 0) s.scrollIntoView({ block: "start" }); };
+  { const sa = document.querySelector('[data-grupo="ajuste"]'); if (sa) new ResizeObserver(() => document.documentElement.style.setProperty("--sub-h", getComputedStyle(sa).position === "sticky" ? sa.offsetHeight + "px" : "0px")).observe(sa); }
   new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") && getComputedStyle($("abas")).position !== "fixed" ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
   if ($("cfgVisualNovo")) { $("cfgVisualNovo").onclick = () => window.moVisual("novo"); $("cfgVisualVelho").onclick = () => window.moVisual(""); }
@@ -4101,7 +4104,7 @@ ${historicoDaBase()}`}
     document.querySelectorAll("#mSub .sub").forEach(b => b.classList.toggle("ativa", b.dataset.msub === k));
     try { localStorage.setItem("mo_mercado", k); } catch (e) {}
   };
-  $("mSub").onclick = e => { const b = e.target.closest("[data-msub]"); if (b) { $("mRecado").innerHTML = ""; abrirSub(b.dataset.msub); } };
+  $("mSub").onclick = e => { const b = e.target.closest("[data-msub]"); if (b) { $("mRecado").innerHTML = ""; abrirSub(b.dataset.msub); voltarAoTopo(b); } };
   let sub = "busca"; try { sub = localStorage.getItem("mo_mercado") || "busca"; } catch (e) {}
   abrirSub(document.querySelector(`[data-msub="${sub}"]`) ? sub : "busca");
   if (recado) { $("mRecado").innerHTML = `<div class="card" style="border-color:var(--ac)">✅ ${esc(recado)}</div>`; recado = ""; if (!clubeAberto) abrir("mercado"); }
