@@ -1922,13 +1922,18 @@ async function telaClube(liga, clube) {
     const libSec = mataMata(libJuvenil, `Libertadores Juvenil · 16 clubes, nas datas da Libertadores · campeão ${dinheiro(300)}, vice ${dinheiro(150)}`, "Sai com o calendário da temporada, nas datas da Libertadores.", null,
       ` Vagas pela temporada anterior: 8 do Brasil (campeões dos grupos da liga de base e da Copinha; se algum se repetir, as melhores campanhas do grupo A) e os 2 primeiros de cada país de fora, que jogam com garotos de uma base de nível ${CONFIG_LIGA_DE_BASE.nivelDeFora}. Nas oitavas, sempre Brasil x estrangeiro.`);
     // campeões: uma temporada por vez, da mais recente
-    const temps = [...new Set(baseCampeoes.map(x => x.temporada))].sort((a, b) => b - a), ORDEM = ["A", "B", "C", "F", "D", "E", "COPINHA", "LIBJUV"];
-    const nomeComp = g => g === "COPINHA" ? "Copinha" : g === "LIBJUV" ? "Libertadores Juvenil" : `Liga de base · ${nomeDoGrupo(g).replace("Brasileiro ", "")}`;
+    // em destaque a Libertadores Juvenil, depois a Copinha; as ligas embaixo, em linhas curtas
+    const temps = [...new Set(baseCampeoes.map(x => x.temporada))].sort((a, b) => b - a), ORDEM = ["A", "B", "C", "F", "D", "E"];
+    const curto = g => PAISES[g] || nomeDoGrupo(g).replace(/^.*?(Série \S+)$/, "$1");
+    const doAno = t => baseCampeoes.filter(x => x.temporada === t), escudoDe = id => (c => svgEscudo(c.escudo, c.sigla, 22))(cPor[id] || {});
+    const emDestaque = (x, nome) => x ? `<div class="t-bc-dest${x.clube_id === clube.id ? " t-eu" : ""}"><span>${nome}</span>${(c => svgEscudo(c.escudo, c.sigla, 44))(cPor[x.clube_id] || {})}<b>${lk(x.clube_id)}</b></div>` : "";
+    const blocoT = t => { const l = doAno(t), ligas = l.filter(x => !["COPINHA", "LIBJUV"].includes(x.grupo)).sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo));
+      return `<div class="t-bc-dests">${emDestaque(l.find(x => x.grupo === "LIBJUV"), "Libertadores Juvenil")}${emDestaque(l.find(x => x.grupo === "COPINHA"), "Copinha")}</div>
+        ${ligas.length ? `<div class="t-numero-rotulo t-bc-ligas-rot">Ligas de base</div><div class="t-bc-lista">${ligas.map(x => `<div class="t-bc-camp${x.clube_id === clube.id ? " t-eu" : ""}"><span>${esc(curto(x.grupo))}</span>${escudoDe(x.clube_id)}<b>${lk(x.clube_id)}</b></div>`).join("")}</div>` : ""}`; };
     const titulos = baseCampeoes.filter(x => x.clube_id === clube.id).length;
     const campeoes = temps.length ? `<section class="t-secao">${rotulo(`Campeões da base${titulos ? ` · seu clube: ${titulos} ${titulos === 1 ? "título" : "títulos"}` : ""}`)}<div class="t-bc-passos">${temps.map((t, i) => `<div data-bc-temp="${i}"${i ? " hidden" : ""}>
       <div class="t-liga-nav"><button type="button" data-bc-irt="${i + 1}" ${i < temps.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b><span></span><button type="button" data-bc-irt="${i - 1}" ${i ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
-      <div class="t-bc-lista">${baseCampeoes.filter(x => x.temporada === t).sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo)).map(x => { const c = cPor[x.clube_id] || {};
-        return `<div class="t-bc-camp${x.clube_id === clube.id ? " t-eu" : ""}"><span>${esc(nomeComp(x.grupo))}</span>${svgEscudo(c.escudo, c.sigla, 22)}<b>${lk(x.clube_id)}</b></div>`; }).join("")}</div></div>`).join("")}</div></section>` : "";
+      ${blocoT(t)}</div>`).join("")}</div></section>` : "";
     // as setas trocam qual bloco aparece; o ouvinte é um só, porque a página é redesenhada a toda hora
     if (!window.__baseCompLigado) { window.__baseCompLigado = true;
       document.addEventListener("click", e => { const b = e.target.closest("[data-bc-ir], [data-bc-irt]"); if (!b) return;
