@@ -2543,7 +2543,7 @@ async function telaClube(liga, clube) {
     const geral = `<div class="fgrade"><div class="fq"><div class="mut">Caixa atual</div><div class="fv ${caixa < 0 ? "bad" : "ok"}">${dinheiro(caixa)}</div><div class="fd mut">${caixa < 0 ? "clube no vermelho" : "disponível para contratar e construir"}</div></div>
       ${quadro(ultima ? `Última rodada (${rotRodada(ultima.rodada)}${ultima.temporada !== liga.temporada ? " da temporada " + ultima.temporada : ""})` : "Última rodada", ultima ? fluxo(daUltima) : null, "nenhuma rodada calculada nesta temporada")}
       ${quadro(`Temporada ${liga.temporada}`, extrato.some(PERIODOS[1]) ? fluxo(PERIODOS[1]) : null, "sem lançamentos ainda")}
-      ${quadro(`Temporada ${liga.temporada - 1}`, temAnterior ? fluxo(PERIODOS[2]) : null, "sem registro")}</div>`;
+      ${quadro((liga.temporada > 0 ? `Temporada ${liga.temporada - 1}` : "Temporada anterior"), temAnterior ? fluxo(PERIODOS[2]) : null, "sem registro")}</div>`;
     // folha e teto
     const pct = teto ? folha / teto : 0, maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
     const folhaHtml = !temContratos ? "" : `<div class="card"><h2>Folha salarial</h2>
@@ -2594,14 +2594,14 @@ async function telaClube(liga, clube) {
       + (fatia ? ` A folha leva ${fatia}% do que entra.` : "");
     const socios = clube.carne != null && clube.carne_temporada === liga.temporada ? clube.carne : null;
     const lado = `<div class="t-elenco-numeros">${ultima ? (v => numero({ rotulo: `Rodada ${rotRodada(ultima.rodada)}`, valor: sinal(v), legenda: "última calculada", tom: tom(v) }))(fluxo(PERIODOS[0]).saldo) : ""}
-      ${anterior ? numero({ rotulo: `Temporada ${liga.temporada - 1}`, valor: sinal(anterior.saldo), legenda: "saldo final", tom: tom(anterior.saldo) }) : ""}
+      ${anterior ? numero({ rotulo: (liga.temporada > 0 ? `Temporada ${liga.temporada - 1}` : "Temporada anterior"), valor: sinal(anterior.saldo), legenda: "saldo final", tom: tom(anterior.saldo) }) : ""}
       ${temContratos && teto ? numero({ rotulo: "Folha", valor: `${Math.round(pct * 100)}%`, sufixo: "do teto", legenda: teto - folha < 0 ? `acima em ${dinheiro(folha - teto)}` : `sobram ${dinheiro(teto - folha)}`, tom: pct > 1 ? "bad" : "" }) : ""}
       ${socios != null ? numero({ rotulo: "Sócios", valor: socios.toLocaleString("pt-BR"), legenda: "nesta temporada" }) : ""}</div>`;
     const topo = faixaFoco({ rotulo: "Finanças · caixa", titulo: dinheiro(caixa), apagado: caixa < 0 ? "no vermelho" : "em caixa", destaque: saldo < 0 ? `Perdendo ${dinheiro(-saldo)} por rodada.` : saldo > 0 ? `Ganhando ${dinheiro(saldo)} por rodada.` : "", frase, lado,
       numeros: saldo < 0 && temContratos ? `<div class="t-botoes">${botao({ texto: "Ver os salários", abaIr: "elenco" })}</div>` : "" })
       .replace("t-faixa t-sangra", `t-faixa t-sangra${caixa < 0 ? " t-faixa-vermelho" : ""}`);
     // barras: receitas e despesas de cada período, na mesma escala dentro do período; o valor fica colado na ponta da barra
-    const nomes = ["Última rodada", `Temporada ${liga.temporada}`, `Temporada ${liga.temporada - 1}`], tem = PERIODOS.map(f => extrato.some(f)), inicial = tem[1] ? 1 : tem.indexOf(true);
+    const nomes = ["Última rodada", `Temporada ${liga.temporada}`, (liga.temporada > 0 ? `Temporada ${liga.temporada - 1}` : "Temporada anterior")], tem = PERIODOS.map(f => extrato.some(f)), inicial = tem[1] ? 1 : tem.indexOf(true);
     const barras = i => { const l = linhas.map(c => [c.nome, c.v[i]]).filter(x => x[1]).sort((a, b) => (b[1] > 0) - (a[1] > 0) || (a[0] === "Outros") - (b[0] === "Outros") || Math.abs(b[1]) - Math.abs(a[1]));
       const max = Math.max(1, ...l.map(x => Math.abs(x[1]))), s = soma(PERIODOS[i]);
       return `<div class="t-fbarras" data-fpainel="${i}"${i === inicial ? "" : " hidden"}>${l.map(([n, v]) => `<div class="t-fbarra ${v < 0 ? "sai" : "entra"}"><span>${n}</span><div class="t-fpista"><i style="width:${Math.max(0.5, Math.abs(v) / max * 80).toFixed(1)}%"></i><b>${sinal(v)}</b></div></div>`).join("")}

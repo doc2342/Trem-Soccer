@@ -26,10 +26,10 @@ import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaS
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
-import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
+import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo, gruposDoReinicio } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, guardarEstadoInicial, reiniciarTeste, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, reiniciarLiga, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 // troca da sede de uma final (132_estadio_real.sql)
 document.addEventListener("change", async e => { const x = e.target.closest("[data-sede]"); if (!x) return;
@@ -125,6 +125,8 @@ const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, pe
 // Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
 // (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais alta com bot.
 const NIVEL_DO_NOVATO = { 1: 38, 2: 35 };
+// Nível dos elencos do reinício (temporada 0) por série; provisório até a calibragem aprovada (Tarefa 8 do plano do reinício).
+const NIVEL_DO_REINICIO = { A: 30, B: 30, fora: 30 };
 async function aprovarPedido(id, clubeId) {
   const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
@@ -288,8 +290,8 @@ async function tela(aviso = "") {
       + item("Contratos", "Salários e contratos iniciais para quem ainda não tem.", `<button type="button" class="t-botao" id="contratos">Definir</button>`)
       + item("Outros países", Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length}`).join(" · "), `<button type="button" class="t-botao" id="criarPaises" ${paises ? "disabled" : ""}>Criar os que faltam</button>`)
       + `<div class="t-adm-item t-adm-item-largo"><b>Sedes das finais</b><span>${sedes}</span></div>`
-      + item("Teste", `Reiniciar apaga calendário, resultados, extratos, obras e histórico, e devolve jogadores, caixa, torcida, estádio e estruturas ao estado inicial. Dirigentes, clubes e táticas ficam.`,
-        `<label class="t-adm-check"><input type="checkbox" id="sortear" checked> sortear os dirigentes</label><button type="button" class="t-botao" id="guardarEstado">Guardar o elenco de agora como inicial</button><button type="button" class="t-botao t-adm-perigo" id="reiniciar">Reiniciar o teste</button>`)
+      + item("Reinício", `Reiniciar a liga apaga calendário, resultados, extratos, obras e todo o histórico, sorteia os grupos (os donos na Série B, 6 por grupo), gera elencos novos e volta à temporada 0. Identidade dos clubes e dirigentes ficam.`,
+        `<button type="button" class="t-botao t-adm-perigo" id="reiniciar">Reiniciar a liga (temporada 0)</button>`)
       + `<p class="t-adm-msg" id="avisoTeste"></p>`
       + item("Apagar", "A liga, todos os clubes e jogadores. Não dá para desfazer.", `${partidas.length ? `<button type="button" class="t-botao t-adm-perigo" id="apagarCal">Apagar o calendário</button>` : ""}<button type="button" class="t-botao t-adm-perigo" id="apagar">Apagar a liga</button>`);
     const grupos = [...gruposDe(clubes), GUARDADO].map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div><b>${esc(nomeDoGrupo(g))}</b>${l.map(c => `<div class="t-adm-clube">${svgEscudo(c.escudo, c.sigla, 20)}<span>${esc(c.nome)}</span><small>${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</small></div>`).join("")}</div>` : ""; }).join("");
@@ -335,9 +337,9 @@ async function tela(aviso = "") {
     ${liga ? `<div class="card"><h2>Outros países</h2>
       <div class="mut" style="margin-bottom:10px">${Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length} clubes`).join(" · ")}. Cada país é um campeonato de ${POR_GRUPO} clubes sem dirigente, com uma divisão só, nas mesmas datas do Brasil (precisa do SQL 77 e da função rodada republicada). Com o calendário já gerado, os jogos deles entram nas datas que existem; os de datas passadas são calculados em seguida. Por enquanto jogador não troca de clube entre países.</div>
       <div class="row"><button id="criarPaises" ${clubes.filter(c => PAISES[c.grupo]).length >= Object.keys(PAISES).length * POR_GRUPO ? "disabled" : ""}>Criar os países que faltam</button></div></div>` : ""}
-    ${liga ? `<div class="card"><h2>Teste</h2>
-      <div class="mut" style="margin-bottom:10px">Reiniciar apaga calendário, resultados, extratos, obras e histórico, e devolve jogadores (idade, atributos, salários, contratos), caixa, torcida, estádio e estruturas ao estado inicial. Os grupos viram a pirâmide: A é a primeira divisão, B e C a segunda, D e E a terceira. Dirigentes, clubes e táticas salvas ficam. Depois é preciso gerar o calendário de novo.</div>
-      <div class="row"><button id="reiniciar">Reiniciar o teste</button><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="sortear" checked> sortear os dirigentes entre os grupos</label><button class="sec" id="guardarEstado">Guardar o elenco de agora como estado inicial</button></div>
+    ${liga ? `<div class="card"><h2>Reinício</h2>
+      <div class="mut" style="margin-bottom:10px">Reiniciar a liga apaga calendário, resultados, extratos, obras e todo o histórico, sorteia os grupos (os donos na Série B, 6 por grupo), gera elencos novos e volta à temporada 0. Identidade dos clubes e dirigentes ficam. Depois é preciso gerar o calendário.</div>
+      <div class="row"><button id="reiniciar">Reiniciar a liga (temporada 0)</button></div>
       <div id="avisoTeste" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${[...gruposDe(clubes), GUARDADO].map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>${nomeDoGrupo(g)}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
   dirigentes().catch(() => {}); pedidos().catch(() => {}); partidasAdmin().catch(() => {});
@@ -709,15 +711,17 @@ async function tela(aviso = "") {
     finally { if ($("prepararVirada")) $("prepararVirada").disabled = false; }
   });
   em("reiniciar", async () => {
-    if (!confirm("Reiniciar o teste? Calendário, resultados, extratos, obras e histórico serão apagados, e os jogadores voltam ao estado inicial. Não dá para desfazer.")) return;
+    if (!confirm("Reiniciar a LIGA na temporada 0? Apaga calendário, resultados, extratos, obras e TODO o histórico (T1 à T14), sorteia os grupos e gera elencos novos. Não dá para desfazer: faça o backup antes.")) return;
     $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
-    try { const feito = await reiniciarTeste(liga.id, $("sortear").checked); await limparTreinadores(liga.id); await zerarConfianca(liga.id); await tela(feito + " Agora gere o calendário."); }
-    catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; $("reiniciar").disabled = false; }
-  });
-  em("guardarEstado", async () => {
-    if (!confirm("Trocar o estado inicial guardado pelo elenco de agora (idades, atributos, salários e contratos como estão)?")) return;
-    try { $("avisoTeste").textContent = `Estado inicial guardado: ${await guardarEstadoInicial(liga.id)} jogadores.`; }
-    catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 15_piramide_e_reinicio.sql já foi executado?)"; }
+    try {
+      const rng = criarRng(Date.now() % 2147483647), todos = await clubesDaLiga(liga.id);
+      const grupos = gruposDoReinicio({ rng, clubes: todos.map(c => ({ id: c.id, grupo: c.grupo, dono: c.dono })) });
+      const nivelDe = g => PAISES[g] ? NIVEL_DO_REINICIO.fora : g === "A" ? NIVEL_DO_REINICIO.A : NIVEL_DO_REINICIO.B; // guardados (X) ganham elenco de nível B
+      const jogadores = todos.flatMap(c => elencoNovo(rng, nivelDe(grupos[c.id]), paisDoGrupo(grupos[c.id]), 0).map(j => ({ ...j, clube_id: c.id })));
+      const feito = await reiniciarLiga(liga.id, grupos, jogadores); await limparTreinadores(liga.id); await zerarConfianca(liga.id);
+      await tela(feito + " Agora gere o calendário.");
+    }
+    catch (e) { $("avisoTeste").textContent = "Não deu: " + e.message + " (o 149_reinicio_da_liga.sql já foi executado?)"; $("reiniciar").disabled = false; }
   });
   em("pausar", async () => {
     try { await pausarLiga(!liga.pausada); await tela(liga.pausada ? "Liga retomada: as partidas que faltavam foram adiadas." : "Liga pausada."); }

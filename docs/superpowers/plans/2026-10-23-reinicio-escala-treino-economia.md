@@ -256,13 +256,13 @@ O que a RPC faz, numa transação:
 5. `ligas`: `temporada = 0`, sem pausa, `fundo_taca = 0`, e zera o que mais houver da temporada (confira as colunas).
 6. Remove `reiniciar_teste`, `guardar_estado_inicial` e a tabela `estado_inicial` (`drop … if exists`).
 
-- [ ] **Passo 1: teste PGlite que falha.** Siga o padrão dos `teste_*_sql.mjs` existentes: stub de `eh_admin()`, das tabelas tocadas com as colunas mínimas e de `divisao_do_grupo`. Casos: (a) depois de `reiniciar_liga`, as tabelas de estado da liga ficam vazias, os clubes têm o grupo pedido, `ligas.temporada = 0` e o caixa é 5000; (b) nome e escudo do dono continuam iguais; (c) chamada repetida dá o mesmo resultado; (d) não-admin recebe erro; (e) o arquivo roda duas vezes sem erro.
-- [ ] **Passo 2:** rode `node ferramentas/teste_reinicio_sql.mjs` e veja falhar.
-- [ ] **Passo 3:** escreva `143_reinicio_da_liga.sql`, com cabeçalho: "Precisa do 142. Depois: publicar o site; o botão está no admin."
-- [ ] **Passo 4: admin.** O clique pede confirmação explicando que apaga tudo, até o histórico das T1–T14, e que convém fazer o backup antes. Depois: `gruposDoReinicio` → `elencoNovo(rng, nivel, pais, 0)` para cada clube fora de X (nível por série, `NIVEL_DE_FORA` substituído por `NIVEL_DO_REINICIO.fora`; clubes de X ganham elenco de nível B) → `reiniciarLiga` → `limparTreinadores` e `zerarConfianca` (como hoje) → "Agora gere o calendário."
-- [ ] **Passo 5: varredura da temporada 0.** Rode `grep -rnE "temporada \|\||!temporada|temporada - 1|temporada-1|\.temporada \?" src/*.js *.html ferramentas/empacotar_funcao.py supabase/1[0-4]*.sql` e veja cada ocorrência. Quando 0 virar 1, ou "sem temporada", em silêncio, corrija com `?? 1` ou comparando com `null`. Liste no commit o que mudou.
-- [ ] **Passo 6:** rode `node ferramentas/testes.mjs`. Esperado: tudo passa.
-- [ ] **Passo 7:** commit, com a mensagem "143: reinício da liga na temporada 0 (donos na B, estado inicial novo); sai o reiniciar_teste".
+- [x] **Passo 1: teste PGlite que falha.** Siga o padrão dos `teste_*_sql.mjs` existentes: stub de `eh_admin()`, das tabelas tocadas com as colunas mínimas e de `divisao_do_grupo`. Casos: (a) depois de `reiniciar_liga`, as tabelas de estado da liga ficam vazias, os clubes têm o grupo pedido, `ligas.temporada = 0` e o caixa é 5000; (b) nome e escudo do dono continuam iguais; (c) chamada repetida dá o mesmo resultado; (d) não-admin recebe erro; (e) o arquivo roda duas vezes sem erro.
+- [x] **Passo 2:** rode `node ferramentas/teste_reinicio_sql.mjs` e veja falhar.
+- [x] **Passo 3:** escreva `143_reinicio_da_liga.sql`, com cabeçalho: "Precisa do 142. Depois: publicar o site; o botão está no admin."
+- [x] **Passo 4: admin.** O clique pede confirmação explicando que apaga tudo, até o histórico das T1–T14, e que convém fazer o backup antes. Depois: `gruposDoReinicio` → `elencoNovo(rng, nivel, pais, 0)` para cada clube fora de X (nível por série, `NIVEL_DE_FORA` substituído por `NIVEL_DO_REINICIO.fora`; clubes de X ganham elenco de nível B) → `reiniciarLiga` → `limparTreinadores` e `zerarConfianca` (como hoje) → "Agora gere o calendário."
+- [x] **Passo 5: varredura da temporada 0.** Rode `grep -rnE "temporada \|\||!temporada|temporada - 1|temporada-1|\.temporada \?" src/*.js *.html ferramentas/empacotar_funcao.py supabase/1[0-4]*.sql` e veja cada ocorrência. Quando 0 virar 1, ou "sem temporada", em silêncio, corrija com `?? 1` ou comparando com `null`. Liste no commit o que mudou.
+- [x] **Passo 6:** rode `node ferramentas/testes.mjs`. Esperado: tudo passa.
+- [x] **Passo 7:** commit, com a mensagem "143: reinício da liga na temporada 0 (donos na B, estado inicial novo); sai o reiniciar_teste".
 
 ---
 

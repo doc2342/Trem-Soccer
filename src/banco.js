@@ -281,8 +281,7 @@ export async function precoDoIngresso(clubeId) {
   const d = c ? await valoresDaDivisao(c.liga_id, c.divisao) : null;
   return d ? d.preco_ingresso : null;
 }
-export const guardarEstadoInicial = ligaId => sb.rpc("guardar_estado_inicial", { p_liga: ligaId }).then(ok);
-export const reiniciarTeste = (ligaId, sortear) => sb.rpc("reiniciar_teste", { p_liga: ligaId, p_sortear: sortear }).then(ok);
+export const reiniciarLiga = (ligaId, grupos, jogadores) => sb.rpc("reiniciar_liga", { p_liga: ligaId, p_grupos: grupos, p_jogadores: jogadores }).then(ok);
 // V2: virada de temporada (supabase/16_virada_de_temporada.sql)
 export const divisoesDosClubes = ligaId => sb.from("clubes").select("id, divisao, base_nivel, estadio_nivel").eq("liga_id", ligaId).then(ok);
 // Copa do Brasil (47_copa_calendario_e_chave.sql): campanha de cada clube numa temporada, para decidir quem joga a preliminar
