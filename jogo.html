@@ -1041,7 +1041,7 @@ async function telaClube(liga, clube) {
     // espelhada: a metade de cima de cada fase à esquerda, a de baixo à direita (colunas na ordem inversa) e a final no centro
     const coluna = (f, metade) => { const n = 2 ** (6 - f), ini = metade === 1 ? n / 2 : 0, fim = metade === 0 ? n / 2 : n;
       const itens = por[f].length ? por[f].slice(ini * por[f].length / n, fim * por[f].length / n).map(p => caixa(p, f === atual)) : Array.from({ length: fim - ini }, (_, i) => vazio(f, ini + i));
-      return `<div class="ch-col ${f === 6 ? "ch-final" : ""} ${f === atual ? "ch-ponta" : ""}"><div class="ch-f">${f === 6 && !visualNovo ? "🏆 " : ""}${FASES_DA_COPA[f]}${sub(f) ? `<small>${sub(f)}</small>` : ""}</div><div class="ch-jogos">${itens.join("")}${f === 6 && por[6][0] && venc(por[6][0]) ? (visualNovo ? `<div class="t-carimbo ch-carimbo">${nome(venc(por[6][0]))}<small>campeão</small></div>` : `<div class="ch-campeao">Campeão<b>${nome(venc(por[6][0]))}</b></div>`) : ""}</div></div>`; };
+      return `<div class="ch-col ${f === 6 ? "ch-final" : ""} ${f === atual ? "ch-ponta" : ""}"><div class="ch-f">${f === 6 && !visualNovo ? "🏆 " : ""}${FASES_DA_COPA[f]}${sub(f) ? `<small>${sub(f)}</small>` : ""}</div><div class="ch-jogos">${itens.join("")}${f === 6 && por[6][0] && venc(por[6][0]) ? `<div class="ch-campeao">Campeão<b>${nome(venc(por[6][0]))}</b></div>` : ""}</div></div>`; };
     const atual = arvore.filter(f => por[f].length).pop() || arvore[0];
     const lados = arvore.filter(f => f < 6);
     const arv = `<div class="chave">${lados.map(f => coluna(f, 0)).join("")}${coluna(6)}${lados.slice().reverse().map(f => coluna(f, 1)).join("")}</div>`;

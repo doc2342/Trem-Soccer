@@ -1582,6 +1582,5 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-copa .t-faixa-texto { text-align:center; align-self:center; } .t-copa .t-faixa-texto > .t-rotulo { justify-content:center; } /* tudo centrado na coluna, os números também */
 .t-copa .ch-final .ch-jogos { justify-content:center; position:relative; } /* a final na altura das semifinais; o campeão embaixo, sem empurrá-la */
 .t-copa .ch-final .ch-jogos > .ch-j { flex:none; }
-.t-carimbo.ch-carimbo { position:absolute; top:calc(50% + 52px); left:50%; transform:translateX(-50%) rotate(-6deg); margin:0; font-size:clamp(18px, 2vw, 28px); white-space:nowrap; max-width:none; }
-.ch-carimbo small { font-size:10.5px; }
+.t-copa .ch-final .ch-campeao { position:absolute; top:calc(50% + 48px); left:0; right:0; margin:0; }
 .t-copa .ch-prel { margin-top:28px; } .t-copa .ch-prel .ch-f { text-align:left; }
