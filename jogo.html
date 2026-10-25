@@ -347,7 +347,7 @@ import { ligarGraficos } from "./src/ui-graficos.js";
 import { montarLogin } from "./src/ui-login.js";
 import { sg, pp, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
 import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA, URL_DOS_ESCUDOS } from "./src/escudo.js";
-import { camisinha } from "./src/camisa.js";
+import { camisinha, svgCamisa } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
 import { rotulo, faixa as faixaFoco, numero, botao, manchete, destacar, reguaDoJogo, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
@@ -2824,8 +2824,9 @@ ${historicoDaBase()}
     <div data-parte="elenco:numeros">${visualNovo ? `<div class="t-trn"><div class="t-trn-topo"><div>${rotulo("Números da camisa · nas costas, no aviso de gol e na escalação")}
         <p class="t-trn-resumo">De 1 a 99, sem repetir. <b>Em branco</b>, o número sai pela posição em cada jogo (goleiro 1, zagueiros 3 e 4, centroavante 9…; banco do 12 em diante). Quem sai do clube perde o número.</p></div>
       <div class="t-trn-acoes"><span id="numAviso" class="mut"></span><button type="button" class="t-botao t-botao-principal" id="numSalvar">Salvar números</button></div></div>
-      ${ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}<div class="t-nums">${l.map(j => `<label class="t-num">${camisinha(`<input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="–" aria-label="Número de ${esc(j.nome)}">`, clube.uniforme)}
-          ${pp(j.pos)}<span class="t-num-nome">${esc(j.nome)}${j.juvenil ? " <small>juvenil</small>" : ""}</span></label>`).join("")}</div></section>` : "")(elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => !!a.juvenil - !!b.juvenil || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)))).join("")}</div>` : `<div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
+      ${ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}<div class="t-nums">${l.map(j => `<label class="t-num"><span class="t-num-camisa">${svgCamisa(clube.uniforme || {}, 64, false, { nome: j.nome, numero: j.numero || "" })}</span>
+          <span class="t-num-quem">${pp(j.pos)}<span class="t-num-nome">${esc(j.nome)}${j.juvenil ? " <small>juvenil</small>" : ""}</span></span>
+          <input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="auto" aria-label="Número de ${esc(j.nome)}"></label>`).join("")}</div></section>` : "")(elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => !!a.juvenil - !!b.juvenil || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)))).join("")}</div>` : `<div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
       <div class="mut" style="font-size:12.5px;margin-bottom:8px">Escolha de 1 a 99, sem repetir. Quem fica em branco recebe um número pela posição em cada jogo (goleiro 1, laterais 2 e 6, zagueiros 3 e 4, volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; banco do 12 em diante), sem pegar os números já escolhidos. Quem sai do clube perde o número.</div>
       <div class="numeros-elenco">${[...elenco].sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || a.nome.localeCompare(b.nome)).map(j => `<label class="num-j"><input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="auto"><span>${pp(j.pos)} ${esc(j.nome)}</span></label>`).join("")}</div>
       <div class="row" style="margin-top:10px;align-items:center"><button id="numSalvar">Salvar números</button><span id="numAviso" class="mut"></span></div></div>`}</div>
@@ -3418,7 +3419,9 @@ ${historicoDaBase()}
     $("numSalvar").disabled = false;
   };
   // visual novo: o número repetido fica marcado enquanto se digita
-  if (visualNovo && $("numSalvar")) document.querySelector('[data-parte="elenco:numeros"]').oninput = () => {
+  if (visualNovo && $("numSalvar")) document.querySelector('[data-parte="elenco:numeros"]').oninput = e => {
+    const c = e.target.closest("[data-numero]"), j = c && elenco.find(x => String(x.id) === c.dataset.numero);
+    if (j) c.closest(".t-num").querySelector(".t-num-camisa").innerHTML = svgCamisa(clube.uniforme || {}, 64, false, { nome: j.nome, numero: c.value }); // as costas acompanham o que se digita
     const campos = [...document.querySelectorAll("[data-numero]")], conta = {};
     campos.forEach(c => { if (c.value) conta[c.value] = (conta[c.value] || 0) + 1; });
     campos.forEach(c => c.closest(".t-num").classList.toggle("t-num-rep", conta[c.value] > 1));
@@ -3477,37 +3480,40 @@ ${historicoDaBase()}
     const comFoco = j => ({ ...j, treino: focos.get(j.id) });
     const ordemPos = j => LISTA_POSICOES.indexOf(j.pos);
     const lista = elenco.slice().sort((a, b) => !!a.juvenil - !!b.juvenil || ordemPos(a) - ordemPos(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    // visual novo: uma linha por jogador (foco, complementares, ritmo); clicar abre os focos em botões, o progresso e a posição nova
-    let grupo = "prof";
+    // visual novo: lista enxuta à esquerda (posição, nome, foco, ritmo) e, à direita, a ficha de treino do jogador escolhido, sempre aberta
+    let grupo = "prof", sel = null;
     const rodadas = n => `${n} ${n === 1 ? "rodada" : "rodadas"}`;
-    const desenharTreinoNovo = () => {
-      const doGrupo = lista.filter(j => !j.juvenil === (grupo === "prof")), prof = elenco.filter(j => !j.juvenil), auto = prof.filter(j => !(j.treino && j.treino.p)).length;
-      $("tResumo").innerHTML = `<b>${prof.length} profissionais</b> treinando: ${auto ? `${prof.length - auto} no foco escolhido, <b>${auto} no automático</b> da posição` : "todos no foco escolhido"}. O treino salvo vale a partir da próxima rodada.`;
-      const linha = j => {
-        const f = focos.get(j.id), jt = comFoco(j), visto = tetoDe[j.id], total = pontosDaSessao(jt, { ct: clube.ct_nivel || 0, teto: visto ? (visto.minimo + visto.maximo) / 2 : null }), partes = partilha(jt);
-        const ganhoDe = i => total * partes[i] * multDoAtributo(areasDoTreino, +i), ritmo = Object.keys(partes).reduce((t, i) => t + ganhoDe(i), 0) / CONFIG_TREINO.pontosPorNivel;
-        const estudo = posicaoEmEstudo(j), aberto = abertos.has(j.id);
-        const marcas = (j.fora > 0 && j.motivo === "lesão" ? marcaDe("lesionado", "Lesionado não treina", "t-atencao") : "") + (estudo ? marcaDe(`aprende ${sg(estudo)}`, `Aprendendo a posição: o treino de atributos rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos`) : "");
-        const cab = `<div class="t-trn-j clk${mudou.has(j.id) ? " t-trn-mudou" : ""}${aberto ? " t-trn-aberto" : ""}" data-tabrir="${j.id}">${pp(j.pos)}
-          <div class="t-jog-nome">${lj(j.id, j.nome)}${marcas}</div><div class="t-jog-id">${j.idade}</div>
-          <div class="t-trn-foco">${FOCOS[f.p].nome}</div><div class="t-trn-comp">${f.c.map(i => ATRIBUTOS[i].nome).join(" · ")}</div>
-          <div class="t-trn-ritmo${total > 0 ? "" : " t-trn-parou"}" title="${visto ? "Pontos de atributo por rodada, sem o bônus de quem joga" : "Estimativa sem olheiro: conta feita com um teto típico"}">${total > 0 ? (visto ? "+" : "≈+") + ritmo.toFixed(2).replace(".", ",") : "parou"}</div>
-          <div class="t-trn-seta">${aberto ? "▴" : "▾"}</div></div>`;
-        if (!aberto) return cab;
-        const doFoco = FOCOS[f.p].at, opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
-        const prog = Object.keys(partes).map(i => { const pts = (j.pts && j.pts[i]) || 0, g = ganhoDe(i), falta = g > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / g) : null;
-          return `<div class="t-trn-prog"><div><b>${ATRIBUTOS[i].nome}</b> ${j.at[i]}<small>${j.at[i] >= 50 ? "no máximo" : falta == null ? "parado" : `sobe em ~${rodadas(falta)}`}${comissao == null ? "" : ` · ${AREAS[AREA_DO_ATRIBUTO[i]].nome.toLowerCase()} ${Math.round(multDoAtributo(areasDoTreino, +i) * 100)}%`}</small></div><i><i style="width:${Math.min(100, pts)}%"></i></i></div>`; }).join("");
-        const posNova = j.aprende === undefined || j.pos === "GK" ? "" : (() => { const aprendida = j.aprende && j.aprende.pos && !estudo ? j.aprende.pos : null;
-          const texto = estudo ? (z => j.fam[estudo] === "C" ? `Já competente em ${sg(estudo)}: o treino não ensina mais (nem custa). Natural com cerca de ${z.jogos} jogos de 45 minutos ou mais nela.` : `Competente em ~${rodadas(z.competente)} de treino (mais rápido jogando nela); natural depois de ~${z.jogos} jogos nela.`)(prazoDaPosicao(j, estudo, +j.aprende.pts || 0))
-            : aprendida ? `Já aprendeu ${sg(aprendida)}. Escolher outra faz ${sg(aprendida)} cair para competente.` : `Custa ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% do treino até ele ficar competente; de competente a natural, só jogando na posição.`;
-          return `<div class="t-trn-bloco t-trn-largo"><div class="t-numero-rotulo">Posição nova</div><div class="t-transf-filtro">${LISTA_POSICOES.filter(p => p !== "GK" && j.fam[p] !== "N").map(p => { const z = prazoDaPosicao(j, p);
-              return `<button type="button" data-taprende-v="${j.id}:${p}" class="${p === estudo ? "ligado" : ""}" title="${POSICOES[p].nome}: ${{ vizinha: "vizinha", proxima: "próxima", distante: "distante" }[distanciaDaPosicao(j, p)]}${z.competente ? `, competente em ~${rodadas(z.competente)}` : ""}, natural com ~${z.jogos} jogos nela">${sg(p)}</button>`; }).join("")}${estudo ? `<button type="button" data-taprende-v="${j.id}:">parar</button>` : ""}</div>
-            <p class="t-trn-nota">${texto}</p>${Object.keys(j.fam).filter(p => p !== j.pos && j.fam[p] === "N" && POSICOES[p]).map(p => `<button type="button" class="t-botao t-botao-link" data-tprincipal="${j.id}:${p}" title="A posição principal é a que aparece no elenco e define o foco automático do treino">Tornar ${sg(p)} a principal</button>`).join(" ")}</div>`; })();
-        return cab + `<div class="t-trn-det"><div class="t-trn-bloco"><div class="t-numero-rotulo">Foco principal · 70% dos pontos</div><div class="t-transf-filtro">${opcoes.map(k => `<button type="button" data-tfoco-v="${j.id}:${k}" class="${k === f.p ? "ligado" : ""}">${FOCOS[k].nome}</button>`).join("")}</div>
+    const contaDoTreino = j => { const jt = comFoco(j), visto = tetoDe[j.id], total = pontosDaSessao(jt, { ct: clube.ct_nivel || 0, teto: visto ? (visto.minimo + visto.maximo) / 2 : null }), partes = partilha(jt);
+      const ganhoDe = i => total * partes[i] * multDoAtributo(areasDoTreino, +i);
+      return { visto, total, partes, ganhoDe, ritmo: total > 0 ? (visto ? "+" : "≈+") + (Object.keys(partes).reduce((t, i) => t + ganhoDe(i), 0) / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou" }; };
+    const fichaDoTreino = j => {
+      const f = focos.get(j.id), { visto, total, partes, ganhoDe, ritmo } = contaDoTreino(j), estudo = posicaoEmEstudo(j);
+      const doFoco = FOCOS[f.p].at, opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
+      const prog = Object.keys(partes).map(i => { const pts = (j.pts && j.pts[i]) || 0, g = ganhoDe(i), falta = g > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / g) : null;
+        return `<div class="t-trn-prog"><div><b>${ATRIBUTOS[i].nome}</b> ${j.at[i]}<small>${j.at[i] >= 50 ? "no máximo" : falta == null ? "parado" : `sobe em ~${rodadas(falta)}`}${comissao == null ? "" : ` · ${AREAS[AREA_DO_ATRIBUTO[i]].nome.toLowerCase()} ${Math.round(multDoAtributo(areasDoTreino, +i) * 100)}%`}</small></div><i><i style="width:${Math.min(100, pts)}%"></i></i></div>`; }).join("");
+      const posNova = j.aprende === undefined || j.pos === "GK" ? "" : (() => { const aprendida = j.aprende && j.aprende.pos && !estudo ? j.aprende.pos : null;
+        const texto = estudo ? (z => j.fam[estudo] === "C" ? `Já competente em ${sg(estudo)}: o treino não ensina mais (nem custa). Natural com cerca de ${z.jogos} jogos de 45 minutos ou mais nela.` : `Competente em ~${rodadas(z.competente)} de treino (mais rápido jogando nela); natural depois de ~${z.jogos} jogos nela.`)(prazoDaPosicao(j, estudo, +j.aprende.pts || 0))
+          : aprendida ? `Já aprendeu ${sg(aprendida)}. Escolher outra faz ${sg(aprendida)} cair para competente.` : `Custa ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% do treino até ele ficar competente; de competente a natural, só jogando na posição.`;
+        return `<div class="t-trn-bloco t-trn-largo"><div class="t-numero-rotulo">Posição nova</div><div class="t-transf-filtro">${LISTA_POSICOES.filter(p => p !== "GK" && j.fam[p] !== "N").map(p => { const z = prazoDaPosicao(j, p);
+            return `<button type="button" data-taprende-v="${j.id}:${p}" class="${p === estudo ? "ligado" : ""}" title="${POSICOES[p].nome}: ${{ vizinha: "vizinha", proxima: "próxima", distante: "distante" }[distanciaDaPosicao(j, p)]}${z.competente ? `, competente em ~${rodadas(z.competente)}` : ""}, natural com ~${z.jogos} jogos nela">${sg(p)}</button>`; }).join("")}${estudo ? `<button type="button" data-taprende-v="${j.id}:">parar</button>` : ""}</div>
+          <p class="t-trn-nota">${texto}</p>${Object.keys(j.fam).filter(p => p !== j.pos && j.fam[p] === "N" && POSICOES[p]).map(p => `<button type="button" class="t-botao t-botao-link" data-tprincipal="${j.id}:${p}" title="A posição principal é a que aparece no elenco e define o foco automático do treino">Tornar ${sg(p)} a principal</button>`).join(" ")}</div>`; })();
+      return `<div class="t-trn-ficha-cab"><div>${pp(j.pos)}<h3 class="t-trn-ficha-nome">${lj(j.id, j.nome)}</h3><div class="t-trn-ficha-sub">${j.idade} anos · treina ${FOCOS[f.p].nome.toLowerCase()}${j.juvenil ? " · juvenil" : ""}${j.fora > 0 && j.motivo === "lesão" ? ` · <b class="bad">lesionado, não treina</b>` : ""}${mudou.has(j.id) ? ` · <b class="t-trn-falta">mudou, falta salvar</b>` : ""}</div></div>
+          <div class="t-trn-ficha-ritmo">${numero({ rotulo: "Por rodada", valor: ritmo, legenda: total > 0 ? (visto ? "pontos de atributo, sem o bônus de jogar" : "estimativa sem olheiro (teto típico)") : "chegou ao teto" })}</div></div>
+        <div class="t-trn-det"><div class="t-trn-bloco"><div class="t-numero-rotulo">Foco principal · 70% dos pontos</div><div class="t-transf-filtro">${opcoes.map(k => `<button type="button" data-tfoco-v="${j.id}:${k}" class="${k === f.p ? "ligado" : ""}">${FOCOS[k].nome}</button>`).join("")}</div>
           <div class="t-numero-rotulo">Complementar · 30%, três atributos</div><div class="t-transf-filtro">${ATRIBUTOS.map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<button type="button" data-tcomp-v="${j.id}:${i}" class="${f.c.includes(i) ? "ligado" : ""}">${a.nome}</button>`).join("")}</div></div>
           <div class="t-trn-bloco"><div class="t-numero-rotulo">Progresso</div><div class="t-trn-progs">${prog}</div></div>${posNova}</div>`; };
-      $("treinoCorpo").innerHTML = `<div class="t-trn-j t-jog-cab"><span></span><span>Jogador</span><span>Id.</span><span>Foco</span><span>Complementar</span><span>Por rodada</span><span></span></div>`
-        + ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}${l.map(linha).join("")}</section>` : "")(doGrupo.filter(j => linhas.includes(POSICOES[j.pos].linha)))).join("");
+    const desenharTreinoNovo = () => {
+      const doGrupo = lista.filter(j => !j.juvenil === (grupo === "prof")), prof = elenco.filter(j => !j.juvenil), auto = prof.filter(j => !(j.treino && j.treino.p)).length;
+      if (!doGrupo.some(j => j.id === sel)) sel = doGrupo.length ? doGrupo[0].id : null;
+      $("tResumo").innerHTML = `<b>${prof.length} profissionais</b> treinando: ${auto ? `${prof.length - auto} no foco escolhido, <b>${auto} no automático</b> da posição` : "todos no foco escolhido"}. O treino salvo vale a partir da próxima rodada.`;
+      const linha = j => { const f = focos.get(j.id), { total, ritmo } = contaDoTreino(j), estudo = posicaoEmEstudo(j);
+        return `<div class="t-trn-j clk${mudou.has(j.id) ? " t-trn-mudou" : ""}${j.id === sel ? " t-trn-aberto" : ""}" data-tver="${j.id}">${pp(j.pos)}
+          <div class="t-jog-nome">${esc(j.nome)}${j.fora > 0 && j.motivo === "lesão" ? marcaDe("lesão", "Lesionado não treina", "t-atencao") : ""}${estudo ? marcaDe(sg(estudo), `Aprendendo ${POSICOES[estudo].nome}`) : ""}</div>
+          <div class="t-trn-foco">${FOCOS[f.p].nome}</div><div class="t-trn-ritmo${total > 0 ? "" : " t-trn-parou"}">${ritmo}</div></div>`; };
+      const j = sel == null ? null : porId(String(sel));
+      $("treinoCorpo").innerHTML = `<div class="t-trn-grade"><div class="t-trn-lista"><div class="t-trn-j t-jog-cab"><span></span><span>Jogador</span><span>Foco</span><span>Por rod.</span></div>`
+        + ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}${l.map(linha).join("")}</section>` : "")(doGrupo.filter(j => linhas.includes(POSICOES[j.pos].linha)))).join("")
+        + `</div><div class="t-trn-ficha" id="tFicha">${j ? fichaDoTreino(j) : ""}</div></div>`;
       $("tSalvar").disabled = !mudou.size;
       if (mudou.size) $("tAviso").textContent = `${mudou.size} ${mudou.size === 1 ? "jogador mudou" : "jogadores mudaram"}: falta salvar.`;
     };
@@ -3556,6 +3562,8 @@ ${historicoDaBase()}
         if (confirm(`${j.nome} passa a ter ${sg(p)} (${POSICOES[p].nome}) como posição principal; ${sg(j.pos)} continua natural. O foco do treino dele volta ao automático da posição nova. Confirma?`))
           tornarPrincipal(j.id, p).then(() => carregar({ user: usuario })).catch(err => { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; });
         return; }
+      const ver = e.target.closest("[data-tver]");
+      if (ver) { sel = porId(ver.dataset.tver).id; desenharTreino(); if (matchMedia("(max-width:900px) and (pointer:coarse)").matches) $("tFicha").scrollIntoView({ block: "start" }); return; }
       const v = e.target.closest("[data-tfoco-v], [data-tcomp-v], [data-taprende-v]");
       if (v) { const [id, x] = (v.dataset.tfocoV || v.dataset.tcompV || v.dataset.taprendeV).split(":"), j = porId(id), f = focos.get(j.id);
         if (v.dataset.taprendeV != null) aprender(j, x);
