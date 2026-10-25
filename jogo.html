@@ -1454,9 +1454,9 @@ async function telaClube(liga, clube) {
     return corpo ? corpo + `<div class="mut" style="margin-top:6px;font-size:12px">Somam as temporadas guardadas na virada mais a atual, liga e copas. Os números por jogador começam na primeira virada depois do SQL 84.</div>`
       : `<div class="mut">Nenhum recorde ainda.</div>`;
   };
-  // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo, taças ao lado, os seguintes da lista embaixo); ranking com escudos |
+  // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo) e, ao lado, o maior campeão de cada competição; ranking com escudos |
   // campeões de uma temporada por vez (‹ ›) e recordes da liga; os recordes e os jogadores seguem o mesmo filtro de competição
-  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]]];
+  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]], ["LIB", "Libertadores", ["LIB"]], ["SUL", "Sul-Americana", ["SUL"]]];
   // o melhor de cada recorde entre várias temporadas e competições, na mesma ordem do recordes_da_liga (89/143)
   const melhoresRecordes = l => { const tot = x => x.gols_casa + x.gols_fora, dif = x => Math.abs(x.gols_casa - x.gols_fora);
     const melhor = (k, ok, cmp) => l.filter(x => x.recordes && x.recordes[k] && ok(x.recordes[k])).map(x => ({ ...x.recordes[k], temporada: x.temporada, comp: x.comp }))
@@ -1477,14 +1477,14 @@ async function telaClube(liga, clube) {
     const contagem = m => TIPOS_DE_TROFEU.filter(([k]) => k !== "vice" && m[k]).map(([k, , n]) => [k, curto(n), m[k].length]);
     const total = l => l.n.reduce((s, v) => s + v, 0), titulos = v => `${v} ${v === 1 ? "título" : "títulos"}`, lider = linhas[0];
     const temporadas = [...new Set(trofeus.map(x => x.temporada))].sort((a, b) => b - a);
-    // faixa: o maior campeão com o escudo; as taças dele lado a lado; embaixo, em linhas, o 2º, o 3º e o seu clube
+    // faixa: o maior campeão com o escudo; ao lado, quem mais venceu cada competição (empate: os dois nomes, ou quantos clubes)
     const ultimo = lider && contagem(lider.m).flatMap(([k, n]) => lider.m[k].map(t => [t, n])).sort((a, b) => b[0] - a[0])[0];
-    const eu = linhas.findIndex(l => l.id === clube.id);
-    const podio = lider ? `<div class="t-camp-podio">${[1, 2, eu > 2 ? eu : 3].filter(i => linhas[i]).map(i => `<div class="${i === eu ? "t-eu" : ""}"><b>${i + 1}º</b>${esc22(linhas[i].id, 26)}<span>${esc(nomeC(linhas[i].id))}${i === eu ? "<small>o seu clube</small>" : ""}</span><em>${titulos(total(linhas[i]))}</em></div>`).join("")}
-      ${eu < 0 ? `<div class="t-eu"><b>—</b>${esc22(clube.id, 26)}<span>${esc(clube.nome)}<small>o seu clube</small></span><em>nenhum título</em></div>` : ""}</div>` : "";
-    const lado = lider ? `<div class="t-camp-tacas">${contagem(lider.m).map(([k, n, v]) => `<div>${ico(k)}<b>${v}<small>×</small></b><span>${esc(n)}</span></div>`).join("")}</div>` : "";
+    const porComp = [["lib", "Libertadores", ["lib"]], ["A", "Série A", ["A"]], ["copa", "Copa do Brasil", ["copa"]], ["sul", "Sul-Americana", ["sul"]], ["super", "Supercopa", ["super"]], ["rec", "Recopa", ["rec"]], ["B", "Série B", ["B", "C", "F"]], ["D", "Série C", ["D", "E"]]]
+      .map(([k, n, ks]) => { const c = linhas.map(l => [l.id, ks.reduce((t, x) => t + (l.m[x] || []).length, 0)]).filter(([, v]) => v), max = Math.max(0, ...c.map(([, v]) => v)), quem = c.filter(([, v]) => v === max).map(([id]) => id);
+        return max ? `<div class="t-camp-comp">${ico(k)}<div><small>${n}</small><span>${quem.length === 1 ? esc22(quem[0], 20) : ""}<span>${quem.length === 1 ? esc(nomeC(quem[0])) : quem.length === 2 ? esc(quem.map(nomeC).join(" e ")) : `${quem.length} clubes`}</span></span></div><b>${max}<small>×</small></b></div>` : ""; }).join("");
+    const lado = lider ? `<div class="t-numero-rotulo">Quem mais venceu cada competição</div><div class="t-camp-comps-lado">${porComp}</div>` : "";
     let topo = faixaFoco({ rotulo: `Campeões e recordes · ${temporadas.length} ${temporadas.length === 1 ? "temporada" : "temporadas"}`, titulo: lider ? nomeC(lider.id) : "Nenhum título ainda",
-      apagado: lider ? titulos(total(lider)) : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.", lado, numeros: podio });
+      apagado: lider ? titulos(total(lider)) : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.", lado });
     if (lider && cPor[lider.id]) topo = topo.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-camp-titulo">${esc22(lider.id, 104)}<div>${h}</div></div>`);
     const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["B,C,F", "B", "Série B", "B"], ["D,E", "D", "Série C", "C"]];
     const tabela = `<table class="t-tabela t-liga-tab t-camp-tab"><tr><th></th><th class="t-esq">Clube</th>${COLS.map(([, k, n, c]) => `<th title="${n}"><span class="t-camp-th">${ico(k)}<span class="t-camp-longo">${n}</span><span class="t-camp-curto">${c}</span></span></th>`).join("")}</tr>
@@ -1501,13 +1501,13 @@ async function telaClube(liga, clube) {
         <div class="t-st-bloco">${rotulo("Recordes da liga")}${filtro}<div id="campRec" class="t-tr-painel t-camp-rec"><p class="t-fajuda">Carregando…</p></div></div></section></div>` : ""}
       <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}${filtro}<div id="campJog" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`;
     // recordes em cartões: o número, os dois clubes com escudo (ou o jogador e o clube dele) e quando foi
-    const compDe = c => !c || c === "TODOS" ? "" : ` · ${c === "COPA" ? "Copa do Brasil" : nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
-    const time = id => `<span>${esc22(id, 20)}<span>${esc(nomeC(id))}</span></span>`;
+    const compDe = c => !c || c === "TODOS" ? "" : ` · ${nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
+    const placar = r => `${esc22(r.casa, 30)}<span>${r.gols_casa} x ${r.gols_fora}</span>${esc22(r.fora, 30)}`, jogo = r => `${esc(nomeC(r.casa))} x ${esc(nomeC(r.fora))}`;
     const cartao = (r, rot, valor, quem) => r ? `<div class="t-camp-r"><div class="t-numero-rotulo">${rot}</div><div class="t-camp-r-valor">${valor}</div><div class="t-camp-r-quem">${quem}</div><div class="t-camp-r-meta">T${r.temporada}${compDe(r.comp)}</div></div>` : "";
-    const cartoes = d => { const c = d ? [cartao(d.goleada, "Maior goleada", `${d.goleada?.gols_casa} x ${d.goleada?.gols_fora}`, d.goleada && time(d.goleada.casa) + time(d.goleada.fora)),
-        cartao(d.gols_jogo, "Jogo com mais gols", `${d.gols_jogo?.gols_casa} x ${d.gols_jogo?.gols_fora}`, d.gols_jogo && time(d.gols_jogo.casa) + time(d.gols_jogo.fora)),
-        cartao(d.publico, "Maior público", (+d.publico?.publico).toLocaleString("pt-BR"), d.publico && time(d.publico.casa) + time(d.publico.fora)),
-        cartao(d.nota, "Melhor atuação", String(d.nota?.nota).replace(".", ","), d.nota && `<span class="t-camp-r-jog"><b>${esc(d.nota.nome)}</b></span>${time(d.nota.clube)}`)].join("") : "";
+    const cartoes = d => { const c = d ? [cartao(d.goleada, "Maior goleada", d.goleada && placar(d.goleada), d.goleada && jogo(d.goleada)),
+        cartao(d.gols_jogo, "Jogo com mais gols", d.gols_jogo && placar(d.gols_jogo), d.gols_jogo && jogo(d.gols_jogo)),
+        cartao(d.publico, "Maior público", d.publico && (+d.publico.publico).toLocaleString("pt-BR"), d.publico && jogo(d.publico)),
+        cartao(d.nota, "Melhor atuação", d.nota && String(d.nota.nota).replace(".", ","), d.nota && `<b>${esc(d.nota.nome)}</b> · ${esc(nomeC(d.nota.clube))}`)].join("") : "";
       return c ? `<div class="t-camp-recs">${c}</div>` : `<p class="t-fajuda">Nenhum recorde nesta competição ainda.</p>`; };
     const lista = (t, l, u) => `<div><div class="t-tr-lista-cab">${t}</div>${l.length ? l.map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${x.nome ? lj(x.id, x.nome) : `<i>jogador aposentado</i>`}${cPor[x.clube] ? ` <small>${esc(cPor[x.clube].nome)}</small>` : ""}</span><b>${x.v} ${u}</b></div>`).join("") : `<p class="t-fajuda">Ninguém ainda.</p>`}</div>`;
     // "geral" vem do recordes_da_liga; cada competição, das temporadas guardadas mais a atual (se ainda não foi guardada)
@@ -1519,7 +1519,7 @@ async function telaClube(liga, clube) {
       } else { const comps = COMPS_DOS_RECORDES.find(c => c[0] === k)[2];
         guardados = guardados || await B.recordesGuardados(liga.id);
         const l = guardados.filter(x => comps.includes(x.comp));
-        if (!guardados.some(x => x.temporada === liga.temporada)) for (const c of comps) { if (!(c in atuais)) atuais[c] = await estatisticasDaLiga(liga.id, c).catch(() => null);
+        for (const c of comps.filter(c => !guardados.some(x => x.temporada === liga.temporada && x.comp === c))) { if (!(c in atuais)) atuais[c] = await estatisticasDaLiga(liga.id, c).catch(() => null);
           const a = atuais[c]; if (a) l.push({ temporada: liga.temporada, comp: c, recordes: a.recordes, artilheiros: a.artilheiros, assistencias: a.assistencias }); }
         d = melhoresRecordes(l);
         listas = lista("Maiores artilheiros", somaDasListas(l, "artilheiros", "gols"), "gols") + lista("Mais assistências", somaDasListas(l, "assistencias", "ass"), "assist.");
