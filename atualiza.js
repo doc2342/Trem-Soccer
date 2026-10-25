@@ -100,5 +100,7 @@
   document.addEventListener("click", function (e) {
     var a = e.target.closest && e.target.closest("a[href]");
     if (a && !a.target && /(^|\/)aovivo\.html\?/.test(a.getAttribute("href"))) { a.target = "_blank"; a.rel = "noopener"; }
+    // página com parâmetros (jogador.html?id=…): o navegador guarda uma cópia por endereço, que o renovar() não alcança; a versão no endereço evita abrir a antiga
+    if (a && a.origin === location.origin && /\.html\?/.test(a.getAttribute("href")) && ler("mo_versao")) { var u = new URL(a.href); if (u.searchParams.get("v") !== ler("mo_versao")) { u.searchParams.set("v", ler("mo_versao")); a.href = u.href; } }
   }, true);
 })();
