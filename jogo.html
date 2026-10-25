@@ -696,7 +696,7 @@ async function telaClube(liga, clube) {
   // calendário do clube: jogos de liga, playoff e copa, com os resultados já liberados (os de copa trazem pênaltis)
   const resDosMeus = { ...Object.fromEntries(resLiga.map(r => [r.partida_id, r])), ...copaRes };
   // sala de troféus: títulos de liga (1º do grupo) e da copa, por clube; e o quadro dos maiores campeões
-  const TIPOS_DE_TROFEU = [["lib", "🌎", "Libertadores"], ["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["sul", "🌐", "Sul-Americana"], ["super", "⭐", "Supercopa"], ["rec", "🏆", "Recopa"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["F", "🏆", "Brasileiro Série B3"], ["D", "🏆", "Brasileiro Série C1"], ["E", "🏆", "Brasileiro Série C2"], ["vice", "🥈", "Vice da Copa do Brasil"]];
+  const TIPOS_DE_TROFEU = [["lib", "🌎", "Libertadores"], ["A", "🏆", "Brasileiro Série A"], ["copa", "🏆", "Copa do Brasil"], ["sul", "🌐", "Sul-Americana"], ["super", "⭐", "Supercopa"], ["rec", "🏆", "Recopa"], ["B", "🏆", "Brasileiro Série B1"], ["C", "🏆", "Brasileiro Série B2"], ["D", "🏆", "Brasileiro Série B3"], ["E", "🏆", "Brasileiro Série B4"], ["vice", "🥈", "Vice da Copa do Brasil"]];
   const tiposDe = x => [...(campeaoDaSerie(x) ? [x.grupo] : []), ...(x.copa === "campeão" ? ["copa"] : x.copa === "vice" ? ["vice"] : []), ...(x.supercopa ? ["super"] : []), ...(x.lib === "campeão" ? ["lib"] : []), ...(x.sul === "campeão" ? ["sul"] : []), ...(x.recopa ? ["rec"] : [])];
   const trofeusDe = id => { const m = {}; trofeus.filter(x => x.clube_id === id).forEach(x => tiposDe(x).forEach(k => (m[k] = m[k] || []).push(x.temporada))); return m; };
   const salaDeTrofeus = (id, titulo = "Sala de troféus") => { const m = trofeusDe(id), tipos = TIPOS_DE_TROFEU.filter(([k]) => m[k]);
@@ -1457,7 +1457,7 @@ async function telaClube(liga, clube) {
   };
   // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo) e, ao lado, o maior campeão de cada competição; ranking com escudos |
   // campeões de uma temporada por vez (‹ ›) e recordes da liga; os recordes e os jogadores seguem o mesmo filtro de competição
-  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]], ["LIB", "Libertadores", ["LIB"]], ["SUL", "Sul-Americana", ["SUL"]], ["SUPER", "Supercopa", ["SUPER"]], ["REC", "Recopa", ["REC"]]];
+  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "D"]], ["COPA", "Copa do Brasil", ["COPA"]], ["LIB", "Libertadores", ["LIB"]], ["SUL", "Sul-Americana", ["SUL"]], ["SUPER", "Supercopa", ["SUPER"]], ["REC", "Recopa", ["REC"]]];
   // o melhor de cada recorde entre várias temporadas e competições, na mesma ordem do recordes_da_liga (89/143)
   const melhoresRecordes = l => { const tot = x => x.gols_casa + x.gols_fora, dif = x => Math.abs(x.gols_casa - x.gols_fora);
     const melhor = (k, ok, cmp) => l.filter(x => x.recordes && x.recordes[k] && ok(x.recordes[k])).map(x => ({ ...x.recordes[k], temporada: x.temporada, comp: x.comp }))
@@ -1480,18 +1480,18 @@ async function telaClube(liga, clube) {
     const temporadas = [...new Set(trofeus.map(x => x.temporada))].sort((a, b) => b - a);
     // faixa: o maior campeão com o escudo; ao lado, quem mais venceu cada competição (empate: os dois nomes, ou quantos clubes)
     const ultimo = lider && contagem(lider.m).flatMap(([k, n]) => lider.m[k].map(t => [t, n])).sort((a, b) => b[0] - a[0])[0];
-    const porComp = [["lib", "Libertadores", ["lib"]], ["A", "Série A", ["A"]], ["copa", "Copa do Brasil", ["copa"]], ["sul", "Sul-Americana", ["sul"]], ["super", "Supercopa", ["super"]], ["rec", "Recopa", ["rec"]], ["B", "Série B", ["B", "C", "F"]], ["D", "Série C", ["D", "E"]]]
+    const porComp = [["lib", "Libertadores", ["lib"]], ["A", "Série A", ["A"]], ["copa", "Copa do Brasil", ["copa"]], ["sul", "Sul-Americana", ["sul"]], ["super", "Supercopa", ["super"]], ["rec", "Recopa", ["rec"]], ["B", "Série B", ["B", "C", "D"]]]
       .map(([k, n, ks]) => { const c = linhas.map(l => [l.id, ks.reduce((t, x) => t + (l.m[x] || []).length, 0)]).filter(([, v]) => v), max = Math.max(0, ...c.map(([, v]) => v)), quem = c.filter(([, v]) => v === max).map(([id]) => id);
         return max ? `<div class="t-camp-comp">${ico(k)}<div><small>${n}</small><span>${quem.length === 1 ? esc22(quem[0], 20) : ""}<span>${quem.length === 1 ? esc(nomeC(quem[0])) : quem.length === 2 ? esc(quem.map(nomeC).join(" e ")) : `${quem.length} clubes`}</span></span></div><b>${max}<small>×</small></b></div>` : ""; }).join("");
     const lado = lider ? `<div class="t-numero-rotulo">Quem mais venceu cada competição</div><div class="t-camp-comps-lado">${porComp}</div>` : "";
     let topo = faixaFoco({ rotulo: `Campeões e recordes · ${temporadas.length} ${temporadas.length === 1 ? "temporada" : "temporadas"}`, titulo: lider ? nomeC(lider.id) : "Nenhum título ainda",
       apagado: lider ? titulos(total(lider)) : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.", lado });
     if (lider && cPor[lider.id]) topo = topo.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-camp-titulo">${esc22(lider.id, 104)}<div>${h}</div></div>`);
-    const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["super", "super", "Supercopa", "Sup."], ["rec", "rec", "Recopa", "Rec."], ["B,C,F", "B", "Série B", "B"], ["D,E", "D", "Série C", "C"]];
+    const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["super", "super", "Supercopa", "Sup."], ["rec", "rec", "Recopa", "Rec."], ["B,C,D", "B", "Série B", "B"]];
     const tabela = `<table class="t-tabela t-liga-tab t-camp-tab"><tr><th></th><th class="t-esq">Clube</th>${COLS.map(([, k, n, c]) => `<th title="${n}"><span class="t-camp-th">${ico(k)}<span class="t-camp-longo">${n}</span><span class="t-camp-curto">${c}</span></span></th>`).join("")}</tr>
       ${linhas.map((l, i) => `<tr class="${l.id === clube.id ? "t-eu" : i >= 12 ? "t-camp-mais" : ""}"><td>${i + 1}</td><td class="t-esq">${cel(l.id)}</td>${COLS.map(([ks], c) => { const v = ks.split(",").reduce((t, k) => t + (l.m[k] || []).length, 0); return `<td>${v ? c < 2 ? `<b>${v}</b>` : v : ""}</td>`; }).join("")}</tr>`).join("")}</table>
       ${linhas.length > 12 ? `<button type="button" class="t-botao t-camp-todos" data-camtodos>Ver os ${linhas.length} clubes</button>` : ""}
-      <p class="t-fajuda">Ordem: Libertadores, Série A, Copa do Brasil, Sul-Americana, Supercopa, Recopa, Série B e Série C. Título de série é o 1º do grupo; na Série B, desde a temporada 14, o vencedor do playoff.</p>`;
+      <p class="t-fajuda">Ordem: Libertadores, Série A, Copa do Brasil, Sul-Americana, Supercopa, Recopa e Série B. Título de série é o 1º do grupo; na Série B, desde a temporada 14, o vencedor do playoff.</p>`;
     const temporada = t => { const i = temporadas.indexOf(t), da = trofeus.filter(x => x.temporada === t);
       return `<div class="t-liga-nav"><button type="button" data-camt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b>
         <button type="button" data-camt="${temporadas[i - 1] ?? ""}" ${i > 0 ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
@@ -1540,9 +1540,9 @@ async function telaClube(liga, clube) {
     if (visualNovo) return campeoesNovos(linhas);
     $("tituloTabela").innerHTML = "🏅 Maiores campeões e recordes";
     $("tabela").className = "";
-    $("tabela").innerHTML = linhas.length ? `<table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Libertadores">Lib.</th><th title="Brasileiro Série A">A</th><th title="Copa do Brasil">Copa</th><th title="Sul-Americana">Sul</th><th title="Série B1, B2 e B3">B</th><th title="Série C1 e C2">C</th></tr>
-      ${linhas.map((l, i) => `<tr><td>${i + 1}</td><td class="esq ${l.id === clube.id ? "nota" : ""}">${lk(l.id)}</td>${[["lib"], ["A"], ["copa"], ["sul"], ["B", "C", "F"], ["D", "E"]].map((ks, k) => `<td>${k < 2 ? "<b>" : ""}${ks.reduce((t, x) => t + (l.m[x] || []).length, 0) || ""}${k < 2 ? "</b>" : ""}</td>`).join("")}</tr>`).join("")}</table>
-      <div class="mut" style="margin-top:6px;font-size:12px">Ordem: títulos da Libertadores, depois Série A, Copa do Brasil, Sul-Americana, Supercopa, Recopa, Série B e Série C. O título de série é o 1º lugar do grupo na temporada; na Série B, desde a temporada 14, é o vencedor do playoff.</div>`
+    $("tabela").innerHTML = linhas.length ? `<table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Libertadores">Lib.</th><th title="Brasileiro Série A">A</th><th title="Copa do Brasil">Copa</th><th title="Sul-Americana">Sul</th><th title="Série B1, B2 e B3">B</th></tr>
+      ${linhas.map((l, i) => `<tr><td>${i + 1}</td><td class="esq ${l.id === clube.id ? "nota" : ""}">${lk(l.id)}</td>${[["lib"], ["A"], ["copa"], ["sul"], ["B", "C", "D"]].map((ks, k) => `<td>${k < 2 ? "<b>" : ""}${ks.reduce((t, x) => t + (l.m[x] || []).length, 0) || ""}${k < 2 ? "</b>" : ""}</td>`).join("")}</tr>`).join("")}</table>
+      <div class="mut" style="margin-top:6px;font-size:12px">Ordem: títulos da Libertadores, depois Série A, Copa do Brasil, Sul-Americana, Supercopa, Recopa e Série B. O título de série é o 1º lugar do grupo na temporada; na Série B, desde a temporada 14, é o vencedor do playoff.</div>`
       : `<div class="mut">Nenhum título ainda: os campeões entram aqui a cada virada de temporada.</div>`;
     $("tabela").insertAdjacentHTML("beforeend", `<div id="recLiga"><h2 style="margin-top:14px">Recordes da liga</h2><span class="mut">Carregando…</span></div>`);
     recordesDaLiga(liga.id).then(d => { if ($("recLiga")) $("recLiga").innerHTML = `<h2 style="margin-top:14px">Recordes da liga</h2>${htmlDosRecordes(d)}`; });
@@ -1988,7 +1988,7 @@ async function telaClube(liga, clube) {
   // Histórico da base: os campeões de cada temporada já vêm com a página; as tabelas e as chaves antigas só são buscadas ao abrir
   const historicoDaBase = () => {
     if (baseJogos == null || !baseCampeoes.length) return "";
-    const COLUNAS = ["A", "B", "C", "F", "D", "E", "COPINHA", "LIBJUV"].filter(g => baseCampeoes.some(x => x.grupo === g)), temporadas = [...new Set(baseCampeoes.map(x => x.temporada))];
+    const COLUNAS = ["A", "B", "C", "D", "E", "COPINHA", "LIBJUV"].filter(g => baseCampeoes.some(x => x.grupo === g)), temporadas = [...new Set(baseCampeoes.map(x => x.temporada))];
     const nomeH = id => esc((cPor[id] || {}).nome || "—"), meu = id => id === clube.id ? ` class="nota"` : "";
     const campeao = (t, g) => { const x = baseCampeoes.find(x => x.temporada === t && x.grupo === g); return x ? `<td${meu(x.clube_id)}>${lk(x.clube_id)}</td>` : `<td class="mut">—</td>`; };
     // o que a busca precisa fica guardado fora do desenho, porque a página é redesenhada a toda hora
@@ -2102,7 +2102,7 @@ async function telaClube(liga, clube) {
       ` Vagas pela temporada anterior: 8 do Brasil (campeões dos grupos da liga de base e da Copinha; se algum se repetir, as melhores campanhas do grupo A) e os 2 primeiros de cada país de fora, que jogam com garotos de uma base de nível ${CONFIG_LIGA_DE_BASE.nivelDeFora}. Nas oitavas, sempre Brasil x estrangeiro.`);
     // campeões: uma temporada por vez, da mais recente
     // em destaque a Libertadores Juvenil, depois a Copinha; as ligas embaixo, em linhas curtas
-    const temps = [...new Set(baseCampeoes.map(x => x.temporada))].sort((a, b) => b - a), ORDEM = ["A", "B", "C", "F", "D", "E"];
+    const temps = [...new Set(baseCampeoes.map(x => x.temporada))].sort((a, b) => b - a), ORDEM = ["A", "B", "C", "D", "E"];
     const curto = g => PAISES[g] || nomeDoGrupo(g).replace(/^.*?(Série \S+)$/, "$1");
     const doAno = t => baseCampeoes.filter(x => x.temporada === t), escudoDe = id => (c => svgEscudo(c.escudo, c.sigla, 22))(cPor[id] || {});
     const emDestaque = (x, nome) => x ? `<div class="t-bc-dest${x.clube_id === clube.id ? " t-eu" : ""}"><span>${nome}</span>${(c => svgEscudo(c.escudo, c.sigla, 44))(cPor[x.clube_id] || {})}<b>${lk(x.clube_id)}</b></div>` : "";

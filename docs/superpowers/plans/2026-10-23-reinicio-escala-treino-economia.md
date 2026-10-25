@@ -112,12 +112,12 @@ git commit -m "Treino sem o freio por idade e contado por temporada (A, B e paí
 
 **Por que o guardado fica com divisão 2:** a coluna `divisao` não pode ficar vazia, e o guardado é excluído em todo lugar pelo grupo (`GUARDADO`), não pela divisão. O passo 4 confere isso.
 
-- [ ] **Passo 1: teste que falha.** `teste_grupos.mjs`: `divisaoDoGrupo` dá A→1, ARG→1, B/C/D/E→2, X→2; `GRUPOS_DA_B` é `["B","C","D"]`; `ehDaLiga("D") === true`, `ehDaLiga("X") === false`, `ehDaLiga("URU") === false`; nenhuma das constantes por divisão (`TETO_DE_FOLHA`, `PREMIO_MINIMO`, `PREMIOS`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`, `CONFIG_TREINO.ctSemDono`) tem a chave 3; `nomeCurto`/`nomeBaseDoGrupo("D")` é "Série B3".
-- [ ] **Passo 2:** rode `node ferramentas/teste_grupos.mjs` e veja falhar.
-- [ ] **Passo 3:** faça as mudanças da lista de arquivos.
-- [ ] **Passo 4: varredura.** Rode `grep -rnE "divisao ?(===|==|=|<|>|<=|>=) ?[23]|divisao: ?[23]|\[3\]|\"F\"|'F'|Série C|\"D\", ?\"E\"" src/*.js *.html ferramentas/empacotar_funcao.py supabase/1[0-4]*.sql` e veja cada ocorrência que trata de divisão ou grupo. Nenhuma pode deixar um guardado entrar em liga, copa, base ou mercado. Onde o filtro for só `divisao = 2`, acrescente `grupo <> 'X'`. As funções SQL com esse filtro entram também no 143.
-- [ ] **Passo 5:** rode `node ferramentas/teste_grupos.mjs && python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`.
-- [ ] **Passo 6:** commit, com a mensagem "Sem divisão 3: Série B em B, C e D (B4 = E se precisar); sai a transição T13→T14; saude.mjs conta o grupo D", com `supabase/functions` se mudou.
+- [x] **Passo 1: teste que falha.** `teste_grupos.mjs`: `divisaoDoGrupo` dá A→1, ARG→1, B/C/D/E→2, X→2; `GRUPOS_DA_B` é `["B","C","D"]`; `ehDaLiga("D") === true`, `ehDaLiga("X") === false`, `ehDaLiga("URU") === false`; nenhuma das constantes por divisão (`TETO_DE_FOLHA`, `PREMIO_MINIMO`, `PREMIOS`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`, `CONFIG_TREINO.ctSemDono`) tem a chave 3; `nomeCurto`/`nomeBaseDoGrupo("D")` é "Série B3".
+- [x] **Passo 2:** rode `node ferramentas/teste_grupos.mjs` e veja falhar.
+- [x] **Passo 3:** faça as mudanças da lista de arquivos.
+- [x] **Passo 4: varredura.** Rode `grep -rnE "divisao ?(===|==|=|<|>|<=|>=) ?[23]|divisao: ?[23]|\[3\]|\"F\"|'F'|Série C|\"D\", ?\"E\"" src/*.js *.html ferramentas/empacotar_funcao.py supabase/1[0-4]*.sql` e veja cada ocorrência que trata de divisão ou grupo. Nenhuma pode deixar um guardado entrar em liga, copa, base ou mercado. Onde o filtro for só `divisao = 2`, acrescente `grupo <> 'X'`. As funções SQL com esse filtro entram também no 143.
+- [x] **Passo 5:** rode `node ferramentas/teste_grupos.mjs && python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`.
+- [x] **Passo 6:** commit, com a mensagem "Sem divisão 3: Série B em B, C e D (B4 = E se precisar); sai a transição T13→T14; saude.mjs conta o grupo D", com `supabase/functions` se mudou.
 
 **Atenção na publicação:** esta tarefa só vai ao ar junto com o reinício (Tarefa 9). Com a liga de hoje (grupo "F" ainda vivo), `GRUPOS_DA_B` novo não acharia o B3.
 

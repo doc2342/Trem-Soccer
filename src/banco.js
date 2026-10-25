@@ -261,7 +261,7 @@ export { PAISES, paisDoGrupo };
 export const nomeDoPlayoff = p => ({ pre: "Playoff · preliminar", semi: "Playoff · semifinal", final: "Playoff · final" })[p.fase] + (p.fase === "pre" ? "" : p.rodada % 2 ? " (volta)" : " (ida)");
 export const ordenarGrupos = gs => gs.slice().sort((a, b) => !!PAISES[a] - !!PAISES[b] || String(a).localeCompare(String(b)));
 export const nomeDoGrupo = g => batizar(g, nomeBaseDoGrupo(g)); // com o naming rights (src/patrocinio.js)
-export const nomeBaseDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", F: "Brasileiro Série B3", D: "Brasileiro Série C1", E: "Brasileiro Série C2", X: "Clubes guardados", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
+export const nomeBaseDoGrupo = g => ({ A: "Brasileiro Série A", B: "Brasileiro Série B1", C: "Brasileiro Série B2", D: "Brasileiro Série B3", E: "Brasileiro Série B4", X: "Clubes guardados", COPA: "Copa do Brasil", LIB: "Libertadores", SUL: "Sul-Americana", REC: "Recopa",
   ARG: "Campeonato Argentino", URU: "Campeonato Uruguaio", COL: "Campeonato Colombiano", CHI: "Campeonato Chileno" })[g] || "Grupo " + g;
 // Copa do Brasil: nome de cada fase (copa_fase de 1 a 6) e prêmio, em mil, a quem entra nela (49_copa_premios_e_bilheteria.sql)
 export const FASES_DA_COPA = ["Supercopa", "Preliminar", "Fase de 32", "Oitavas", "Quartas", "Semifinal", "Final"];

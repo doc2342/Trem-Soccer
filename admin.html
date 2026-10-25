@@ -61,7 +61,7 @@ document.addEventListener("click", e => {
 });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const nomes = await (await fetch("./dados/nomes.json")).json();
-const GRUPOS = ["A", "B", "C", "D", "E"], POR_GRUPO = 10, NIVEL = 30;
+const GRUPOS = ["A", "B", "C", "D"], POR_GRUPO = 10, NIVEL = 30;
 const gruposDe = clubes => ordenarGrupos([...new Set(clubes.map(c => c.grupo))].filter(g => g !== GUARDADO)); // os do Brasil e os dos países que já existem (sem os guardados)
 const PREFIXOS_DE_FORA = ["Club Atlético", "Deportivo", "Sportivo", "Unión", "Racing", "Nacional", "Real", "Independiente", "Defensores de", "Club Social"];
 // Régua provisória dos países: onze titular de 37,5 (o mais forte) a 34,5, que ainda cabe no teto de folha da Série A. A régua de verdade sai da simulação.
@@ -124,7 +124,7 @@ const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, pe
 
 // Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
 // (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais alta com bot.
-const NIVEL_DO_NOVATO = { 1: 38, 2: 35, 3: 32 };
+const NIVEL_DO_NOVATO = { 1: 38, 2: 35 };
 async function aprovarPedido(id, clubeId) {
   const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
@@ -277,7 +277,6 @@ async function tela(aviso = "") {
         <div class="t-adm-item-bt"><input type="datetime-local" id="inicioPlayoff" value="${daqui}"><button type="button" class="t-botao" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase</button></div></div>
       <div class="t-adm-item"><b>Virada</b><span>Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada.</span>
         <div class="t-adm-item-bt"><label class="t-adm-check" title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label>
-          <label class="t-adm-check" title="Só na virada T13→T14: ninguém cai da A; sobem 2 das Bs (dirigente ativo primeiro, depois campeões); a Série B nova (3 grupos de 8) são os outros 18 das Bs e os 3 primeiros de cada C em serpentina pela força do onze; os outros 14 da C ficam guardados"><input type="checkbox" id="transicao"> Transição A 12 + B 3×8</label>
           <button type="button" class="t-botao t-botao-principal" id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da T${liga.temporada}</button></div></div>
       ${ajuda("A virada paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova. A meta de cada clube com dirigente é a faixa central de posições em várias simulações da temporada (todos com tática de bot); sem meta, vale a posição pela força do elenco, com uma de folga para cada lado. Série B (cada grupo de 8): 14 rodadas → preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate, passa o mandante) → semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6 → final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado, passa a melhor campanha). O vencedor sobe; caem 3 da A, um para cada grupo.")}
       <div id="previaVirada" class="t-adm-previa"></div>`;
@@ -323,8 +322,7 @@ async function tela(aviso = "") {
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
       <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>
       <div class="row"><label>Playoffs de acesso: início dos jogos<input type="datetime-local" id="inicioPlayoff" value="${daqui}"></label><button class="sec" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase dos playoffs</button><span class="mut">O servidor já cria cada fase sozinho, nas datas reservadas no calendário, assim que a fase anterior do grupo termina. Use o botão só para antecipar ou escolher outra hora (sem datas reservadas, a ida fica na hora escolhida e a volta um intervalo depois).</span>
-        <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label>
-        <label title="Só na virada T13→T14: ninguém cai da A; sobem 2 das Bs (dirigente ativo primeiro, depois campeões); a Série B nova (3 grupos de 8) são os outros 18 das Bs e os 3 primeiros de cada C em serpentina pela força do onze; os outros 14 da C ficam guardados"><input type="checkbox" id="transicao"> Transição para A 12 + B 3×8</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
+        <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
       <div class="mut" style="margin-top:6px">Série B (cada grupo de 8): 14 rodadas → preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate, passa o mandante) → semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6 → final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado, passa a melhor campanha). O vencedor sobe; caem 3 da A, um para cada grupo.</div>
       <div id="previaVirada" style="margin-top:10px"></div></div>` : ""}
     ${liga ? `<div class="card"><h2>Diretoria</h2>
@@ -649,7 +647,7 @@ async function tela(aviso = "") {
       const comLivres = (await livresDaLiga(liga.id)) != null; // o SQL 21 já foi executado?
       const safras = {}; (await safrasRecentes(liga.id)).forEach(x => { safras[x.clube_id] = Math.max(safras[x.clube_id] || 0, x.temporada); }); // quem ganhou talento raro há pouco concorre com metade do peso
       const taticas = Object.fromEntries((await taticasDe(lista.filter(c => c.dono).map(c => c.id))).map(t => [t.clube_id, (t.dados || {}).vagas || []])); // a base puxa para as posições que o clube usa
-      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras, taticas, semMovimentos: $("semMovimentos").checked, transicao: $("transicao").checked,
+      const { plano, resumo } = planejarVirada({ rng: criarRng(Date.now() % 2147483647), liga, clubes: lista, elencos, talentos, partidas, resultados, nomes, comLivres, safras, taticas, semMovimentos: $("semMovimentos").checked,
         juvenis: Object.values(elencos).flat().some(j => j.juvenil !== undefined) }); // jovens sem contrato só depois do 60_juvenis_e_formador.sql
       const seta = x => x.destino === "guardado" ? `<span class="mut">⏸ guardado</span>` : x.destino === "subiu" ? `<span class="ok">▲ ${nomeDoGrupo(x.para)}</span>` : x.destino === "caiu" ? `<span class="bad">▼ ${nomeDoGrupo(x.para)}</span>` : x.destino === "campeão" ? "🏆" : x.para ? `<span class="mut">→ ${nomeDoGrupo(x.para)}</span>` : "";
       const lugar = x => `<tr><td>${x.posicao}</td><td class="esq">${esc(x.nome)}${x.dono ? "" : ` <span class="tag">bot</span>`}</td><td><b>${x.pontos}</b></td><td>${dinheiro(x.premio)}</td><td>${impostoDe(x) ? dinheiro(impostoDe(x)) : "—"}</td><td class="esq">${seta(x)}</td></tr>`;
@@ -669,7 +667,7 @@ async function tela(aviso = "") {
           await guardarEstatisticas(liga.id); // artilheiros e demais listas da temporada, antes de a virada apagar as partidas
           // fundo da liga: bônus de mérito da Série C (campeão do grupo, 2º, 3º e 4º, e quem sobe pelo playoff) e prêmios individuais
           // (se o servidor já fechou a temporada, 145_fechamento_da_temporada.sql, tudo isto já foi pago e as chamadas não repetem nada)
-          const merito = meritoDaSerieC(plano.classificacao, $("transicao").checked ? [] : plano.movimentos.filter(m => !m.caiu).map(m => m.clube_id)); // na transição a C não teve playoff
+          const merito = meritoDaSerieC(plano.classificacao, plano.movimentos.filter(m => !m.caiu).map(m => m.clube_id)); 
           const premiosDoFundo = [await premiarTemporada(liga.id, merito), await premiarLigaDeBase(liga.id)].filter(Boolean).join(" ");
           await selecaoDaTemporada(liga.id); // os onze de melhor nota de cada série, só de honra
           // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra

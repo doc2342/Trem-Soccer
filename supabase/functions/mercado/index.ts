@@ -397,7 +397,7 @@ const __economia = (() => {
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
   // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
-  const TETO_DE_FOLHA = { 1: 20000, 2: 16000, 3: 10000 };
+  const TETO_DE_FOLHA = { 1: 20000, 2: 16000 };
 
   // Contrato inicial de um jogador gerado: salário de mercado, duração sorteada de 1 a 3 temporadas (contando a atual)
   // e proteção contra a cláusula até o fim da primeira temporada.
@@ -407,7 +407,7 @@ const __economia = (() => {
   }
 
   // Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
-  const PREMIO_MINIMO = { 1: 2000, 2: 1200, 3: 600 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
+  const PREMIO_MINIMO = { 1: 2000, 2: 1200 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
   // Imposto em faixas (122_imposto_em_faixas_e_operacao.sql): isento até 1/4 do teto; 20% até 1/2; 35% até o teto; 50% acima
   const FAIXAS_DO_IMPOSTO = [[0.25, 0.2], [0.5, 0.35], [1, 0.5]];
   const impostoDoLucro = (lucro, teto) => Math.round(FAIXAS_DO_IMPOSTO.reduce((t, [de, taxa], i) => {

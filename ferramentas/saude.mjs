@@ -1,6 +1,7 @@
 // Raio-x da temporada encerrada (leitura pública). Uso: node saude.mjs <pasta do projeto>
 import { pathToFileURL } from "node:url";
 import { writeFileSync } from "node:fs";
+import { ehDaLiga } from "../src/virada.js";
 const raiz = process.argv[2];
 const { notaBruta, notaDeTeto, POSICOES } = await import(pathToFileURL(raiz + "/src/modelo.js"));
 const K = "sb_publishable_Tsz8yf6kkgTn5Zj0M0d2Yw_eDoGeFjP", U = "https://gqsvsvrclyiroehymuot.supabase.co/rest/v1/";
@@ -25,7 +26,7 @@ const safras = await tudo("safras?select=temporada,clube_id,jogador,pos,nivel&or
 writeFileSync(process.argv[3] || "dados.json", JSON.stringify({ liga, clubes, jog, partidas, res, hist, transf, safras }));
 
 // clube de outro país: a "divisão" dele, aqui, é o grupo (ARG, URU…), para não misturar com a Série A
-for (const c of clubes) if (!"ABCDE".includes(c.grupo)) c.divisao = c.grupo;
+for (const c of clubes) if (!ehDaLiga(c.grupo)) c.divisao = c.grupo;
 const SERIES = [1, 2, 3, ...new Set(clubes.map(c => c.divisao).filter(d => typeof d === "string"))];
 const C = Object.fromEntries(clubes.map(c => [c.id, c]));
 const med = v => { const s = [...v].sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : NaN; };
@@ -80,7 +81,7 @@ const tab = {};
 for (const p of liga_) { const r = R[p.id]; if (!r) continue; for (const [id, gp, gc] of [[p.casa, r.gols_casa, r.gols_fora], [p.fora, r.gols_fora, r.gols_casa]]) { const t = tab[id] ||= { id, pts: 0, gp: 0, gc: 0, j: 0 }; t.j++; t.gp += gp; t.gc += gc; t.pts += gp > gc ? 3 : gp === gc ? 1 : 0; } }
 const xs = clubes.filter(c => tab[c.id]);
 const corr = (a, b) => { const ma = media(a), mb = media(b); return a.reduce((s, x, i) => s + (x - ma) * (b[i] - mb), 0) / Math.sqrt(a.reduce((s, x) => s + (x - ma) ** 2, 0) * b.reduce((s, x) => s + (x - mb) ** 2, 0)); };
-for (const g of "ABCDE") {
+for (const g of "ABCD") {
   const l = xs.filter(c => c.grupo === g).sort((a, b) => tab[b.id].pts - tab[a.id].pts || (tab[b.id].gp - tab[b.id].gc) - (tab[a.id].gp - tab[a.id].gc));
   console.log(`grupo ${g} (corr onze×pts ${corr(l.map(c => c.n11), l.map(c => tab[c.id].pts)).toFixed(2)}): ` + l.map(c => `${c.nome.slice(0, 12)}${c.dono ? "*" : ""} ${tab[c.id].pts}(${f1(c.n11)})`).join(" · "));
 }

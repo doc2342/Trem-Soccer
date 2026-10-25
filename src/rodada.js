@@ -301,7 +301,7 @@ export function vencedorDoGrupo(partidas, resultados, g) {
 // O servidor fecha a temporada sozinho uma hora depois do último jogo (145_fechamento_da_temporada.sql) e a virada (virada.js) usa as mesmas contas.
 // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
 // pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
-export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
+export const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200] };
 export const PREMIOS_DE_FORA = [9000, 5000]; // campeonato de outro país (REGUA_DE_FORA, em virada.js)
 export const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
   const [topo, fundo] = fora ? PREMIOS_DE_FORA : PREMIOS[divisao] || PREMIOS[2];

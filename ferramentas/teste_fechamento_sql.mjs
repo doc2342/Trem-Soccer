@@ -4,14 +4,14 @@ import assert from "node:assert";
 import fs from "node:fs";
 const { classificacaoFinal, meritoDaSerieC, tecnicosDoAno } = await import(new URL("../src/rodada.js", import.meta.url));
 
-// grupo D (Série C) de 4: 1 vence todos, 2 vence 3 e 4, 3 vence 4; clube guardado (X) fica de fora
-const clubes = [1, 2, 3, 4].map(id => ({ id, nome: "C" + id, grupo: "D", divisao: 3 })).concat({ id: 9, nome: "G", grupo: "X", divisao: 3 });
+// grupo D (Série B3) de 4: 1 vence todos, 2 vence 3 e 4, 3 vence 4; clube guardado (X) fica de fora
+const clubes = [1, 2, 3, 4].map(id => ({ id, nome: "C" + id, grupo: "D", divisao: 2 })).concat({ id: 9, nome: "G", grupo: "X", divisao: 2 });
 const partidas = [], resultados = [];
 for (const [a, b] of [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]]) { partidas.push({ id: partidas.length + 1, grupo: "D", fase: "liga", casa: a, fora: b }); resultados.push({ partida_id: partidas.length, gols_casa: 1, gols_fora: 0 }); }
 const linhas = classificacaoFinal(clubes, partidas, resultados);
-assert.deepStrictEqual(linhas.map(l => [l.clube_id, l.posicao, l.pontos, l.premio]), [[1, 1, 9, 1750], [2, 2, 6, 1367], [3, 3, 3, 983], [4, 4, 0, 600]]);
-// mérito: 1º a 4º, e o 3º sobe pelo playoff (o campeão não ganha o bônus do acesso)
-assert.deepStrictEqual(meritoDaSerieC(linhas, [1, 3]).map(m => [m.clube_id, m.valor]), [[1, 800], [2, 400], [3, 300], [4, 200], [3, 600]]);
+assert.deepStrictEqual(linhas.map(l => [l.clube_id, l.posicao, l.pontos, l.premio]), [[1, 1, 9, 3000], [2, 2, 6, 2400], [3, 3, 3, 1800], [4, 4, 0, 1200]]);
+// sem Série C não há mérito
+assert.deepStrictEqual(meritoDaSerieC(linhas, [1, 3]), []);
 // técnico do ano: o 4 tem o elenco mais forte e o 1 o mais fraco; o 1 superou a colocação esperada (4º) em três
 const elenco = n => Array.from({ length: 11 }, () => ({ pos: "MC", at: Array(30).fill(n) }));
 assert.deepStrictEqual(tecnicosDoAno(linhas, { 1: elenco(5), 2: elenco(8), 3: elenco(10), 4: elenco(15) }), [{ grupo: "D", clube_id: 1, numero: 3 }]);
@@ -54,7 +54,7 @@ create function teto_do_clube(bigint) returns int language sql as $$ select 0 $$
 create function janela_do_mercado(bigint) returns text language sql as $$ select null::text $$;
 create function listados_para_os_bots(bigint) returns setof int language sql as $$ select 1 where false $$;
 insert into ligas values (1, 1, '{"sem_playoffs": true}'), (2, 1, '{"sem_playoffs": true}');
-insert into clubes (id, liga_id, grupo, divisao) select g, case when g <= 4 then 1 else 2 end, 'D', 3 from generate_series(1, 8) g;
+insert into clubes (id, liga_id, grupo, divisao) select g, case when g <= 4 then 1 else 2 end, 'D', 2 from generate_series(1, 8) g;
 insert into financas (clube_id) select g from generate_series(1, 8) g;
 insert into patrocinios values (1, 1, 1, 2, 300, true, null), (1, 1, 4, 2, 300, true, null);
 insert into partidas (liga_id, grupo, rodada, fase, casa, fora, fim) values (1, 'D', 1, 'liga', 1, 2, now() + interval '1 hour'), (2, 'D', 1, 'liga', 5, 6, now() - interval '2 hours'),
@@ -87,17 +87,17 @@ await q(`update partidas set fim = now() - interval '2 hours' where liga_id = 1`
 await q(`update resultados set efeitos = '{}' where partida_id = 1`);
 assert.strictEqual(await fechar(1), "");
 await q(`update resultados set efeitos = null`);
-assert.match(await fechar(1), /Temporada 1 fechada: 4700 mil/);
+assert.match(await fechar(1), /Temporada 1 fechada: 8400 mil/);
 assert.deepStrictEqual((await q(`select clube_id, posicao, premio, destino, copa from historico where liga_id = 1 order by clube_id`)).map(r => [r.clube_id, r.posicao, r.premio, r.destino, r.copa]),
-  [[1, 1, 1750, null, null], [2, 2, 1367, null, "campeão"], [3, 3, 983, null, null], [4, 4, 600, null, null]]);
-assert.strictEqual(await caixa(1), 1750 + 800 + 300);
-assert.strictEqual(await caixa(3), 983 + 300 + 600);
-assert.strictEqual(await caixa(4), 600 + 200);
+  [[1, 1, 3000, null, null], [2, 2, 2400, null, "campeão"], [3, 3, 1800, null, null], [4, 4, 1200, null, null]]);
+assert.strictEqual(await caixa(1), 3000 + 300);
+assert.strictEqual(await caixa(3), 1800);
+assert.strictEqual(await caixa(4), 1200);
 assert.strictEqual((await q(`select count(*)::int n from premios_individuais where premio = 'tecnico'`))[0].n, 1);
 assert.strictEqual((await q(`select temporada_fechada t from ligas where id = 1`))[0].t, 1);
 // de novo: não paga duas vezes
 assert.strictEqual(await fechar(1), "");
-assert.strictEqual(await caixa(1), 2850);
+assert.strictEqual(await caixa(1), 3300);
 // temporada errada: nada
 assert.strictEqual(await fechar(2, 7), "");
 
@@ -106,12 +106,12 @@ await q(`select set_config('teste.role', '', false)`); await q(`select set_confi
 await q(`update clubes set premio_antecipado = 600 where id = 4`);
 const destinos = { 1: "subiu", 2: "ficou", 3: "subiu", 4: "ficou" };
 const virar = (liga, desloca) => q(`select virar_temporada($1, $2::jsonb) r`, [liga, JSON.stringify({ temporada: 1, classificacao: linhas.map(l => ({ ...l, clube_id: l.clube_id + desloca, destino: destinos[l.clube_id] })) })]).then(r => r[0].r);
-assert.match(await virar(1, 0), /4700 mil em prêmios/);
-assert.strictEqual(await caixa(1), 2850);
-assert.strictEqual(await caixa(4), 800 - 600);
+assert.match(await virar(1, 0), /8400 mil em prêmios/);
+assert.strictEqual(await caixa(1), 3300);
+assert.strictEqual(await caixa(4), 1200 - 600);
 assert.deepStrictEqual((await q(`select destino from historico where liga_id = 1 order by clube_id`)).map(r => r.destino), ["subiu", "ficou", "subiu", "ficou"]);
 // virada da liga 2 sem fechamento: grava a tabela e paga o prêmio, como antes
-assert.match(await virar(2, 4), /4700 mil em prêmios/);
-assert.strictEqual(await caixa(5), 1750);
+assert.match(await virar(2, 4), /8400 mil em prêmios/);
+assert.strictEqual(await caixa(5), 3000);
 assert.strictEqual((await q(`select count(*)::int n from historico where liga_id = 2`))[0].n, 4);
 console.log("SQL: ok");

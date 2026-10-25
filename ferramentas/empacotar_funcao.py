@@ -179,8 +179,7 @@ async function fecharTemporadas(sb) {
     const elencos = {};
     for (let i = 0; i < clubes.length; i += 10) for (const j of (await sb.from("jogadores").select("clube_id, at, pos").in("clube_id", clubes.slice(i, i + 10).map(c => c.id))).data || []) (elencos[j.clube_id] = elencos[j.clube_id] || []).push(j);
     const linhas = classificacaoFinal(clubes, partidas, resultados);
-    const subiram = semPlayoffs ? [] : [...new Set(clubes.filter(c => c.divisao === 3).map(c => c.grupo))].map(g => vencedorDoGrupo(partidas, resultados, g)).filter(Boolean);
-    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas, subiram), p_tecnicos: tecnicosDoAno(linhas, elencos) });
+    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas), p_tecnicos: tecnicosDoAno(linhas, elencos) });
   }
 }
 

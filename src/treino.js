@@ -29,7 +29,7 @@ export const CONFIG_TREINO = {
   // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
   maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
   idadeSemContar: 21,         // jogador até esta idade não entra no limite de 35 do elenco
-  ctSemDono: { 1: 4, 2: 2, 3: 0 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
+  ctSemDono: { 1: 4, 2: 2 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
   qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
 };
 

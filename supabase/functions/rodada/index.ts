@@ -1759,7 +1759,7 @@ const __rodada = (() => {
   // O servidor fecha a temporada sozinho uma hora depois do último jogo (145_fechamento_da_temporada.sql) e a virada (virada.js) usa as mesmas contas.
   // prêmio da liga por divisão: [campeão, lanterna], em degraus iguais entre as posições
   // pela metade desde o 68_economia.sql (antes: 10 a 4 mi na A, 6 a 2,4 na B e 3,5 a 1,2 na C): entrava dinheiro demais e os caixas só cresciam
-  const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200], 3: [1750, 600] };
+  const PREMIOS = { 1: [5000, 2000], 2: [3000, 1200] };
   const PREMIOS_DE_FORA = [9000, 5000]; // campeonato de outro país (REGUA_DE_FORA, em virada.js)
   const premioDaLiga = (divisao, posicao, clubes = 10, fora = false) => {
     const [topo, fundo] = fora ? PREMIOS_DE_FORA : PREMIOS[divisao] || PREMIOS[2];
@@ -1865,7 +1865,7 @@ const __treino = (() => {
     // quando o elenco ganhou o limite de 35 jogadores com mais de 21 anos; para religar, voltar a 0.1
     maximoDeTreinadores: 5, jogadoresPorTreinador: 7, perdaPorExcesso: 0,
     idadeSemContar: 21,         // jogador até esta idade não entra no limite de 35 do elenco
-    ctSemDono: { 1: 4, 2: 2, 3: 0 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
+    ctSemDono: { 1: 4, 2: 2 }, // clube sem dirigente treina como se tivesse este centro de treinamento, conforme a divisão: é o que separa as séries com o tempo
     qualidadeSemDono: 20,       // clube sem dono treina como se tivesse qualidade 20 em tudo (100%)
   };
 
@@ -2212,7 +2212,7 @@ const __economia = (() => {
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
   // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
-  const TETO_DE_FOLHA = { 1: 20000, 2: 16000, 3: 10000 };
+  const TETO_DE_FOLHA = { 1: 20000, 2: 16000 };
 
   // Contrato inicial de um jogador gerado: salário de mercado, duração sorteada de 1 a 3 temporadas (contando a atual)
   // e proteção contra a cláusula até o fim da primeira temporada.
@@ -2222,7 +2222,7 @@ const __economia = (() => {
   }
 
   // Regras do fim de temporada e do clube no vermelho (as mesmas do 18_fim_de_temporada.sql).
-  const PREMIO_MINIMO = { 1: 2000, 2: 1200, 3: 600 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
+  const PREMIO_MINIMO = { 1: 2000, 2: 1200 };         // prêmio do lanterna: é o que dá para antecipar (o mesmo de PREMIOS em virada.js)
   // Imposto em faixas (122_imposto_em_faixas_e_operacao.sql): isento até 1/4 do teto; 20% até 1/2; 35% até o teto; 50% acima
   const FAIXAS_DO_IMPOSTO = [[0.25, 0.2], [0.5, 0.35], [1, 0.5]];
   const impostoDoLucro = (lucro, teto) => Math.round(FAIXAS_DO_IMPOSTO.reduce((t, [de, taxa], i) => {
@@ -2529,8 +2529,7 @@ async function fecharTemporadas(sb) {
     const elencos = {};
     for (let i = 0; i < clubes.length; i += 10) for (const j of (await sb.from("jogadores").select("clube_id, at, pos").in("clube_id", clubes.slice(i, i + 10).map(c => c.id))).data || []) (elencos[j.clube_id] = elencos[j.clube_id] || []).push(j);
     const linhas = classificacaoFinal(clubes, partidas, resultados);
-    const subiram = semPlayoffs ? [] : [...new Set(clubes.filter(c => c.divisao === 3).map(c => c.grupo))].map(g => vencedorDoGrupo(partidas, resultados, g)).filter(Boolean);
-    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas, subiram), p_tecnicos: tecnicosDoAno(linhas, elencos) });
+    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas), p_tecnicos: tecnicosDoAno(linhas, elencos) });
   }
 }
 
