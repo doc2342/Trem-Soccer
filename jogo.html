@@ -1568,9 +1568,9 @@ async function telaClube(liga, clube) {
     const gasto = soma(chegou), recebido = soma(saiu), saldo = recebido - gasto;
     const lances = (historicoLances || []).map(h => [h, estadoDoLance(h)]), andando = lances.filter(([, e]) => e.tipo === "frente" || e.tipo === "coberto"), frente = andando.filter(([, e]) => e.tipo === "frente").length;
     const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
-    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Gasto", valor: dinheiro(gasto), legenda: "em quem chegou", tom: gasto ? "bad" : "" })}
-      ${numero({ rotulo: "Recebido", valor: dinheiro(recebido), legenda: "por quem saiu", tom: recebido ? "ok" : "" })}
-      ${numero({ rotulo: "Leilões vencidos", valor: String(lances.filter(([, e]) => e.tipo === "venceu").length), sufixo: `de ${lances.length}`, legenda: "dos seus lances" })}
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Gasto", valor: gasto ? dinheiro(gasto) : "—", legenda: "em quem chegou", tom: gasto ? "bad" : "" })}
+      ${numero({ rotulo: "Recebido", valor: recebido ? dinheiro(recebido) : "—", legenda: "por quem saiu", tom: recebido ? "ok" : "" })}
+      ${numero({ rotulo: "Leilões vencidos", valor: lances.length ? String(lances.filter(([, e]) => e.tipo === "venceu").length) : "—", sufixo: lances.length ? `de ${lances.length}` : "", legenda: lances.length ? "dos seus lances" : "nenhum lance ainda" })}
       ${numero({ rotulo: "Negócios", valor: String(negociosDoClube.length), legenda: "em todas as temporadas" })}</div>`;
     const topo = faixaFoco({ rotulo: `Transferências · temporada ${temp}`, titulo: pl(chegou.length, "chegada", "chegadas"), apagado: `· ${pl(saiu.length, "saída", "saídas")}`,
       destaque: saldo > 0 ? `Lucro de ${dinheiro(saldo)} nos negócios.` : saldo < 0 ? `Gasto de ${dinheiro(-saldo)} além do que entrou.` : daTemp.length ? "Nenhum dinheiro mudou de mão." : "",
@@ -1583,11 +1583,17 @@ async function telaClube(liga, clube) {
           <div class="t-transf-rota">${detalhe(e, j)}</div><div class="t-transf-valor">${dinheiro(h.salario)}</div><div class="t-transf-quando">${h.temporadas} temp. · ${quando(h.criada_em)}</div></div>`; }).join("")
       : `<p class="t-fajuda">Você ainda não deu lance em nenhum leilão.</p>`}</section>`;
     const nomeT = t => t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || (t.tipo === "pre" ? "Acordo" : "Transferência");
-    const nIn = negociosDoClube.filter(eu).length, filtro = negociosDoClube.length && nIn && nIn < negociosDoClube.length ? `<div class="t-transf-filtro" id="ctFiltro"><button type="button" data-fsent="" class="ligado">Todas <small>${negociosDoClube.length}</small></button><button type="button" data-fsent="in">Chegadas <small>${nIn}</small></button><button type="button" data-fsent="out">Saídas <small>${negociosDoClube.length - nIn}</small></button></div>` : "";
+    // filtros em três grupos (sentido, temporada, tipo), um botão ligado por grupo; a linha aparece se casar com os três
+    const contaPor = f => negociosDoClube.filter(f).length, temps = [...new Set(negociosDoClube.map(t => t.temporada))].sort((a, b) => b - a), tipos = [...new Map(negociosDoClube.map(t => [nomeT(t), t.repatriado ? "repatriado" : t.tipo])).entries()];
+    const bt = (g, v, rot, n, ligado, tipo) => `<button type="button" data-g="${g}" data-v="${esc(v)}"${tipo != null ? ` data-tipo="${esc(tipo)}"` : ""}${ligado ? ` class="ligado"` : ""}>${rot} <small>${n}</small></button>`;
+    const filtro = negociosDoClube.length > 1 ? `<div class="t-transf-filtro t-ct-filtro" id="ctFiltro">
+        <div>${bt("sent", "", "Todas", negociosDoClube.length, 1)}${bt("sent", "in", "Chegadas", contaPor(eu), 0)}${bt("sent", "out", "Saídas", contaPor(t => !eu(t)), 0)}</div>
+        ${temps.length > 1 ? `<div>${bt("temp", "", "Toda a história", negociosDoClube.length, 1)}${temps.map(x => bt("temp", x, `T${x}`, contaPor(t => t.temporada === x), 0)).join("")}</div>` : ""}
+        ${tipos.length > 1 ? `<div>${bt("tipo", "", "Todos os tipos", negociosDoClube.length, 1)}${tipos.map(([n, tipo]) => bt("tipo", n, `<span class="t-giro-tipo">${esc(n)}</span>`, contaPor(t => nomeT(t) === n), 0, tipo || "")).join("")}</div>` : ""}</div>` : "";
     const secNegocios = `<section class="t-secao">${rotulo("Entradas e saídas")}${filtro}${negociosDoClube.length ? negociosDoClube.map(t => { const entrou = eu(t);
-        return `<div class="t-transf" data-tipo="${esc(t.repatriado ? "repatriado" : t.tipo || "")}" data-sent="${entrou ? "in" : "out"}"><span class="t-giro-tipo">${esc(nomeT(t))}</span><div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div>
-          <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lk(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lk(t.para_clube)}` : "dispensado"}</div>
-          <div class="t-transf-valor ${t.valor ? (entrou ? "bad" : "ok") : ""}">${t.valor ? `${entrou ? "−" : "+"}${dinheiro(t.valor)}` : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando" title="${quando(t.criada_em)}">Temp. ${t.temporada} · ${quando(t.criada_em).slice(0, 5)}</div></div>`; }).join("")
+        return `<div class="t-transf" data-tipo="${esc(t.repatriado ? "repatriado" : t.tipo || "")}" data-sent="${entrou ? "in" : "out"}" data-temp="${t.temporada}" data-nome-tipo="${esc(nomeT(t))}"><span class="t-giro-tipo">${esc(nomeT(t))}</span><div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div>
+          <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lkE(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lkE(t.para_clube)}` : "dispensado"}</div>
+          <div class="t-transf-valor ${t.valor ? (entrou ? "bad" : "ok") : ""}">${t.valor ? `${entrou ? "−" : "+"}${dinheiro(t.valor)}` : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando" title="${quando(t.criada_em)}">Temp. ${t.temporada} · ${quando(t.criada_em).slice(0, 5)}</div></div>`; }).join("") + `<p class="t-fajuda" id="ctVazio" hidden>Nenhum negócio com esses filtros.</p>`
       : `<p class="t-fajuda">Nenhuma entrada ou saída ainda.</p>`}</section>`;
     return `<div class="t-ctransf">${topo}${secLances}${secNegocios}<p class="t-fajuda">As propostas a outros dirigentes, enviadas e recebidas, ficam em Mercado, Negociações.</p></div>`;
   };
@@ -1992,6 +1998,7 @@ async function telaClube(liga, clube) {
   // visual novo: o começo de cada item (até os dois-pontos ou a primeira frase) em negrito, como manchete de jornal
   const item = (...a) => visualNovo ? manchete(itemVelho(...a)) : itemVelho(...a);
   const lk = id => cPor[id] ? `<a class="lk" href="#clube=${id}" data-clube="${id}">${esc(cPor[id].nome)}</a>` : /^arq:/.test(id) ? `<span class="mut">${esc(id.slice(4))}</span>` : "—";
+  const lkE = id => cPor[id] ? `<span class="t-transf-clube">${svgEscudo(cPor[id].escudo, cPor[id].sigla, 20)}${lk(id)}</span>` : lk(id); // nome do clube com o escudo pequeno na frente
   const nomes = l2 => l2.slice(0, 6).map(j => esc(j.nome)).join(", ") + (l2.length > 6 ? " e outros" : "");
   // renovação automática (99_renovacao_automatica.sql): na virada quem vence renova por uma temporada, pelo maior entre o salário e o de mercado,
   // menos os marcados "não renovar"; se a folha passar do teto, os renovados mais caros saem (a mesma conta de src/virada.js, com o mercado de hoje)
@@ -2760,7 +2767,7 @@ ${historicoDaBase()}
       const tipos = [...new Map(lista.map(t => [nomeT(t), t.repatriado ? "repatriado" : t.tipo])).entries()], conta = n => lista.filter(t => nomeT(t) === n).length;
       return `<section class="t-setor">${rotulo("Últimas transferências")}${lista.length ? `<div class="t-transf-filtro" id="transfFiltro"><button type="button" data-ftipo="" class="ligado">Todas <small>${lista.length}</small></button><button type="button" data-ftipo="eu">Do meu clube <small>${lista.filter(t => t.para_clube === clube.id || t.de_clube === clube.id).length}</small></button>${tipos.map(([n, tipo]) => `<button type="button" data-ftipo="${esc(n)}" data-tipo="${esc(tipo || "")}"><span class="t-giro-tipo">${esc(n)}</span><small>${conta(n)}</small></button>`).join("")}</div>` : ""}${lista.length ? lista.map(t => { const tipo = t.repatriado ? "repatriado" : t.tipo;
       return `<div class="t-transf${t.para_clube === clube.id || t.de_clube === clube.id ? " t-transf-eu" : ""}" data-tipo="${esc(tipo || "")}" data-nome-tipo="${esc(nomeT(t))}"><span class="t-giro-tipo">${nomeT(t)}</span>
-        <div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div><div class="t-transf-rota">${t.de_clube ? lk(t.de_clube) : "livre"}<b>›</b>${lk(t.para_clube)}</div>
+        <div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div><div class="t-transf-rota">${t.de_clube ? lkE(t.de_clube) : "livre"}<b>›</b>${lkE(t.para_clube)}</div>
         <div class="t-transf-valor">${t.valor ? dinheiro(t.valor) : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando">Temp. ${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim" : t.janela === "saida" ? "saídas" : "meio") : ""}</div></div>`; }).join("") : `<div class="t-mjog-mais">Nenhuma transferência ainda.</div>`}</section>`; })() : `
     <div class="card"><h2>Últimas transferências</h2>${transferencias.length ? `<div class="rolagem" style="max-height:260px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Valor</th><th>Quando</th></tr>
       ${transferencias.slice(0, 40).map(t => `<tr><td class="esq">${pp(t.pos || "")} ${lj(t.jogador_id, t.jogador)}</td><td class="esq">${lk(t.de_clube)}</td><td class="esq ${t.para_clube === clube.id ? "nota" : ""}">${lk(t.para_clube)}</td><td>${dinheiro(t.valor)}</td><td class="mut">temporada ${t.temporada}${t.janela ? " · janela de " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}</div>`}`}
@@ -3194,9 +3201,11 @@ ${historicoDaBase()}
     $("transfFiltro").querySelectorAll("[data-ftipo]").forEach(x => x.classList.toggle("ligado", x.dataset.ftipo === f));
     $("transfFiltro").parentNode.querySelectorAll(".t-transf").forEach(r => { r.hidden = f === "eu" ? !r.classList.contains("t-transf-eu") : !!f && r.dataset.nomeTipo !== f; });
   };
-  if ($("ctFiltro")) $("ctFiltro").onclick = e => { const b = e.target.closest("[data-fsent]"); if (!b) return;
-    $("ctFiltro").querySelectorAll("[data-fsent]").forEach(x => x.classList.toggle("ligado", x === b));
-    $("ctFiltro").parentNode.querySelectorAll(".t-transf").forEach(r => { r.hidden = !!b.dataset.fsent && r.dataset.sent !== b.dataset.fsent; }); };
+  if ($("ctFiltro")) $("ctFiltro").onclick = e => { const b = e.target.closest("[data-g]"); if (!b) return;
+    $("ctFiltro").querySelectorAll(`[data-g="${b.dataset.g}"]`).forEach(x => x.classList.toggle("ligado", x === b));
+    const v = Object.fromEntries([...$("ctFiltro").querySelectorAll(".ligado")].map(x => [x.dataset.g, x.dataset.v]));
+    $("ctFiltro").parentNode.querySelectorAll(".t-transf").forEach(r => { r.hidden = !!v.sent && r.dataset.sent !== v.sent || !!v.temp && r.dataset.temp !== v.temp || !!v.tipo && r.dataset.nomeTipo !== v.tipo; });
+    $("ctVazio").hidden = !!$("ctFiltro").parentNode.querySelector(".t-transf:not([hidden])"); };
   if ($("livresLista")) $("livresLista").onclick = e => {
     const tr = e.target.closest("[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
     const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = !!j.livre_ate;

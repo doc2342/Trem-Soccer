@@ -1292,3 +1292,5 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 [data-lance=frente] .t-giro-tipo, [data-lance=venceu] .t-giro-tipo { background:var(--t-ok); }
 [data-lance=coberto] .t-giro-tipo, [data-lance=perdeu] .t-giro-tipo, [data-lance=descartado] .t-giro-tipo { background:var(--t-erro); }
 .t-transf-valor.bad { color:var(--t-erro); } .t-transf-valor.ok { color:var(--t-ok); }
+.t-ct-filtro { flex-direction:column; align-items:flex-start; gap:8px; } .t-ct-filtro > div { display:flex; flex-wrap:wrap; gap:6px; }
+.t-transf-clube { display:inline-flex; align-items:center; gap:6px; vertical-align:middle; min-width:0; } .t-transf-clube svg { flex-shrink:0; }
