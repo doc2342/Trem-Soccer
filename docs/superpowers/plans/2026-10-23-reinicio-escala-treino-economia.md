@@ -143,7 +143,7 @@ O que o simulador faz (o design, seção 1, tem os detalhes):
 - **Dono no mercado:** mantém ~22 adultos dentro do teto. Quando sobra teto, troca o pior adulto pelo melhor livre (aposentados reciclados + gerados no nível da série) que caiba em `MAXIMO_INDIVIDUAL`. Profissionaliza o juvenil quando ele passa do 22º adulto. **Bot:** o jogo não usa teto para contratar; reproduza `mercadobots` só no essencial (repõe até `ELENCO_MINIMO_DO_BOT`).
 - **Saída por temporada (uma linha, por série A/B/fora):** onze mediano; média dos reservas 12–16 e 17–22; tamanho mediano do elenco; idade mediana em que jovens de talento comum (≤ `TALENTO_COMUM`) e alto (≥ 90) passam de 35 e de 38; quantos ≥ 42; folha/teto mediano; caixa mediano e máximo; diferença de pontos do 1º para o 2º da A; posição média na A, na T1 e na T2, de quem subiu.
 
-- [ ] **Passo 1: teste de fumaça que falha**
+- [x] **Passo 1: teste de fumaça que falha**
 
 ```js
 // ferramentas/teste_sim_liga.mjs
@@ -156,11 +156,11 @@ assert.deepEqual(simular({ semente: 7, temporadas: 2 }), r); // determinístico
 assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
 ```
 
-- [ ] **Passo 2:** rode `node ferramentas/teste_sim_liga.mjs` e veja falhar (o módulo não existe).
-- [ ] **Passo 3:** implemente `ferramentas/sim_liga.mjs`. A linha de comando só roda quando o arquivo é o script principal, para o teste poder importar sem imprimir nada.
-- [ ] **Passo 4:** rode `node ferramentas/teste_sim_liga.mjs && node ferramentas/sim_liga.mjs . 10`. Esperado: o teste passa e saem 11 linhas de medidas.
-- [ ] **Passo 5: calibrar o σ.** Compare a diferença de pontos do 1º para o 2º e a proporção de vitórias do favorito na A com a T14 real (`node ferramentas/saude.mjs .`). Anote o σ escolhido no topo do arquivo.
-- [ ] **Passo 6:** commit, com a mensagem "sim_liga: simulador da liga inteira para a calibragem do reinício".
+- [x] **Passo 2:** rode `node ferramentas/teste_sim_liga.mjs` e veja falhar (o módulo não existe).
+- [x] **Passo 3:** implemente `ferramentas/sim_liga.mjs`. A linha de comando só roda quando o arquivo é o script principal, para o teste poder importar sem imprimir nada.
+- [x] **Passo 4:** rode `node ferramentas/teste_sim_liga.mjs && node ferramentas/sim_liga.mjs . 10`. Esperado: o teste passa e saem 11 linhas de medidas.
+- [x] **Passo 5: calibrar o σ.** Compare a diferença de pontos do 1º para o 2º e a proporção de vitórias do favorito na A com a T14 real (`node ferramentas/saude.mjs .`). Anote o σ escolhido no topo do arquivo.
+- [x] **Passo 6:** commit, com a mensagem "sim_liga: simulador da liga inteira para a calibragem do reinício".
 
 ---
 
