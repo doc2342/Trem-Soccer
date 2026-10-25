@@ -17,6 +17,10 @@ const elenco = n => Array.from({ length: 11 }, () => ({ pos: "MC", at: Array(30)
 assert.deepStrictEqual(tecnicosDoAno(linhas, { 1: elenco(5), 2: elenco(8), 3: elenco(10), 4: elenco(15) }), [{ grupo: "D", clube_id: 1, numero: 3 }]);
 console.log("contas: ok");
 
+// o fechamento roda pela API, onde o Supabase barra delete sem where ("DELETE requires a WHERE clause"); o PGlite não tem essa trava
+for (const f of ["144_selecao_em_formacao.sql", "145_fechamento_da_temporada.sql", "147_selecao_pela_api.sql"])
+  assert.doesNotMatch(fs.readFileSync(new URL("../supabase/" + f, import.meta.url), "utf8"), /delete from [\w.]+\s*;/i, f + ": delete sem where");
+
 // ---------- SQL: fechar_temporada e a virada, com tabelas mínimas ----------
 let PGlite;
 try { ({ PGlite } = await import("@electric-sql/pglite")); } catch { console.log("SQL: pulado (npm i --no-save @electric-sql/pglite@0.2.17)"); process.exit(0); }

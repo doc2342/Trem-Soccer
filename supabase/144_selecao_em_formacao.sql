@@ -37,7 +37,7 @@ begin
   if v_min is null then return 0; end if;
   -- candidatos: nota média nos jogos de liga com 30 minutos ou mais, a posição em que mais jogou e o clube do último jogo
   create temp table if not exists _sel_cand (grupo text, id text, nome text, pos text, clube bigint, j int, nota numeric) on commit drop;
-  delete from _sel_cand;
+  delete from _sel_cand where true; -- sem o where, o Supabase barra a chamada pela API (147)
   insert into _sel_cand
     select p.grupo, x.j->>'id', max(x.j->>'nome'), public.vaga_da_selecao(mode() within group (order by x.j->>'pos')),
         (array_agg(case when coalesce((x.j->>'time')::int, 0) = 0 then p.casa else p.fora end order by p.id desc))[1],
