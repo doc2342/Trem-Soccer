@@ -3874,30 +3874,31 @@ ${historicoDaBase()}`}
             : bot ? `O melhor onze pelo elenco: ${feitos.length ? "ninguém dos últimos jogos está mais no clube" : "ainda não jogou nesta temporada"}.` : "";
           const time = `<div class="t-tatica-time"><div class="t-tatica-cab"><div class="t-rotulo">Time provável${formacao ? " · " + formacao : ""}</div><div class="t-tatica-forca"><span>Onze</span><b>${forca == null ? "—" : f1(forca)}</b></div></div>
             ${provavel ? `<div class="t-tatica-grade"><div class="gramado">${filas}</div></div>` : `<p class="t-fajuda">Elenco curto demais para montar um time.</p>`}${comoSabe ? `<p class="t-fajuda">${comoSabe}</p>` : ""}</div>`;
-          // ao lado do campo: os jogos contra o seu clube e quem está à venda
+          // ao lado do campo: os jogos contra o seu clube
           const jogo = p => { const x = feitos.includes(p) ? placar(p, clube.id) : null;
             return `<a class="t-cv-jogo" href="aovivo.html?id=${p.id}"><span class="t-cal-v" data-v="${x ? x.v : ""}">${x ? x.v : ""}</span><span class="t-cv-jogo-quem">${competicao(p)} · ${p.casa === clube.id ? "em casa" : "fora"}<small>${dia(p.inicio)}</small></span><span class="t-cal-placar">${x ? `${res[p.id].gols_casa} x ${res[p.id].gols_fora}` : `<span class="mut">${quando(p.inicio)}</span>`}</span></a>`; };
-          const venda = j => `<div class="t-cv-venda${meu ? "" : " clk"}" data-cvjog="${j.id}">${pp(j.pos)}<span class="t-cv-venda-nome">${esc(j.nome)}<small>${j.idade} anos · nota ${f1(j.nota)}</small></span><b>${dinheiro(j.preco_pedido)}</b></div>`;
-          const ladoT = [meu ? "" : `<div>${rotulo(`Contra o ${clube.nome}`)}${contra.length ? contra.map(jogo).join("") : `<p class="t-fajuda">Os dois clubes não se enfrentam nesta temporada.</p>`}</div>`,
-            aVenda.length ? `<div>${rotulo(`À venda · ${aVenda.length}`)}${aVenda.map(venda).join("")}${meu ? "" : `<p class="t-fajuda">Clique para fazer uma proposta.</p>`}</div>` : ""].join("");
-          const tatica = () => `<section class="t-faixa t-tatica t-cv-tatica">${time}<div class="t-tatica-lado">${ladoT}${estadio}</div></section>`;
+          const ladoT = meu ? "" : `<div>${rotulo(`Contra o ${clube.nome}`)}${contra.length ? contra.map(jogo).join("") : `<p class="t-fajuda">Os dois clubes não se enfrentam nesta temporada.</p>`}</div>`;
+          const tatica = () => `<details class="t-dobra"><summary>${rotulo(`Escalação${meu ? "" : " e jogos contra você"}`)}</summary><section class="t-faixa t-tatica t-cv-tatica">${time}${ladoT ? `<div class="t-tatica-lado">${ladoT}</div>` : ""}</section></details>`;
           // elenco por setor, com a multa (ou por que não dá) e a boleta ao lado
           const linhaJ = j => { const s = situacao(j);
-            return `<div class="t-jog t-mjog${meu ? "" : " clk"}" data-cvjog="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}${bandeira(j.pais)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
+            return `<div class="t-jog t-mjog${meu ? "" : " clk"}" data-cvjog="${j.id}"${j.a_venda ? " data-venda" : ""}>${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}${bandeira(j.pais)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
               <div class="t-mjog-clube">${j.salario == null ? "—" : dinheiro(j.salario)}${j.contrato_ate == null ? "" : `<small> até T${j.contrato_ate}</small>`}</div><div class="t-jog-id">${j.idade}</div><div class="t-jog-nota">${f1(j.nota)}</div>
               <div class="t-mjog-multa">${s ? `<small>${s}</small>` : dinheiro(multaDe(j))}</div>${botaoInfo(j)}</div>`; };
-          const setores = ZONAS_DO_ELENCO.map(([titulo, linhas]) => (z => z.length ? `<section class="t-setor">${rotulo(`${titulo} · ${z.length}`)}${z.map(linhaJ).join("")}</section>` : "")(l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota))).join("");
-          const elenco = `<section class="t-secao">${rotulo(`Elenco · ${l.length}`)}<div class="${meu ? "" : "t-mercado t-cv-elenco"}"><div><div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Salário</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div>${setores}</div>${meu ? "" : `<aside id="cvPainel"></aside>`}</div></section>`;
-          // estádio e estruturas
+          const setores = ZONAS_DO_ELENCO.map(([titulo, linhas], k) => (z => z.length ? `<section class="t-setor" data-cvsetor="${k}">${rotulo(`${titulo} · ${z.length}`)}${z.map(linhaJ).join("")}</section>` : "")(l.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => b.nota - a.nota))).join("");
+          const filtroIni = aVenda.length ? "venda" : String(ZONAS_DO_ELENCO.findIndex(([, linhas]) => l.some(j => linhas.includes(POSICOES[j.pos].linha))));
+          const filtro = `<div class="t-transf-filtro" id="cvFiltro">${[aVenda.length && ["venda", "À venda", aVenda.length], ...ZONAS_DO_ELENCO.map(([t, linhas], k) => [String(k), t, l.filter(j => linhas.includes(POSICOES[j.pos].linha)).length]), ["todos", "Todos", l.length]].filter(x => x && x[2])
+            .map(([k, t, n]) => `<button type="button" data-cvf="${k}"${k === filtroIni ? ` class="ligado"` : ""}>${t} <small>${n}</small></button>`).join("")}</div>`;
+          const elenco = `<section class="t-secao">${rotulo(`Elenco · ${l.length}`)}${filtro}<div class="${meu ? "" : "t-mercado t-cv-elenco"}"><div><div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Salário</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div><div id="cvLista">${setores}</div></div>${meu ? "" : `<aside id="cvPainel"></aside>`}</div></section>`;
+          // estádio (ao lado da sala de troféus, com as estruturas embaixo dela)
           const cfg = c.estadio_nivel != null ? configDoClube(c, null) : null;
-          const estadio = `<div class="t-cv-estadio">${rotulo(cfg ? cfg.nomeEstadio || "Estádio" : "Estruturas")}${cfg ? `<p class="t-cv-estadio-tipo">${MODELOS[cfg.modelo] || ""} · ${CIDADES[cidadeDoEstadio(cfg)]} · arraste para girar</p><div id="cvEstadio"></div>` : ""}
-            <div class="t-elenco-numeros">${numero({ rotulo: "Estádio", valor: c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", legenda: c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "" })}
+          const estadio = `<div class="t-cv-estadio">${rotulo(cfg ? cfg.nomeEstadio || "Estádio" : "Estruturas")}${cfg ? `<p class="t-cv-estadio-tipo">${MODELOS[cfg.modelo] || ""} · ${CIDADES[cidadeDoEstadio(cfg)]} · arraste para girar</p><div id="cvEstadio"></div>` : ""}</div>`;
+          const estruturas = `<div class="t-elenco-numeros t-cv-estruturas">${numero({ rotulo: "Estádio", valor: c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", legenda: c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "" })}
             ${numero({ rotulo: "Torcida", valor: c.torcida != null ? c.torcida.toLocaleString("pt-BR") : "—", legenda: "torcedores" })}
             ${numero({ rotulo: "CT", valor: c.ct_nivel != null ? `nível ${c.ct_nivel}` : "—", legenda: "centro de treinamento" })}
-            ${numero({ rotulo: "Base", valor: c.base_nivel != null ? `nível ${c.base_nivel}` : "—", legenda: "categorias de base" })}</div></div>`;
+            ${numero({ rotulo: "Base", valor: c.base_nivel != null ? `nível ${c.base_nivel}` : "—", legenda: "categorias de base" })}</div>`;
           // histórico: as temporadas e os maiores negócios
           const DEST = { "campeão": "Campeão", subiu: "Subiu", caiu: "Caiu", guardado: "Guardado" };
-          const temporadas = `<section class="t-secao">${rotulo("Temporadas anteriores")}${hist.length ? `<div class="t-cv-temp t-cv-temp-cab"><span>Temp.</span><span>Divisão</span><span>Pos.</span><span>Pts</span><span>V · E · D</span><span>Destino e copas</span></div>${hist.map(h => `<div class="t-cv-temp"><span>T${h.temporada}</span><span>${esc(nomeDoGrupo(h.grupo))}</span><b>${h.posicao}º</b><span>${h.pontos}</span><span>${h.vitorias} · ${h.empates} · ${h.derrotas}</span>
+          const temporadas = `<section class="t-secao">${rotulo("Temporadas")}${hist.length ? `<div class="t-cv-temp t-cv-temp-cab"><span>Temp.</span><span>Divisão</span><span>Pos.</span><span>Pts</span><span>V · E · D</span><span>Destino e copas</span></div>${hist.map(h => `<div class="t-cv-temp"><span>T${h.temporada}</span><span>${esc(nomeDoGrupo(h.grupo))}</span><b>${h.posicao}º</b><span>${h.pontos}</span><span>${h.vitorias} · ${h.empates} · ${h.derrotas}</span>
             <span class="t-cv-temp-dest">${DEST[h.destino] ? `<em data-d="${esc(h.destino)}">${DEST[h.destino]}</em>` : ""}${[h.copa && `Copa: ${esc(h.copa)}`, h.lib && `Libertadores: ${esc(h.lib)}`, h.sul && `Sul-Americana: ${esc(h.sul)}`, h.recopa && "Recopa: campeão"].filter(Boolean).join(" · ")}</span></div>`).join("")}` : `<p class="t-fajuda">Primeira temporada do clube na liga.</p>`}</section>`;
           const nomeT = t => t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || "Transferência";
           const negociosH = `<section class="t-secao">${rotulo("Maiores negócios")}${maiores.length ? maiores.map(t => { const entrou = t.para_clube === id;
@@ -3905,8 +3906,9 @@ ${historicoDaBase()}`}
               <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lkE(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lkE(t.para_clube)}` : "dispensado"}</div>
               <div class="t-transf-valor ${entrou ? "bad" : "ok"}">${entrou ? "−" : "+"}${dinheiro(t.valor)}</div><div class="t-transf-quando">Temp. ${t.temporada}</div></div>`; }).join("") : `<p class="t-fajuda">Nenhuma compra ou venda com valor ainda.</p>`}</section>`;
           const admin_ = admin && c.escudo && c.escudo.img ? `<p class="t-fajuda t-cv-admin">Administração: este clube usa uma imagem como escudo. <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca do escudo</button></p>` : "";
-          return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}${tatica()}${elenco}${temporadas}${negociosH}
-            <section class="t-secao">${rotulo("Estante")}${estanteDe(id)}</section></div>`;
+          return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}
+            <div class="t-cv-vitrine">${estadio}<section>${rotulo("Sala de troféus")}${estanteDe(id)}${estruturas}</section></div>${elenco}${tatica()}
+            <details class="t-dobra"><summary>${rotulo(`Histórico · ${hist.length ? pl(hist.length, "temporada anterior", "temporadas anteriores") : "primeira temporada"} e maiores negócios`)}</summary>${temporadas}${negociosH}</details></div>`;
         };
         $("cvCorpo").innerHTML = visualNovo ? novo() : `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
             <div><h2 style="margin:0;font-size:20px">${esc(c.nome)}</h2><div>${c.dono ? esc(c.dirigente || "Dirigente sem nome") + (c.ultimo_acesso ? ` <span class="mut">· último acesso ${ateQuando(c.ultimo_acesso)}</span>` : "") : `<span class="mut">sem dono · o bot joga com ${estiloDe(c)}</span>`}</div>
@@ -3951,6 +3953,11 @@ ${historicoDaBase()}`}
         if (c.estadio_nivel != null) montarEstadio("cvEstadio", configDoClube(c, null));
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
         if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
+        const filtrar = f => $("cvLista").querySelectorAll(".t-setor").forEach(s => { const linhas = [...s.querySelectorAll("[data-cvjog]")];
+          linhas.forEach(x => x.style.display = f === "venda" && !("venda" in x.dataset) ? "none" : "");
+          s.style.display = f === "todos" || f === s.dataset.cvsetor || (f === "venda" && linhas.some(x => !x.style.display)) ? "" : "none"; });
+        if ($("cvFiltro")) { filtrar($("cvFiltro").querySelector(".ligado").dataset.cvf);
+          $("cvFiltro").onclick = e => { const b = e.target.closest("[data-cvf]"); if (!b) return; $("cvFiltro").querySelectorAll("button").forEach(x => x.classList.toggle("ligado", x === b)); filtrar(b.dataset.cvf); }; }
         $("cvCorpo").onclick = e => { const tr = e.target.closest("[data-cvjog]"); if (!tr || meu || e.target.closest("[data-info]") || e.target.closest("a")) return;
           $("cvCorpo").querySelectorAll(".t-mjog").forEach(x => x.classList.toggle("t-mjog-on", x.dataset.cvjog === tr.dataset.cvjog));
           abrirJogador(l.find(x => String(x.id) === tr.dataset.cvjog), $("cvPainel")); };
