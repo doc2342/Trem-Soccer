@@ -1763,3 +1763,5 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-bc-dest > b { grid-column:2; font:900 30px/1.05 var(--t-letra); font-stretch:64%; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-bc-dest b a.lk { color:inherit; }
 .t-bc-dest.t-eu { background:var(--t-placa); }
 .t-bc-ligas-rot { margin:22px 0 4px; }
+.t-bc-marca { position:absolute; bottom:calc(50% + 104px); left:0; right:0; text-align:center; font:900 60px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; color:var(--t-marca); } /* Copinha: o nome grande em cima do campeão */
+@media (max-width:720px) and (pointer:coarse) { .t-bc-marca { font-size:38px; bottom:calc(50% + 96px); } }
