@@ -65,6 +65,23 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
     destino[id] = "caiu"; lista.push({ clube_id: id, grupo: vagas[k % vagas.length], divisao: 2, caiu: true }); });
   return { destino, lista };
 }
+// Reinício da liga (temporada 0): sorteia onde cada clube joga. Países ficam como estão; os donos do Brasil vão em rodízio para a B
+// (até 24 donos: B, C e D; acima disso abre a "E"); os bots do Brasil, embaralhados: 12 para a A, os seguintes completam cada grupo da B até 8 e o resto fica guardado.
+export function gruposDoReinicio({ rng, clubes }) {
+  const destino = {}, doBrasil = clubes.filter(c => !PAISES[c.grupo]);
+  clubes.filter(c => PAISES[c.grupo]).forEach(c => { destino[c.id] = c.grupo; });
+  const donos = rng.embaralhar(doBrasil.filter(c => c.dono)), bots = rng.embaralhar(doBrasil.filter(c => !c.dono));
+  const gruposB = donos.length > 3 * 8 ? [...GRUPOS_DA_B, "E"] : GRUPOS_DA_B, vagas = Object.fromEntries(gruposB.map(g => [g, 8]));
+  if (donos.length > gruposB.length * 8) throw new Error(`Donos demais para a B: ${donos.length} (cabem ${gruposB.length * 8}).`);
+  donos.forEach((c, i) => { const g = gruposB[i % gruposB.length]; destino[c.id] = g; vagas[g]--; });
+  const faltam = 12 + Object.values(vagas).reduce((t, v) => t + v, 0) - bots.length;
+  if (faltam > 0) throw new Error(`Faltam ${faltam} clubes guardados para a B4.`);
+  bots.slice(0, 12).forEach(c => { destino[c.id] = "A"; });
+  const resto = bots.slice(12);
+  for (const g of gruposB) for (; vagas[g] > 0; vagas[g]--) destino[resto.shift().id] = g;
+  resto.forEach(c => { destino[c.id] = GUARDADO; });
+  return destino;
+}
 const nomeCurto = g => ({ B: "Série B1", C: "Série B2", D: "Série B3", E: "Série B4" })[g] || "chave " + g;
 
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
