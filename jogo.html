@@ -350,7 +350,7 @@ import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA, URL_DOS_ESCUDOS } f
 import { camisinha, svgCamisa } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
-import { rotulo, faixa as faixaFoco, numero, botao, manchete, destacar, reguaDoJogo, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes } from "./src/ui-trem.js";
+import { rotulo, faixa as faixaFoco, numero, botao, manchete, destacar, reguaDoJogo, leitura, leituras, linhaDeEstacoes, ESTACOES, graficoDePosicoes, poligonoDeAtributos, GRUPOS_DE_ATRIBUTOS } from "./src/ui-trem.js";
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
@@ -1522,17 +1522,6 @@ async function telaClube(liga, clube) {
     return `<div class="mut">Patrocinador master</div>` + (NA_CAMISA[marca] === "mono" ? arte(marca + "_camisa_escuro", "so-claro") + arte(marca + "_camisa_claro", "so-escuro") : arte(NA_CAMISA[marca] === "cor" ? marca + "_camisa" : marca)); };
   const coresDoClube = c => { const u = c.uniforme || {}, cor = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = cor(u.cor1), b = cor(u.cor2) || a;
     return a ? `border-top:4px solid ${a};background:linear-gradient(100deg, ${a}38, ${b}14 45%, transparent 75%), var(--card, #111a24)` : ""; };
-  // polígono com a média de cada grupo de atributos (1 a 50)
-  const poligonoDeAtributos = j => {
-    const grupos = (j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => { const v = ATRIBUTOS.map((a, k) => a.grupo === g ? j.at[k] : null).filter(x => x != null); return [nome, v.reduce((s, x) => s + x, 0) / v.length]; });
-    const n = grupos.length, R = 44, pt = (k, r) => { const ang = -Math.PI / 2 + 2 * Math.PI * k / n; return [110 + r * Math.cos(ang), 68 + r * Math.sin(ang)]; }, xy = p => p.map(x => x.toFixed(1)).join(",");
-    const aro = f => grupos.map((_, k) => xy(pt(k, R * f))).join(" ");
-    return `<svg viewBox="0 0 220 136" width="220" height="136" style="display:block;margin:0 auto 6px" role="img" aria-label="Médias: ${grupos.map(([g, v]) => g + " " + Math.round(v)).join(", ")}">
-      ${[0.25, 0.5, 0.75, 1].map(f => `<polygon points="${aro(f)}" fill="none" stroke="var(--line)" stroke-width="0.7"/>`).join("")}
-      <polygon points="${grupos.map(([, v], k) => xy(pt(k, R * Math.max(0.04, v / 50)))).join(" ")}" fill="var(--ac)" fill-opacity="0.3" stroke="var(--ac)" stroke-width="1.5"/>
-      ${grupos.map(([g, v], k) => { const [x, y] = pt(k, R + 8); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${x > 115 ? "start" : x < 105 ? "end" : "middle"}" dominant-baseline="middle" font-size="10" fill="var(--mut)">${g} <tspan font-weight="700" fill="currentColor">${Math.round(v)}</tspan></text>`; }).join("")}</svg>`;
-  };
-  const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
   const fichas = new Map(); // chave do botão "i" → jogador (os do elenco pelo id; os de outros clubes com "m" na frente)
   elenco.forEach(j => fichas.set(String(j.id), j));
   const botaoInfo = j => { fichas.set("m" + j.id, j); return `<button class="info" data-info="m${j.id}" title="Atributos">i</button>`; };

@@ -1,5 +1,6 @@
 // Peças do visual novo (docs/superpowers/specs/2026-10-24-redesign-identidade-design.md): cada uma devolve HTML em texto,
 // como as telas já montam. O estilo está no trem.css. Todo texto recebido é escapado; só `lado` (faixa) entra como HTML.
+import { ATRIBUTOS } from "./modelo.js";
 
 export const esc = s => s == null ? "" : String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -85,3 +86,15 @@ export function reguaDoJogo(nos, eles) {
     return `<div class="t-regua-linha" style="--nos:${pct}%">${lado(a, a > b)}<span class="t-regua-nome">${nome}</span>${lado(b, b > a)}</div>`;
   }).join("")}</div>`;
 }
+
+// polígono com a média de cada grupo de atributos (1 a 50)
+export const poligonoDeAtributos = j => {
+  const grupos = (j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => { const v = ATRIBUTOS.map((a, k) => a.grupo === g ? j.at[k] : null).filter(x => x != null); return [nome, v.reduce((s, x) => s + x, 0) / v.length]; });
+  const n = grupos.length, R = 44, pt = (k, r) => { const ang = -Math.PI / 2 + 2 * Math.PI * k / n; return [110 + r * Math.cos(ang), 68 + r * Math.sin(ang)]; }, xy = p => p.map(x => x.toFixed(1)).join(",");
+  const aro = f => grupos.map((_, k) => xy(pt(k, R * f))).join(" ");
+  return `<svg viewBox="0 0 220 136" width="220" height="136" style="display:block;margin:0 auto 6px" role="img" aria-label="Médias: ${grupos.map(([g, v]) => g + " " + Math.round(v)).join(", ")}">
+    ${[0.25, 0.5, 0.75, 1].map(f => `<polygon points="${aro(f)}" fill="none" stroke="var(--line)" stroke-width="0.7"/>`).join("")}
+    <polygon points="${grupos.map(([, v], k) => xy(pt(k, R * Math.max(0.04, v / 50)))).join(" ")}" fill="var(--ac)" fill-opacity="0.3" stroke="var(--ac)" stroke-width="1.5"/>
+    ${grupos.map(([g, v], k) => { const [x, y] = pt(k, R + 8); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${x > 115 ? "start" : x < 105 ? "end" : "middle"}" dominant-baseline="middle" font-size="10" fill="var(--mut)">${g} <tspan font-weight="700" fill="currentColor">${Math.round(v)}</tspan></text>`; }).join("")}</svg>`;
+};
+export const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];

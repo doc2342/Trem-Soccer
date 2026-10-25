@@ -30,12 +30,14 @@
 </main>
 
 <script type="module">
-import { sb } from "./src/banco.js";
-import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, notaBruta, notaNaPosicao } from "./src/modelo.js";
+import { sb, nomeDoGrupo, PAISES } from "./src/banco.js";
+import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, PESOS, notaBruta, notaNaPosicao } from "./src/modelo.js";
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
-import { camisinha } from "./src/camisa.js";
-import { sg } from "./src/siglas.js";
+import { camisinha, svgCamisa } from "./src/camisa.js";
+import { sg, pp } from "./src/siglas.js";
+import { experienciaDe } from "./src/saude.js";
+import { rotulo, numero, poligonoDeAtributos, GRUPOS_DE_ATRIBUTOS } from "./src/ui-trem.js";
 import { bandeira } from "./src/bandeiras.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -44,6 +46,12 @@ const lista = q => q.then(({ data, error }) => error ? [] : data || []); // tabe
 const GRUPOS = { gol: "Goleiro", def: "Defesa", tec: "Técnica", fis: "Físico", men: "Mental" };
 const TIPOS = { livre: "assinou livre", multa: "multa rescisória", negociada: "venda negociada", divida: "oferta de clube no vermelho", agente: "venda pelo agente" };
 const um = v => v.toFixed(1).replace(".", ",");
+const NOVO = document.documentElement.dataset.visual === "novo";
+// o mesmo nome de prêmio do jogo.html (nomeDoPremio)
+const NOMES_DE_PREMIO = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque", tecnico: "Técnico do ano" };
+const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
+  return String(p.premio).startsWith("sel") ? `Seleção ${serie}` : p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : `${NOMES_DE_PREMIO[p.premio] || p.premio} ${serie}`; };
+const TIPO_CURTO = { livre: "Livre", multa: "Multa", negociada: "Negociada", divida: "Dívida", agente: "Agente" };
 
 // nota (pelos atributos, na posição principal) temporada a temporada
 function grafico(pts) {
@@ -56,6 +64,40 @@ function grafico(pts) {
     ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.nota).toFixed(1)}" r="3.2" fill="var(--ac)"><title>${esc(p.rot)}: ${um(p.nota)}</title></circle>
       <text x="${x(k).toFixed(1)}" y="${(y(p.nota) - 7).toFixed(1)}" fill="var(--tx)" font-size="11" text-anchor="middle">${um(p.nota)}</text>
       <text x="${x(k).toFixed(1)}" y="${A - 6}" fill="var(--mut)" font-size="11" text-anchor="middle">${esc(p.rot)}</text>`).join("")}</svg>`;
+}
+
+// visual novo: faixa escura com nome, nota, camisa e radar; números do contrato; a temporada; atributos; evolução e carreira lado a lado
+function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, transf, premios, historico, pts, numerosP }) {
+  const xp = Math.round(experienciaDe(j)), fim = j.contrato_ate != null && temporada != null && j.contrato_ate <= temporada, conta = PESOS[POSICOES[j.pos].papel] || {};
+  const outras = Object.keys(jog.fam).filter(p => p !== j.pos && jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
+  const ini = j.inicio_temporada, num = (r, valor, legenda, classe = "") => `<div class="t-qa-num"><div class="t-numero-rotulo">${r}</div><div class="t-qa-valor ${classe}">${valor}</div>${legenda ? `<div class="t-qa-leg">${legenda}</div>` : ""}</div>`;
+  const fatos = [
+    ini && ini.t === temporada ? (d => d.nota || d.soma ? `Desde o início da temporada <b class="${d.nota > 0 ? "ok" : d.nota < 0 ? "bad" : ""}">${d.nota > 0 ? "+" : ""}${um(d.nota)}</b> na nota (era ${um(ini.nota)}), ${d.soma >= 0 ? "+" : ""}${d.soma} ${Math.abs(d.soma) === 1 ? "ponto" : "pontos"} de atributo` : "Mesma nota do início da temporada")({ nota: Math.round((nota - ini.nota) * 10) / 10, soma: j.at.reduce((s, v) => s + v, 0) - ini.soma }) : "",
+    j.formador ? `Formado no <b>${nomeDe(j.formador)}</b>` : "", ...situacao.map(x => x.replace(/^\p{Extended_Pictographic}\S* /u, ""))].filter(Boolean); // a situação sem o emoji da frente
+  const topo = `<section class="t-faixa t-jp-faixa"><div class="t-jp-quem">
+      <div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(p => `<span class="t-qa-outra${jog.fam[p] !== "N" && jog.fam[p] !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${NOME_FAMILIARIDADE[jog.fam[p]].toLowerCase()}): ${um(notaNaPosicao(jog, p))}">${pp(p)}</span>`).join("")}</div>
+      <h1 class="t-faixa-titulo t-jp-nome">${esc(j.nome)}</h1>
+      <div class="t-jp-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""} · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}</div>
+      <div class="t-jp-clube">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 26)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b> · jogador livre"}</div>
+      <div class="t-qa-nota"><b>${um(nota)}</b><span>nota na posição${teto ? `<br>teto <b>${teto.minimo}–${teto.maximo}</b>, pelo olheiro` : ""}</span></div></div>
+    <div class="t-jp-lado">${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 130, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}<div class="t-qa-radar">${poligonoDeAtributos(j)}</div></div></section>`;
+  const numeros = `<div class="t-qa-numeros">${j.juvenil || j.salario == null ? `<div class="t-qa-juvenil">${j.juvenil ? "Juvenil: sem contrato, não joga partida oficial." : "Sem contrato."}</div>`
+      : num("Salário", dinheiro(j.salario), "por temporada") + num("Multa", j.protegido ? "—" : dinheiro(multaDe(jog)), j.protegido ? "protegido" : j.protegido_ate != null && temporada != null && j.protegido_ate >= temporada ? "vale na próxima temporada" : "")
+      + num("Contrato", j.contrato_ate == null ? "—" : `T${j.contrato_ate}`, fim ? "acaba nesta temporada" : "", fim ? "t-atencao" : "")}
+    ${num("Experiência", `${xp}<small>/100</small>`, xp >= 70 ? "rende sempre perto do que sabe" : xp >= 35 ? "ainda oscila um pouco" : "oscila bastante de um jogo para o outro")}</div>
+    ${fatos.length ? `<div class="t-qa-fatos">${fatos.join(" · ")}</div>` : ""}`;
+  const atributos = `<section class="t-jp-bloco">${rotulo("Atributos")}<div class="t-qa-grade t-jp-atr">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b>${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div>
+    <div class="t-qa-pe">Em negrito e com a barra vermelha, os atributos que contam para a posição dele.</div></section>`;
+  const evolucao = `<section class="t-jp-bloco">${rotulo("Evolução da nota")}<div class="t-jp-grafico">${grafico(pts)}</div>
+    ${historico.length ? `<table class="t-jp-tab"><tr><th>Temp.</th><th>Idade</th><th class="esq">Clube</th><th>Nota</th><th>J</th><th>G</th><th>A</th><th>Média</th></tr>
+      ${historico.slice().reverse().map(h => `<tr><td>T${h.temporada}</td><td>${h.idade}</td><td class="esq">${nomeDe(h.clube_id)}</td><td><b>${h.at ? um(notaBruta(h.at, h.pos || j.pos)) : "—"}</b></td><td>${h.jogos}</td><td>${h.gols}</td><td>${h.ass}</td><td>${h.nota == null ? "—" : String(h.nota).replace(".", ",")}</td></tr>`).join("")}</table>` : ""}</section>`;
+  const carreira = `<section class="t-jp-bloco">${rotulo("Carreira")}${transf.length ? transf.slice().reverse().map(t => `<div class="t-jp-tr" data-tipo="${esc(t.tipo)}"><span class="t-jp-t">T${t.temporada}</span><span class="t-giro-tipo">${TIPO_CURTO[t.tipo] || esc(t.tipo)}</span>
+      <span class="t-jp-rota">${t.de_clube ? nomeDe(t.de_clube) : "livre"}<b>→</b>${nomeDe(t.para_clube)}</span><span class="t-jp-valor">${t.valor ? dinheiro(t.valor) : ""}</span></div>`).join("") : `<div class="t-jp-vazio">Nenhuma transferência registrada.</div>`}
+    ${premios.length ? `<div class="t-qa-grupo t-jp-premios">Prêmios</div>${premios.slice().reverse().map(p => `<div class="t-jp-premio"><span class="t-jp-t">T${p.temporada}</span><b>${esc(nomeDoPremio(p))}</b><span>${p.numero == null ? "" : String(p.numero).replace(".", ",")}</span></div>`).join("")}` : ""}</section>`;
+  const rotT = rotulo(`Temporada ${temporada == null ? "atual" : temporada}`);
+  document.getElementById("corpo").innerHTML = `<div class="t-jp">${topo}${numeros}<section class="t-jp-bloco" id="temp">${rotT}<div class="t-jp-vazio">Carregando os números…</div></section>${atributos}<div class="t-jp-duas">${evolucao}${carreira}</div></div>`;
+  numerosP.then(n => { const el = document.getElementById("temp"); if (!n) { el.remove(); return; }
+    el.innerHTML = rotT + `<div class="t-jp-temp">${[["Jogos", n.jogos], ["Minutos", n.minutos], ["Gols", n.gols], ["Assistências", n.ass], ["Nota média", n.nota == null ? null : String(n.nota).replace(".", ",")]].map(([r, v]) => numero({ rotulo: r, valor: v == null ? "—" : String(v) })).join("")}</div>`; });
 }
 
 async function carregar() {
@@ -114,6 +156,7 @@ async function carregar() {
     ${premios.length ? `<div style="margin-top:10px"><b>Prêmios</b>${premios.slice().reverse().map(p => `<div>🏅 T${p.temporada} · ${esc(p.premio)} (${esc(p.comp)})${p.numero == null ? "" : ` · ${String(p.numero).replace(".", ",")}`}</div>`).join("")}</div>` : ""}</div>`;
 
   document.title = `Trem Soccer · ${j.nome}`;
+  if (NOVO) return paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, transf, premios, historico, pts, numerosP });
   document.getElementById("corpo").innerHTML = topo + `<div id="temp"><div class="card mut" style="min-height:60px">Temporada ${temporada == null ? "atual" : temporada}: carregando os números…</div></div>` + `<div class="grade" style="margin-top:12px">${atributos}</div>` + `<div class="g2"><div>${evolucao}</div><div>${contrato}${carreira}</div></div>`;
   numerosP.then(n => { document.getElementById("temp").innerHTML = daTemporada(n); });
 }
