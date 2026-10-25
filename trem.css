@@ -1789,3 +1789,39 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-base-linha { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap:0 40px; }
 .t-base-linha .t-alerta:first-of-type { margin-top:12px; } .t-base-linha .t-alerta { margin-top:8px; }
 .t-base-pe { margin-top:32px; display:flex; justify-content:center; }
+/* Base › Juvenis (juvenisDaBaseNova): as linhas do Elenco com os números da liga de base; Base › Estrutura (estruturaDaBaseNova): a escada dos níveis */
+.t-bj { grid-template-columns:44px minmax(0, 1fr) 30px 52px 30px 44px 40px 46px 60px 24px; }
+.t-bj-comteto .t-bj { grid-template-columns:44px minmax(0, 1fr) 30px 52px 52px 30px 44px 40px 46px 60px 24px; }
+.t-bj[hidden], .t-bj-setor[hidden] { display:none; }
+.t-bj-n { text-align:right; font-size:13.5px; color:var(--t-tinta2); }
+.t-bj-rival { font:900 22px/1 var(--t-letra); font-stretch:64%; text-align:right; color:var(--t-tinta3); } .t-bj-rival.ok { color:var(--t-ok); }
+.t-bjuv .t-transf-filtro { margin:0 0 4px; }
+.t-bjuv .t-transf-filtro .t-bj-tat { width:6px; height:6px; border-radius:50%; background:var(--t-marca); }
+.t-bjuv .t-transf-filtro .t-bj-falta { color:var(--t-marca); border-color:var(--t-marca); }
+.t-bj-orig { font:700 11px/1.2 var(--t-letra); letter-spacing:.1em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-bj-rev .t-transf-jog .pp { margin-right:2px; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-bj, .t-bj-comteto .t-bj { grid-template-columns:38px minmax(0, 1fr) 24px 40px 46px 22px; gap:8px; } /* no celular: nome, idade, nota e a diferença para o titular */
+  .t-bj .t-bj-x, .t-bj .t-jog-marca:not(.t-atencao), .t-bj .bnd { display:none; }
+}
+.t-be-nivel { display:grid; grid-template-columns:110px repeat(3, minmax(0, 1fr)) 190px; align-items:baseline; gap:12px; padding:12px 10px; border-bottom:1px solid var(--t-fio); font-variant-numeric:tabular-nums; }
+.t-be-nivel > b { font:900 30px/1 var(--t-letra); font-stretch:64%; text-align:right; }
+.t-be-n { font:700 12px/1 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; }
+.t-be-custo { text-align:right; font-size:13px; color:var(--t-tinta2); white-space:nowrap; }
+.t-be-cab { padding-top:0; padding-bottom:6px; border-bottom:2px solid var(--t-tinta); font:700 10px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-be-cab > :nth-child(n+2) { text-align:right; }
+.t-be-nivel[data-estado=feito] { color:var(--t-tinta2); }
+.t-be-nivel[data-estado=depois] > b { color:var(--t-tinta3); }
+.t-be-nivel[data-estado=hoje] { background:var(--t-tinta); color:var(--t-fundo); border-bottom-color:var(--t-tinta); }
+.t-be-nivel[data-estado=hoje] .t-be-custo { color:var(--t-fundo); font-weight:700; text-transform:uppercase; letter-spacing:.12em; font-size:12px; }
+.t-be-nivel[data-estado=obra] { background:repeating-linear-gradient(135deg, color-mix(in srgb, var(--t-marca) 14%, transparent) 0 6px, transparent 6px 12px); }
+.t-be-nivel[data-estado=obra] .t-be-custo { color:var(--t-marca); font-weight:700; }
+.t-be-grupos { grid-template-columns:minmax(0, 520px); }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-be-nivel { grid-template-columns:62px repeat(3, minmax(0, 1fr)); gap:8px; padding:12px 6px; } .t-be-nivel > b { font-size:24px; }
+  .t-be-custo { grid-column:1 / -1; text-align:left; } .t-be-cab > :last-child { display:none; }
+}
+.t-bj-revs { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap:0 40px; }
+.t-bj-rev { display:grid; grid-template-columns:110px minmax(0, 1fr) 96px 110px; align-items:center; gap:10px; padding:9px 8px; border-bottom:1px solid var(--t-fio); font-variant-numeric:tabular-nums; }
+.t-bj-nota { text-align:right; font-size:13px; color:var(--t-tinta2); white-space:nowrap; } .t-bj-nota b { font:900 22px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); }
+@media (max-width:720px) and (pointer:coarse) { .t-bj-rev { grid-template-columns:minmax(0, 1fr) auto; gap:4px 10px; } .t-bj-rev .t-transf-quando { display:none; } .t-bj-rev .t-bj-nota { grid-row:1 / 3; grid-column:2; } }

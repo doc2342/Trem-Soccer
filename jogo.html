@@ -1675,13 +1675,14 @@ async function telaClube(liga, clube) {
   const ordemBase = (a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos);
   const conheceBase = (j, pos) => (j.fam || {})[pos] === "N" ? "" : (j.fam || {})[pos] === "C" ? "competente" : "improvisado";
   // Juvenis: a tabela dos jovens do clube, com os números da base e a comparação com o titular da tática principal
+  const listaDosJovens = elenco.filter(j => j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil).sort(ordemBase);
+  const jogaABase = new Set([...meusJuvenis, ...meusProfs].map(j => j.id));
+  const titularesDaTatica = tatica && tatica.dados && Array.isArray(tatica.dados.jog) ? tatica.dados.jog.map((id, i) => ({ j: elenco.find(x => semJ(x.id) === semJ(id)), pos: tatica.dados.vagas[i] })).filter(x => x.j) : [];
+  // o titular mais fraco na posição do jovem é com quem ele disputa a vaga
+  const rivalDoJovem = j => { const l = titularesDaTatica.filter(t => t.pos === j.pos && t.j.id !== j.id); if (!l.length) return null;
+    const t = l.reduce((m, x) => notaNaPosicao(x.j, x.pos) < notaNaPosicao(m.j, m.pos) ? x : m); return { t, dif: notaNaPosicao(j, j.pos) - notaNaPosicao(t.j, t.pos) }; };
   const abaJuvenis = () => {
-    const lista = elenco.filter(j => j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil).sort(ordemBase);
-    const joga = new Set([...meusJuvenis, ...meusProfs].map(j => j.id));
-    const titulares = tatica && tatica.dados && Array.isArray(tatica.dados.jog) ? tatica.dados.jog.map((id, i) => ({ j: elenco.find(x => semJ(x.id) === semJ(id)), pos: tatica.dados.vagas[i] })).filter(x => x.j) : [];
-    // o titular mais fraco na posição do jovem é com quem ele disputa a vaga
-    const rival = j => { const l = titulares.filter(t => t.pos === j.pos && t.j.id !== j.id); if (!l.length) return null;
-      const t = l.reduce((m, x) => notaNaPosicao(x.j, x.pos) < notaNaPosicao(m.j, m.pos) ? x : m); return { t, dif: notaNaPosicao(j, j.pos) - notaNaPosicao(t.j, t.pos) }; };
+    const lista = listaDosJovens, joga = jogaABase, rival = rivalDoJovem;
     const usa = formacaoDaBase || [];
     const chip = p => { const n = lista.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
       return `<span class="tag" data-jfiltro="${p}" style="margin:2px;cursor:pointer;${v ? "border:1px solid currentColor" : "opacity:.7"}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${v ? "<b>" : ""}${esc(sg(p))} <span class="${v && !n ? "bad" : ""}">${n}</span>${v ? "</b>" : ""}</span>`; };
@@ -1697,6 +1698,43 @@ async function telaClube(liga, clube) {
       <div class="lugarDoPainel" style="margin-top:8px"></div>
       ${lista.length ? `<div class="rolagem" style="margin-top:6px"><table class="mini" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th>${temTeto ? `<th title="Faixa de teto pelo olheiro">Teto</th>` : ""}<th title="Jogos na liga de base">J</th><th title="Minutos na liga de base">Min</th><th>Gols</th><th title="Nota média na liga de base">Média</th><th title="Posição que está aprendendo">Estuda</th><th>Contra o titular</th></tr>
         ${lista.map(linha).join("")}</table></div>` : `<div class="mut" style="margin-top:8px">Nenhum jovem no clube. Eles chegam na virada da temporada e na peneira (cartão Base, ao lado).</div>`}</div>`;
+  };
+  // visual novo da Base › Juvenis: a faixa diz quem já briga por vaga no time principal e quem fica livre; os jovens por setor, com os números
+  // da liga de base e a comparação com o titular; as promessas reveladas sempre abertas embaixo
+  const juvenisDaBaseNova = () => {
+    const nomes = l => l.map(j => j.nome).join(", "), prontos = listaDosJovens.filter(j => (r => r && r.dif >= 0)(rivalDoJovem(j)));
+    const livres = meusJuvenis.filter(j => j.idade >= CONFIG_BASE.idadeDeJuvenil), melhor = listaDosJovens.slice().sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos))[0];
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: "sem contrato nem salário" })}
+      ${numero({ rotulo: "Profissionais", valor: String(meusProfs.length), legenda: `formados aqui, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos, jogam a base` })}
+      ${numero({ rotulo: "Ficam livres", valor: String(livres.length), legenda: livres.length ? "na virada, sem contrato" : "ninguém na virada", tom: livres.length ? "bad" : "" })}
+      ${numero({ rotulo: "Promessas", valor: revelados == null ? "—" : String(revelados.length), legenda: revelados == null ? "" : `reveladas · ${revelados.filter(r => !(j => j && j.juvenil)(elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)))).length} já formadas` })}</div>`;
+    const topo = faixaFoco({ rotulo: "Base · juvenis", titulo: String(listaDosJovens.length), apagado: listaDosJovens.length === 1 ? "jovem no clube" : "jovens no clube",
+      destaque: prontos.length ? `${prontos.length === 1 ? "1 pronto" : prontos.length + " prontos"} para o time principal: ${nomes(prontos)}.` : melhor ? `Melhor nota: ${melhor.nome}, ${f1(notaNaPosicao(melhor, melhor.pos))}.` : "Nenhum jovem no clube.",
+      frase: livres.length ? `${nomes(livres)} ${livres.length === 1 ? "fica livre" : "ficam livres"} na virada se não ${livres.length === 1 ? "for profissionalizado" : "forem profissionalizados"}.` : melhor ? "Pronto = nota igual ou maior que a do titular mais fraco da posição." : "Eles chegam na virada da temporada e na peneira.", lado });
+    const usa = formacaoDaBase || [];
+    const filtro = `<div class="t-transf-filtro" id="jFiltro"><button type="button" data-jfiltro="" class="ligado">Todas <small>${listaDosJovens.length}</small></button>${LISTA_POSICOES.filter(p => usa.includes(p) || listaDosJovens.some(j => j.pos === p)).map(p => {
+      const n = listaDosJovens.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
+      return `<button type="button" data-jfiltro="${p}" class="${v && !n ? "t-bj-falta" : ""}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${esc(sg(p))}${v ? `<i class="t-bj-tat"></i>` : ""} <small>${n}</small></button>`; }).join("")}</div>`;
+    const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil;
+      const marcas = (j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos`))
+        + (livre ? marcaDe("fica livre", "Se não for profissionalizado até a virada, fica livre", "t-atencao") : "")
+        + (jogaABase.has(j.id) ? "" : marcaDe("não joga a base", "Lesionado, mais velho que o limite da base ou formado em outro clube"))
+        + (j.aprende ? marcaDe(`estuda ${sg(j.aprende.pos)}`, "Posição que está aprendendo") : "");
+      return `<div class="t-jog t-bj clk" data-jog="${j.id}" data-jpos="${j.pos}">${pp(j.pos)}<div class="t-jog-nome">${lj(j.id, j.nome)}${bandeira(j.pais)}${marcas}</div>
+        <div class="t-jog-id">${j.idade}</div><div class="t-jog-nota" title="Nota na posição dele">${f1(notaNaPosicao(j, j.pos))}</div>${temTeto ? `<div class="t-bj-n t-bj-x" title="Teto pelo olheiro">${tetoDe[j.id] ? tetoDe[j.id].minimo + "–" + tetoDe[j.id].maximo : "—"}</div>` : ""}
+        <div class="t-bj-n t-bj-x">${n ? n.j : 0}</div><div class="t-bj-n t-bj-x">${n ? n.min : 0}</div><div class="t-bj-n t-bj-x">${n && n.g ? n.g : "—"}</div><div class="t-bj-n t-bj-x">${n && n.j ? f1(n.nota / n.j) : "—"}</div>
+        <div class="t-bj-rival${r && r.dif >= 0 ? " ok" : ""}" title="${r ? `${esc(r.t.j.nome)}, titular em ${esc(sg(r.t.pos))}, nota ${f1(notaNaPosicao(r.t.j, r.t.pos))}` : "Nenhum titular nessa posição na tática principal"}">${r ? (r.dif >= 0 ? `+${f1(r.dif)}` : f1(r.dif)) : "—"}</div>
+        <button class="info" data-info="${j.id}" title="Atributos">i</button></div>`; };
+    const cab = `<div class="t-jog t-jog-cab t-bj"><span></span><span>Jogador</span><span>Id.</span><span>Nota</span>${temTeto ? `<span class="t-bj-x">Teto</span>` : ""}<span class="t-bj-x" title="Jogos na liga de base">J</span><span class="t-bj-x" title="Minutos na liga de base">Min</span><span class="t-bj-x">Gols</span><span class="t-bj-x" title="Nota média na liga de base">Média</span><span title="Diferença para o titular mais fraco da posição na tática principal">Titular</span><span></span></div>`;
+    const setores = ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor t-bj-setor">${rotulo(`${titulo} · ${l.length}`)}${cab}${l.map(linha).join("")}</section>` : "")(listaDosJovens.filter(j => linhas.includes(POSICOES[j.pos].linha)))).join("");
+    // as promessas que ainda são juvenis já estão nas linhas de cima: aqui só quem a base já formou (profissional hoje ou fora do clube)
+    const doClube = r => elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)), formadas = (revelados || []).filter(r => !(j => j && j.juvenil)(doClube(r)));
+    const promessas = revelados == null ? "" : `<section class="t-secao">${rotulo(`Quem a base já formou · ${formadas.length}`)}${formadas.length ? `<div class="t-bj-revs">${formadas.map(r => { const j = doClube(r);
+      return `<div class="t-bj-rev"><span class="t-bj-orig">T${r.temporada} · ${r.origem === "virada" ? "virada" : r.origem === "peneira" ? "peneira" : "—"}</span><span class="t-transf-jog">${pp(r.pos)}${j ? lj(j.id, r.nome) : esc(r.nome)}</span>
+        <span class="t-bj-nota" title="Nota na chegada → hoje">${r.at ? f1(notaBruta(r.at, r.pos)) : "—"} → <b>${j ? f1(notaBruta(j.at, j.pos)) : "—"}</b></span><span class="t-transf-quando">${j ? `no clube, ${j.idade} anos` : "saiu do clube"}</span></div>`; }).join("")}</div>`
+      : `<p class="t-fajuda">${revelados.length ? "Todas as promessas reveladas ainda são juvenis (nas linhas acima)." : "Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado, com a temporada e a nota de chegada."}</p>`}</section>`;
+    return `<div class="t-bjuv">${topo}<div class="lugarDoPainel"></div>${listaDosJovens.length ? `<section class="t-secao${temTeto ? " t-bj-comteto" : ""}">${filtro}${setores}</section>` : ""}${promessas}
+      ${comoFunciona(`<div class="mut" style="font-size:12px">Os juvenis e os profissionais de até ${CONFIG_BASE.idadeDeJuvenil} anos. Clique num jogador para profissionalizar, renovar ou dispensar. Nos filtros, o ponto marca as posições da sua tática (a base revela mais gente para elas e menos para onde você já tem jovens); em vermelho, as que não têm nenhum jovem. "Titular" compara a nota com a do titular mais fraco da tática principal na mesma posição.</div>`)}</div>`;
   };
   // Escalação da base: o campinho que o dirigente monta. As vagas são livres como na tática principal (arrastar uma vaga mostra as posições
   // para onde ela pode ir) e soltar um jovem numa vaga o fixa nela. O rascunho fica em rascunhoBase até salvar; cada mudança redesenha só o cartão.
@@ -2236,6 +2274,12 @@ async function telaClube(liga, clube) {
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
       </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base e o estádio têm aba própria).</div></div>`;
   };
+  // painel cinza com quem trabalha numa estrutura (Clube › Estruturas e Base › Estrutura): ficha enxuta, o efeito só até a primeira vírgula longa
+  // (o texto inteiro fica no title), e o botão dos candidatos
+  const nomeDe = k => (ESTRUTURAS.find(x => x[0] === k) || [])[1] || k;
+  const enxuta = html => html.replace(/ <span class="mut">· ([^<]*)<\/span>/, '<div class="pf-sal">$1</div>').replace(/<div class="pf-efeito">([^<]*)<\/div>/, (_, t) => `<div class="pf-efeito" title="${t}">${t.split(/ \(|; | · |, a cada/)[0]}</div>`);
+  const grupoDaEstrutura = (k, tipos, fichas) => `<div class="t-estr-grupo" style="--n:${fichas.length}"><div class="t-estr-grupo-cab"><span>${esc(nomeDe(k))}</span><button type="button" class="t-botao t-botao-link" data-candidatos="${tipos}">Candidatos</button></div>
+      <div class="t-estr-profs">${fichas.map(enxuta).join("")}</div></div>`;
   // visual novo: faixa com a obra (a vaga única), uma linha por estrutura (hoje → próximo nível → ação) e a comissão que trabalha nelas
   const estruturasNova = ({ mil, fx, pct, manut, nomeObra, reforma, total, maxTotal }) => {
     const efeito = (k, n) => k === "ct" ? [pct(CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * n), "do treino normal"]
@@ -2243,7 +2287,6 @@ async function telaClube(liga, clube) {
       : k === "fisio" ? [String(atendidosNaForma(n)), "atendidos na forma por rodada"]
       : k === "base" ? [fx(faixaDeJovens(n, "promocao")), `jovens na virada · ${fx(faixaDeJovens(n, "peneira"))} na peneira`]
       : [mil(lugaresDoEstadio(n)), "lugares"];
-    const nomeDe = k => (ESTRUTURAS.find(x => x[0] === k) || [])[1] || k;
     const feito = obra ? Math.round(100 * (1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total))) : 0;
     const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: "a obra sai daqui na hora", tom: caixa < 0 ? "bad" : "" })}
       ${numero({ rotulo: "Manutenção", valor: dinheiro(manut), legenda: "por temporada, todas juntas" })}
@@ -2263,16 +2306,37 @@ async function telaClube(liga, clube) {
         <div class="t-estr-nome">${ir ? `<a class="lk" ${ir}>${esc(nome)}</a>` : esc(nome)}<span class="t-estr-niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : emObra && i < obra.nivel_alvo ? "obra" : ""}"></i>`).join("")}</span></div>
         <div class="t-estr-hoje"><b>${hoje}</b><small>${leg}</small></div>
         <div class="t-estr-prox">${custo == null ? "" : `<small>nível ${prox}</small><b>${efeito(k, prox)[0]}</b>`}</div>${acao}</div>`; }).join("");
-    // ficha enxuta: o efeito só até a primeira vírgula longa (o texto inteiro fica no title)
-    const enxuta = html => html.replace(/ <span class="mut">· ([^<]*)<\/span>/, '<div class="pf-sal">$1</div>').replace(/<div class="pf-efeito">([^<]*)<\/div>/, (_, t) => `<div class="pf-efeito" title="${t}">${t.split(/ \(|; | · |, a cada/)[0]}</div>`);
-    const grupo = (k, tipos, fichas) => `<div class="t-estr-grupo" style="--n:${fichas.length}"><div class="t-estr-grupo-cab"><span>${esc(nomeDe(k))}</span><button type="button" class="t-botao t-botao-link" data-candidatos="${tipos}">Candidatos</button></div>
-      <div class="t-estr-profs">${fichas.map(enxuta).join("")}</div></div>`;
     const comissaoNova = comissao == null ? "" : `<section class="t-secao t-estr-comissao">${rotulo("Quem trabalha nelas")}
-      <div class="t-estr-grupos">${relatorios == null ? "" : grupo("ct", "analista", [blocoAnalista()])}${grupo("medico", "medico,prevencao", [profissional("medico"), profissional("prevencao")])}${grupo("fisio", "forma,psicologo", [profissional("forma"), profissional("psicologo")])}</div>
+      <div class="t-estr-grupos">${relatorios == null ? "" : grupoDaEstrutura("ct", "analista", [blocoAnalista()])}${grupoDaEstrutura("medico", "medico,prevencao", [profissional("medico"), profissional("prevencao")])}${grupoDaEstrutura("fisio", "forma,psicologo", [profissional("forma"), profissional("psicologo")])}</div>
       <span class="mut" data-cand-aviso></span>${["analista", "medico,prevencao", "forma,psicologo"].map(t => `<div data-cand-lista="${t}" class="t-estr-lista"></div>`).join("")}</section>`;
     return `<div class="t-estruturas">${topo}<section class="t-secao">${rotulo("As cinco estruturas")}
       <div class="t-estr-cab"><span>Estrutura</span><span>Hoje</span><span>Próximo nível</span><span></span></div>${linhas}
       <p class="t-fajuda">Manutenção: ${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do gasto no estádio, por temporada, mais refletores e estacionamento. O prazo da obra corre em rodadas de liga.</p></section>${comissaoNova}</div>`;
+  };
+  // visual novo da Base › Estrutura: a faixa é o nível com a obra (ou o botão de ampliar); embaixo, a escada dos cinco níveis e o olheiro
+  const estruturaDaBaseNova = () => {
+    if (caixa == null || clube.ct_nivel == null) return estrutura("base");
+    const n = clube.base_nivel || 0, prox = n + 1, custo = prox > 5 ? null : CUSTO.outras[prox], emObra = obra && obra.estrutura === "base";
+    const fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`, nota = k => f1(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * k);
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Na virada", valor: fx(faixaDeJovens(n, "promocao")), legenda: "jovens sobem da base" })}
+      ${numero({ rotulo: "Na peneira", valor: fx(faixaDeJovens(n, "peneira")), legenda: "jovens, uma vez por temporada" })}
+      ${numero({ rotulo: "Nota de chegada", valor: nota(n), legenda: "perto disso, com 16 a 18 anos" })}
+      ${numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: "a obra sai daqui na hora", tom: caixa < 0 ? "bad" : "" })}</div>`;
+    const feito = emObra ? Math.round(100 * (1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total))) : 0;
+    const acao = emObra ? (feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "")
+      : custo == null ? `<div class="t-carimbo">Nível máximo<small>base completa</small></div>`
+      : `<div class="t-base-peneira"><button type="button" class="t-botao t-botao-principal" data-obra="base" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button><span data-obra-aviso>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</span></div>`;
+    const topo = faixaFoco({ rotulo: "Base · estrutura", titulo: `Nível ${n}`,
+      destaque: emObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.` : custo == null ? "" : `No nível ${prox}: ${fx(faixaDeJovens(prox, "promocao"))} na virada, ${fx(faixaDeJovens(prox, "peneira"))} na peneira, nota ${nota(prox)}.`,
+      frase: "O talento não depende da base: ela só dá mais chance no sorteio dos talentos raros da temporada.", lado, numeros: acao });
+    const escada = [0, 1, 2, 3, 4, 5].map(k => { const estado = k === n ? "hoje" : emObra && k === obra.nivel_alvo ? "obra" : k < n ? "feito" : "depois";
+      return `<div class="t-be-nivel" data-estado="${estado}"><span class="t-be-n">Nível ${k}</span><b>${fx(faixaDeJovens(k, "promocao"))}</b><b>${fx(faixaDeJovens(k, "peneira"))}</b><b>${nota(k)}</b>
+        <span class="t-be-custo">${estado === "hoje" ? "hoje" : estado === "obra" ? `em obra · faltam ${obra.rodadas_restantes} rod.` : k === 0 ? "—" : `${dinheiro(CUSTO.outras[k])} · ${PRAZO[k]} rod.`}</span></div>`; }).join("");
+    const olheiro = comissao == null || relatorios == null ? "" : `<section class="t-secao t-estr-comissao">${rotulo("Quem avalia os jovens")}
+      <div class="t-estr-grupos t-be-grupos">${grupoDaEstrutura("base", "olheiro", [blocoOlheiro()])}</div><span class="mut" data-cand-aviso></span><div data-cand-lista="olheiro" class="t-estr-lista"></div></section>`;
+    return `<div class="t-base t-bestr">${topo}<section class="t-secao">${rotulo("Os níveis da base")}
+      <div class="t-be-nivel t-be-cab"><span>Nível</span><span>Na virada</span><span>Na peneira</span><span>Nota de chegada</span><span>Custo · prazo</span></div>${escada}
+      <p class="t-fajuda">O valor da obra sai do caixa no início e a base só muda de nível quando ela termina; o prazo corre em rodadas de liga. Uma obra por vez, entre todas as estruturas. Os garotos da escolinha que completam o time da base também são melhores quanto maior o nível.</p></section>${olheiro}</div>`;
   };
   // estádio: visual de hoje (3D) e o que a obra em andamento, ou a próxima ampliação, vai construir (planta e wireframe)
   const CUSTO_DA_REFORMA = n => Math.max(250, Math.round(0.25 * (CUSTO.estadio[Math.max(1, n)] || 1000))), PRAZO_DA_REFORMA = n => Math.max(1, Math.floor(PRAZO[Math.min(8, Math.max(1, n))] / 2)); // os mesmos do 116
@@ -3470,10 +3534,10 @@ ${historicoDaBase()}`}
         <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div>${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam mas não jogam partida oficial. Você tem <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>. Para usar um deles, profissionalize-o (na aba Juvenis ou em Clube, Elenco, clicando no jogador); quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`; })()}</div></div>`}</div>
     <div data-parte="base:jogos">${visualNovo ? jogosDaBaseNova() : `${jogosDaBaseCard()}${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>`}</div>
     <div data-parte="base:escalacao">${visualNovo ? escalacaoBaseNova() : abaEscalacao()}</div>
-    <div data-parte="base:juvenis">${abaJuvenis()}${revelados == null ? "" : `<details class="card"><summary><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2></summary>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
+    <div data-parte="base:juvenis">${visualNovo ? juvenisDaBaseNova() : `${abaJuvenis()}${revelados == null ? "" : `<details class="card"><summary><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2></summary>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
       ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
-        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</details>`}</div>
-    <div data-parte="base:estrutura">${estrutura("base")}</div>
+        <td class="esq">${j ? `${j.juvenil ? "juvenil" : "profissional"}, ${j.idade} anos, nota <b>${f1(notaBruta(j.at, j.pos))}</b>` : `<span class="mut">saiu do clube</span>`}</td></tr>`; }).join("")}</table>` : `<div class="mut">Ninguém ainda. Cada jovem que subir na virada ou vier na peneira fica anotado aqui, com a temporada e a nota de chegada.</div>`}</details>`}`}</div>
+    <div data-parte="base:estrutura">${visualNovo ? estruturaDaBaseNova() : estrutura("base")}</div>
     </section>
     <section data-secao="clube">
     ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["estadio", "🏟️ Estádio", "Estádio"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."], ["patrocinio", "🤝 Patrocínio", "Patroc."]])}
@@ -3493,8 +3557,9 @@ ${historicoDaBase()}`}
 
   // antecipação do prêmio
   if ($("jFiltro")) $("jFiltro").onclick = e => { const c = e.target.closest("[data-jfiltro]"); if (!c) return;
-    $("jFiltro").querySelectorAll("[data-jfiltro]").forEach(x => { x.style.outline = x === c ? "1px solid currentColor" : ""; });
-    document.querySelectorAll("tr[data-jpos]").forEach(tr => { tr.hidden = !!c.dataset.jfiltro && tr.dataset.jpos !== c.dataset.jfiltro; }); };
+    $("jFiltro").querySelectorAll("[data-jfiltro]").forEach(x => { if (visualNovo) x.classList.toggle("ligado", x === c); else x.style.outline = x === c ? "1px solid currentColor" : ""; });
+    document.querySelectorAll("tr[data-jpos], .t-bj[data-jpos]").forEach(tr => { tr.hidden = !!c.dataset.jfiltro && tr.dataset.jpos !== c.dataset.jfiltro; });
+    document.querySelectorAll(".t-bj-setor").forEach(s => { s.hidden = !s.querySelector(".t-bj[data-jpos]:not([hidden])"); }); };
   // tática da base: rascunho e gravação (o arrasto em si fica no alto do módulo e chama acoesDaBase)
   if ($("baseEsc")) {
     const R = () => rascunhoBase || (rascunhoBase = baseInicial());
@@ -4556,7 +4621,7 @@ ${historicoDaBase()}`}
       const nome = (ESTRUTURAS.find(x => x[0] === qual) || [])[1];
       if (!confirm(`Começar a obra: ${nome}? O valor sai do caixa agora e não dá para cancelar.`)) return;
       e.target.disabled = true;
-      iniciarObra(qual).then(() => carregar({ user: usuario })).catch(err => { $("obraAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; e.target.disabled = false; });
+      iniciarObra(qual).then(() => carregar({ user: usuario })).catch(err => { (e.target.closest("[data-parte]") && e.target.closest("[data-parte]").querySelector("[data-obra-aviso]") || $("obraAviso")).innerHTML = `<span class="bad">${esc(err.message)}</span>`; e.target.disabled = false; });
       return;
     }
     if (e.target.closest("[data-info]")) return; // o botão de atributos tem o seu próprio quadro
