@@ -794,6 +794,23 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 :root[data-visual=novo] .t-tatica .vaga .det .nota { background:#121a24; color:#fff; padding:2px 5px; border-radius:2px; font-size:11px; }
 :root[data-visual=novo] .t-tatica .vaga .nome { margin-top:12px; } :root[data-visual=novo] .t-tatica .vaga.vazia .det { display:none; } :root[data-visual=novo] .t-tatica .vaga.vazia .nome { margin-top:0; }
 .t-tatica .vaga .t-pendurado { position:absolute; top:0; left:50%; margin-left:12px; width:10px; height:14px; border-radius:2px; background:#f0c35a; box-shadow:0 1px 3px rgba(0,0,0,.5); transform:rotate(12deg); }
+/* a camisa do clube no lugar da bolinha; o contorno (drop-shadow nos quatro lados) faz o papel da borda colorida */
+:root[data-visual=novo] .t-tatica .vaga .vpos.camisa, .t-bola.camisa { width:auto; height:auto; border:0; border-radius:0 !important; background:none !important; box-shadow:none; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.vpos.camisa svg { display:block; width:52px; height:auto; } .t-bola.camisa svg { display:block; width:30px; height:auto; }
+.t-tatica .vaga.fam-C .vpos.camisa { --contorno:#f0c35a; } .t-tatica .vaga.fam-I .vpos.camisa { --contorno:#ff8a7a; }
+:root[data-visual=novo] .t-tatica .vaga.sel .vpos.camisa { --contorno:var(--t-marca); outline:0; } .t-tatica .vaga.alvo .vpos.camisa { --contorno:#fff; outline:0; }
+.t-tatica .vaga .vpos.camisa[class] { filter:drop-shadow(1.5px 0 0 var(--contorno, transparent)) drop-shadow(-1.5px 0 0 var(--contorno, transparent)) drop-shadow(0 1.5px 0 var(--contorno, transparent)) drop-shadow(0 -1.5px 0 var(--contorno, transparent)) drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.t-tatica .vaga.fora .vpos.camisa[class] { filter:grayscale(1) opacity(.5); }
+:root[data-visual=novo] .t-tatica .vaga:has(.camisa) .det { top:57px; display:flex; }
+.t-tatica .vaga .det .vsig { color:#fff; font-weight:800; font-size:10px; padding:2px 4px; border-radius:2px 0 0 2px; } .t-tatica .vaga .det .vsig + .nota { border-radius:0 2px 2px 0; }
+.t-tatica .vaga:has(.camisa) .t-pendurado { margin-left:16px; }
+/* mapa de posições: a camisa do jogador em cada posição possível, apagada; a atual e a do cursor acesas */
+.t-pos.camisa .t-pos-bola { width:auto; height:auto; border:0; border-radius:0; background:none; opacity:.35; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); transition:opacity .15s; }
+.t-pos.camisa .t-pos-bola svg { display:block; width:44px; height:auto; }
+.t-pos.camisa:hover .t-pos-bola, .t-pos.camisa.alvo .t-pos-bola, .t-pos.camisa.atual .t-pos-bola { opacity:1; background:none; border:0; }
+.t-pos.camisa .t-pos-nota { display:flex; align-items:center; gap:4px; } .t-pos .vsig { font-size:10px; padding:2px 4px; border-radius:2px; text-shadow:none; }
+.fantasma.camisa { background:none; padding:0; display:flex; flex-direction:column; align-items:center; gap:2px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.7); filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+.fantasma.camisa svg { width:52px; height:auto; }
 .t-tatica-cab { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:10px; } .t-tatica-cab .t-rotulo { margin-bottom:0; }
 .t-tatica-forca { background:var(--t-tinta); color:var(--t-fundo); padding:6px 12px; display:flex; align-items:baseline; gap:10px; }
 .t-tatica-forca span { font:700 10.5px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; opacity:.7; } .t-tatica-forca b { font:900 26px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
@@ -831,6 +848,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 @media (max-width:620px) and (pointer:coarse) {
   .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-tatica .gramado { min-height:540px; }
   :root[data-visual=novo] .t-tatica .vaga .vpos { width:38px; height:38px; font-size:11.5px; }
+  .vpos.camisa svg { width:40px; } :root[data-visual=novo] .t-tatica .vaga:has(.camisa) .det { top:44px; }
   .t-tatica .vaga .nome { font-size:11px; }
   #taticaFora #banco { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); }
   .t-esc { grid-template-columns:30px minmax(0, 1fr) 40px 40px 38px 22px; gap:6px; } .t-esc-onde, .t-esc-cab > :nth-child(3) { display:none; } /* titular e banco: a cor da borda diz */
@@ -1469,3 +1487,4 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-mjog-clube .t-transf-clube { max-width:100%; } .t-mjog-clube .t-transf-clube a.lk { overflow:hidden; text-overflow:ellipsis; }
 @media (max-width:720px) and (pointer:coarse) { .t-mjog { grid-template-columns:38px minmax(0, 1fr) 20px 24px 40px 64px 22px; } .t-mjog .t-mjog-clube { display:block; } .t-mjog-clube a.lk { display:none; }
   .t-mjog.t-jog-cab > :nth-child(3) { display:block; font-size:0; } .t-ojog { grid-template-columns:38px minmax(0, 1fr) 20px 40px 64px; } .t-ojog > :nth-child(3) { display:block; } }
+@media (max-width:720px) and (pointer:coarse) { .t-mjog.t-jog-cab > :nth-child(6) { display:block; } } /* a regra do Elenco escondia a 6ª coluna (salário), que na Busca é a multa */

@@ -13,6 +13,7 @@ import { htmlRelatorio } from "./ui-relatorio.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS } from "./siglas.js";
 import { SEDES, sedeDoJogo, chaveDaFinal, configDaSede, desenharEstadio } from "./estadio.js";
 import { rotulo } from "./ui-trem.js";
+import { svgCamisa, numerosDaCamisa } from "./camisa.js";
 
 const NOVO = typeof document !== "undefined" && document.documentElement.dataset.visual === "novo"; // visual novo (mo_visual): prévia vira faixa de foco, instruções em botões
 
@@ -165,6 +166,13 @@ let tirados = []; // quem a tática salva escalava mas está fora do próximo jo
 const motivoCurto = j => j.motivo === "lesão" ? "lesionado" : /suspens/.test(j.motivo || "") ? "suspenso" : "fora deste jogo";
 const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
+// visual novo: a camisa do clube, de costas e com o número, no lugar da bolinha; o goleiro com uma camisa própria
+const CAMISAS = NOVO;
+const GOLEIRO = { padrao: "liso", cor1: "#2b2f36", cor2: "#f0c35a" };
+let numeros = new Map();
+const numerar = () => { const l = j => ({ nome: j.nome, pos: j.pos, numero: j.numero });
+  numeros = numerosDaCamisa({ titulares: escalacaoAtual().map(x => ({ ...l(x.j), pos: x.pos })), banco: E.banco.map(jogDe).filter(Boolean).map(l) }); };
+const camisa = (j, pos) => svgCamisa(pos === "GK" ? GOLEIRO : (clubeOnline && clubeOnline.uniforme) || {}, 44, false, { numero: numeros.get(j.nome) || "" });
 // a prévia do adversário compara o onze deles com o seu; render() refaz essa parte a cada mudança na escalação
 let forcaAdv = null;
 const forcaMinha = () => { const l = escalacaoAtual(); return l.length ? l.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / l.length : 0; };
@@ -430,16 +438,17 @@ const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol:
 const ALTURA_DA_FAIXA = [14, 31, 48, 63, 77, 94];
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
 function htmlGramado(mapa = null) {
+  if (CAMISAS) numerar();
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}"${NOVO ? ` style="top:${ALTURA_DA_FAIXA[FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha]]}%"` : ""}>${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""} ${!j && tirados.some(t => t.i === i) ? "falta" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
-      <span class="pp vpos ${corDoSetor(pos)}" title="${POSICOES[pos].nome}">${sg(pos)}</span>${NOVO && j && j.amarelos >= 3 && !(j.fora > 0) ? `<i class="t-pendurado" title="Pendurado: o próximo amarelo suspende"></i>` : ""}${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? (NOVO ? esc(curto(j)) : `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>`) : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? (NOVO ? "" : ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>`) : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
+      <span class="pp vpos ${corDoSetor(pos)}${CAMISAS && j ? " camisa" : ""}" title="${POSICOES[pos].nome}">${CAMISAS && j ? camisa(j, pos) : sg(pos)}</span>${NOVO && j && j.amarelos >= 3 && !(j.fora > 0) ? `<i class="t-pendurado" title="Pendurado: o próximo amarelo suspende"></i>` : ""}${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? (NOVO ? esc(curto(j)) : `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>`) : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `${CAMISAS ? `<span class="pp vsig ${corDoSetor(pos)}">${sg(pos)}</span>` : ""}<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? (NOVO ? "" : ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>`) : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
   // visual novo: as posições possíveis num mapa fixo por cima do campo (círculos tracejados, a nota do jogador embaixo); o campo não muda de altura
-  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${sg(p)}</span>${j ? `<span class="t-pos-nota">${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
+  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}${CAMISAS && j ? " camisa" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${CAMISAS && j ? camisa(j, p) : sg(p)}</span>${j ? `<span class="t-pos-nota">${CAMISAS ? `<span class="pp vsig ${corDoSetor(p)}">${sg(p)}</span>` : ""}${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
   const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
@@ -464,7 +473,7 @@ function render() {
   // gramado
   $("gramado").innerHTML = htmlGramado(NOVO && sel && sel.tipo === "vaga" && E.vagas[sel.i] !== "GK" ? sel.i : null); // visual novo: vaga escolhida mostra no campo as posições para onde ela pode ir
   // banco
-  if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curto(j))}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
+  if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `${CAMISAS ? `<span class="t-bola camisa">${camisa(j, j.pos)}</span>` : `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span>`}<span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curto(j))}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
     $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de ${TAMANHO_DO_BANCO}`;
     const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
     $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
@@ -651,7 +660,8 @@ window.addEventListener("pointermove", e => {
   if (!arrasto.fantasma) {
     if (Math.hypot(e.clientX - arrasto.x0, e.clientY - arrasto.y0) < 8) return;
     const f = arrasto.fantasma = document.createElement("div"), j = jogDe(arrasto.id);
-    f.className = "fantasma"; f.textContent = `${sg(j.pos)} ${j.nome}`; document.body.appendChild(f); document.body.classList.add("arrastando");
+    f.className = "fantasma"; f.textContent = `${sg(j.pos)} ${j.nome}`;
+    if (CAMISAS) { f.className = "fantasma camisa"; f.innerHTML = camisa(j, j.pos) + `<span>${esc(curto(j))}</span>`; } document.body.appendChild(f); document.body.classList.add("arrastando");
     // titular de linha: aparecem as posições para onde a vaga dele pode ir
     const vaga = E.jog.indexOf(arrasto.id);
     if (vaga >= 0 && E.vagas[vaga] !== "GK") { arrasto.mapa = vaga; $("gramado").innerHTML = htmlGramado(vaga); }
