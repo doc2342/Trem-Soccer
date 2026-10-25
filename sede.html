@@ -56,7 +56,7 @@ async function carregar() {
     <div class="card cabeca"><h2>${esc(sede.nome)}</h2><div class="mut">${esc(sede.cidade)} · sede oficial das finais${previa ? ' · <span class="aviso">prévia com finais de exemplo</span>' : ""}</div>
       <div class="num"><div><b>${mil(sede.lugares)}</b><span class="mut">lugares</span></div><div><b>${finais.length}</b><span class="mut">finais aqui</span></div>
         <div><b>${aqui.length ? aqui.map(k => FINAIS[k]).join(", ") : "—"}</b><span class="mut">final desta temporada</span></div></div></div>
-    <div class="card"><div style="position:relative"><div id="cena"></div></div>
+    <div class="card"><div style="position:relative"><div id="cena" data-altura-fixa></div></div>
       ${festa ? `<div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button id="bFesta">Ver a festa do ${esc(camp.nome)}</button><button id="bSom" class="sec" title="Som da festa"></button><span class="mut" style="font-size:12.5px">Último campeão aqui: ${esc(FINAIS[ultima.competicao] || "")} ${ultima.temporada}</span></div>` : ""}</div>
     <div class="card"><h3>Finais disputadas aqui</h3>${finais.length ? `<table><tr><th>Temp.</th><th>Competição</th><th>Jogo</th><th>Campeão</th><th>Público</th></tr>
       ${finais.map(f => `<tr><td>${f.temporada}</td><td>${esc(FINAIS[f.competicao] || f.competicao)}</td><td>${placar(f)}</td><td><b>${esc(f.campeao_nome || "—")}</b></td><td>${mil(f.publico)}</td></tr>`).join("")}</table>`

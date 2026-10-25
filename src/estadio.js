@@ -259,14 +259,17 @@ export async function desenharEstadio(el, config) {
   T = await carregarThree(); materiaisFixos();
   el.style.position = "relative"; el.style.cursor = "grab"; el.style.touchAction = "none"; el.style.overflow = "hidden"; el.style.borderRadius = "12px";
   const tag = document.createElement("div"); tag.style.cssText = "position:absolute;left:12px;top:10px;font-family:monospace;font-size:12px;color:#FAC775;pointer-events:none";
-  const ren = new T.WebGLRenderer({ antialias: true, alpha: true }); ren.setPixelRatio(Math.min(2, devicePixelRatio)); ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
+  const ren = new T.WebGLRenderer({ antialias: true, alpha: true }); ren.setPixelRatio(Math.min(1.5, devicePixelRatio)); ren.shadowMap.enabled = true; ren.shadowMap.type = T.PCFSoftShadowMap;
   ren.domElement.style.display = "block"; el.replaceChildren(ren.domElement, tag);
   const scene = new T.Scene(), cam = new T.PerspectiveCamera(30, 1.6, 1, 3000);
   const hemi = new T.HemisphereLight(0xffffff, 0x77746a, 0.62), campo = new T.PointLight(0xfff4dc, 0, 0, 1); campo.position.set(0, 70, 0); scene.add(hemi, campo);
   const sun = new T.DirectionalLight(0xffffff, 0.95); sun.position.set(-90, 150, 80); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; scene.add(sun);
   const I = { scene, grp: new T.Group(), sun, hemi, campo, tag, az: 0.55, el: 0.62, dist: 300, tz: 0, zoom: 1, vista: "3d" }; scene.add(I.grp);
-  I.render = () => { const w = el.clientWidth; if (!w) return; const h = Math.round(w * 0.62); ren.setSize(w, h); cam.aspect = w / h;
-    const d = I.dist * I.zoom; cam.position.set(d * Math.cos(I.el) * Math.sin(I.az), d * Math.sin(I.el), I.tz + d * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
+  // altura: 62% da largura, ou a da caixa quando ela tem data-altura-fixa (sede.html); fora da proporção a câmera chega perto ou se afasta para o estádio caber inteiro
+  const alt = w => el.hasAttribute("data-altura-fixa") ? el.clientHeight : Math.round(w * 0.62);
+  I.render = () => { const w = el.clientWidth; if (!w) return; const h = alt(w); I.tam = w + "x" + h; ren.setSize(w, h); cam.aspect = w / h;
+    const k = cam.aspect < 1.6 ? 1.6 / cam.aspect : Math.sqrt(1.6 / cam.aspect), d = I.dist * I.zoom * k, f = scene.fog; // a neblina anda junto com a câmera
+    if (f) { f.base = f.base || [f.near, f.far]; f.near = f.base[0] + I.dist * (k - 1); f.far = f.base[1] + I.dist * (k - 1); } cam.position.set(d * Math.cos(I.el) * Math.sin(I.az), d * Math.sin(I.el), I.tz + d * Math.cos(I.el) * Math.cos(I.az)); cam.lookAt(0, 4, I.tz); cam.updateProjectionMatrix();
     ren.setClearColor(I.vista == "wire" ? 0x0C447C : I.ceu || CEU, 1); ren.render(scene, cam); };
   let drag = null, pinca = null; const dedos = new Map(), vao = () => { const [a, b] = [...dedos.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; };
   const zoom = z => { I.zoom = Math.min(1.2, Math.max(0.3, z)); I.render(); };
@@ -283,11 +286,11 @@ export async function desenharEstadio(el, config) {
     b.style.cssText = "width:34px;height:34px;border:0;border-radius:8px;background:rgba(13,18,32,.75);color:#fff;font:700 20px sans-serif;cursor:pointer";
     b.addEventListener("pointerdown", e => e.stopPropagation()); b.addEventListener("click", () => zoom(I.zoom * f)); botoes.append(b); }
   el.append(botoes);
-  const ro = new ResizeObserver(() => I.render()); ro.observe(el);
+  const ro = new ResizeObserver(() => { if (el.clientWidth + "x" + alt(el.clientWidth) !== I.tam) I.render(); }); ro.observe(el); // o construir já desenha: só redesenha se o tamanho mudou
   const atualizar = c => { cur = I; grp = I.grp; aplicar(c); I.vista = C.vista; construir(); };
   atualizar(config);
   // posição na tela (pixels da cena) dos pontos de fumaça, para o canvas por cima acompanhar a câmera
-  const pontosDaFesta = () => { const w = el.clientWidth, h = Math.round(w * 0.62); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
+  const pontosDaFesta = () => { const w = el.clientWidth, h = alt(w); return (I.festaPts || []).map(q => { const v = new T.Vector3(q.x, q.y, q.z).project(cam); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h }; }); };
   return { atualizar, pontosDaFesta, destruir: () => { I.morto = true; ro.disconnect(); cur = I; grp = I.grp; limpar(); ren.dispose(); ren.forceContextLoss(); el.replaceChildren(); } };
 }
 
@@ -299,6 +302,7 @@ function construir() {
   cur.ceu = "#" + (n <= 0.55 ? mix(CEU, POENTE, n / 0.55) : tn < 0.5 ? mix(POENTE, ROXO, 2 * tn) : mix(ROXO, NOITE, 2 * tn - 1)).getHexString();
   luzNoite = Math.min(1, Math.max(0, (n - 0.45) / 0.35)); HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
   cur.hemi.intensity = 0.62 - 0.32 * escuro; cur.hemi.color.copy(mix("#ffffff", "#ffb070", 0.5 * lar).lerp(new T.Color("#8fa8d8"), escuro));
+  cur.sun.castShadow = escuro < 0.5; // à noite o luar quase não marca sombra: pula a passada de sombras, que era um terço do desenho
   cur.sun.intensity = 0.95 - 0.73 * escuro; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar).lerp(new T.Color("#9fbaff"), escuro)); // de noite o "sol" é a lua
   cur.campo.intensity = 1.25 * luzNoite; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
