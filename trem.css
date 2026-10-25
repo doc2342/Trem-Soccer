@@ -1115,14 +1115,17 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-estr-profs { display:grid; grid-template-columns:repeat(var(--n), minmax(0, 1fr)); gap:0; }
 .t-estr-profs > * + * { border-left:1px solid var(--t-fio); padding-left:16px !important; margin-left:16px !important; }
 .t-estr-profs > div:not(.prof) { margin:0 !important; display:flex; }
-:root[data-visual=novo] .t-estr-profs .prof { flex:1; display:flex; flex-direction:column; gap:4px; border:0; border-radius:0; background:none; padding:0; }
+:root[data-visual=novo] .t-estr-profs .prof { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; gap:4px; border:0; border-radius:0; background:none; padding:0; }
 :root[data-visual=novo] .t-estr-profs .prof.vazio { opacity:1; }
 :root[data-visual=novo] .t-estr-profs .pf-func { color:var(--t-tinta3); letter-spacing:.04em; font-size:10.5px; white-space:nowrap; }
 :root[data-visual=novo] .t-estr-profs .pf-nome { font-size:16px; display:block; }
 :root[data-visual=novo] .t-estr-profs .prof .mut { font-size:13px; }
 :root[data-visual=novo] .t-estr-profs .pf-efeito { color:var(--t-tinta); font-size:13.5px; margin-top:6px; }
 :root[data-visual=novo] .t-estr-profs .nota { font:900 24px/1 var(--t-letra); font-stretch:64%; vertical-align:-2px; }
-:root[data-visual=novo] .t-estr-profs [data-tdispensar] { background:none !important; border:0 !important; color:var(--t-tinta3) !important; padding:0 2px !important; font-size:13px; opacity:0; }
+:root[data-visual=novo] .t-estr-profs .pf-topo { justify-content:center; }
+:root[data-visual=novo] .t-estr-profs .pf-sal { font-size:13px; color:var(--t-tinta2); }
+:root[data-visual=novo] .t-estr-profs .pf-nome { white-space:nowrap; }
+:root[data-visual=novo] .t-estr-profs [data-tdispensar] { position:absolute; top:-2px; right:0; background:none !important; border:0 !important; color:var(--t-tinta3) !important; padding:0 2px !important; font-size:13px; opacity:0; }
 :root[data-visual=novo] .t-estr-profs .prof:hover [data-tdispensar], :root[data-visual=novo] .t-estr-profs [data-tdispensar]:focus-visible { opacity:1; }
 .t-estr-lista:not(:empty) { margin-top:20px; }
 @media (max-width:720px) and (pointer:coarse) {
