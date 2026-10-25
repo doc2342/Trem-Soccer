@@ -100,3 +100,5 @@ export const poligonoDeAtributos = j => {
     ${grupos.map(([g, v], k) => { const [x, y] = pt(k, R + 8); return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${x > 115 ? "start" : x < 105 ? "end" : "middle"}" dominant-baseline="middle" font-size="10" fill="var(--mut)">${g} <tspan font-weight="700" fill="currentColor">${Math.round(v)}</tspan></text>`; }).join("")}</svg>`;
 };
 export const GRUPOS_DE_ATRIBUTOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
+// campo do visual novo: altura (% do campo, de cima) de cada faixa: ataque, meia, meio, volante/ala, defesa, gol. O meio fica no círculo central
+export const ALTURA_DA_FAIXA = [14, 31, 48, 63, 77, 94];

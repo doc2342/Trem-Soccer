@@ -12,7 +12,7 @@ import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS } from "./siglas.js";
 import { SEDES, sedeDoJogo, chaveDaFinal, configDaSede, desenharEstadio } from "./estadio.js";
-import { rotulo } from "./ui-trem.js";
+import { rotulo, ALTURA_DA_FAIXA } from "./ui-trem.js";
 import { svgCamisa, numerosDaCamisa } from "./camisa.js";
 
 const NOVO = typeof document !== "undefined" && document.documentElement.dataset.visual === "novo"; // visual novo (mo_visual): prévia vira faixa de foco, instruções em botões
@@ -434,8 +434,6 @@ function validar() {
 // Faixas do campo e as posições de cada uma, para as tiras que aparecem ao arrastar um titular (coluna inicial numa grade de 10).
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 // mapa: índice da vaga que está sendo arrastada ou escolhida (mostra as posições para onde ela pode ir), ou null
-// visual novo: altura (% do campo, de cima) de cada faixa: ataque, meia, meio, volante/ala, defesa, gol. O meio fica no círculo central
-const ALTURA_DA_FAIXA = [14, 31, 48, 63, 77, 94];
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
 function htmlGramado(mapa = null) {
   if (CAMISAS) numerar();
