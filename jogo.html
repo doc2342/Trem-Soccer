@@ -704,14 +704,15 @@ async function telaClube(liga, clube) {
       ${(l => l.length ? `<h2 style="margin-top:12px">Prêmios individuais</h2>${l.map(p => `<div style="margin:3px 0">🏅 <b>${esc(nomeDoPremio(p))}</b> <span class="mut">T${p.temporada}</span>: ${esc(p.jogador || "")}</div>`).join("")}` : "")(premiosTodos.filter(p => p.clube_id === id && !ehSelecao(p)))}
       ${(l => l.length ? `<div class="mut" style="margin-top:6px;font-size:12.5px">Na seleção da temporada: ${l.map(p => `${esc(p.jogador || "")} (T${p.temporada})`).join(", ")}.</div>` : "")(premiosTodos.filter(p => p.clube_id === id && ehSelecao(p)))}</div>`; };
   // visual novo: faixa com o total de títulos, a estante por temporada (títulos, prêmios e seleção) e os recordes do clube à mostra
+  const trofeusDoId = +new URLSearchParams(location.search).get("trofeusDe") || clube.id; // ?trofeusDe=<id>: a sala de outro clube no visual novo (só para ver a tela)
   const trofeusNovo = id => { const m = trofeusDe(id), tipos = TIPOS_DE_TROFEU.filter(([k]) => m[k]);
     const base = baseCampeoes.filter(x => x.clube_id === id), nomeBase = g => g === "COPINHA" ? "Copinha" : g === "LIBJUV" ? "Libertadores Juvenil" : "Liga de base";
     const premios = premiosTodos.filter(p => p.clube_id === id && !ehSelecao(p)), selecao = premiosTodos.filter(p => p.clube_id === id && ehSelecao(p));
     const titulos = tipos.filter(([k]) => k !== "vice").reduce((t, [k]) => t + m[k].length, 0), vices = (m.vice || []).length;
     const ultimo = tipos.filter(([k]) => k !== "vice").flatMap(([k, , nome]) => m[k].map(t => [t, nome])).sort((a, b) => b[0] - a[0])[0];
     const porTipoBase = [...new Set(base.map(x => nomeBase(x.grupo)))].map(n => [n, base.filter(x => nomeBase(x.grupo) === n).length]);
-    const cont = [...tipos.filter(([k]) => k !== "vice").map(([k, , nome]) => [nome.replace("Brasileiro ", ""), m[k].length]), ...(vices ? [["Vice da copa", vices]] : []), ...porTipoBase, ...(premios.length ? [["Prêmios individuais", premios.length]] : [])].slice(0, 6);
-    const lado = cont.length ? `<div class="t-elenco-numeros">${cont.map(([n, v]) => numero({ rotulo: n, valor: String(v), sufixo: n === "Prêmios individuais" ? "" : v === 1 ? "vez" : "vezes" })).join("")}</div>` : "";
+    const cont = [...tipos.filter(([k]) => k !== "vice").map(([k, , nome]) => [nome.replace("Brasileiro ", ""), m[k].length]), ...(vices ? [["Vice da copa", vices]] : []), ...porTipoBase, ...(premios.length ? [["Prêmios individuais", premios.length]] : [])];
+    const lado = cont.length ? `<div class="t-elenco-numeros${cont.length > 6 ? " t-tr-lado3" : ""}">${cont.map(([n, v]) => numero({ rotulo: n === "Prêmios individuais" ? "Prêmios" : n === "Libertadores Juvenil" ? "Lib. Juvenil" : n, valor: String(v), sufixo: n === "Prêmios individuais" ? "individuais" : v === 1 ? "vez" : "vezes" })).join("")}</div>` : "";
     const resto = [vices && `${vices} ${vices === 1 ? "vice" : "vices"} da copa`, base.length && `${base.length} ${base.length === 1 ? "título" : "títulos"} na base`, premios.length && `${premios.length} ${premios.length === 1 ? "prêmio individual" : "prêmios individuais"}`].filter(Boolean);
     const topo = faixaFoco({ rotulo: "Troféus · sala do clube", titulo: titulos ? `${titulos} ${titulos === 1 ? "título" : "títulos"}` : "Nenhum título", apagado: `em ${liga.temporada} temporadas`,
       destaque: ultimo ? `O último: ${ultimo[1].replace("Brasileiro ", "")} na T${ultimo[0]}.` : "A estante ainda está vazia.", frase: resto.length ? `Além disso, ${resto.join(", ").replace(/, ([^,]*)$/, " e $1")}.` : "Aqui entram os títulos de cada série, das copas e da base.", lado });
@@ -721,8 +722,8 @@ async function telaClube(liga, clube) {
       const pr = premios.filter(p => p.temporada === t).map(p => `<div><b>${esc(nomeDoPremio(p))}</b> · ${p.jogador_id ? lj(p.jogador_id, p.jogador || "") : esc(p.jogador || "")}</div>`).join("");
       const sel = selecao.filter(p => p.temporada === t).map(p => esc(p.jogador || "")).join(", ");
       return `<div class="t-tr"><div class="t-tr-temp">T${t}</div><div class="t-tr-chips">${chips || `<span class="t-tr-nada">sem título</span>`}</div><div class="t-tr-premios">${pr}${sel ? `<div class="t-tr-sel">Seleção: ${sel}</div>` : ""}</div></div>`; }).join("");
-    return `<div class="t-trofeus">${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div>${estante}</section>` : ""}
-      <section class="t-secao">${rotulo("Recordes do clube")}<div id="recNovo"><p class="t-fajuda">Carregando…</p></div></section></div>`; };
+    return `<div class="t-trofeus">${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div><div class="t-tr-linhas">${estante}</div></section>` : ""}
+      <section class="t-secao">${rotulo("Recordes do clube")}<div id="recNovo" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`; };
   const recordesNovos = d => {
     if (!d) return `<p class="t-fajuda">Os recordes aparecem quando o administrador rodar o SQL 89 no banco.</p>`;
     const quando = r => `T${r.temporada}${r.comp === "COPA" ? ", copa" : ""}`, contra = r => `${cPor[r.casa] ? cPor[r.casa].nome : "?"} x ${cPor[r.fora] ? cPor[r.fora].nome : "?"}`;
@@ -2643,7 +2644,7 @@ ${historicoDaBase()}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
       ${visualNovo ? "" : `<div class="colunas">${["ct", "medico", "fisio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div>`}</div>
     <div data-parte="clube:estadio">${paginaDoEstadio()}</div>
-    <div data-parte="clube:trofeus">${visualNovo ? trofeusNovo(clube.id) : `${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details>`}</div>
+    <div data-parte="clube:trofeus">${visualNovo ? trofeusNovo(trofeusDoId) : `${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details>`}</div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : financas()}
@@ -3125,7 +3126,7 @@ ${historicoDaBase()}
       }
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
-  if ($("recNovo")) recordesDaLiga(liga.id, clube.id).then(d => { $("recNovo").innerHTML = recordesNovos(d); });
+  if ($("recNovo")) recordesDaLiga(liga.id, trofeusDoId).then(d => { $("recNovo").innerHTML = recordesNovos(d); });
   if ($("recClube")) $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga.filter(h => n.rodada <= RODADAS_DA_SAFRA || !h.includes("revelou"))] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
