@@ -54,9 +54,9 @@ const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES
 const TIPO_CURTO = { livre: "Livre", multa: "Multa", negociada: "Negociada", divida: "Dívida", agente: "Agente" };
 
 // nota (pelos atributos, na posição principal) temporada a temporada
-function grafico(pts) {
+function grafico(pts, L = 600, A = 150) {
   if (pts.length < 2) return `<div class="mut">O gráfico aparece quando houver pelo menos duas temporadas guardadas (a partir da próxima virada).</div>`;
-  const L = 600, A = 150, min = Math.floor(Math.min(...pts.map(p => p.nota)) - 1), max = Math.ceil(Math.max(...pts.map(p => p.nota)) + 1);
+  const min = Math.floor(Math.min(...pts.map(p => p.nota)) - 1), max = Math.ceil(Math.max(...pts.map(p => p.nota)) + 1);
   const x = k => 30 + k * (L - 50) / (pts.length - 1), y = v => 14 + (A - 40) * (1 - (v - min) / (max - min));
   return `<svg viewBox="0 0 ${L} ${A}" style="width:100%;height:auto;display:block" role="img" aria-label="Nota por temporada">
     ${[min, max].map(v => `<line x1="30" x2="${L - 20}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="4" y="${y(v) + 4}" fill="var(--mut)" font-size="11">${v}</text>`).join("")}
@@ -66,38 +66,42 @@ function grafico(pts) {
       <text x="${x(k).toFixed(1)}" y="${A - 6}" fill="var(--mut)" font-size="11" text-anchor="middle">${esc(p.rot)}</text>`).join("")}</svg>`;
 }
 
-// visual novo: faixa escura com nome, nota, camisa e radar; números do contrato; a temporada; atributos; evolução e carreira lado a lado
+// visual novo: faixa escura com quem é, a nota e a temporada dele, camisa e radar; números do contrato; atributos; a carreira numa linha por temporada
 function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, transf, premios, historico, pts, numerosP }) {
   const xp = Math.round(experienciaDe(j)), fim = j.contrato_ate != null && temporada != null && j.contrato_ate <= temporada, conta = PESOS[POSICOES[j.pos].papel] || {};
   const outras = Object.keys(jog.fam).filter(p => p !== j.pos && jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
   const ini = j.inicio_temporada, num = (r, valor, legenda, classe = "") => `<div class="t-qa-num"><div class="t-numero-rotulo">${r}</div><div class="t-qa-valor ${classe}">${valor}</div>${legenda ? `<div class="t-qa-leg">${legenda}</div>` : ""}</div>`;
+  const virg = v => v == null ? "—" : String(v).replace(".", ",");
   const fatos = [
     ini && ini.t === temporada ? (d => d.nota || d.soma ? `Desde o início da temporada <b class="${d.nota > 0 ? "ok" : d.nota < 0 ? "bad" : ""}">${d.nota > 0 ? "+" : ""}${um(d.nota)}</b> na nota (era ${um(ini.nota)}), ${d.soma >= 0 ? "+" : ""}${d.soma} ${Math.abs(d.soma) === 1 ? "ponto" : "pontos"} de atributo` : "Mesma nota do início da temporada")({ nota: Math.round((nota - ini.nota) * 10) / 10, soma: j.at.reduce((s, v) => s + v, 0) - ini.soma }) : "",
     j.formador ? `Formado no <b>${nomeDe(j.formador)}</b>` : "", ...situacao.map(x => x.replace(/^\p{Extended_Pictographic}\S* /u, ""))].filter(Boolean); // a situação sem o emoji da frente
+  const daTemporada = n => [["Jogos", n && n.jogos], ["Gols", n && n.gols], ["Assist.", n && n.ass], ["Média", n && virg(n.nota)]].map(([r, v]) => `<div><span>${r}</span><b>${v == null ? "—" : v}</b></div>`).join("");
   const topo = `<section class="t-faixa t-jp-faixa"><div class="t-jp-quem">
       <div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(p => `<span class="t-qa-outra${jog.fam[p] !== "N" && jog.fam[p] !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${NOME_FAMILIARIDADE[jog.fam[p]].toLowerCase()}): ${um(notaNaPosicao(jog, p))}">${pp(p)}</span>`).join("")}</div>
       <h1 class="t-faixa-titulo t-jp-nome">${esc(j.nome)}</h1>
-      <div class="t-jp-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""} · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}</div>
-      <div class="t-jp-clube">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 26)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b> · jogador livre"}</div>
-      <div class="t-qa-nota"><b>${um(nota)}</b><span>nota na posição${teto ? `<br>teto <b>${teto.minimo}–${teto.maximo}</b>, pelo olheiro` : ""}</span></div></div>
-    <div class="t-jp-lado">${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 130, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}<div class="t-qa-radar">${poligonoDeAtributos(j)}</div></div></section>`;
+      <div class="t-jp-sub">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 22)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b>"} · ${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""} · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}</div>
+      <div class="t-jp-chave"><div class="t-qa-nota"><b>${um(nota)}</b><span>nota na posição${teto ? `<br>teto <b>${teto.minimo}–${teto.maximo}</b>, pelo olheiro` : ""}</span></div>
+        <div class="t-jp-temp"><div class="t-jp-temp-rot">Temporada ${temporada == null ? "atual" : temporada}</div><div class="t-jp-temp-num" id="temp">${daTemporada(null)}</div></div></div></div>
+    <div class="t-jp-lado">${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 150, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}<div class="t-qa-radar">${poligonoDeAtributos(j)}</div></div></section>`;
   const numeros = `<div class="t-qa-numeros">${j.juvenil || j.salario == null ? `<div class="t-qa-juvenil">${j.juvenil ? "Juvenil: sem contrato, não joga partida oficial." : "Sem contrato."}</div>`
       : num("Salário", dinheiro(j.salario), "por temporada") + num("Multa", j.protegido ? "—" : dinheiro(multaDe(jog)), j.protegido ? "protegido" : j.protegido_ate != null && temporada != null && j.protegido_ate >= temporada ? "vale na próxima temporada" : "")
       + num("Contrato", j.contrato_ate == null ? "—" : `T${j.contrato_ate}`, fim ? "acaba nesta temporada" : "", fim ? "t-atencao" : "")}
     ${num("Experiência", `${xp}<small>/100</small>`, xp >= 70 ? "rende sempre perto do que sabe" : xp >= 35 ? "ainda oscila um pouco" : "oscila bastante de um jogo para o outro")}</div>
     ${fatos.length ? `<div class="t-qa-fatos">${fatos.join(" · ")}</div>` : ""}`;
-  const atributos = `<section class="t-jp-bloco">${rotulo("Atributos")}<div class="t-qa-grade t-jp-atr">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b>${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div>
-    <div class="t-qa-pe">Em negrito e com a barra vermelha, os atributos que contam para a posição dele.</div></section>`;
-  const evolucao = `<section class="t-jp-bloco">${rotulo("Evolução da nota")}<div class="t-jp-grafico">${grafico(pts)}</div>
-    ${historico.length ? `<table class="t-jp-tab"><tr><th>Temp.</th><th>Idade</th><th class="esq">Clube</th><th>Nota</th><th>J</th><th>G</th><th>A</th><th>Média</th></tr>
-      ${historico.slice().reverse().map(h => `<tr><td>T${h.temporada}</td><td>${h.idade}</td><td class="esq">${nomeDe(h.clube_id)}</td><td><b>${h.at ? um(notaBruta(h.at, h.pos || j.pos)) : "—"}</b></td><td>${h.jogos}</td><td>${h.gols}</td><td>${h.ass}</td><td>${h.nota == null ? "—" : String(h.nota).replace(".", ",")}</td></tr>`).join("")}</table>` : ""}</section>`;
-  const carreira = `<section class="t-jp-bloco">${rotulo("Carreira")}${transf.length ? transf.slice().reverse().map(t => `<div class="t-jp-tr" data-tipo="${esc(t.tipo)}"><span class="t-jp-t">T${t.temporada}</span><span class="t-giro-tipo">${TIPO_CURTO[t.tipo] || esc(t.tipo)}</span>
-      <span class="t-jp-rota">${t.de_clube ? nomeDe(t.de_clube) : "livre"}<b>→</b>${nomeDe(t.para_clube)}</span><span class="t-jp-valor">${t.valor ? dinheiro(t.valor) : ""}</span></div>`).join("") : `<div class="t-jp-vazio">Nenhuma transferência registrada.</div>`}
-    ${premios.length ? `<div class="t-qa-grupo t-jp-premios">Prêmios</div>${premios.slice().reverse().map(p => `<div class="t-jp-premio"><span class="t-jp-t">T${p.temporada}</span><b>${esc(nomeDoPremio(p))}</b><span>${p.numero == null ? "" : String(p.numero).replace(".", ",")}</span></div>`).join("")}` : ""}</section>`;
-  const rotT = rotulo(`Temporada ${temporada == null ? "atual" : temporada}`);
-  document.getElementById("corpo").innerHTML = `<div class="t-jp">${topo}${numeros}<section class="t-jp-bloco" id="temp">${rotT}<div class="t-jp-vazio">Carregando os números…</div></section>${atributos}<div class="t-jp-duas">${evolucao}${carreira}</div></div>`;
-  numerosP.then(n => { const el = document.getElementById("temp"); if (!n) { el.remove(); return; }
-    el.innerHTML = rotT + `<div class="t-jp-temp">${[["Jogos", n.jogos], ["Minutos", n.minutos], ["Gols", n.gols], ["Assistências", n.ass], ["Nota média", n.nota == null ? null : String(n.nota).replace(".", ",")]].map(([r, v]) => numero({ rotulo: r, valor: v == null ? "—" : String(v) })).join("")}</div>`; });
+  const atributos = `<section class="t-jp-bloco"><div class="t-jp-cab">${rotulo("Atributos")}<span>em negrito, os que contam para ${POSICOES[j.pos].nome.toLowerCase()}</span></div><div class="t-qa-grade t-jp-atr">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b>${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div></section>`;
+  // carreira: uma linha por temporada (a de agora em cima), com a transferência e o prêmio daquela temporada dentro da linha
+  const anos = [...new Set([temporada, ...historico.map(h => h.temporada), ...transf.map(t => t.temporada), ...premios.map(p => p.temporada)].filter(t => t != null))].sort((a, b) => b - a);
+  const eventos = t => transf.filter(x => x.temporada === t).map(x => `<div class="t-jp-ev" data-tipo="${esc(x.tipo)}"><span class="t-giro-tipo">${TIPO_CURTO[x.tipo] || esc(x.tipo)}</span>${x.de_clube ? nomeDe(x.de_clube) : "livre"}<b>→</b>${nomeDe(x.para_clube)}${x.valor ? ` <strong>${dinheiro(x.valor)}</strong>` : ""}</div>`).join("")
+    + premios.filter(p => p.temporada === t).map(p => `<div class="t-jp-ev t-jp-premio"><span class="t-giro-tipo">Prêmio</span>${esc(nomeDoPremio(p))}${p.numero == null ? "" : ` <span class="t-jp-mut">${virg(p.numero)}</span>`}</div>`).join("");
+  const linha = t => { const h = historico.find(h => h.temporada === t), agora = t === temporada;
+    const c = agora ? j.clube_id : h && h.clube_id, n = agora ? nota : h && h.at ? notaBruta(h.at, h.pos || j.pos) : null;
+    return `<div class="t-jp-ano${agora ? " t-jp-agora" : ""}"><div class="t-jp-t"><b>T${t}</b>${agora ? "hoje" : h ? h.idade + " anos" : ""}</div><div class="t-jp-clubeano">${c ? nomeDe(c) : agora ? "Sem clube" : "—"}</div>
+      <div class="t-jp-n">${n == null ? "—" : um(n)}</div><div class="t-jp-jga"${agora ? ' id="tempLinha"' : ""}>${agora ? "" : h ? `${h.jogos} J · ${h.gols} G · ${h.ass} A · média ${virg(h.nota)}` : ""}</div><div>${eventos(t)}</div></div>`; };
+  const carreira = `<section class="t-jp-bloco">${rotulo("Carreira")}${pts.length >= 2 ? `<div class="t-jp-grafico">${grafico(pts, Math.max(360, Math.min(1100, innerWidth - 40)), 150)}</div>` : ""}
+    <div class="t-jp-ano t-jp-ano-cab"><div>Temp.</div><div>Clube</div><div>Nota</div><div>Jogos</div><div>Na temporada</div></div>${anos.map(linha).join("")}</section>`;
+  document.getElementById("corpo").innerHTML = `<div class="t-jp">${topo}${numeros}${atributos}${carreira}</div>`;
+  numerosP.then(n => { if (!n) return; document.getElementById("temp").innerHTML = daTemporada(n);
+    const l = document.getElementById("tempLinha"); if (l) l.textContent = `${n.jogos} J · ${n.gols} G · ${n.ass} A · média ${virg(n.nota)}`; });
 }
 
 async function carregar() {
