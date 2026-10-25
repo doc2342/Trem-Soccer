@@ -1404,7 +1404,7 @@ async function telaClube(liga, clube) {
         + numero({ rotulo: "Saiu", valor: dinheiro(-saiu(tAtual)), legenda: `na temporada ${tAtual}`, tom: "bad" }) : ""}
       ${numero({ rotulo: "Reserva", valor: dinheiro(RESERVA_DO_FUNDO), legenda: "o que passa disso engorda a copa" })}
       ${numero({ rotulo: "Próxima copa", valor: `${virgula(proxima)}×`, legenda: "os prêmios normais, até 2×" })}</div>`;
-    const topo = faixaFoco({ rotulo: `Federação · fundo da liga · temporada ${liga.temporada}`, titulo: dinheiro(saldo), apagado: "no fundo", destaque: falta ? "Fundo curto." : "", frase, lado, numeros });
+    const topo = faixaFoco({ rotulo: `Federação · fundo da liga · temporada ${liga.temporada}`, titulo: dinheiro(saldo), destaque: falta ? "Fundo curto." : "", frase, lado, numeros });
     // de onde veio e para onde foi: uma temporada por vez, entradas em verde e saídas em vermelho
     const movimento = t => { const l = TIPOS.map(([k, n]) => [n, valor(t, k)]).filter(([, v]) => v).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...l.map(([, v]) => Math.abs(v))), s = liquido(t), i = temporadas.indexOf(t);
       return `<div class="t-liga-nav"><button type="button" data-fedt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}${t === liga.temporada ? ` <small>em andamento</small>` : ""}</b>
