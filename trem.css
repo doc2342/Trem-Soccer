@@ -1227,3 +1227,64 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-elenco-numeros.t-tr-lado3 { grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px 22px; } .t-faixa-lado .t-tr-lado3 .t-numero-valor { font-size:40px; } .t-tr-lado3 .t-numero-rotulo { white-space:nowrap; }
 @media (max-width:720px) and (pointer:coarse) { .t-elenco-numeros.t-tr-lado3 { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 .t-trofeus .t-faixa-lado .t-numero { text-align:center; }
+/* a estante: cada título é uma taça na prateleira do seu grupo (tábua em tinta, nome embaixo) */
+.t-tr-estante { display:flex; flex-wrap:wrap; align-items:flex-end; gap:30px 40px; background:var(--t-placa); padding:26px 24px 18px; }
+.t-tr-grupo { --h:76px; --metal:url(#t-tr-ouro); } .t-tr-grupo[data-tam=g] { --h:96px; } .t-tr-grupo[data-tam=p] { --h:62px; }
+.t-tr-grupo[data-m=prata], .t-tr-zoom[data-m=prata] { --metal:url(#t-tr-prata); } .t-tr-grupo[data-m=verde], .t-tr-zoom[data-m=verde] { --metal:url(#t-tr-verde); } .t-tr-grupo[data-vice] .t-tr-taca svg { opacity:.75; }
+.t-tr-svg .m { fill:var(--metal); } .t-tr-svg .a { fill:none; stroke:var(--metal); stroke-width:2.6; stroke-linecap:round; } .t-tr-svg .a.g { stroke-width:3.4; }
+.t-tr-svg .w { fill:#1d2026; } :root[data-visual=novo][data-tema=escuro] .t-tr-svg .w { fill:#3a414c; } .t-tr-svg .mad { fill:url(#t-tr-madeira); }
+.t-tr-svg .p { fill:#d9dde1; stroke:none; } .t-tr-svg .pt { fill:none; stroke:#7d848c; stroke-width:.45; } .t-tr-svg .f { fill:#1e9e57; stroke:none; } .t-tr-svg .s { fill:rgba(0,0,0,.28); stroke:none; } .t-tr-svg .c { fill:none; stroke:rgba(0,0,0,.35); stroke-width:.9; }
+.t-tr-svg .j { fill:none; stroke:var(--metal); stroke-width:1.1; stroke-linecap:round; } .t-tr-svg .br { fill:rgba(255,255,255,.55); stroke:none; }
+.t-tr-vazia .t-tr-taca svg :not(.a):not(.c) { fill:var(--t-tinta3); } .t-tr-vazia .t-tr-taca svg .a { stroke:var(--t-tinta3); }
+.t-tr-tacas { display:flex; align-items:flex-end; gap:6px; padding:0 8px; border-bottom:7px solid var(--t-tinta); }
+.t-tr-taca { display:flex; flex-direction:column; align-items:center; animation:t-tr-sobe .5s cubic-bezier(.2,.8,.3,1.2) both; animation-delay:calc(var(--i, 0) * 60ms); }
+.t-tr-taca svg { height:var(--h); width:auto; stroke:rgba(0,0,0,.22); stroke-width:.6; filter:drop-shadow(0 2px 1px rgba(0,0,0,.2)); }
+.t-tr-taca small { font:700 10.5px/1 var(--t-letra); color:var(--t-tinta2); padding:4px 0 5px; }
+.t-tr-gnome { font:700 11px/1.2 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); padding-top:8px; text-align:center; }
+.t-tr-vazia .t-tr-taca { opacity:.18; animation:none; } .t-tr-vazia .t-tr-grupo { color:var(--t-tinta3); }
+@keyframes t-tr-sobe { from { opacity:0; transform:translateY(14px); } }
+@media (prefers-reduced-motion:reduce) { .t-tr-taca { animation:none; } }
+@media (max-width:720px) and (pointer:coarse) { .t-tr-estante { gap:22px 24px; padding:20px 14px 14px; } .t-tr-grupo { --h:48px; } .t-tr-grupo[data-tam=g] { --h:62px; } .t-tr-grupo[data-tam=p] { --h:38px; } }
+.t-tr-svg .ou { fill:url(#t-tr-ouro); } .t-tr-svg .pg { fill:url(#t-tr-ouro); stroke:none; } .t-tr-svg .pg ~ .pt { stroke:#4a3a12; }
+button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit; font:inherit; cursor:zoom-in; } button.t-tr-taca:focus-visible { outline:2px solid var(--t-marca); outline-offset:3px; }
+/* taça pequena ao lado de cada contagem da faixa e dentro das fichas de título */
+.t-tr-ico { height:22px; width:auto; flex:none; stroke:rgba(0,0,0,.22); stroke-width:.6; filter:drop-shadow(0 1px 1px rgba(0,0,0,.2)); } .t-tr-ico.vice { opacity:.75; }
+.t-tr-chip { display:inline-flex; align-items:center; gap:7px; } .t-tr-chip .t-tr-ico { margin:-4px 0; }
+.t-tr-cont { display:flex; align-items:center; justify-content:center; gap:12px; } .t-tr-cont .t-tr-ico { height:58px; } .t-faixa .t-tr-svg .w { fill:#3a414c; }
+/* a taça ampliada */
+.t-tr-zoom { --metal:url(#t-tr-ouro); border:0; outline:none; padding:28px 40px 22px; background:var(--t-placa); color:var(--t-tinta); text-align:center; cursor:zoom-out; max-width:calc(100vw - 32px); }
+.t-tr-zoom::backdrop { background:rgba(8,10,14,.72); }
+.t-tr-zoom-taca > svg { display:block; height:min(72vh, 560px); width:auto; margin:0 auto 14px; stroke:rgba(0,0,0,.22); stroke-width:.3; filter:drop-shadow(0 4px 3px rgba(0,0,0,.25)); }
+.t-tr-zoom-taca > b { display:block; font:800 13px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; } .t-tr-zoom-taca > small { display:block; margin-top:6px; font:700 12px/1 var(--t-letra); color:var(--t-tinta2); }
+.t-tr-zoom[open] { display:flex; align-items:center; gap:36px; } .t-tr-zoom-taca { flex:none; }
+.t-tr-zoom-lista { text-align:left; min-width:260px; max-height:min(72vh, 560px); overflow:auto; }
+.t-tr-zoom-camp { display:grid; grid-template-columns:32px 22px minmax(0, 1fr); column-gap:10px; align-items:center; padding:8px 2px; border-bottom:1px solid var(--t-fio); font-size:14px; }
+.t-tr-zoom-camp span { font:800 13px/1 var(--t-letra); color:var(--t-tinta2); } .t-tr-zoom-camp b { font-weight:600; }
+.t-tr-zoom-camp i { grid-column:3; font-style:normal; font-size:12px; color:var(--t-tinta2); display:flex; align-items:center; gap:5px; } .t-tr-zoom-camp svg, .t-tr-zoom-camp img { grid-row:span 2; }
+.t-tr-zoom-camp span { grid-row:span 2; } .t-tr-zoom-camp.eu b { font-weight:800; } .t-tr-zoom-camp.eu { box-shadow:inset 4px 0 0 var(--t-marca); padding-left:10px; }
+@media (max-width:720px) { .t-tr-zoom[open] { flex-direction:column; gap:18px; padding:20px 16px; } .t-tr-zoom-taca > svg { height:min(46vh, 380px); } .t-tr-zoom-lista { min-width:0; width:100%; max-height:30vh; } }
+.t-tr-svg .pr { fill:url(#t-tr-prata); } .t-tr-zoom:focus, .t-tr-zoom:focus-visible { outline:none !important; }
+.t-tr-svg .am { fill:#f2c400; stroke:none; }
+.t-tr-svg .c.fino { stroke-width:.4; }
+.t-tr-svg .r { fill:none; stroke:rgba(0,0,0,.3); stroke-width:2.6; stroke-dasharray:.35 .55; }
+/* Clube › Patrocínio: a camisa com a marca ao lado dos números da faixa; marcas em ladrilhos e propostas em colunas */
+.t-patro-lado { display:flex; align-items:center; gap:clamp(16px, 3vw, 32px); } .t-patro-camisa { flex:none; } .t-patro-camisa svg { display:block; filter:drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
+.t-patro-lado .t-elenco-numeros { flex:1; min-width:0; } .t-patro-lado .t-numero-legenda { overflow-wrap:anywhere; }
+.t-patro-marcas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:10px; } /* as 8 marcas em duas linhas de 4 */
+.t-patro-marca, .t-patro-prop { display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 10px; background:var(--t-placa); border:2px solid transparent; border-radius:0; color:var(--t-tinta); font:inherit; text-align:center; cursor:pointer; }
+.t-patro-marca b { font:800 14px/1.2 var(--t-letra); margin-top:4px; } .t-patro-marca small { font-size:12px; color:var(--t-tinta2); line-height:1.3; }
+.t-patro-marca:hover:not(:disabled), .t-patro-prop:hover { border-color:var(--t-fio); } .t-patro-marca.on, .t-patro-prop.on { border-color:var(--t-marca); background:var(--t-fundo); }
+.t-patro-marca:disabled { opacity:.38; cursor:default; } .t-patro-marca:focus-visible, .t-patro-prop:focus-visible { outline:2px solid var(--t-marca); outline-offset:2px; }
+.t-patro-props { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+.t-patro-prop { align-items:stretch; text-align:left; padding:18px 18px 14px; } .t-patro-prop > small { color:var(--t-tinta2); font-size:12.5px; line-height:1.35; min-height:2.7em; margin-bottom:8px; }
+.t-patro-prop-nome { font:900 30px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; }
+.t-patro-prop-linha { display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 0; border-top:1px solid var(--t-fio); font-size:13px; color:var(--t-tinta2); }
+.t-patro-prop-linha b { color:var(--t-tinta); font:800 15px/1.2 var(--t-letra); text-align:right; } .t-patro-prop-linha b.t-patro-forte { color:var(--t-marca); font-size:20px; }
+.t-patro-pe { display:flex; justify-content:flex-end; align-items:center; gap:16px; margin-top:14px; }
+.t-patrocinio > .t-fajuda { margin-top:18px; }
+@media (max-width:720px) and (pointer:coarse) { .t-patro-camisa svg { width:84px; height:auto; } .t-patro-marcas { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+/* a logo da marca à esquerda do título e da frase, sem fundo */
+.t-patro-titulo { display:flex; align-items:center; gap:clamp(18px, 2.5vw, 32px); } .t-patro-titulo > div { min-width:0; }
+.t-patro-logo { flex:none; width:clamp(110px, 12vw, 170px); height:auto; max-height:200px; object-fit:contain; filter:drop-shadow(0 10px 18px rgba(0,0,0,.45)); }
+@media (max-width:720px) and (pointer:coarse) { .t-patro-logo { width:84px; } }
+.t-patro-titulo .t-faixa-titulo { font-size:clamp(40px, 5.2vw, 76px); overflow-wrap:normal; }

@@ -346,7 +346,7 @@ import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { ligarGraficos } from "./src/ui-graficos.js";
 import { montarLogin } from "./src/ui-login.js";
 import { sg, pp, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
-import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA } from "./src/escudo.js";
+import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA, URL_DOS_ESCUDOS } from "./src/escudo.js";
 import { camisinha } from "./src/camisa.js";
 import { bandeira } from "./src/bandeiras.js";
 import { editorVisual, reduzirImagem } from "./src/ui-visual.js";
@@ -705,24 +705,141 @@ async function telaClube(liga, clube) {
       ${(l => l.length ? `<div class="mut" style="margin-top:6px;font-size:12.5px">Na seleção da temporada: ${l.map(p => `${esc(p.jogador || "")} (T${p.temporada})`).join(", ")}.</div>` : "")(premiosTodos.filter(p => p.clube_id === id && ehSelecao(p)))}</div>`; };
   // visual novo: faixa com o total de títulos, a estante por temporada (títulos, prêmios e seleção) e os recordes do clube à mostra
   const trofeusDoId = +new URLSearchParams(location.search).get("trofeusDe") || clube.id; // ?trofeusDe=<id>: a sala de outro clube no visual novo (só para ver a tela)
+  // a estante: uma taça desenhada por título (forma por competição; ouro nos títulos, prata no vice, verde na base)
+  // silhuetas inspiradas nas taças de verdade, todas em 48x72 com o chão em y=72; .m é o metal, .w a base (madeira ou preta), .f a faixa verde
+  const FORMAS_DE_TACA = {
+    // Libertadores: jogadorzinho chutando sobre uma bola, esfera com a faixa e os dois bocais, haste fina que abre em funil até o degrau,
+    // e o cilindro alto de madeira com as fileiras de plaquinhas dos campeões sobre um rodapé mais largo
+    lib: `<rect class="mad" x="8" y="68" width="32" height="4" rx="1"/><rect class="mad" x="10" y="44" width="28" height="24.5"/>
+      <rect class="m" x="10.5" y="41" width="27" height="3.2" rx=".8"/><path class="m" d="M14 41.2C14 38.4 18 37.2 24 37.2S34 38.4 34 41.2Z"/>
+      <path class="m" d="M17.5 37.6C21 35.6 22.3 31 22.6 25H25.4C25.7 31 27 35.6 30.5 37.6Z"/><rect class="m" x="21.6" y="23" width="4.8" height="2.4" rx=".6"/>
+      <circle class="m" cx="24" cy="15.5" r="8"/><rect class="s" x="15.6" y="13.7" width="16.8" height="3.6"/>
+      <path class="m" d="M16 14.2L11.4 12.4V18.6L16 16.8ZM32 14.2L36.6 12.4V18.6L32 16.8Z"/><rect class="m" x="10.2" y="11.9" width="1.8" height="7.2" rx=".5"/><rect class="m" x="36" y="11.9" width="1.8" height="7.2" rx=".5"/>
+      <ellipse class="br" cx="20.8" cy="10.8" rx="2.6" ry="1.5"/><circle class="m" cx="24" cy="6.3" r="1.5"/>
+%PLACAS%
+      <circle class="m" cx="23.2" cy=".95" r=".95"/><path class="m" d="M22.5 1.9L21 1.3L20.8 1.8L22.3 2.6L22.6 3.9L22.2 5.6H22.9L23.4 4.3L25 4.7L26.5 4L26.3 3.5L24.7 3.9L24.1 3.6L24.2 2.6L25.6 1.7L25.4 1.2L23.9 1.9Z"/>`,
+    // Brasileirão: corpo de prata com as duas pontas no alto e a cintura fina, o losango dourado com a bola na frente sobre a haste dourada,
+    // e a base de prata em tronco de cone com a faixa verde e BRASILEIRÃO em dourado
+    brasileirao: `<path class="m" d="M11 72L13.8 59.4H34.2L37 72Z"/><path class="f" d="M13.6 58H34.4V59.6H13.6Z"/>
+      <text x="24" y="67.6" text-anchor="middle" font-size="2.7" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="url(#t-tr-ouro)" stroke="#6b5212" stroke-width=".15">BRASILEIRÃO</text>
+      <path class="m" d="M6.5 3.5Q24 15 41.5 3.5C38.5 21 33.2 33 33.2 44C33.2 50 34 54 34.4 58H13.6C14 54 14.8 50 14.8 44C14.8 33 9.5 21 6.5 3.5Z"/>
+      <path class="s" d="M6.5 3.5Q24 15 41.5 3.5Q24 11.5 6.5 3.5Z"/><path class="c fino" d="M9.4 9C12 22 16.5 32 17.4 44M38.6 9C36 22 31.5 32 30.6 44"/>
+      <path class="ou" d="M19.2 58C20.2 51 21.6 45 21.8 39.5H26.2C26.4 45 27.8 51 28.8 58Z"/><path class="ou" d="M24 13.5L32.4 27L24 42L15.6 27Z"/><path class="c fino" d="M24 15.8L30.2 27L24 39.6L17.8 27Z"/>
+      <circle class="ou" cx="24" cy="27.4" r="4.6"/><path class="c fino" d="M24 25.3L26 26.8L25.2 29.2H22.8L22 26.8ZM24 25.3V22.8M26 26.8L28.3 26M25.2 29.2L26.6 31.3M22.8 29.2L21.4 31.3M22 26.8L19.7 26"/>`,
+    // Série B: placa de prata que abre no alto com BRASILEIRÃO, o triângulo dourado na frente com a bola num aro, base em cone com o nome da série
+    serieb: `<path class="m" d="M9 72L12.6 57H35.4L39 72Z"/><path class="s" d="M12.6 57H35.4L35.8 58.6H12.2Z"/>
+      <text x="24" y="67.4" text-anchor="middle" font-size="3.4" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="url(#t-tr-ouro)" stroke="#6b5212" stroke-width=".15">%ROTULO%</text>
+      <path class="m" d="M12.6 2.5H35.4C32.8 12 31.6 20 31.6 30V57H16.4V30C16.4 20 15.2 12 12.6 2.5Z"/>
+      <text x="24" y="7" text-anchor="middle" font-size="2.3" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="url(#t-tr-ouro)" stroke="#6b5212" stroke-width=".12">BRASILEIRÃO</text>
+      <path class="ou" d="M24 19L33.6 57H14.4Z"/><circle class="m" cx="24" cy="49" r="5.6"/><circle class="ou" cx="24" cy="49" r="4.4"/>
+      <path class="c fino" d="M24 47L25.9 48.4L25.2 50.6H22.8L22.1 48.4ZM24 47V44.7M25.9 48.4L28 47.7M25.2 50.6L26.5 52.5M22.8 50.6L21.5 52.5M22.1 48.4L20 47.7"/>`,
+    // Copinha: dourada, a faixa do estádio no alto, bojo em gota com o medalhão, e só o suporte: dois braços frisados que descem colados ao bojo
+    // e se juntam sobre a meia bola; embaixo, o anel escuro e o pé em cone com a placa
+    copinha: `<rect class="w" x="11.5" y="70" width="25" height="2" rx=".6"/><path class="m" d="M15.4 60.6H32.6L36.2 70H11.8Z"/><rect class="s" x="17.4" y="63.2" width="13.2" height="4.2"/>
+      <text x="24" y="66" text-anchor="middle" font-size="1.9" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="#5a4410" stroke="none">CAMPEÃO</text>
+      <rect class="w" x="15" y="59" width="18" height="1.6"/><path class="m" d="M18.6 59C18.6 54.4 29.4 54.4 29.4 59Z"/>
+      <path class="a" d="M11.6 24C11.2 34 14.6 42 19.4 47.6C21 49.4 22.2 51.6 22.6 55M36.4 24C36.8 34 33.4 42 28.6 47.6C27 49.4 25.8 51.6 25.4 55"/>
+      <path class="r" d="M11.6 24C11.2 34 14.6 42 19.4 47.6C21 49.4 22.2 51.6 22.6 55M36.4 24C36.8 34 33.4 42 28.6 47.6C27 49.4 25.8 51.6 25.4 55"/>
+      <path class="m" d="M12.2 11.3H35.8C35.8 28 31.4 41 24 44.5C16.6 41 12.2 28 12.2 11.3Z"/><circle class="m" cx="24" cy="19.5" r="3.8"/><circle class="c fino" cx="24" cy="19.5" r="3.8"/><path class="c fino" d="M22.4 17.8H25.6V20C25.6 21 24.8 21.8 24 22.1C23.2 21.8 22.4 21 22.4 20Z"/>
+      <rect class="m" x="11.4" y="9.4" width="25.2" height="1.9" rx=".5"/><rect class="m" x="12" y="2.6" width="24" height="6.8" rx=".4"/>
+      <path class="c fino" d="M12 4.2H36M12 7.8H36M13.4 5.2v1.8M15 5.2v1.8M16.6 5.2v1.8M18.2 5.2v1.8M19.8 5.2v1.8M28.2 5.2v1.8M29.8 5.2v1.8M31.4 5.2v1.8M33 5.2v1.8M34.6 5.2v1.8M21.6 3.4H26.4V8.8H21.6Z"/>`,
+    // Liga sub-21: peça única de prata, larga no alto e com a frente aberta em V mostrando o losango dourado com a bola; afina até a cintura,
+    // desce como coluna (BRASILEIRÃO SUB 21 gravado) e assenta no pé em cone
+    sub21: `<path class="m" d="M17.6 58.8H30.4L33.6 71.5H14.4Z"/><rect class="w" x="17.2" y="58" width="13.6" height=".9"/>
+      <path class="m" d="M8 2.5L40 4C37 14 30 22 27.2 30C26.6 38 27.4 50 30.5 58H17.5C20.6 50 21.4 38 20.8 30C18 22 11 14 8 2.5Z"/>
+      <path class="s" d="M12.2 4.2L36.2 5.1C32.8 12.4 28 20 24 25.6C20 20 15.4 12.4 12.2 4.2Z"/><path class="ou" d="M24 6.4L29.4 13.8L24 24L18.6 13.8Z"/><circle class="ou" cx="24" cy="14" r="3"/><path class="c fino" d="M24 12.5L25.4 13.5L24.9 15.2H23.1L22.6 13.5Z"/>
+      <text x="24" y="52" text-anchor="middle" font-size="1.7" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="#7d858e" stroke="none">BRASILEIRÃO</text><text x="24" y="54.4" text-anchor="middle" font-size="1.7" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="#7d858e" stroke="none">SUB 21</text>`,
+    // Copa do Brasil: prata, ânfora de ombros largos com a tampinha, a placa quadrada da CBF na frente, a faixa COPA DO BRASIL com os frisos verde e amarelo,
+    // alças finas dos ombros até a faixa, bojo que afina até a haste e o pé redondo em dois degraus com anéis dourados
+    copa: `<path class="a" d="M12.4 13C9.6 10.8 6 10.4 4.6 11.4C3.8 18 6 25 10 29.8M35.6 13C38.4 10.8 42 10.4 43.4 11.4C44.2 18 42 25 38 29.8"/>
+      <path class="m" d="M10.5 62H37.5C38.6 66 39 69 39.4 71.6H8.6C9 69 9.4 66 10.5 62Z"/><rect class="ou" x="11" y="62.6" width="26" height=".8"/>
+      <path class="m" d="M14.5 56H33.5C34.2 58 34.6 60 34.8 62H13.2C13.4 60 13.8 58 14.5 56Z"/><rect class="ou" x="14.2" y="57.2" width="19.6" height=".7"/>
+      <path class="m" d="M20.5 50H27.5C27 52.5 27 54.5 28 56H20C21 54.5 21 52.5 20.5 50Z"/><rect class="ou" x="19.6" y="54.6" width="8.8" height="1.2"/>
+      <path class="m" d="M9.5 34H38.5C36 41 31 47 27.5 50H20.5C17 47 12 41 9.5 34Z"/>
+      <path class="m" d="M9.5 34C8.6 26 9.4 18 12.6 13C14.5 10 17 9 18.5 9V5H29.5V9C31 9 33.5 10 35.4 13C38.6 18 39.4 26 38.5 34Z"/><rect class="m" x="18" y="3.6" width="12" height="2" rx=".5"/>
+      <rect class="m" x="17.6" y="10.8" width="12.8" height="12.8" rx=".6"/><path class="c fino" d="M17.6 10.8h12.8v12.8H17.6ZM18.6 11.8L29.4 22.6M29.4 11.8L18.6 22.6"/>
+      <path class="ou" d="M21.4 11.2h1.2v1.2h-1.2zM25.4 11.2h1.2v1.2h-1.2zM21.4 22h1.2v1.2h-1.2zM25.4 22h1.2v1.2h-1.2zM18 14.4h1.2v1.2H18zM18 18.4h1.2v1.2H18zM28.8 14.4h1.2v1.2h-1.2zM28.8 18.4h1.2v1.2h-1.2z"/>
+      <rect class="m" x="21.2" y="15.6" width="5.6" height="3.4"/><text x="24" y="18.4" text-anchor="middle" font-size="2.6" font-weight="900" font-family="Archivo,Arial,sans-serif" fill="url(#t-tr-ouro)" stroke="#6b5212" stroke-width=".1">CBF</text>
+      <rect class="m" x="8.4" y="29.4" width="31.2" height="4.8" rx=".4"/><path class="c fino" d="M8.4 29.4h31.2v4.8H8.4Z"/>
+      <text x="24" y="33.1" text-anchor="middle" font-size="3" font-weight="900" font-family="Archivo,Arial,sans-serif" fill="url(#t-tr-ouro)" stroke="#6b5212" stroke-width=".12">COPA DO BRASIL</text>
+      <rect class="f" x="8.4" y="34.2" width="31.2" height=".7"/><rect class="am" x="8.4" y="34.9" width="31.2" height=".6"/>`,
+    // Sul-Americana: esfera de prata com estrelas e a faixa dourada, dois braços que descem curvos até a base com um globinho entre eles,
+    // e o cilindro preto com as plaquinhas douradas dos campeões
+    sul: `<rect class="w" x="9.5" y="69" width="29" height="3" rx="1"/><rect class="w" x="11" y="57" width="26" height="12.5"/><rect class="m" x="10.6" y="55.8" width="26.8" height="1.8" rx=".6"/>%PLACAS%
+      <path class="a" d="M19.5 56C19.2 45 17.2 38.5 14.6 33.5C13.1 30.4 12.4 26.5 12.8 21.5M28.5 56C28.8 45 30.8 38.5 33.4 33.5C34.9 30.4 35.6 26.5 35.2 21.5"/>
+      <circle class="ou" cx="24" cy="40.5" r="3.6"/><path class="c" d="M22.2 38.6C23.4 39.2 23.6 40.6 22.9 41.6S23.6 43.4 24.6 44M25.4 37.4C25.9 38.4 26.9 38.8 27.4 40"/>
+      <circle class="m" cx="24" cy="15" r="11"/><path class="s" d="M14 19.5C17 24.5 21 26 24 26S31 24.5 34 19.5Z"/>
+      <path class="s" d="M28.5 6.8L29.2 8.6H31.1L29.6 9.7L30.1 11.5L28.5 10.4L26.9 11.5L27.4 9.7L25.9 8.6H27.8ZM19 23L19.5 24.2H20.8L19.8 25L20.2 26.2L19 25.5L17.8 26.2L18.2 25L17.2 24.2H18.5Z"/>
+      <ellipse class="br" cx="19.5" cy="9" rx="3.4" ry="2"/><rect class="ou" x="11.3" y="18.2" width="25.4" height="3.4" rx=".5"/>`,
+    // Recopa: bola dourada com os gomos, coluna de prata cercada por quatro aletas douradas, base preta em dois degraus com o medalhão e a placa RECOPA
+    rec: `<rect class="w" x="6" y="65" width="36" height="7" rx=".6"/><rect class="w" x="10" y="52" width="28" height="13.5" rx=".4"/><circle class="m" cx="24" cy="58.6" r="4.2"/>
+      <path class="c" d="M22.6 55.8C24.6 55.6 25.8 56.8 25.4 58.2C25 59.6 24 59.8 24.2 61.4M21 58.4H27"/><rect class="m" x="16" y="66.8" width="16" height="3.6" rx=".3"/>
+      <text x="24" y="69.6" text-anchor="middle" font-size="2.6" font-weight="800" font-family="Georgia,serif" fill="#3a2a08" stroke="none">RECOPA</text>
+      <rect class="pr" x="21" y="30" width="6" height="22"/><path class="m" d="M14 30L17.6 32V52L14.6 50ZM18 27.5L20.6 29.5V52H18ZM34 30L30.4 32V52L33.4 50ZM30 27.5L27.4 29.5V52H30Z"/>
+      <rect class="m" x="22.3" y="23.5" width="3.4" height="6.5"/><ellipse class="m" cx="24" cy="24.6" rx="3.6" ry="1.2"/><circle class="m" cx="24" cy="12.5" r="11.5"/>
+      <path class="c" d="M24 8.5L27.8 11.26L26.35 15.74H21.65L20.2 11.26ZM24 8.5V2M27.8 11.26L34.2 9.2M26.35 15.74L30.2 21.5M21.65 15.74L17.8 21.5M20.2 11.26L13.8 9.2M24 2L18 4.2M24 2L30 4.2M34.2 9.2L35.4 15.2M13.8 9.2L12.6 15.2"/><ellipse class="br" cx="19.4" cy="6.6" rx="3.4" ry="1.9"/>`,
+    // Supercopa do Brasil: taça de prata em V (boca larga que afina até o pé), alças longas, a lança dourada com a bola na frente
+    // e o pé em cone com os anéis verde e amarelo
+    super: `<path class="a" d="M12.6 8.5C5 7.5 2.4 11.5 3.4 19.5C4.8 29.5 11.8 37.8 19.6 44M35.4 8.5C43 7.5 45.6 11.5 44.6 19.5C43.2 29.5 36.2 37.8 28.4 44"/>
+      <path class="m" d="M10.5 3C14 4.6 34 4.6 37.5 3C36.4 20 30.4 40 26.6 52.5H21.4C17.6 40 11.6 20 10.5 3Z"/><path class="s" d="M10.5 3C15 1 33 1 37.5 3C33 5 15 5 10.5 3Z"/>
+      <text x="24" y="8" text-anchor="middle" font-size="2" font-weight="800" font-family="Archivo,Arial,sans-serif" fill="#5d636b" stroke="none">SUPERCOPA</text>
+      <path class="ou" d="M24 10L31 18C29.5 31 27.2 43 26.2 52.5H21.8C20.8 43 18.5 31 17 18Z"/><path class="c fino" d="M24 10V52.5"/><circle class="m" cx="24" cy="28" r="3"/><circle class="ou" cx="24" cy="28" r="2.4"/><path class="c fino" d="M24 26.6L25.3 27.6L24.8 29.1H23.2L22.7 27.6ZM24 26.6V25.6M25.3 27.6L26.3 27.2M24.8 29.1L25.4 30.1M23.2 29.1L22.6 30.1M22.7 27.6L21.7 27.2"/>
+      <path class="s" d="M24 18.4L24.5 19.6H25.8L24.8 20.4L25.2 21.6L24 20.9L22.8 21.6L23.2 20.4L22.2 19.6H23.5Z"/>
+      <path class="m" d="M15.8 60.5L20.4 52H27.6L32.2 60.5Z"/><path class="f" d="M14.6 60.5H33.4V63H14.6Z"/><path class="m" d="M14.2 63H33.8V64.4H14.2Z"/><path class="am" d="M13.6 64.4H34.4V67.4H13.6Z"/><path class="m" d="M13 67.4H35L35.6 71H12.4Z"/>`,
+    // taça comum (séries de baixo, Recopa, base): bojo com alças sobre dois degraus
+    taca: `<g transform="translate(0 12)"><path class="m" d="M10 6H38V18C38 30 31 36 24 36S10 30 10 18Z"/><path class="a" d="M10.5 10H5Q2 10 2 15Q2 25 12 27M37.5 10H43Q46 10 46 15Q46 25 36 27"/><path class="m" d="M21 36H27L26 46H22Z"/><path class="m" d="M15 46H33V52H15Z"/><path class="m" d="M12 52H36V60H12Z"/></g>` };
+  const FORMA_DO_TIPO = { B: "serieb", C: "serieb", F: "serieb", D: "serieb", E: "serieb", lib: "lib", A: "brasileirao", copa: "copa", vice: "copa", sul: "sul", super: "super", rec: "rec" };
+  const METAL_DO_TIPO = { A: "prata", B: "prata", C: "prata", F: "prata", D: "prata", E: "prata", copa: "prata", lib: "prata", sul: "prata", super: "prata", vice: "prata" };
+  // campeões das continentais até a temporada t (plaquinhas e a lista da taça ampliada)
+  const campeoesAte = (k, t) => (k === "libjuv" ? baseCampeoes.filter(x => x.grupo === "LIBJUV") : trofeus.filter(x => k === "rec" ? x.recopa : x[k] === "campeão")).filter(x => x.temporada <= t).sort((a, b) => a.temporada - b.temporada);
+  window.campeoesDaTaca = (k, t, meu) => { const l = ["lib", "sul", "rec", "libjuv"].includes(k) ? campeoesAte(k, t) : [];
+    return l.length ? `<div class="t-tr-zoom-lista"><div class="t-tr-lista-cab">Campeões</div>${l.slice().reverse().map(x => { const c = cPor[x.clube_id], pais = paisDoGrupo(k === "libjuv" ? (c || {}).grupo : x.grupo); // a base guarda o torneio no grupo: o país sai do clube
+      return `<div class="t-tr-zoom-camp${x.clube_id === meu ? " eu" : ""}"><span>T${x.temporada}</span>${svgEscudo(c ? c.escudo : {}, c ? c.sigla : "", 22)}<b>${esc(x.nome || (c ? c.nome : "?"))}</b><i>${bandeira(pais)} ${esc(pais)}</i></div>`; }).join("")}</div>` : ""; };
+  // plaquinhas: o escudo de cada campeão da liga até a temporada t, em ordem (só os últimos que cabem); [x, y] de cada plaquinha e a classe dela
+  const PLACAS = { lib: { cls: "p", w: 7.6, h: 2.7, pos: [0, 1, 2, 3, 4, 5].flatMap(r => [11.6, 20.2, 28.8].map(x => [x, 45.6 + r * 3.7])) },
+    sul: { cls: "pg", w: 7.4, h: 2.5, pos: [[12.2, 59], [20.3, 59], [28.4, 59], [12.2, 62.2], [20.3, 62.2], [28.4, 62.2], [20.3, 65.4]] } };
+  const placas = (forma, t, k) => { const P = PLACAS[forma], camp = campeoesAte(k, t).slice(-P.pos.length), s = P.h - .2;
+    return P.pos.map(([x, y], i) => { const c = camp[i], cl = c && cPor[c.clube_id];
+      const e = !c ? "" : cl && cl.escudo && /^\d+-\d+\.(webp|png)$/.test(cl.escudo.img || "") ? `<image href="${URL_DOS_ESCUDOS}${cl.escudo.img}" x="${x + .2}" y="${y + .1}" width="${s}" height="${s}"/>`
+        : svgEscudo(cl ? cl.escudo : {}, cl ? cl.sigla : "", s).replace(/^<svg /, `<svg x="${x + .2}" y="${y + .1}" `);
+      return `<rect class="${P.cls}" x="${x}" y="${y}" width="${P.w}" height="${P.h}"/>${e}${c ? `<path class="pt" d="M${x + 3.2} ${y + P.h / 3}h3.4M${x + 3.2} ${y + P.h * 2 / 3}h2.4"/>` : ""}`; }).join(""); };
+  const desenhoDaTaca = (forma, t, rotulo = "", k = forma) => `<svg class="t-tr-svg" viewBox="0 0 48 72" aria-hidden="true">${FORMAS_DE_TACA[forma].replace("%PLACAS%", PLACAS[forma] ? placas(forma, t ?? Infinity, k) : "").replace("%ROTULO%", esc(rotulo.toUpperCase()))}</svg>`;
+  const iconeDaTaca = g => desenhoDaTaca(g.forma, undefined, g.nome, g.k).replace('<svg class="t-tr-svg"', `<svg class="t-tr-svg t-tr-ico${g.vice ? " vice" : ""}" style="--metal:url(#t-tr-${g.metal})"`);
+  // degradês dos metais, num svg só (os desenhos apontam para eles pelo id)
+  const METAIS = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${[["ouro", "#7d5a10", "#f7dc85", "#d4a72c", "#8a6414"], ["prata", "#6d757e", "#f4f6f8", "#b4bcc4", "#666e77"], ["verde", "#0b4d2a", "#4fcf89", "#16834a", "#0a4426"], ["madeira", "#2e1c10", "#7a4e2c", "#5a371d", "#2a190e"]]
+    .map(([n, a, b, c, d]) => `<linearGradient id="t-tr-${n}" gradientUnits="userSpaceOnUse" x1="6" x2="42" y1="0" y2="0"><stop offset="0" stop-color="${a}"/><stop offset=".32" stop-color="${b}"/><stop offset=".58" stop-color="${c}"/><stop offset="1" stop-color="${d}"/></linearGradient>`).join("")}</defs></svg>`;
+  // clicar numa taça da estante abre ela grande (dá para ver os escudos das plaquinhas); fecha com outro clique ou Esc
+  if (!window.tacaAmpliada) { window.tacaAmpliada = true;
+    document.addEventListener("click", ev => { const b = ev.target.closest(".t-tr-taca[data-taca]"); if (!b) return;
+      const d = document.createElement("dialog"); d.className = "t-tr-zoom"; d.dataset.m = b.closest(".t-tr-grupo").dataset.m;
+      d.innerHTML = `<div class="t-tr-zoom-taca">${b.querySelector("svg").outerHTML}<b>${b.dataset.taca}</b><small>${b.querySelector("small").textContent}</small></div>${window.campeoesDaTaca(b.dataset.k, +b.dataset.t, +b.closest(".t-tr-estante").dataset.dono)}`;
+      d.addEventListener("click", () => d.close()); d.addEventListener("close", () => d.remove()); b.closest(".t-tr-estante").append(d); d.showModal(); }); }
+  const nomeBase = g => g === "COPINHA" ? "Copinha" : g === "LIBJUV" ? "Libertadores Juvenil" : "Liga de base";
+  // um grupo por troféu (vice incluído): nome, temporadas e o desenho da taça
+  const gruposDe = (m, tipos, base) => [...tipos.map(([k, , nome]) => ({ k, nome: k === "vice" ? "Vice da copa" : nome.replace("Brasileiro ", ""), temps: m[k], forma: FORMA_DO_TIPO[k] || "taca", metal: METAL_DO_TIPO[k] || "ouro", vice: k === "vice", tam: ["lib", "A", "copa"].includes(k) ? "g" : ["sul", "super", "rec"].includes(k) ? "m" : "p" })),
+    ...[...new Set(base.map(x => nomeBase(x.grupo)))].map(n => ({ nome: n, temps: base.filter(x => nomeBase(x.grupo) === n).map(x => x.temporada), ...{ Copinha: { forma: "copinha", metal: "ouro" }, "Libertadores Juvenil": { forma: "lib", metal: "prata", k: "libjuv" } }[n] || { forma: "sub21", metal: "prata" }, tam: "p", base: true }))];
+  // a estante fica na página pública do clube (visual novo)
+  const estanteDe = id => { const m = trofeusDe(id), grupos = gruposDe(m, TIPOS_DE_TROFEU.filter(([k]) => m[k] && k !== "vice"), baseCampeoes.filter(x => x.clube_id === id));
+    let i = 0;
+    return grupos.length ? `<div class="t-tr-estante" data-dono="${id}">${METAIS}${grupos.map(g => `<div class="t-tr-grupo" data-m="${g.metal}" data-tam="${g.tam}"${g.vice ? " data-vice" : ""}><div class="t-tr-tacas">${[...g.temps].sort((a, b) => a - b).map(t => `<button type="button" class="t-tr-taca" style="--i:${i++}" title="${esc(g.nome)} · T${t}" data-taca="${esc(g.nome)}" data-k="${g.k || ""}" data-t="${t}">${desenhoDaTaca(g.forma, t, g.nome, g.k)}<small>T${t}</small></button>`).join("")}</div><div class="t-tr-gnome">${esc(g.nome)}</div></div>`).join("")}</div>`
+      : `<div class="t-tr-estante t-tr-vazia"><div class="t-tr-grupo" data-tam="g"><div class="t-tr-tacas">${["copa", "lib", "brasileirao"].map(f => `<span class="t-tr-taca">${desenhoDaTaca(f, 0)}</span>`).join("")}</div><div class="t-tr-gnome">A estante ainda está vazia</div></div></div>`; };
   const trofeusNovo = id => { const m = trofeusDe(id), tipos = TIPOS_DE_TROFEU.filter(([k]) => m[k]);
-    const base = baseCampeoes.filter(x => x.clube_id === id), nomeBase = g => g === "COPINHA" ? "Copinha" : g === "LIBJUV" ? "Libertadores Juvenil" : "Liga de base";
+    const base = baseCampeoes.filter(x => x.clube_id === id), grupos = gruposDe(m, tipos, base);
     const premios = premiosTodos.filter(p => p.clube_id === id && !ehSelecao(p)), selecao = premiosTodos.filter(p => p.clube_id === id && ehSelecao(p));
     const titulos = tipos.filter(([k]) => k !== "vice").reduce((t, [k]) => t + m[k].length, 0), vices = (m.vice || []).length;
     const ultimo = tipos.filter(([k]) => k !== "vice").flatMap(([k, , nome]) => m[k].map(t => [t, nome])).sort((a, b) => b[0] - a[0])[0];
-    const porTipoBase = [...new Set(base.map(x => nomeBase(x.grupo)))].map(n => [n, base.filter(x => nomeBase(x.grupo) === n).length]);
-    const cont = [...tipos.filter(([k]) => k !== "vice").map(([k, , nome]) => [nome.replace("Brasileiro ", ""), m[k].length]), ...(vices ? [["Vice da copa", vices]] : []), ...porTipoBase, ...(premios.length ? [["Prêmios individuais", premios.length]] : [])];
-    const lado = cont.length ? `<div class="t-elenco-numeros${cont.length > 6 ? " t-tr-lado3" : ""}">${cont.map(([n, v]) => numero({ rotulo: n === "Prêmios individuais" ? "Prêmios" : n === "Libertadores Juvenil" ? "Lib. Juvenil" : n, valor: String(v), sufixo: n === "Prêmios individuais" ? "individuais" : v === 1 ? "vez" : "vezes" })).join("")}</div>` : "";
+    const cont = [...grupos.filter(g => !g.vice && !g.base), ...grupos.filter(g => g.vice), ...grupos.filter(g => g.base)].map(g => [g.nome, g.temps.length, iconeDaTaca(g)]).concat(premios.length ? [["Prêmios individuais", premios.length, ""]] : []);
+    const lado = cont.length ? `<div class="t-elenco-numeros${cont.length > 6 ? " t-tr-lado3" : ""}">${cont.map(([n, v, ic]) => `<div class="t-tr-cont">${ic}` + numero({ rotulo: n === "Prêmios individuais" ? "Prêmios" : n === "Libertadores Juvenil" ? "Lib. Juvenil" : n, valor: String(v), sufixo: n === "Prêmios individuais" ? "individuais" : v === 1 ? "vez" : "vezes" }) + `</div>`).join("")}</div>` : "";
     const resto = [vices && `${vices} ${vices === 1 ? "vice" : "vices"} da copa`, base.length && `${base.length} ${base.length === 1 ? "título" : "títulos"} na base`, premios.length && `${premios.length} ${premios.length === 1 ? "prêmio individual" : "prêmios individuais"}`].filter(Boolean);
     const topo = faixaFoco({ rotulo: "Troféus · sala do clube", titulo: titulos ? `${titulos} ${titulos === 1 ? "título" : "títulos"}` : "Nenhum título", apagado: `em ${liga.temporada} temporadas`,
       destaque: ultimo ? `O último: ${ultimo[1].replace("Brasileiro ", "")} na T${ultimo[0]}.` : "A estante ainda está vazia.", frase: resto.length ? `Além disso, ${resto.join(", ").replace(/, ([^,]*)$/, " e $1")}.` : "Aqui entram os títulos de cada série, das copas e da base.", lado });
     const temps = [...new Set([...tipos.flatMap(([k]) => m[k]), ...base.map(x => x.temporada), ...premios.map(p => p.temporada), ...selecao.map(p => p.temporada)])].sort((a, b) => b - a);
-    const estante = temps.map(t => { const chips = [...tipos.filter(([k]) => m[k].includes(t)).map(([k, , nome]) => `<span class="t-tr-chip" data-t="${k === "vice" ? "vice" : "titulo"}">${esc(nome.replace("Brasileiro ", ""))}</span>`),
-        ...base.filter(x => x.temporada === t).map(x => `<span class="t-tr-chip" data-t="base">${nomeBase(x.grupo)}</span>`)].join("");
+    const estante = temps.map(t => { const chips = [...tipos.filter(([k]) => m[k].includes(t)).map(([k, , nome]) => `<span class="t-tr-chip" data-t="${k === "vice" ? "vice" : "titulo"}">${iconeDaTaca(grupos.find(g => g.k === k))}${esc(nome.replace("Brasileiro ", ""))}</span>`),
+        ...base.filter(x => x.temporada === t).map(x => `<span class="t-tr-chip" data-t="base">${iconeDaTaca(grupos.find(g => g.nome === nomeBase(x.grupo)))}${nomeBase(x.grupo)}</span>`)].join("");
       const pr = premios.filter(p => p.temporada === t).map(p => `<div><b>${esc(nomeDoPremio(p))}</b> · ${p.jogador_id ? lj(p.jogador_id, p.jogador || "") : esc(p.jogador || "")}</div>`).join("");
       const sel = selecao.filter(p => p.temporada === t).map(p => p.jogador_id ? lj(p.jogador_id, p.jogador || "") : esc(p.jogador || "")).join(", ");
       return `<div class="t-tr"><div class="t-tr-temp">T${t}</div><div class="t-tr-chips">${chips || `<span class="t-tr-nada">sem título</span>`}</div><div class="t-tr-premios">${pr}${sel ? `<div><b>Seleção da temporada</b> · ${sel}</div>` : ""}</div></div>`; }).join("");
-    return `<div class="t-trofeus">${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div><div class="t-tr-linhas">${estante}</div></section>` : ""}
+    return `<div class="t-trofeus">${METAIS}${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div><div class="t-tr-linhas">${estante}</div></section>` : ""}
       <section class="t-secao">${rotulo("Recordes do clube")}<div id="recNovo" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`; };
   const recordesNovos = d => {
     if (!d) return `<p class="t-fajuda">Os recordes aparecem quando o administrador rodar o SQL 89 no banco.</p>`;
@@ -2269,9 +2386,10 @@ async function telaClube(liga, clube) {
     return f.replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
   };
   // patrocínio por escolha (115_patrocinio.sql): marca cosmética + proposta de luvas e bônus por meta de posição
-  let selM = patro && patro.escolha ? patro.escolha.marca : patro && patro.marca && !(MARCAS[patro.marca].grande && clube.divisao !== 1) ? patro.marca : null, selP = patro && patro.escolha ? patro.escolha.proposta : null, msgP = "";
+  let selM = patro && patro.escolha ? patro.escolha.marca : patro && patro.marca && !(MARCAS[patro.marca].grande && clube.divisao !== 1) ? patro.marca : null, selP = patro && patro.escolha ? patro.escolha.proposta : null, msgP = "", posHoje = 0;
   const abaPatrocinio = () => {
     if (!patro) return `<div class="card mut">O patrocínio ainda não está disponível nesta liga.</div>`;
+    if (visualNovo) return patrocinioNovo();
     const e = patro.escolha, trava = !!(e && e.travado), pr = Object.fromEntries(patro.propostas.map(x => [x.id, x]));
     const cartao = (id, x) => { const [nome, desc] = PROPOSTAS[id], on = selP === id;
       return `<div class="card" ${trava ? "" : `data-prop="${id}"`} style="cursor:${trava ? "default" : "pointer"};flex:1;min-width:210px;margin:0;${on ? "outline:2px solid var(--ac)" : ""}">
@@ -2291,6 +2409,46 @@ async function telaClube(liga, clube) {
           ${seloMarca(k, 64)}<div><b>${m.nome}</b></div><div class="mut" style="font-size:12px">${bloq ? "só na Série A" : `“${m.bordao}”`}</div></div>`; }).join("")}</div></div></div>
       <div class="card"><h2>Proposta</h2><div class="row" style="gap:10px;align-items:stretch">${vis.map(([id, x]) => cartao(id, x)).join("")}</div>
         ${trava ? "" : `<div class="row" style="margin-top:12px"><button id="pConfirma" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP)}</span></div>`}</div>`; };
+  // visual novo: com o contrato fechado, a faixa é a meta (bônus, chance e a posição de hoje); antes da 1ª rodada, a faixa é a escolha
+  // e embaixo vêm as marcas e as propostas em colunas, com o Confirmar no pé. posHoje chega da tabela (grupo), que carrega depois
+  const patroHoje = () => { const m = patro.escolha && patro.escolha.meta;
+    return numero({ rotulo: "Hoje", valor: posHoje ? `${posHoje}º` : "—", legenda: !posHoje || !m ? "na tabela" : posHoje <= m ? "dentro da meta" : `${posHoje - m} ${posHoje - m === 1 ? "posição" : "posições"} abaixo da meta`, tom: !posHoje || !m ? "" : posHoje <= m ? "ok" : "bad" }); };
+  const patrocinioNovo = () => {
+    const e = patro.escolha, trava = !!(e && e.travado), marca = trava ? e.marca : selM, M = MARCAS[marca];
+    const camisa = `<div class="t-patro-camisa">${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca }, 120)}</div>`;
+    const fid = patro.fidelidade || 0, prox = Math.min(20, (fid + 1) * 5);
+    // a logo da marca bem grande à esquerda do título e da frase (a arte sem fundo da camisa, a clara na faixa escura, quando existe)
+    const arte = NA_CAMISA[marca] === "mono" ? marca + "_camisa_claro" : NA_CAMISA[marca] === "cor" ? marca + "_camisa" : marca;
+    const comLogo = f => M ? f.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>(?:<p class="t-faixa-frase">[\s\S]*?<\/p>)?/, h => `<div class="t-patro-titulo"><img class="t-patro-logo" src="patrocinios/${arte}.png" alt="${esc(M.nome)}"><div>${h}</div></div>`) : f;
+    if (trava) {
+      const [nomeP] = PROPOSTAS[e.proposta];
+      const lado = `<div class="t-patro-lado">${camisa}<div class="t-elenco-numeros">${numero({ rotulo: "Bônus", valor: e.bonus ? dinheiro(e.bonus) : "—", legenda: "pago na virada" })}
+        ${numero({ rotulo: "Luvas", valor: dinheiro(e.luvas), legenda: "em parcelas semanais" })}
+        ${numero({ rotulo: "Chance", valor: e.chance != null ? `${Math.round(e.chance * 100)}%` : "—", legenda: "calculada na 1ª rodada" })}
+        <div id="patroHoje">${patroHoje()}</div></div></div>`;
+      return `<div class="t-patrocinio">${comLogo(faixaFoco({ rotulo: `Patrocínio · temporada ${patro.temporada}`, titulo: M ? (M.curto || M.nome) : marca, apagado: `proposta ${nomeP.toLowerCase()}`,
+          destaque: e.meta ? `Meta: ${e.meta}º lugar ou acima.` : "Contrato fechado.", frase: e.meta ? `Cumprida, rende ${dinheiro(e.bonus)} na virada da temporada. As luvas já entram no caixa toda semana.` : "As luvas entram no caixa toda semana.", lado }))}
+        <p class="t-fajuda">${M ? `Renovar com ${esc(M.nome)} na próxima temporada rende +${prox}% no valor do contrato${fid ? ` (hoje +${fid * 5}%)` : ""}; trocar de marca zera a fidelidade.` : ""} A escolha da próxima temporada abre depois da virada.</p></div>`;
+    }
+    // o mesmo quadro do contrato fechado, com a proposta marcada (sem proposta, só a referência)
+    const x = patro.propostas.find(y => y.id === selP) || {};
+    const lado = `<div class="t-patro-lado">${camisa}<div class="t-elenco-numeros">${numero({ rotulo: "Bônus", valor: x.meta ? dinheiro(x.bonus) : "—", legenda: x.meta ? `se terminar em ${x.meta}º ou acima` : "escolha a proposta" })}
+      ${numero({ rotulo: "Luvas", valor: x.luvas ? dinheiro(x.luvas) : "—", legenda: "em parcelas semanais" })}
+      ${numero({ rotulo: "Chance", valor: x.meta ? `${Math.round(x.chance * 100)}%` : "—", legenda: "de cumprir a meta" })}
+      ${numero({ rotulo: "Referência", valor: dinheiro(patro.base), legenda: fid ? `já com +${fid * 5}% de fidelidade` : "por temporada" })}</div></div>`;
+    const marcas = Object.entries(MARCAS).map(([k, m]) => { const bloq = m.grande && clube.divisao !== 1;
+      return `<button type="button" class="t-patro-marca${selM === k ? " on" : ""}" ${bloq ? "disabled" : `data-marca="${k}"`}>${seloMarca(k, 56)}<b>${esc(m.curto || m.nome)}</b><small>${bloq ? "só na Série A" : `“${esc(m.bordao)}”`}</small></button>`; }).join("");
+    const propostas = patro.propostas.map(x => { const [nome, desc] = PROPOSTAS[x.id];
+      return `<button type="button" class="t-patro-prop${selP === x.id ? " on" : ""}" data-prop="${x.id}"><span class="t-patro-prop-nome">${nome}</span><small>${desc}</small>
+        <span class="t-patro-prop-linha"><span>Luvas</span><b class="${x.id === "segura" ? "t-patro-forte" : ""}">${dinheiro(x.luvas)}</b></span>
+        <span class="t-patro-prop-linha"><span>Bônus</span><b class="${x.id === "agressiva" ? "t-patro-forte" : ""}">${x.meta ? dinheiro(x.bonus) : "na 1ª rodada"}</b></span>
+        <span class="t-patro-prop-linha"><span>Meta</span><b>${x.meta ? `${x.meta}º ou acima · ${Math.round(x.chance * 100)}%` : "pela força do elenco"}</b></span></button>`; }).join("");
+    return `<div class="t-patrocinio">${comLogo(faixaFoco({ rotulo: `Patrocínio · temporada ${patro.temporada}`, titulo: e ? "Escolha feita" : "Escolha o patrocínio", apagado: "até a 1ª rodada",
+        destaque: "Uma marca e uma proposta.", frase: "Na média as três propostas rendem o mesmo: menos luvas, bônus maior e meta mais difícil. Na 1ª rodada a meta é calculada e o contrato fecha.", lado }))}
+      <section class="t-secao">${rotulo("A marca na camisa")}<div class="t-patro-marcas">${marcas}</div></section>
+      <section class="t-secao">${rotulo("A proposta")}<div class="t-patro-props">${propostas}</div>
+        <div class="t-patro-pe"><span class="${msgP.startsWith("Não") ? "bad" : "mut"}">${esc(msgP || (selM && selP ? "" : "Escolha a marca e a proposta."))}</span><button type="button" id="pConfirma" class="t-botao t-botao-principal" ${selM && selP ? "" : "disabled"}>${e ? "Trocar a escolha" : "Confirmar a escolha"}</button></div></section></div>`;
+  };
   const kpisDaCentral = () => `<div class="kpis">${kpi("Posição", `<span id="kpiPos">—</span>`, `<span id="kpiPosD">${esc(nomeDoGrupo(clube.grupo))}</span>`)}
     ${kpi("Próximo jogo", `<span id="kpiProx">—</span>`, `<span id="kpiProxD">carregando…</span>`)}
     ${caixa == null ? kpi("Elenco", elenco.length, "jogadores") : kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, `folha ${dinheiro(folha)} de ${dinheiro(teto)}`)}
@@ -2964,7 +3122,7 @@ ${historicoDaBase()}
             <div class="card"><h2>Temporadas anteriores</h2>${hist.length ? `<table class="mini" style="width:100%"><tr><th>T</th><th class="esq">Divisão</th><th>Pos.</th><th>P</th><th>V-E-D</th><th class="esq"></th></tr>
               ${hist.map(h => `<tr><td>${h.temporada}</td><td class="esq">${esc(nomeDoGrupo(h.grupo))}</td><td>${h.posicao}º</td><td>${h.pontos}</td><td>${h.vitorias}-${h.empates}-${h.derrotas}</td><td class="esq mut">${DESTINO[h.destino] || ""}${h.copa ? ` · copa: ${esc(h.copa)}` : ""}${h.lib ? ` · Libertadores: ${esc(h.lib)}` : ""}${h.sul ? ` · Sul-Americana: ${esc(h.sul)}` : ""}${h.recopa ? " · Recopa: campeão" : ""}</td></tr>`).join("")}</table>` : `<div class="mut">Primeira temporada do clube na liga.</div>`}</div>
           </div><div>
-            ${salaDeTrofeus(id, "Títulos")}
+            ${visualNovo ? `<div class="card"><h2>Estante</h2>${estanteDe(id)}</div>` : ""}${salaDeTrofeus(id, "Títulos")}
           </div></div>`;
         if (c.estadio_nivel != null) montarEstadio("cvEstadio", configDoClube(c, null));
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
@@ -3494,6 +3652,7 @@ ${historicoDaBase()}
       const serie = serieDoGrupo(g), tab = classificacao(doGrupo, partidas, resultados);
       resumoDaVisita(tab.findIndex(t => t.clube.id === clube.id) + 1, res, meus);
       const eu = tab.find(t => t.clube.id === clube.id);
+      if (eu && g === clube.grupo) { posHoje = tab.indexOf(eu) + 1; if ($("patroHoje")) $("patroHoje").innerHTML = patroHoje(); }
       if (eu && $("kpiPos")) { $("kpiPos").innerHTML = `${tab.indexOf(eu) + 1}º<small> de ${tab.length}</small>`; $("kpiPosD").textContent = `${eu.pts} pts em ${eu.j} jogos · ${nomeDoGrupo(g)}`; }
       if ($("topoProx")) { const d = proximo && new Date(proximo.inicio);
         $("topoProx").innerHTML = d ? `${ehCopa(proximo) ? esc(nomeDaCopa(proximo, true)) : proximo.fase && proximo.fase !== "liga" ? esc(nomeDoPlayoff(proximo).replace("Playoff · ", "")) : "Rodada " + proximo.rodada} · <b>${d.toLocaleString("pt-BR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</b> · ${proximo.casa === clube.id ? "em casa" : "fora"} × ${esc(rival.nome)}` : ""; }
