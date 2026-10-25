@@ -3843,7 +3843,7 @@ ${historicoDaBase()}`}
         const maiores = negocios.filter(t => t.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 5);
         const DESTINO = { "campeão": "🏆 campeão", subiu: "⬆️ subiu", caiu: "⬇️ caiu", guardado: "⏸ guardado" };
         const competicao = p => CONTINENTAIS[p.grupo] ? CONTINENTAIS[p.grupo][1] : p.copa_fase != null || p.grupo === "COPA" ? "Copa" : p.fase === "liga" ? "Liga" : "Playoff";
-        // visual novo: faixa do clube; o time (campo com o time provável ou a lista por setor) com a boleta ao lado; o clube (estádio, estruturas, estante); histórico dobrado
+        // visual novo: faixa do clube; a cara do clube (estádio, estruturas, estante); o time (campo com o time provável ou a lista por setor) com a boleta ao lado; histórico dobrado
         const novo = () => {
           const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
           const dia = d => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -3907,8 +3907,8 @@ ${historicoDaBase()}`}
               <div class="t-transf-valor ${entrou ? "bad" : "ok"}">${entrou ? "−" : "+"}${dinheiro(t.valor)}</div><div class="t-transf-quando">Temp. ${t.temporada}</div></div>`; }).join("") : `<p class="t-fajuda">Nenhuma compra ou venda com valor ainda.</p>`}</section>`;
           const admin_ = admin && c.escudo && c.escudo.img ? `<p class="t-fajuda t-cv-admin">Administração: este clube usa uma imagem como escudo. <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca do escudo</button></p>` : "";
           return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}
-${elenco}
-            <div class="t-cv-vitrine">${estadio}${estruturas}</div><section class="t-secao">${rotulo("Sala de troféus")}${estanteDe(id)}</section>
+
+            <div class="t-cv-vitrine">${estadio}${estruturas}</div><section class="t-secao">${rotulo("Sala de troféus")}${estanteDe(id)}</section>${elenco}
             <details class="t-dobra"><summary>${rotulo(`Histórico · ${hist.length ? pl(hist.length, "temporada anterior", "temporadas anteriores") : "primeira temporada"} e maiores negócios`)}</summary>${temporadas}${negociosH}</details></div>`;
         };
         $("cvCorpo").innerHTML = visualNovo ? novo() : `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
