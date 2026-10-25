@@ -36,16 +36,17 @@
     }
     return null;
   }
-  // Visual novo (em teste até a virada): mo_visual = "novo" põe data-visual="novo" no <html> e carrega o trem.css depois do estilo.css.
+  // Visual novo (V2), o padrão: põe data-visual="novo" no <html> e carrega o trem.css depois do estilo.css; mo_visual = "velho" fica na V1.
   // ?visual=novo e ?visual=velho no endereço ligam e desligam. Com ele, o tema padrão é o claro ("auto" segue o aparelho).
+  // A partida ao vivo e o relatório (aovivo.html) seguem na V1 por enquanto.
   var pedido = /[?&]visual=(novo|velho)\b/.exec(location.search || "");
-  if (pedido) gravar("mo_visual", pedido[1] === "novo" ? "novo" : "");
-  var visualNovo = ler("mo_visual") === "novo";
+  if (pedido) gravar("mo_visual", pedido[1]);
+  var visualNovo = ler("mo_visual") !== "velho" && !/aovivo\.html$/.test(location.pathname || "");
   if (visualNovo) {
     document.documentElement.setAttribute("data-visual", "novo");
     var css = document.createElement("link"); css.rel = "stylesheet"; css.href = "trem.css"; document.head.appendChild(css);
   }
-  window.moVisual = function (v) { gravar("mo_visual", v); location.reload(); }; // "novo" ou "" (o de hoje)
+  window.moVisual = function (v) { gravar("mo_visual", v); location.reload(); }; // "novo" ou "velho"
   function aplicarTema() {
     var raiz = document.documentElement, t = ler("mo_tema"), claro = t === "claro" || t !== "escuro" && (!t && visualNovo || !!(claroDoAparelho && claroDoAparelho.matches)), a = acento(ler("mo_cor").split(","), claro);
     raiz.setAttribute("data-tema", claro ? "claro" : "escuro");

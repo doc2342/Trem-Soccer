@@ -355,7 +355,7 @@ import { rotulo, faixa as faixaFoco, numero, botao, manchete, destacar, reguaDoJ
 import { leiturasDoVestiario, leituraDaTabela, leituraDoProximoJogo, posicoesPorRodada } from "./src/leituras.js";
 
 const $ = id => document.getElementById(id);
-// visual novo ligado (mo_visual, no atualiza.js): até a virada, as telas refeitas só aparecem com ele
+// visual novo (V2, o padrão; mo_visual = "velho" no atualiza.js volta à V1)
 const visualNovo = document.documentElement.dataset.visual === "novo";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // Estádio 3D (src/estadio.js) num lugar da página: o three.js só carrega quando o lugar aparece na tela; a recarga destrói a cena anterior
@@ -4136,7 +4136,7 @@ ${historicoDaBase()}`}
   { const sa = document.querySelector('[data-grupo="ajuste"]'); if (sa) new ResizeObserver(() => document.documentElement.style.setProperty("--sub-h", getComputedStyle(sa).position === "sticky" ? sa.offsetHeight + "px" : "0px")).observe(sa); }
   new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") && getComputedStyle($("abas")).position !== "fixed" ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
-  if ($("cfgVisualNovo")) { $("cfgVisualNovo").onclick = () => window.moVisual("novo"); $("cfgVisualVelho").onclick = () => window.moVisual(""); }
+  if ($("cfgVisualNovo")) { $("cfgVisualNovo").onclick = () => window.moVisual("novo"); $("cfgVisualVelho").onclick = () => window.moVisual("velho"); }
   const trocarTema = t => { window.moTema(t); document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.checked = r.value === t; }); };
   document.querySelectorAll('input[name="cfgTema"]').forEach(r => { r.onchange = () => trocarTema(r.value); });
   document.querySelectorAll('input[name="cfgCores"]').forEach(r => { r.onchange = () => window.moCores(r.value); });
