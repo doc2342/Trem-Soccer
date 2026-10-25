@@ -1394,3 +1394,6 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
   .t-qa-juvenil { grid-column:span 1; }
   .t-qa-grade { columns:2; padding:14px 16px 4px; } .t-qa-fatos, .t-qa-pe { padding-left:16px; padding-right:16px; } .t-qa-atr { font-size:13px; padding:3px 0; }
 }
+.t-qa-outras { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; font-size:12px; color:var(--t-noite-mut); }
+.t-qa-outras span:not([class]) { margin-right:6px; color:var(--t-noite-tx); }
+.t-jog-camisa svg { display:block; width:30px; height:auto; }

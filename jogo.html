@@ -1259,7 +1259,7 @@ async function telaClube(liga, clube) {
       + (j.preContrato === liga.temporada ? marcaDe("assediado", "Recebeu proposta de pré-contrato de outro clube: não dá mais para renovar com ele.", "t-atencao") : "")
       + (j.aVenda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.precoPedido)}`) : "") + (j.emprestadoDe ? marcaDe("emprestado", `Emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")} até a virada`) : "");
     return `<div class="t-jog clk${t ? (t.titular ? " t-jog-tit" : " t-jog-res") : ""}" data-jog="${j.id}" title="${t ? (t.titular ? "Titular" : "No banco") + " na tática salva" : ""}">${pp(j.pos)}
-      <div class="t-jog-nome">${j.numero ? camisinha(j.numero, clube.uniforme) : ""}${lj(j.id, j.nome)}${bandeira(j.pais)}${situacao(j).replace(/ <span class="tag"[^>]*>emp\.<\/span>/, "")}${marcas}</div>
+      <div class="t-jog-nome">${j.numero ? `<span class="t-jog-camisa">${svgCamisa(clube.uniforme || {}, 28, false, { numero: j.numero })}</span>` : ""}${lj(j.id, j.nome)}${bandeira(j.pais)}${situacao(j).replace(/ <span class="tag"[^>]*>emp\.<\/span>/, "")}${marcas}</div>
       <div class="t-jog-id">${j.idade}</div><div class="t-jog-contr${fim ? " t-atencao" : ""}" title="${j.contratoAte == null ? "" : "Contrato até o fim da temporada " + j.contratoAte}">${j.contratoAte == null ? "—" : "T" + j.contratoAte}${j.protegido ? `<span class="t-prot" title="Na lista de protegidos: sem multa rescisória">P</span>` : ""}</div>
       <div class="t-jog-nota" title="Nota na posição dele">${f1(notaNaPosicao(j, j.pos))}</div><div class="t-jog-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</div>
       <button class="info" data-info="${j.id}" title="Atributos">i</button></div>`; };
@@ -1549,6 +1549,7 @@ async function telaClube(liga, clube) {
       <header class="t-qa-topo"><div class="t-qa-quem">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}
         <h2 class="t-qa-nome">${esc(j.nome)}</h2>
         <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
+        ${outras.length ? `<div class="t-qa-outras">Também joga ${outras.map(([p, f]) => `${pp(p)}<span>${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"}</span>`).join("")}</div>` : ""}
         <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}</span></div></div>
         <div class="t-qa-radar">${poligonoDeAtributos(j)}</div>
         <button class="t-qa-fecha" data-fecha-quadro aria-label="Fechar">✕</button></header>
@@ -1559,7 +1560,7 @@ async function telaClube(liga, clube) {
         ${num("Experiência", `${xp}<small>/100</small>`, xp >= 70 ? "rende sempre perto do que sabe" : xp >= 35 ? "ainda oscila um pouco" : "oscila bastante de um jogo para o outro")}</div>
       ${fatos.length ? `<div class="t-qa-fatos">${fatos.join(" · ")}</div>` : ""}
       <div class="t-qa-grade">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b class="${corAtr(j.at[k])}">${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div>
-      <div class="t-qa-pe">Em negrito e com a barra vermelha, os atributos que contam para a posição dele.${outras.length ? ` Também joga ${outras.map(([p, f]) => `<b>${sg(p)}</b> ${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"}`).join(", ")}.` : ""}</div></div>`;
+      <div class="t-qa-pe">Em negrito e com a barra vermelha, os atributos que contam para a posição dele.</div></div>`;
   };
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
     if (visualNovo) return quadroNovo(j, conta);
