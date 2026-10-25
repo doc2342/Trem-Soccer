@@ -2761,7 +2761,33 @@ ${historicoDaBase()}
       ${visualNovo ? `<div class="t-mercado"><div id="mLista" class="mut">Carregando os jogadores…</div><aside id="mPainel"></aside></div>` : `<div id="mPainel" style="margin-top:10px"></div>
       <div id="mLista" class="mut" style="margin-top:10px">Carregando os jogadores…</div>`}</div>${janela || prePeriodo || visualNovo ? "" : "</details>"}
     </div><div data-msecao="neg">
-    ${propostas == null ? "" : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
+    ${propostas == null ? "" : visualNovo ? (() => { // visual novo: o que espera a sua resposta em cima; o resto é histórico, uma proposta por linha
+      const ESTADO = { pendente: "Aguardando", contra: "Contraproposta", aceita: "Aceita", recusada: "Recusada", cancelada: "Encerrada", anulada: "Anulada", pre: "Acordo" };
+      const quandoP = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      const recebida = p => p.vendedor === clube.id, comigo = p => (recebida(p) && p.estado === "pendente") || (!recebida(p) && p.estado === "contra");
+      const linha = p => { const j = p.jogadores || {}, r = recebida(p), vez = comigo(p);
+        const feita = p.estado === "aceita" || p.estado === "pre";
+        const rota = r ? (feita ? `${p.emprestimo ? "emprestado" : "vendido"} ao ${lkE(p.comprador)}` : p.estado === "pendente" || p.estado === "contra" ? `${lkE(p.comprador)} quer` : `proposta do ${lkE(p.comprador)}`)
+          : feita ? `${p.emprestimo ? "emprestado" : "comprado"} do ${lkE(p.vendedor)}` : `proposta ao ${lkE(p.vendedor)}`;
+        const det = p.estado === "contra" ? (r ? `você pediu ${dinheiro(p.contra_valor)}` : `pediram ${dinheiro(p.contra_valor)}`) : p.motivo ? esc(p.motivo) : p.emprestimo ? "salário meio a meio até a virada" : p.salario ? `${dinheiro(p.salario)} por ${p.temporadas} temp.` : "";
+        const valor = p.emprestimo ? `<span class="t-transf-sem">empréstimo</span>` : feita ? `<span class="${r ? "ok" : "bad"}">${r ? "+" : "−"}${dinheiro(p.valor)}</span>` : dinheiro(p.estado === "contra" ? p.contra_valor : p.valor);
+        const acoes = !vez && p.estado !== "pendente" ? "" : `<div class="t-neg-acoes">${r
+          ? `<button type="button" class="t-botao t-botao-principal" data-prop="${p.id}" data-acao="aceitar">${p.emprestimo ? "Emprestar" : `Vender por ${dinheiro(p.valor)}`}</button>${p.emprestimo ? "" : `<button type="button" class="t-botao" data-prop="${p.id}" data-acao="contrapropor">Pedir outro valor</button>`}<button type="button" class="t-botao t-botao-link" data-prop="${p.id}" data-acao="recusar">Recusar</button>
+            <span class="t-neg-contra" hidden><input type="number" step="50" min="0" value="${Math.round(p.valor * 1.2 / 50) * 50}" aria-label="Valor pedido, em milhares"> mil <button type="button" class="t-botao t-botao-principal" data-prop="${p.id}" data-acao="enviarContra">Pedir</button><small>entre 60% e 150% da multa</small></span>`
+          : `${p.estado === "contra" ? `<button type="button" class="t-botao t-botao-principal" data-prop="${p.id}" data-acao="aceitarContra">Fechar por ${dinheiro(p.contra_valor)}</button>` : ""}<button type="button" class="t-botao t-botao-link" data-prop="${p.id}" data-acao="retirar">Retirar a proposta</button>`}</div>`;
+        return `<div class="t-transf t-neg${vez ? " t-transf-eu" : ""}" data-neg="${esc(p.estado)}"><span class="t-giro-tipo">${vez && r ? "Responder" : ESTADO[p.estado] || esc(p.estado)}</span><div class="t-transf-jog">${pp(j.pos || "")}${lj(p.jogador_id, j.nome || "jogador")}</div>
+          <div class="t-transf-rota">${rota}${det ? ` <small>· ${det}</small>` : ""}</div><div class="t-transf-valor">${valor}</div><div class="t-transf-quando">${quandoP(p.atualizada_em || p.criada_em)}</div>${acoes}</div>`; };
+      const vez = propostas.filter(comigo), rec = propostas.filter(p => recebida(p) && !comigo(p)), env = propostas.filter(p => !recebida(p) && !comigo(p));
+      const meusPre = (preContratos || []).filter(x => x.clube_id === clube.id && x.temporada === liga.temporada);
+      return `<div id="negociacoes" class="t-negs">
+        <p class="t-mercado-regra">Propostas entre dirigentes só fecham com a janela aberta. O valor fica entre 60% e 150% da multa; entre os mesmos dois clubes, um negócio por temporada em cada sentido.</p>
+        ${vez.length ? `<section class="t-setor">${rotulo(`Esperam a sua resposta · ${vez.length}`)}${vez.map(linha).join("")}</section>` : ""}
+        <section class="t-setor">${rotulo(`Recebidas · ${rec.length}`)}${rec.length ? rec.map(linha).join("") : `<p class="t-fajuda">${vez.some(recebida) ? "Nenhuma outra proposta recebida." : "Nenhuma proposta recebida."}</p>`}</section>
+        <section class="t-setor">${rotulo(`Enviadas · ${env.length}`)}${env.length ? env.map(linha).join("") : `<p class="t-fajuda">${vez.some(p => !recebida(p)) ? "Nenhuma outra proposta enviada." : "Você não enviou propostas. Para fazer uma, abra na Busca um jogador de clube com dirigente."}</p>`}</section>
+        ${meusPre.length ? `<section class="t-setor">${rotulo(`Pré-contratos · ${meusPre.length} de 2`)}<p class="t-mercado-regra">Resolvidos na virada: leva quem ofereceu o maior salário.</p>
+          ${meusPre.map(x => `<div class="t-transf t-neg" data-neg="pre"><span class="t-giro-tipo">Pré-contrato</span><div class="t-transf-jog">${pp((x.jogadores || {}).pos || "")}${lj(x.jogador_id, (x.jogadores || {}).nome || "jogador")}</div>
+            <div class="t-transf-rota">${x.temporadas} ${x.temporadas === 1 ? "temporada" : "temporadas"}</div><div class="t-transf-valor">${dinheiro(x.salario)}</div><div class="t-transf-quando">salário</div></div>`).join("")}</section>` : ""}
+        <div id="negAviso"></div></div>`; })() : `<div class="card"><h2>Negociações <span class="tag">propostas entre dirigentes · só fecham com a janela aberta</span></h2>${(() => {
       const nomeJ = p => p.jogadores ? `${pp(p.jogadores.pos)} ${esc(p.jogadores.nome)} <span class="mut">(${p.jogadores.idade})</span>` : "jogador", outro = id => esc((cPor[id] || {}).nome || "—");
       const ESTADO = { pendente: "aguardando resposta", contra: "contraproposta", aceita: "aceita", recusada: "recusada", cancelada: "encerrada", anulada: "anulada pelo administrador", pre: "acordo fechado: acontece na virada" };
       const recebidas = propostas.filter(p => p.vendedor === clube.id), enviadas = propostas.filter(p => p.comprador === clube.id);
@@ -2772,7 +2798,7 @@ ${historicoDaBase()}
       return `<div id="negociacoes"><b>Recebidas</b>${recebidas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Quem quer</th><th>Oferta</th><th>Situação</th><th></th></tr>${recebidas.map(linhaR).join("")}</table></div>` : `<div class="mut">Nenhuma proposta recebida.</div>`}
         <div style="margin-top:10px"><b>Enviadas</b></div>${enviadas.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th class="esq">Clube</th><th>Oferta</th><th>Situação</th><th></th></tr>${enviadas.map(linhaE).join("")}</table></div>` : `<div class="mut">Você não enviou propostas. Para fazer uma, clique num jogador de clube com dirigente na lista acima.</div>`}
         <div id="negAviso" style="margin-top:6px"></div></div>`; })()}</div>`}
-    ${preContratos && preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length ? `<div class="card"><h2>Pré-contratos <span class="tag">${preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length} de 2 · resolvidos na virada: leva quem ofereceu o maior salário</span></h2>
+    ${!visualNovo && preContratos && preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length ? `<div class="card"><h2>Pré-contratos <span class="tag">${preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).length} de 2 · resolvidos na virada: leva quem ofereceu o maior salário</span></h2>
       ${preContratos.filter(x => x.clube_id === clube.id && x.temporada === liga.temporada).map(x => `<div>${x.jogadores ? `${pp(x.jogadores.pos)} <b>${esc(x.jogadores.nome)}</b> <span class="mut">(${x.jogadores.idade})</span>` : "Jogador"} · ${dinheiro(x.salario)} por ${x.temporadas} ${x.temporadas === 1 ? "temporada" : "temporadas"}</div>`).join("")}</div>` : ""}
     </div><div data-msecao="livres">
     ${livres == null ? "" : visualNovo ? (() => { // visual novo: livres e ofertas em linhas, com a boleta ao lado
@@ -3279,8 +3305,11 @@ ${historicoDaBase()}
   if ($("negociacoes")) $("negociacoes").onclick = async e => {
     const b = e.target.closest("button[data-prop]"); if (!b) return;
     const id = +b.dataset.prop, acao = b.dataset.acao, p = propostas.find(x => x.id === id);
+    const contra = visualNovo && b.closest(".t-neg-acoes") && b.closest(".t-neg-acoes").querySelector(".t-neg-contra");
+    if (contra && acao === "contrapropor") { contra.hidden = !contra.hidden; if (!contra.hidden) contra.querySelector("input").focus(); return; } // visual novo: o valor pedido é digitado na própria linha
     try {
       let r;
+      if (acao === "enviarContra") { const v = Math.round(+contra.querySelector("input").value); if (!v) return; r = await responderProposta(id, "contrapropor", v); }
       if (acao === "aceitar") { if (!confirm(p.emprestimo ? `Emprestar até a virada da temporada, com o salário meio a meio? Não dá para desfazer.` : `Vender por ${dinheiro(p.valor)}? A taxa de venda sai desse valor. Não dá para desfazer.`)) return; r = await responderProposta(id, "aceitar"); }
       else if (acao === "recusar") r = await responderProposta(id, "recusar");
       else if (acao === "contrapropor") { const v = Math.round(+prompt(`A oferta é de ${p.valor} mil. Quanto você quer (em milhares)? O valor tem de ficar entre 60% e 150% da multa rescisória do jogador.`, Math.round(p.valor * 1.2))); if (!v) return; r = await responderProposta(id, "contrapropor", v); }
