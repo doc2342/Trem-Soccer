@@ -3309,7 +3309,8 @@ ${historicoDaBase()}
       const j = fichas.get(b.dataset.info); if (!j) return;
       q.innerHTML = quadroDeAtributos(j); q.hidden = false;
       const r = b.getBoundingClientRect(), w = q.offsetWidth, h = q.offsetHeight;
-      q.style.left = Math.max(8, Math.min(r.right + 10, innerWidth - w - 8)) + "px";
+      // nunca por cima do botão: se não cabe à direita, abre à esquerda (por cima, o mouse "sai" do botão e o quadro pisca)
+      q.style.left = Math.max(8, r.right + 10 + w <= innerWidth - 8 ? r.right + 10 : r.left - w - 10) + "px";
       q.style.top = Math.max(8, Math.min(r.top - 20, innerHeight - h - 8)) + "px";
     };
     const secao = $("app");
