@@ -1540,17 +1540,18 @@ async function telaClube(liga, clube) {
   const quadroNovo = (j, conta) => {
     const t = tetoDe[j.id] || relatorioDe(j.id), xp = Math.round(experienciaDe(j)), fim = j.contratoAte != null && j.contratoAte <= liga.temporada;
     const outras = Object.entries(j.fam).filter(([p]) => p !== j.pos), premios = premiosDoJogador(j.id);
+    const uni = (dono => dono === clube.id ? clube.uniforme || {} : cPor[dono] && cPor[dono].uniforme)("clube_id" in j ? j.clube_id : clube.id); // camisa do clube dele; livre não tem
     const fatos = [
       j.inicio && j.inicio.t === liga.temporada ? (d => d.nota || d.soma ? `Desde o início da temporada <b class="${d.nota > 0 ? "ok" : d.nota < 0 ? "bad" : ""}">${d.nota > 0 ? "+" : ""}${f1(d.nota)}</b> na nota (era ${f1(j.inicio.nota)}), ${d.soma >= 0 ? "+" : ""}${d.soma} ${Math.abs(d.soma) === 1 ? "ponto" : "pontos"} de atributo` : `Mesma nota do início da temporada`)({ nota: Math.round((notaBruta(j.at, j.pos) - j.inicio.nota) * 10) / 10, soma: j.at.reduce((s, v) => s + v, 0) - j.inicio.soma }) : "",
       j.formador != null && cPor[j.formador] ? `<span title="O clube formador recebe 3% por temporada que ele passou lá (de 3% a 15%) do valor de toda venda dele entre outros clubes">Formado no <b>${esc(cPor[j.formador].nome)}</b>${j.formador === ("clube_id" in j ? j.clube_id : clube.id) && j.idade <= CONFIG_BASE.idadeDeJuvenil ? `, sem multa e sem pré-contrato até os ${CONFIG_BASE.idadeDeJuvenil} anos` : ""}</span>` : "",
       ...premios.map(p => `🏅 ${esc(nomeDoPremio(p))} <span class="mut">T${p.temporada}</span>`)].filter(Boolean);
     const num = (r, valor, legenda, classe = "") => `<div class="t-qa-num"><div class="t-numero-rotulo">${r}</div><div class="t-qa-valor ${classe}">${valor}</div>${legenda ? `<div class="t-qa-leg">${legenda}</div>` : ""}</div>`;
     return `<div class="t-qa">
-      <header class="t-qa-topo"><div class="t-qa-quem">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}
+      <header class="t-qa-topo"><div class="t-qa-quem"><div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(([p, f]) => `<span class="t-qa-outra${f !== "N" && f !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})">${pp(p)}</span>`).join("")}</div>
         <h2 class="t-qa-nome">${esc(j.nome)}</h2>
         <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
-        ${outras.length ? `<div class="t-qa-outras">Também joga ${outras.map(([p, f]) => `${pp(p)}<span>${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"}</span>`).join("")}</div>` : ""}
         <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}</span></div></div>
+        ${uni ? `<div class="t-qa-camisa">${svgCamisa(uni, 110, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}
         <div class="t-qa-radar">${poligonoDeAtributos(j)}</div>
         <button class="t-qa-fecha" data-fecha-quadro aria-label="Fechar">✕</button></header>
       <div class="t-qa-numeros">${j.juvenil || j.salario == null ? `<div class="t-qa-juvenil">Juvenil: sem contrato, não joga partida oficial.</div>`
