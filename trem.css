@@ -1611,3 +1611,21 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-st-p > b { font:900 22px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; padding-right:6px; }
 @media (max-width:720px) and (pointer:coarse) { .t-st-ctrl .t-segmentos { flex-basis:100%; grid-auto-flow:row; grid-template-columns:repeat(3, minmax(0, 1fr)); }
   .t-st-ctrl .t-segmentos > * { border-top:1px solid var(--t-fio); margin-top:-1px; } .t-st-tab :is(td, th):nth-child(n+5) { display:none; } }
+/* Estatísticas, rodada 2: barras ocupam a altura do lado; temporada em ‹ ›; a coluna da direita leva clubes, recordes e prêmios; a seleção num campo */
+.t-stats .t-faixa-lado { display:flex; flex-direction:column; } .t-stats .t-st-barras { flex:1; justify-content:space-evenly; }
+.t-st-temp { flex:none; border:0; height:auto; } .t-st-temp b { white-space:nowrap; }
+.t-st-j a.lk { text-decoration:none; } .t-st-j a.lk:hover { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:3px; }
+.t-st-bloco { margin-top:36px; }
+.t-st-bloco .t-st-recs { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.t-st-p > b small { font:500 11px/1 var(--t-letra); font-stretch:100%; color:var(--t-tinta2); margin-left:4px; }
+.t-st-campos { display:grid; grid-template-columns:repeat(auto-fit, minmax(440px, 1fr)); gap:24px 32px; }
+.t-st-campo { position:relative; display:flex; flex-direction:column; gap:18px; padding:22px 8px; background:repeating-linear-gradient(0deg, #1b4d33 0 48px, #1f5639 48px 96px); border:2px solid #e9f2ec; outline:1px solid #1b4d33; }
+.t-st-campo::before { content:""; position:absolute; left:0; right:0; top:50%; border-top:2px solid rgba(255,255,255,.4); }
+.t-st-campo::after { content:""; position:absolute; left:50%; bottom:0; width:44%; height:20%; transform:translateX(-50%); border:2px solid rgba(255,255,255,.4); border-bottom:0; }
+.t-st-linha { display:flex; justify-content:space-evenly; position:relative; z-index:1; }
+.t-st-s { width:23%; max-width:150px; text-align:center; color:#fff; min-width:0; }
+.t-st-s svg { display:block; margin:0 auto 4px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+.t-st-s b { display:block; font:700 13px/1.2 var(--t-letra); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-st-s small { display:block; font-size:11px; color:rgba(255,255,255,.72); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px; }
+.t-st-s.t-eu b { color:#ffd34d; }
+@media (max-width:720px) and (pointer:coarse) { .t-st-campos { grid-template-columns:minmax(0, 1fr); } .t-st-s { width:24%; } .t-st-s small .pp { display:none; } .t-st-s b { white-space:normal; font-size:12px; } }
