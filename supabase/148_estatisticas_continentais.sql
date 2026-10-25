@@ -1,22 +1,25 @@
--- Trem Soccer · estatísticas da Libertadores e da Sul-Americana (Competições › Campeões e recordes, recordes por competição).
+-- Trem Soccer · estatísticas das copas continentais e da Supercopa (Competições › Campeões e recordes, recordes por competição).
 -- Como usar: no painel do Supabase, abrir SQL Editor, colar este arquivo inteiro e clicar em Run.
 -- Pode ser executado mais de uma vez. Não exige republicar função. Precisa do 54 e do 143 já executados.
 --
--- Até aqui as estatísticas guardadas na virada eram das séries ('TODOS' e cada grupo) e da Copa do Brasil ('COPA'); as copas continentais
--- (partidas com fase 'lib', grupo 'LIB' ou 'SUL') ficavam de fora, e na virada as partidas são apagadas. Agora:
--- 1. estatisticas_da_liga aceita p_comp 'LIB' e 'SUL' (igual à do 54 no resto).
--- 2. guardar_estatisticas (a do 143) guarda também 'LIB' e 'SUL' antes da virada.
--- 3. guarda já as da temporada atual, enquanto as partidas dela ainda existem (a virada regrava por cima).
+-- Até aqui as estatísticas guardadas na virada eram das séries ('TODOS' e cada grupo) e da Copa do Brasil ('COPA', que pegava também
+-- a Supercopa: fase 'copa', copa_fase 0); as copas continentais (fase 'lib', grupo 'LIB', 'SUL' ou 'REC') ficavam de fora, e na virada
+-- as partidas são apagadas. Agora:
+-- 1. estatisticas_da_liga aceita p_comp 'LIB', 'SUL', 'REC' (Recopa) e 'SUPER' (Supercopa); 'COPA' deixa a Supercopa de fora.
+-- 2. guardar_estatisticas (a do 143) guarda também essas quatro antes da virada.
+-- 3. regrava já as da temporada atual (e a 'COPA' dela, sem a Supercopa), enquanto as partidas ainda existem (a virada regrava por cima).
+-- As 'COPA' das temporadas anteriores continuam com o jogo da Supercopa dentro: não há mais as partidas para separar.
 -- Vale daqui para frente: as temporadas já viradas não têm mais as partidas.
 
--- estatisticas_da_liga: igual à do 54_estatisticas_da_liga.sql, mais 'LIB' e 'SUL'
+-- estatisticas_da_liga: igual à do 54_estatisticas_da_liga.sql, mais 'LIB', 'SUL', 'REC' e 'SUPER'
 create or replace function public.estatisticas_da_liga(p_liga bigint, p_comp text default 'TODOS') returns jsonb
 language sql stable security definer set search_path = public as $$
 with jogos as (
   select p.id, p.casa, p.fora, p.publico, r.gols_casa, r.gols_fora, r.relatorio
     from partidas p join resultados r on r.partida_id = p.id
     where p.liga_id = p_liga and r.libera_em <= now()
-      and case when p_comp = 'COPA' then p.fase = 'copa' when p_comp in ('LIB', 'SUL') then p.fase = 'lib' and p.grupo = p_comp when p_comp = 'TODOS' then p.fase = 'liga' else p.fase = 'liga' and p.grupo = p_comp end
+      and case when p_comp = 'COPA' then p.fase = 'copa' and coalesce(p.copa_fase, 1) <> 0 when p_comp = 'SUPER' then p.fase = 'copa' and p.copa_fase = 0
+        when p_comp in ('LIB', 'SUL', 'REC') then p.fase = 'lib' and p.grupo = p_comp when p_comp = 'TODOS' then p.fase = 'liga' else p.fase = 'liga' and p.grupo = p_comp end
 ), linhas as (
   select g.id as partida, g.casa, g.fora,
       case when coalesce((x.j->>'time')::int, 0) = 0 then g.casa else g.fora end as clube,
@@ -72,7 +75,7 @@ $$;
 revoke execute on function public.estatisticas_da_liga(bigint, text) from public;
 grant execute on function public.estatisticas_da_liga(bigint, text) to anon, authenticated, service_role;
 
--- guardar_estatisticas: igual à do 143_recordes_dos_clubes.sql, com 'LIB' e 'SUL' no laço
+-- guardar_estatisticas: igual à do 143_recordes_dos_clubes.sql, com 'LIB', 'SUL', 'REC' e 'SUPER' no laço
 create or replace function public.guardar_estatisticas(p_liga bigint) returns int
 language plpgsql security definer set search_path = public as $$
 declare v_t int; v_comp text; n int := 0; v_d jsonb;
@@ -80,7 +83,7 @@ begin
   if not (public.eh_admin() or coalesce(auth.role(), '') = 'service_role') then raise exception 'Sem permissão.'; end if;
   select temporada into v_t from ligas where id = p_liga;
   if v_t is null then return 0; end if;
-  for v_comp in select 'TODOS' union all select 'COPA' union all select 'LIB' union all select 'SUL' union all (select distinct grupo from partidas where liga_id = p_liga and fase = 'liga' order by 1) loop
+  for v_comp in select 'TODOS' union all select 'COPA' union all select 'LIB' union all select 'SUL' union all select 'REC' union all select 'SUPER' union all (select distinct grupo from partidas where liga_id = p_liga and fase = 'liga' order by 1) loop
     v_d := estatisticas_da_liga(p_liga, v_comp);
     if coalesce((v_d->>'jogos')::int, 0) = 0 then continue; end if;
     insert into estatisticas_historico (liga_id, temporada, comp, dados) values (p_liga, v_t, v_comp, v_d)
@@ -105,7 +108,7 @@ grant execute on function public.guardar_estatisticas(bigint) to authenticated, 
 
 -- a temporada atual, já (só quando houve jogo liberado)
 insert into estatisticas_historico (liga_id, temporada, comp, dados)
-  select l.id, l.temporada, c.comp, d.dados from ligas l cross join (values ('LIB'), ('SUL')) as c(comp)
+  select l.id, l.temporada, c.comp, d.dados from ligas l cross join (values ('LIB'), ('SUL'), ('REC'), ('SUPER'), ('COPA')) as c(comp)
     cross join lateral (select estatisticas_da_liga(l.id, c.comp) as dados) d
   where coalesce((d.dados->>'jogos')::int, 0) > 0
   on conflict (liga_id, temporada, comp) do update set dados = excluded.dados;

@@ -1456,7 +1456,7 @@ async function telaClube(liga, clube) {
   };
   // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo) e, ao lado, o maior campeão de cada competição; ranking com escudos |
   // campeões de uma temporada por vez (‹ ›) e recordes da liga; os recordes e os jogadores seguem o mesmo filtro de competição
-  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]], ["LIB", "Libertadores", ["LIB"]], ["SUL", "Sul-Americana", ["SUL"]]];
+  const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]], ["LIB", "Libertadores", ["LIB"]], ["SUL", "Sul-Americana", ["SUL"]], ["SUPER", "Supercopa", ["SUPER"]], ["REC", "Recopa", ["REC"]]];
   // o melhor de cada recorde entre várias temporadas e competições, na mesma ordem do recordes_da_liga (89/143)
   const melhoresRecordes = l => { const tot = x => x.gols_casa + x.gols_fora, dif = x => Math.abs(x.gols_casa - x.gols_fora);
     const melhor = (k, ok, cmp) => l.filter(x => x.recordes && x.recordes[k] && ok(x.recordes[k])).map(x => ({ ...x.recordes[k], temporada: x.temporada, comp: x.comp }))
@@ -1501,7 +1501,7 @@ async function telaClube(liga, clube) {
         <div class="t-st-bloco">${rotulo("Recordes da liga")}${filtro}<div id="campRec" class="t-tr-painel t-camp-rec"><p class="t-fajuda">Carregando…</p></div></div></section></div>` : ""}
       <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}${filtro}<div id="campJog" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`;
     // recordes em cartões: o número, os dois clubes com escudo (ou o jogador e o clube dele) e quando foi
-    const compDe = c => !c || c === "TODOS" ? "" : ` · ${nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
+    const compDe = c => !c || c === "TODOS" ? "" : ` · ${c === "SUPER" ? "Supercopa" : nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
     const placar = r => `${esc22(r.casa, 30)}<span>${r.gols_casa} x ${r.gols_fora}</span>${esc22(r.fora, 30)}`, jogo = r => `${esc(nomeC(r.casa))} x ${esc(nomeC(r.fora))}`;
     const cartao = (r, rot, valor, quem) => r ? `<div class="t-camp-r"><div class="t-numero-rotulo">${rot}</div><div class="t-camp-r-valor">${valor}</div><div class="t-camp-r-quem">${quem}</div><div class="t-camp-r-meta">T${r.temporada}${compDe(r.comp)}</div></div>` : "";
     const cartoes = d => { const c = d ? [cartao(d.goleada, "Maior goleada", d.goleada && placar(d.goleada), d.goleada && jogo(d.goleada)),
