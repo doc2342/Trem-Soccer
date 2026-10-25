@@ -51,7 +51,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 const lotacao = () => C.ocupacao == null ? 0.62 : 0.1 + 0.88 * C.ocupacao; // fração das vagas com carro
 
 // noite pelo relógio do aparelho de quem olha (cada um vê a hora dele: quem mora em Miami vê a noite de Miami): 0 = dia, 1 = noite.
-// Das 17h às 18h entardece e das 6h às 7h amanhece, aos poucos, passando pelo céu alaranjado; das 18h às 6h é noite.
+// Das 17h às 18h entardece e das 6h às 7h amanhece, aos poucos, passando pelo céu alaranjado e pelo roxo; das 18h às 6h é noite.
 export const nivelDaNoite = (d = new Date()) => { const h = d.getHours() + d.getMinutes() / 60; return h >= 18 || h < 6 ? 1 : h >= 17 ? h - 17 : h < 7 ? 7 - h : 0; };
 // Config a partir do clube (clubes.estadio_visual, 116_estadio_visual.sql) e da obra de nível em andamento.
 export function configDoClube(c, obra) {
@@ -293,12 +293,14 @@ export async function desenharEstadio(el, config) {
 
 function construir() {
   limpar();
-  // noite (config.noite de 0 a 1; true vale 1): o céu passa do dia ao laranja e do laranja à noite; o sol enfraquece e amarela; o gramado acende
-  const n = Math.min(1, Math.max(0, +C.noite || 0)), lar = 1 - Math.abs(2 * n - 1), mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k);
-  cur.ceu = "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString();
-  cur.hemi.intensity = 0.62 - 0.55 * n; cur.hemi.color.copy(mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar));
-  cur.sun.intensity = 0.95 - 0.9 * n; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar)); cur.campo.intensity = n > 0.35 ? 1.25 * Math.min(1, (n - 0.35) / 0.4) : 0; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
-  luzNoite = n > 0.35 ? Math.min(1, (n - 0.35) / 0.4) : 0; HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
+  // noite (config.noite de 0 a 1; true vale 1): o céu vai do dia ao laranja (até 0,55), depois ao roxo e ao azul do luar; a luz só cai no fim (escuro = n^2,5),
+  // então o pôr do sol dura e a noite chega rápido; à noite fica um luar azulado fraco para a cidade aparecer (protótipo: prototipos/noite_estadio.html)
+  const n = Math.min(1, Math.max(0, +C.noite || 0)), escuro = n ** 2.5, tn = Math.min(1, Math.max(0, (n - 0.55) / 0.45)), lar = n <= 0.55 ? n / 0.55 : 1 - tn, mix = (a, b, t) => new T.Color(a).lerp(new T.Color(b), t);
+  cur.ceu = "#" + (n <= 0.55 ? mix(CEU, POENTE, n / 0.55) : tn < 0.5 ? mix(POENTE, ROXO, 2 * tn) : mix(ROXO, NOITE, 2 * tn - 1)).getHexString();
+  luzNoite = Math.min(1, Math.max(0, (n - 0.45) / 0.35)); HALO = null; // refletores e luzes da cobertura acesos (halo e foco), de 0 a 1
+  cur.hemi.intensity = 0.62 - 0.32 * escuro; cur.hemi.color.copy(mix("#ffffff", "#ffb070", 0.5 * lar).lerp(new T.Color("#8fa8d8"), escuro));
+  cur.sun.intensity = 0.95 - 0.73 * escuro; cur.sun.color.copy(mix("#ffffff", "#ff9a4a", lar).lerp(new T.Color("#9fbaff"), escuro)); // de noite o "sol" é a lua
+  cur.campo.intensity = 1.25 * luzNoite; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40; // à noite o claro fica no estádio e na esplanada; a cidade escurece
   const topH = hRow(rows - 1), aM = m.a0 + rows * DEP, bM = m.b0 + rows * DEP, nb = C.nb, L = lote(aM, bM, nb), dunas = m.teto == "dunas";
   const ext0 = dunas ? 20 : m.pele ? 8 : m.folga || 0; cur.dist = Math.max(aM + ext0, (nb ? (bM + L.z1) / 2 + 10 : bM + ext0) * 1.3) * 3.0; cur.tz = nb ? (L.z1 - bM) / 2 : 0;
   const pos = assentos(niv), DG = dunas ? dunasGeo(topH) : null;
@@ -489,7 +491,7 @@ function construir() {
 // Entorno: um pedaço de cidade em volta do estádio, sorteado pela semente (o id do clube), para cada estádio parecer estar numa cidade
 // diferente. Cinco tipos: centro (prédios altos), bairro (casas e árvores), rio, lago e litoral. Tudo instanciado e sem sombra (leve).
 export const CIDADES = { centro: "Centro", bairro: "Bairro", rio: "Beira-rio", lago: "Lago", litoral: "Litoral" };
-const CEU = "#dde8ee", POENTE = "#f0a36a", NOITE = "#0b1426";
+const CEU = "#dde8ee", POENTE = "#f0a36a", ROXO = "#8a5a9a", NOITE = "#1a2a4a";
 export const cidadeDoEstadio = c => CIDADES[c.cidade] ? c.cidade : Object.keys(CIDADES)[Math.abs(c.semente | 0) % 5];
 function entorno(cx, zN, zS) {
   let sd = Math.abs((C.semente | 0) * 7919) % 2147483646 + 1; const r = () => (sd = (sd * 16807) % 2147483647) / 2147483647;

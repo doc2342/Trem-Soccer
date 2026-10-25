@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Noite do estádio</title>
+<style>
+body{font-family:system-ui;margin:0 auto;padding:16px;max-width:1300px;background:#f4f2ec;color:#1b2233}
+h1{font-size:20px;margin:0 0 4px} p{margin:0 0 12px;color:#556}
+.barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;position:sticky;top:0;background:#f4f2ec;padding:8px 0;z-index:2}
+.barra button{border:1px solid #c9c4b6;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font:600 13px system-ui}
+.barra button.on{background:#1b2233;color:#fff;border-color:#1b2233}
+.barra input{width:220px} #hora{font:700 15px monospace;min-width:110px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+.c h2{font-size:15px;margin:0 0 2px} .c small{display:block;color:#667;margin-bottom:6px;min-height:36px}
+</style></head>
+<body>
+<h1>Noite do estádio: 5 propostas</h1>
+<p>A primeira é a que estava no site até 24/10/2026; a D foi a escolhida (já está no src/estadio.js). As outras usam a curva da opção 1 (o pôr do sol dura até perto das 17h40 e depois escurece rápido) e só mudam a noite. Arraste para girar.</p>
+<div class="barra">
+  <span id="hora"></span>
+  <input id="n" type="range" min="0" max="1" step="0.01" value="1">
+  <button data-n="0.15">17h09</button><button data-n="0.4">17h24</button><button data-n="0.6">17h36</button><button data-n="0.8">17h48</button><button data-n="1">Noite</button>
+  <span style="width:16px"></span>
+  <button data-c="trem" class="on">Trem (Caldeirão)</button><button data-c="candal">Candal (Arena)</button>
+</div>
+<div class="g" id="g"></div>
+<script type="module">
+import { configDoClube } from "../src/estadio.js";
+
+const CLUBES = {
+  trem: { id: 50, sigla: "TRE", estadio_nivel: 6, torcida: 43712, humor: 12.6, escudo: { cor1: "#c8102e", cor2: "#0b3d91" },
+    estadio_visual: { cores: ["#2510c6", "#930b0b"], cidade: "rio", modelo: "caldeirao", padrao: "sigla", mosaico: "TREM", muralha: true, cobertura: "NS", corEscadas: "#f2c200", nomeEstadio: "Nelson Road Station" } },
+  candal: { id: 48, sigla: "CFC", estadio_nivel: 4, torcida: 18541, humor: 9.7, escudo: { cor1: "#c8102e", cor2: "#ffffff" },
+    estadio_visual: { cores: ["#c8102e", "#ffffff"], cidade: "rio", modelo: "arena", padrao: "sigla", mosaico: "CANDAL", cobertura: "", corEscadas: "#7ae4ff", nomeEstadio: "Mário Navarrete" } },
+};
+
+// As propostas: cada uma devolve a luz da cena para um valor de noite n (0 = dia, 1 = noite)
+const CEU = "#dde8ee", POENTE = "#f0a36a", NOITE = "#0b1426";
+const cl = x => Math.min(1, Math.max(0, x));
+function curva(fim) { // opção 1: segura o pôr do sol e escurece no fim; fim = como fica a noite
+  return (n, T) => { const mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k);
+    const d = n ** 2.5, k = cl((n - 0.55) / 0.45), lar = n <= 0.55 ? n / 0.55 : 1 - k;
+    const ceu = n <= 0.55 ? mix(CEU, POENTE, n / 0.55) : fim.roxo ? (k < 0.5 ? mix(POENTE, fim.roxo, 2 * k) : mix(fim.roxo, fim.ceu, 2 * k - 1)) : mix(POENTE, fim.ceu, k ** 1.3);
+    return { ceu: "#" + ceu.getHexString(), hemi: 0.62 + (fim.hemi - 0.62) * d, hemiCor: mix("#ffffff", "#ffb070", 0.5 * lar).lerp(new T.Color(fim.hemiCor), d),
+      sol: 0.95 + (fim.sol - 0.95) * d, solCor: mix("#ffffff", "#ff9a4a", lar).lerp(new T.Color(fim.solCor), d), luz: cl((n - 0.45) / 0.35) };
+  };
+}
+const PROPOSTAS = [
+  { nome: "Hoje", txt: "Como está no site: tudo cai em linha reta e a noite fica quase sem luz.",
+    f: (n, T) => { const mix = (a, b, k) => new T.Color(a).lerp(new T.Color(b), k), lar = 1 - Math.abs(2 * n - 1);
+      return { ceu: "#" + (n < 0.5 ? mix(CEU, POENTE, 2 * n) : mix(POENTE, NOITE, 2 * n - 1)).getHexString(), hemi: 0.62 - 0.55 * n,
+        hemiCor: mix("#ffffff", "#9fb4d8", n).lerp(new T.Color("#ffb070"), 0.5 * lar), sol: 0.95 - 0.9 * n, solCor: mix("#ffffff", "#ff9a4a", lar), luz: cl((n - 0.35) / 0.4) }; } },
+  { nome: "A · Meio-termo como noite", txt: "A noite termina com a luz do print das 17h36 que você gostou: céu marrom-alaranjado e névoa quente, com tudo aceso.",
+    f: curva({ ceu: "#c4886a", hemi: 0.29, hemiCor: "#d7d2d2", sol: 0.41, solCor: "#ffae73" }) },
+  { nome: "B · Luar (opção 2)", txt: "Noite azul-marinho com luar: a luz azulada fraca deixa a cidade e as arquibancadas visíveis.",
+    f: curva({ ceu: "#1a2a4a", hemi: 0.3, hemiCor: "#8fa8d8", sol: 0.22, solCor: "#9fbaff" }) },
+  { nome: "C · Crepúsculo roxo (opção 3)", txt: "O laranja passa por um roxo em vez do marrom e termina num anil escuro.",
+    f: curva({ roxo: "#8a5a9a", ceu: "#3a2a62", hemi: 0.3, hemiCor: "#c4a6e6", sol: 0.22, solCor: "#e0a0d8" }) },
+  { nome: "D · Roxo na passagem, luar à noite", txt: "Mistura da C com a B: entre 17h40 e 18h o céu vai do laranja para o roxo e a noite termina no azul do luar.",
+    f: curva({ roxo: "#8a5a9a", ceu: "#1a2a4a", hemi: 0.3, hemiCor: "#8fa8d8", sol: 0.22, solCor: "#9fbaff" }) },
+];
+globalThis.LUZ_PROTO = PROPOSTAS.map(p => p.f);
+
+// Uma cópia do src/estadio.js por proposta, com o trecho da luz trocado (o resto é o mesmo código do site)
+const fonte = await (await fetch("../src/estadio.js")).text(), base = new URL("../src/", location.href).href;
+const TRECHO = /  const n = Math\.min\(1, Math\.max\(0, \+C\.noite[\s\S]*?cur\.campo\.position\.y = 40;/;
+if (!TRECHO.test(fonte)) throw new Error("trecho da luz não encontrado no src/estadio.js");
+const modulo = i => import(URL.createObjectURL(new Blob([fonte.replaceAll('from "./', `from "${base}`).replace(TRECHO,
+  `  const n = Math.min(1, Math.max(0, +C.noite || 0)), LZ = globalThis.LUZ_PROTO[${i}](n, T);
+  cur.ceu = LZ.ceu; cur.hemi.intensity = LZ.hemi; cur.hemi.color.copy(LZ.hemiCor); cur.sun.intensity = LZ.sol; cur.sun.color.copy(LZ.solCor);
+  cur.campo.intensity = 1.25 * LZ.luz; cur.campo.distance = (m.a0 + rows * DEP) * 1.35; cur.campo.position.y = 40;
+  luzNoite = LZ.luz; HALO = null;`)], { type: "text/javascript" })));
+
+const g = document.getElementById("g"), cenas = [];
+for (const [i, p] of PROPOSTAS.entries()) {
+  const c = document.createElement("div"); c.className = "c"; c.innerHTML = `<h2>${p.nome}</h2><small>${p.txt}</small><div></div>`; g.append(c);
+  cenas.push({ el: c.lastElementChild, mod: await modulo(i), cena: null });
+}
+let clube = "trem", n = +(new URLSearchParams(location.search).get("n") ?? 1);
+const hora = n => n >= 1 ? "noite (18h+)" : `17h${String(Math.round(n * 60)).padStart(2, "0")}`;
+async function desenhar() {
+  document.getElementById("hora").textContent = hora(n); document.getElementById("n").value = n;
+  const cfg = { ...configDoClube(CLUBES[clube]), noite: n };
+  for (const s of cenas) if (s.cena) s.cena.atualizar(cfg); else s.cena = await s.mod.desenharEstadio(s.el, cfg);
+}
+document.getElementById("n").addEventListener("input", e => { n = +e.target.value; desenhar(); });
+document.querySelectorAll("[data-n]").forEach(b => b.addEventListener("click", () => { n = +b.dataset.n; desenhar(); }));
+document.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => {
+  clube = b.dataset.c; document.querySelectorAll("[data-c]").forEach(x => x.classList.toggle("on", x === b));
+  for (const s of cenas) { s.cena?.destruir(); s.cena = null; } desenhar(); }));
+desenhar();
+</script></body></html>
