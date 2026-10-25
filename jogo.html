@@ -3889,7 +3889,7 @@ ${historicoDaBase()}`}
           const filtro = `<div class="t-transf-filtro" id="cvFiltro">${[aVenda.length && ["venda", "À venda", aVenda.length], ...ZONAS_DO_ELENCO.map(([t, linhas], k) => [String(k), t, l.filter(j => linhas.includes(POSICOES[j.pos].linha)).length]), ["todos", "Todos", l.length]].filter(x => x && x[2])
             .map(([k, t, n]) => `<button type="button" data-cvf="${k}"${k === filtroIni ? ` class="ligado"` : ""}>${t} <small>${n}</small></button>`).join("")}</div>`;
           const elenco = `<section class="t-secao">${rotulo(`Elenco · ${l.length}`)}${filtro}<div class="${meu ? "" : "t-mercado t-cv-elenco"}"><div><div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Salário</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div><div id="cvLista">${setores}</div></div>${meu ? "" : `<aside id="cvPainel"></aside>`}</div></section>`;
-          // estádio (ao lado da sala de troféus, com as estruturas embaixo dela)
+          // estádio, com as estruturas ao lado (a sala de troféus vem embaixo, na largura toda: cresce com os títulos)
           const cfg = c.estadio_nivel != null ? configDoClube(c, null) : null;
           const estadio = `<div class="t-cv-estadio">${rotulo(cfg ? cfg.nomeEstadio || "Estádio" : "Estruturas")}${cfg ? `<p class="t-cv-estadio-tipo">${MODELOS[cfg.modelo] || ""} · ${CIDADES[cidadeDoEstadio(cfg)]} · arraste para girar</p><div id="cvEstadio"></div>` : ""}</div>`;
           const estruturas = `<div class="t-elenco-numeros t-cv-estruturas">${numero({ rotulo: "Estádio", valor: c.estadio_nivel != null ? `nível ${c.estadio_nivel}` : "—", legenda: c.estadio_nivel != null ? `${lugaresDoEstadio(c.estadio_nivel).toLocaleString("pt-BR")} lugares` : "" })}
@@ -3907,7 +3907,7 @@ ${historicoDaBase()}`}
               <div class="t-transf-valor ${entrou ? "bad" : "ok"}">${entrou ? "−" : "+"}${dinheiro(t.valor)}</div><div class="t-transf-quando">Temp. ${t.temporada}</div></div>`; }).join("") : `<p class="t-fajuda">Nenhuma compra ou venda com valor ainda.</p>`}</section>`;
           const admin_ = admin && c.escudo && c.escudo.img ? `<p class="t-fajuda t-cv-admin">Administração: este clube usa uma imagem como escudo. <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca do escudo</button></p>` : "";
           return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}
-            <div class="t-cv-vitrine">${estadio}<section>${rotulo("Sala de troféus")}${estanteDe(id)}${estruturas}</section></div>${elenco}${tatica()}
+            <div class="t-cv-vitrine">${estadio}${estruturas}</div><section class="t-secao">${rotulo("Sala de troféus")}${estanteDe(id)}</section>${elenco}${tatica()}
             <details class="t-dobra"><summary>${rotulo(`Histórico · ${hist.length ? pl(hist.length, "temporada anterior", "temporadas anteriores") : "primeira temporada"} e maiores negócios`)}</summary>${temporadas}${negociosH}</details></div>`;
         };
         $("cvCorpo").innerHTML = visualNovo ? novo() : `${meu ? `<div class="row" style="justify-content:flex-end;margin-bottom:12px"><button class="sec" id="cvVoltar">← Voltar</button></div>` : `<div class="card topo topo-cv" style="${coresDoClube(c)}">${svgEscudo(c.escudo, c.sigla, 64)}${svgUniforme({ ...c.uniforme, escudo: c.escudo, sigla: c.sigla, marca: marcas[id] }, 46)}
