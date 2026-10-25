@@ -1385,6 +1385,7 @@ async function telaClube(liga, clube) {
     const manut = manutencaoDoClube(), nomeObra = obra && ((ESTRUTURAS.find(x => x[0] === obra.estrutura) || [])[1] || obra.estrutura);
     const reforma = obra && obra.estrutura === "estadio_modelo";
     const total = ESTRUTURAS.reduce((t, [, , campo]) => t + (clube[campo] || 0), 0), maxTotal = ESTRUTURAS.reduce((t, [k]) => t + (k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5), 0);
+    if (visualNovo) return estruturasNova({ mil, fx, pct, manut, nomeObra, reforma, total, maxTotal });
     return `<div class="kpis">${kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, "o valor da obra sai na hora")}
       ${kpi("Manutenção", dinheiro(manut), "por temporada")}
       ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> rodadas</small>` : "nenhuma", obra ? (reforma ? "reforma do estádio" : `${esc(nomeObra)} para o nível ${obra.nivel_alvo}`) : "uma por vez")}
@@ -1397,6 +1398,41 @@ async function telaClube(liga, clube) {
           ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
             <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
       </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base e o estádio têm aba própria).</div></div>`;
+  };
+  // visual novo: faixa com a obra (a vaga única), uma linha por estrutura (hoje → próximo nível → ação) e a comissão que trabalha nelas
+  const estruturasNova = ({ mil, fx, pct, manut, nomeObra, reforma, total, maxTotal }) => {
+    const efeito = (k, n) => k === "ct" ? [pct(CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * n), "do treino normal"]
+      : k === "medico" ? [String(atendidosPeloMedico(n)), "lesionados tratados juntos"]
+      : k === "fisio" ? [String(atendidosNaForma(n)), "atendidos na forma por rodada"]
+      : k === "base" ? [fx(faixaDeJovens(n, "promocao")), `jovens na virada · ${fx(faixaDeJovens(n, "peneira"))} na peneira`]
+      : [mil(lugaresDoEstadio(n)), "lugares"];
+    const nomeDe = k => (ESTRUTURAS.find(x => x[0] === k) || [])[1] || k;
+    const feito = obra ? Math.round(100 * (1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total))) : 0;
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Caixa", valor: dinheiro(caixa), legenda: "a obra sai daqui na hora", tom: caixa < 0 ? "bad" : "" })}
+      ${numero({ rotulo: "Manutenção", valor: dinheiro(manut), legenda: "por temporada, todas juntas" })}
+      ${numero({ rotulo: "Níveis", valor: String(total), sufixo: `de ${maxTotal}`, legenda: "somando as cinco" })}</div>`;
+    const topo = obra
+      ? faixaFoco({ rotulo: "Estruturas · obra em andamento", titulo: reforma ? "Reforma do estádio" : nomeObra, apagado: reforma ? "troca de modelo" : `para o nível ${obra.nivel_alvo}`,
+          destaque: `Faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`, frase: reforma || !ESTRUTURAS.some(x => x[0] === obra.estrutura) ? "Uma obra por vez: as outras esperam esta terminar." : `Quando terminar: ${efeito(obra.estrutura, obra.nivel_alvo).join(" ")}. Uma obra por vez: as outras esperam.`, lado,
+          numeros: feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "" })
+      : faixaFoco({ rotulo: "Estruturas · obra", titulo: "Canteiro livre", apagado: "nenhuma obra", destaque: "Escolha uma ampliação abaixo.", frase: "O valor sai do caixa no início e a estrutura muda de nível quando a obra termina. Uma obra por vez.", lado });
+    const linhas = ESTRUTURAS.map(([k, nome, campo]) => {
+      const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
+      const [hoje, leg] = efeito(k, n), ir = k === "base" ? `data-aba-ir="base:estrutura"` : k === "estadio" ? `data-sub-ir="clube:estadio"` : "";
+      const acao = emObra ? `<div class="t-estr-acao t-estr-obra"><b>em obra</b><small>faltam ${obra.rodadas_restantes} rodadas</small></div>`
+        : custo == null ? `<div class="t-estr-acao"><small>nível máximo</small></div>`
+        : `<div class="t-estr-acao">${obra ? `<small>${dinheiro(custo)} · ${PRAZO[prox]} rod.</small><small>depois da obra</small>` : `<button type="button" class="t-botao${caixa < custo ? "" : " t-botao-principal"}" data-obra="${k}" ${caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"}</button><small>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${caixa < custo ? " · falta caixa" : ""}</small>`}</div>`;
+      return `<div class="t-estr${emObra ? " t-estr-em-obra" : ""}">
+        <div class="t-estr-nome">${ir ? `<a class="lk" ${ir}>${esc(nome)}</a>` : esc(nome)}<span class="t-estr-niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : emObra && i < obra.nivel_alvo ? "obra" : ""}"></i>`).join("")}</span></div>
+        <div class="t-estr-hoje"><b>${hoje}</b><small>${leg}</small></div>
+        <div class="t-estr-prox">${custo == null ? "" : `<small>nível ${prox}</small><b>${efeito(k, prox)[0]}</b>`}</div>${acao}</div>`; }).join("");
+    const comissaoNova = comissao == null ? "" : `<section class="t-secao t-estr-comissao">${rotulo("Quem trabalha nelas")}
+      <div class="t-estr-profs">${relatorios == null ? "" : blocoAnalista()}${profissional("medico")}${profissional("prevencao")}${profissional("forma")}${profissional("psicologo")}</div>
+      <div class="t-estr-cand">${relatorios == null ? "" : candidatos("analista", "analista")}${candidatos("medico,prevencao", "médico e prevenção")}${candidatos("forma,psicologo", "forma e psicólogo")}</div>
+      <p class="t-fajuda">O analista trabalha no ${esc(nomeDe("ct"))}, médico e prevenção no ${esc(nomeDe("medico"))}, forma e psicólogo na ${esc(nomeDe("fisio"))}. Os treinadores ficam em Elenco, Treinamento; o olheiro, na Base.</p></section>`;
+    return `<div class="t-estruturas">${topo}<section class="t-secao">${rotulo("As cinco estruturas")}
+      <div class="t-estr-cab"><span>Estrutura</span><span>Hoje</span><span>Próximo nível</span><span></span></div>${linhas}
+      <p class="t-fajuda">Manutenção: ${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do gasto no estádio, por temporada, mais refletores e estacionamento. O prazo da obra corre em rodadas de liga.</p></section>${comissaoNova}</div>`;
   };
   // estádio: visual de hoje (3D) e o que a obra em andamento, ou a próxima ampliação, vai construir (planta e wireframe)
   const CUSTO_DA_REFORMA = n => Math.max(250, Math.round(0.25 * (CUSTO.estadio[Math.max(1, n)] || 1000))), PRAZO_DA_REFORMA = n => Math.max(1, Math.floor(PRAZO[Math.min(8, Math.max(1, n))] / 2)); // os mesmos do 116
@@ -2494,7 +2530,7 @@ ${historicoDaBase()}
     <section data-secao="clube">
     ${subAbas("clube", [["financas", "💰 Finanças", "Finanças"], ["estruturas", "🏗️ Estruturas", "Obras"], ["estadio", "🏟️ Estádio", "Estádio"], ["calendario", "📅 Calendário", "Jogos"], ["trofeus", "🏆 Troféus", "Troféus"], ["transf", "🔁 Transferências", "Transf."], ["patrocinio", "🤝 Patrocínio", "Patroc."]])}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
-      <div class="colunas">${["ct", "medico", "fisio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div></div>
+      ${visualNovo ? "" : `<div class="colunas">${["ct", "medico", "fisio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div>`}</div>
     <div data-parte="clube:estadio">${paginaDoEstadio()}</div>
     <div data-parte="clube:trofeus">${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details></div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>

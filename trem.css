@@ -1089,3 +1089,34 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-topo .patro-topo .mut { display:none; } .t-topo .patro-topo img { height:34px; width:auto; display:block; }
 .t-topo-fim #sair, .t-topo-fim > a { background:none !important; border:0 !important; padding:4px 0 !important; font:600 13.5px/1 var(--t-letra) !important; color:var(--t-tinta2) !important; text-decoration:none; cursor:pointer; }
 .t-topo-fim #sair:hover, .t-topo-fim > a:hover { color:var(--t-tinta) !important; text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:4px; }
+/* Clube › Estruturas: faixa com a obra (barra do andamento), uma linha por estrutura em colunas alinhadas, comissão em fichas de mesma altura */
+.t-obra-barra { width:100%; height:8px; background:var(--t-noite2); } .t-obra-barra i { display:block; height:100%; background:var(--t-marca); }
+.t-estruturas .t-faixa-numeros { border-top:0; padding-top:0; }
+.t-estr, .t-estr-cab { display:grid; grid-template-columns:minmax(200px, 1.3fr) minmax(0, 1.4fr) minmax(0, .8fr) 210px; align-items:center; gap:20px; padding:16px 14px; border-bottom:1px solid var(--t-fio); border-left:4px solid transparent; }
+.t-estr-cab { padding-top:0; padding-bottom:8px; font:700 11px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta3); border-bottom:2px solid var(--t-tinta); }
+.t-estr.t-estr-em-obra { border-left-color:var(--t-marca); background:var(--t-placa); }
+.t-estr-nome { font-weight:700; font-size:17px; display:flex; flex-direction:column; gap:8px; }
+.t-estr-nome a.lk { color:inherit; text-decoration:underline; text-decoration-color:var(--t-fio); text-underline-offset:4px; cursor:pointer; } .t-estr-nome a.lk:hover { text-decoration-color:var(--t-marca); }
+.t-estr-niveis { display:flex; gap:4px; } .t-estr-niveis i { width:18px; height:6px; background:var(--t-fio); }
+.t-estr-niveis i.on { background:var(--t-tinta); } .t-estr-niveis i.obra { background:repeating-linear-gradient(135deg, var(--t-marca) 0 3px, transparent 3px 6px); }
+.t-estr-hoje { display:flex; align-items:baseline; gap:10px; min-width:0; }
+.t-estr-hoje b, .t-estr-prox b { font:900 34px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.t-estr small { font-size:13px; color:var(--t-tinta2); }
+.t-estr-prox { display:flex; flex-direction:column; gap:4px; } .t-estr-prox b { font-size:26px; color:var(--t-tinta2); }
+.t-estr-acao { display:flex; flex-direction:column; align-items:flex-end; gap:6px; text-align:right; }
+.t-estr-acao .t-botao { min-width:120px; } .t-estr-acao .t-botao:disabled { opacity:.45; cursor:not-allowed; }
+.t-estr-obra b { color:var(--t-marca); font:900 22px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; }
+.t-estr-profs { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+.t-estr-profs > div:not(.prof) { margin:0 !important; display:flex; }
+:root[data-visual=novo] .t-estr-profs .prof { display:flex; flex-direction:column; }
+:root[data-visual=novo] .t-estr-profs .prof { flex:1; border:1px solid var(--t-fio); border-top:4px solid var(--t-tinta); border-radius:0; background:var(--t-fundo); padding:12px 14px; }
+:root[data-visual=novo] .t-estr-profs .prof.vazio { border-top-color:var(--t-atencao); background:var(--t-placa); opacity:1; }
+:root[data-visual=novo] .t-estr-profs .pf-func { color:var(--t-tinta2); letter-spacing:.14em; }
+:root[data-visual=novo] .t-estr-profs .pf-efeito { color:var(--t-tinta2); font-size:13px; margin-top:8px; }
+.t-estr-cand { display:flex; flex-wrap:wrap; gap:0 18px; } .t-estr-cand > div[data-cand-lista] { flex-basis:100%; order:1; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-estr-cab { display:none; }
+  .t-estr { grid-template-columns:minmax(0, 1fr) auto; gap:10px 14px; padding:14px 8px; }
+  .t-estr-hoje { grid-column:1; } .t-estr-prox { grid-column:2; grid-row:1; align-items:flex-end; } .t-estr-acao { grid-column:2; grid-row:2; }
+  .t-estr-hoje { flex-direction:column; gap:4px; } .t-estr-hoje b { font-size:28px; }
+}
