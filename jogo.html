@@ -901,6 +901,36 @@ async function telaClube(liga, clube) {
         <span class="xg" style="white-space:nowrap">${r ? `<b>${r.texto}</b>` : aoVivo ? `<b class="aviso">ao vivo</b>` : ""}</span></a>`; };
     const jogados = meusJogos.filter(p => resDosMeus[p.id]).reverse(), proximos = meusJogos.filter(p => !resDosMeus[p.id]);
     const conta = k => jogados.filter(p => resultado(p).v === k).length;
+    if (visualNovo) { // faixa com o próximo jogo (ou a campanha quando não há), a fita dos resultados e os jogos por dia, com filtro de competição
+      const tipo = p => p.fase === "lib" ? "cont" : p.fase === "copa" ? (p.copa_fase ? "copa" : "super") : p.fase && p.fase !== "liga" ? "playoff" : "liga";
+      const TIPOS = [["liga", "Liga"], ["copa", "Copa"], ["cont", "Continental"], ["playoff", "Playoff"], ["super", "Supercopa"]];
+      const compCurta = p => tipo(p) === "liga" ? `Rodada ${p.rodada}` : (ehCopa(p) ? nomeDaCopa(p, true) : nomeDoPlayoff(p)).replace(/^\S+ /, "");
+      const ondeCurto = p => { const sd = sedeDoJogo(p, liga), casa = p.casa === clube.id; return sd ? "final em " + SEDES[sd].nome : ehCopa(p) ? (casa ? "seu estádio · neutro" : "estádio dele · neutro") : casa ? "casa" : "fora"; };
+      const diaCab = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", ""), hora = d => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const linhaNova = p => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], r = resultado(p), aoVivo = !r && new Date(p.inicio).getTime() <= agora;
+        return `<a class="t-cal" data-comp="${tipo(p)}" href="aovivo.html?id=${p.id}"><span class="t-cal-v" data-v="${r ? r.v : aoVivo ? "vivo" : ""}">${r ? r.v : aoVivo ? "ao vivo" : ""}</span>
+          <span class="t-cal-hora">${hora(p.inicio)}</span><span class="t-cal-adv">${svgEscudo(adv.escudo, adv.sigla, 26)}<b>${esc(adv.nome)}</b></span>
+          <span class="t-cal-onde">${ondeCurto(p)}</span><span class="t-cal-comp">${esc(compCurta(p))}</span><span class="t-cal-placar">${r ? r.texto : ""}</span></a>`; };
+      const porDia = lista => { const g = []; lista.forEach(p => { const d = diaCab(p.inicio); if (!g.length || g[g.length - 1][0] !== d) g.push([d, []]); g[g.length - 1][1].push(p); });
+        return g.map(([d, ps]) => `<div class="t-cal-grupo"><div class="t-cal-dia">${d}</div>${ps.map(linhaNova).join("")}</div>`).join(""); };
+      const gols = jogados.reduce(([a, b], p) => { const r = resDosMeus[p.id], casa = p.casa === clube.id; return [a + (casa ? r.gols_casa : r.gols_fora), b + (casa ? r.gols_fora : r.gols_casa)]; }, [0, 0]);
+      const aprov = jogados.length ? Math.round(100 * (3 * conta("V") + conta("E")) / (3 * jogados.length)) : null;
+      const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Disputados", valor: String(jogados.length), sufixo: `de ${meusJogos.length}`, legenda: `${conta("V")}V ${conta("E")}E ${conta("D")}D` })}
+        ${numero({ rotulo: "Aproveitamento", valor: aprov == null ? "—" : aprov + "%", legenda: "na copa, V é passar de fase" })}
+        ${numero({ rotulo: "Gols", valor: `${gols[0]} x ${gols[1]}`, legenda: "marcados x sofridos" })}
+        ${numero({ rotulo: "Saldo", valor: (gols[0] > gols[1] ? "+" : "") + (gols[0] - gols[1]), tom: gols[0] > gols[1] ? "ok" : gols[0] < gols[1] ? "bad" : "" })}</div>`;
+      const fita = jogados.length ? `<div class="t-cal-fita" title="Do primeiro jogo ao último">${[...jogados].reverse().map(p => { const r = resultado(p), adv = cPor[p.casa === clube.id ? p.fora : p.casa];
+        return `<a href="aovivo.html?id=${p.id}" data-v="${r.v}" title="${esc(adv.nome)} ${esc(r.texto.replace(/<[^>]*>/g, ""))} · ${esc(compCurta(p))}">${r.v}</a>`; }).join("")}</div>` : "";
+      const prox = proximos[0], advP = prox && cPor[prox.casa === clube.id ? prox.fora : prox.casa], vivoP = prox && new Date(prox.inicio).getTime() <= agora;
+      const topo = prox
+        ? faixaFoco({ rotulo: `Calendário · ${vivoP ? "jogando agora" : "próximo jogo"}`, titulo: advP.nome, apagado: ondeCurto(prox), destaque: vivoP ? "Ao vivo agora." : `${dia(prox.inicio)}.`, frase: `${compCurta(prox)}. Depois dele, ${proximos.length - 1 === 1 ? "mais 1 jogo marcado" : `mais ${proximos.length - 1} jogos marcados`}.`, lado, numeros: fita })
+        : faixaFoco({ rotulo: `Calendário · temporada ${liga.temporada}`, titulo: `${conta("V")}V ${conta("E")}E ${conta("D")}D`, apagado: "nenhum jogo marcado", destaque: jogados.length ? "A campanha até aqui." : "", frase: "Os jogos de copa das fases seguintes entram aqui quando forem sorteados.", lado, numeros: fita });
+      const tem = TIPOS.filter(([k]) => meusJogos.some(p => tipo(p) === k));
+      const filtro = tem.length > 1 ? `<div class="t-transf-filtro" id="calFiltro"><button type="button" data-fcomp="" class="ligado">Todos <small>${meusJogos.length}</small></button>${tem.map(([k, n]) => `<button type="button" data-fcomp="${k}">${n} <small>${meusJogos.filter(p => tipo(p) === k).length}</small></button>`).join("")}</div>` : "";
+      return `<div class="t-calendario">${topo}${filtro}
+        ${proximos.length ? `<section class="t-secao">${rotulo(`Próximos · ${proximos.length}`)}${porDia(proximos)}</section>` : ""}
+        <section class="t-secao">${rotulo(`Disputados · ${jogados.length}`)}${porDia(jogados) || `<p class="t-fajuda">Nenhum jogo disputado ainda.</p>`}<p class="t-fajuda">Clique num jogo para ver a transmissão e o relatório.</p></section></div>`;
+    }
     return `<div class="duas">
       <div class="card"><h2>Próximos jogos <span class="tag">${proximos.length}</span></h2>${proximos.map(linha).join("") || `<div class="mut">Nenhum jogo marcado.</div>`}
         <div class="mut" style="margin-top:6px;font-size:12px">Os jogos de copa das fases seguintes entram aqui quando forem sorteados.</div></div>
@@ -2635,6 +2665,10 @@ ${historicoDaBase()}
     });
   }
   if ($("fNova")) $("fNova").addEventListener("click", e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } });
+  if ($("calFiltro")) $("calFiltro").onclick = e => { const b = e.target.closest("[data-fcomp]"); if (!b) return;
+    $("calFiltro").querySelectorAll("[data-fcomp]").forEach(x => x.classList.toggle("ligado", x === b));
+    document.querySelectorAll(".t-cal").forEach(l => { l.hidden = !!b.dataset.fcomp && l.dataset.comp !== b.dataset.fcomp; });
+    document.querySelectorAll(".t-cal-grupo").forEach(g => { g.hidden = !g.querySelector(".t-cal:not([hidden])"); }); };
   if ($("fPeriodos")) $("fPeriodos").onclick = e => { const b = e.target.closest("[data-fper]"); if (!b) return;
     $("fPeriodos").querySelectorAll("[data-fper]").forEach(x => x.setAttribute("aria-pressed", x === b));
     document.querySelectorAll("[data-fpainel]").forEach(p => { p.hidden = p.dataset.fpainel !== b.dataset.fper; }); };

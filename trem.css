@@ -1173,3 +1173,28 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-ev-muralha, .t-ev-cores label { flex-direction:row !important; justify-content:flex-start; text-transform:none; letter-spacing:0; }
 .t-ev-cores label { margin:0; }
 @media (max-width:720px) and (pointer:coarse) { .t-ev-editor .t-segmentos > * { white-space:normal; line-height:1.15; padding:8px 4px; } }
+
+/* Clube › Calendário: fita dos resultados na faixa, jogos agrupados por dia em colunas alinhadas, filtro de competição */
+.t-cal-fita { display:flex; flex-wrap:wrap; gap:4px; }
+.t-cal-fita a { width:26px; height:26px; display:grid; place-items:center; font:800 12px/1 var(--t-letra); color:#fff; text-decoration:none; background:var(--t-noite-fio); }
+.t-cal-fita a[data-v=V] { background:var(--t-ok); } .t-cal-fita a[data-v=D] { background:var(--t-marca); } .t-cal-fita a[data-v=E] { background:var(--t-atencao); }
+.t-cal-fita a:hover { outline:2px solid var(--t-noite-tx); outline-offset:1px; }
+.t-calendario .t-faixa-numeros { border-top:0; padding-top:0; }
+.t-calendario .t-transf-filtro { margin:22px 0 0; }
+.t-cal-grupo[hidden], .t-cal[hidden] { display:none; }
+.t-cal-dia { font:700 11px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); padding:16px 0 8px 10px; border-bottom:2px solid var(--t-tinta); }
+.t-cal { display:grid; grid-template-columns:52px 52px minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 96px; align-items:center; gap:12px; padding:9px 8px 9px 10px; border-bottom:1px solid var(--t-fio); color:inherit; text-decoration:none; font-variant-numeric:tabular-nums; }
+.t-cal:hover { background:var(--t-placa); }
+.t-cal-v { font:800 13px/1 var(--t-letra); text-align:center; padding:6px 0; text-transform:uppercase; }
+.t-cal-v[data-v=V] { color:#fff; background:var(--t-ok); } .t-cal-v[data-v=D] { color:#fff; background:var(--t-marca); } .t-cal-v[data-v=E] { color:#fff; background:var(--t-atencao); }
+.t-cal-v[data-v=vivo] { color:var(--t-marca); border:2px solid var(--t-marca); font-size:10px; padding:4px 0; }
+.t-cal-hora { font-size:13px; color:var(--t-tinta2); }
+.t-cal-adv { display:flex; align-items:center; gap:9px; min-width:0; } .t-cal-adv b { font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-cal-adv svg { flex:none; }
+.t-cal-onde, .t-cal-comp { font-size:13px; color:var(--t-tinta2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-cal-placar { font:900 22px/1 var(--t-letra); font-stretch:64%; text-align:right; white-space:nowrap; }
+.t-cal-placar .mut { font:500 12px/1 var(--t-letra); font-stretch:100%; color:var(--t-tinta2); }
+.t-cal-v { align-self:center; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-cal { grid-template-columns:44px minmax(0, 1fr) auto; grid-template-areas:"v adv placar" "v comp hora"; row-gap:4px; }
+  .t-cal-v { grid-area:v; } .t-cal-adv { grid-area:adv; } .t-cal-placar { grid-area:placar; } .t-cal-comp { grid-area:comp; } .t-cal-hora { grid-area:hora; text-align:right; } .t-cal-onde { display:none; }
+}
