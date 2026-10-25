@@ -370,6 +370,8 @@ export const executarPreAcordos = ligaId => sb.rpc("executar_pre_acordos", { p_l
 // Estatísticas da liga (54_estatisticas_da_liga.sql): listas somadas pelo banco. comp: "TODOS", "A" a "E" ou "COPA". null antes do SQL.
 export const estatisticasDaLiga = (ligaId, comp) => sb.rpc("estatisticas_da_liga", { p_liga: ligaId, p_comp: comp }).then(({ data, error }) => error ? null : data);
 export const temporadasComEstatisticas = ligaId => sb.from("estatisticas_historico").select("temporada").eq("liga_id", ligaId).eq("comp", "TODOS").order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data.map(x => x.temporada));
+// só os recordes de cada competição em cada temporada guardada (para os recordes por competição em Campeões e recordes)
+export const recordesGuardados = ligaId => sb.from("estatisticas_historico").select("temporada, comp, recordes:dados->recordes").eq("liga_id", ligaId).neq("comp", "CLUBES").then(({ data, error }) => error ? [] : data);
 export const estatisticasGuardadas = (ligaId, temporada, comp) => sb.from("estatisticas_historico").select("dados").eq("liga_id", ligaId).eq("temporada", temporada).eq("comp", comp).maybeSingle().then(({ data, error }) => error || !data ? null : data.dados);
 // antes da virada (que apaga as partidas): copia as listas da temporada para o histórico. Sem o SQL 54, não faz nada.
 export const guardarEstatisticas = ligaId => sb.rpc("guardar_estatisticas", { p_liga: ligaId }).then(({ data, error }) => error ? 0 : data);

@@ -1688,3 +1688,30 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-camp-todos { margin-top:12px; }
 .t-camp-rec { padding-bottom:20px; } .t-camp-rec .t-tr-recordes { grid-template-columns:repeat(2, minmax(0, 1fr)); margin:0; padding:0; border:0; }
 @media (max-width:720px) and (pointer:coarse) { .t-camp-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:4px; padding-right:4px; } .t-camp { grid-template-columns:24px minmax(0, 1fr) minmax(0, 1.3fr); } }
+/* Campeões e recordes, rodada 2: escudo do maior campeão ao lado do nome, taças dele em fila, nomes inteiros das competições no cabeçalho */
+.t-camp-titulo { display:flex; align-items:center; gap:24px; } .t-camp-titulo > svg { flex:none; }
+.t-camp-tacas { display:flex; justify-content:space-around; align-items:flex-end; gap:18px; height:100%; }
+.t-camp-tacas > div { display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; }
+.t-camp-tacas .t-tr-ico { height:96px; }
+.t-camp-tacas b { font:900 48px/1 var(--t-letra); font-stretch:64%; color:var(--t-noite-tx); font-variant-numeric:tabular-nums; }
+.t-camp-tacas b small { font-size:24px; color:var(--t-noite-mut); margin-left:2px; }
+.t-camp-tacas span { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--t-noite-mut); white-space:nowrap; }
+.t-trofeus .t-faixa-lado:has(.t-camp-tacas) { display:flex; align-items:center; min-width:min(420px, 100%); }
+.t-camp-th { display:flex; flex-direction:column; align-items:center; gap:4px; white-space:normal; line-height:1.15; }
+.t-camp-tab th { vertical-align:bottom; } .t-camp-tab .t-tr-ico { height:22px; }
+.t-camp-tab :is(td, th):nth-child(n+3) { min-width:64px; max-width:76px; }
+.t-camp-curto { display:none; }
+.t-camp-comps { margin:0 0 10px; } .t-camp-comps button { font-size:12px; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-camp-longo { display:none; } .t-camp-curto { display:inline; } .t-camp-tab .t-tr-ico { display:none; }
+  .t-camp-titulo { gap:14px; } .t-camp-titulo > svg { width:64px; height:64px; }
+  .t-camp-tacas .t-tr-ico { height:64px; } .t-camp-tacas b { font-size:36px; } .t-camp-tacas { flex-wrap:wrap; }
+}
+.t-camp-th { text-transform:none; letter-spacing:0; font-size:12px; font-weight:700; color:var(--t-tinta2); }
+.t-camp-tab :is(td, th):nth-child(n+3) { min-width:80px; max-width:none; padding-left:6px; padding-right:6px; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-camp-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:3px; padding-right:3px; }
+  .t-camp-tacas { display:grid; grid-template-columns:repeat(auto-fit, minmax(0, 1fr)); gap:8px; width:100%; }
+  .t-camp-tacas .t-tr-ico { height:52px; } .t-camp-tacas b { font-size:30px; } .t-camp-tacas span { font-size:9px; letter-spacing:.06em; white-space:normal; }
+}
+@media (pointer:fine), (min-width:721px) { .t-camp-tab :is(td, th):nth-child(n+3) { min-width:0; width:1%; } .t-camp-th { min-width:44px; } }
