@@ -2673,9 +2673,9 @@ async function telaClube(liga, clube) {
     </section>`}
     <section data-secao="classificacao">
     ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["sul", "🌐 Sul-Americana", "Sul-Am."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
-    <div data-parte="comp:liga"><div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
+    <div data-parte="comp:liga">${visualNovo ? `<select id="verGrupo" hidden>${opcoesDeGrupo(clube.grupo)}</select><div id="ligaNova"></div>` : `<div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
-      <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div></div>
+      <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div>`}</div>
     <div data-parte="comp:stats"><div class="row" style="margin-top:4px">
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
@@ -3368,7 +3368,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base"; $("compChave").hidden = !["copa", "lib", "sul"].includes(k); $("compKpis").hidden = !["copa", "lib", "sul"].includes(k); if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && k === "liga"; $("compChave").hidden = !["copa", "lib", "sul"].includes(k); $("compKpis").hidden = !["copa", "lib", "sul"].includes(k); if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
@@ -3775,6 +3775,83 @@ ${historicoDaBase()}
       estiloDoRival(rival);
     }
   }
+  // Competições › Liga no visual novo: a faixa conta a corrida do clube (a do líder, quando o campeonato não é o seu), os campeonatos em botões,
+  // a tabela inteira ao lado de duas rodadas (a escolhida e a anterior: as alturas batem) e as temporadas anteriores, uma de cada vez
+  let ligaRodada = null, ligaTemp = null;
+  function ligaNova({ g, partidas, res, rodadas, atual, tab, faixas }) {
+    const el = $("ligaNova"); if (!el) return;
+    if (el.dataset.g !== g) { ligaRodada = atual; ligaTemp = null; el.dataset.g = g; }
+    const daLiga = p => !p.fase || p.fase === "liga", agora = Date.now(), sg = t => (t.gp - t.gc > 0 ? "+" : "") + (t.gp - t.gc);
+    const diaCab = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+    const meu = tab.some(t => t.clube.id === clube.id), foco = meu ? clube.id : tab[0] && tab[0].clube.id, iF = tab.findIndex(t => t.clube.id === foco), f = tab[iF];
+    const dele = partidas.filter(p => daLiga(p) && (p.casa === foco || p.fora === foco)), faltam = dele.filter(p => !res[p.id]).length;
+    const forma = id => partidas.filter(p => (p.casa === id || p.fora === id) && res[p.id]).sort((a, b) => new Date(a.inicio) - new Date(b.inicio)).slice(-5).map(p => {
+      const r = res[p.id], a = p.casa === id ? r.gols_casa : r.gols_fora, b = p.casa === id ? r.gols_fora : r.gols_casa, v = a > b ? "V" : a < b ? "D" : "E";
+      return `<i class="${v}" title="${esc(cPor[p.casa].nome)} ${r.gols_casa} x ${r.gols_fora} ${esc(cPor[p.fora].nome)}">${v}</i>`; }).join("");
+    // faixa
+    let topo = "";
+    if (f) {
+      const lt = leituraDaTabela({ tab, clubeId: foco, faixas, rodadasRestantes: dele.length ? faltam : null });
+      const boa = x => /\b(camp|lib|sul|sobe|playoff)\b/.test(x), ultimaBoa = faixas.reduce((u, x, i) => boa(x) ? i + 1 : u, 0);
+      const pos = posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), foco);
+      const acabou = dele.length && !faltam && partidas.filter(daLiga).every(p => res[p.id]);
+      const numeros = f.j ? `<div class="t-elenco-numeros">${numero({ rotulo: "Pontos", valor: String(f.pts), legenda: `${f.v}V · ${f.e}E · ${f.d}D` })}
+        ${numero({ rotulo: "Saldo", valor: sg(f), legenda: `${f.gp} pró · ${f.gc} contra`, tom: f.gp > f.gc ? "ok" : f.gp < f.gc ? "bad" : "" })}
+        ${iF ? numero({ rotulo: "Do líder", valor: String(tab[0].pts - f.pts), legenda: tab[0].pts === f.pts ? "empatado em pontos" : "pontos atrás" }) : numero({ rotulo: "Do 2º", valor: tab[1] ? String(f.pts - tab[1].pts) : "—", legenda: "pontos à frente" })}
+        ${numero({ rotulo: "Esperados", valor: f1(f.esp), legenda: "pontos pelas chances criadas", tom: f.pts > f.esp + 2 ? "ok" : f.pts < f.esp - 2 ? "bad" : "" })}</div>` : "";
+      // campeonato decidido: o carimbo no lugar do gráfico (na Série B quem sobe sai do playoff, não da tabela)
+      const finais = partidas.filter(p => p.fase === "final"), subiu = finais.length && finais.every(p => res[p.id]) ? vencedorDoConfronto(finais, res) : null;
+      const carimbo = serieDoGrupo(g) <= 1 ? acabou && ["Campeão", tab[0].clube.nome] : subiu && cPor[subiu] && ["Acesso", cPor[subiu].nome];
+      const lado = carimbo ? `<div class="t-carimbo t-carimbo-liga">${carimbo[0]}<small>${esc(carimbo[1])}</small></div>${numeros}`
+        : `${pos.length > 1 ? `<div class="t-numero-rotulo">${meu ? "Sua posição" : "Posição do líder"} rodada a rodada</div>${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}` : ""}${numeros}`;
+      topo = faixaFoco({ rotulo: `${nomeDoGrupo(g)} · ${dele.length ? `rodada ${f.j} de ${dele.length}` : "calendário a sortear"}`,
+        titulo: meu ? lt.titulo : f.clube.nome, apagado: meu ? lt.apagado : acabou ? "terminou em 1º" : `lidera · ${lt.apagado}`,
+        destaque: f.j ? lt.destaque : "", frase: f.j ? lt.frase : "A temporada ainda não começou.", lado });
+    }
+    // campeonatos: Brasil primeiro, depois os países
+    const curto = x => PAISES[x] || nomeDoGrupo(x).replace(/^.*?(Série \S+)$/, "$1");
+    const campeonatos = `<div class="t-liga-topo"><div class="t-transf-filtro">${grupos.map(x => `<button type="button" data-lgrupo="${esc(x)}" class="${x === g ? "ligado" : ""}">${esc(curto(x))}${x === clube.grupo ? " <small>o seu</small>" : ""}</button>`).join("")}</div>
+      <a class="t-botao t-botao-link" href="temporada.html?clube=${clube.id}">Relatório da temporada</a></div>`;
+    const tabela = `<table class="t-tabela t-liga-tab"><tr><th></th><th class="t-esq">Clube</th><th>P</th><th>J</th><th class="t-lt-x">V</th><th class="t-lt-x">E</th><th class="t-lt-x">D</th><th class="t-lt-x">GP</th><th class="t-lt-x">GC</th><th>SG</th><th class="t-lt-x" title="Pontos esperados pelas chances criadas">PE</th><th class="t-lt-x">Forma</th></tr>
+      ${tab.map((t, i) => `<tr class="${faixas[i]}${t.clube.id === clube.id ? " t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><a class="t-lt-clube" href="#clube=${t.clube.id}" data-clube="${t.clube.id}">${svgEscudo(t.clube.escudo, t.clube.sigla, 22)}<span>${esc(t.clube.nome)}</span>${t.clube.dono ? `<i class="t-lt-hum" title="Clube com dirigente"></i>` : ""}</a></td>
+        <td><b>${t.pts}</b></td><td>${t.j}</td><td class="t-lt-x">${t.v}</td><td class="t-lt-x">${t.e}</td><td class="t-lt-x">${t.d}</td><td class="t-lt-x">${t.gp}</td><td class="t-lt-x">${t.gc}</td><td>${sg(t)}</td><td class="t-lt-x t-lt-pe">${f1(t.esp)}</td><td class="t-lt-x"><span class="t-forma">${forma(t.clube.id)}</span></td></tr>`).join("")}</table>
+      ${legendaDoRecorte(faixas).replace(/<\/div>$/, "") || `<div class="t-recorte-legenda">`}<span class="t-lt-humleg">clube com dirigente</span></div>`;
+    const po = playoffDoGrupo(partidas, res);
+    el.innerHTML = `<div class="t-liga">${topo}${campeonatos}<div class="t-liga-grade"><section>${rotulo("Classificação")}${tabela}</section><section>${rotulo("Jogos")}<div id="ligaJogos"></div>${po ? `<div class="t-liga-po">${po}</div>` : ""}</section></div><section class="t-secao" id="ligaHist" hidden></section></div>`;
+    // jogos: a rodada escolhida (com as setas) e a anterior
+    const rotuloR = r => (p => !daLiga(p) ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
+    const linhaJ = p => { const r = res[p.id], vivo = !r && new Date(p.inicio).getTime() <= agora, c = cPor[p.casa], v = cPor[p.fora];
+      const ganhou = r && (r.penaltis ? (r.penaltis[0] > r.penaltis[1] ? "c" : "f") : r.gols_casa > r.gols_fora ? "c" : r.gols_casa < r.gols_fora ? "f" : "");
+      return `<a class="t-ljogo${p.casa === clube.id || p.fora === clube.id ? " t-eu" : ""}" href="aovivo.html?id=${p.id}"><span class="t-ljogo-c${ganhou === "c" ? " t-ljogo-v" : ""}">${esc(c.nome)}</span>${svgEscudo(c.escudo, c.sigla, 22)}
+        <b class="t-ljogo-x${vivo ? " vivo" : r ? "" : " hora"}">${r ? `${r.gols_casa} x ${r.gols_fora}${r.penaltis ? `<small>pên. ${r.penaltis[0]} x ${r.penaltis[1]}</small>` : ""}` : vivo ? "ao vivo" : new Date(p.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
+        ${svgEscudo(v.escudo, v.sigla, 22)}<span class="t-ljogo-f${ganhou === "f" ? " t-ljogo-v" : ""}">${esc(v.nome)}</span></a>`; };
+    const doDia = r => (ps => `${ps.length ? diaCab(ps[0].inicio) : ""}${r === atual ? " · atual" : ""}`)(partidas.filter(p => p.rodada === r));
+    const desenharJogos = () => { const box = $("ligaJogos"); if (!box) return;
+      if (!rodadas.length) { box.innerHTML = `<p class="t-fajuda">O calendário ainda não foi gerado.</p>`; return; }
+      const i = Math.max(0, rodadas.indexOf(ligaRodada)), r = rodadas[i];
+      box.innerHTML = `<div class="t-liga-nav"><button type="button" data-lrod="-1" ${i ? "" : "disabled"} aria-label="Rodada anterior">‹</button><b>${esc(rotuloR(r))}</b><span>${doDia(r)}</span>
+          ${r !== atual ? `<button type="button" class="t-liga-atual" data-lrod="0">ir à atual</button>` : ""}<button type="button" data-lrod="1" ${i < rodadas.length - 1 ? "" : "disabled"} aria-label="Próxima rodada">›</button></div>
+        ${partidas.filter(p => p.rodada === r).map(linhaJ).join("")}
+        ${i ? `<div class="t-cal-dia">${esc(rotuloR(rodadas[i - 1]))} · ${doDia(rodadas[i - 1])}</div>${partidas.filter(p => p.rodada === rodadas[i - 1]).map(linhaJ).join("")}` : ""}`; };
+    desenharJogos();
+    // temporadas anteriores deste campeonato, guardadas na virada (só com a aba aberta)
+    let hist = [];
+    const desenharHist = () => { const box = $("ligaHist"); if (!box || !hist.length) return;
+      const temps = [...new Set(hist.map(x => x.temporada))]; if (!temps.includes(ligaTemp)) ligaTemp = temps[0];
+      const nome = x => x.nome || (cPor[x.clube_id] || {}).nome || "—";
+      box.hidden = false;
+      box.innerHTML = `${rotulo("Temporadas anteriores")}<div class="t-transf-filtro">${temps.map(t => `<button type="button" data-ltemp="${t}" class="${t === ligaTemp ? "ligado" : ""}">${t}</button>`).join("")}</div>
+        <table class="t-tabela t-liga-tab t-liga-hist"><tr><th></th><th class="t-esq">Clube</th><th>P</th><th>V</th><th>E</th><th>D</th><th class="t-lt-x">GP</th><th class="t-lt-x">GC</th><th class="t-lt-x">Prêmio</th><th class="t-lt-dest">Destino</th></tr>
+        ${hist.filter(x => x.temporada === ligaTemp).map(x => `<tr class="${x.clube_id === clube.id && !x.nome ? "t-eu" : ""}"><td>${x.posicao}</td><td class="t-esq">${esc(nome(x))}${x.copa === "campeão" ? ` <small class="t-lt-copa">campeão da copa</small>` : x.copa === "vice" ? ` <small class="t-lt-copa">vice da copa</small>` : ""}</td>
+          <td><b>${x.pontos}</b></td><td>${x.vitorias}</td><td>${x.empates}</td><td>${x.derrotas}</td><td class="t-lt-x">${x.gols_pro}</td><td class="t-lt-x">${x.gols_contra}</td><td class="t-lt-x">${dinheiro(x.premio)}</td>
+          <td class="t-lt-dest" data-d="${esc(x.destino || "")}">${["subiu", "caiu", "campeão"].includes(x.destino) ? x.destino : ""}</td></tr>`).join("")}</table>`; };
+    el.onclick = e => {
+      const gb = e.target.closest("[data-lgrupo]"); if (gb) { if (gb.dataset.lgrupo !== g) { $("verGrupo").value = gb.dataset.lgrupo; mostrarCompeticao("liga"); } return; }
+      const rb = e.target.closest("[data-lrod]"); if (rb) { const i = Math.max(0, rodadas.indexOf(ligaRodada)); ligaRodada = +rb.dataset.lrod ? rodadas[i + +rb.dataset.lrod] : atual; desenharJogos(); return; }
+      const tb = e.target.closest("[data-ltemp]"); if (tb) { ligaTemp = +tb.dataset.ltemp; desenharHist(); }
+    };
+    if (compAberta()) historicoDoGrupo(liga.id, g).then(h => { if (el.dataset.g !== g) return; hist = h; desenharHist(); }).catch(() => {});
+  }
   async function grupo(g) {
     if ($("compHist")) $("compHist").innerHTML = "";
     if (g === "COPA") return telaDaCopa();
@@ -3790,10 +3867,11 @@ ${historicoDaBase()}
       return `<span class="fbola f${v}" title="${esc(cPor[p.casa] ? cPor[p.casa].nome : "")} ${r.gols_casa} x ${r.gols_fora} ${esc(cPor[p.fora] ? cPor[p.fora].nome : "")}">${v}</span>`; }).join("");
     const rodadas = [...new Set(partidas.map(p => p.rodada))];
     const atual = rodadas.find(r => partidas.some(p => p.rodada === r && !res[p.id])) || rodadas[rodadas.length - 1]; // primeira rodada ainda sem todos os resultados
-    $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
-    $("tabela").className = "";
     const serieG = serieDoGrupo(g), tabG = classificacao(doGrupo, partidas, resultados);
     const faixaG = i => faixaDaTabela(serieG, i, tabG.length, tabG);
+    if (visualNovo) { if (g === $("verGrupo").value) ligaNova({ g, partidas, res, rodadas, atual, tab: tabG, faixas: tabG.map((t, i) => faixaG(i)) }); } else {
+    $("tituloTabela").innerHTML = `${esc(nomeDoGrupo(g))} · classificação`;
+    $("tabela").className = "";
     $("tabela").innerHTML = `<table class="mini classif" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Pontos">P</th><th title="Jogos">J</th><th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th><th class="c-gols" title="Gols pró">GP</th><th class="c-gols" title="Gols contra">GC</th><th title="Saldo de gols">SG</th><th class="c-pe" title="Pontos esperados pelas chances criadas">PE</th><th class="c-forma" title="Últimos 5 jogos">Forma</th></tr>
       ${tabG.map((t, i) => `<tr class="${faixaG(i)}"><td>${i + 1}</td><td class="esq cl-nome ${t.clube.id === clube.id ? "nota" : ""}">${lk(t.clube.id)}${t.clube.dono ? ` <span class="cl-hum" title="Clube com dirigente">●</span>` : ""}</td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.v}</td><td>${t.e}</td><td>${t.d}</td><td class="c-gols">${t.gp}</td><td class="c-gols">${t.gc}</td><td>${t.gp - t.gc > 0 ? "+" : ""}${t.gp - t.gc}</td><td class="mut c-pe">${f1(t.esp)}</td><td class="c-forma">${formaDe(t.clube.id)}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px"><span class="cl-hum">●</span> clube com dirigente · ${!serieG ? `<span class="ok">▌</span> campeão · <span style="color:var(--lib)">▌</span> Libertadores · <span style="color:var(--sul)">▌</span> Sul-Americana · uma divisão só, sem acesso nem descenso` : serieG === 1 ? `<span class="ok">▌</span> campeão · <span style="color:var(--lib)">▌</span> Libertadores (a 4ª vaga é do campeão da Copa do Brasil, ou do 4º colocado se ele já estiver entre os três) · <span style="color:var(--sul)">▌</span> Sul-Americana (a 4ª vaga é do vice da copa; se ele já tiver vaga, do próximo da tabela) · <span class="bad">▌</span> rebaixamento` : LEGENDA_DA_B}</div>${playoffDoGrupo(partidas, res)}`;
@@ -3812,6 +3890,7 @@ ${historicoDaBase()}
       $("jogos").innerHTML = [i, i - 1].filter(k => k >= 0).map(k => `<div class="rod-bloco"><div class="rod-tit"><b>${rotuloR(rodadas[k])}</b> <span class="mut">· ${rodadas[k] === atual ? "atual" : k === i ? "selecionada" : "anterior"}</span></div>${partidas.filter(p => p.rodada === rodadas[k]).map(p => jogo(p, res, agora)).join("")}</div>`).join(""); };
     if ($("rodada")) $("rodada").onchange = mostrar;
     mostrar();
+    }
     if (g === clube.grupo) {
       // jogos de liga e de copa juntos, pela data
       Object.assign(res, copaRes);

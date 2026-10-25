@@ -1488,3 +1488,56 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 @media (max-width:720px) and (pointer:coarse) { .t-mjog { grid-template-columns:38px minmax(0, 1fr) 20px 24px 40px 64px 22px; } .t-mjog .t-mjog-clube { display:block; } .t-mjog-clube a.lk { display:none; }
   .t-mjog.t-jog-cab > :nth-child(3) { display:block; font-size:0; } .t-ojog { grid-template-columns:38px minmax(0, 1fr) 20px 40px 64px; } .t-ojog > :nth-child(3) { display:block; } }
 @media (max-width:720px) and (pointer:coarse) { .t-mjog.t-jog-cab > :nth-child(6) { display:block; } } /* a regra do Elenco escondia a 6ª coluna (salário), que na Busca é a multa */
+
+/* ---------- Competições › Liga: faixa da corrida, campeonatos em botões, tabela | duas rodadas, temporadas anteriores ---------- */
+.t-liga .t-faixa-lado > .t-numero-rotulo { color:var(--t-noite-mut); margin-bottom:6px; }
+.t-liga .t-faixa-lado .t-elenco-numeros { margin-top:18px; }
+.t-carimbo-liga { margin:6px auto 4px; font-size:44px; padding:10px 26px 8px; }
+.t-carimbo-liga small { font-size:12px; }
+.t-liga-topo { display:flex; align-items:center; gap:16px; margin:22px 0 0; }
+.t-liga-topo .t-transf-filtro { margin:0; flex:1; }
+.t-liga-topo .t-botao-link { white-space:nowrap; }
+.t-liga-grade { display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr); gap:0 48px; margin-top:28px; align-items:start; }
+.t-liga-tab th { white-space:nowrap; }
+.t-liga-tab .t-esq { width:100%; max-width:0; overflow:hidden; text-overflow:ellipsis; } /* o nome do clube cede espaço: a tabela nunca passa da largura */
+.t-liga-tab td { height:40px; padding-top:0; padding-bottom:0; white-space:nowrap; }
+.t-liga-tab tr.sobe td:first-child, .t-liga-tab tr.camp td:first-child { box-shadow:inset 3px 0 var(--t-ok); }
+.t-liga-tab tr.playoff td:first-child, .t-liga-tab tr.lib td:first-child { box-shadow:inset 3px 0 var(--casa); }
+.t-liga-tab tr.sul td:first-child { box-shadow:inset 3px 0 var(--sul); } .t-liga-tab tr.cai td:first-child { box-shadow:inset 3px 0 var(--t-erro); }
+.t-liga-tab td:first-child { width:26px; padding-left:10px; color:var(--t-tinta2); }
+.t-liga-tab td:nth-child(3) b { font-size:16px; }
+.t-lt-clube { display:flex; align-items:center; gap:9px; min-width:0; color:inherit; text-decoration:none; }
+.t-lt-clube svg { flex:none; } .t-lt-clube span { overflow:hidden; text-overflow:ellipsis; }
+.t-lt-clube:hover span { text-decoration:underline; text-decoration-color:var(--t-marca); text-underline-offset:3px; }
+.t-lt-hum, .t-lt-humleg::before { width:6px !important; height:6px !important; border-radius:50%; background:var(--t-marca) !important; flex:none; }
+.t-lt-humleg::before { vertical-align:1px !important; }
+.t-lt-pe { color:var(--t-tinta2); }
+.t-liga-tab .t-forma { vertical-align:middle; }
+.t-liga .t-recorte-legenda { color:var(--t-tinta2); }
+.t-liga-nav { display:flex; align-items:center; gap:10px; height:44px; border-bottom:2px solid var(--t-tinta); }
+.t-liga-nav b { font:900 22px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; }
+.t-liga-nav span { flex:1; font-size:13px; color:var(--t-tinta2); }
+.t-liga-nav button { width:32px; height:32px; border:2px solid var(--t-fio); background:transparent; color:var(--t-tinta); font:800 18px/1 var(--t-letra); cursor:pointer; }
+.t-liga-nav button:hover:not(:disabled) { border-color:var(--t-tinta2); } .t-liga-nav button:disabled { opacity:.3; cursor:default; }
+.t-liga-nav .t-liga-atual { width:auto; padding:0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+.t-ljogo { display:grid; grid-template-columns:minmax(0, 1fr) 22px 72px 22px minmax(0, 1fr); align-items:center; gap:8px; height:40px; padding:0 6px; border-bottom:1px solid var(--t-fio); color:inherit; text-decoration:none; font-size:14px; }
+.t-ljogo:hover { background:var(--t-placa); } .t-ljogo.t-eu { background:var(--t-placa); }
+.t-ljogo-c, .t-ljogo-f { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--t-tinta2); } .t-ljogo-c { text-align:right; }
+.t-ljogo-v, .t-ljogo.t-eu .t-ljogo-c, .t-ljogo.t-eu .t-ljogo-f { color:var(--t-tinta); font-weight:700; }
+.t-ljogo-x { text-align:center; font:900 21px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.t-ljogo-x small { display:block; font:500 10px/1.2 var(--t-letra); font-stretch:100%; color:var(--t-tinta2); }
+.t-ljogo-x.hora { font:500 13px/1 var(--t-letra); color:var(--t-tinta2); }
+.t-ljogo-x.vivo { font:800 11px/1 var(--t-letra); letter-spacing:.08em; text-transform:uppercase; color:var(--t-marca); }
+.t-liga .t-cal-dia { padding-left:6px; }
+.t-liga-po { margin-top:20px; font-size:14px; } .t-liga-po a { color:inherit; text-decoration:none; } .t-liga-po a:hover { text-decoration:underline; }
+.t-liga-po h2 { font:700 11px/1 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); margin:0 0 8px; }
+#ligaHist .t-transf-filtro { margin:0 0 10px; }
+.t-lt-copa { color:var(--t-tinta2); font-size:12px; } .t-liga-tab .t-lt-dest { text-align:left; }
+.t-lt-dest[data-d=subiu], .t-lt-dest[data-d="campeão"] { color:var(--t-ok); font-weight:700; } .t-lt-dest[data-d=caiu] { color:var(--t-erro); font-weight:700; }
+@media (max-width:1024px) and (pointer:coarse) { .t-liga-grade { grid-template-columns:minmax(0, 1fr); } .t-liga-grade > section + section { margin-top:32px; } }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-lt-x { display:none; } .t-liga-tab td { height:38px; padding-left:4px; padding-right:4px; } .t-liga-tab th { padding-left:4px; padding-right:4px; }
+  .t-liga-topo { flex-direction:column; align-items:stretch; gap:10px; } .t-liga-topo .t-botao-link { align-self:flex-start; }
+  .t-ljogo { grid-template-columns:minmax(0, 1fr) 20px 52px 20px minmax(0, 1fr); gap:6px; font-size:13px; padding:0 2px; }
+  .t-carimbo-liga { font-size:34px; }
+}
