@@ -1733,3 +1733,10 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 @media (pointer:fine), (min-width:721px) { .t-camp-tab :is(td, th):nth-child(n+3) { padding-left:4px; padding-right:4px; } .t-camp-th { min-width:0; font-size:11.5px; } }
 @media (max-width:720px) and (pointer:coarse) { .t-trofeus .t-liga-grade { grid-template-columns:minmax(0, 1fr); } .t-camp-tab td { font-size:13px; } .t-camp-tab .t-lt-clube { gap:6px; } .t-camp-tab .t-lt-clube svg { width:18px; height:18px; } .t-camp-tab :is(td, th):nth-child(n+3) { padding-left:2px; padding-right:2px; } .t-camp-tab td:first-child { width:18px; padding-left:2px; } }
 .t-camp-r-valor { white-space:nowrap; } .t-camp-r-valor:has(svg) { gap:7px; font-size:40px; }
+/* fechamento: colunas de número com a mesma largura (cabeçalho em até duas linhas), mais altura nas linhas */
+@media (pointer:fine), (min-width:721px) {
+  .t-trofeus .t-liga-grade { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); }
+  .t-camp-tab :is(td, th):nth-child(n+3) { width:62px; min-width:62px; padding-left:1px; padding-right:1px; }
+  .t-camp-th { font-size:11px; gap:6px; } .t-camp-tab th { padding-bottom:10px; } .t-camp-tab .t-tr-ico { height:26px; }
+  .t-camp-tab td { height:46px; }
+}
