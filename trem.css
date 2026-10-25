@@ -1198,3 +1198,6 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
   .t-cal { grid-template-columns:44px minmax(0, 1fr) auto; grid-template-areas:"v adv placar" "v comp hora"; row-gap:4px; }
   .t-cal-v { grid-area:v; } .t-cal-adv { grid-area:adv; } .t-cal-placar { grid-area:placar; } .t-cal-comp { grid-area:comp; } .t-cal-hora { grid-area:hora; text-align:right; } .t-cal-onde { display:none; }
 }
+.t-cal-fita { display:grid; grid-template-columns:repeat(var(--n), minmax(0, 1fr)); width:100%; max-width:calc(var(--n) * 34px); } .t-cal-fita a { width:auto; height:auto; aspect-ratio:1; min-width:0; overflow:hidden; }
+.t-calendario .t-elenco-numeros { gap:18px 28px; } .t-calendario .t-faixa-lado .t-numero-valor { white-space:nowrap; }
+@media (max-width:720px) and (pointer:coarse) { .t-cal-fita { gap:2px; } .t-cal-fita a { font-size:0; } }

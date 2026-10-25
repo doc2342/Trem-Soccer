@@ -915,11 +915,17 @@ async function telaClube(liga, clube) {
         return g.map(([d, ps]) => `<div class="t-cal-grupo"><div class="t-cal-dia">${d}</div>${ps.map(linhaNova).join("")}</div>`).join(""); };
       const gols = jogados.reduce(([a, b], p) => { const r = resDosMeus[p.id], casa = p.casa === clube.id; return [a + (casa ? r.gols_casa : r.gols_fora), b + (casa ? r.gols_fora : r.gols_casa)]; }, [0, 0]);
       const aprov = jogados.length ? Math.round(100 * (3 * conta("V") + conta("E")) / (3 * jogados.length)) : null;
-      const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Disputados", valor: String(jogados.length), sufixo: `de ${meusJogos.length}`, legenda: `${conta("V")}V ${conta("E")}E ${conta("D")}D` })}
-        ${numero({ rotulo: "Aproveitamento", valor: aprov == null ? "—" : aprov + "%", legenda: "na copa, V é passar de fase" })}
-        ${numero({ rotulo: "Gols", valor: `${gols[0]} x ${gols[1]}`, legenda: "marcados x sofridos" })}
-        ${numero({ rotulo: "Saldo", valor: (gols[0] > gols[1] ? "+" : "") + (gols[0] - gols[1]), tom: gols[0] > gols[1] ? "ok" : gols[0] < gols[1] ? "bad" : "" })}</div>`;
-      const fita = jogados.length ? `<div class="t-cal-fita" title="Do primeiro jogo ao último">${[...jogados].reverse().map(p => { const r = resultado(p), adv = cPor[p.casa === clube.id ? p.fora : p.casa];
+      const placarDe = p => { const r = resDosMeus[p.id], casa = p.casa === clube.id; return casa ? [r.gols_casa, r.gols_fora] : [r.gols_fora, r.gols_casa]; };
+      const campanha = f => { const ps = jogados.filter(p => !ehCopa(p) && f(p)), c = k => ps.filter(p => resultado(p).v === k).length; return ps.length ? `${c("V")}V ${c("E")}E ${c("D")}D` : "—"; }; // copa é campo neutro: fica fora de casa/fora
+      const maior = jogados.filter(p => resultado(p).v === "V").map(p => [p, placarDe(p)]).sort((a, b) => (b[1][0] - b[1][1]) - (a[1][0] - a[1][1]) || b[1][0] - a[1][0])[0];
+      const seq = jogados.length ? jogados.findIndex(p => resultado(p).v !== resultado(jogados[0]).v) : 0, nSeq = seq < 0 ? jogados.length : seq, vSeq = jogados.length && resultado(jogados[0]).v;
+      const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Aproveitamento", valor: aprov == null ? "—" : aprov + "%", legenda: "na copa, V é passar de fase" })}
+        ${numero({ rotulo: "Gols", valor: `${gols[0]} x ${gols[1]}`, legenda: `saldo ${(gols[0] > gols[1] ? "+" : "") + (gols[0] - gols[1])}` })}
+        ${numero({ rotulo: "Em casa", valor: campanha(p => p.casa === clube.id), legenda: "liga e playoff" })}
+        ${numero({ rotulo: "Fora", valor: campanha(p => p.casa !== clube.id), legenda: "liga e playoff" })}
+        ${numero({ rotulo: "Maior vitória", valor: maior ? maior[1].join(" x ") : "—", legenda: maior ? `contra ${cPor[maior[0].casa === clube.id ? maior[0].fora : maior[0].casa].nome}` : "" })}
+        ${numero({ rotulo: "Sequência", valor: nSeq ? `${nSeq} ${{ V: nSeq > 1 ? "vitórias" : "vitória", E: nSeq > 1 ? "empates" : "empate", D: nSeq > 1 ? "derrotas" : "derrota" }[vSeq]}` : "—", legenda: "a de agora", tom: vSeq === "V" ? "ok" : vSeq === "D" ? "bad" : "" })}</div>`;
+      const fita = jogados.length ? `<div class="t-cal-fita" style="--n:${jogados.length}" title="Do primeiro jogo ao último">${[...jogados].reverse().map(p => { const r = resultado(p), adv = cPor[p.casa === clube.id ? p.fora : p.casa];
         return `<a href="aovivo.html?id=${p.id}" data-v="${r.v}" title="${esc(adv.nome)} ${esc(r.texto.replace(/<[^>]*>/g, ""))} · ${esc(compCurta(p))}">${r.v}</a>`; }).join("")}</div>` : "";
       const prox = proximos[0], advP = prox && cPor[prox.casa === clube.id ? prox.fora : prox.casa], vivoP = prox && new Date(prox.inicio).getTime() <= agora;
       const topo = prox
