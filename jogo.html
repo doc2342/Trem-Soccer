@@ -1297,10 +1297,10 @@ async function telaClube(liga, clube) {
           ${temp ? `<button type="button" class="t-liga-atual" data-st="stTemp" data-v="">ir à atual</button>` : ""}<button type="button" data-st="stTemp" data-v="${ts[i - 1] || ""}" ${i > 0 ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>`)(ts.indexOf(temp)))([...$("stTemp").options].map(o => o.value))}</div>`;
     let corpo = "";
     if (d && d.jogos) {
-      const jog = linhas.length ? `<table class="t-tabela t-liga-tab t-st-tab"><tr><th></th><th class="t-esq">Jogador</th>${COLUNAS.map(([t, dica]) => `<th title="${dica}">${t}</th>`).join("")}</tr>
+      const jog = linhas.length ? `<table class="t-tabela t-liga-tab t-st-tab t-st-ord"><tr><th></th><th class="t-esq">Jogador</th>${COLUNAS.map(([t, dica]) => `<th title="${dica}">${t}</th>`).join("")}</tr>
         ${linhas.map((x, i) => { const c = cPor[x.clube] || {}; return `<tr class="${x.clube === clube.id ? "t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><span class="t-st-j">${c.id ? svgEscudo(c.escudo, c.sigla, 22) : ""}<span>${pp(x.pos || "")} ${lj(x.id, x.nome)}<small>${esc(c.nome || "")}</small></span></span></td>${COLUNAS.map(([, , f]) => `<td>${f(x)}</td>`).join("")}</tr>`; }).join("")}</table>`
         : `<p class="t-fajuda">Ninguém nessa lista ainda.</p>`;
-      const clu = `<table class="t-tabela t-liga-tab"><tr><th class="t-esq">Clube</th><th title="Jogos">J</th><th title="Gols marcados">GP</th><th title="Gols sofridos">GC</th><th class="t-lt-x" title="Finalizações por jogo">Fin</th><th class="t-lt-x" title="Posse de bola média">Pos</th><th title="Público médio em casa">Púb.</th></tr>
+      const clu = `<table class="t-tabela t-liga-tab t-st-ord"><tr><th class="t-esq">Clube</th><th title="Jogos">J</th><th title="Gols marcados">GP</th><th title="Gols sofridos">GC</th><th class="t-lt-x" title="Finalizações por jogo">Fin</th><th class="t-lt-x" title="Posse de bola média">Pos</th><th title="Público médio em casa">Púb.</th></tr>
         ${cl.map(x => { const c = cPor[x.clube]; return `<tr class="${x.clube === clube.id ? "t-eu" : ""}"><td class="t-esq"><a class="t-lt-clube" href="#clube=${c.id}" data-clube="${c.id}">${svgEscudo(c.escudo, c.sigla, 22)}<span>${esc(c.nome)}</span></a></td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td class="t-lt-x">${num((x.fin / x.j).toFixed(1))}</td><td class="t-lt-x">${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.publico == null ? "—" : num((x.publico / 1000).toFixed(1)) + " mil"}</td></tr>`; }).join("")}</table>`;
       const nota = `${lista === "notas" ? `Entra quem tem pelo menos ${d.minimo} jogos com 30 minutos ou mais. ` : ""}${lista === "goleiros" ? "Ordenado por jogos sem sofrer gol. " : ""}Os 20 primeiros; o clube é o do último jogo do jogador na competição.`;
       // recordes da competição na temporada, em números (na temporada em andamento, cada um abre o jogo)
@@ -1314,7 +1314,15 @@ async function telaClube(liga, clube) {
         <section>${rotulo("Clubes · por gols marcados")}${clu}${recs.length ? `<div class="t-st-bloco">${rotulo("Recordes da temporada")}<div class="t-st-recs t-st-painel">${recs.join("")}</div></div>` : ""}<div id="stPremios"></div></section></div>`;
     }
     el.innerHTML = `<div class="t-liga t-stats">${topo}${controles}${corpo || `<div id="stPremios"></div>`}<div id="stSelecao"></div></div>`;
-    el.onclick = e => { const b = e.target.closest("[data-st]"); if (!b || $(b.dataset.st).value === b.dataset.v) return; $(b.dataset.st).value = b.dataset.v; mostrarCompeticao("stats"); };
+    // clique no título de uma coluna ordena a tabela por ela (do maior para o menor; de novo, ao contrário); o nome em ordem alfabética
+    const ordenar = th => { const t = th.closest("table"), k = th.cellIndex, txt = th.classList.contains("t-esq"), volta = th.classList.contains("t-ord-1");
+      const valor = tr => { const c = tr.cells[k]; if (txt) return (c.querySelector("a") || c).textContent.trim();
+        const n = parseFloat(c.textContent.replace(/[^\d,]/g, "").replace(",", ".")); return isNaN(n) ? -Infinity : n; }; // "60,0 mil", "54%", "1,19", "—"
+      const linhas = [...t.rows].slice(1);
+      linhas.sort((a, b) => { const r = txt ? valor(a).localeCompare(valor(b), "pt-BR") : valor(b) - valor(a); return volta ? -r : r; }); // primeiro clique: maior primeiro (nome: A a Z)
+      t.querySelectorAll("th").forEach(h => h.classList.remove("t-ord-1", "t-ord-2")); th.classList.add(volta ? "t-ord-2" : "t-ord-1");
+      linhas.forEach(tr => tr.parentNode.appendChild(tr)); };
+    el.onclick = e => { const th = e.target.closest(".t-st-ord th"); if (th && th.textContent.trim()) return ordenar(th); const b = e.target.closest("[data-st]"); if (!b || $(b.dataset.st).value === b.dataset.v) return; $(b.dataset.st).value = b.dataset.v; mostrarCompeticao("stats"); };
   }
   // prêmios individuais e seleção da temporada, em linhas (escudo, jogador, o número que deu o prêmio)
   function premiosNovos(daqui, selecao, deQual, NOME) {

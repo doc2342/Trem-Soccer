@@ -1651,3 +1651,5 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-st-tab :is(td, th):nth-child(n+3) { min-width:58px; padding-left:12px; padding-right:12px; text-align:center; }
 .t-stats .t-liga-grade { grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); }
 @media (max-width:720px) and (pointer:coarse) { .t-st-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:6px; padding-right:6px; } }
+.t-st-ord th { cursor:pointer; user-select:none; } .t-st-ord th:hover { color:var(--t-tinta); }
+.t-st-ord th.t-ord-1::after { content:" ▼"; color:var(--t-marca); } .t-st-ord th.t-ord-2::after { content:" ▲"; color:var(--t-marca); }
