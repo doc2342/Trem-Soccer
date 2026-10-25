@@ -1980,6 +1980,29 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-rel-melhor b { display:block; font:800 20px/1.15 var(--t-letra); font-stretch:75%; margin-top:8px; } .t-rel-melhor span { font-size:13px; color:var(--t-noite-mut); }
 .t-rel-melhor em { font:900 56px/1 var(--t-letra); font-stretch:62%; font-style:normal; color:var(--t-marca); }
 .t-rel-pen .dsp { align-items:center; }
+/* rodada 3: gols e expulsões em duas colunas encostadas no placar (como na TV); público, renda e clima embaixo do melhor em campo */
+.t-rel-placar { margin-bottom:0; }
+.t-rel-evs { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:0 40px; margin-top:16px; padding-top:16px; border-top:1px solid var(--t-noite-fio); }
+.t-rel-evs .t-rel-ev { gap:6px; }
+.t-rel-evs .t-rel-ev li { display:block; text-align:right; line-height:1.3; }
+.t-rel-evs .t-rel-ev li::before { display:none; }
+.t-rel-evs .t-rel-ev li::after { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--t-noite-tx); margin-left:8px; vertical-align:1px; }
+.t-rel-evs .t-rel-ev-fora li { text-align:left; } .t-rel-evs .t-rel-ev-fora li::after { display:none; }
+.t-rel-evs .t-rel-ev-fora li::before { display:inline-block; margin-right:8px; vertical-align:1px; transform:none; }
+.t-rel-evs .t-rel-ev li[data-tipo=vermelho]::after, .t-rel-evs .t-rel-ev li[data-tipo=segundo]::after { width:7px; height:10px; border-radius:1px; background:var(--t-marca); }
+.t-rel-evs .t-rel-ev li[data-tipo=lesao]::after { content:"+"; width:auto; height:auto; background:none; font-weight:900; color:var(--t-marca); }
+.t-rel-evs .t-rel-ev small { display:inline; }
+.t-rel-faixa .t-faixa-lado .t-faixa-numeros { justify-content:flex-start; margin-top:16px; }
+/* o campinho com as linhas na altura da Tática: cada faixa posicionada (top em %) e a linha do meio no meio de verdade */
+.t-st-campo.t-rel-campo { display:block; height:680px; padding:0; }
+.t-rel-campo .t-st-linha { position:absolute; left:8px; right:8px; top:0; height:auto; transform:translateY(-24px); }
+.t-st-campo.t-rel-campo > i.t-st-meio { position:absolute; left:-2px; right:-2px; top:calc(50% - 25px); margin:0; } /* as linhas sobem meio pixel por % (o goleiro e o nome dele cabem no campo); a do meio acompanha */
+/* diretoria na coluna do analista: a confiança numa régua de 0 a 100 */
+.t-rel-conf { margin-top:16px; background:var(--t-placa); padding:12px 16px; }
+.t-rel-conf-n { display:flex; align-items:baseline; gap:8px; margin-top:8px; } .t-rel-conf-n b { font:900 32px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; } .t-rel-conf-n span { font-size:13px; color:var(--t-tinta2); }
+.t-rel-conf-barra { height:6px; background:var(--t-fio); margin:8px 0; } .t-rel-conf-barra i { display:block; height:100%; background:var(--t-tinta); }
+.t-rel-conf p { margin:0; font-size:14px; font-style:italic; color:var(--t-tinta); }
+.t-rel-conf small { display:block; font-size:12.5px; color:var(--t-tinta2); margin-top:8px; } .t-rel-conf small b.ok { color:var(--t-ok); } .t-rel-conf small b.bad { color:var(--t-marca); }
 /* o jogo contado */
 .t-rel-jogo .gr { margin:0 0 32px; border:0; padding:0; box-shadow:none; background:none; }
 .t-rel-abas { margin-top:24px; }
@@ -2005,10 +2028,6 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-rel-ordem { display:grid; grid-template-columns:44px minmax(0, 1fr); gap:8px; font-size:13.5px; padding:6px 0; border-top:1px solid var(--t-fio); } .t-rel-ordem:first-of-type { border-top:0; margin-top:4px; }
 .t-rel-ordem > b { color:var(--t-ok); font-variant-numeric:tabular-nums; } .t-rel-nao > b { color:var(--t-tinta3); } .t-rel-nao span { color:var(--t-tinta2); }
 .t-rel-ordem small { display:block; color:var(--t-tinta3); }
-.t-rel-diretoria { margin-top:32px; } .t-rel-diretoria .t-numero-rotulo { margin-bottom:8px; }
-.t-rel-dir { display:grid; grid-template-columns:56px minmax(0, 1fr); gap:16px; align-items:center; padding:8px 0; border-top:1px solid var(--t-fio); font-size:14px; }
-.t-rel-dir-n { font:900 36px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; } .t-rel-dir i { color:var(--t-tinta2); }
-.t-rel-dir small { display:block; color:var(--t-tinta2); font-size:12.5px; margin-top:4px; }
 .t-rel-saiu { margin-top:32px; }
 .t-rel-campo { gap:0; padding:20px 8px; } .t-rel-campo .t-st-s { width:19%; }
 .t-rel-campo .t-st-linha { height:100px; align-items:flex-start; } /* as 6 faixas sempre desenhadas, vazias ou não: os dois campos ficam da mesma altura */
@@ -2034,5 +2053,6 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
   .t-rel-nome { font-size:20px; overflow-wrap:break-word; } .t-rel-gols b { font-size:64px; }
   .t-rel-faixa .t-faixa-texto, .t-rel-faixa .t-faixa-lado { text-align:center; } .t-rel-faixa .t-rotulo { justify-content:center; } .t-rel-melhor { text-align:left; }
   .t-rel-an-corpo { grid-template-columns:minmax(0, 1fr); } .t-rel-an-campo { max-width:240px; margin:0 auto; }
-  .t-rel-campo .t-st-s { width:22%; }
+  .t-rel-campo .t-st-s { width:22%; } .t-st-campo.t-rel-campo { height:600px; }
+  .t-rel-faixa .t-faixa-lado .t-faixa-numeros { justify-content:center; }
 }

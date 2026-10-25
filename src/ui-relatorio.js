@@ -2,7 +2,7 @@
 import { POSICOES } from "./modelo.js";
 import { sg, pp, filasDoCampo } from "./siglas.js";
 import { htmlGraficos } from "./ui-graficos.js";
-import { rotulo, campoDeZonas, destacar } from "./ui-trem.js";
+import { rotulo, campoDeZonas, destacar, ALTURA_DA_FAIXA } from "./ui-trem.js";
 import { svgCamisa } from "./camisa.js";
 import { svgEscudo } from "./escudo.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -127,9 +127,10 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
 // Mesmos dados de htmlRelatorio. ids: [mandante, visitante] para os links do clube; uniformes: as camisas do jogo (uniformesDoJogo);
 // numeros: [nome → número da camisa] de cada time; titulo: o rótulo da faixa (competição · rodada); aviso: HTML logo abaixo dele;
 // fim: o que vai embaixo do placar; números da faixa (público, renda…) em `extras`; penaltis, diretoria e rodada: HTML pronto da tela; meu: o lado do dirigente que olha
-const FAIXAS_DO_CAMPO = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM"], ["DC", "SW", "DL", "DR", "WBL", "WBR"], ["GK"]];
-const ladoNoCampo = p => /^(DL|WBL|ML|AML|LW)$/.test(p) ? 0 : /^(DR|WBR|MR|AMR|RW)$/.test(p) ? 2 : 1;
-const faixaNoCampo = p => (i => i < 0 ? 2 : i)(FAIXAS_DO_CAMPO.findIndex(f => f.includes(p)));
+// no campinho, cada linha na altura que a Tática usa (ALTURA_DA_FAIXA: o meio no círculo central, volantes e alas logo abaixo)
+const FAIXA_DA_LINHA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
+const ladoNoCampo = p => ({ E: 0, C: 1, D: 2 })[(POSICOES[p] || {}).lado] ?? 1;
+const faixaNoCampo = p => FAIXA_DA_LINHA[(POSICOES[p] || {}).linha] ?? 2;
 const NUMEROS_DO_JOGO = [["Posse", e => e.posse + "%", e => e.posse], ["Finalizações", e => e.finalizacoes], ["No gol", e => e.noGol], ["xG", e => f2(e.xg), e => e.xg],
   ["Pela esquerda", e => e.corredor.E], ["Pelo centro", e => e.corredor.C], ["Pela direita", e => e.corredor.D],
   ["Escanteios", e => e.escanteios], ["Faltas", e => e.faltas], ["Amarelos", e => e.amarelos], ["Vermelhos", e => e.vermelhos], ["Impedimentos", e => e.impedimentos], ["Contra-ataques", e => e.contraAtaques]];
@@ -140,19 +141,22 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const tinta = (i, reserva) => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : reserva;
   // capítulo 1: o placar. Embaixo de cada time, os gols, as expulsões e as lesões (os amarelos ficam no campinho)
   const ev = eventosDoResumo(r.narracao, Object.fromEntries(r.jogadores.map(j => [j.id, j.nome])));
-  const item = e => `<li data-tipo="${e.tipo}"><span>${e.min}'</span> ${e.quem ? linkJogador(e.quem) : e.tipo === "gol" ? "gol" : ""}${e.tipo === "gol" && e.extra ? ` <small>${e.extra === "pênalti" ? "pênalti" : linkJogador(e.extra)}</small>` : e.tipo === "lesao" ? " <small>lesão</small>" : ""}</li>`;
-  const time = i => `<div class="t-rel-time${i ? " t-rel-fora" : ""}">${C[i].escudo || C[i].sigla ? lk(i, svgEscudo(C[i].escudo, C[i].sigla, 64)) : ""}<h1 class="t-rel-nome">${lk(i, n[i])}</h1>`
-    + `<ul class="t-rel-ev">${ev[i].filter(e => e.tipo !== "amarelo").map(item).join("")}</ul></div>`;
+  // como na TV: os do mandante alinhados à direita (o minuto encostado no meio), os do visitante à esquerda
+  const item = (e, i) => { const quem = `${e.quem ? linkJogador(e.quem) : e.tipo === "gol" ? "gol" : ""}${e.tipo === "gol" && e.extra ? ` <small>${e.extra === "pênalti" ? "pênalti" : linkJogador(e.extra)}</small>` : e.tipo === "lesao" ? " <small>lesão</small>" : ""}`;
+    return `<li data-tipo="${e.tipo}">${i ? `<span>${e.min}'</span> ${quem}` : `${quem} <span>${e.min}'</span>`}</li>`; };
+  const time = i => `<div class="t-rel-time${i ? " t-rel-fora" : ""}">${C[i].escudo || C[i].sigla ? lk(i, svgEscudo(C[i].escudo, C[i].sigla, 64)) : ""}<h1 class="t-rel-nome">${lk(i, n[i])}</h1></div>`;
+  const evs = [0, 1].map(i => ev[i].filter(e => e.tipo !== "amarelo").map(e => item(e, i)).join(""));
   const esp = [[nomes[0], E.vitoria], ["Empate", E.empate], [nomes[1], E.derrota]];
   const m = r.melhor;
   const faixa = `<section class="t-faixa t-sangra t-rel-faixa"><div class="t-faixa-texto">${rotulo(titulo)}${aviso}
     <div class="t-rel-placar">${time(0)}<div class="t-rel-gols"><b>${r.placar[0]}<i>×</i>${r.placar[1]}</b><small>${esc(fim)}</small></div>${time(1)}</div>
-    ${extras ? `<div class="t-faixa-numeros">${extras}</div>` : ""}</div>
+    ${evs[0] || evs[1] ? `<div class="t-rel-evs"><ul class="t-rel-ev">${evs[0]}</ul><ul class="t-rel-ev t-rel-ev-fora">${evs[1]}</ul></div>` : ""}</div>
     <div class="t-faixa-lado">${rotulo("Pelas chances criadas")}
       <div class="t-rel-esp">${esp.map(([nome, v], k) => `<div><b>${Math.round(v * 100)}<small>%</small></b><span>${k === 1 ? "empate" : esc(nome)}</span></div>`).join("")}</div>
       <div class="t-rel-barra"><i style="flex:${E.vitoria};background:${tinta(0, "var(--casa)")}"></i><i style="flex:${E.empate}"></i><i style="flex:${E.derrota};background:${tinta(1, "var(--fora)")}"></i></div>
       <p class="t-rel-xg">xG <b>${f2(r.xg[0])} × ${f2(r.xg[1])}</b> · pontos esperados <b>${f2(E.pontos[0])} × ${f2(E.pontos[1])}</b></p>
-      ${m ? `<div class="t-rel-melhor"><div><div class="t-numero-rotulo">Melhor em campo</div><b>${linkJogador(m.nome)}</b><span>${esc(nomes[m.time])}</span></div><em>${f1(m.nota)}</em></div>` : ""}</div></section>`;
+      ${m ? `<div class="t-rel-melhor"><div><div class="t-numero-rotulo">Melhor em campo</div><b>${linkJogador(m.nome)}</b><span>${esc(nomes[m.time])}</span></div><em>${f1(m.nota)}</em></div>` : ""}
+      ${extras ? `<div class="t-faixa-numeros">${extras}</div>` : ""}</div></section>`;
   // capítulo 2: o jogo contado — gráficos, a reprise e os números lado a lado
   const regua = `<div class="t-regua-cab"><span>${n[0]}</span><span>${n[1]}</span></div><div class="t-regua t-rel-regua">${NUMEROS_DO_JOGO.map(([nome, f, v = f]) => {
     const a = +v(r.estat[0]) || 0, b = +v(r.estat[1]) || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (x, maior) => maior ? `<b>${x}</b>` : `<span>${x}</span>`;
@@ -163,22 +167,23 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const ordem = meu === 1 ? [1, 0] : [0, 1];
   const itensDasOrdens = o => [...o.subs.map(s => [`aos ${s.min}' ${COND[s.cond] || s.cond}: sai ${esc(s.saiNome)}, entra ${esc(s.entraNome)}`, s]), ...o.ordens.map(x => [`a partir dos ${x.min}' ${COND[x.cond] || x.cond}: ${esc(textoMuda(x.muda))}`, x])];
   const ordensNovas = o => { const l = itensDasOrdens(o); return `<div class="t-rel-ordens"><div class="t-numero-rotulo">Suas ordens</div>${l.length ? l.map(([t, x]) => `<div class="t-rel-ordem${x.aos != null ? "" : " t-rel-nao"}"><b>${x.aos != null ? x.aos + "'" : "não"}</b><span>${t}${x.aos != null ? "" : ` <small>${esc(x.motivo)}</small>`}</span></div>`).join("") : `<p>Nenhuma substituição ou ordem planejada.</p>`}</div>`; };
-  const analista = i => { const [lead, ...resto] = r.analise[i] || [];
+  // relatórios gravados antes da correção em src/relatorio.js dizem "pela nossa centro da defesa"
+  const analista = i => { const [lead, ...resto] = (r.analise[i] || []).map(f => f.replace("pela nossa centro da defesa", "pelo centro da nossa defesa"));
     return `<article class="t-rel-analista"><div class="t-rel-an-cab">${C[i].escudo || C[i].sigla ? svgEscudo(C[i].escudo, C[i].sigla, 22) : ""}<b>${n[i]}</b><span>o analista</span></div>
       <div class="t-rel-an-corpo">${r.estat[i] && r.estat[i].zonas ? `<div class="t-rel-an-campo">${campoDeZonas(r.estat[i].zonas, r.estat[1 - i].zonas)}<small>duelos vencidos por zona · ataque em cima</small></div>` : ""}
-      <div>${lead ? `<p class="t-rel-lead">${destacar(lead)}</p>` : ""}<ul class="t-rel-frases">${resto.map(f => `<li>${destacar(f)}</li>`).join("")}</ul>${ordens && ordens[i] ? ordensNovas(ordens[i]) : ""}</div></div></article>`; };
+      <div>${lead ? `<p class="t-rel-lead">${destacar(lead)}</p>` : ""}<ul class="t-rel-frases">${resto.map(f => `<li>${destacar(f)}</li>`).join("")}</ul>${ordens && ordens[i] ? ordensNovas(ordens[i]) : ""}${(diretoria && diretoria[i]) || ""}</div></div></article>`; };
   // como cada um saiu: o campinho com a camisa do jogo e a nota; quem entrou embaixo
   const cor = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
   const sinais = j => `${j.gols ? `<i class="t-rel-s-gol">${j.gols > 1 ? j.gols : ""}</i>` : ""}${j.vermelho ? `<i class="t-rel-s-verm"></i>` : j.amarelos ? `<i class="t-rel-s-am"></i>` : ""}${j.lesionado ? `<i class="t-rel-s-les">+</i>` : ""}`;
   const naCamisa = (j, i) => `<div class="t-st-s"><span class="t-st-cam">${svgCamisa(j.pos === "GK" ? {} : U[i], 42, false, { numero: (numeros && numeros[i] && numeros[i](j.nome)) || "" })}<em class="${cor(j.nota)}">${f1(j.nota)}</em>${sinais(j)}</span><b>${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0])}</b><small>${esc(sg(j.pos))}${j.saiu != null && !j.vermelho ? ` · saiu ${j.saiu}'` : ""}</small></div>`;
   const campinho = i => { const { tit, res } = timeDoRelatorio(r, i);
-    return `<div><div class="t-cal-dia">${n[i]}</div><div class="t-st-campo t-rel-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i>${FAIXAS_DO_CAMPO.map((f, k) => (ps => `${k === 4 ? `<i class="t-st-meio"></i>` : ""}<div class="t-st-linha">${ps.sort((a, b) => ladoNoCampo(a.pos) - ladoNoCampo(b.pos)).map(j => naCamisa(j, i)).join("")}</div>`)(tit.filter(j => faixaNoCampo(j.pos) === k))).join("")}</div>
+    return `<div><div class="t-cal-dia">${n[i]}</div><div class="t-st-campo t-rel-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i><i class="t-st-meio"></i>${ALTURA_DA_FAIXA.map((alt, k) => (ps => !ps.length ? "" : `<div class="t-st-linha" style="top:calc(${alt}% - ${alt / 2}px)">${ps.sort((a, b) => ladoNoCampo(a.pos) - ladoNoCampo(b.pos)).map(j => naCamisa(j, i)).join("")}</div>`)(tit.filter(j => faixaNoCampo(j.pos) === k))).join("")}</div>
       ${res.length ? `<div class="t-rel-entraram"><span class="t-numero-rotulo">Entraram</span>${res.map(j => `<span>${linkJogador(j.nome)} <small>${esc(sg(j.pos))} · ${j.entrou}'</small> <b class="${cor(j.nota)}">${f1(j.nota)}</b></span>`).join("")}</div>` : ""}</div>`; };
   const cab = `<tr><th>Pos</th><th class="t-esq">Jogador</th><th>Nota</th><th>Min</th><th>Gols</th><th>Assist.</th><th>Final.</th><th>xG</th><th>Duelos</th><th>Defesas</th><th>Faltas</th><th>Cartões</th><th>Energia</th></tr>`;
   const linhaJ = j => `<tr><td>${esc(sg(j.pos))}</td><td class="t-esq">${linkJogador(j.nome)}</td><td><b class="${cor(j.nota)}">${f1(j.nota)}</b></td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + "–" + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${[j.amarelos ? "amarelo" : "", j.vermelho ? "vermelho" : "", j.lesionado ? "lesão" : ""].filter(Boolean).join(", ")}</td><td>${j.energia}%</td></tr>`;
   const tabela = `<details class="t-rel-mais"><summary>Todos os números dos jogadores</summary><div class="t-rel-rola"><table class="t-tabela t-rel-tab">${ordem.map(i => { const { tit, res } = timeDoRelatorio(r, i);
     return `<tr class="t-rel-tab-time"><td colspan="13" class="t-esq">${n[i]}</td></tr>${cab}${[...tit, ...res].map(linhaJ).join("")}`; }).join("")}</table></div></details>`;
-  const vestiario = `<section class="t-secao t-rel-vest" data-aba="resumo">${penaltis}${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div>${diretoria}</section>`;
+  const vestiario = `<section class="t-secao t-rel-vest" data-aba="resumo">${penaltis}${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div></section>`;
   const saiu = `<section class="t-secao t-rel-saiu" data-aba="jog">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}</section>`;
   // abas (data-ir; a tela troca a classe .fora-aba): o placar fica sempre em cima, um capítulo por vez embaixo
   const abas = [["resumo", "Resumo"], ["lances", "Lances"], ["graf", "Números"], ["jog", "Jogadores"], rodada && ["rodada", "Rodada"]].filter(Boolean);

@@ -72,7 +72,7 @@ function analise(partida, esperado, jogadores, i, nivel) {
   if (ataque.length) frases.push(`Nosso melhor caminho foi o ${NOME_ZONA[ataque[0][0]]}: ${pc(ataque[0][1])} dos duelos vencidos.`);
   const espelho = { AE: "DD", AC: "DC", AD: "DE" };
   const sofrido = ["AE", "AC", "AD"].map(z => [espelho[z], taxa(ele, z)]).filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
-  if (sofrido.length && sofrido[0][1] > 0.5) frases.push(`O adversário passou mais pela nossa ${NOME_ZONA[sofrido[0][0]]}: venceu ${pc(sofrido[0][1])} dos duelos ali.`);
+  if (sofrido.length && sofrido[0][1] > 0.5) frases.push(`O adversário passou mais ${sofrido[0][0] === "DC" ? "pelo centro da nossa defesa" : "pela nossa " + NOME_ZONA[sofrido[0][0]]}: venceu ${pc(sofrido[0][1])} dos duelos ali.`);
   const meio = ["ME", "MC", "MD"].reduce((s, z) => { s[0] += eu.zonas[z][0]; s[1] += eu.zonas[z][1]; return s; }, [0, 0]);
   if (meio[0] + meio[1] >= 10) frases.push(`No meio-campo vencemos ${pc(meio[0] / (meio[0] + meio[1]))} dos duelos com a bola e tivemos ${eu.posse}% de posse.`);
   if (nivel < 3) return frases;

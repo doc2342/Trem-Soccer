@@ -683,11 +683,12 @@ async function htmlDiretoria() {
     if (meta && i >= 0 && tab[i].j) { const avaliada = (i + 1 + esp[c.id]) / 2; v = variacaoDaConfianca({ avaliada, faixa: [meta.faixa_min, meta.faixa_max] });
       meta2 = meta.faixa_min === meta.faixa_max ? meta.faixa_min + "º" : `${meta.faixa_min}º a ${meta.faixa_max}º`;
       conta = ` Meta: ${meta2}; com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.`; }
-    // visual novo: uma linha por clube — confiança grande, a frase do presidente e a conta da meta
-    if (NOVO) return `<div class="t-rel-dir"><b class="t-rel-dir-n">${c.confianca}</b><div><b>${esc(clubes[c.id].nome)}</b> <i>“${fraseDoPresidente(c.confianca)}”</i>${v ? `<small>Meta ${meta2} · com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada</small>` : ""}</div></div>`;
+    // visual novo: o painel da diretoria de cada clube, que vai na coluna do analista dele (a régua da confiança, a frase do presidente e a conta da meta)
+    if (NOVO) return [c.id, `<div class="t-rel-conf"><div class="t-numero-rotulo">Diretoria</div><div class="t-rel-conf-n"><b>${c.confianca}</b><span>de confiança</span></div><div class="t-rel-conf-barra"><i style="width:${Math.max(0, Math.min(100, c.confianca))}%"></i></div>`
+      + `<p>“${fraseDoPresidente(c.confianca)}”</p>${v ? `<small>Meta: ${meta2}. Com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.</small>` : ""}</div>`];
     return `<div style="margin:3px 0"><b>${esc(clubes[c.id].nome)}</b>: confiança ${c.confianca}. <i>“${fraseDoPresidente(c.confianca)}”</i>${conta}</div>`;
   });
-  if (NOVO) return linhas.length ? `<div class="t-rel-diretoria"><div class="t-numero-rotulo">Diretoria · confiança</div>${linhas.join("")}</div>` : "";
+  if (NOVO) { const de = Object.fromEntries(linhas); return [de[partida.casa] || "", de[partida.fora] || ""]; } // [mandante, visitante]
   return `<div class="card" data-aba="resumo"><h2>Diretoria</h2>${linhas.join("")}</div>`;
 }
 // Notas de contexto dos gols desta partida: o que o gol muda na tabela e na artilharia. lances: os liberados, com a hora de cada um.
