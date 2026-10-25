@@ -36,8 +36,29 @@ document.addEventListener("change", async e => { const x = e.target.closest("[da
   const av = document.getElementById("sedeAviso"), { error } = await sb.rpc("trocar_sede", { p_liga: +x.dataset.liga, p_chave: x.dataset.sede, p_sede: x.value });
   if (av) av.innerHTML = error ? `<span class="bad">${error.message}</span>` : `<span class="ok">${FINAIS[x.dataset.sede]}: ${SEDES[x.value].nome}.</span>`; });
 import { svgEscudo, visualAleatorio } from "./src/escudo.js";
+import { faixa, numero, rotulo } from "./src/ui-trem.js";
 
 const $ = id => document.getElementById(id);
+// visual novo (trem.css): mesmos ids e mesmos handlers; muda só o HTML
+const NOVO = document.documentElement.dataset.visual === "novo";
+if (NOVO) {
+  document.querySelector("main > div").outerHTML = `<header class="t-topo t-sangra t-adm-topo"><span class="t-topo-marca">Trem <span>Soccer</span></span><b class="t-adm-nome">Administração</b>
+    <span class="relogio t-topo-prox t-topo-so-pc" title="Hora deste aparelho"></span><div class="t-topo-fim"><a class="t-botao t-botao-link" href="jogo.html">Ir para o jogo</a><span class="t-topo-prox t-topo-so-pc" id="quem"></span><button type="button" class="t-botao" id="sair" hidden>Sair</button></div></header>`;
+  document.querySelector("main").classList.add("t-adm");
+}
+// no lugar dos selects: botões (chips ou ‹ ›) que mudam um select escondido e disparam o change que a tela já escuta
+const selEscondido = (id, opcoes, atual) => `<select id="${id}" hidden>${opcoes.map(([v, t]) => `<option value="${esc(v)}"${String(v) === String(atual) ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+const chips = (id, opcoes, atual) => selEscondido(id, opcoes, atual) + `<div class="t-transf-filtro">${opcoes.map(([v, t]) => `<button type="button" data-sel="${id}" data-v="${esc(v)}"${String(v) === String(atual) ? ` class="ligado"` : ""}>${esc(t)}</button>`).join("")}</div>`;
+const passos = (id, opcoes, atual) => { const i = opcoes.findIndex(([v]) => String(v) === String(atual)), v = k => opcoes[k] ? esc(opcoes[k][0]) : "";
+  return selEscondido(id, opcoes, atual) + `<div class="t-adm-passo"><button type="button" data-sel="${id}" data-v="${v(i - 1)}"${i > 0 ? "" : " disabled"} aria-label="Anterior">‹</button><b>${esc((opcoes[i] || [, ""])[1])}</b><button type="button" data-sel="${id}" data-v="${v(i + 1)}"${i < opcoes.length - 1 ? "" : " disabled"} aria-label="Próximo">›</button></div>`; };
+const MAIS = 8, extra = (i, n = MAIS) => i >= n ? " hidden data-extra" : "";
+const verMais = (total, texto, n = MAIS) => total > n ? `<div class="t-botoes"><button type="button" class="t-botao" data-ver-mais>${texto}</button></div>` : "";
+document.addEventListener("click", e => {
+  const m = e.target.closest("[data-ver-mais]"); if (m) { m.closest("section").querySelectorAll("[data-extra]").forEach(x => { x.hidden = false; }); m.parentElement.remove(); return; }
+  const b = e.target.closest("[data-sel]"), s = b && $(b.dataset.sel); if (!s) return;
+  b.parentElement.querySelectorAll(".ligado").forEach(x => x.classList.remove("ligado")); b.classList.add("ligado");
+  s.value = b.dataset.v; s.dispatchEvent(new Event("change"));
+});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const nomes = await (await fetch("./dados/nomes.json")).json();
 const GRUPOS = ["A", "B", "C", "D", "E"], POR_GRUPO = 10, NIVEL = 30;
@@ -58,7 +79,17 @@ async function pedidos(aviso = "") {
   const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-], select[id^=pedClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada hora: guarda o que o admin já escolheu
   const bots = l.length || extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
   nPedidos = l.length + extras.length; titulo();
-  el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada hora</span></h2>
+  if (NOVO) {
+    const ordem = (a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome);
+    const linha = (p, tag, id, opcoes, aprova, recusa) => `<div class="t-adm-ped">${svgEscudo(p.escudo, p.sigla, 44)}<div class="t-adm-ped-quem"><b>${esc(p.nome)}</b> <span class="t-adm-sigla">${esc(p.sigla)}</span>${tag ? ` <span class="t-giro-tipo">${esc(tag)}</span>` : ""}<small>${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</small></div>
+      <div class="t-botoes"><button type="button" class="t-botao t-botao-principal" ${aprova}>Aprovar</button><button type="button" class="t-botao t-adm-perigo" ${recusa}>Recusar</button></div>
+      <div class="t-adm-ped-clube"><span class="t-numero-rotulo">Assume</span>${chips(id, [["", "Sorteio"], ...opcoes], escolha[id] || "")}</div></div>`;
+    el.hidden = !nPedidos && !aviso;
+    el.innerHTML = `${rotulo(`Para resolver · ${nPedidos} ${nPedidos === 1 ? "pedido de clube" : "pedidos de clube"}`)}
+      ${l.map(p => linha(p, "", "pedClube-" + p.id, bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO).sort(ordem).map(c => [c.id, `${c.nome} · ${c.grupo}`]), `data-aprova="${p.id}"`, `data-recusa="${p.id}"`)).join("")}
+      ${extras.map(p => linha(p, "clube extra · " + p.pais, "extraClube-" + p.user_id, bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort(ordem).map(c => [c.id, c.nome]), `data-aprova-extra="${p.user_id}"`, `data-recusa-extra="${p.user_id}"`)).join("")}
+      ${aviso ? `<p class="t-adm-msg">${esc(aviso)}</p>` : ""}`;
+  } else el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada hora</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO).sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
@@ -126,7 +157,11 @@ async function dirigentes() {
   const l = principais.flatMap(c => [c, ...comDono.filter(x => x.dono === c.dono && x !== c && x.extra).sort(maisNovo).map(x => ({ ...x, de: c }))]);
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
   nDirigentes = new Set(comDono.map(c => c.dono)).size; titulo();
-  el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada hora · o número também aparece no título da aba</span></h2>
+  if (NOVO) el.innerHTML = `${rotulo(`Dirigentes · ${nDirigentes}, com ${l.length} de ${clubes.length} clubes`)}
+    ${l.length ? `<table class="t-tabela t-adm-dir"><tr><th></th><th class="t-esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="t-esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
+      ${l.map((c, i) => `<tr${c.de ? ` class="t-adm-extra"` : ""}${extra(i)}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="t-esq">${c.de ? `↳ ` : ""}<b>${esc(c.nome)}</b>${novo(c) ? ` <span class="t-giro-tipo t-adm-novo">novo</span>` : ""}${c.de ? ` <small>clube extra de ${esc(c.de.nome)}</small>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="t-esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button type="button" class="t-adm-mini t-adm-perigo" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table>${verMais(l.length, `Ver os ${l.length}`)}`
+      : `<p class="t-fajuda">Nenhum clube com dirigente ainda.</p>`}`;
+  else el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada hora · o número também aparece no título da aba</span></h2>
     ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
       ${l.map(c => `<tr${c.de ? ` style="font-size:.94em"` : ""}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${c.de ? `<span class="mut">↳</span> ` : ""}${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}${c.de ? ` <span class="mut">· clube extra de ${esc(c.de.nome)}</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
   el.onclick = async e => {
@@ -141,11 +176,15 @@ async function dirigentes() {
 async function partidasAdmin() {
   const el = $("partidasAdm"); if (!el) return;
   const liga = await ligaAtual(), todas = await partidasDaLiga(liga.id), clubes = Object.fromEntries((await clubesDaLiga(liga.id)).map(c => [c.id, c]));
-  const g = $("admGrupo") ? $("admGrupo").value : "A", rodadas = [...new Set(todas.map(p => p.rodada))];
-  const ultimaFeita = Math.max(1, ...todas.filter(p => p.processada).map(p => p.rodada));
-  const r = $("admRodada") ? +$("admRodada").value : ultimaFeita;
+  const g = $("admGrupo") ? $("admGrupo").value : "A", doGrupo = NOVO ? todas.filter(p => p.grupo === g) : todas, rodadas = [...new Set(doGrupo.map(p => p.rodada))].sort((a, b) => a - b);
+  const ultimaFeita = Math.max(1, ...doGrupo.filter(p => p.processada).map(p => p.rodada));
+  const r = $("admRodada") && (!NOVO || rodadas.includes(+$("admRodada").value)) ? +$("admRodada").value : ultimaFeita;
   const lista = todas.filter(p => p.grupo === g && p.rodada === r), res = Object.fromEntries((await resultadosDe(lista.map(p => p.id), true)).map(x => [x.partida_id, x]));
-  el.innerHTML = `<h2>Partidas <span class="tag">refazer apaga o resultado e calcula de novo · trocar o placar serve para W.O. e não mexe no relatório</span></h2>
+  if (NOVO) el.innerHTML = `${rotulo("Partidas")}<div class="t-adm-ctrl">${chips("admGrupo", gruposDe(Object.values(clubes)).map(x => [x, x]), g)}${passos("admRodada", rodadas.map(x => [x, "Rodada " + x]), r)}</div>
+    ${lista.map(p => { const x = res[p.id]; return `<div class="t-adm-jogo"><span class="t-adm-casa">${esc(clubes[p.casa].nome)} ${svgEscudo(clubes[p.casa].escudo, clubes[p.casa].sigla, 24)}</span><b class="t-adm-placar">${x ? `${x.gols_casa} × ${x.gols_fora}` : "×"}</b><span>${svgEscudo(clubes[p.fora].escudo, clubes[p.fora].sigla, 24)} ${esc(clubes[p.fora].nome)}</span>
+      <span class="t-adm-jogo-acoes">${p.processada ? `<a class="t-botao t-botao-link" href="aovivo.html?id=${p.id}">Ver</a><button type="button" class="t-adm-mini" data-refaz="${p.id}">Refazer</button><button type="button" class="t-adm-mini" data-placar="${p.id}">Trocar o placar</button>` : `<small>${dataHora(p.inicio)}</small>`}</span></div>`; }).join("") || `<p class="t-fajuda">Sem partidas.</p>`}
+    <p class="t-fajuda">Refazer apaga o resultado e calcula de novo. Trocar o placar serve para W.O. e não mexe no relatório.</p>`;
+  else el.innerHTML = `<h2>Partidas <span class="tag">refazer apaga o resultado e calcula de novo · trocar o placar serve para W.O. e não mexe no relatório</span></h2>
     <div class="row"><label>Grupo<select id="admGrupo">${gruposDe(Object.values(clubes)).map(x => `<option ${x === g ? "selected" : ""}>${x}</option>`).join("")}</select></label>
       <label>Rodada<select id="admRodada">${rodadas.map(x => `<option value="${x}" ${x === r ? "selected" : ""}>Rodada ${x}</option>`).join("")}</select></label></div>
     <div style="margin-top:8px">${lista.map(p => { const x = res[p.id]; return `<div class="lance" style="align-items:center"><span>${esc(clubes[p.casa].nome)} <b>${x ? `${x.gols_casa} x ${x.gols_fora}` : "x"}</b> ${esc(clubes[p.fora].nome)}</span>
@@ -204,7 +243,64 @@ async function tela(aviso = "") {
   const nomeDaData = r => r === 100 ? "Supercopa" : r === 406 ? "Recopa" : r > 300 ? "Sul-Americana: " + (FASES_DA_COPA[r - 300] || "").toLowerCase() : r > 200 ? "Libertadores: " + (FASES_DA_COPA[r - 200] || "").toLowerCase() : r > 100 ? "Copa: " + (FASES_DA_COPA[r - 100] || "fase " + (r - 100)).toLowerCase() : r === 19 ? "Playoff: semifinais" : r === 20 ? "Playoff: final" : r === 21 ? "Final do acesso" : "Rodada " + r;
   const proxima = (rodadas.find(x => x.feitas < x.total) || {}).r;
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  $("app").innerHTML = `<div class="card"><h2>Liga</h2>${liga
+  // visual novo: faixa (liga e próxima data) → para resolver → calendário → dirigentes → temporada → números → manutenção
+  const telaNova = () => {
+    const ajuda = t => `<details class="t-fajuda"><summary>Como funciona</summary><p>${t}</p></details>`;
+    const sec = (id, r, corpo) => `<section class="t-adm-sec"${id ? ` id="${id}"` : ""}>${r ? rotulo(r) : ""}${corpo}</section>`;
+    const item = (nome, texto, botoes) => `<div class="t-adm-item"><b>${nome}</b><span>${texto}</span><div class="t-adm-item-bt">${botoes}</div></div>`;
+    if (!liga) return faixa({ rotulo: "Administração", titulo: "Nenhuma liga", frase: `A criação gera ${GRUPOS.length * POR_GRUPO} clubes sem dono, em ${GRUPOS.length} grupos de ${POR_GRUPO}, cada um com 22 jogadores de mesmo nível. Leva cerca de um minuto.`,
+      lado: `<div class="t-adm-acoes"><label class="t-adm-campo">Nome da liga<input id="nomeLiga" value="Liga de testes"></label><button type="button" class="t-botao t-botao-principal" id="criar">Criar a liga</button></div>` }) + `<p class="t-adm-msg" id="progresso">${esc(aviso)}</p>`;
+    const prox = rodadas.find(x => x.feitas < x.total), atrasadas = rodadas.reduce((s, x) => s + x.atrasadas, 0);
+    const topo = faixa({ rotulo: "Administração · Liga", titulo: liga.nome, apagado: `Temporada ${liga.temporada}`,
+      destaque: prox ? nomeDaData(prox.r) + ":" : partidas.length ? "Temporada encerrada." : "Sem calendário.",
+      frase: prox ? `começa ${dataHora(prox.inicio)}, ${prox.feitas} de ${prox.total} jogos calculados.` : partidas.length ? "Todas as partidas foram calculadas: prepare a virada." : "Gere o calendário da temporada aqui embaixo.",
+      numeros: [numero({ rotulo: "Calculadas", valor: feitas, sufixo: "/ " + partidas.length }), numero({ rotulo: "Atrasadas", valor: atrasadas, tom: atrasadas ? "bad" : "" }),
+        numero({ rotulo: "Dirigentes", valor: humanos, sufixo: "/ " + clubes.length }), numero({ rotulo: "Transmissão", valor: liga.minutos_transmissao ? liga.minutos_transmissao : "0", sufixo: liga.minutos_transmissao ? "min" : "instantâneo" })].join(""),
+      lado: `<div class="t-adm-acoes">${(c => c ? `<div class="t-carimbo t-adm-carimbo">${c[0]}<small>${c[1]}</small></div>` : "")(liga.pausada ? ["Liga pausada", "desde " + dataHora(liga.pausada_em)] : partidas.length && !prox ? ["Temporada encerrada", "prepare a virada"] : null)}${prox ? `<button type="button" class="t-botao t-botao-principal" id="antecipar">Jogar agora: ${esc(nomeDaData(prox.r).toLowerCase())}</button>` : ""}
+        ${partidas.length ? `<button type="button" class="t-botao" id="processar">Calcular as atrasadas</button><label><input type="checkbox" id="auto" ${auto ? "checked" : ""}> conferir a cada hora com esta página aberta</label>` : ""}
+        <button type="button" class="t-botao" id="pausar">${liga.pausada ? "Retomar a liga" : "Pausar a liga"}</button>
+        ${liga.pausada ? `<small>Ao retomar, as partidas que faltam são adiadas pelo tempo da pausa.</small>` : ""}</div>` });
+    const estado = x => x.feitas === x.total ? "feita" : x.atrasadas ? "atrasada" : x.r === proxima ? "proxima" : "";
+    const calendario = partidas.length
+      ? `<div class="t-adm-datas">${rodadas.map((x, i, a) => { const k = a.findIndex(y => y.feitas < y.total), de = k < 0 ? a.length - 7 : Math.max(0, k - 2); return `<div class="t-adm-data" data-estado="${estado(x)}"${i < de || i >= de + 7 ? " hidden data-extra" : ""}><b>${esc(nomeDaData(x.r))}</b><span>${dataHora(x.inicio)}</span><i>${x.feitas} de ${x.total}</i></div>`; }).join("")}</div>${verMais(rodadas.length, `Ver as ${rodadas.length} datas`, 7)}
+         <p class="t-fajuda">${partidas.length} partidas em ${rodadas.length} datas · tática fecha ${liga.prazo_escalacao_seg} s antes do apito.</p>`
+      : `<div class="t-adm-form"><label class="t-adm-campo">Primeira rodada<input type="datetime-local" id="inicio" value="${daqui}"></label><label class="t-adm-campo">Intervalo entre as datas (min)<input type="number" id="intervalo" value="1440" min="1"></label>
+           <label class="t-adm-campo" title="Fora desse horário o relógio do calendário para. 0 e 24 = sem restrição.">Jogos só entre (h)<span class="t-adm-par"><input type="number" id="abre" value="0" min="0" max="23"> e <input type="number" id="fecha" value="24" min="1" max="24"></span></label>
+           <label class="t-adm-campo">Transmissão (min; 0 = instantâneo)<input type="number" id="duracao" value="105" min="0"></label><label class="t-adm-campo">Tática fecha antes do apito (s)<input type="number" id="prazo" value="1" min="0"></label>
+           <label class="t-adm-check" title="Uma data de copa depois das rodadas 2, 5, 8, 11, 14 e 17 da liga; precisa do SQL 47"><input type="checkbox" id="comCopa" checked> Com a Copa do Brasil</label>
+           <div class="t-adm-form-fim"><button type="button" class="t-botao t-botao-principal" id="gerar">Gerar o calendário</button></div></div>
+         ${ajuda("Cada grupo joga turno e returno. Duração 105 = transmissão ao vivo em tempo real (lances minuto a minuto, relatório só no apito final). Um número menor acelera o jogo (15 = partida inteira em 15 minutos); 0 mostra o resultado e o relatório na hora, sem transmissão. A tática fechando 1 segundo antes é valor de teste; na liga de verdade serão 900 segundos. Com o botão de jogar a rodada agora, não é preciso esperar o intervalo.")}`;
+    const temporada = `<div class="t-adm-item"><b>Diretoria</b><span>Metas da temporada ${liga.temporada}: <span id="metasInfo">…</span>. Recalcule logo antes da 1ª rodada: é com ela que o patrocínio de cada clube trava.</span>
+        <div class="t-adm-item-bt"><label class="t-adm-check">Simulações <input type="number" id="nSim" value="${CONFIG_DIRETORIA.simulacoes}" min="10" style="width:80px"></label><button type="button" class="t-botao" id="calcMetas" ${partidas.length ? "" : "disabled"}>Calcular as metas</button></div></div>
+      <p class="t-adm-msg" id="avisoMetas"></p>
+      <div class="t-adm-item"><b>Playoffs de acesso</b><span>O servidor cria cada fase sozinho, nas datas reservadas. O botão só antecipa ou escolhe outra hora.</span>
+        <div class="t-adm-item-bt"><input type="datetime-local" id="inicioPlayoff" value="${daqui}"><button type="button" class="t-botao" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase</button></div></div>
+      <div class="t-adm-item"><b>Virada</b><span>Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada.</span>
+        <div class="t-adm-item-bt"><label class="t-adm-check" title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label>
+          <label class="t-adm-check" title="Só na virada T13→T14: ninguém cai da A; sobem 2 das Bs (dirigente ativo primeiro, depois campeões); a Série B nova (3 grupos de 8) são os outros 18 das Bs e os 3 primeiros de cada C em serpentina pela força do onze; os outros 14 da C ficam guardados"><input type="checkbox" id="transicao"> Transição A 12 + B 3×8</label>
+          <button type="button" class="t-botao t-botao-principal" id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da T${liga.temporada}</button></div></div>
+      ${ajuda("A virada paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova. A meta de cada clube com dirigente é a faixa central de posições em várias simulações da temporada (todos com tática de bot); sem meta, vale a posição pela força do elenco, com uma de folga para cada lado. Série B (cada grupo de 8): 14 rodadas → preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate, passa o mandante) → semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6 → final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado, passa a melhor campanha). O vencedor sobe; caem 3 da A, um para cada grupo.")}
+      <div id="previaVirada" class="t-adm-previa"></div>`;
+    const paises = clubes.filter(c => PAISES[c.grupo]).length >= Object.keys(PAISES).length * POR_GRUPO;
+    const sedes = liga.sedes && liga.sedes.temporada === liga.temporada
+      ? `<div class="t-adm-sedes">${Object.entries(FINAIS).map(([k, n]) => `<label class="t-adm-campo">${n}<select data-sede="${k}" data-liga="${liga.id}">${Object.entries(SEDES).map(([sk, sv]) => `<option value="${sk}" ${(liga.sedes[k] || (k === "LIB" ? "maracana" : "")) === sk ? "selected" : ""}>${sv.nome} (${sv.lugares.toLocaleString("pt-BR")})</option>`).join("")}</select></label>`).join("")}</div><p class="t-fajuda" id="sedeAviso"></p>`
+      : `O sorteio desta temporada sai quando a primeira final for marcada.`;
+    const manutencao = item("Backup", "Uma cópia no servidor ou neste computador.", `<button type="button" class="t-botao" id="backupServidor">Backup no servidor</button><button type="button" class="t-botao" id="baixarCopia">Baixar uma cópia</button>`)
+      + item("Contratos", "Salários e contratos iniciais para quem ainda não tem.", `<button type="button" class="t-botao" id="contratos">Definir</button>`)
+      + item("Outros países", Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length}`).join(" · "), `<button type="button" class="t-botao" id="criarPaises" ${paises ? "disabled" : ""}>Criar os que faltam</button>`)
+      + `<div class="t-adm-item t-adm-item-largo"><b>Sedes das finais</b><span>${sedes}</span></div>`
+      + item("Teste", `Reiniciar apaga calendário, resultados, extratos, obras e histórico, e devolve jogadores, caixa, torcida, estádio e estruturas ao estado inicial. Dirigentes, clubes e táticas ficam.`,
+        `<label class="t-adm-check"><input type="checkbox" id="sortear" checked> sortear os dirigentes</label><button type="button" class="t-botao" id="guardarEstado">Guardar o elenco de agora como inicial</button><button type="button" class="t-botao t-adm-perigo" id="reiniciar">Reiniciar o teste</button>`)
+      + `<p class="t-adm-msg" id="avisoTeste"></p>`
+      + item("Apagar", "A liga, todos os clubes e jogadores. Não dá para desfazer.", `${partidas.length ? `<button type="button" class="t-botao t-adm-perigo" id="apagarCal">Apagar o calendário</button>` : ""}<button type="button" class="t-botao t-adm-perigo" id="apagar">Apagar a liga</button>`);
+    const grupos = [...gruposDe(clubes), GUARDADO].map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div><b>${esc(nomeDoGrupo(g))}</b>${l.map(c => `<div class="t-adm-clube">${svgEscudo(c.escudo, c.sigla, 20)}<span>${esc(c.nome)}</span><small>${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</small></div>`).join("")}</div>` : ""; }).join("");
+    return topo + `<p class="t-adm-msg" id="progresso">${esc(aviso)}</p><section class="t-adm-sec" id="pedidos" hidden></section>`
+      + sec("", "Calendário", calendario) + (partidas.length ? `<section class="t-adm-sec" id="partidasAdm"></section>` : "")
+      + `<section class="t-adm-sec" id="dirigentes"></section>` + sec("", "Temporada", temporada)
+      + `<section class="t-adm-sec" id="transfAdm"></section><section class="t-adm-sec" id="economiaAdm"></section>` + (partidas.length ? `<section class="t-adm-sec" id="saudeAdm"></section>` : "")
+      + sec("", "Manutenção", manutencao) + `<details class="t-adm-sec t-adm-grupos"><summary>${rotulo("Clubes por grupo")}</summary><div class="t-adm-grupos-l">${grupos}</div></details>`;
+  };
+  $("app").innerHTML = NOVO ? telaNova() : `<div class="card"><h2>Liga</h2>${liga
     ? `<div>${esc(liga.nome)} · temporada ${liga.temporada} · ${clubes.length} clubes, ${humanos} com dirigente e ${clubes.length - humanos} do bot.</div>
        ${liga.pausada ? `<div class="aviso" style="margin-top:6px">Liga pausada desde ${dataHora(liga.pausada_em)}: nenhuma partida é calculada. Ao retomar, as partidas que faltam são adiadas pelo tempo da pausa.</div>` : ""}
        <div class="row" style="margin-top:10px"><button id="pausar">${liga.pausada ? "Retomar a liga" : "Pausar a liga"}</button><button class="sec" id="contratos">Definir salários e contratos iniciais</button><button class="sec" id="backupServidor">Fazer backup no servidor agora</button><button class="sec" id="baixarCopia">Baixar uma cópia para este computador</button><button class="sec" id="apagar">Apagar a liga e todos os clubes</button></div>`
@@ -251,8 +347,15 @@ async function tela(aviso = "") {
   const transf = async (aviso = "") => {
     if (!$("transfAdm")) return;
     const l = await transferenciasDaLiga(liga.id, 60), nome = Object.fromEntries(clubes.map(c => [c.id, c.nome]));
-    const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre" };
-    $("transfAdm").innerHTML = `<h2>Transferências <span class="tag">anular devolve o jogador ao clube de origem e o dinheiro a quem pagou</span></h2>
+    const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre", agente: "venda pelo agente", agente_vermelho: "agente (caixa no vermelho)" };
+    const janela = t => t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : "";
+    if (NOVO) $("transfAdm").innerHTML = `${rotulo("Transferências")}
+      ${l.length ? `<div class="t-adm-larga"><table class="t-tabela t-adm-tab"><tr><th class="t-esq">Jogador</th><th class="t-esq">De → para</th><th class="t-esq">Tipo</th><th>Valor</th><th>Taxa</th><th>Quando</th><th></th></tr>
+        ${l.map((t, i) => `<tr${extra(i)}><td class="t-esq"><b>${esc(t.jogador)}</b> <small>${pp(t.pos || "")}</small></td><td class="t-esq">${esc(nome[t.de_clube] || "—")} → ${esc(nome[t.para_clube] || "—")}</td><td class="t-esq">${TIPO[t.tipo] || esc(t.tipo)}</td><td><b>${dinheiro(t.valor)}</b></td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>T${t.temporada}${janela(t)}</td>
+          <td>${t.de_clube && t.para_clube ? `<button type="button" class="t-adm-mini t-adm-perigo" data-anular="${t.id}">Anular</button>` : ""}</td></tr>`).join("")}</table></div>
+        ${verMais(l.length, `Ver as ${l.length}`)}` : `<p class="t-fajuda">Nenhuma transferência ainda.</p>`}
+      <p class="t-fajuda">Anular devolve o jogador ao clube de origem e o dinheiro a quem pagou.</p>${aviso ? `<p class="t-adm-msg">${esc(aviso)}</p>` : ""}`;
+    else $("transfAdm").innerHTML = `<h2>Transferências <span class="tag">anular devolve o jogador ao clube de origem e o dinheiro a quem pagou</span></h2>
       ${l.length ? `<div class="rolagem" style="max-height:300px;overflow:auto"><table><tr><th class="esq">Jogador</th><th class="esq">De</th><th class="esq">Para</th><th>Tipo</th><th>Valor</th><th>Taxa</th><th>Temporada</th><th></th></tr>
         ${l.map(t => `<tr><td class="esq">${pp(t.pos || "")} ${esc(t.jogador)}</td><td class="esq">${esc(nome[t.de_clube] || "—")}</td><td class="esq">${esc(nome[t.para_clube] || "—")}</td><td>${TIPO[t.tipo] || esc(t.tipo)}</td><td>${dinheiro(t.valor)}</td><td>${t.taxa ? dinheiro(t.taxa) : "—"}</td><td>${t.temporada}${t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : ""}</td>
           <td>${t.de_clube && t.para_clube ? `<button class="sec" data-anular="${t.id}">Anular</button>` : ""}</td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhuma transferência ainda.</div>`}
@@ -273,12 +376,14 @@ async function tela(aviso = "") {
     catch (err) { erro = "Rode o supabase/121_economia_da_temporada.sql (" + err.message + ")"; }
     const temps = [liga.temporada, ...new Set(guardadas.map(x => x.temporada))].filter((t, i, a) => a.indexOf(t) === i);
     const t = (x, k) => (x.por_tipo || {})[k] || 0, quem = x => `${x.clubes}${x.dirigentes ? ` <span class="tag">${x.dirigentes} dir.</span>` : ""}`;
-    $("economiaAdm").innerHTML = `<h2>Economia por temporada <span class="tag">médias por clube · operacional = TV, patrocínio, bilheteria, Sócio-Torcedor e comida menos salários, manutenção e treinadores</span></h2>
-      <div class="row" style="margin-bottom:8px"><label>Temporada <select id="ecoTemp">${temps.map(x => `<option value="${x}" ${x === temp ? "selected" : ""}>T${x}${x === liga.temporada ? " (em andamento)" : ""}</option>`).join("")}</select></label></div>
-      ${erro ? `<div class="mut">${esc(erro)}</div>` : linhas.length ? `<div class="rolagem" style="overflow:auto"><table><tr><th class="esq">Grupo</th><th>Clubes</th><th>Caixa médio</th><th>Mín · máx</th><th>Folha</th><th>Operacional</th><th>Vendas − compras</th><th>Prêmio</th><th>Saldo</th><th>No vermelho</th><th title="caixa positivo, mas acaba em até 2 temporadas no ritmo desta">Vermelho em ≤ 2</th></tr>
+    $("economiaAdm").innerHTML = NOVO ? `${rotulo("Economia por temporada · médias por clube")}${chips("ecoTemp", temps.map(x => [x, `T${x}${x === liga.temporada ? " (em andamento)" : ""}`]), temp)}` : `<h2>Economia por temporada <span class="tag">médias por clube · operacional = TV, patrocínio, bilheteria, Sócio-Torcedor e comida menos salários, manutenção e treinadores</span></h2>
+      <div class="row" style="margin-bottom:8px"><label>Temporada <select id="ecoTemp">${temps.map(x => `<option value="${x}" ${x === temp ? "selected" : ""}>T${x}${x === liga.temporada ? " (em andamento)" : ""}</option>`).join("")}</select></label></div>`;
+    $("economiaAdm").innerHTML += `
+      ${erro ? `<div class="mut">${esc(erro)}</div>` : linhas.length ? `<div class="rolagem t-adm-larga" style="overflow:auto"><table class="${NOVO ? "t-tabela t-adm-tab" : ""}"><tr><th class="esq">Grupo</th><th>Clubes</th><th>Caixa médio</th><th>Mín · máx</th><th>Folha</th><th>Operacional</th><th>Vendas − compras</th><th>Prêmio</th><th>Saldo</th><th>No vermelho</th><th title="caixa positivo, mas acaba em até 2 temporadas no ritmo desta">Vermelho em ≤ 2</th></tr>
         ${linhas.map(x => `<tr><td class="esq">${esc(nomeDoGrupo(x.grupo))}</td><td>${quem(x)}</td><td>${dinheiro(x.caixa_media)}</td><td>${dinheiro(x.caixa_min)} · ${dinheiro(x.caixa_max)}</td><td>${dinheiro(x.folha_media)}</td>
           <td class="${x.operacional < 0 ? "bad" : ""}">${dinheiro(x.operacional)}</td><td>${dinheiro(t(x, "venda") + t(x, "compra"))}</td><td>${dinheiro(x.premio)}</td><td class="${x.saldo < 0 ? "bad" : ""}">${dinheiro(x.saldo)}</td>
           <td class="${x.no_vermelho ? "bad" : ""}">${x.no_vermelho}</td><td class="${x.vermelho_em_2 ? "aviso" : ""}">${x.vermelho_em_2}</td></tr>`).join("")}</table></div>` : `<div class="mut">Sem lançamentos nesta temporada.</div>`}`;
+    if (NOVO) $("economiaAdm").insertAdjacentHTML("beforeend", `<p class="t-fajuda">Operacional = TV, patrocínio, bilheteria, Sócio-Torcedor e comida menos salários, manutenção e treinadores. A temporada em andamento ainda não tem prêmio nem imposto.</p>`);
     if ($("ecoTemp")) $("ecoTemp").onchange = e => economia(+e.target.value).catch(() => {});
   };
   economia().catch(() => {});
@@ -312,15 +417,16 @@ async function tela(aviso = "") {
       return { nome, n, pt: pt / n, pe: pe / n, gxg: g / x }; }).filter(f => f.n);
     const zebras = jogos.filter(r => (r.gols_casa - r.gols_fora) * (r.xg_casa - r.xg_fora) < 0 && Math.abs(r.xg_casa - r.xg_fora) > 1).length;
     const f2 = v => v.toFixed(2).replace(".", ",");
-    $("saudeAdm").innerHTML = `<h2>Saúde do motor <span class="tag">jogos encerrados · total em laranja = fora da faixa do futebol real · rodada isolada tem amostra pequena</span></h2>
-      <div class="row" style="margin-bottom:8px"><label>Grupo <select id="saudeGrupo"><option value="">Todos</option>${[...gruposDe(clubes), ...new Set(partidas.map(p => p.grupo))].filter((x, i, a) => a.indexOf(x) === i).map(x => `<option value="${x}" ${x === grupo ? "selected" : ""}>${esc(nomeDoGrupo(x))}</option>`).join("")}</select></label></div>
-      ${jogos.length ? `<div class="rolagem" style="overflow:auto"><table><tr><th class="esq">Data</th><th>Jogos</th>${Object.values(COLS).map(c => `<th>${c}</th>`).join("")}</tr>
-        ${linhas.map(([nome, l]) => { const m = medir(l); return `<tr><td class="esq">${nome}</td><td>${m.n}</td>${Object.keys(COLS).map(k => celula(m, k, false)).join("")}</tr>`; }).join("")}
+    const gruposS = [...gruposDe(clubes), ...new Set(partidas.map(p => p.grupo))].filter((x, i, a) => a.indexOf(x) === i), tb = NOVO ? ` class="t-tabela t-adm-tab"` : "";
+    $("saudeAdm").innerHTML = (NOVO ? `${rotulo("Saúde do motor · jogos encerrados")}${chips("saudeGrupo", [["", "Todos"], ...gruposS.map(x => [x, nomeDoGrupo(x)])], grupo)}` : `<h2>Saúde do motor <span class="tag">jogos encerrados · total em laranja = fora da faixa do futebol real · rodada isolada tem amostra pequena</span></h2>
+      <div class="row" style="margin-bottom:8px"><label>Grupo <select id="saudeGrupo"><option value="">Todos</option>${gruposS.map(x => `<option value="${x}" ${x === grupo ? "selected" : ""}>${esc(nomeDoGrupo(x))}</option>`).join("")}</select></label></div>`) + `
+      ${jogos.length ? `<div class="rolagem t-adm-larga" style="overflow:auto"><table${tb}><tr><th class="esq">Data</th><th>Jogos</th>${Object.values(COLS).map(c => `<th>${c}</th>`).join("")}</tr>
+        ${linhas.map(([nome, l]) => { const m = medir(l); return `<tr${NOVO ? " hidden data-extra" : ""}><td class="esq">${nome}</td><td>${m.n}</td>${Object.keys(COLS).map(k => celula(m, k, false)).join("")}</tr>`; }).join("")}
         <tr><th class="esq">Total</th><th>${jogos.length}</th>${(m => Object.keys(COLS).map(k => celula(m, k, true)).join(""))(medir(jogos))}</tr>
-        <tr class="mut"><td class="esq">Futebol real</td><td></td>${Object.values(REAL).map(([lo, hi]) => `<td>${String(lo).replace(".", ",")}–${String(hi).replace(".", ",")}</td>`).join("")}</tr></table></div>
-        <div class="rolagem" style="overflow:auto;margin-top:10px"><table><tr><th class="esq">Favoritismo do time</th><th>Registros</th><th>Pontos reais</th><th>Esperados</th><th>Gols/xG</th></tr>
+        <tr class="mut"><td class="esq">Futebol real</td><td></td>${Object.values(REAL).map(([lo, hi]) => `<td>${String(lo).replace(".", ",")}–${String(hi).replace(".", ",")}</td>`).join("")}</tr></table></div>${NOVO ? verMais(linhas.length + 1, "Ver por rodada", 1) : ""}
+        <div class="rolagem t-adm-larga" style="overflow:auto;margin-top:10px"><table${tb}><tr><th class="esq">Favoritismo do time</th><th>Registros</th><th>Pontos reais</th><th>Esperados</th><th>Gols/xG</th></tr>
           ${faixas.map(f => `<tr><td class="esq">${f.nome}</td><td>${f.n}</td><td class="${Math.abs(f.pt - f.pe) > 0.25 && f.n >= 40 ? "aviso" : ""}">${f2(f.pt)}</td><td>${f2(f.pe)}</td><td class="${(f.gxg < 0.85 || f.gxg > 1.15) && f.n >= 40 ? "aviso" : ""}">${f2(f.gxg)}</td></tr>`).join("")}</table></div>
-        <div class="mut" style="margin-top:6px">Zebras: ${zebras} de ${jogos.length} jogos (${(zebras / jogos.length * 100).toFixed(0)}%) venceu quem teve 1 de xG ou mais a menos. Faixa de favoritismo em laranja só com 40 registros ou mais.</div>`
+        <div class="mut" style="margin-top:6px">Zebras: ${zebras} de ${jogos.length} jogos (${(zebras / jogos.length * 100).toFixed(0)}%) venceu quem teve 1 de xG ou mais a menos. Faixa de favoritismo em laranja só com 40 registros ou mais.${NOVO ? " Total em laranja = fora da faixa do futebol real; rodada isolada tem amostra pequena." : ""}</div>`
       : `<div class="mut">Nenhum jogo encerrado ainda.</div>`}`;
     $("saudeGrupo").onchange = e => saude(e.target.value).catch(err => { $("saudeAdm").innerHTML = `<h2>Saúde do motor</h2><div class="bad">${esc(err.message)}</div>`; });
   };
