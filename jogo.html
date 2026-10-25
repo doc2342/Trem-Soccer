@@ -16,7 +16,7 @@
   .card.topo h2 { font-size:34px !important; line-height:1; font-weight:700; } /* a barra da conta (nome do jogo, relógio, e-mail, Sair) entra no cabeçalho do clube: uma linha a menos em toda tela */
   .topo-jogo { flex-basis:100%; display:flex; justify-content:center; align-items:baseline; gap:10px; margin:-6px 0 -2px; } .topo-jogo h1 { font-size:16px !important; }
   /* no PC (tela larga), tudo numa linha: escudo e nome, Trem Soccer com o relógio, o master, e Sair/Admin na ponta direita */
-  @media (min-width:901px) {
+  @media (min-width:901px), (pointer:fine) {
     /* o meio do cabeçalho em duas metades iguais: Trem Soccer e relógio numa, o master na outra, cada um centrado na sua */
     .card.topo > .topo-jogo { order:1; flex:1 1 0; flex-direction:column; align-items:center; gap:4px; margin:0; }
     .card.topo .topo-jogo h1 { font-size:24px !important; line-height:1; } .card.topo .topo-jogo .relogio { font-size:22px; line-height:1; }
@@ -28,7 +28,7 @@
   .meus-clubes button { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; position:relative; }
   .meus-clubes button.ativo { border-color:var(--ac); } .meus-clubes .ponto { position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:var(--bad); }
   /* celular: escudo, uniforme e nome numa linha só; os botões da direita descem; torcida em três colunas */
-  @media (max-width:620px) {
+  @media (max-width:620px) and (pointer:coarse) {
     /* cabeçalho do clube no celular, em duas linhas: (1) Trem Soccer e relógio à esquerda, Sair, Guia e Admin à direita (sem o e-mail);
        (2) escudo, uniforme, nome numa linha só e o selo do patrocinador (sem o rótulo). O ::after quebra a linha entre as duas */
     .card.topo { display:flex; flex-wrap:wrap; align-items:center; gap:0 10px; } .card.topo::after { content:""; order:2; flex-basis:100%; }
@@ -48,8 +48,8 @@
   }
   /* Central: o amistoso fica na coluna da esquerda, abaixo dos próximos jogos, e o último cartão de cada coluna estica até o fim da outra (sem buraco embaixo);
      numa coluna só (até 900px) as duas colunas se desfazem e o amistoso volta para o fim da página */
-  @media (min-width:901px) { .g2-central { align-items:stretch; } .g2-central > div { display:flex; flex-direction:column; } .g2-central > div > .card:last-child { flex:1; } }
-  @media (max-width:900px) { .g2-central > div { display:contents; } .g2-central .c-amistoso { order:1; } }
+  @media (min-width:901px), (pointer:fine) { .g2-central { align-items:stretch; } .g2-central > div { display:flex; flex-direction:column; } .g2-central > div > .card:last-child { flex:1; } }
+  @media (max-width:900px) and (pointer:coarse) { .g2-central > div { display:contents; } .g2-central .c-amistoso { order:1; } }
   /* abas: no computador, ícone e texto lado a lado (só o ícone nas configurações); no celular, uma linha só, com ícone em cima e nome curto embaixo */
   .aba.ativa { color:var(--ac); background:var(--hover); border-radius:8px 8px 0 0; } /* a aba aberta salta aos olhos, no PC e no celular */
   .aba .at-c { display:none; } .aba .ai { margin-right:6px; } .aba[data-aba="config"] .ai { margin-right:0; }
@@ -63,12 +63,12 @@
   .janela.fechada { border-color:var(--bad) !important; background:var(--bad-fundo) !important; } .janela.fechada .jl { display:inline; font-weight:700; } /* fechada: o aviso vem no topo e a busca fica recolhida */
   /* treino: lista de focos por jogador, com os detalhes (complementar e progresso) abrindo embaixo da linha */
   .ctab select { padding:3px 4px; max-width:110px; } .ctab .c-linha { display:none; }
-  @media (max-width:620px) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
+  @media (max-width:620px) and (pointer:coarse) { .ctab td, .ctab th { padding:4px 2px; font-size:12px; } .ctab .c-sal, .ctab .c-nome { display:none; } .ctab .c-linha { display:table-row; } .ctab .c-linha td { border-bottom:none; padding-bottom:0; white-space:normal; } .ctab button { padding:3px 6px !important; } .ctab select { max-width:84px; font-size:12px; } }
   .ttab td { vertical-align:middle; } .ttab select { max-width:100%; padding:4px 6px; }
   .tdet { background:var(--vidro); } .tdet .row { gap:8px; }
   .tprog { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 16px; margin-top:8px; }
   .tprog .tb { height:6px; border-radius:999px; background:var(--trilho); overflow:hidden; margin-top:2px; } .tprog .tb > div { height:100%; background:var(--ac); }
-  @media (max-width:620px) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { width:0; padding:0 !important; border:0; font-size:0; }
+  @media (max-width:620px) and (pointer:coarse) { .tprog { grid-template-columns:1fr; } .ttab { table-layout:fixed; } .ttab td, .ttab th { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; } .ttab .t-ritmo { width:0; padding:0 !important; border:0; font-size:0; }
     .ttab th:nth-child(1) { width:40px; } .ttab th:nth-child(4) { width:104px; } .ttab th:nth-child(5) { width:36px; } .ttab td:nth-child(2) { white-space:nowrap; }
     .ttab select { width:100%; font-size:12.5px; padding:4px 2px; } .tdet td { white-space:normal; } .tdet .row { flex-direction:column; align-items:stretch; gap:4px; } }
   /* finanças: quadros da visão geral, barra da folha e tabela por categoria */
@@ -106,7 +106,7 @@
   .ch-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(158px, 1fr)); gap:6px; margin-top:8px; }
   .fbarra { height:10px; border-radius:999px; background:var(--trilho); overflow:hidden; margin-top:6px; } .fbarra > div { height:100%; border-radius:999px; }
   .ftab td { white-space:nowrap; } .ftab th, .ftab td.esq { white-space:normal; } .ftotal td { border-top:1px solid var(--line); }
-  @media (max-width:620px) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
+  @media (max-width:620px) and (pointer:coarse) { .fgrade { grid-template-columns:repeat(2, minmax(0, 1fr)); } .fv { font-size:17px; } .ftab td, .ftab th { padding:4px 2px; font-size:12px; } }
   /* filtros do mercado no formato do FMP: botões que ligam e desligam (nenhum ligado = todos) */
   .chips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; } .chips b { margin-right:2px; }
   .chipf { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:6px; padding:3px 8px; font-weight:700; font-size:13px; min-width:30px; }
@@ -115,9 +115,9 @@
   .sub { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font-weight:600; }
   .sub.ativa { color:var(--tx); background:var(--hover); border-color:var(--ac); } .sub .sc { display:none; }
   .sub .qt { background:var(--ac); color:var(--ac-tx); border-radius:999px; padding:0 6px; font-size:12px; margin-left:4px; }
-  @media (max-width:620px) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
+  @media (max-width:620px) and (pointer:coarse) { .subabas { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:4px; } .sub { padding:6px 0; font-size:11.5px; white-space:nowrap; min-width:0; overflow:hidden; } .sub .sl { display:none; } .sub .sc { display:inline; } .sub .qt { padding:0 5px; font-size:11px; margin-left:2px; } }
   .aba[data-aba="config"] .ai { display:inline; } .aba[data-aba="config"] .at-l { display:none; }
-  @media (max-width:620px) {
+  @media (max-width:620px) and (pointer:coarse) {
     .abas { display:grid; grid-template-columns:repeat(8, minmax(0, 1fr)); gap:0; overflow:visible; }
     .aba { padding:6px 0 5px; letter-spacing:0; font-size:14px; display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
     .aba .ai, .aba[data-aba="config"] .ai { display:block; font-size:17px; line-height:1.1; margin:0; }
@@ -128,7 +128,7 @@
   .barra-passos { height:6px; border-radius:3px; background:var(--trilho); margin:4px 0 8px; overflow:hidden; } .barra-passos i { display:block; height:100%; background:var(--ac); }
   .passos { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:4px 12px; } .passos > div.feito { opacity:.55; } .passos > div.feito b { text-decoration:line-through; }
   .faixa { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
-  @media (max-width:620px) { .faixa { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width:620px) and (pointer:coarse) { .faixa { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
   .tile { display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 6px; border:1px solid var(--line); border-radius:8px; text-decoration:none; color:inherit; text-align:center; min-width:0; }
   .tile.prox { border-color:var(--ac); background:var(--ac-fundo); }
   .tile .tl { font-size:11px; text-transform:uppercase; color:var(--mut); letter-spacing:.04em; }
@@ -151,11 +151,11 @@
   .mini tr.lib td:first-child { box-shadow:inset 3px 0 0 var(--lib); } .mini tr.sul td:first-child { box-shadow:inset 3px 0 0 var(--sul); } .mini tr.sobe td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.playoff td:first-child { box-shadow:inset 3px 0 0 var(--casa); } .mini tr.cai td:first-child { box-shadow:inset 3px 0 0 var(--bad); } .mini tr.camp td:first-child { box-shadow:inset 3px 0 0 var(--ok); } .mini tr.cai.lib td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--ac); } .mini tr.cai.sul td:first-child { box-shadow:inset 3px 0 0 var(--bad), inset 6px 0 0 var(--sul); }
   .rod-bloco + .rod-bloco { margin-top:14px; padding-top:10px; border-top:1px solid var(--line); }
   .rod-tit { margin-bottom:4px; }
-  @media (max-width:900px) { #compQuadros .comp-esq { display:contents; } #compHist { order:1; } }
+  @media (max-width:900px) and (pointer:coarse) { #compQuadros .comp-esq { display:contents; } #compHist { order:1; } }
   .classif td, .classif th { padding:6px 5px; white-space:nowrap; }
   .classif .cl-nome { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:240px; }
   .cl-hum { color:var(--ac); font-size:10px; vertical-align:middle; }
-  @media (max-width:620px) {
+  @media (max-width:620px) and (pointer:coarse) {
     .classif { font-size:13px; } .classif td, .classif th { padding:5px 3px; }
     .classif .c-gols, .classif .c-pe { display:none; }
     .classif .fbola { width:13px; height:13px; font-size:0; margin-right:1px; }
@@ -187,12 +187,12 @@
   /* elenco por zonas */
   .elenco2 { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; align-items:start; }
   .zona .h3-vazio { visibility:hidden; } /* segunda metade dos juvenis: alinha com a primeira */
-  @media (max-width:1000px) { .elenco2 { grid-template-columns:1fr; } .zona .h3-vazio { display:none; } }
+  @media (max-width:1000px) and (pointer:coarse) { .elenco2 { grid-template-columns:1fr; } .zona .h3-vazio { display:none; } }
   .zona { margin-bottom:14px; } .zona h3 { margin:0 0 6px; font-family:var(--display); font-weight:600; font-size:16px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); }
   .zona table { width:100%; font-size:13px; } .zona td, .zona th { padding:5px 4px; white-space:nowrap; } .zona td.esq { white-space:normal; }
   .zona .pp, .zona .act { min-width:34px; padding:1px 4px; }
   /* celular: só o essencial (posição colorida pela tática, atributos, nome, idade, nota e contrato); o resto está no botão i */
-  @media (max-width:620px) {
+  @media (max-width:620px) and (pointer:coarse) {
     .zona .c-tat, .zona .c-sal { display:none; }
     .zona tr.e-tit td { background:var(--ok-fundo); } .zona tr.e-res td { background:var(--ac-fundo); }
     .zona table { font-size:12.5px; } .zona td, .zona th { padding:3px 3px; }
@@ -215,7 +215,7 @@
   .qa-linha { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:1px 0; color:var(--mut); }
   .qa-linha > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .qa-linha > span:last-child { flex:none; font-variant-numeric:tabular-nums; }
-  @media (max-width:620px) { .qa-grade { columns:2; } .qa-linha { font-size:13px; padding:2px 0; } }
+  @media (max-width:620px) and (pointer:coarse) { .qa-grade { columns:2; } .qa-linha { font-size:13px; padding:2px 0; } }
   .qa-linha.qa-conta { color:var(--tx); font-weight:600; }
 </style>
 </head>
@@ -1895,7 +1895,8 @@ async function telaClube(liga, clube) {
   };
   // o mural mostra só as manchetes (as de mais peso, com o seu clube na frente); o resto fica fechado em "Mais notícias"
   const PESO_DA_NOTICIA = { "🏆": 6, "🌎": 5, "🌐": 4, "🎟️": 3, "⬆️": 5, "⬇️": 5, "🔄": 4, "💥": 4, "⏱️": 4, "🌟": 4, "🥅": 3, "🥇": 3, "🔥": 3, "📉": 3, "🏛️": 3, "⚽": 2, "⚔️": 2, "🔁": 2, "🛡️": 2, "🏅": 2, "🧱": 1, "✨": 1 };
-  const SECOES_DO_MURAL = [["jogos", "Últimos jogos", 3], ["liga", "Na liga", 3], ["copas", "Outras competições", 2], ["mercado", "Mercado", 2]];
+  const SECOES_DO_MURAL = [["jogos", "Últimos jogos", 4], ["liga", "Na liga", 4], ["copas", "Outras competições", 4], ["mercado", "Mercado", 4]];
+  const RODADAS_DA_SAFRA = 3; // a joia/promessa revelada na virada sai do mural depois das primeiras rodadas da liga
   // visual novo · bastidores: o mercado como um painel que gira pelas últimas transferências (as mesmas da carga da página)
   // os tipos gravados em transferencias.tipo (bot: negócio entre clubes do bot)
   const TIPO_DA_TRANSFERENCIA = { multa: "Pela multa", negociada: "Negociada", bot: "Entre bots", leilao: "Leilão", livre: "Livre", emprestimo: "Empréstimo", agente: "Pelo agente", agente_vermelho: "Clube no vermelho", divida: "Clube no vermelho" };
@@ -1916,7 +1917,7 @@ async function telaClube(liga, clube) {
   const desenharMural = secoes => {
     const peso = h => (PESO_DA_NOTICIA[(h.match(/class="ic">([^<]+)</) || [])[1]] || 0) + (h.includes(`data-clube="${clube.id}"`) ? 5 : 0);
     const html = SECOES_DO_MURAL.filter(([k]) => secoes[k] && secoes[k].length).map(([k, titulo, n]) => {
-      let ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]); n = celular ? Math.max(1, n - 1) : n;
+      let ord = secoes[k].map((h, i) => [peso(h), i, h]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(x => x[2]);
       // visual novo: os placares da rodada (t-pl) vêm primeiro, todos à vista, na ordem em que chegaram; as manchetes ficam no "Mais"
       const pl = ord.filter(h => h.startsWith('<div class="t-pl'));
       if (pl.length) { // visual novo: duas abas na coluna, as notícias (aberta) e os placares da rodada
@@ -2009,9 +2010,11 @@ async function telaClube(liga, clube) {
         // virada: o vencedor esteve atrás no placar em algum momento
         let virou = false, a = 0, b = 0; if (v) for (const x of golsSeq[p.id] || []) { x.t === vLado ? a++ : b++; if (b > a) virou = true; }
         const turno = feitas.find(q => q.rodada < ultima && ((q.casa === p.casa && q.fora === p.fora) || (q.casa === p.fora && q.fora === p.casa)));
+        // visual novo: o placar abre o jogo, como nas notícias dos duelos
+        const s = `${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}`, placar = visualNovo ? `<a class="lk t-placar-link" href="aovivo.html?id=${p.id}">${s}</a>` : s;
         if (humanos.has(p.casa) && humanos.has(p.fora)) jogos.push(item(...noticiaDoDuelo(p, r, { ...ctx, gols: golsSeq[p.id] || [], virou, turno: turno && { p: turno, r: res[turno.id] } })));
-        else if (virou) jogos.push(item("🔄", `De virada, ${lk(v)} vence ${lk(v === p.casa ? p.fora : p.casa)} por ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
-        else if (Math.abs(dif) >= 3) jogos.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${Math.max(r.gols_casa, r.gols_fora)} a ${Math.min(r.gols_casa, r.gols_fora)}.`));
+        else if (virou) jogos.push(item("🔄", `De virada, ${lk(v)} vence ${lk(v === p.casa ? p.fora : p.casa)} por ${placar}.`));
+        else if (Math.abs(dif) >= 3) jogos.push(item("💥", `${lk(v)} atropela ${lk(v === p.casa ? p.fora : p.casa)}: ${placar}.`));
       }
       // séries dos clubes com dirigente, do último jogo para trás
       for (const c of clubes.filter(c => c.grupo === g && humanos.has(c.id))) {
@@ -2024,7 +2027,8 @@ async function telaClube(liga, clube) {
       const tab = classificacao(clubes.filter(c => c.grupo === g), ps, rs), fim = ps.every(p => res[p.id]);
       if (fim && tab[0]) { // fim da liga: as vagas pela faixa da tabela, como na legenda da classificação
         const serie = serieDoGrupo(g), na = f => tab.filter((t, i) => faixaDaTabela(serie, i, tab.length, tab).split(" ").some(x => x === f || (f === "lib" && x === "camp"))).map(t => lk(t.clube.id)), lista = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
-        const vagas = [["🌎", "lib", "Vão à Libertadores", serie === 1 ? " (a 4ª vaga é do campeão da Copa do Brasil)" : ""], ["🌐", "sul", "Vão à Sul-Americana", serie === 1 ? " (mais o vice da Copa do Brasil)" : ""],
+        const aCopa = serie === 1 && !vagasDaA(tab); // a nota só enquanto a final da copa não saiu (depois as vagas já vêm certas)
+        const vagas = [["🌎", "lib", "Vão à Libertadores", aCopa ? " (a 4ª vaga é do campeão da Copa do Brasil)" : ""], ["🌐", "sul", "Vão à Sul-Americana", aCopa ? " (mais o vice da Copa do Brasil)" : ""],
           ["⬆️", "sobe", liga.temporada < 14 ? "Sobe direto" : "Vão direto à semifinal do playoff", ""], ["🎟️", "playoff", liga.temporada < 14 ? "Disputam o playoff do acesso" : "Disputam a preliminar do playoff", ""], ["⬇️", "cai", "Rebaixados", ""]];
         l.push(item("🏆", `Fim do ${nomeDoGrupo(g)}: ${lk(tab[0].clube.id)} é campeão com ${tab[0].pts} pontos${tab[1] ? `, ${tab[0].pts - tab[1].pts ? `${tab[0].pts - tab[1].pts} à frente do` : "no saldo sobre o"} ${lk(tab[1].clube.id)}` : ""}.`));
         vagas.forEach(([ic, f, rot, obs]) => { const x = na(f); if (x.length) l.push(item(ic, `${nomeDoGrupo(g)} · ${rot}: ${lista(x)}${obs}.`)); });
@@ -2043,7 +2047,7 @@ async function telaClube(liga, clube) {
     });
     if (jogadas <= 3) passada.filter(x => humanos.has(x.clube_id) && x.destino && x.destino !== "ficou").forEach(x => l.push(item(x.destino === "caiu" ? "⬇️" : x.destino === "subiu" ? "⬆️" : "🏆",
       x.destino === "caiu" ? `${lk(x.clube_id)} foi rebaixado na temporada ${liga.temporada - 1} (${x.posicao}º do ${nomeDoGrupo(x.grupo)}).` : x.destino === "subiu" ? `${lk(x.clube_id)} conquistou o acesso na temporada ${liga.temporada - 1}.` : `${lk(x.clube_id)} foi campeão do ${nomeDoGrupo(x.grupo)} na temporada ${liga.temporada - 1}.`)));
-    return { jogos: placares.length ? [...placares, ...jogos] : jogos, liga: l };
+    return { jogos: placares.length ? [...placares, ...jogos] : jogos, liga: l, rodada: rodadas.length ? rodadas[0].ultima : 0 };
   }
   const estiloDe = c => (ESTILO_DO_PERFIL[c.perfil] || ESTILO_DO_PERFIL.equilibrado).nome;
 
@@ -2149,7 +2153,7 @@ async function telaClube(liga, clube) {
   const seloDoTopo = () => patro && patro.escolha ? patroMaster(patro.escolha.marca) : "";
   devolverBarra();
   // visual novo: topo enxuto (escudo e nome levam aos Ajustes, próximo jogo, barra da conta) e a linha de estações
-  const topoNovo = () => `<header class="t-topo"><a class="t-topo-clube" href="#clube=${clube.id}" data-clube="${clube.id}" title="Página do clube">${svgEscudo(clube.escudo, clube.sigla, 40)}<span class="t-topo-nome">${esc(clube.nome)}</span></a>
+  const topoNovo = () => `<header class="t-topo"><span class="t-topo-marca">Trem <span>Soccer</span></span><a class="t-topo-clube" href="#clube=${clube.id}" data-clube="${clube.id}" title="Página do clube">${svgEscudo(clube.escudo, clube.sigla, 40)}<span class="t-topo-nome">${esc(clube.nome)}</span></a>
       <span class="t-topo-prox" id="topoProx"></span>
       <div class="t-topo-fim"><div id="seloTopo" class="patro-topo t-topo-so-pc" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div><div class="topo-jogo t-topo-so-pc"></div><button type="button" class="t-topo-ajustes" data-aba-ir="config" title="Ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7 7 0 0 0-1.7-1L15 3h-4l-.3 2.9a7 7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7 7 0 0 0 1.7 1L11 21h4l.3-2.9a7 7 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5A3.5 3.5 0 1 1 13 8.5a3.5 3.5 0 0 1 0 7z"/></svg></button><div class="topo-conta"></div>${admin ? `<a href="admin.html">Admin${pedidosAdm ? ` (${pedidosAdm})` : ""}</a>` : ""}</div></header>
     ${linhaDeEstacoes(ESTACOES, "inicio")}`;
@@ -2167,10 +2171,12 @@ async function telaClube(liga, clube) {
   const painelDoClube = () => {
     const m = [];
     m.push(modulo("liga", "Liga", "—", "carregando a tabela", "", "classificacao", "Ver a tabela"));
-    const copas = [["Copa do Brasil", situacaoNaCopa(copaJogos, ((liga.copa && liga.copa.diretos) || []).map(Number)), "classificacao:copa"], [CONTINENTAIS.LIB[1], situacaoNaCopa(libJogos), "classificacao:lib"], [CONTINENTAIS.SUL[1], situacaoNaCopa(sulJogos), "classificacao:sul"]].filter(x => x[1]);
-    if (copas.length) { const vivas = copas.filter(x => x[1].vivo).length, campeao = copas.find(x => x[1].campeao);
-      m.push(modulo("copas", "Copas", campeao ? "Campeão" : vivas ? (vivas === 1 ? "Viva" : `${vivas} vivas`) : "Fora", esc(copas[0][0]),
-        copas.map(([nome, st]) => `<div class="t-pop-linha"><b>${esc(nome)}</b><span class="${st.campeao ? "ok" : st.vivo ? "" : "t-apagado-tx"}">${st.txt}</span></div>`).join(""), copas[0][2], "Ver a chave", copas[0][1].txt)); }
+    const copas = [["Copa do Brasil", situacaoNaCopa(copaJogos, ((liga.copa && liga.copa.diretos) || []).map(Number)), "classificacao:copa"], [CONTINENTAIS.LIB[1], situacaoNaCopa(libJogos), "classificacao:lib", nomeBaseDoGrupo("LIB")], [CONTINENTAIS.SUL[1], situacaoNaCopa(sulJogos), "classificacao:sul", nomeBaseDoGrupo("SUL")]].filter(x => x[1]);
+    // na face, a copa que importa (campeão, senão viva, senão a primeira); as outras numa linha curta embaixo
+    if (copas.length) { const [nome, st, ir] = copas.find(x => x[1].campeao) || copas.find(x => x[1].vivo) || copas[0];
+      const outras = copas.filter(x => x[0] !== nome).map(([n, o, , curto]) => `${esc(curto || n)}: ${o.campeao ? "campeão" : o.vivo ? "viva" : "fora"}`).join(" · ");
+      m.push(modulo("copas", "Copas", st.campeao ? "Campeão" : st.vivo ? "Viva" : "Fora", esc(nome),
+        copas.map(([n, o]) => `<div class="t-pop-linha"><b>${esc(n)}</b><span class="${o.campeao ? "ok" : o.vivo ? "" : "t-apagado-tx"}">${o.txt}</span></div>`).join(""), ir, "Ver a chave", st.txt + (outras ? `<br><span class="t-modulo-outras">${outras}</span>` : ""))); }
     const juvenis = elenco.filter(j => j.juvenil), nota = j => notaNaPosicao(j, j.pos), tetoJ = j => tetoDe[j.id] ? (tetoDe[j.id].minimo + tetoDe[j.id].maximo) / 2 : nota(j);
     if (juvenis.length) { const ord = juvenis.slice().sort((a, b) => tetoJ(b) - tetoJ(a)), pr = ord[0], aos21 = juvenis.filter(j => j.idade >= 21).length;
       m.push(modulo("base", "Base", `${juvenis.length}`, "juvenis no elenco",
@@ -2946,8 +2952,9 @@ ${historicoDaBase()}
     else if (k !== "clubeVisto" && /^#clube=/.test(location.hash)) { historico = "substitui"; empurrei = false; }
     // nova aba principal entra no histórico; a mesma aba (ou a volta do histórico) só troca o endereço
     if (k !== "clubeVisto" && !enderecoParado) marcarEndereco("#" + (g ? g + ":" + sub : k), !historico && doEndereco(location.hash)[0] !== k);
-    abaAtual = k; if (k !== "clubeVisto") verClube = null;
+    const trocou = abaAtual !== k; abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
+    if (trocou) scrollTo(0, 0); // aba nova abre do topo, não na altura em que a anterior estava
     document.querySelectorAll("#abas [data-aba]").forEach(b => { b.classList.toggle("ativa", b.dataset.aba === k); if (b.classList.contains("t-estacao")) { if (b.dataset.aba === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); } });
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
@@ -2968,7 +2975,7 @@ ${historicoDaBase()}
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); } }; });
   $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
-  noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga] }); }).catch(() => {});
+  noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga.filter(h => n.rodada <= RODADAS_DA_SAFRA || !h.includes("revelou"))] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   new ResizeObserver(() => document.documentElement.style.setProperty("--abas-h", $("abas") && getComputedStyle($("abas")).position !== "fixed" ? $("abas").offsetHeight + "px" : "0px")).observe($("abas")); // barras presas no topo ficam logo abaixo das abas
   if ($("cfgTela")) $("cfgTela").onclick = () => window.moTela(!telaDePc);
@@ -3211,7 +3218,11 @@ ${historicoDaBase()}
   const recorteDaTabela = (tab, faixas) => { const i = tab.findIndex(t => t.clube.id === clube.id); if (i < 0) return "";
     const de = Math.max(0, Math.min(i - 2, tab.length - 5)), linhas = tab.slice(de, de + 5).map((t, k) => de + k);
     return `<div class="t-rotulo">Classificação</div><table class="t-tabela t-recorte"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
-      + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq"><a href="#clube=${tab[k].clube.id}" data-clube="${tab[k].clube.id}">${esc(tab[k].clube.nome)}</a></td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>`; };
+      + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq"><a href="#clube=${tab[k].clube.id}" data-clube="${tab[k].clube.id}">${esc(tab[k].clube.nome)}</a></td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>${legendaDoRecorte(linhas.map(k => faixas[k]))}`; };
+  // legenda só das zonas que aparecem no recorte (camp e sobe dividem o verde; lib e playoff, o azul)
+  const NOME_DA_FAIXA = { camp: "campeão", sobe: "semifinal do playoff", lib: "Libertadores", playoff: "playoff do acesso", sul: "Sul-Americana", cai: "rebaixamento" };
+  const legendaDoRecorte = fs => { const z = Object.keys(NOME_DA_FAIXA).filter(n => fs.some(f => f.split(" ").includes(n)));
+    return z.length ? `<div class="t-recorte-legenda">${z.map(n => `<span class="${n}">${NOME_DA_FAIXA[n]}</span>`).join("")}</div>` : ""; };
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
     const ehDaLiga = p => !p.fase || p.fase === "liga", meusDaLiga = partidas.filter(p => ehDaLiga(p) && (p.casa === clube.id || p.fora === clube.id));
     const faixas = tab.map((t, i) => faixa(i)), eu = tab.find(t => t.clube.id === clube.id);
@@ -3224,7 +3235,7 @@ ${historicoDaBase()}
     if (modLiga && iEu >= 0) {
       modLiga.querySelector(".t-modulo-num").textContent = `${iEu + 1}º`;
       modLiga.querySelector(".t-modulo-linha").textContent = eu.j ? `${eu.pts} pts · ${eu.v}V ${eu.e}E ${eu.d}D` : "temporada começando";
-      modLiga.querySelector(".t-modulo-detalhe").textContent = !eu.j ? "" : iEu ? `${tab[0].pts - eu.pts || "empatado"}${tab[0].pts - eu.pts ? " atrás" : ""} do líder` : `${eu.pts - tab[1].pts} à frente do 2º`;
+      modLiga.querySelector(".t-modulo-detalhe").textContent = !eu.j ? "" : lt && lt.apagado === "fim da linha" ? lt.destaque.replace(/\.$/, "") : iEu ? `${tab[0].pts - eu.pts || "empatado"}${tab[0].pts - eu.pts ? " atrás" : ""} do líder` : `${eu.pts - tab[1].pts} à frente do 2º`;
       const pos = posicoesPorRodada(clubes.filter(c => c.grupo === g), partidas, Object.values(res), clube.id);
       $("previa-liga").innerHTML = pos.length > 1 ? `<div class="t-numero-rotulo">Posição rodada a rodada</div><div class="t-previa-grafico">${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}</div>` : "";
     }
@@ -3250,7 +3261,7 @@ ${historicoDaBase()}
     // próximo jogo: escudos, nomes grandes, forma, a leitura e as duas ações
     const pr = $("cnProximo");
     if (pr) {
-      pr.hidden = false;
+      pr.hidden = false; pr.classList.toggle("t-sem-jogo", !proximo); // só a frase: a lateral não pode ficar presa à altura dela
       if (!proximo) { pr.innerHTML = rotulo("Próximo jogo") + `<p class="t-secao-sub">${partidas.length ? "Não há mais jogos nesta temporada." : "O calendário ainda não foi gerado."}</p>`; return; }
       const d = new Date(proximo.inicio), casa = proximo.casa === clube.id, mandante = casa ? clube : rival, visitante = casa ? rival : clube;
       const formaDe = id => partidas.filter(p => (p.casa === id || p.fora === id) && res[p.id] && ehDaLiga(p)).sort((a, b) => new Date(a.inicio) - new Date(b.inicio))

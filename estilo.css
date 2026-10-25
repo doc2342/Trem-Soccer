@@ -32,8 +32,8 @@ h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
 /* duas colunas desiguais: a principal à esquerda, a de apoio à direita */
 .g2 { display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr); gap:0 16px; align-items:start; }
 .kpis.k3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
-@media (max-width:900px) { .g2 { grid-template-columns:minmax(0, 1fr); } }
-@media (max-width:620px) { .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; } .kpi .kv { font-size:24px; } .card { padding:12px; overflow-x:auto; } } /* tabela larga rola dentro do cartão, sem alargar a página */
+@media (max-width:900px) and (pointer:coarse) { .g2 { grid-template-columns:minmax(0, 1fr); } }
+@media (max-width:620px) and (pointer:coarse) { .kpis { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; } .kpi .kv { font-size:24px; } .card { padding:12px; overflow-x:auto; } } /* tabela larga rola dentro do cartão, sem alargar a página */
 .row { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
 .duas { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:12px; }
 .duas > * { min-width:0; }
@@ -87,7 +87,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .fila.grade .vaga { width:auto; max-width:none; }
 /* em tela estreita cabe só o sobrenome na ficha do campinho */
 .vaga .ns { display:none; }
-@media (max-width:620px) { .vaga .nc { display:none; } .vaga .ns { display:inline; } .fila.grade { gap:4px 2px; } .gramado .vaga { padding:4px 2px; } .gramado .pp { min-width:0; padding:1px 5px; } }
+@media (max-width:620px) and (pointer:coarse) { .vaga .nc { display:none; } .vaga .ns { display:inline; } .fila.grade { gap:4px 2px; } .gramado .vaga { padding:4px 2px; } .gramado .pp { min-width:0; padding:1px 5px; } }
 .vaga { background:var(--vaga); border:1px solid var(--line); border-radius:8px; padding:5px; width:31%; max-width:170px; min-width:0; cursor:pointer; text-align:center; }
 .vaga.sel { border-color:var(--ac); box-shadow:0 0 0 1px var(--ac); }
 .vaga.vazia { border-style:dashed; }
@@ -120,7 +120,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .skills { columns:4; column-gap:14px; padding:6px 8px 8px 14px; border-bottom:1px solid var(--line); background:var(--vidro); font-size:12.5px; }
 .skills .grupo { break-inside:avoid; margin-bottom:6px; } .skills h4 { margin:0 0 2px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); border-bottom:1px solid var(--line); }
 .skills .grupo > div { display:flex; justify-content:space-between; gap:6px; color:var(--mut); } .skills .grupo > div.conta { color:var(--tx); font-weight:600; }
-@media (max-width:900px) { .skills { columns:2; } }
+@media (max-width:900px) and (pointer:coarse) { .skills { columns:2; } }
 .tag { font-size:11px; color:var(--mut); }
 .chips { display:flex; flex-wrap:wrap; gap:6px; }
 .chip { border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:12px; cursor:pointer; background:var(--campo); }
@@ -163,7 +163,7 @@ tr.clk { cursor:pointer; } tr.clk:hover td { background:var(--hover); }
 details.card > summary { cursor:pointer; list-style:none; } details.card > summary::-webkit-details-marker { display:none; }
 details.card > summary h2 { display:inline; } details.card > summary::after { content:" ▾"; color:var(--mut); } details.card[open] > summary::after { content:" ▴"; }
 details.card[open] > summary { margin-bottom:8px; }
-@media (max-width:620px) {
+@media (max-width:620px) and (pointer:coarse) {
   /* campo compacto: sigla, nome e nota; a posição da vaga muda na folha de escolha */
   .gramado { padding:8px 4px; gap:6px; } .fila { gap:4px; }
   .vaga { flex:1 1 0; width:auto; max-width:112px; padding:4px 3px; } .fila.grade .vaga { max-width:none; } .fila.grade { gap:4px 0; }
@@ -201,3 +201,6 @@ details.card[open] > summary { margin-bottom:8px; }
 .fbola.fV { background:var(--ok, #3fb950); } .fbola.fE { background:#8b9bb0; } .fbola.fD { background:var(--bad, #f85149); }
 .c-forma { white-space:nowrap; }
 .bnd { vertical-align:-2px; border-radius:2px; overflow:hidden; box-shadow:0 0 0 1px color-mix(in srgb, var(--tx) 15%, transparent); }
+/* PC (mouse): o layout não muda com o zoom do navegador nem com a janela estreita; a página só aumenta e ganha rolagem lateral.
+   As telas menores (as regras com pointer:coarse) valem só para celular e tablet. */
+@media (pointer:fine) { body { min-width:var(--largura-min, 1280px); } } /* --largura-min: a largura da tela, até 1280 px (atualiza.js) */

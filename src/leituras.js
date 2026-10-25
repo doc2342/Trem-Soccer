@@ -62,6 +62,7 @@ export function posicoesPorRodada(clubes, partidas, resultados, clubeId) {
 
 const BOAS = ["camp", "lib", "sul", "sobe", "playoff"];
 const NOME_DA_ZONA = { camp: "liderança", lib: "Libertadores", sul: "Sul-Americana", sobe: "zona da semifinal", playoff: "zona do playoff" }; // "sobe" na Série B desde a T14: os dois primeiros vão direto à semifinal do playoff
+const DESTINO = { camp: "Campeão!", lib: "Classificado para a Libertadores.", sul: "Classificado para a Sul-Americana.", sobe: "Direto na semifinal do playoff do acesso.", playoff: "Classificado para o playoff do acesso." };
 const boa = f => (f || "").split(" ").find(t => BOAS.includes(t));
 const cai = f => (f || "").split(" ").includes("cai");
 
@@ -70,9 +71,16 @@ export function leituraDaTabela({ tab, clubeId, faixas, rodadasRestantes }) {
   const i = tab.findIndex(t => t.clube.id === clubeId);
   if (i < 0) return null;
   // rodadasRestantes null: o calendário ainda não foi sorteado
-  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar ·`, apagado: r == null ? "calendário a sortear" : r === 0 ? "fim da fase" : r === 1 ? "falta 1 rodada" : `faltam ${r} rodadas`, destaque: "", frase: "" };
+  const r = rodadasRestantes, saida = { titulo: `${i + 1}º lugar`, apagado: r == null ? "calendário a sortear" : r === 0 ? "fim da linha" : r === 1 ? "falta 1 rodada" : `faltam ${r} rodadas`, destaque: "", frase: "" };
   if (tab.every(t => !t.j)) return saida;
   const eu = tab[i].pts;
+  // fase encerrada: o que a posição final deu (título, vaga, playoff ou queda) no lugar da corrida por pontos
+  if (r === 0) {
+    const z = boa(faixas[i]);
+    saida.destaque = cai(faixas[i]) ? "Rebaixado." : z ? DESTINO[z] : "Sem vaga e sem queda.";
+    if (z === "camp") saida.frase = "Com vaga na Libertadores.";
+    return saida;
+  }
   if (boa(faixas[i])) {
     const k = tab.findIndex((t, x) => x > i && faixas[x] !== faixas[i]);
     if (k >= 0) { const d = eu - tab[k].pts; saida.frase = d === 0 ? `Empatado em pontos com o ${k + 1}º.` : `${pontos(d)} à frente do ${k + 1}º.`; }

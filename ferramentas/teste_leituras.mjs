@@ -57,13 +57,19 @@ const nomes = ["Locomotiva", "Real Dormente", "União Bitola Larga", "Campinense
 const pts = [30, 28, 26, 25, 23, 20, 15, 10];
 const tab = nomes.map((nome, i) => ({ clube: { id: i + 1, nome }, j: 14, pts: pts[i] }));
 const faixas = ["sobe", "sobe", "playoff", "playoff", "", "", "cai", "cai"];
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 5, faixas, rodadasRestantes: 8 }), { titulo: "5º lugar ·", apagado: "faltam 8 rodadas", destaque: "A 2 pontos da zona do playoff.", frase: "" });
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 3, faixas, rodadasRestantes: 1 }), { titulo: "3º lugar ·", apagado: "falta 1 rodada", destaque: "", frase: "3 pontos à frente do 5º." });
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 5, faixas, rodadasRestantes: 8 }), { titulo: "5º lugar", apagado: "faltam 8 rodadas", destaque: "A 2 pontos da zona do playoff.", frase: "" });
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 3, faixas, rodadasRestantes: 1 }), { titulo: "3º lugar", apagado: "falta 1 rodada", destaque: "", frase: "3 pontos à frente do 5º." });
 assert.deepEqual(leituraDaTabela({ tab, clubeId: 1, faixas, rodadasRestantes: 8 }).frase, "4 pontos à frente do 3º.");
-assert.deepEqual(leituraDaTabela({ tab, clubeId: 7, faixas, rodadasRestantes: 8 }), { titulo: "7º lugar ·", apagado: "faltam 8 rodadas", destaque: "Na zona de rebaixamento.", frase: "5 pontos para sair." });
-assert.equal(leituraDaTabela({ tab, clubeId: 6, faixas, rodadasRestantes: 0 }).apagado, "fim da fase");
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 7, faixas, rodadasRestantes: 8 }), { titulo: "7º lugar", apagado: "faltam 8 rodadas", destaque: "Na zona de rebaixamento.", frase: "5 pontos para sair." });
+// fase encerrada: "fim da linha" e o destino da posição final
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 6, faixas, rodadasRestantes: 0 }), { titulo: "6º lugar", apagado: "fim da linha", destaque: "Sem vaga e sem queda.", frase: "" });
+assert.equal(leituraDaTabela({ tab, clubeId: 7, faixas, rodadasRestantes: 0 }).destaque, "Rebaixado.");
+assert.equal(leituraDaTabela({ tab, clubeId: 3, faixas, rodadasRestantes: 0 }).destaque, "Classificado para o playoff do acesso.");
+const faixasA = ["camp", "lib", "lib", "sul", "", "", "cai", "cai"];
+assert.deepEqual(leituraDaTabela({ tab, clubeId: 1, faixas: faixasA, rodadasRestantes: 0 }), { titulo: "1º lugar", apagado: "fim da linha", destaque: "Campeão!", frase: "Com vaga na Libertadores." });
+assert.equal(leituraDaTabela({ tab, clubeId: 4, faixas: faixasA, rodadasRestantes: 0 }).destaque, "Classificado para a Sul-Americana.");
 const tabZerada = tab.map(t => ({ ...t, j: 0, pts: 0 }));
-assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: 14 }), { titulo: "5º lugar ·", apagado: "faltam 14 rodadas", destaque: "", frase: "" });
+assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: 14 }), { titulo: "5º lugar", apagado: "faltam 14 rodadas", destaque: "", frase: "" });
 assert.equal(leituraDaTabela({ tab, clubeId: 99, faixas, rodadasRestantes: 8 }), null);
 const empate = tab.map(t => t.clube.id === 4 ? { ...t, pts: 23 } : t);
 assert.equal(leituraDaTabela({ tab: empate, clubeId: 3, faixas, rodadasRestantes: 8 }).frase, "3 pontos à frente do 5º.");
@@ -86,8 +92,8 @@ assert.equal(pos[2], classificacao(clubes4, partidas4, resultados4).findIndex(t 
 assert.deepEqual(posicoesPorRodada(clubes4, [], [], 1), []);
 assert.equal(posicoesPorRodada(clubes4, partidas4, resultados4.slice(0, 2), 1).length, 1); // rodada sem resultado não entra
 
-// sem calendário (início de temporada, temporada 0): sem "fim da fase"
-assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: null }), { titulo: "5º lugar ·", apagado: "calendário a sortear", destaque: "", frase: "" });
+// sem calendário (início de temporada, temporada 0): sem "fim da linha"
+assert.deepEqual(leituraDaTabela({ tab: tabZerada, clubeId: 5, faixas, rodadasRestantes: null }), { titulo: "5º lugar", apagado: "calendário a sortear", destaque: "", frase: "" });
 // Série B desde a T14: os dois primeiros vão à semifinal do playoff, não sobem direto
 assert.equal(leituraDaTabela({ tab, clubeId: 3, faixas: ["", "sobe", "sobe", "playoff", "", "", "cai", "cai"], rodadasRestantes: 8 }).frase, "1 ponto à frente do 4º.");
 assert.equal(leituraDaTabela({ tab, clubeId: 4, faixas: ["sobe", "sobe", "", "", "", "", "", ""], rodadasRestantes: 8 }).destaque, "A 3 pontos da zona da semifinal.");

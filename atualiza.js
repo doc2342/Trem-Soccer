@@ -4,6 +4,9 @@
 (function () {
   // "Tela de computador" no celular: a página é desenhada com 1100 px de largura e o aparelho reduz o zoom para caber, como no Dugout.
   try { if (localStorage.getItem("mo_tela") === "pc") { var mv = document.querySelector('meta[name="viewport"]'); if (mv) mv.setAttribute("content", "width=1100"); } } catch (e) {}
+  // PC: a largura mínima da página (estilo.css) é a da tela, até 1280 px. O zoom do navegador não muda screen.availWidth no Chrome/Edge,
+  // então notebook estreito fica sem rolagem lateral a 100% e, com zoom, a página só aumenta.
+  try { document.documentElement.style.setProperty("--largura-min", Math.min(1280, screen.availWidth || 1280) + "px"); } catch (e) {}
   window.moTela = function (pc) { try { localStorage.setItem("mo_tela", pc ? "pc" : "cel"); } catch (e) {} location.reload(); };
 
   // Tema: "claro", "escuro" ou automático (segue o aparelho), em mo_tema. A cor de destaque vem do escudo do clube (mo_cor = "cor1,cor2"):
