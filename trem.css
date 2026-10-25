@@ -1653,3 +1653,22 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 @media (max-width:720px) and (pointer:coarse) { .t-st-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:6px; padding-right:6px; } }
 .t-st-ord th { cursor:pointer; user-select:none; } .t-st-ord th:hover { color:var(--t-tinta); }
 .t-st-ord th.t-ord-1::after { content:" ▼"; color:var(--t-marca); } .t-st-ord th.t-ord-2::after { content:" ▲"; color:var(--t-marca); }
+/* Competições › Federação: curva do saldo do fundo na faixa, barras de entrada e saída por temporada, tabelas do que a liga paga, faixas do que cobra */
+.t-fed-curva { display:flex; align-items:flex-end; gap:6px; height:150px; margin-top:12px; }
+.t-fed-curva > div { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; min-width:0; }
+.t-fed-curva i { display:block; background:var(--t-noite-mut); opacity:.55; }
+.t-fed-curva .t-eu i { background:var(--t-marca); opacity:1; } .t-fed-curva .bad i { background:#ff7a6b; opacity:1; }
+.t-fed-curva small { margin-top:6px; text-align:center; font-size:11px; color:var(--t-noite-mut); font-variant-numeric:tabular-nums; }
+.t-fed .t-faixa-lado { min-width:min(340px, 100%); display:flex; flex-direction:column; } .t-fed .t-fed-curva { flex:1; min-height:150px; height:auto; }
+.t-fed-barras { margin-top:16px; }
+.t-fed-barras .t-fbarra { grid-template-columns:minmax(140px, 200px) minmax(0, 1fr); }
+.t-fbarra-saldo b.ok { color:var(--t-ok); } .t-fbarra-saldo b.bad { color:var(--t-erro); }
+.t-fed-tab td { height:38px; padding-top:0; padding-bottom:0; white-space:nowrap; }
+.t-fed-total td { border-top:2px solid var(--t-tinta); font-weight:800; }
+.t-fed-cobra { display:grid; gap:22px; }
+.t-fed-faixas { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px; margin:8px 0 6px; }
+.t-fed-faixas > div { padding:10px 8px 8px; background:color-mix(in srgb, var(--t-marca) calc(var(--a) * 100%), var(--t-placa)); text-align:center; }
+.t-fed-faixas b { display:block; font:900 26px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
+.t-fed-faixas small { display:block; margin-top:4px; font-size:11.5px; color:inherit; opacity:.8; }
+.t-fed-faixas .t-forte { color:#fff; }
+@media (max-width:720px) and (pointer:coarse) { .t-fed-barras .t-fbarra { grid-template-columns:minmax(0, 1fr); } .t-fed-barras .t-fbarra-saldo { grid-template-columns:1fr auto; } .t-fed-barras .t-fpista > i { max-width:65%; } }

@@ -1353,6 +1353,7 @@ async function telaClube(liga, clube) {
     const TIPOS = [["bilheteria", "10% das bilheterias"], ["imposto", "Metade do imposto sobre o lucro"], ["taxas", "Metade das taxas de transferência"], ["copa", "Prêmios da Copa do Brasil"], ["lib", "Prêmios da Libertadores"], ["sul", "Prêmios da Sul-Americana"], ["rec", "Prêmio da Recopa"], ["merito", "Bônus de mérito da Série C"], ["premios", "Prêmios individuais"], ["devolucao", "Taxas devolvidas (transferência anulada)"], ["doacao", "Doação generosa do América - RN"]];
     const temporadas = [...new Set((resumo || []).map(x => x.temporada))].sort((a, b) => b - a);
     const valor = (t, k) => ((resumo || []).find(x => x.temporada === t && x.tipo === k) || {}).valor || 0;
+    if (visualNovo) return fedNova({ saldo: saldo || 0, aPagar, TIPOS, temporadas, valor, semResumo: resumo == null, divs, clubesNaFase });
     const sinal = v => `<td class="${v > 0 ? "ok" : v < 0 ? "bad" : "mut"}">${v > 0 ? "+" : v < 0 ? "−" : ""}${v ? dinheiro(Math.abs(v)) : "—"}</td>`;
     $("tabela").innerHTML = `<div style="font-size:30px;font-weight:800" class="${saldo < 0 ? "bad" : ""}">${dinheiro(saldo || 0)}</div>
       <div class="mut" style="margin-bottom:8px">saldo de hoje${aPagar == null ? "" : ` · a copa desta temporada ainda vai pagar ${dinheiro(aPagar)}${saldo - aPagar < 0 ? ` <b class="aviso">(faltam ${dinheiro(aPagar - saldo)}: prêmio de fase sem saldo fica pendente até o fundo encher)</b>` : ""}`}</div>
@@ -1380,6 +1381,61 @@ async function telaClube(liga, clube) {
       <div class="mut">Pagos na virada ao clube do jogador. Em cada série: artilheiro, garçom, melhor jogador, melhor goleiro e revelação (até 21 anos), a 100 mil na Série A, 60 mil nas B e 40 mil nas C; o melhor jogador da Série A é o Bola de Ouro e vale 200 mil. Na copa: artilheiro e craque, 100 mil cada. Os premiados de cada temporada ficam em Estatísticas.</div>
       <h2 style="margin-top:14px">O que a liga cobra</h2>
       <div class="mut">Imposto sobre o lucro da temporada, em faixas do teto de folha: nada até 1/4 do teto, 20% de 1/4 a 1/2, 35% de 1/2 até o teto e 50% acima do teto. Bilheteria: 10% de todo jogo (copa e playoff têm ingresso mais caro: até 50% a mais na final do playoff e o dobro na final da copa). Venda entre dirigentes: 30% na primeira janela depois da chegada do jogador, 20% na segunda, 10% depois. Compra pela multa rescisória não paga taxa.</div>`;
+  }
+  // Competições › Federação no visual novo: a faixa é o saldo do fundo (curva do saldo no fim de cada temporada ao lado);
+  // de onde veio e para onde foi, uma temporada por vez em barras; o que a liga paga e cobra em tabelas e números
+  function fedNova({ saldo, aPagar, TIPOS, temporadas, valor, semResumo, divs, clubesNaFase }) {
+    const el = $("fedNova"); if (!el) return;
+    const P = P_COPA, virgula = v => String(Math.round(v * 100) / 100).replace(".", ",");
+    const sinal = v => `${v > 0 ? "+" : v < 0 ? "−" : ""}${dinheiro(Math.abs(v))}`;
+    const liquido = t => TIPOS.reduce((s, [k]) => s + valor(t, k), 0);
+    const entrou = t => TIPOS.reduce((s, [k]) => s + Math.max(0, valor(t, k)), 0), saiu = t => TIPOS.reduce((s, [k]) => s + Math.min(0, valor(t, k)), 0);
+    const proxima = Math.min(2, Math.max(1, 1 + (saldo - RESERVA_DO_FUNDO) / COPA_BASE));
+    // saldo no fim de cada temporada, contado de trás para a frente a partir do de hoje (o registro começou com o fundo já cheio)
+    const cresc = [...temporadas].reverse();
+    const fim = cresc.map((t, i) => [t, saldo - cresc.slice(i + 1).reduce((s, x) => s + liquido(x), 0)]);
+    const maior = Math.max(1, ...fim.map(([, v]) => Math.abs(v)));
+    const lado = fim.length > 1 ? `<div class="t-numero-rotulo">Saldo no fim de cada temporada</div><div class="t-fed-curva">${fim.map(([t, v]) => `<div class="${v < 0 ? "bad" : ""}${t === liga.temporada ? " t-eu" : ""}" title="Temporada ${t}: ${dinheiro(v)}${t === liga.temporada ? " (hoje)" : ""}"><i style="height:${Math.max(2, Math.abs(v) / maior * 100).toFixed(1)}%"></i><small>${t}</small></div>`).join("")}</div>` : "";
+    const falta = aPagar != null && aPagar > saldo;
+    const frase = aPagar ? `A Copa do Brasil desta temporada ainda vai pagar ${dinheiro(aPagar)}.${falta ? ` Faltam ${dinheiro(aPagar - saldo)}: prêmio de fase sem saldo fica pendente até o fundo encher.` : ""}`
+      : `Com o saldo de hoje, a próxima copa pagaria ${virgula(proxima)} ${proxima === 1 ? "vez" : "vezes"} os prêmios normais.`;
+    const tAtual = temporadas.includes(liga.temporada) ? liga.temporada : temporadas[0];
+    const numeros = `<div class="t-elenco-numeros">${tAtual != null ? numero({ rotulo: "Entrou", valor: dinheiro(entrou(tAtual)), legenda: `na temporada ${tAtual}`, tom: "ok" })
+        + numero({ rotulo: "Saiu", valor: dinheiro(-saiu(tAtual)), legenda: `na temporada ${tAtual}`, tom: "bad" }) : ""}
+      ${numero({ rotulo: "Reserva", valor: dinheiro(RESERVA_DO_FUNDO), legenda: "o que passa disso engorda a copa" })}
+      ${numero({ rotulo: "Próxima copa", valor: `${virgula(proxima)}×`, legenda: "os prêmios normais, até 2×" })}</div>`;
+    const topo = faixaFoco({ rotulo: `Federação · fundo da liga · temporada ${liga.temporada}`, titulo: dinheiro(saldo), apagado: "no fundo", destaque: falta ? "Fundo curto." : "", frase, lado, numeros });
+    // de onde veio e para onde foi: uma temporada por vez, entradas em verde e saídas em vermelho
+    const movimento = t => { const l = TIPOS.map(([k, n]) => [n, valor(t, k)]).filter(([, v]) => v).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...l.map(([, v]) => Math.abs(v))), s = liquido(t), i = temporadas.indexOf(t);
+      return `<div class="t-liga-nav"><button type="button" data-fedt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b><span>${t === liga.temporada ? "em andamento" : ""}</span>
+        <button type="button" data-fedt="${temporadas[i - 1] ?? ""}" ${i > 0 ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
+        <div class="t-fbarras t-fed-barras">${l.map(([n, v]) => `<div class="t-fbarra ${v < 0 ? "sai" : "entra"}"><span>${n}</span><div class="t-fpista"><i style="width:${Math.max(0.5, Math.abs(v) / max * 80).toFixed(1)}%"></i><b>${sinal(v)}</b></div></div>`).join("")}
+        <div class="t-fbarra t-fbarra-saldo"><span>Saldo da temporada</span><b class="${s > 0 ? "ok" : s < 0 ? "bad" : ""}">${sinal(s)}</b></div></div>`; };
+    const esquerda = `<section>${rotulo("De onde vem e para onde vai")}<div id="fedMov">${semResumo ? `<p class="t-fajuda">O resumo de entradas e saídas aparece quando o administrador ligar o registro do fundo.</p>`
+        : !temporadas.length ? `<p class="t-fajuda">Nenhuma entrada ou saída registrada ainda.</p>` : movimento(tAtual)}</div>
+      <p class="t-fajuda"><b>Entra</b> 10% da bilheteria de todo jogo, o imposto sobre o lucro e as taxas de venda entre dirigentes. <b>Sai</b> os prêmios das copas e os individuais.
+        O registro começou com o fundo já cheio: o que veio antes está só no saldo.</p>`;
+    // o que a liga paga e cobra
+    const porDiv = d => divs.find(x => x.divisao === d) || {}, cab = `<tr><th class="t-esq"></th><th>Série A</th><th>Séries B</th><th>Séries C</th></tr>`;
+    const linha = (r, f) => `<tr><td class="t-esq">${r}</td>${[1, 2, 3].map(d => `<td>${f(porDiv(d), d)}</td>`).join("")}</tr>`;
+    const series = `<table class="t-tabela t-fed-tab">${cab}${linha("Teto de folha", x => dinheiro(x.teto_folha))}${linha("Direitos de TV", x => dinheiro(x.receita_tv))}${linha("Patrocínio", x => dinheiro(x.receita_patrocinio))}
+      ${linha("Ingresso", x => x.preco_ingresso == null ? "—" : x.preco_ingresso)}${linha("Torcida-base", x => x.torcida_base == null ? "—" : x.torcida_base.toLocaleString("pt-BR"))}
+      ${linha("Campeão", (x, d) => `<b>${dinheiro(PREMIOS_DA_LIGA[d][0])}</b>`)}${linha("Lanterna", (x, d) => dinheiro(PREMIOS_DA_LIGA[d][1]))}
+      ${linha("Prêmio individual", (x, d) => dinheiro([100, 60, 40][d - 1]))}</table>
+      <p class="t-fajuda">Prêmios individuais, pagos na virada: artilheiro, garçom, melhor jogador, melhor goleiro e revelação de cada série. O melhor da Série A é o Bola de Ouro: ${dinheiro(200)}. Na copa, artilheiro e craque: ${dinheiro(100)} cada.</p>`;
+    const copaTotal = [2, 3, 4, 5].reduce((t, f) => t + P.fases[f] * clubesNaFase[f], 0) + P.vice + P.campeao;
+    const copa = `<table class="t-tabela t-fed-tab"><tr><th class="t-esq">Ao chegar a</th><th>Por clube</th><th>Na fase</th></tr>
+      ${[2, 3, 4, 5].map(f => `<tr><td class="t-esq">${FASES_DA_COPA[f]}</td><td>${dinheiro(P.fases[f])}</td><td>${dinheiro(P.fases[f] * clubesNaFase[f])}</td></tr>`).join("")}
+      <tr><td class="t-esq">Vice</td><td>${dinheiro(P.vice)}</td><td>${dinheiro(P.vice)}</td></tr><tr><td class="t-esq">Campeão</td><td><b>${dinheiro(P.campeao)}</b></td><td>${dinheiro(P.campeao)}</td></tr>
+      <tr class="t-fed-total"><td class="t-esq">Copa inteira</td><td></td><td>${dinheiro(copaTotal)}</td></tr></table>
+      ${fatorDaCopaAtual > 1 ? `<p class="t-fajuda">A copa desta temporada paga ${virgula(fatorDaCopaAtual)} vezes os prêmios normais: o fundo passou da reserva quando o calendário foi gerado.</p>` : ""}`;
+    const pct = v => `${Math.round(v * 100)}%`, faixas = [[0, 0], ...FAIXAS_DO_IMPOSTO];
+    const cobra = `<div class="t-fed-cobra"><div>${numero({ rotulo: "Bilheteria", valor: "10%", legenda: "de todo jogo: liga, playoff e copas" })}</div>
+      <div><div class="t-numero-rotulo">Imposto sobre o lucro da temporada</div><div class="t-fed-faixas">${faixas.map(([de, taxa], i) => `<div style="--a:${taxa * 2}"${taxa >= 0.3 ? ' class="t-forte"' : ""}><b>${pct(taxa)}</b><small>${["até ¼ do teto", "¼ a ½", "½ ao teto", "acima do teto"][i]}</small></div>`).join("")}</div><div class="t-numero-legenda">em faixas do teto de folha da série</div></div>
+      <div><div class="t-numero-rotulo">Taxa de venda entre dirigentes</div><div class="t-fed-faixas">${[[0.3, "1ª janela"], [0.2, "2ª janela"], [0.1, "depois"]].map(([taxa, q]) => `<div style="--a:${taxa / 0.3}"${taxa >= 0.2 ? ' class="t-forte"' : ""}><b>${pct(taxa)}</b><small>${q}</small></div>`).join("")}</div><div class="t-numero-legenda">contadas da chegada do jogador; compra pela multa não paga</div></div></div>`;
+    const direita = `<section>${rotulo("O que a liga paga, por temporada")}${series}<div class="t-st-bloco">${rotulo(`${nomeDoGrupo("COPA")} · prêmios`)}${copa}</div></section>`;
+    el.innerHTML = `<div class="t-liga t-fed">${topo}<div class="t-liga-grade">${esquerda}<div class="t-st-bloco">${rotulo("O que a liga cobra")}${cobra}</div></section>${direita}</div></div>`;
+    el.onclick = e => { const b = e.target.closest("[data-fedt]"); if (b && b.dataset.fedt) $("fedMov").innerHTML = movimento(+b.dataset.fedt); };
   }
   // Recordes de todas as temporadas (89_tecnico_e_recordes.sql): da liga, ou só pelo clube (campanha, ataque e jogadores)
   const htmlDosRecordes = d => {
@@ -2872,7 +2928,7 @@ async function telaClube(liga, clube) {
     <div data-parte="comp:liga">${visualNovo ? `<select id="verGrupo" hidden>${opcoesDeGrupo(clube.grupo)}</select><div id="ligaNova"></div>` : `<div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
       <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div>`}</div>
-    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div>` : ""}
+    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div><div data-parte="comp:fed"><div id="fedNova"></div></div>` : ""}
     <div data-parte="comp:stats">${visualNovo ? `<div id="statsNova"></div>` : ""}<div class="row" style="margin-top:4px"${visualNovo ? " hidden" : ""}>
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
@@ -3565,7 +3621,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul", "stats"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul", "stats", "fed"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
