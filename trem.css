@@ -1226,3 +1226,4 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-tr-painel .t-tr-recordes { border-bottom-color:var(--t-fio); } .t-tr-painel .t-fajuda { margin-top:14px; }
 .t-elenco-numeros.t-tr-lado3 { grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px 22px; } .t-faixa-lado .t-tr-lado3 .t-numero-valor { font-size:40px; } .t-tr-lado3 .t-numero-rotulo { white-space:nowrap; }
 @media (max-width:720px) and (pointer:coarse) { .t-elenco-numeros.t-tr-lado3 { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+.t-trofeus .t-faixa-lado .t-numero { text-align:center; }

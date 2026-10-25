@@ -720,14 +720,14 @@ async function telaClube(liga, clube) {
     const estante = temps.map(t => { const chips = [...tipos.filter(([k]) => m[k].includes(t)).map(([k, , nome]) => `<span class="t-tr-chip" data-t="${k === "vice" ? "vice" : "titulo"}">${esc(nome.replace("Brasileiro ", ""))}</span>`),
         ...base.filter(x => x.temporada === t).map(x => `<span class="t-tr-chip" data-t="base">${nomeBase(x.grupo)}</span>`)].join("");
       const pr = premios.filter(p => p.temporada === t).map(p => `<div><b>${esc(nomeDoPremio(p))}</b> · ${p.jogador_id ? lj(p.jogador_id, p.jogador || "") : esc(p.jogador || "")}</div>`).join("");
-      const sel = selecao.filter(p => p.temporada === t).map(p => esc(p.jogador || "")).join(", ");
-      return `<div class="t-tr"><div class="t-tr-temp">T${t}</div><div class="t-tr-chips">${chips || `<span class="t-tr-nada">sem título</span>`}</div><div class="t-tr-premios">${pr}${sel ? `<div class="t-tr-sel">Seleção: ${sel}</div>` : ""}</div></div>`; }).join("");
+      const sel = selecao.filter(p => p.temporada === t).map(p => p.jogador_id ? lj(p.jogador_id, p.jogador || "") : esc(p.jogador || "")).join(", ");
+      return `<div class="t-tr"><div class="t-tr-temp">T${t}</div><div class="t-tr-chips">${chips || `<span class="t-tr-nada">sem título</span>`}</div><div class="t-tr-premios">${pr}${sel ? `<div><b>Seleção da temporada</b> · ${sel}</div>` : ""}</div></div>`; }).join("");
     return `<div class="t-trofeus">${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div><div class="t-tr-linhas">${estante}</div></section>` : ""}
       <section class="t-secao">${rotulo("Recordes do clube")}<div id="recNovo" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`; };
   const recordesNovos = d => {
     if (!d) return `<p class="t-fajuda">Os recordes aparecem quando o administrador rodar o SQL 89 no banco.</p>`;
     const quando = r => `T${r.temporada}${r.comp === "COPA" ? ", copa" : ""}`, contra = r => `${cPor[r.casa] ? cPor[r.casa].nome : "?"} x ${cPor[r.fora] ? cPor[r.fora].nome : "?"}`;
-    const nums = [d.goleada && numero({ rotulo: "Maior goleada", valor: `${d.goleada.gols_casa} x ${d.goleada.gols_fora}`, legenda: `${contra(d.goleada)} · ${quando(d.goleada)}` }),
+    const nums = [d.goleada && numero({ rotulo: "Maior vitória", valor: `${d.goleada.gols_casa} x ${d.goleada.gols_fora}`, legenda: `${contra(d.goleada)} · ${quando(d.goleada)}` }),
       d.gols_jogo && numero({ rotulo: "Jogo com mais gols", valor: `${d.gols_jogo.gols_casa} x ${d.gols_jogo.gols_fora}`, legenda: `${contra(d.gols_jogo)} · ${quando(d.gols_jogo)}` }),
       d.publico && numero({ rotulo: "Maior público", valor: (+d.publico.publico).toLocaleString("pt-BR"), legenda: `${contra(d.publico)} · ${quando(d.publico)}` }),
       d.nota && numero({ rotulo: "Melhor atuação", valor: String(d.nota.nota).replace(".", ","), legenda: `${d.nota.nome} · ${quando(d.nota)}` }),
