@@ -3830,7 +3830,7 @@ ${historicoDaBase()}
       return `<a class="t-ljogo${p.casa === clube.id || p.fora === clube.id ? " t-eu" : ""}" href="aovivo.html?id=${p.id}"><span class="t-ljogo-c${ganhou === "c" ? " t-ljogo-v" : ""}">${esc(c.nome)}</span>${svgEscudo(c.escudo, c.sigla, 22)}
         <b class="t-ljogo-x${vivo ? " vivo" : r ? "" : " hora"}">${r ? `${r.gols_casa} x ${r.gols_fora}${r.penaltis ? `<small>pên. ${r.penaltis[0]} x ${r.penaltis[1]}</small>` : ""}` : vivo ? "ao vivo" : new Date(p.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
         ${svgEscudo(v.escudo, v.sigla, 22)}<span class="t-ljogo-f${ganhou === "f" ? " t-ljogo-v" : ""}">${esc(v.nome)}</span></a>`; };
-    const doDia = r => (ps => `${ps.length ? diaCab(ps[0].inicio) : ""}${r === atual ? " · atual" : ""}`)(partidas.filter(p => p.rodada === r));
+    const doDia = r => (ps => `${ps.length ? `${diaCab(ps[0].inicio)} · ${new Date(ps[0].inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : ""}${r === atual ? " · atual" : ""}`)(partidas.filter(p => p.rodada === r)); // dia e hora do primeiro jogo da rodada
     const desenharJogos = () => { const box = $("ligaJogos"); if (!box) return;
       if (!rodadas.length) { box.innerHTML = `<p class="t-fajuda">O calendário ainda não foi gerado.</p>`; return; }
       const i = Math.max(0, rodadas.indexOf(ligaRodada)), r = rodadas[i];
