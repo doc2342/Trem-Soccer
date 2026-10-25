@@ -1584,3 +1584,30 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-copa .ch-final .ch-jogos > .ch-j { flex:none; }
 .t-copa .ch-final .ch-campeao { position:absolute; bottom:calc(50% + 44px); left:0; right:0; margin:0; } /* em cima da final */
 .t-copa .ch-prel { margin-top:28px; } .t-copa .ch-prel .ch-f { text-align:left; }
+
+/* ---------- Competições › Estatísticas: faixa do líder da lista com os 5 primeiros em barras; lista em segmentos; jogadores | clubes; recordes; prêmios ---------- */
+.t-st-barras { display:flex; flex-direction:column; gap:12px; }
+.t-st-b { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:baseline; gap:4px 12px; }
+.t-st-b span { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-st-b span small { font-weight:400; font-size:12px; color:var(--t-noite-mut); margin-left:4px; }
+.t-st-b b { font:900 24px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
+.t-st-b i { grid-column:1 / -1; height:4px; background:var(--t-noite-mut); }
+.t-st-b:first-child i, .t-st-b.t-eu i { background:var(--t-marca); }
+.t-st-ctrl { display:flex; align-items:center; gap:16px; margin-top:12px; flex-wrap:wrap; }
+.t-st-ctrl .t-segmentos { flex:1 1 520px; } .t-st-ctrl .t-segmentos > * { white-space:nowrap; } .t-st-ctrl .t-transf-filtro { margin:0; }
+.t-st-tab td { height:48px; }
+.t-st-j { display:flex; align-items:center; gap:9px; min-width:0; } .t-st-j svg { flex:none; }
+.t-st-j > span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.t-st-j small { display:block; font-weight:400; font-size:12px; color:var(--t-tinta2); overflow:hidden; text-overflow:ellipsis; }
+.t-st-j a.lk { color:inherit; }
+.t-st-recs { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0 28px; }
+.t-st-r { display:block; padding:14px 0; border-top:2px solid var(--t-tinta); color:inherit; text-decoration:none; }
+a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
+.t-st-r .t-numero-legenda { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.t-st-p { display:grid; grid-template-columns:22px minmax(0, 1fr) auto; align-items:center; gap:10px; min-height:52px; border-bottom:1px solid var(--t-fio); }
+.t-st-p.t-eu { background:var(--t-placa); }
+.t-st-pn { min-width:0; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-st-pn small { display:block; font:700 10.5px/1.4 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); overflow:hidden; text-overflow:ellipsis; }
+.t-st-p > b { font:900 22px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; padding-right:6px; }
+@media (max-width:720px) and (pointer:coarse) { .t-st-ctrl .t-segmentos { flex-basis:100%; grid-auto-flow:row; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .t-st-ctrl .t-segmentos > * { border-top:1px solid var(--t-fio); margin-top:-1px; } .t-st-tab :is(td, th):nth-child(n+5) { display:none; } }

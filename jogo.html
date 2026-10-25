@@ -1230,10 +1230,12 @@ async function telaClube(liga, clube) {
       const selecao = ps.filter(p => ehSelecao(p) && (comp === "TODOS" || p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || a.premio.localeCompare(b.premio));
       const daqui = ps.filter(p => !ehSelecao(p) && (comp === "TODOS" ? true : p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || Object.keys(NOME).indexOf(a.premio) - Object.keys(NOME).indexOf(b.premio));
       if (!(daqui.length || selecao.length) || !$("stPremios") || $("stComp").value !== comp || $("stTemp").value !== temp) return;
+      if (visualNovo) return premiosNovos(daqui, selecao, deQual, NOME);
       $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada ${deQual}</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${p.premio === "tecnico" ? (+p.numero > 0 ? `${+p.numero} ${+p.numero === 1 ? "posição" : "posições"} acima do esperado pelo elenco` : "campanha do tamanho do elenco") : String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
       if (selecao.length) $("stPremios").innerHTML += `<h2 style="margin-top:14px">Seleção da temporada ${deQual}</h2>` + [...new Set(selecao.map(p => p.comp))].map(c => `<div style="margin:3px 0">${comp === "TODOS" ? `<b>${esc(nomeDoGrupo(c).replace("Brasileiro ", ""))}:</b> ` : ""}${selecao.filter(p => p.comp === c).map(p => `${esc(sg(p.pos || ""))} ${esc(p.jogador || "")} <span class="mut">(${lk(p.clube_id)})</span>`).join(" · ")}</div>`).join("") + `<div class="mut" style="font-size:12px;margin-top:4px">Os onze de melhor nota média da série (1 goleiro, 4 de defesa, 3 de meio e 3 de ataque), com pelo menos metade dos jogos. Só de honra.</div>`;
     }).catch(() => {});
     };
+    if (visualNovo && (!d || !d.jogos)) { statsNova(d, comp, temp, lista, nomeDaComp); mostrarPremios(); return; }
     if (!d) { $("tabela").innerHTML = `<span class="mut">${temp ? "Não há estatísticas guardadas dessa competição nessa temporada." : "As estatísticas aparecem quando o administrador ligar a soma no banco."}</span>`; $("rodadas").innerHTML = ""; return; }
     if (!d.jogos) { $("tabela").innerHTML = `<span class="mut">Nenhuma partida encerrada nessa competição ainda.</span>`; $("rodadas").innerHTML = `<div id="stPremios"></div>`; mostrarPremios(); return; }
     const num = v => v == null ? "—" : String(v).replace(".", ","), por90 = (v, min) => min > 0 ? num((v * 90 / min).toFixed(2)) : "—";
@@ -1256,11 +1258,72 @@ async function telaClube(liga, clube) {
       R.nota ? `<div><b>Melhor atuação:</b> ${esc(R.nota.nome)} (${lk(R.nota.clube)}), nota ${num(R.nota.nota)}${R.nota.gols ? `, ${R.nota.gols} ${R.nota.gols === 1 ? "gol" : "gols"}` : ""}${R.nota.ass ? `, ${R.nota.ass} ${R.nota.ass === 1 ? "assistência" : "assistências"}` : ""}${ver(R.nota)}</div>` : "",
       R.publico ? `<div><b>Maior público:</b> ${(+R.publico.publico).toLocaleString("pt-BR")} em ${lk(R.publico.casa)} x ${lk(R.publico.fora)}${ver(R.publico)}</div>` : ""].filter(Boolean);
     const cl = (d.clubes || []).filter(x => cPor[x.clube]);
+    if (visualNovo) { statsNova(d, comp, temp, lista, nomeDaComp, COLUNAS, cl); mostrarPremios(); return; }
     $("rodadas").innerHTML = `<table class="mini" style="width:100%;table-layout:fixed"><tr><th class="esq">Clube</th><th style="width:26px" title="Jogos">J</th><th style="width:30px" title="Gols marcados">GP</th><th style="width:30px" title="Gols sofridos">GC</th><th style="width:36px" title="Finalizações por jogo">Fin</th><th style="width:40px" title="Posse de bola média">Pos</th><th style="width:30px" title="Cartões amarelos">🟨</th><th style="width:62px" title="Público médio em casa">Púb.</th></tr>
         ${cl.map(x => `<tr><td class="esq ${x.clube === clube.id ? "nota" : ""}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lk(x.clube)}</td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td>${num((x.fin / x.j).toFixed(1))}</td><td>${x.posse == null ? "—" : x.posse + "%"}</td><td>${x.am}</td><td>${x.publico == null ? "—" : (x.publico / 1000).toFixed(1).replace(".", ",") + " mil"}</td></tr>`).join("")}</table>
       <div class="mut" style="margin-top:6px;font-size:12px">Ordenado por gols marcados.</div>
       ${recordes.length ? `<h2 style="margin-top:14px">Recordes</h2>${recordes.join("")}` : ""}<div id="stPremios"></div>`;
     mostrarPremios();
+  }
+  // Competições › Estatísticas no visual novo: a faixa é do líder da lista escolhida (os 5 primeiros em barras, os números da competição);
+  // competição, lista e temporada em botões que mexem nos selects escondidos; jogadores | clubes; recordes em números; prêmios e seleção em linhas
+  function statsNova(d, comp, temp, lista, nomeDaComp, COLUNAS, cl = []) {
+    const el = $("statsNova"); if (!el) return;
+    const num = v => String(v).replace(".", ","), linhas = (d && d[lista]) || [], nomeLista = $("stLista").selectedOptions[0].text;
+    // [valor das barras, o valor por extenso]
+    const [val, txt] = { artilheiros: [x => x.gols, x => `${x.gols} ${x.gols === 1 ? "gol" : "gols"}`], assistencias: [x => x.ass, x => `${x.ass} ${x.ass === 1 ? "assistência" : "assistências"}`],
+      notas: [x => +x.nota, x => `nota ${num((+x.nota).toFixed(2))}`], goleiros: [x => x.sem, x => `${x.sem} ${x.sem === 1 ? "jogo" : "jogos"} sem sofrer gol`],
+      cartoes: [x => x.vm * 3 + x.am, x => [x.vm ? `${x.vm} ${x.vm === 1 ? "vermelho" : "vermelhos"}` : "", `${x.am} ${x.am === 1 ? "amarelo" : "amarelos"}`].filter(Boolean).join(" e ")] }[lista];
+    const curta = v => v === "TODOS" ? "Todas" : v === "COPA" ? "Copa do Brasil" : PAISES[v] || nomeDoGrupo(v).replace(/^.*?(Série \S+)$/, "$1");
+    const botoes = (sel, rotuloDe) => [...$(sel).options].map(o => `<button type="button" data-st="${sel}" data-v="${esc(o.value)}" class="${o.value === $(sel).value ? "ligado" : ""}">${esc(rotuloDe(o))}${sel === "stComp" && o.value === clube.grupo ? " <small>o seu</small>" : ""}</button>`).join("");
+    const lider = linhas[0], iEu = linhas.findIndex(x => x.clube === clube.id), eu = linhas[iEu];
+    const comEu = comp === "TODOS" || comp === clube.grupo || comp === "COPA";
+    const frase = !lider ? "" : iEu === 0 ? "É do seu clube." : eu ? `No ${clube.nome}, ${eu.nome} é o ${iEu + 1}º, com ${txt(eu)}.` : comEu ? "Ninguém do seu clube entre os 20 primeiros." : "";
+    const topo5 = linhas.slice(0, 5), maior = lider ? val(lider) || 1 : 1;
+    const lado = topo5.length > 1 ? `<div class="t-numero-rotulo">Os ${topo5.length} primeiros</div><div class="t-st-barras">${topo5.map((x, i) => `<div class="t-st-b${x.clube === clube.id ? " t-eu" : ""}"><span>${i + 1}. ${esc(x.nome)} <small>${esc((cPor[x.clube] || {}).nome || "")}</small></span><b>${lista === "notas" ? num((+x.nota).toFixed(2)) : lista === "cartoes" ? `${x.vm ? x.vm + "V · " : ""}${x.am}A` : val(x)}</b><i style="width:${Math.max(3, val(x) / maior * 100)}%"></i></div>`).join("")}</div>` : "";
+    const gols = cl.reduce((t, x) => t + x.gp, 0), iAt = cl.findIndex(x => x.clube === clube.id), pubs = cl.filter(x => x.publico != null);
+    const numeros = d && d.jogos ? `<div class="t-elenco-numeros">${numero({ rotulo: "Partidas", valor: String(d.jogos), legenda: "encerradas" })}
+      ${numero({ rotulo: "Gols", valor: String(gols), legenda: `${num((gols / d.jogos).toFixed(2))} por jogo` })}
+      ${numero({ rotulo: "Seu ataque", valor: iAt >= 0 ? `${iAt + 1}º` : "—", legenda: iAt >= 0 ? `${cl[iAt].gp} gols em ${cl[iAt].j} jogos` : "seu clube não joga" })}
+      ${numero({ rotulo: "Público médio", valor: pubs.length ? `${num((pubs.reduce((t, x) => t + x.publico, 0) / pubs.length / 1000).toFixed(1))} mil` : "—", legenda: "por jogo" })}</div>` : "";
+    const rot = `Estatísticas · ${nomeDaComp} · temporada ${temp || liga.temporada}`;
+    const topo = lider ? faixaFoco({ rotulo: `${rot} · ${nomeLista}`, titulo: lider.nome, apagado: (cPor[lider.clube] || {}).nome || "",
+        destaque: `${txt(lider)[0].toUpperCase()}${txt(lider).slice(1)} em ${lider.j} ${lider.j === 1 ? "jogo" : "jogos"}.`, frase, lado, numeros })
+      : faixaFoco({ rotulo: rot, titulo: nomeLista, apagado: !d ? "sem números" : !d.jogos ? "nenhum jogo encerrado" : "ninguém na lista", numeros,
+        frase: !d ? (temp ? "Não há estatísticas guardadas dessa competição nessa temporada." : "As estatísticas aparecem quando o administrador ligar a soma no banco.") : !d.jogos ? "Nenhuma partida encerrada nessa competição ainda." : "" });
+    const controles = `<div class="t-liga-topo"><div class="t-transf-filtro">${botoes("stComp", o => curta(o.value))}</div></div>
+      <div class="t-st-ctrl"><div class="t-segmentos">${[...$("stLista").options].map(o => `<button type="button" data-st="stLista" data-v="${o.value}" aria-pressed="${o.value === lista}">${esc(o.text)}</button>`).join("")}</div>
+        <div class="t-transf-filtro" id="stTempNova">${botoes("stTemp", o => o.value ? `T${o.value}` : `Atual · T${liga.temporada}`)}</div></div>`;
+    let corpo = "";
+    if (d && d.jogos) {
+      const jog = linhas.length ? `<table class="t-tabela t-liga-tab t-st-tab"><tr><th></th><th class="t-esq">Jogador</th>${COLUNAS.map(([t, dica]) => `<th title="${dica}">${t}</th>`).join("")}</tr>
+        ${linhas.map((x, i) => { const c = cPor[x.clube] || {}; return `<tr class="${x.clube === clube.id ? "t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><span class="t-st-j">${c.id ? svgEscudo(c.escudo, c.sigla, 22) : ""}<span>${pp(x.pos || "")} ${lj(x.id, x.nome)}<small>${esc(c.nome || "")}</small></span></span></td>${COLUNAS.map(([, , f]) => `<td>${f(x)}</td>`).join("")}</tr>`; }).join("")}</table>`
+        : `<p class="t-fajuda">Ninguém nessa lista ainda.</p>`;
+      const clu = `<table class="t-tabela t-liga-tab"><tr><th class="t-esq">Clube</th><th title="Jogos">J</th><th title="Gols marcados">GP</th><th title="Gols sofridos">GC</th><th class="t-lt-x" title="Finalizações por jogo">Fin</th><th class="t-lt-x" title="Posse de bola média">Pos</th><th class="t-lt-x" title="Cartões amarelos">Am</th><th title="Público médio em casa">Púb.</th></tr>
+        ${cl.map(x => { const c = cPor[x.clube]; return `<tr class="${x.clube === clube.id ? "t-eu" : ""}"><td class="t-esq"><a class="t-lt-clube" href="#clube=${c.id}" data-clube="${c.id}">${svgEscudo(c.escudo, c.sigla, 22)}<span>${esc(c.nome)}</span></a></td><td>${x.j}</td><td><b>${x.gp}</b></td><td>${x.gc}</td><td class="t-lt-x">${num((x.fin / x.j).toFixed(1))}</td><td class="t-lt-x">${x.posse == null ? "—" : x.posse + "%"}</td><td class="t-lt-x">${x.am}</td><td>${x.publico == null ? "—" : num((x.publico / 1000).toFixed(1)) + " mil"}</td></tr>`; }).join("")}</table>`;
+      const nota = `${lista === "notas" ? `Entra quem tem pelo menos ${d.minimo} jogos com 30 minutos ou mais. ` : ""}${lista === "goleiros" ? "Ordenado por jogos sem sofrer gol. " : ""}Os 20 primeiros; o clube é o do último jogo do jogador na competição.`;
+      // recordes da competição na temporada, em números (na temporada em andamento, cada um abre o jogo)
+      const R = d.recordes || {}, nomeC = id => (cPor[id] || {}).nome || "—", jogo = r => `${nomeC(r.casa)} x ${nomeC(r.fora)}`;
+      const rec = (r, n) => temp ? `<div class="t-st-r">${n}</div>` : `<a class="t-st-r" href="aovivo.html?id=${r.id}">${n}</a>`;
+      const recs = [R.goleada && R.goleada.gols_casa !== R.goleada.gols_fora && rec(R.goleada, numero({ rotulo: "Maior goleada", valor: `${R.goleada.gols_casa} x ${R.goleada.gols_fora}`, legenda: jogo(R.goleada) })),
+        R.gols && rec(R.gols, numero({ rotulo: "Jogo com mais gols", valor: `${R.gols.gols_casa} x ${R.gols.gols_fora}`, legenda: jogo(R.gols) })),
+        R.nota && rec(R.nota, numero({ rotulo: "Melhor atuação", valor: num(R.nota.nota), legenda: `${R.nota.nome} · ${nomeC(R.nota.clube)}${R.nota.gols ? ` · ${R.nota.gols} ${R.nota.gols === 1 ? "gol" : "gols"}` : ""}${R.nota.ass ? ` · ${R.nota.ass} ${R.nota.ass === 1 ? "assistência" : "assistências"}` : ""}` })),
+        R.publico && rec(R.publico, numero({ rotulo: "Maior público", valor: (+R.publico.publico).toLocaleString("pt-BR"), legenda: jogo(R.publico) }))].filter(Boolean);
+      corpo = `<div class="t-liga-grade"><section>${rotulo(nomeLista)}${jog}<p class="t-fajuda">${nota}</p></section><section>${rotulo("Clubes · por gols marcados")}${clu}</section></div>
+        ${recs.length ? `<section class="t-secao">${rotulo("Recordes da temporada")}<div class="t-st-recs">${recs.join("")}</div></section>` : ""}`;
+    }
+    el.innerHTML = `<div class="t-liga t-stats">${topo}${controles}${corpo}<div id="stPremios"></div></div>`;
+    el.onclick = e => { const b = e.target.closest("[data-st]"); if (!b || $(b.dataset.st).value === b.dataset.v) return; $(b.dataset.st).value = b.dataset.v; mostrarCompeticao("stats"); };
+  }
+  // prêmios individuais e seleção da temporada, em linhas (escudo, jogador, o número que deu o prêmio)
+  function premiosNovos(daqui, selecao, deQual, NOME) {
+    const serie = c => c === "COPA" ? "Copa" : nomeDoGrupo(c).replace(/^.*?(Série \S+)$/, "$1"), varias = new Set([...daqui, ...selecao].map(p => p.comp)).size > 1;
+    const escudo = id => (c => c ? svgEscudo(c.escudo, c.sigla, 22) : "<span></span>")(cPor[id]);
+    const extra = p => p.numero == null ? "" : p.premio === "tecnico" ? (+p.numero > 0 ? `+${+p.numero}` : "=") : String(+p.numero).replace(".", ",");
+    const linhaP = p => `<div class="t-st-p${p.clube_id === clube.id ? " t-eu" : ""}">${escudo(p.clube_id)}<span class="t-st-pn"><small>${esc(p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio)}${varias ? ` · ${esc(serie(p.comp))}` : ""}</small>${esc(p.jogador || "")}</span><b title="${p.premio === "tecnico" ? "posições acima do esperado pelo elenco" : ""}">${extra(p)}</b></div>`;
+    const linhaS = p => `<div class="t-st-p${p.clube_id === clube.id ? " t-eu" : ""}">${escudo(p.clube_id)}<span class="t-st-pn"><small>${esc((cPor[p.clube_id] || {}).nome || "")}</small>${esc(p.jogador || "")}</span><b>${pp(p.pos || "")}</b></div>`;
+    $("stPremios").innerHTML = (daqui.length ? `<section class="t-secao">${rotulo(`Prêmios da temporada ${deQual}`)}<div class="t-copa-hist">${daqui.map(linhaP).join("")}</div></section>` : "")
+      + (selecao.length ? `<section class="t-secao">${rotulo(`Seleção da temporada ${deQual} · os onze de melhor nota média`)}${[...new Set(selecao.map(p => p.comp))].map(c => `${varias ? `<div class="t-cal-dia">${esc(serie(c))}</div>` : ""}<div class="t-copa-hist">${selecao.filter(p => p.comp === c).map(linhaS).join("")}</div>`).join("")}</section>` : "");
   }
   // Federação: o fundo da liga (saldo, de onde veio e para onde foi) e os valores que a liga paga e cobra
   async function telaDaFederacao() {
@@ -2795,7 +2858,7 @@ async function telaClube(liga, clube) {
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
       <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div>`}</div>
     ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div>` : ""}
-    <div data-parte="comp:stats"><div class="row" style="margin-top:4px">
+    <div data-parte="comp:stats">${visualNovo ? `<div id="statsNova"></div>` : ""}<div class="row" style="margin-top:4px"${visualNovo ? " hidden" : ""}>
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
       <label>Lista<select id="stLista"><option value="artilheiros">Artilharia</option><option value="assistencias">Assistências</option><option value="notas">Melhores notas</option><option value="goleiros">Goleiros</option><option value="cartoes">Cartões</option></select></label></div></div>
@@ -3487,7 +3550,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul", "stats"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
@@ -4067,7 +4130,7 @@ ${historicoDaBase()}
   let temporadasLidas = false;
   function mostrarCompeticao(k) {
     if (k === "stats" && !temporadasLidas) { temporadasLidas = true;
-      temporadasComEstatisticas(liga.id).then(ts => { if ($("stTemp")) $("stTemp").insertAdjacentHTML("beforeend", ts.filter(t => t !== liga.temporada).map(t => `<option value="${t}">Temporada ${t}</option>`).join("")); }).catch(() => {}); }
+      temporadasComEstatisticas(liga.id).then(ts => { if ($("stTemp")) $("stTemp").insertAdjacentHTML("beforeend", ts.filter(t => t !== liga.temporada).map(t => `<option value="${t}">Temporada ${t}</option>`).join("")); if ($("stTempNova")) $("stTempNova").innerHTML += ts.filter(t => t !== liga.temporada).map(t => `<button type="button" data-st="stTemp" data-v="${t}">T${t}</button>`).join(""); }).catch(() => {}); }
     const alvo = { liga: $("verGrupo").value, copa: "COPA", lib: "LIB", sul: "SUL", stats: "STATS", fed: "FEDERACAO", trofeus: "TROFEUS" }[k] || $("verGrupo").value;
     return grupo(alvo).catch(e => { $("tabela").innerHTML = `<span class="bad">${esc(e.message)}</span>`; });
   }
