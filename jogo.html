@@ -2467,8 +2467,10 @@ async function telaClube(liga, clube) {
       ${propostas == null ? "" : numero({ rotulo: "Pré-contratos", valor: preC, sufixo: "de 2", legenda: "a quem fica livre na virada" })}
       ${propostas == null ? "" : prePeriodo && !janela ? numero({ rotulo: "Acordos", valor: minhas.filter(p => p.estado === "pre").length, legenda: esperam ? `${esperam} ${esperam === 1 ? "espera" : "esperam"} você` : "valem na virada" })
         : numero({ rotulo: "Propostas", valor: esperam, legenda: esperam ? "esperam você" : "nenhuma esperando" })}</div>`;
-    const f = faixaFoco({ rotulo: "Mercado", titulo: janela ? "Janela aberta" : "Janela fechada", apagado: quando, frase, lado });
-    return f.replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
+    // com a hora marcada, o subtítulo vira cronômetro (o mesmo da Central); sem ela fica o texto ("abre na virada")
+    const prazo = janela ? fim : abre, crono = prazo ? `<span class="t-cronometro" data-ate="${new Date(prazo).getTime()}" data-rotulo="${janela ? "fecha em " : "abre em "}" data-fim="${janela ? "fechando" : "abrindo"}" title="${dh(prazo)}">${quando}</span>` : null;
+    const f = faixaFoco({ rotulo: "Mercado", titulo: janela ? "Janela aberta" : "Janela fechada", apagado: crono ? "§crono§" : quando, frase, lado });
+    return f.replace("§crono§", crono).replace("t-faixa t-sangra", `t-faixa t-sangra t-faixa-mercado${janela ? "" : " t-janela-fechada"}`);
   };
   // patrocínio por escolha (115_patrocinio.sql): marca cosmética + proposta de luvas e bônus por meta de posição
   let selM = patro && patro.escolha ? patro.escolha.marca : patro && patro.marca && !(MARCAS[patro.marca].grande && clube.divisao !== 1) ? patro.marca : null, selP = patro && patro.escolha ? patro.escolha.proposta : null, msgP = "", posHoje = 0;
@@ -2816,7 +2818,7 @@ ${historicoDaBase()}
               <div class="t-ljog-fase">${fase(j)}</div>${botaoInfo(j)}</div>`; }).join("")}</div>` : `<div class="t-mjog-mais">Nenhum jogador livre. Eles aparecem depois da virada, quando contratos vencem sem renovação.</div>`}</section>
         ${ofs.length ? `<section class="t-setor">${rotulo(`Ofertas de clubes no vermelho · ${ofs.length}`)}<p class="t-mercado-regra">75% da multa rescisória, valendo mesmo com a janela fechada.</p>
           <div id="ofertasLista"><div class="t-jog t-jog-cab t-ojog"><span></span><span>Jogador</span><span>Clube</span><span>Id.</span><span>Nota</span><span>Preço</span><span>Até</span></div>
-          ${ofs.map(j => `<div class="t-jog t-ojog clk" data-oferta="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}</div><div class="t-mjog-clube">${esc(cPor[j.clube_id].nome)}</div><div class="t-jog-id">${j.idade}</div>
+          ${ofs.map(j => `<div class="t-jog t-ojog clk" data-oferta="${j.id}">${pp(j.pos)}<div class="t-jog-nome">${esc(j.nome)}</div><div class="t-mjog-clube">${lkE(j.clube_id)}</div><div class="t-jog-id">${j.idade}</div>
             <div class="t-jog-nota">${f1(notaNaPosicao(j, j.pos))}</div><div class="t-mjog-multa">${dinheiro(Math.round(3.75 * j.salario))}</div><div class="t-ljog-fase">${ateQuando(j.oferta_liga_ate)}</div></div>`).join("")}</div></section>` : ""}
         </div><aside class="t-boleta-lugar"><div id="livrePainel"></div><div id="ofertaPainel"></div></aside></div>`; })() : `
     ${`<div class="card"><h2>Jogadores livres <span class="tag">o primeiro lance abre o leilão · leva quem oferecer o maior salário</span></h2>${(() => {
@@ -3039,7 +3041,7 @@ ${historicoDaBase()}
       const linhaM = j => { const s = situacao(j), b = !s && bloqueio(j), c = cPor[j.clube_id];
         return `<div class="t-jog t-mjog clk${s || b ? " t-mjog-trava" : ""}" data-mjog="${j.id}"${b ? ` title="Por enquanto você não pode: ${esc(b[1])}"` : ""}>${pp(j.pos)}
           <div class="t-jog-nome">${esc(j.nome)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
-          <div class="t-mjog-clube" title="${esc(nomeDoGrupo(c.grupo))}${c.dono ? "" : " · sem dono"}">${lk(j.clube_id)}</div>
+          <div class="t-mjog-clube" title="${esc(nomeDoGrupo(c.grupo))}${c.dono ? "" : " · sem dono"}">${lkE(j.clube_id)}</div>
           <div class="t-jog-id">${j.idade}</div><div class="t-jog-nota">${f1(j.nota)}</div>
           <div class="t-mjog-multa">${s ? `<small>${s}</small>` : `${dinheiro(multaDe(j))}${b ? `<small>${b[0]}</small>` : ""}`}</div>${botaoInfo(j)}</div>`; };
       if (visualNovo) $("mLista").innerHTML = l.length ? `<div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Clube</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div>${l.slice(0, 60).map(linhaM).join("")}${l.length > 60 ? `<div class="t-mjog-mais">Os 60 de maior nota entre ${l.length}.</div>` : ""}` : `<div class="t-mjog-mais">Ninguém com esses filtros.</div>`;
@@ -3426,7 +3428,7 @@ ${historicoDaBase()}
   // cronômetros da Central nova (até o apito e até a tática fechar): um só relógio para a página toda
   if (visualNovo && !window.cronometroCentral) window.cronometroCentral = setInterval(() => document.querySelectorAll(".t-cronometro").forEach(el => {
     const ms = +el.dataset.ate - Date.now(), r = el.dataset.rotulo || "";
-    if (ms <= 0) { el.textContent = r ? "tática fechada" : "ao vivo · assistir ›"; el.classList.add(r ? "t-acabou" : "t-ao-vivo"); return; }
+    if (ms <= 0) { el.textContent = el.dataset.fim || (r ? "tática fechada" : "ao vivo · assistir ›"); el.classList.add(r ? "t-acabou" : "t-ao-vivo"); return; }
     const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, mi = Math.floor(ms / 6e4) % 60, se = Math.floor(ms / 1e3) % 60, z = n => String(n).padStart(2, "0");
     el.textContent = r + (d ? `${d}d ${h}h ${z(mi)}min` : `${z(h)}:${z(mi)}:${z(se)}`); el.classList.toggle("t-urgente", ms < 36e5); }), 1000);
   // Central nova: o Vestiário e o próximo jogo são preenchidos depois (grupo, relatório), então o clique é delegado no contêiner

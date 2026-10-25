@@ -1464,3 +1464,8 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 /* sub-abas no celular: cada coluna do tamanho do rótulo (em quatro colunas iguais, PROPOSTAS cortava) */
 @media (max-width:620px) and (pointer:coarse) { :root[data-visual=novo] .subabas { grid-template-columns:repeat(4, auto); justify-content:space-between; gap:0 10px; } :root[data-visual=novo] .sub { font-size:12px; letter-spacing:.03em; } }
 @media (max-width:720px) and (pointer:coarse) { .t-neg .t-transf-rota { white-space:normal; } }
+/* Mercado: o cronômetro da janela no subtítulo da faixa, com a letra do título; escudo na coluna do clube da busca */
+.t-faixa-mercado .t-cronometro { font:inherit; color:inherit; margin:0; } .t-faixa-mercado .t-cronometro.t-urgente { color:var(--t-marca); }
+.t-mjog-clube .t-transf-clube { max-width:100%; } .t-mjog-clube .t-transf-clube a.lk { overflow:hidden; text-overflow:ellipsis; }
+@media (max-width:720px) and (pointer:coarse) { .t-mjog { grid-template-columns:38px minmax(0, 1fr) 20px 24px 40px 64px 22px; } .t-mjog .t-mjog-clube { display:block; } .t-mjog-clube a.lk { display:none; }
+  .t-mjog.t-jog-cab > :nth-child(3) { display:block; font-size:0; } .t-ojog { grid-template-columns:38px minmax(0, 1fr) 20px 40px 64px; } .t-ojog > :nth-child(3) { display:block; } }
