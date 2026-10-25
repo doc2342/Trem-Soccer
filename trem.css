@@ -1949,3 +1949,87 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
   .t-adm-jogo { grid-template-columns:minmax(0, 1fr) 56px minmax(0, 1fr); } .t-adm-jogo > .t-adm-jogo-acoes { grid-column:1 / -1; justify-content:center; }
   .t-adm-dir th:nth-child(4), .t-adm-dir td:nth-child(4) { display:none; }
 }
+/* ---------- relatório da partida (aovivo.html depois do apito; htmlRelatorioNovo em src/ui-relatorio.js): capítulos placar → jogo → vestiário → rodada ---------- */
+.t-rel-faixa { grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); margin-top:12px; }
+.t-rel-patro { display:flex; align-items:center; gap:8px; font:700 11px/1 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-noite-tx); margin:-4px 0 0; }
+.t-rel-placar { display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); gap:16px; align-items:start; margin:24px 0 8px; }
+.t-rel-time { display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; min-width:0; }
+.t-rel-time a { color:inherit; text-decoration:none; } .t-rel-time a:hover { text-decoration:underline; }
+.t-rel-nome { font:900 clamp(22px, 2.6vw, 34px)/.95 var(--t-letra); font-stretch:62%; text-transform:uppercase; margin:0; overflow-wrap:anywhere; }
+.t-rel-gols { display:flex; flex-direction:column; align-items:center; gap:8px; padding-top:4px; }
+.t-rel-gols b { font:900 clamp(72px, 9vw, 120px)/.8 var(--t-letra); font-stretch:62%; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.t-rel-gols i { font-style:normal; color:var(--t-noite-mut); font-size:.5em; margin:0 .18em; vertical-align:.3em; }
+.t-rel-gols small { font:700 11px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-marca); white-space:nowrap; }
+.t-rel-ev { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13.5px; }
+.t-rel-ev li { display:flex; align-items:baseline; justify-content:center; gap:6px; flex-wrap:wrap; }
+.t-rel-ev li::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--t-noite-tx); flex-shrink:0; transform:translateY(-1px); }
+.t-rel-ev li[data-tipo=vermelho]::before, .t-rel-ev li[data-tipo=segundo]::before { width:7px; height:10px; border-radius:1px; background:var(--t-marca); }
+.t-rel-ev li[data-tipo=lesao]::before { content:"+"; width:auto; height:auto; background:none; font-weight:900; color:var(--t-marca); }
+.t-rel-ev span { font-variant-numeric:tabular-nums; color:var(--t-noite-mut); }
+.t-rel-ev small, .t-rel-ev small a { color:var(--t-noite-mut); }
+.t-rel-faixa .lkj { color:inherit; }
+.t-rel-faixa .t-faixa-numeros { justify-content:center; }
+.t-rel-esp { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; text-align:center; }
+.t-rel-esp b { display:block; font:900 44px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
+.t-rel-esp b small { font-size:.5em; color:var(--t-noite-mut); margin-left:2px; }
+.t-rel-esp span { display:block; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-noite-mut); margin-top:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.t-rel-barra { display:flex; height:8px; margin:16px 0 8px; background:var(--t-noite-fio); } .t-rel-barra i:nth-child(2) { background:var(--t-noite-mut); opacity:.5; }
+.t-rel-xg { font-size:13.5px; color:var(--t-noite-mut); margin:8px 0 0; } .t-rel-xg b { color:var(--t-noite-tx); font-variant-numeric:tabular-nums; }
+.t-rel-melhor { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:16px; padding-top:16px; border-top:1px solid var(--t-noite-fio); }
+.t-rel-melhor .t-numero-rotulo { color:var(--t-noite-mut); }
+.t-rel-melhor b { display:block; font:800 20px/1.15 var(--t-letra); font-stretch:75%; margin-top:8px; } .t-rel-melhor span { font-size:13px; color:var(--t-noite-mut); }
+.t-rel-melhor em { font:900 56px/1 var(--t-letra); font-stretch:62%; font-style:normal; color:var(--t-marca); }
+.t-rel-pen .dsp { align-items:center; }
+/* o jogo contado */
+.t-rel-jogo .gr { margin:0 0 32px; }
+.t-rel-dois { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr); gap:0 48px; align-items:start; }
+.t-rel-numeros { position:sticky; top:16px; }
+.t-rel-regua { grid-template-columns:minmax(0, 1fr); }
+.t-rel-reprise .lance { border-bottom:1px solid var(--t-fio); padding:8px 0; margin:0; font-size:14px; }
+.t-rel-reprise .lance.gol { background:var(--t-placa); font-weight:700; padding-left:8px; padding-right:8px; box-shadow:inset 3px 0 var(--t-marca); }
+.t-rel-reprise [data-todos] { margin:0 0 12px !important; }
+/* o vestiário */
+.t-rel-analistas { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap:32px 48px; }
+.t-rel-an-cab { display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:2px solid var(--t-tinta); margin-bottom:16px; }
+.t-rel-an-cab b { font:800 18px/1.1 var(--t-letra); font-stretch:75%; text-transform:uppercase; } .t-rel-an-cab span { color:var(--t-tinta2); font-size:13px; }
+.t-rel-an-corpo { display:grid; grid-template-columns:180px minmax(0, 1fr); gap:16px 24px; align-items:start; }
+.t-rel-an-campo .t-campo { grid-auto-rows:48px; } .t-rel-an-campo .t-zona b { font-size:17px; }
+.t-rel-an-campo small { display:block; font-size:11.5px; color:var(--t-tinta2); margin-top:8px; }
+.t-rel-lead { font:800 19px/1.25 var(--t-letra); font-stretch:80%; margin:0 0 8px; }
+.t-rel-frases { margin:0; padding:0; list-style:none; } .t-rel-frases li { font-size:14px; line-height:1.45; color:var(--t-tinta2); padding:8px 0; border-top:1px solid var(--t-fio); }
+.t-rel-frases li b, .t-rel-lead b { color:var(--t-tinta); }
+.t-rel-ordens { margin-top:16px; background:var(--t-placa); padding:12px 16px; } .t-rel-ordens p { margin:8px 0 0; font-size:13.5px; color:var(--t-tinta2); }
+.t-rel-ordem { display:grid; grid-template-columns:44px minmax(0, 1fr); gap:8px; font-size:13.5px; padding:6px 0; border-top:1px solid var(--t-fio); } .t-rel-ordem:first-of-type { border-top:0; margin-top:4px; }
+.t-rel-ordem > b { color:var(--t-ok); font-variant-numeric:tabular-nums; } .t-rel-nao > b { color:var(--t-tinta3); } .t-rel-nao span { color:var(--t-tinta2); }
+.t-rel-ordem small { display:block; color:var(--t-tinta3); }
+.t-rel-diretoria { margin-top:32px; } .t-rel-diretoria .t-numero-rotulo { margin-bottom:8px; }
+.t-rel-dir { display:grid; grid-template-columns:56px minmax(0, 1fr); gap:16px; align-items:center; padding:8px 0; border-top:1px solid var(--t-fio); font-size:14px; }
+.t-rel-dir-n { font:900 36px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; } .t-rel-dir i { color:var(--t-tinta2); }
+.t-rel-dir small { display:block; color:var(--t-tinta2); font-size:12.5px; margin-top:4px; }
+.t-rel-saiu { margin-top:32px; }
+.t-rel-campo { gap:0; padding:20px 8px; } .t-rel-campo .t-st-s { width:19%; }
+.t-rel-campo .t-st-linha { height:100px; align-items:flex-start; } /* as 6 faixas sempre desenhadas, vazias ou não: os dois campos ficam da mesma altura */
+.t-rel-numeros .t-regua { grid-template-columns:minmax(0, 1fr); } .t-rel-campo .t-st-s b { font-size:12.5px; }
+.t-rel-campo .t-st-cam em { right:-18px; } .t-rel-campo .t-st-cam em.ok { background:var(--t-ok); color:#fff; } .t-rel-campo .t-st-cam em.bad { background:var(--t-marca); color:#fff; }
+.t-rel-campo .t-st-cam i { position:absolute; left:-10px; font-style:normal; }
+.t-rel-s-gol { top:4px; min-width:12px; height:12px; border-radius:6px; background:#fff; color:var(--t-noite); font:900 9px/12px var(--t-letra); text-align:center; }
+.t-rel-s-am, .t-rel-s-verm { top:20px; width:8px; height:11px; border-radius:1px; background:#f2c200; } .t-rel-s-verm { background:var(--t-marca); }
+.t-rel-s-les { bottom:0; color:#fff; background:var(--t-marca); font:900 11px/12px var(--t-letra); width:12px; text-align:center; }
+.t-rel-saiu .t-cal-dia { margin-bottom:8px; }
+.t-rel-entraram { display:flex; flex-wrap:wrap; gap:4px 16px; align-items:baseline; font-size:13px; margin-top:8px; } .t-rel-entraram small { color:var(--t-tinta2); }
+.t-rel-entraram b.ok { color:var(--t-ok); } .t-rel-entraram b.bad { color:var(--t-marca); }
+.t-rel-mais { margin-top:16px; } .t-rel-mais summary { cursor:pointer; font:700 12px/1 var(--t-letra); letter-spacing:.12em; text-transform:uppercase; padding:12px 0; }
+.t-rel-rola { overflow-x:auto; }
+.t-rel-tab td, .t-rel-tab th { text-align:center; white-space:nowrap; } .t-rel-tab .t-esq { text-align:left; }
+.t-rel-tab-time td { font:800 15px/1 var(--t-letra); font-stretch:75%; text-transform:uppercase; padding-top:16px; border-bottom:0; }
+.t-rel-tab b.ok { color:var(--t-ok); } .t-rel-tab b.bad { color:var(--t-marca); }
+.t-rel-seta { font-size:11px; width:28px; } .t-rel-seta.ok { color:var(--t-ok); } .t-rel-seta.bad { color:var(--t-marca); }
+@media (max-width:1024px) and (pointer:coarse) { .t-rel-dois { grid-template-columns:minmax(0, 1fr); } .t-rel-numeros { position:static; order:-1; margin-bottom:32px; } }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-rel-faixa { grid-template-columns:minmax(0, 1fr); }
+  .t-rel-placar { gap:8px; } .t-rel-placar svg { width:44px; height:44px; } .t-rel-ev { font-size:12px; } .t-rel-ev li { display:block; } .t-rel-ev li::before { display:inline-block; margin-right:4px; } .t-rel-ev small { display:block; }
+  .t-rel-nome { font-size:20px; overflow-wrap:break-word; } .t-rel-gols b { font-size:64px; }
+  .t-rel-faixa .t-faixa-texto, .t-rel-faixa .t-faixa-lado { text-align:center; } .t-rel-faixa .t-rotulo { justify-content:center; } .t-rel-melhor { text-align:left; }
+  .t-rel-an-corpo { grid-template-columns:minmax(0, 1fr); } .t-rel-an-campo { max-width:240px; margin:0 auto; }
+  .t-rel-campo .t-st-s { width:22%; }
+}

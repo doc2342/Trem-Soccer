@@ -224,7 +224,9 @@ import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
-import { htmlRelatorio, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
+import { htmlRelatorio, htmlRelatorioNovo, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
+import { rotulo } from "./src/ui-trem.js";
+const NOVO = document.documentElement.dataset.visual === "novo"; // visual novo: por ora só o relatório (depois do apito); a transmissão segue a de antes
 import { svgEscudo, svgUniforme, svgCostas, numerosDaCamisa, uniformesDoJogo } from "./src/escudo.js";
 import { camisinha } from "./src/camisa.js";
 import { htmlGraficos, ligarGraficos } from "./src/ui-graficos.js";
@@ -647,6 +649,19 @@ function htmlRodada(meu, T = Date.now()) {
     <table style="width:100%;margin-top:8px;font-size:13.5px"><tr><th></th><th></th><th style="text-align:left">Clube</th><th>P</th><th>J</th><th>SG</th></tr>${tabela}</table>
     <div class="mut" style="margin-top:6px;font-size:12px">Classificação como ficaria com os placares deste momento. As setas comparam com o início da rodada.</div></div>`;
 }
+// a mesma rodada no visual novo: a tabela com as zonas (como na aba Liga) e os jogos da rodada ao lado
+const CLASSE_DA_ZONA = { lider: "camp", lib: "lib", sul: "sul", sobe: "sobe", semi: "sobe", playoff: "playoff", cai: "cai" };
+function htmlRodadaNova(meu) {
+  if (!rodada) return "";
+  const e = estadoDaRodada(Date.now(), meu), cl = c => rodada.clubes.find(x => x.id === c) || { nome: "—" }, posAntes = Object.fromEntries(e.antes.map((t, i) => [t.clube.id, i])), n = e.agora.length;
+  const jogos = rodada.daRodada.map(p => { const x = e.placares[p.id], a = cl(p.casa), b = cl(p.fora), g = x.g, v = g && g[0] !== g[1] ? (g[0] > g[1] ? "c" : "f") : "";
+    return `<a class="t-ljogo${p.id === id ? " t-eu" : ""}" href="aovivo.html?id=${p.id}"><span class="t-ljogo-c${v === "c" ? " t-ljogo-v" : ""}">${esc(a.nome)}</span>${svgEscudo(a.escudo, a.sigla, 22)}`
+      + `<b class="t-ljogo-x${g ? "" : " hora"}">${g ? `${g[0]} x ${g[1]}${x.fim ? "" : "<small>ao vivo</small>"}` : new Date(p.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>`
+      + `${svgEscudo(b.escudo, b.sigla, 22)}<span class="t-ljogo-f${v === "f" ? " t-ljogo-v" : ""}">${esc(b.nome)}</span></a>`; }).join("");
+  const tabela = `<table class="t-tabela t-liga-tab"><tr><th></th><th class="t-esq">Clube</th><th>P</th><th>J</th><th>SG</th><th></th></tr>${e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
+    return `<tr class="${CLASSE_DA_ZONA[zonaDaPosicao(i, n)] || ""}${nosso ? " t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><span class="t-lt-clube">${svgEscudo(t.clube.escudo, t.clube.sigla, 22)}<span>${esc(t.clube.nome)}</span></span></td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.gp - t.gc}</td><td class="t-rel-seta ${d > 0 ? "ok" : d < 0 ? "bad" : ""}">${d > 0 ? "▲" + d : d < 0 ? "▼" + (-d) : ""}</td></tr>`; }).join("")}</table>`;
+  return `<section class="t-secao t-rel-rodada">${rotulo(`Rodada ${partida.rodada} · ${nomeDoGrupo(partida.grupo)}`)}<div class="t-liga-grade"><div>${tabela}<p class="t-fajuda">As setas comparam com o começo da rodada.</p></div><div>${jogos}</div></div></section>`;
+}
 // Diretoria (91_diretoria.sql): confiança e frase do presidente de cada clube com dirigente; na liga, quanto a virada daria com a tabela de agora
 // (finanças e copa ficam fora da conta: o caixa é privado e a copa só entra no fim). Sem o SQL, a consulta falha e nada aparece.
 async function htmlDiretoria() {
@@ -664,11 +679,15 @@ async function htmlDiretoria() {
   const esp = tab ? posicaoPelosEsperados(tab) : {}, sinal = x => (x > 0 ? "+" : "") + x;
   const linhas = conf.filter(c => clubes[c.id] && c.confianca != null).map(c => {
     const meta = metas.find(m => m.clube_id === c.id), i = tab ? tab.findIndex(t => t.clube.id === c.id) : -1;
-    let conta = "";
-    if (meta && i >= 0 && tab[i].j) { const avaliada = (i + 1 + esp[c.id]) / 2, v = variacaoDaConfianca({ avaliada, faixa: [meta.faixa_min, meta.faixa_max] });
-      conta = ` Meta: ${meta.faixa_min === meta.faixa_max ? meta.faixa_min + "º" : `${meta.faixa_min}º a ${meta.faixa_max}º`}; com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.`; }
+    let conta = "", meta2 = "", v = null;
+    if (meta && i >= 0 && tab[i].j) { const avaliada = (i + 1 + esp[c.id]) / 2; v = variacaoDaConfianca({ avaliada, faixa: [meta.faixa_min, meta.faixa_max] });
+      meta2 = meta.faixa_min === meta.faixa_max ? meta.faixa_min + "º" : `${meta.faixa_min}º a ${meta.faixa_max}º`;
+      conta = ` Meta: ${meta2}; com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada.`; }
+    // visual novo: uma linha por clube — confiança grande, a frase do presidente e a conta da meta
+    if (NOVO) return `<div class="t-rel-dir"><b class="t-rel-dir-n">${c.confianca}</b><div><b>${esc(clubes[c.id].nome)}</b> <i>“${fraseDoPresidente(c.confianca)}”</i>${v ? `<small>Meta ${meta2} · com a tabela de agora, a liga daria <b class="${v.liga > 0 ? "ok" : v.liga < 0 ? "bad" : ""}">${sinal(v.liga)}</b> na virada</small>` : ""}</div></div>`;
     return `<div style="margin:3px 0"><b>${esc(clubes[c.id].nome)}</b>: confiança ${c.confianca}. <i>“${fraseDoPresidente(c.confianca)}”</i>${conta}</div>`;
   });
+  if (NOVO) return linhas.length ? `<div class="t-rel-diretoria"><div class="t-numero-rotulo">Diretoria · confiança</div>${linhas.join("")}</div>` : "";
   return `<div class="card" data-aba="resumo"><h2>Diretoria</h2>${linhas.join("")}</div>`;
 }
 // Notas de contexto dos gols desta partida: o que o gol muda na tabela e na artilharia. lances: os liberados, com a hora de cada um.
@@ -716,12 +735,14 @@ function momento() {
 
 // escudo e nome do time abrem a página do clube em jogo.html (aba nova, como os links de jogador)
 const lkClube = (id, html, cls = "lkj") => `<a class="${cls}" href="jogo.html#clube=${id}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>`;
+// o jogo patrocinado da rodada, se for este (guardado na rodada: a escolha não muda durante ela)
+const patrocinado = () => { const jp = rodada && !ehCopa(partida) ? (rodada.jp ??= jogoPatrocinado(rodada.daRodada, classificacao(rodada.clubes, rodada.ps.filter(p => p.rodada < partida.rodada), rodada.res).map(t => t.clube.id))) : null; return jp && jp.id === partida.id ? jp : null; };
 function topo(gols, m, narracao = [], pre = null) {
   const c = [clubes[partida.casa], clubes[partida.fora]], u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}).map((x, i) => ({ ...x, escudo: c[i].escudo, sigla: c[i].sigla, marca: c[i].marca })); // o segundo usa o reserva se as camisas se parecem
   const tinta = x => /^#[0-9a-f]{6}$/i.test(x || "") ? x : null, a = tinta(u[0].cor1), b = tinta(u[1].cor1);
   $("topo").style.background = a && b ? `linear-gradient(90deg, ${a}40, transparent 38%, transparent 62%, ${b}40), var(--card)` : "";
   const comEstat = !encerrada && !m.antes; // ao vivo, no PC largo, as estatísticas ficam à esquerda do placar (o card de baixo some)
-  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · ${SEDES[partida.sede] ? `<a href="sede.html?s=${partida.sede}" style="color:inherit">${SEDES[partida.sede].nome}</a> · ${SEDES[partida.sede].lugares.toLocaleString("pt-BR")} lugares` : "campo neutro"}` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>${(jp => jp && jp.id === partida.id ? `<div class="competicao" style="color:var(--ac);margin-top:4px">${selo(jp.marca, 18)} ${esc(jp.nome)}</div>` : "")(rodada && !ehCopa(partida) ? (rodada.jp ??= jogoPatrocinado(rodada.daRodada, classificacao(rodada.clubes, rodada.ps.filter(p => p.rodada < partida.rodada), rodada.res).map(t => t.clube.id))) : null)}
+  $("topo").innerHTML = `<div class="topo-g ${comEstat ? "com-estat" : ""}">${comEstat ? `<div class="topo-estat">${htmlEstatisticas(narracao, true)}</div>` : ""}<div><div class="competicao">${ehCopa(partida) ? `${nomeDaCopa(partida)} · ${SEDES[partida.sede] ? `<a href="sede.html?s=${partida.sede}" style="color:inherit">${SEDES[partida.sede].nome}</a> · ${SEDES[partida.sede].lugares.toLocaleString("pt-BR")} lugares` : "campo neutro"}` : `${esc(nomeDoGrupo(partida.grupo))} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`}</div>${(jp => jp ? `<div class="competicao" style="color:var(--ac);margin-top:4px">${selo(jp.marca, 18)} ${esc(jp.nome)}</div>` : "")(patrocinado())}
     <div class="painel"><div class="uni-g">${svgUniforme(u[0], 88)}</div><div class="time casa">${lkClube(partida.casa, `<span>${svgEscudo(c[0].escudo, c[0].sigla, 56)} <span class="uni-p">${svgUniforme(u[0], 26)}</span></span>`, "")}${lkClube(partida.casa, esc(c[0].nome))}</div><div class="gols">${m.antes ? "–" : gols[0]} x ${m.antes ? "–" : gols[1]}</div><div class="time fora">${lkClube(partida.fora, `<span>${svgEscudo(c[1].escudo, c[1].sigla, 56)} <span class="uni-p">${svgUniforme(u[1], 26)}</span></span>`, "")}${lkClube(partida.fora, esc(c[1].nome))}</div><div class="uni-g">${svgUniforme(u[1], 88)}</div></div>
     <div class="cronometro" id="crono">${m.texto}</div>${htmlResumo(narracao)}</div>${m.antes ? "" : htmlEstadio(pre)}</div>`;
 }
@@ -733,7 +754,7 @@ const BOTAO_TODOS = `<button class="sec" data-todos style="margin:0 0 8px;paddin
 function barraDeAbas(ids, tambemNoPC = false) { ids = ids.filter(Boolean); if (!ids.includes(aba)) aba = ids[0]; $("corpo").classList.toggle("abasPC", tambemNoPC);
   return `<div class="abas soCel${tambemNoPC ? " noPC" : ""}">${ids.map(k => `<button class="aba" data-ir="${k}"><span class="ai">${ABAS[k][0]}</span><span>${ABAS[k][1]}</span></button>`).join("")}</div>`; }
 function aplicarAba() {
-  document.querySelectorAll("#corpo [data-aba]").forEach(e => e.classList.toggle("fora-aba", e.dataset.aba !== aba));
+  if (aba) document.querySelectorAll("#corpo [data-aba]").forEach(e => e.classList.toggle("fora-aba", e.dataset.aba !== aba)); // relatório novo: sem abas (aba nula)
   document.querySelectorAll("#corpo [data-ir]").forEach(b => b.classList.toggle("ativa", b.dataset.ir === aba));
   $("corpo").classList.toggle("todos", todosLances || !encerrada);
 }
@@ -833,6 +854,25 @@ async function atualizar() {
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
     // a disputa de pênaltis inteira, com quem bateu de cada lado, no alto do resumo
     const cobsFim = baixados.filter(l => l.dados && l.dados.tipo === "cobranca");
+    if (NOVO) { // relatório em capítulos, sem abas: o placar vira a faixa (o #topo some)
+      $("topo").hidden = true; $("corpo").classList.remove("abasPC"); aba = null;
+      const c = [clubes[partida.casa], clubes[partida.fora]], uid = ((await sb.auth.getSession()).data.session || {}).user?.id;
+      const meu = uid && c[0].dono === uid ? 0 : uid && c[1].dono === uid ? 1 : null;
+      const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null, sede = SEDES[partida.sede];
+      const extras = [partida.publico != null ? `<span><b>${milhar(partida.publico)}</b>${sede && partida.publico >= sede.lugares ? "pessoas · esgotado" : "pessoas"}</span>` : "",
+        renda != null ? `<span><b>${renda >= 1000 ? f2(renda / 1000) + " mi" : milhar(renda) + " mil"}</b>de renda${ehCopa(partida) ? " dividida" : ""}</span>` : "",
+        pre && pre.clima ? `<span><b>${pre.clima.temp} °C</b>${esc(pre.clima.nome.toLowerCase())}</span>` : ""].join("");
+      const titulo = ehCopa(partida) ? `${nomeDaCopa(partida)} · ${sede ? sede.nome : "campo neutro"}` : `${nomeDoGrupo(partida.grupo)} · ${partida.fase && partida.fase !== "liga" ? nomeDoPlayoff(partida).replace("Playoff · ", "playoff, ") : "rodada " + partida.rodada}`;
+      const jp = patrocinado(), u = uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {});
+      const pen = res.relatorio.penaltis, cobs = baixados.filter(l => l.dados && l.dados.tipo === "cobranca");
+      $("corpo").innerHTML = htmlRelatorioNovo({ ...res.relatorio, narracao }, { clubes: c, ids: [partida.casa, partida.fora], nomes: [c[0].nome, c[1].nome], uniformes: u,
+        numeros: pre && pre.escalacoes ? pre.escalacoes.map(e => (mp => nome => mp.get(nome))(numerosDaCamisa(e))) : null,
+        titulo, aviso: jp ? `<div class="t-rel-patro">${selo(jp.marca, 16)} ${esc(jp.nome)}</div>` : "", fim: "Fim de jogo" + (pen ? ` · pênaltis ${pen[0]} x ${pen[1]}` : ""), extras,
+        penaltis: cobs.length ? `<section class="t-secao t-rel-pen">${rotulo("Disputa de pênaltis")}<div class="dsp">${htmlDisputa(cobs, () => true, true)}</div></section>` : "",
+        abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), diretoria: await htmlDiretoria(), rodada: htmlRodadaNova([res.gols_casa, res.gols_fora]), meu });
+      ligarGraficos($("corpo")); aplicarAba();
+      return;
+    }
     const disputaFim = cobsFim.length ? `<div class="card dsp" data-aba="resumo"><h2 style="align-self:flex-start;margin:0">Disputa de pênaltis</h2>${htmlDisputa(cobsFim, () => true, true)}</div>` : "";
     $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + disputaFim + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
     ligarGraficos($("corpo")); aplicarAba();
