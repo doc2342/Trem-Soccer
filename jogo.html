@@ -916,7 +916,7 @@ async function telaClube(liga, clube) {
       const gols = jogados.reduce(([a, b], p) => { const r = resDosMeus[p.id], casa = p.casa === clube.id; return [a + (casa ? r.gols_casa : r.gols_fora), b + (casa ? r.gols_fora : r.gols_casa)]; }, [0, 0]);
       const aprov = jogados.length ? Math.round(100 * (3 * conta("V") + conta("E")) / (3 * jogados.length)) : null;
       const placarDe = p => { const r = resDosMeus[p.id], casa = p.casa === clube.id; return casa ? [r.gols_casa, r.gols_fora] : [r.gols_fora, r.gols_casa]; };
-      const campanha = f => { const ps = jogados.filter(p => !ehCopa(p) && f(p)), c = k => ps.filter(p => resultado(p).v === k).length; return ps.length ? `${c("V")}V ${c("E")}E ${c("D")}D` : "—"; }; // copa é campo neutro: fica fora de casa/fora
+      const campanha = f => { const ps = jogados.filter(p => !ehCopa(p) && f(p)), c = k => ps.filter(p => resultado(p).v === k).length; return ps.length ? `${c("V")}V · ${c("E")}E · ${c("D")}D` : "—"; }; // copa é campo neutro: fica fora de casa/fora
       const maior = jogados.filter(p => resultado(p).v === "V").map(p => [p, placarDe(p)]).sort((a, b) => (b[1][0] - b[1][1]) - (a[1][0] - a[1][1]) || b[1][0] - a[1][0])[0];
       const seq = jogados.length ? jogados.findIndex(p => resultado(p).v !== resultado(jogados[0]).v) : 0, nSeq = seq < 0 ? jogados.length : seq, vSeq = jogados.length && resultado(jogados[0]).v;
       const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Aproveitamento", valor: aprov == null ? "—" : aprov + "%", legenda: "na copa, V é passar de fase" })}
@@ -930,7 +930,7 @@ async function telaClube(liga, clube) {
       const prox = proximos[0], advP = prox && cPor[prox.casa === clube.id ? prox.fora : prox.casa], vivoP = prox && new Date(prox.inicio).getTime() <= agora;
       const topo = prox
         ? faixaFoco({ rotulo: `Calendário · ${vivoP ? "jogando agora" : "próximo jogo"}`, titulo: advP.nome, apagado: ondeCurto(prox), destaque: vivoP ? "Ao vivo agora." : `${dia(prox.inicio)}.`, frase: `${compCurta(prox)}. Depois dele, ${proximos.length - 1 === 1 ? "mais 1 jogo marcado" : `mais ${proximos.length - 1} jogos marcados`}.`, lado, numeros: fita })
-        : faixaFoco({ rotulo: `Calendário · temporada ${liga.temporada}`, titulo: `${conta("V")}V ${conta("E")}E ${conta("D")}D`, apagado: "nenhum jogo marcado", destaque: jogados.length ? "A campanha até aqui." : "", frase: "Os jogos de copa das fases seguintes entram aqui quando forem sorteados.", lado, numeros: fita });
+        : faixaFoco({ rotulo: `Calendário · temporada ${liga.temporada}`, titulo: `${conta("V")}V · ${conta("E")}E · ${conta("D")}D`, apagado: "nenhum jogo marcado", destaque: jogados.length ? "A campanha até aqui." : "", frase: "Os jogos de copa das fases seguintes entram aqui quando forem sorteados.", lado, numeros: fita });
       const tem = TIPOS.filter(([k]) => meusJogos.some(p => tipo(p) === k));
       const filtro = tem.length > 1 ? `<div class="t-transf-filtro" id="calFiltro"><button type="button" data-fcomp="" class="ligado">Todos <small>${meusJogos.length}</small></button>${tem.map(([k, n]) => `<button type="button" data-fcomp="${k}">${n} <small>${meusJogos.filter(p => tipo(p) === k).length}</small></button>`).join("")}</div>` : "";
       return `<div class="t-calendario">${topo}${filtro}
