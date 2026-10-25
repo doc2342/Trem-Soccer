@@ -1061,6 +1061,7 @@ async function telaClube(liga, clube) {
   // Recopa (112): campeão da Libertadores x campeão da Sul-Americana da temporada anterior, um jogo só, como a Supercopa
   const linhaDaRecopa = agora => recopa ? (r => `<div style="margin-bottom:8px">🏆 <b>Recopa</b> <span class="mut">· campeão da Libertadores x campeão da Sul-Americana · prêmio de ${dinheiro(PREMIO_DA_RECOPA)} ·</span> <a class="lk" href="aovivo.html?id=${recopa.id}">${esc(cPor[recopa.casa].nome)} ${r ? `${r.gols_casa} x ${r.gols_fora}` : "x"} ${esc(cPor[recopa.fora].nome)}</a>${r ? `${penais(r)} · campeão: <b>${lk(quemPassou(recopa))}</b>` : ` · ${new Date(recopa.inicio).getTime() <= agora ? `<b class="aviso">ao vivo</b>` : quando(recopa.inicio)}`}</div>`)(copaRes[recopa.id]) : "";
   function telaDaLib(g = "LIB") {
+    if (visualNovo) return libNova(g);
     const sul = g === "SUL", jogos = sul ? sulJogos : libJogos, [icone, nome] = CONTINENTAIS[g];
     const agora = Date.now(), datas = (liga.copa && liga.copa[g.toLowerCase()] && liga.copa[g.toLowerCase()].datas) || [], P = sul ? PREMIOS_DA_SUL : PREMIOS_DA_LIB;
     const daFase = f => jogos.filter(p => p.copa_fase === f), fases = [3, 4, 5, 6].filter(f => daFase(f).length);
@@ -1095,6 +1096,62 @@ async function telaClube(liga, clube) {
     const mostrar = () => { $("jogos").innerHTML = daFase(+$("copaFase").value).map(linhaDeCopa).join(""); };
     $("copaFase").onchange = mostrar;
     mostrar();
+  }
+  // Competições › Libertadores e Sul-Americana no visual novo, como a Copa do Brasil: a faixa conta a campanha do clube (a do campeão, quando o clube
+  // não está nela), com a bandeira de cada adversário; a chave das oitavas à final com data e prêmio por fase; a Recopa e os campeões embaixo
+  function libNova(g) {
+    const el = $(g === "SUL" ? "sulNova" : "libNova"); if (!el) return;
+    const sul = g === "SUL", jogos = sul ? sulJogos : libJogos, nome = CONTINENTAIS[g][1], P = sul ? PREMIOS_DA_SUL : PREMIOS_DA_LIB;
+    const agora = Date.now(), datas = (liga.copa && liga.copa[g.toLowerCase()] && liga.copa[g.toLowerCase()].datas) || [];
+    const daFase = f => jogos.filter(p => p.copa_fase === f), final = daFase(6)[0], campeao = final ? quemPassou(final) : null;
+    const jogosDe = id => jogos.filter(p => p.casa === id || p.fora === id).sort((a, b) => a.copa_fase - b.copa_fase);
+    const foco = jogosDe(clube.id).length ? clube.id : campeao, dele = foco ? jogosDe(foco) : [], ult = dele[dele.length - 1], v = ult ? quemPassou(ult) : null;
+    const advDe = p => cPor[p.casa === foco ? p.fora : p.casa] || {}, nomeAdv = p => advDe(p).nome || "—";
+    const hora = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(".", "").replace(",", " ·");
+    const dia = d => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const vivo = p => !copaRes[p.id] && new Date(p.inicio).getTime() <= agora, fixa = jogos.some(p => p.chave != null);
+    const premioDe = id => jogosDe(id).reduce((t, p) => t + (P.fases[p.copa_fase] || 0), 0) + (campeao && (final.casa === id || final.fora === id) ? (campeao === id ? P.campeao : P.vice) : 0);
+    const atual = [3, 4, 5, 6].find(f => daFase(f).some(p => !copaRes[p.id])), ultima = Math.max(0, ...jogos.map(p => p.copa_fase));
+    const vagas = sul ? "Vagas: o 4º, o 5º e o 6º da Série A, o vice da Copa do Brasil e o 4º, o 5º e o 6º de cada país."
+      : "Vagas: os 3 primeiros da Série A, o campeão da Copa do Brasil e os 3 primeiros de cada país.";
+    let titulo, apagado, frase = "", carimbo = null;
+    if (!jogos.length) { titulo = nome; apagado = "ainda não foi sorteada"; frase = `As oitavas saem junto com o calendário. ${vagas}`; }
+    else if (!foco) { titulo = FASES_DA_COPA[atual || ultima]; apagado = atual ? "em andamento" : "a sortear"; frase = `Seu clube não está na ${nome} desta temporada.`; }
+    else if (v == null) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`;
+      frase = `${vivo(ult) ? "Ao vivo agora." : hora(ult.inicio) + "."} ${ult.copa_fase === 6 ? `O campeão leva ${dinheiro(P.campeao)}.` : P.fases[ult.copa_fase + 1] ? `Quem passa entra ${naFase(ult.copa_fase + 1)} e leva ${dinheiro(P.fases[ult.copa_fase + 1])}.` : ""}`; }
+    else if (v !== foco) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`; carimbo = ["Eliminado", naFase(ult.copa_fase)]; }
+    else if (ult.copa_fase === 6) { titulo = foco === clube.id ? "Final" : (cPor[foco] || {}).nome; apagado = foco === clube.id ? `x ${nomeAdv(ult)}` : `campeão · venceu ${nomeAdv(ult)} na final`; carimbo = ["Campeão", `temporada ${liga.temporada}`]; }
+    else { titulo = FASES_DA_COPA[ult.copa_fase + 1]; apagado = "classificado"; frase = fixa ? "O adversário sai do jogo vizinho na chave." : "O sorteio sai quando a fase atual terminar."; }
+    // a campanha, jogo a jogo, com a bandeira do adversário (nas oitavas, Brasil x fora)
+    const linhaC = p => { const r = copaRes[p.id], a = advDe(p), meu = p.casa === foco, w = quemPassou(p);
+      const placar = r ? `${meu ? r.gols_casa : r.gols_fora} x ${meu ? r.gols_fora : r.gols_casa}${r.penaltis ? `<small>pên. ${meu ? r.penaltis[0] : r.penaltis[1]} x ${meu ? r.penaltis[1] : r.penaltis[0]}</small>` : r.prorrogacao ? "<small>prorr.</small>" : ""}` : vivo(p) ? "ao vivo" : dia(p.inicio);
+      return `<a class="t-copa-c" href="aovivo.html?id=${p.id}"><span class="t-copa-cf">${esc(FASES_DA_COPA[p.copa_fase])}</span>${svgEscudo(a.escudo, a.sigla, 20)}<span class="t-copa-ca">${esc(a.nome || "—")} ${a.grupo ? bandeira(paisDoGrupo(a.grupo)) : ""}</span>
+        <b class="t-copa-cx${r ? "" : " hora"}">${placar}</b><i data-r="${w == null ? "" : w === foco ? "v" : "d"}">${w == null ? "" : w === foco ? "passou" : "caiu"}</i></a>`; };
+    const lado = dele.length ? `<div class="t-numero-rotulo">${foco === clube.id ? "Sua campanha" : "Campanha do campeão"}</div>${dele.map(linhaC).join("")}`
+      + (carimbo ? `<div class="t-carimbo t-carimbo-lado">${esc(carimbo[0])}<small>${esc(carimbo[1])}</small></div>` : "") : "";
+    const gols = (p, casa) => copaRes[p.id] ? ((p.casa === foco) === casa ? copaRes[p.id].gols_casa : copaRes[p.id].gols_fora) : 0;
+    const gp = dele.reduce((t, p) => t + gols(p, true), 0), gc = dele.reduce((t, p) => t + gols(p, false), 0);
+    const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
+      return feitos ? `${feitos} de ${l.length} jogos encerrados` : l.some(vivo) ? "ao vivo" : hora(l[0].inicio); };
+    const numeros = jogos.length ? `<div class="t-elenco-numeros">${numero({ rotulo: "Prêmios", valor: foco && premioDe(foco) ? dinheiro(premioDe(foco)) : "—", legenda: !foco ? "seu clube não joga" : premioDe(foco) ? (foco === clube.id ? "recebidos nesta edição" : "do campeão nesta edição") : "as oitavas não pagam" })}
+      ${numero({ rotulo: "Gols", valor: dele.some(p => copaRes[p.id]) ? `${gp} x ${gc}` : "—", legenda: "pró x contra", tom: gp > gc ? "ok" : gp < gc ? "bad" : "" })}
+      ${numero({ rotulo: "Campeão leva", valor: dinheiro(P.campeao), legenda: `vice ${dinheiro(P.vice)}` })}
+      ${numero({ rotulo: "A competição", valor: atual ? FASES_DA_COPA[atual] : ultima === 6 ? "Encerrada" : FASES_DA_COPA[ultima + 1], legenda: atual ? andamento(atual) : ultima === 6 ? "final disputada" : fixa ? "a definir" : "a sortear" })}</div>` : "";
+    const topo = faixaFoco({ rotulo: `${nome} · temporada ${liga.temporada}`, titulo, apagado, frase: carimbo ? "" : frase, lado, numeros });
+    const sub = f => [datas[f - 3] && dia(datas[f - 3].inicio), f === 6 ? dinheiro(P.campeao) : P.fases[f] && dinheiro(P.fases[f])].filter(Boolean).join(" · ");
+    const chave = jogos.length ? `<section class="t-secao">${rotulo(`Chave · ${fixa ? "sorteada junto com o calendário: quem passa já sabe o próximo adversário" : "o sorteio de cada fase sai quando a anterior termina"}`)}
+      ${desenharChave(jogos, [3, 4, 5, 6], p => p.copa_fase, p => copaRes[p.id], quemPassou, null, sub)}
+      <p class="t-fajuda">${vagas} Nas oitavas, os clubes do Brasil enfrentam clubes de fora. Jogo único, no estádio maior dos dois, sem vantagem de mando; empate vai para a prorrogação e os pênaltis. O prêmio, pago pelo fundo da liga, é de quem entra na fase; a renda do jogo é dividida meio a meio. Cartões não passam de um jogo para o outro.${sul ? " Joga nos mesmos dias da Libertadores, em outro horário." : ""}</p></section>` : "";
+    // Recopa: campeão da Libertadores x campeão da Sul-Americana da temporada anterior (aparece nas duas)
+    const rc = recopa && (r => { const c = cPor[recopa.casa] || {}, f = cPor[recopa.fora] || {}, w = r && quemPassou(recopa);
+      return `<section class="t-secao t-copa-super">${rotulo(`Recopa · campeão da Libertadores x campeão da Sul-Americana · ${dinheiro(PREMIO_DA_RECOPA)}`)}<a class="t-ljogo" href="aovivo.html?id=${recopa.id}"><span class="t-ljogo-c${w === recopa.casa ? " t-ljogo-v" : ""}">${esc(c.nome)}</span>${svgEscudo(c.escudo, c.sigla, 22)}
+        <b class="t-ljogo-x${r ? "" : vivo(recopa) ? " vivo" : " hora"}">${r ? `${r.gols_casa} x ${r.gols_fora}${r.penaltis ? `<small>pên. ${r.penaltis[0]} x ${r.penaltis[1]}</small>` : ""}` : vivo(recopa) ? "ao vivo" : dia(recopa.inicio)}</b>
+        ${svgEscudo(f.escudo, f.sigla, 22)}<span class="t-ljogo-f${w === recopa.fora ? " t-ljogo-v" : ""}">${esc(f.nome)}</span></a></section>`; })(copaRes[recopa.id]);
+    // campeões das temporadas anteriores, com o país
+    const k = g.toLowerCase(), camps = trofeus.filter(x => x[k] === "campeão").sort((a, b) => b.temporada - a.temporada);
+    const hist = camps.length ? `<section class="t-secao">${rotulo("Campeões")}<div class="t-copa-hist">${camps.map(c => { const vc = trofeus.find(x => x.temporada === c.temporada && x[k] === "vice"), cl = cPor[c.clube_id];
+      return `<div class="t-copa-h${c.clube_id === clube.id ? " t-eu" : ""}"><span class="t-copa-ht">T${c.temporada}</span>${cl ? svgEscudo(cl.escudo, cl.sigla, 22) : ""}<span class="t-copa-hn">${cl ? lk(c.clube_id) : esc(c.nome || "?")} ${bandeira(paisDoGrupo(c.grupo))}${vc ? `<small>vice ${lk(vc.clube_id)}</small>` : ""}</span></div>`; }).join("")}</div></section>` : "";
+    el.innerHTML = `<div class="t-liga t-copa">${topo}${chave}${rc || ""}${hist}</div>`;
   }
   // calendário do clube: próximos jogos e os já disputados, com resultado e campanha
   function calendarioDoClube() {
@@ -2737,7 +2794,7 @@ async function telaClube(liga, clube) {
     <div data-parte="comp:liga">${visualNovo ? `<select id="verGrupo" hidden>${opcoesDeGrupo(clube.grupo)}</select><div id="ligaNova"></div>` : `<div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
       <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div>`}</div>
-    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div>` : ""}
+    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div>` : ""}
     <div data-parte="comp:stats"><div class="row" style="margin-top:4px">
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
@@ -3430,7 +3487,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo && k === "copa"; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo && k === "copa"; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };
