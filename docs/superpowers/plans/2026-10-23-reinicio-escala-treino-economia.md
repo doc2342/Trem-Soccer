@@ -292,14 +292,44 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado.
 **Arquivos:**
 - Criar: `docs/superpowers/plans/2026-10-25-roteiro-da-virada.md` (checklist para o administrador)
 
-- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 (sem virada: o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 143 e o 144 no SQL Editor (o 143 já traz `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`); (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push; (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/D com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
+- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 (sem virada: o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 149, o 150 e o 151 no SQL Editor (o 149 já traz `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`); (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push (leva o `dados/nomes.json` novo, que a função do servidor busca no site: tem que estar no ar antes do passo 6); (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/D com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
 - [ ] **Passo 2:** `python ferramentas/publicar.py`; commit e push para `main`, com a mensagem "Reinício da liga pronto: roteiro do domingo".
+
+### Tarefa 10: Nomes de camisa (planilha com pesos e apelidos)
+
+Pedido do dono depois do plano. Fonte: `ferramentas/nomes_com_pesos.xlsx` (cópia de `base_nomes_futebol_com_pesos.xlsx`): só o Brasil, 1.538 nomes, 1.170 sobrenomes e 138 apelidos, com peso e acentos; as abas "Critérios" e "Pesos - como usar" trazem as regras. O reinício gera todos os elencos de novo, então basta a geração sair certa (ninguém é renomeado). Não depende dos números da Tarefa 4: pode rodar enquanto o relatório espera.
+
+**Ideia central:** `jogadores.nome` passa a ser o **nome de camisa**. Listas, campo, narração e relatórios (mais de 55 usos só no `jogo.html`) mudam sem mexer neles. A coluna nova `nome_completo` só aparece na ficha; vazia, a ficha usa o `nome` (jogador antigo ou caminho esquecido não quebra).
+
+**Arquivos:**
+- Criar `ferramentas/importar_nomes.py`: lê a planilha e grava no `dados/nomes.json` só o Brasil: `p`, `s`, pesos paralelos `pp`, `ps`, e apelidos `a` + `pa`. Sobrenome de peso 0 (partículas) não entra. Os outros países ficam como estão. Estilo de `ferramentas/extrair_nomes.py`, mantendo os `EXTRAS` da turma.
+- `src/rng.js`: `pickPeso(lista, pesos)` (sem pesos, igual ao `pick`).
+- `src/gerador.js` (`sortearNome`, `gerarJogador`): nome e sobrenome com peso; devolve `{ nome, completo }`. Regra da camisa numa constante `CONFIG_NOMES` no topo:
+  - Brasil: 20% apelido (diferente do nome e do sobrenome, comparando sem acento nem caixa); senão ~50% o primeiro nome, ~20% o sobrenome, ~10% "Nome Sobrenome".
+  - Outros países: o sobrenome.
+  - Camisa não se repete no elenco (o `usados` de `gerarElenco` guarda a camisa sem acento); 20 tentativas sem sucesso → "Nome Sobrenome".
+  - O jogador sai com `nome` (camisa) e `nome_completo`.
+- `src/base.js` (lista da peneira, ~linha 40) e `src/virada.js:171` (safra): repassam `nome_completo`. Na peneira, `usados` começa com as camisas do elenco do clube.
+- `supabase/149_reinicio_da_liga.sql` (ainda não rodado, pode mudar): `add column if not exists nome_completo text` em `jogadores` e o campo no insert; atualize `ferramentas/teste_reinicio_sql.mjs`.
+- Criar `supabase/151_nome_completo.sql`: as RPCs **em uso** que inserem jogador gerado (peneira/juvenis, safra da virada, pedido de clube) passam a gravar `nome_completo`. Ache a versão em uso pelo MCP (`select proname from pg_proc where prosrc ilike '%insert into jogadores%'`); não reescreva versões antigas. Cabeçalho: "Precisa do 149. Depois: republicar as funções rodada e mercado e publicar o site." Teste PGlite rodando o arquivo duas vezes.
+- `src/banco.js` (`criarClubeComElenco`, ~linha 540): grava `nome_completo`, tentando de novo sem ele se a coluna não existir (padrão de tolerância do arquivo).
+- `ferramentas/empacotar_funcao.py` (jogador novo de bot, ~linha 526): grava `nome_completo` no insert; depois `python ferramentas/empacotar_funcao.py`.
+- Ficha: `jogador.html` (~linha 85) mostra `nome_completo` embaixo do título quando for diferente do `nome`; o mesmo na ficha do `jogo.html`.
+- Fora do escopo: nomes da comissão (`71_nomes_da_comissao.sql`), que a planilha não cobre.
+
+- [ ] **Passo 1: teste que falha.** `ferramentas/teste_nomes.mjs`, com `criarRng` fixo e 1.000 brasileiros: 15% a 25% com apelido; apelido nunca igual ao nome ou sobrenome do próprio jogador (sem acento); nenhuma camisa repetida no mesmo elenco; estrangeiro com o sobrenome na camisa; nome de peso 3 sai mais que o de peso 0,5; todo jogador tem `nome_completo`.
+- [ ] **Passo 2:** implemente o importador e rode; confira que o `nomes.json` sai com acentos, sem duplicatas e sem partículas.
+- [ ] **Passo 3:** implemente gerador, base, virada, banco, 149, 151, empacotador e ficha.
+- [ ] **Passo 4:** `node ferramentas/testes.mjs`. Testes presos à sequência exata do rng podem mudar de número: ajuste só o que for efeito da sequência nova, sem afrouxar nenhuma regra.
+- [ ] **Passo 5 (PARADA):** gere uma amostra (2 elencos da A, 2 da B, 10 garotos da peneira) e mostre ao dono, que ajusta as porcentagens antes do commit.
+- [ ] **Passo 6:** commit, com a mensagem "151: nomes de camisa (planilha com pesos e apelidos); nome completo só na ficha", incluindo `supabase/functions`, `dados/nomes.json` e a planilha.
 
 ## Decisões do dono do projeto depois do plano
 
 - O histórico da T1 à T14 é apagado no reinício (Tarefa 7, lista completa).
 - Não existe terceira divisão; se faltar vaga, cria-se a B4 (Tarefas 2 e 5).
 - Os grupos ativos passam a ser A, B, C e D (Tarefa 2).
+- Nomes de camisa com a planilha nova, antes do reinício (Tarefa 10, migração 151).
 
 ## Roteiro por sessão (25/10, com o plano semanal curto)
 
@@ -316,5 +346,8 @@ Uma sessão por linha. Antes de cada uma: `/clear`, `/model` indicado e colar o 
 | 5 | 7 | Sonnet | Execute a Tarefa 7 do plano do reinício (migração 149). |
 | 6 | 8 | Sonnet | Execute a Tarefa 8 do plano do reinício com os números aprovados no relatório (migração 150). |
 | 7 | 9 | Sonnet | Execute a Tarefa 9 do plano do reinício. |
+| 8 | 10 | Sonnet | Execute a Tarefa 10 do plano do reinício (nomes de camisa, migração 151) e pare na amostra de nomes para eu aprovar. (Pode ser feita enquanto o relatório da sessão 3 espera a aprovação.) |
+
+Feitas (25/10): sessões 1, 2, 4 e 5. Ordem do que falta: **3** (Opus) → **8** (pode correr junto, enquanto o relatório espera) → **6** (só depois do relatório aprovado) → **7**.
 
 Ficam para depois da virada: a troca de modelo e cidade do estádio (anotações) e o ajuste das notas dos defensores.
