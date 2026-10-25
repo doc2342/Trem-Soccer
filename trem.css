@@ -1545,4 +1545,5 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-com-carimbo > * { grid-column:1 / -1; } .t-com-carimbo > .t-faixa-titulo { grid-column:1; }
 .t-carimbo.t-faixa-carimbo { grid-column:2; grid-row:2; margin:0 auto; transform:rotate(-6deg); font-size:clamp(22px, 2.4vw, 34px); max-width:none; white-space:nowrap; padding:10px 20px 8px; color:#ff4a3a; border-color:#ff4a3a; outline-color:#ff4a3a; opacity:.92; }
 .t-faixa-carimbo small { font-size:11px; }
+.t-carimbo.t-carimbo-lado { transform:none; margin:20px auto 0; font-size:32px; color:#ff4a3a; border-color:#ff4a3a; outline-color:#ff4a3a; opacity:.92; } .t-carimbo-lado small { font-size:11px; } /* Liga: reto, embaixo do gráfico */
 @media (max-width:720px) and (pointer:coarse) { .t-com-carimbo { display:block; } .t-carimbo.t-faixa-carimbo { transform:rotate(-4deg); margin:18px auto 4px; font-size:34px; } }

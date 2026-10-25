@@ -3803,13 +3803,14 @@ ${historicoDaBase()}
         ${numero({ rotulo: "Saldo", valor: sg(f), legenda: `${f.gp} pró · ${f.gc} contra`, tom: f.gp > f.gc ? "ok" : f.gp < f.gc ? "bad" : "" })}
         ${iF ? numero({ rotulo: "Do líder", valor: String(tab[0].pts - f.pts), legenda: tab[0].pts === f.pts ? "empatado em pontos" : "pontos atrás" }) : numero({ rotulo: "Do 2º", valor: tab[1] ? String(f.pts - tab[1].pts) : "—", legenda: "pontos à frente" })}
         ${numero({ rotulo: "Esperados", valor: f1(f.esp), legenda: "pontos pelas chances criadas", tom: f.pts > f.esp + 2 ? "ok" : f.pts < f.esp - 2 ? "bad" : "" })}</div>` : "";
-      // fase decidida: o carimbo ao lado do título (o seu destino; noutro campeonato, o campeão — na Série B quem sobe sai do playoff, não da tabela)
+      // fase decidida: o carimbo, reto, embaixo do gráfico (o seu destino; noutro campeonato, o campeão — na Série B quem sobe sai do playoff, não da tabela)
       const finais = partidas.filter(p => p.fase === "final"), subiu = finais.length && finais.every(p => res[p.id]) ? vencedorDoConfronto(finais, res) : null;
       const carimbo = meu ? lt.apagado === "fim da linha" && carimboDoFim(faixas[iF]) : serieDoGrupo(g) <= 1 ? acabou && ["Campeão", `temporada ${liga.temporada}`] : subiu && cPor[subiu] && ["Acesso", cPor[subiu].nome];
-      const lado = pos.length > 1 ? `<div class="t-numero-rotulo">${meu ? "Sua posição" : "Posição do líder"} rodada a rodada</div>${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}` : "";
+      const lado = (pos.length > 1 ? `<div class="t-numero-rotulo">${meu ? "Sua posição" : "Posição do líder"} rodada a rodada</div>${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}` : "")
+        + (carimbo ? `<div class="t-carimbo t-carimbo-lado">${esc(carimbo[0])}${carimbo[1] ? `<small>${esc(carimbo[1])}</small>` : ""}</div>` : "");
       topo = faixaFoco({ rotulo: `${nomeDoGrupo(g)} · ${dele.length ? `rodada ${f.j} de ${dele.length}` : "calendário a sortear"}`,
         titulo: meu ? lt.titulo : f.clube.nome, apagado: meu ? lt.apagado : acabou ? "terminou em 1º" : `lidera · ${lt.apagado}`,
-        destaque: f.j ? lt.destaque : "", frase: f.j ? lt.frase : "A temporada ainda não começou.", carimbo: carimbo || null, lado, numeros });
+        destaque: f.j && !carimbo ? lt.destaque : "", frase: carimbo ? "" : f.j ? lt.frase : "A temporada ainda não começou.", lado, numeros }); // com o carimbo, a frase seria repetida
     }
     // campeonatos: Brasil primeiro, depois os países
     const curto = x => PAISES[x] || nomeDoGrupo(x).replace(/^.*?(Série \S+)$/, "$1");
