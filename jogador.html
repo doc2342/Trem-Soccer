@@ -57,13 +57,13 @@ const TIPO_CURTO = { livre: "Livre", multa: "Multa", negociada: "Negociada", div
 function grafico(pts, L = 600, A = 150) {
   if (pts.length < 2) return `<div class="mut">O gráfico aparece quando houver pelo menos duas temporadas guardadas (a partir da próxima virada).</div>`;
   const min = Math.floor(Math.min(...pts.map(p => p.nota)) - 1), max = Math.ceil(Math.max(...pts.map(p => p.nota)) + 1);
-  const x = k => 30 + k * (L - 50) / (pts.length - 1), y = v => 14 + (A - 40) * (1 - (v - min) / (max - min));
+  const x = k => 44 + k * (L - 70) / (pts.length - 1), y = v => 14 + (A - 40) * (1 - (v - min) / (max - min));
   return `<svg viewBox="0 0 ${L} ${A}" style="width:100%;height:auto;display:block" role="img" aria-label="Nota por temporada">
-    ${[min, max].map(v => `<line x1="30" x2="${L - 20}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="4" y="${y(v) + 4}" fill="var(--mut)" font-size="11">${v}</text>`).join("")}
+    ${[min, max].map(v => `<line x1="30" x2="${L - 20}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="4" y="${y(v) + 4}" fill="var(--mut)" font-size="12">${v}</text>`).join("")}
     <polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map((p, k) => `${x(k).toFixed(1)},${y(p.nota).toFixed(1)}`).join(" ")}"/>
     ${pts.map((p, k) => `<circle cx="${x(k).toFixed(1)}" cy="${y(p.nota).toFixed(1)}" r="3.2" fill="var(--ac)"><title>${esc(p.rot)}: ${um(p.nota)}</title></circle>
-      <text x="${x(k).toFixed(1)}" y="${(y(p.nota) - 7).toFixed(1)}" fill="var(--tx)" font-size="11" text-anchor="middle">${um(p.nota)}</text>
-      <text x="${x(k).toFixed(1)}" y="${A - 6}" fill="var(--mut)" font-size="11" text-anchor="middle">${esc(p.rot)}</text>`).join("")}</svg>`;
+      <text x="${x(k).toFixed(1)}" y="${(y(p.nota) - 7).toFixed(1)}" fill="var(--tx)" font-size="12" text-anchor="middle">${um(p.nota)}</text>
+      <text x="${x(k).toFixed(1)}" y="${A - 6}" fill="var(--mut)" font-size="12" text-anchor="middle">${esc(p.rot)}</text>`).join("")}</svg>`;
 }
 
 // visual novo: faixa escura com quem é, a nota e a temporada dele, camisa e radar; números do contrato; atributos; a carreira numa linha por temporada
