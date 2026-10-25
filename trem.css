@@ -1981,10 +1981,13 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-rel-melhor em { font:900 56px/1 var(--t-letra); font-stretch:62%; font-style:normal; color:var(--t-marca); }
 .t-rel-pen .dsp { align-items:center; }
 /* o jogo contado */
-.t-rel-jogo .gr { margin:0 0 32px; }
-.t-rel-dois { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(0, 1fr); gap:0 48px; align-items:start; }
-.t-rel-numeros { position:sticky; top:16px; }
-.t-rel-regua { grid-template-columns:minmax(0, 1fr); }
+.t-rel-jogo .gr { margin:0 0 32px; border:0; padding:0; box-shadow:none; background:none; }
+.t-rel-abas { margin-top:24px; }
+.t-rel-reprise { max-width:860px; }
+.t-regua.t-rel-regua { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:4px 48px; text-align:left; align-items:stretch; }
+/* a régua do Mercado (.t-regua:not(.t-regua-grande): 1fr auto) pegava também a régua do jogo do Vestiário da Central */
+.t-vest-regua .t-regua { grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); text-align:left; align-items:stretch; }
+.t-rel-abas { display:flex; flex-wrap:wrap; gap:0 28px; }
 .t-rel-reprise .lance { border-bottom:1px solid var(--t-fio); padding:8px 0; margin:0; font-size:14px; }
 .t-rel-reprise .lance.gol { background:var(--t-placa); font-weight:700; padding-left:8px; padding-right:8px; box-shadow:inset 3px 0 var(--t-marca); }
 .t-rel-reprise [data-todos] { margin:0 0 12px !important; }
@@ -2009,7 +2012,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-rel-saiu { margin-top:32px; }
 .t-rel-campo { gap:0; padding:20px 8px; } .t-rel-campo .t-st-s { width:19%; }
 .t-rel-campo .t-st-linha { height:100px; align-items:flex-start; } /* as 6 faixas sempre desenhadas, vazias ou não: os dois campos ficam da mesma altura */
-.t-rel-numeros .t-regua { grid-template-columns:minmax(0, 1fr); } .t-rel-campo .t-st-s b { font-size:12.5px; }
+.t-rel-campo .t-st-s b { font-size:12.5px; }
 .t-rel-campo .t-st-cam em { right:-18px; } .t-rel-campo .t-st-cam em.ok { background:var(--t-ok); color:#fff; } .t-rel-campo .t-st-cam em.bad { background:var(--t-marca); color:#fff; }
 .t-rel-campo .t-st-cam i { position:absolute; left:-10px; font-style:normal; }
 .t-rel-s-gol { top:4px; min-width:12px; height:12px; border-radius:6px; background:#fff; color:var(--t-noite); font:900 9px/12px var(--t-letra); text-align:center; }
@@ -2024,9 +2027,9 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-rel-tab-time td { font:800 15px/1 var(--t-letra); font-stretch:75%; text-transform:uppercase; padding-top:16px; border-bottom:0; }
 .t-rel-tab b.ok { color:var(--t-ok); } .t-rel-tab b.bad { color:var(--t-marca); }
 .t-rel-seta { font-size:11px; width:28px; } .t-rel-seta.ok { color:var(--t-ok); } .t-rel-seta.bad { color:var(--t-marca); }
-@media (max-width:1024px) and (pointer:coarse) { .t-rel-dois { grid-template-columns:minmax(0, 1fr); } .t-rel-numeros { position:static; order:-1; margin-bottom:32px; } }
 @media (max-width:720px) and (pointer:coarse) {
-  .t-rel-faixa { grid-template-columns:minmax(0, 1fr); }
+  .t-rel-faixa { grid-template-columns:minmax(0, 1fr); } .t-regua.t-rel-regua { grid-template-columns:minmax(0, 1fr); }
+  .t-rel-abas { display:flex; gap:0 14px; justify-content:space-between; }
   .t-rel-placar { gap:8px; } .t-rel-placar svg { width:44px; height:44px; } .t-rel-ev { font-size:12px; } .t-rel-ev li { display:block; } .t-rel-ev li::before { display:inline-block; margin-right:4px; } .t-rel-ev small { display:block; }
   .t-rel-nome { font-size:20px; overflow-wrap:break-word; } .t-rel-gols b { font-size:64px; }
   .t-rel-faixa .t-faixa-texto, .t-rel-faixa .t-faixa-lado { text-align:center; } .t-rel-faixa .t-rotulo { justify-content:center; } .t-rel-melhor { text-align:left; }

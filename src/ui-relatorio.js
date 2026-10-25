@@ -157,9 +157,8 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const regua = `<div class="t-regua-cab"><span>${n[0]}</span><span>${n[1]}</span></div><div class="t-regua t-rel-regua">${NUMEROS_DO_JOGO.map(([nome, f, v = f]) => {
     const a = +v(r.estat[0]) || 0, b = +v(r.estat[1]) || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (x, maior) => maior ? `<b>${x}</b>` : `<span>${x}</span>`;
     return `<div class="t-regua-linha" style="--nos:${pct}%">${lado(f(r.estat[0]), a > b)}<span class="t-regua-nome">${nome}</span>${lado(f(r.estat[1]), b > a)}</div>`; }).join("")}</div>`;
-  const jogo = `<section class="t-secao t-rel-jogo">${clubes ? htmlGraficos(r.narracao, clubes) : ""}
-    <div class="t-rel-dois"><div class="t-rel-reprise">${rotulo("Lance a lance")}${abertura}${r.narracao.map(htmlLance).join("")}</div>
-    <div class="t-rel-numeros">${rotulo("Números")}${regua}</div></div></section>`;
+  const lances = `<section class="t-secao t-rel-reprise" data-aba="lances">${rotulo("Lance a lance")}${abertura}${r.narracao.map(htmlLance).join("")}</section>`;
+  const jogo = `<section class="t-secao t-rel-jogo" data-aba="graf">${clubes ? htmlGraficos(r.narracao, clubes) : ""}<div class="t-rel-numeros">${rotulo("Números")}${regua}</div></section>`;
   // capítulo 3: o vestiário — o analista de cada lado (o do dirigente primeiro) com o campo dos duelos e as ordens; depois como cada um saiu
   const ordem = meu === 1 ? [1, 0] : [0, 1];
   const itensDasOrdens = o => [...o.subs.map(s => [`aos ${s.min}' ${COND[s.cond] || s.cond}: sai ${esc(s.saiNome)}, entra ${esc(s.entraNome)}`, s]), ...o.ordens.map(x => [`a partir dos ${x.min}' ${COND[x.cond] || x.cond}: ${esc(textoMuda(x.muda))}`, x])];
@@ -179,7 +178,9 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const linhaJ = j => `<tr><td>${esc(sg(j.pos))}</td><td class="t-esq">${linkJogador(j.nome)}</td><td><b class="${cor(j.nota)}">${f1(j.nota)}</b></td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + "–" + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${[j.amarelos ? "amarelo" : "", j.vermelho ? "vermelho" : "", j.lesionado ? "lesão" : ""].filter(Boolean).join(", ")}</td><td>${j.energia}%</td></tr>`;
   const tabela = `<details class="t-rel-mais"><summary>Todos os números dos jogadores</summary><div class="t-rel-rola"><table class="t-tabela t-rel-tab">${ordem.map(i => { const { tit, res } = timeDoRelatorio(r, i);
     return `<tr class="t-rel-tab-time"><td colspan="13" class="t-esq">${n[i]}</td></tr>${cab}${[...tit, ...res].map(linhaJ).join("")}`; }).join("")}</table></div></details>`;
-  const vestiario = `<section class="t-secao t-rel-vest">${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div>${diretoria}
-    <div class="t-rel-saiu">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}</div></section>`;
-  return faixa + penaltis + jogo + vestiario + rodada;
+  const vestiario = `<section class="t-secao t-rel-vest" data-aba="resumo">${penaltis}${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div>${diretoria}</section>`;
+  const saiu = `<section class="t-secao t-rel-saiu" data-aba="jog">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}</section>`;
+  // abas (data-ir; a tela troca a classe .fora-aba): o placar fica sempre em cima, um capítulo por vez embaixo
+  const abas = [["resumo", "Resumo"], ["lances", "Lances"], ["graf", "Números"], ["jog", "Jogadores"], rodada && ["rodada", "Rodada"]].filter(Boolean);
+  return faixa + `<nav class="subabas t-rel-abas">${abas.map(([k, t]) => `<button type="button" class="sub" data-ir="${k}">${t}</button>`).join("")}</nav>` + vestiario + lances + jogo + saiu + rodada;
 }

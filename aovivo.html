@@ -660,7 +660,7 @@ function htmlRodadaNova(meu) {
       + `${svgEscudo(b.escudo, b.sigla, 22)}<span class="t-ljogo-f${v === "f" ? " t-ljogo-v" : ""}">${esc(b.nome)}</span></a>`; }).join("");
   const tabela = `<table class="t-tabela t-liga-tab"><tr><th></th><th class="t-esq">Clube</th><th>P</th><th>J</th><th>SG</th><th></th></tr>${e.agora.map((t, i) => { const d = posAntes[t.clube.id] - i, nosso = t.clube.id === partida.casa || t.clube.id === partida.fora;
     return `<tr class="${CLASSE_DA_ZONA[zonaDaPosicao(i, n)] || ""}${nosso ? " t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><span class="t-lt-clube">${svgEscudo(t.clube.escudo, t.clube.sigla, 22)}<span>${esc(t.clube.nome)}</span></span></td><td><b>${t.pts}</b></td><td>${t.j}</td><td>${t.gp - t.gc}</td><td class="t-rel-seta ${d > 0 ? "ok" : d < 0 ? "bad" : ""}">${d > 0 ? "▲" + d : d < 0 ? "▼" + (-d) : ""}</td></tr>`; }).join("")}</table>`;
-  return `<section class="t-secao t-rel-rodada">${rotulo(`Rodada ${partida.rodada} · ${nomeDoGrupo(partida.grupo)}`)}<div class="t-liga-grade"><div>${tabela}<p class="t-fajuda">As setas comparam com o começo da rodada.</p></div><div>${jogos}</div></div></section>`;
+  return `<section class="t-secao t-rel-rodada" data-aba="rodada">${rotulo(`Rodada ${partida.rodada} · ${nomeDoGrupo(partida.grupo)}`)}<div class="t-liga-grade"><div>${tabela}<p class="t-fajuda">As setas comparam com o começo da rodada.</p></div><div>${jogos}</div></div></section>`;
 }
 // Diretoria (91_diretoria.sql): confiança e frase do presidente de cada clube com dirigente; na liga, quanto a virada daria com a tabela de agora
 // (finanças e copa ficam fora da conta: o caixa é privado e a copa só entra no fim). Sem o SQL, a consulta falha e nada aparece.
@@ -854,8 +854,8 @@ async function atualizar() {
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
     // a disputa de pênaltis inteira, com quem bateu de cada lado, no alto do resumo
     const cobsFim = baixados.filter(l => l.dados && l.dados.tipo === "cobranca");
-    if (NOVO) { // relatório em capítulos, sem abas: o placar vira a faixa (o #topo some)
-      $("topo").hidden = true; $("corpo").classList.remove("abasPC"); aba = null;
+    if (NOVO) { // relatório em capítulos, um por aba (também no PC): o placar vira a faixa (o #topo some) e fica sempre em cima
+      $("topo").hidden = true; $("corpo").classList.add("abasPC"); if (!["resumo", "lances", "graf", "jog", "rodada"].includes(aba)) aba = "resumo";
       const c = [clubes[partida.casa], clubes[partida.fora]], uid = ((await sb.auth.getSession()).data.session || {}).user?.id;
       const meu = uid && c[0].dono === uid ? 0 : uid && c[1].dono === uid ? 1 : null;
       const renda = partida.publico != null && preco != null ? Math.round(partida.publico * preco / 1000) : null, sede = SEDES[partida.sede];
