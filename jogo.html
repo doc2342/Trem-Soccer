@@ -842,16 +842,16 @@ async function telaClube(liga, clube) {
       return `<div class="t-tr"><div class="t-tr-temp">T${t}</div><div class="t-tr-chips">${chips || `<span class="t-tr-nada">sem título</span>`}</div><div class="t-tr-premios">${pr}${sel ? `<div><b>Seleção da temporada</b> · ${sel}</div>` : ""}</div></div>`; }).join("");
     return `<div class="t-trofeus">${METAIS}${topo}${temps.length ? `<section class="t-secao">${rotulo("Temporada a temporada")}<div class="t-tr-cab"><span>Temp.</span><span>Títulos</span><span>Prêmios individuais e seleção</span></div><div class="t-tr-linhas">${estante}</div></section>` : ""}
       <section class="t-secao">${rotulo("Recordes do clube")}<div id="recNovo" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`; };
-  const recordesNovos = d => {
+  const recordesNovos = (d, daLiga) => { // daLiga: recordes de toda a liga (goleada em vez de vitória, clube do jogador nas listas)
     if (!d) return `<p class="t-fajuda">Os recordes aparecem quando o administrador rodar o SQL 89 no banco.</p>`;
     const quando = r => `T${r.temporada}${r.comp === "COPA" ? ", copa" : ""}`, contra = r => `${cPor[r.casa] ? cPor[r.casa].nome : "?"} x ${cPor[r.fora] ? cPor[r.fora].nome : "?"}`;
-    const nums = [d.goleada && numero({ rotulo: "Maior vitória", valor: `${d.goleada.gols_casa} x ${d.goleada.gols_fora}`, legenda: `${contra(d.goleada)} · ${quando(d.goleada)}` }),
+    const nums = [d.goleada && numero({ rotulo: daLiga ? "Maior goleada" : "Maior vitória", valor: `${d.goleada.gols_casa} x ${d.goleada.gols_fora}`, legenda: `${contra(d.goleada)} · ${quando(d.goleada)}` }),
       d.gols_jogo && numero({ rotulo: "Jogo com mais gols", valor: `${d.gols_jogo.gols_casa} x ${d.gols_jogo.gols_fora}`, legenda: `${contra(d.gols_jogo)} · ${quando(d.gols_jogo)}` }),
       d.publico && numero({ rotulo: "Maior público", valor: (+d.publico.publico).toLocaleString("pt-BR"), legenda: `${contra(d.publico)} · ${quando(d.publico)}` }),
       d.nota && numero({ rotulo: "Melhor atuação", valor: String(d.nota.nota).replace(".", ","), legenda: `${d.nota.nome} · ${quando(d.nota)}` }),
       d.campanha && numero({ rotulo: "Melhor campanha", valor: `${d.campanha.pontos}`, sufixo: "pontos", legenda: `${d.campanha.posicao}º do ${nomeDoGrupo(d.campanha.grupo)} · T${d.campanha.temporada}` }),
       d.ataque && numero({ rotulo: "Melhor ataque", valor: String(d.ataque.gols_pro), sufixo: "gols", legenda: `numa temporada · T${d.ataque.temporada}` })].filter(Boolean);
-    const lista = (t, l, f) => l.length ? `<div><div class="t-tr-lista-cab">${t}</div>${l.map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${x.nome ? lj(x.id, x.nome) : `<i>jogador aposentado</i>`}</span><b>${f(x)}</b></div>`).join("")}</div>` : "";
+    const lista = (t, l, f) => l.length ? `<div><div class="t-tr-lista-cab">${t}</div>${l.map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${x.nome ? lj(x.id, x.nome) : `<i>jogador aposentado</i>`}${daLiga && cPor[x.clube] ? ` <small>${esc(cPor[x.clube].nome)}</small>` : ""}</span><b>${f(x)}</b></div>`).join("")}</div>` : "";
     const listas = lista("Maiores artilheiros", d.gols || [], x => `${x.gols} gols`) + lista("Quem mais jogou", d.jogos || [], x => `${x.jogos} jogos`);
     return nums.length || listas ? `${nums.length ? `<div class="t-tr-recordes">${nums.join("")}</div>` : ""}${listas ? `<div class="t-tr-listas">${listas}</div>` : ""}<p class="t-fajuda">Somam as temporadas guardadas na virada mais a atual, liga e copas.</p>` : `<p class="t-fajuda">Nenhum recorde ainda.</p>`; };
   // a copa do meu clube: o jogo mais recente e se ele ainda está vivo nela (jogo marcado, esperando o sorteio ou entrando direto na fase de 32)
@@ -1454,10 +1454,48 @@ async function telaClube(liga, clube) {
     return corpo ? corpo + `<div class="mut" style="margin-top:6px;font-size:12px">Somam as temporadas guardadas na virada mais a atual, liga e copas. Os números por jogador começam na primeira virada depois do SQL 84.</div>`
       : `<div class="mut">Nenhum recorde ainda.</div>`;
   };
+  // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (as taças dele ao lado); ranking com escudos | campeões
+  // de uma temporada por vez (‹ ›); recordes da liga no painel cinza, como os do clube
+  function campeoesNovos(linhas) {
+    const el = $("campNova"); if (!el) return;
+    const grupos = gruposDe({}, TIPOS_DE_TROFEU, []), ico = k => iconeDaTaca(grupos.find(g => g.k === k));
+    const nomeC = id => cPor[id] ? cPor[id].nome : /^arq:/.test(id) ? id.slice(4) : "—";
+    const cel = id => cPor[id] ? `<a class="t-lt-clube" href="#clube=${id}" data-clube="${id}">${svgEscudo(cPor[id].escudo, cPor[id].sigla, 22)}<span>${esc(cPor[id].nome)}</span></a>` : `<span class="t-lt-clube t-camp-arq">${esc(nomeC(id))}</span>`;
+    const curto = n => n.replace("Brasileiro ", "").replace("Vice da Copa do Brasil", "Vice da copa");
+    const contagem = m => TIPOS_DE_TROFEU.filter(([k]) => k !== "vice" && m[k]).map(([k, , n]) => [k, curto(n), m[k].length]);
+    const lider = linhas[0], total = l => l.n.reduce((s, v) => s + v, 0);
+    const listaDe = c => c.map(([, n, v]) => `${v} ${n}`).join(", ").replace(/, ([^,]*)$/, " e $1");
+    const eu = linhas.findIndex(l => l.id === clube.id), meus = eu >= 0 ? contagem(linhas[eu].m) : [];
+    const frase = eu === 0 ? "O seu clube lidera a lista." : eu > 0 ? `${clube.nome} é o ${eu + 1}º da lista: ${listaDe(meus)}.` : `${clube.nome} ainda não tem título.`;
+    const lado = lider ? `<div class="t-elenco-numeros${contagem(lider.m).length > 4 ? " t-tr-lado3" : ""}">${contagem(lider.m).map(([k, n, v]) => `<div class="t-tr-cont">${ico(k)}${numero({ rotulo: n, valor: String(v), sufixo: v === 1 ? "vez" : "vezes" })}</div>`).join("")}</div>` : "";
+    const temporadas = [...new Set(trofeus.map(x => x.temporada))].sort((a, b) => b - a);
+    const topo = faixaFoco({ rotulo: `Campeões e recordes · ${temporadas.length} ${temporadas.length === 1 ? "temporada" : "temporadas"}`, titulo: lider ? nomeC(lider.id) : "Nenhum título ainda",
+      apagado: lider ? `${total(lider)} ${total(lider) === 1 ? "título" : "títulos"}` : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? frase : "Os campeões entram aqui a cada virada de temporada.", lado });
+    const COLS = [["lib", "Lib.", "Libertadores"], ["A", "A", "Brasileiro Série A"], ["copa", "Copa", "Copa do Brasil"], ["sul", "Sul", "Sul-Americana"], ["B,C,F", "B", "Séries B1, B2 e B3"], ["D,E", "C", "Séries C1 e C2"]];
+    const tabela = `<table class="t-tabela t-liga-tab t-camp-tab"><tr><th></th><th class="t-esq">Clube</th>${COLS.map(([, t, d]) => `<th title="${d}">${t}</th>`).join("")}</tr>
+      ${linhas.map((l, i) => `<tr class="${l.id === clube.id ? "t-eu" : i >= 12 ? "t-camp-mais" : ""}"><td>${i + 1}</td><td class="t-esq">${cel(l.id)}</td>${COLS.map(([ks], c) => { const v = ks.split(",").reduce((t, k) => t + (l.m[k] || []).length, 0); return `<td>${v ? c < 2 ? `<b>${v}</b>` : v : ""}</td>`; }).join("")}</tr>`).join("")}</table>
+      ${linhas.length > 12 ? `<button type="button" class="t-botao t-camp-todos" data-camtodos>Ver os ${linhas.length} clubes</button>` : ""}
+      <p class="t-fajuda">Ordem: Libertadores, Série A, Copa do Brasil, Sul-Americana, Supercopa, Recopa, Série B e Série C. Título de série é o 1º do grupo; na Série B, desde a temporada 14, o vencedor do playoff.</p>`;
+    const temporada = t => { const i = temporadas.indexOf(t), da = trofeus.filter(x => x.temporada === t);
+      return `<div class="t-liga-nav"><button type="button" data-camt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b>
+        <button type="button" data-camt="${temporadas[i - 1] ?? ""}" ${i > 0 ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
+        ${TIPOS_DE_TROFEU.map(([k, , n]) => { const x = da.find(y => tiposDe(y).includes(k)); return x ? `<div class="t-camp${x.clube_id === clube.id ? " t-eu" : ""}${k === "vice" ? " t-camp-vice" : ""}">${ico(k)}<span>${esc(curto(n))}</span>${cel(x.clube_id)}</div>` : ""; }).join("")}`; };
+    el.innerHTML = `<div class="t-liga t-trofeus">${METAIS}${topo}${linhas.length ? `<div class="t-liga-grade"><section>${rotulo("Maiores campeões")}${tabela}</section>
+      <section>${rotulo("Campeões por temporada")}<div id="campTemp">${temporada(temporadas[0])}</div>
+        <div class="t-st-bloco">${rotulo("Recordes da liga")}<div id="campRec" class="t-tr-painel t-camp-rec"><p class="t-fajuda">Carregando…</p></div></div></section></div>` : ""}
+      <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}<div id="recLigaNova" class="t-tr-painel"></div></section></div>`;
+    el.onclick = e => { if (e.target.closest("[data-camtodos]")) { el.querySelector(".t-camp-tab").classList.add("t-camp-aberta"); e.target.remove(); return; }
+      const b = e.target.closest("[data-camt]"); if (b && b.dataset.camt) $("campTemp").innerHTML = temporada(+b.dataset.camt); };
+    // os números dos recordes vão para a coluna da direita (ao lado do ranking); as listas de jogadores ficam embaixo, na largura toda
+    recordesDaLiga(liga.id).then(d => { const r = $("recLigaNova"), lado = $("campRec"); if (!r) return; r.innerHTML = recordesNovos(d, true);
+      const n = r.querySelector(".t-tr-recordes"); if (lado) { if (n) lado.replaceChildren(n); else lado.remove(); }
+      if (!r.querySelector(".t-tr-listas")) r.closest("section").hidden = true; });
+  }
   function telaDosCampeoes() {
     const ids = [...new Set(trofeus.map(x => x.clube_id))].filter(id => cPor[id] || /^arq:/.test(id)), cols = TIPOS_DE_TROFEU.filter(([k]) => k !== "vice");
     const linhas = ids.map(id => { const m = trofeusDe(id); return { id, m, n: cols.map(([k]) => (m[k] || []).length), vice: (m.vice || []).length }; })
       .filter(l => l.n.some(Boolean)).sort((a, b) => { for (let i = 0; i < a.n.length; i++) if (b.n[i] !== a.n[i]) return b.n[i] - a.n[i]; return b.vice - a.vice; });
+    if (visualNovo) return campeoesNovos(linhas);
     $("tituloTabela").innerHTML = "🏅 Maiores campeões e recordes";
     $("tabela").className = "";
     $("tabela").innerHTML = linhas.length ? `<table class="mini" style="width:100%"><tr><th></th><th class="esq">Clube</th><th title="Libertadores">Lib.</th><th title="Brasileiro Série A">A</th><th title="Copa do Brasil">Copa</th><th title="Sul-Americana">Sul</th><th title="Série B1, B2 e B3">B</th><th title="Série C1 e C2">C</th></tr>
@@ -2930,7 +2968,7 @@ async function telaClube(liga, clube) {
     <div data-parte="comp:liga">${visualNovo ? `<select id="verGrupo" hidden>${opcoesDeGrupo(clube.grupo)}</select><div id="ligaNova"></div>` : `<div class="row" style="margin-top:4px"><label>Ver o campeonato<select id="verGrupo">${opcoesDeGrupo(clube.grupo, g => g === clube.grupo ? " (o seu)" : "")}</select></label>
       <span class="mut">${humanos} ${humanos === 1 ? "dirigente" : "dirigentes"} na liga; os demais clubes são do bot.</span>
       <a href="temporada.html?clube=${clube.id}" style="color:var(--ac);margin-left:auto">📄 Relatório da temporada</a></div>`}</div>
-    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div><div data-parte="comp:fed"><div id="fedNova"></div></div>` : ""}
+    ${visualNovo ? `<div data-parte="comp:copa"><div id="copaNova"></div></div><div data-parte="comp:lib"><div id="libNova"></div></div><div data-parte="comp:sul"><div id="sulNova"></div></div><div data-parte="comp:fed"><div id="fedNova"></div></div><div data-parte="comp:trofeus"><div id="campNova"></div></div>` : ""}
     <div data-parte="comp:stats">${visualNovo ? `<div id="statsNova"></div>` : ""}<div class="row" style="margin-top:4px"${visualNovo ? " hidden" : ""}>
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
@@ -3623,7 +3661,7 @@ ${historicoDaBase()}
     document.querySelectorAll(`[data-grupo="${g}"] .sub`).forEach(b => b.classList.toggle("ativa", b.dataset.sub === g + ":" + k));
     try { localStorage.setItem("mo_sub_" + g, k); } catch (e) {}
     if (g === "ajuste") $("cfgBarra").hidden = k === "geral" || k === "guia";
-    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul", "stats", "fed"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
+    if (g === "comp") { $("compQuadros").hidden = k === "base" || visualNovo && ["liga", "copa", "lib", "sul", "stats", "fed", "trofeus"].includes(k); $("compChave").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; $("compKpis").hidden = !["copa", "lib", "sul"].includes(k) || visualNovo; if (compPronta && k !== "base") mostrarCompeticao(k); }
     if (g === "elenco" && k === "lista") marcarChegada("elenco");
     if (g === "clube" && k === "financas" || g === "ajuste" && k === "escudo") marcarChegada(k);
   };

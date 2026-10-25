@@ -1677,3 +1677,14 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-fed .t-faixa-frase { margin-left:auto; margin-right:auto; }
 .t-fed-tab th:not(.t-esq), .t-fed-tab td:not(.t-esq) { text-align:center; }
 .t-fed .t-liga-nav b { flex:1; text-align:center; } .t-fed .t-liga-nav b small { font:500 13px/1 var(--t-letra); font-stretch:100%; text-transform:none; color:var(--t-tinta2); margin-left:6px; }
+/* Competições › Campeões e recordes: ranking com escudos, campeões de uma temporada por vez (taça · troféu · clube) */
+.t-camp-tab :is(td, th):nth-child(n+3) { min-width:46px; text-align:center; }
+.t-camp-arq { color:var(--t-tinta2); }
+.t-camp { display:grid; grid-template-columns:28px minmax(0, 150px) minmax(0, 1fr); align-items:center; gap:10px; height:44px; padding:0 6px; border-bottom:1px solid var(--t-fio); font-size:14px; }
+.t-camp > span { color:var(--t-tinta2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-camp .t-tr-ico { justify-self:center; } .t-camp.t-eu { background:var(--t-placa); font-weight:700; } .t-camp-vice { opacity:.75; }
+.t-tr-lista small { color:var(--t-tinta2); margin-left:4px; }
+.t-camp-tab tr.t-camp-mais { display:none; } .t-camp-tab.t-camp-aberta tr.t-camp-mais { display:table-row; }
+.t-camp-todos { margin-top:12px; }
+.t-camp-rec { padding-bottom:20px; } .t-camp-rec .t-tr-recordes { grid-template-columns:repeat(2, minmax(0, 1fr)); margin:0; padding:0; border:0; }
+@media (max-width:720px) and (pointer:coarse) { .t-camp-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:4px; padding-right:4px; } .t-camp { grid-template-columns:24px minmax(0, 1fr) minmax(0, 1.3fr); } }
