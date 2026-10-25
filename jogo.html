@@ -1753,17 +1753,22 @@ async function telaClube(liga, clube) {
       ${kpi("Próximo jogo", p ? dia(p.inicio) : "—", p ? `${comp} · ${hora(p.inicio)} · ${esc((cPor[p.casa === clube.id ? p.fora : p.casa] || {}).nome || "—")}` : "nenhum marcado")}
       ${peneira ? kpi("Peneira", peneira[0], peneira[1]) : ""}</div>`;
   };
+  // o que pede atenção na base: [ícone do visual velho, texto]
+  const avisosDaBase = () => {
+    const avisos = [], livres = meusJuvenis.filter(j => j.idade >= CONFIG_BASE.idadeDeJuvenil);
+    if (livres.length) avisos.push(["🌱", `${livres.map(j => esc(j.nome)).join(", ")} ${livres.length === 1 ? "fica livre" : "ficam livres"} na virada se não ${livres.length === 1 ? "for profissionalizado" : "forem profissionalizados"}.`]);
+    if (meusJuvenis.length >= LIMITE_DE_JUVENIS) avisos.push(["📋", `Você está no limite de ${LIMITE_DE_JUVENIS} juvenis.`]);
+    const semJovem = [...new Set((formacaoDaBase || []).filter(pos => !elenco.some(j => (j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil) && j.pos === pos)))];
+    if (semJovem.length) avisos.push(["🔍", `Nenhum jovem para ${semJovem.map(x => esc(sg(x))).join(", ")}, posições da sua tática.`]);
+    if (prevista && prevista.fora.length) avisos.push(["⏸️", `Sem jogo na próxima rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")}.`]);
+    if (prevista && taticaBase === null && vagasDaBase) avisos.push(["📐", `A escalação da base está automática. <a class="lk" data-sub-ir="base:escalacao">Escolher quem joga onde</a>.`]);
+    return avisos;
+  };
   // Painel da base: os próximos jogos de cada competição e o que pede atenção
   const painelDaBase = () => {
     const prox = (l, nome) => { if (l == null) return ""; const meus = l.filter(p => p.casa === clube.id || p.fora === clube.id), p = meus.find(x => !x.processada);
       return `<div style="margin-top:4px"><b>${nome}:</b> ${p ? `${lk(p.casa)} x ${lk(p.fora)} <span class="mut">· ${p.copinha_fase ? FASES_DA_COPA[p.copinha_fase].toLowerCase() : `rodada ${p.rodada}`} · ${quandoB(p.inicio)}</span>` : `<span class="mut">${meus.length ? "nenhum jogo marcado" : "sem jogos nesta temporada"}</span>`}</div>`; };
-    const avisos = [], livres = meusJuvenis.filter(j => j.idade >= CONFIG_BASE.idadeDeJuvenil);
-    if (livres.length) avisos.push(`🌱 ${livres.map(j => esc(j.nome)).join(", ")} ${livres.length === 1 ? "fica livre" : "ficam livres"} na virada se não ${livres.length === 1 ? "for profissionalizado" : "forem profissionalizados"}.`);
-    if (meusJuvenis.length >= LIMITE_DE_JUVENIS) avisos.push(`📋 Você está no limite de ${LIMITE_DE_JUVENIS} juvenis.`);
-    const semJovem = [...new Set((formacaoDaBase || []).filter(pos => !elenco.some(j => (j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil) && j.pos === pos)))];
-    if (semJovem.length) avisos.push(`🔍 Nenhum jovem para ${semJovem.map(x => esc(sg(x))).join(", ")}, posições da sua tática.`);
-    if (prevista && prevista.fora.length) avisos.push(`⏸️ Sem jogo na próxima rodada: ${prevista.fora.map(j => esc(j.nome)).join(", ")}.`);
-    if (prevista && taticaBase === null && vagasDaBase) avisos.push(`📐 A escalação da base está automática. <a class="lk" data-sub-ir="base:escalacao">Escolher quem joga onde</a>.`);
+    const avisos = avisosDaBase().map(([ic, t]) => `${ic} ${t}`);
     const ultimo = jogosDoMeuSub21().filter(([p]) => p.processada && p.gols_casa != null).sort(([a], [b]) => new Date(b.inicio) - new Date(a.inicio))[0];
     return `${ultimo ? `<div class="card"><h2>Último jogo <span class="tag">${esc(ultimo[1])}</span></h2><div style="font-size:18px;text-align:center">${lk(ultimo[0].casa)} <b>${placarB(ultimo[0])}</b> ${lk(ultimo[0].fora)}</div>
       ${golsDoMeu(ultimo[0]) ? `<div class="mut" style="text-align:center">⚽ ${golsDoMeu(ultimo[0])}</div>` : ""}<div style="text-align:center;margin-top:8px">${linkDoRelatorio(ultimo[0], "📋 Ver o relatório e a reprise")}</div></div>` : ""}
@@ -1809,6 +1814,67 @@ async function telaClube(liga, clube) {
       ${proximos.length ? `<div><b>Próximos</b></div><div class="rolagem"><table class="mini" style="width:100%">${proximos.map(x => linha(x, false)).join("")}</table></div>` : `<div class="mut">Nenhum jogo marcado.</div>`}
       <div style="margin-top:10px"><b>Disputados</b> <span class="mut" style="font-size:12px">· o relatório tem as zonas, as notas, a análise, os gráficos e a reprise lance a lance</span></div>
       ${feitos.length ? `<div class="rolagem"><table class="mini" style="width:100%">${feitos.map(x => linha(x, true)).join("")}</table></div>` : `<div class="mut" style="margin-top:4px">Nenhum jogo ainda.</div>`}</div>`;
+  };
+  // visual novo da Base: as linhas do Calendário (.t-cal) para os jogos do Sub-21; o disputado abre o relatório
+  const compDoSub21 = p => (libJuvenil || []).includes(p) ? "libjuv" : p.copinha_fase ? "copinha" : "liga";
+  const compCurtaB = p => ({ liga: `Rodada ${p.rodada}`, copinha: "Copinha", libjuv: "Lib. Juvenil" }[compDoSub21(p)] + (p.copinha_fase ? " · " + FASES_DA_COPA[p.copinha_fase] : ""));
+  const resultadoB = p => { if (!p.processada || p.gols_casa == null) return null;
+    const casa = p.casa === clube.id, m = casa ? p.gols_casa : p.gols_fora, d = casa ? p.gols_fora : p.gols_casa, pen = p.penaltis || (p.dados && p.dados.penaltis);
+    return { m, d, v: m > d ? "V" : m < d ? "D" : compDoSub21(p) === "liga" ? "E" : p.vencedor === clube.id ? "V" : "D", // no mata-mata, V é passar
+      texto: `${m} x ${d}${pen ? ` <span class="mut">(pên. ${casa ? pen[0] : pen[1]} x ${casa ? pen[1] : pen[0]})</span>` : ""}` }; };
+  const diaB = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(".", "");
+  const linhaDoSub21 = p => { const casa = p.casa === clube.id, adv = cPor[casa ? p.fora : p.casa], r = resultadoB(p), gols = r ? golsDoMeu(p) : "";
+    const corpo = `<span class="t-cal-v" data-v="${r ? r.v : ""}">${r ? r.v : ""}</span><span class="t-cal-hora">${new Date(p.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span class="t-cal-adv">${adv ? svgEscudo(adv.escudo, adv.sigla, 26) : ""}<b>${esc(adv ? adv.nome : "—")}</b></span><span class="t-cal-onde" title="${gols ? "Gols do seu time" : ""}">${gols || (casa ? "casa" : "fora")}</span>
+      <span class="t-cal-comp">${esc(compCurtaB(p))}</span><span class="t-cal-placar">${r ? r.texto : ""}</span>`;
+    return r ? `<a class="t-cal" data-comp="${compDoSub21(p)}" href="partida_base.html?id=${p.id}" target="_blank" rel="noopener">${corpo}</a>` : `<div class="t-cal" data-comp="${compDoSub21(p)}">${corpo}</div>`; };
+  const porDiaB = lista => { const g = []; lista.forEach(p => { const d = new Date(p.inicio).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+    if (!g.length || g[g.length - 1][0] !== d) g.push([d, []]); g[g.length - 1][1].push(p); });
+    return g.map(([d, ps]) => `<div class="t-cal-grupo"><div class="t-cal-dia">${d}</div>${ps.map(linhaDoSub21).join("")}</div>`).join(""); };
+  const meusDoSub21 = () => jogosDoMeuSub21().map(([p]) => p).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+  // Base › Visão geral: a faixa é o próximo jogo do Sub-21, com os números da base e a peneira; embaixo, o que resolver e o próximo de cada competição
+  const baseNova = () => {
+    const n = clube.base_nivel || 0, fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`, todos = meusDoSub21();
+    const proximos = todos.filter(p => !resultadoB(p)), p = proximos[0], adv = p && cPor[p.casa === clube.id ? p.fora : p.casa];
+    const ultimo = todos.filter(resultadoB).pop(), rU = ultimo && resultadoB(ultimo);
+    const feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas != null && rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: !meusProfs.length ? "só eles jogam a base" : `+ ${meusProfs.length} ${meusProfs.length === 1 ? "formado" : "formados"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} na base` })}
+      ${numero({ rotulo: "Na virada", valor: fx(faixaDeJovens(n, "promocao")), legenda: "jovens sobem da base" })}
+      ${numero({ rotulo: "Peneira", valor: fx(faixaDeJovens(n, "peneira")), legenda: feita ? "já feita nesta temporada" : cedo ? `libera na rodada ${CONFIG_BASE.rodadaDaPeneira}` : "jovens, uma vez por temporada" })}
+      ${numero({ rotulo: "Último jogo", valor: rU ? `${rU.m} x ${rU.d}` : "—", legenda: rU ? `${compCurtaB(ultimo)} · ${(cPor[ultimo.casa === clube.id ? ultimo.fora : ultimo.casa] || {}).nome || "—"}` : "nenhum ainda", tom: rU ? { V: "ok", D: "bad" }[rU.v] : "" })}</div>`;
+    const acao = rodadasFeitas == null ? "" : feita ? `<div class="t-carimbo">Peneira feita<small>temporada ${liga.temporada}</small></div>`
+      : `<div class="t-base-peneira"><button type="button" class="t-botao t-botao-principal" id="peneira" ${cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso">${cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : `Traz ${fx(faixaDeJovens(n, "peneira"))} jovens.`}</span></div>`;
+    const avisos = avisosDaBase();
+    const topo = p
+      ? faixaFoco({ rotulo: `Base · nível ${n} · próximo jogo do Sub-21`, titulo: adv ? adv.nome : "—", apagado: p.casa === clube.id ? "casa" : "fora", destaque: `${diaB(p.inicio)}.`, frase: `${compCurtaB(p)}.${proximos.length > 1 ? ` Depois dele, ${proximos.length === 2 ? "mais 1 jogo marcado" : `mais ${proximos.length - 1} jogos marcados`}.` : ""}`, lado, numeros: acao })
+      : faixaFoco({ rotulo: `Base · nível ${n}`, titulo: "Nenhum jogo marcado", apagado: `temporada ${liga.temporada}`, frase: baseJogos == null ? "" : "Os jogos do Sub-21 entram aqui quando o calendário e os sorteios saírem.", lado, numeros: acao });
+    const proxDe = ["liga", "copinha", "libjuv"].map(k => proximos.find(x => compDoSub21(x) === k)).filter(Boolean);
+    return `<div class="t-calendario t-base">${topo}<div class="t-base-linha">
+      <section class="t-secao">${rotulo("Para resolver")}${avisos.length ? avisos.map(([, t]) => `<div class="t-alerta">${t}</div>`).join("") : `<p class="t-fajuda">Nada pendente na base.</p>`}</section>
+      <section class="t-secao">${rotulo("Próximo em cada competição")}${proxDe.length ? proxDe.map(linhaDoSub21).join("") : `<p class="t-fajuda">Nenhum jogo marcado.</p>`}
+        <p class="t-fajuda"><a class="lk" data-sub-ir="base:jogos">Todos os jogos e relatórios</a> · <a class="lk" data-sub-ir="base:escalacao">Escalação da base</a></p></section></div>
+      ${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${fx(faixaDeJovens(n, "promocao"))}</b> jovens; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${fx(faixaDeJovens(n, "peneira"))}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam e jogam a base, mas não a partida oficial. Para usar um deles no time principal, profissionalize-o; quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`;
+  };
+  // Base › Jogos: a campanha do Sub-21 na faixa (fita de V/E/D) e todos os jogos dele por dia, com filtro de competição
+  const jogosDaBaseNova = () => {
+    if (baseJogos == null) return "";
+    const todos = meusDoSub21(), jogados = todos.filter(resultadoB).reverse(), proximos = todos.filter(p => !resultadoB(p));
+    const conta = k => jogados.filter(p => resultadoB(p).v === k).length, gols = jogados.reduce(([a, b], p) => { const r = resultadoB(p); return [a + r.m, b + r.d]; }, [0, 0]);
+    const art = {}; for (const p of jogados) { const eu = p.casa === clube.id ? 0 : 1; for (const x of (p.dados && p.dados.jogadores) || []) if (x.t === eu && x.g > 0) art[x.n] = (art[x.n] || 0) + x.g; }
+    const top = Object.entries(art).sort((a, b) => b[1] - a[1])[0], aprov = jogados.length ? Math.round(100 * (3 * conta("V") + conta("E")) / (3 * jogados.length)) : null;
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Aproveitamento", valor: aprov == null ? "—" : aprov + "%", legenda: "no mata-mata, V é passar de fase" })}
+      ${numero({ rotulo: "Gols", valor: `${gols[0]} x ${gols[1]}`, legenda: `saldo ${(gols[0] > gols[1] ? "+" : "") + (gols[0] - gols[1])}` })}
+      ${numero({ rotulo: "Artilheiro", valor: top ? String(top[1]) : "—", sufixo: top ? (top[1] === 1 ? " gol" : " gols") : "", legenda: top ? top[0] : "gol de garoto da escolinha não conta" })}
+      ${numero({ rotulo: "Marcados", valor: String(proximos.length), legenda: proximos.length === 1 ? "jogo por vir" : "jogos por vir" })}</div>`;
+    const fita = jogados.length ? `<div class="t-cal-fita" style="--n:${jogados.length}" title="Do primeiro jogo ao último">${[...jogados].reverse().map(p => { const r = resultadoB(p), adv = cPor[p.casa === clube.id ? p.fora : p.casa];
+      return `<a href="partida_base.html?id=${p.id}" target="_blank" rel="noopener" data-v="${r.v}" title="${esc(adv ? adv.nome : "—")} ${r.m} x ${r.d} · ${esc(compCurtaB(p))}">${r.v}</a>`; }).join("")}</div>` : "";
+    const topo = faixaFoco({ rotulo: `Sub-21 · temporada ${liga.temporada}`, titulo: `${conta("V")}V · ${conta("E")}E · ${conta("D")}D`, apagado: `em ${jogados.length} ${jogados.length === 1 ? "jogo" : "jogos"}`, destaque: jogados.length ? "A campanha até aqui." : "", frase: "Liga de base, Copinha e Libertadores Juvenil.", lado, numeros: fita });
+    const TIPOS = [["liga", "Liga de base"], ["copinha", "Copinha"], ["libjuv", "Lib. Juvenil"]].filter(([k]) => todos.some(p => compDoSub21(p) === k));
+    const filtro = TIPOS.length > 1 ? `<div class="t-transf-filtro" id="bjFiltro"><button type="button" data-fcomp="" class="ligado">Todos <small>${todos.length}</small></button>${TIPOS.map(([k, nome]) => `<button type="button" data-fcomp="${k}">${nome} <small>${todos.filter(p => compDoSub21(p) === k).length}</small></button>`).join("")}</div>` : "";
+    return `<div class="t-calendario t-base" id="bjNova">${topo}${filtro}
+      ${proximos.length ? `<section class="t-secao">${rotulo(`Próximos · ${proximos.length}`)}${porDiaB(proximos)}</section>` : ""}
+      <section class="t-secao">${rotulo(`Disputados · ${jogados.length}`)}${porDiaB(jogados) || `<p class="t-fajuda">Nenhum jogo disputado ainda.</p>`}<p class="t-fajuda">Clique num jogo para abrir o relatório: zonas, notas, análise, gráficos e a reprise lance a lance.</p></section>
+      <div class="t-base-pe">${botao({ texto: "Tabela da liga de base e chaves em Competições", abaIr: "comp:base" })}</div></div>`;
   };
   // Histórico da base: os campeões de cada temporada já vêm com a página; as tabelas e as chaves antigas só são buscadas ao abrir
   const historicoDaBase = () => {
@@ -3324,14 +3390,14 @@ ${historicoDaBase()}`}
     <section data-secao="tatica"></section>
     <section data-secao="base">
     ${subAbas("base", [["geral", "🌱 Visão geral", "Geral"], ["jogos", "⚽ Jogos", "Jogos"], ["escalacao", "📋 Escalação", "Escal."], ["juvenis", "👶 Juvenis", "Juvenis"], ["estrutura", "🏗️ Estrutura", "Estrut."]])}
-    <div data-parte="base:geral">${kpisDaBase()}
+    <div data-parte="base:geral">${visualNovo ? baseNova() : `${kpisDaBase()}
     <div class="g2"><div>${baseJogos == null ? "" : painelDaBase()}</div>
       <div>${rodadasFeitas == null ? "" : (() => { const n = clube.base_nivel || 0, pr = faixaDeJovens(n, "promocao"), pe = faixaDeJovens(n, "peneira"), feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
       const quantos = ([a, b]) => a === b ? (a === 0 ? "nenhum jovem" : a === 1 ? "1 jovem" : a + " jovens") : `${a} a ${b} jovens`;
       return `<div class="card"><h2>Base <span class="tag">nível ${n}</span></h2>
         <div>Na virada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>.${temJuvenis ? ` Juvenis: <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>.` : ""}</div>
-        <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div>${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam mas não jogam partida oficial. Você tem <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>. Para usar um deles, profissionalize-o (na aba Juvenis ou em Clube, Elenco, clicando no jogador); quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`; })()}</div></div></div>
-    <div data-parte="base:jogos">${jogosDaBaseCard()}${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div></div>
+        <div class="row" style="margin-top:8px"><button id="peneira" ${feita || cedo ? "disabled" : ""}>Fazer a peneira</button><span id="peneiraAviso" class="mut">${feita ? "A peneira desta temporada já foi feita." : cedo ? `Libera depois da rodada ${CONFIG_BASE.rodadaDaPeneira} (estamos na ${rodadasFeitas}).` : "Uma vez por temporada."}</span></div>${comoFunciona(`<div class="mut" style="font-size:12px">Na virada da temporada sobem <b>${quantos(pr)}</b>; na peneira, a partir da rodada ${CONFIG_BASE.rodadaDaPeneira}, vêm <b>${quantos(pe)}</b>. Eles chegam com 16 a 18 anos e nota perto de <b>${String(CONFIG_BASE.nota[0] + CONFIG_BASE.nota[1] * n).replace(".", ",")}</b> (cada nível da base soma ${String(CONFIG_BASE.nota[1]).replace(".", ",")}). O talento não depende da base: a cada temporada a liga revela uns poucos talentos raros, sorteados entre os clubes, e a base de nível mais alto dá mais chance no sorteio. ${temJuvenis ? `Eles chegam como <b>juvenis</b>: sem contrato nem salário, treinam mas não jogam partida oficial. Você tem <b>${elenco.filter(j => j.juvenil).length} de ${LIMITE_DE_JUVENIS}</b>. Para usar um deles, profissionalize-o (na aba Juvenis ou em Clube, Elenco, clicando no jogador); quem chegar à virada com ${CONFIG_BASE.idadeDeJuvenil} anos ainda juvenil fica livre.` : "Quem tem até 21 anos não entra no limite de 35 do elenco."}</div>`)}</div>`; })()}</div></div>`}</div>
+    <div data-parte="base:jogos">${visualNovo ? jogosDaBaseNova() : `${jogosDaBaseCard()}${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>`}</div>
     <div data-parte="base:escalacao">${abaEscalacao()}</div>
     <div data-parte="base:juvenis">${abaJuvenis()}${revelados == null ? "" : `<details class="card"><summary><h2>Promessas reveladas <span class="tag">${revelados.length}</span></h2></summary>${revelados.length ? `<table class="mini" style="width:100%"><tr><th>Temp.</th><th class="esq">Chegou</th><th>Pos</th><th class="esq">Jogador</th><th title="Idade na chegada">Id.</th><th title="Nota na chegada">Nota</th><th class="esq">Hoje</th></tr>
       ${revelados.map(r => { const j = elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)); return `<tr><td>T${r.temporada}</td><td class="esq">${r.origem === "virada" ? "subiu na virada" : r.origem === "peneira" ? "peneira" : "—"}</td><td>${pp(r.pos)}</td><td class="esq">${esc(r.nome)}</td><td>${r.idade}</td><td>${r.at ? f1(notaBruta(r.at, r.pos)) : "—"}</td>
@@ -3403,10 +3469,11 @@ ${historicoDaBase()}`}
     });
   }
   if ($("fNova")) $("fNova").addEventListener("click", e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } });
-  if ($("calFiltro")) $("calFiltro").onclick = e => { const b = e.target.closest("[data-fcomp]"); if (!b) return;
-    $("calFiltro").querySelectorAll("[data-fcomp]").forEach(x => x.classList.toggle("ligado", x === b));
-    document.querySelectorAll(".t-cal").forEach(l => { l.hidden = !!b.dataset.fcomp && l.dataset.comp !== b.dataset.fcomp; });
-    document.querySelectorAll(".t-cal-grupo").forEach(g => { g.hidden = !g.querySelector(".t-cal:not([hidden])"); }); };
+  ["calFiltro", "bjFiltro"].forEach(id => { const f = $(id); if (f) f.onclick = e => { const b = e.target.closest("[data-fcomp]"); if (!b) return; // Calendário e Base › Jogos: cada filtro só mexe na própria tela
+    f.querySelectorAll("[data-fcomp]").forEach(x => x.classList.toggle("ligado", x === b));
+    f.parentElement.querySelectorAll(".t-cal").forEach(l => { l.hidden = !!b.dataset.fcomp && l.dataset.comp !== b.dataset.fcomp; });
+    f.parentElement.querySelectorAll(".t-cal-grupo").forEach(g => { g.hidden = !g.querySelector(".t-cal:not([hidden])"); }); }; });
+  if ($("bjNova")) $("bjNova").addEventListener("click", e => { const a = e.target.closest("[data-aba-ir]"); if (a) { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); } });
   if ($("fPeriodos")) $("fPeriodos").onclick = e => { const b = e.target.closest("[data-fper]"); if (!b) return;
     $("fPeriodos").querySelectorAll("[data-fper]").forEach(x => x.setAttribute("aria-pressed", x === b));
     document.querySelectorAll("[data-fpainel]").forEach(p => { p.hidden = p.dataset.fpainel !== b.dataset.fper; }); };

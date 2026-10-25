@@ -1769,3 +1769,10 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 /* celular: estatísticas numa coluna só (a regra .t-stats .t-liga-grade passava por cima da de 1024px); recordes com o número menor */
 @media (max-width:1024px) and (pointer:coarse) { .t-stats .t-liga-grade { grid-template-columns:minmax(0, 1fr); } }
 @media (max-width:720px) and (pointer:coarse) { .t-st-recs .t-numero-valor { font-size:34px; white-space:nowrap; } }
+
+/* Base › Visão geral e Jogos: as peças do Calendário; a peneira (botão ou carimbo) embaixo da frase da faixa; o que resolver | o próximo de cada competição */
+.t-base-peneira { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; } .t-base-peneira span { font-size:13px; color:var(--t-noite-mut); }
+.t-base .t-faixa-numeros .t-carimbo { margin:6px 0 0 4px; font-size:26px; color:#ff4a3a; border-color:#ff4a3a; outline-color:#ff4a3a; opacity:.92; } .t-base .t-faixa-numeros .t-carimbo small { display:block; font-size:11px; }
+.t-base-linha { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap:0 40px; }
+.t-base-linha .t-alerta:first-of-type { margin-top:12px; } .t-base-linha .t-alerta { margin-top:8px; }
+.t-base-pe { margin-top:32px; display:flex; justify-content:center; }
