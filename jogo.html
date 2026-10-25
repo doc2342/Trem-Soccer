@@ -1019,7 +1019,8 @@ async function telaClube(liga, clube) {
   // jogos: lista; fase(p): número da fase; res(p): placar (gols_casa, gols_fora, penaltis) ou null; venc(p): id de quem passou
   // Com a chave fixa (103_chave_fixa.sql), cada jogo traz a posição (chave) e a fase de 32 da Copa e da Copinha tem as 32 vagas sorteadas (vagas32).
   // sub(f): linha opcional embaixo do nome da fase (visual novo da copa: data e prêmio)
-  const desenharChave = (jogos, fases, fase, res, venc, vagas32, sub = () => "") => {
+  // link(p): endereço do jogo (os da base abrem partida_base.html; "" = sem link)
+  const desenharChave = (jogos, fases, fase, res, venc, vagas32, sub = () => "", link = p => `aovivo.html?id=${p.id}`) => {
     const por = Object.fromEntries(fases.map(f => [f, jogos.filter(p => fase(p) === f)]));
     const temChave = l => l.length > 0 && l.every(p => p.chave != null), fixa = temChave(por[fases[0]]);
     if (fixa) por[fases[0]].sort((a, b) => Array.isArray(vagas32) ? vagas32.indexOf(-a.chave) - vagas32.indexOf(-b.chave) : a.chave - b.chave);
@@ -1031,7 +1032,7 @@ async function telaClube(liga, clube) {
     const escudo = id => svgEscudo((cPor[id] || {}).escudo, (cPor[id] || {}).sigla, 16);
     const caixa = (p, largo) => { const r = res(p), v = venc(p);
       const lado = (id, g) => `<div class="ch-t ${v === id ? "ch-v" : ""} ${id === clube.id ? "ch-eu" : ""}">${escudo(id)}<span title="${nome(id)}">${largo ? nome(id) : sigla(id)}</span><b>${r ? g : ""}</b></div>`;
-      return `<a class="ch-j ${p.casa === clube.id || p.fora === clube.id ? "ch-meu" : ""}" href="aovivo.html?id=${p.id}">${lado(p.casa, r && r.gols_casa)}${lado(p.fora, r && r.gols_fora)}${r && r.penaltis ? `<div class="ch-p">pên. ${r.penaltis[0]} x ${r.penaltis[1]}</div>` : !r && new Date(p.inicio).getTime() <= Date.now() ? `<div class="ch-p ch-vivo">ao vivo</div>` : ""}</a>`; };
+      return `<a class="ch-j ${p.casa === clube.id || p.fora === clube.id ? "ch-meu" : ""}"${link(p) ? ` href="${link(p)}"` : ""}>${lado(p.casa, r && r.gols_casa)}${lado(p.fora, r && r.gols_fora)}${r && r.penaltis ? `<div class="ch-p">pên. ${r.penaltis[0]} x ${r.penaltis[1]}</div>` : !r && new Date(p.inicio).getTime() <= Date.now() ? `<div class="ch-p ch-vivo">ao vivo</div>` : ""}</a>`; };
     // A preliminar sai da árvore (com ela a 1ª coluna tem mais jogos que a seguinte e a chave fica torta e comprida) e vira uma grade abaixo.
     // Com a chave fixa, a fase de 32 ainda vazia já mostra as vagas: o clube direto ou o vencedor do jogo da preliminar.
     const prel = fases[0] === 1 && fases.length > 1 ? por[1] : null, arvore = prel ? fases.slice(1) : fases;
@@ -1649,7 +1650,7 @@ async function telaClube(liga, clube) {
       ${meus.length ? `<div style="margin-top:8px;display:flex;flex-direction:column"><b>Seu caminho</b>${meus.map(p => { const t = `<span class="mut">${FASES_DA_COPA[p.copinha_fase]}:</span> ${linhaC(p).replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "")}`;
         return `<div style="margin-top:3px">${t}${p.processada && p.gols_casa != null ? ` · ${linkDoRelatorio(p)}` : ""}</div>`; }).join("")}</div>` : ""}
       <details style="margin-top:8px" ${meus.length && !final ? "" : "open"}><summary style="cursor:pointer"><b>Chave</b> <span class="mut">· ${jogos.length} ${jogos.length === 1 ? "jogo" : "jogos"}</span></summary>
-        ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor, titulo === "Copinha" && liga.copa ? liga.copa.copinha_chave32 : null)}</details>${comoFunciona(regras)}</div>`;
+        ${desenharChave(jogos, [1, 2, 3, 4, 5, 6].filter(f => f >= fases[0]), p => p.copinha_fase, p => p.gols_casa == null ? null : p, p => p.vencedor, titulo === "Copinha" && liga.copa ? liga.copa.copinha_chave32 : null, undefined, linkDaBase)}</details>${comoFunciona(regras)}</div>`;
   };
   const cartaoDaCopinha = () => cartaoDeMataMata(copinha, "Copinha", "O sorteio sai quando o calendário da temporada for gerado.", liga.copa && liga.copa.copinha_diretos);
   const cartaoDaLibJuvenil = () => cartaoDeMataMata(libJuvenil, "Libertadores Juvenil", "Sai com o calendário da temporada, nas datas da Libertadores (se ela tiver saído).", [],
@@ -1794,6 +1795,7 @@ async function telaClube(liga, clube) {
   const golsDoMeu = p => { const eu = p.casa === clube.id ? 0 : 1, l = ((p.dados && p.dados.jogadores) || []).filter(x => x.t === eu && x.g > 0); return l.map(x => `${esc(x.n)}${x.g > 1 ? ` (${x.g})` : ""}`).join(", "); };
   const jogosDoMeuSub21 = () => [...(baseJogos || []).map(p => [p, `Liga · R${p.rodada}`]), ...(copinha || []).map(p => [p, `Copinha · ${FASES_DA_COPA[p.copinha_fase]}`]), ...(libJuvenil || []).map(p => [p, `Lib. Juvenil · ${FASES_DA_COPA[p.copinha_fase]}`])]
     .filter(([p]) => p.casa === clube.id || p.fora === clube.id);
+  const linkDaBase = p => p.processada && p.gols_casa != null ? `partida_base.html?id=${p.id}` : "";
   const linkDoRelatorio = (p, rotulo = "📋 Relatório") => `<a class="lk" href="partida_base.html?id=${p.id}" target="_blank" rel="noopener">${rotulo}</a>`;
   const placarB = p => { const pen = p.penaltis || (p.dados && p.dados.penaltis); return `${p.gols_casa} x ${p.gols_fora}${pen ? ` <span class="mut">(pên. ${pen[0]} x ${pen[1]})</span>` : ""}`; };
   const jogosDaBaseCard = () => {
@@ -1847,6 +1849,92 @@ async function telaClube(liga, clube) {
       <details id="histLigaBase" style="margin-top:10px"><summary style="cursor:pointer"><b>Tabelas das temporadas anteriores</b> <span class="mut">· ${esc(nomeDoGrupo(clube.grupo))}</span></summary><div class="mut">Buscando…</div></details>
       ${baseCampeoes.some(x => x.grupo === "COPINHA") ? `<details id="histCopinha" style="margin-top:6px"><summary style="cursor:pointer"><b>Chaves das Copinhas anteriores</b></summary><div class="mut">Buscando…</div></details>` : ""}
       <div class="mut" style="margin-top:8px;font-size:12px">O campeão da liga de base de cada série sai na virada da temporada; o da Copinha, depois da final.</div></div>`;
+  };
+  // Competições › Base no visual novo: a faixa é a liga de base do clube (posição, gráfico; Copinha e Libertadores Juvenil nos números),
+  // tabela | rodada com ‹ › e artilheiros, as chaves dos dois mata-matas e os campeões de uma temporada por vez
+  const tabelaDaBase = jogos => { const T = {}, de = id => T[id] || (T[id] = { id, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 });
+    for (const p of jogos) { de(p.casa); de(p.fora); if (!p.processada || p.gols_casa == null) continue;
+      [[p.casa, p.gols_casa, p.gols_fora], [p.fora, p.gols_fora, p.gols_casa]].forEach(([c, gp, gc]) => { const t = de(c); t.j++; t.gp += gp; t.gc += gc; gp > gc ? t.v++ : gp === gc ? t.e++ : t.d++; }); }
+    return Object.values(T).map(t => ({ ...t, pts: t.v * 3 + t.e, clube: cPor[t.id] || { id: t.id, nome: "—" } })).sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.id - b.id); };
+  // onde o clube está num mata-mata da base, para os números da faixa
+  const statusDoMataMata = (jogos, diretos, dia) => { if (jogos == null) return null;
+    const meus = jogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copinha_fase - b.copinha_fase), ult = meus[meus.length - 1];
+    const adv = p => (cPor[p.casa === clube.id ? p.fora : p.casa] || {}).nome || "—";
+    if (!jogos.length) return { valor: "—", legenda: "chave a sortear" };
+    if (!ult) return (diretos || []).map(Number).includes(clube.id) ? { valor: FASES_DA_COPA[2], legenda: "entra direto" } : { valor: "Fora", legenda: "não está na chave" };
+    if (!ult.processada || ult.gols_casa == null) return { valor: FASES_DA_COPA[ult.copinha_fase], legenda: `x ${adv(ult)} · ${dia(ult.inicio)}` };
+    if (ult.vencedor !== clube.id) return { valor: "Eliminado", legenda: `${naFase(ult.copinha_fase)}, x ${adv(ult)}`, tom: "bad" };
+    return ult.copinha_fase === 6 ? { valor: "Campeão", legenda: `x ${adv(ult)} na final`, tom: "ok" } : { valor: FASES_DA_COPA[ult.copinha_fase + 1], legenda: "classificado", tom: "ok" };
+  };
+  const baseCompNova = () => {
+    if (baseJogos == null) return "";
+    const feito = p => p.processada && p.gols_casa != null, nomeDe = id => (cPor[id] || {}).nome || "—", sgn = t => (t.gp - t.gc > 0 ? "+" : "") + (t.gp - t.gc);
+    const hora = d => new Date(d).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(".", "").replace(",", " ·");
+    const dia = d => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const tab = tabelaDaBase(baseJogos), iE = tab.findIndex(t => t.id === clube.id), eu = tab[iE];
+    const meus = baseJogos.filter(p => p.casa === clube.id || p.fora === clube.id), faltam = meus.filter(p => !feito(p)).length;
+    const prox = meus.filter(p => !feito(p)).sort((a, b) => new Date(a.inicio) - new Date(b.inicio))[0];
+    const rodadas = [...new Set(baseJogos.map(p => p.rodada))].sort((a, b) => a - b);
+    const atual = rodadas.find(r => baseJogos.some(p => p.rodada === r && !feito(p))) ?? rodadas[rodadas.length - 1];
+    // faixa
+    let titulo = "Liga de base", apagado = "ainda não começou", destaque = "", frase = "Começa quando o calendário da temporada for gerado.", lado = "";
+    if (eu) { const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas: tab.map((_, i) => i ? "" : "camp"), rodadasRestantes: faltam });
+      titulo = lt.titulo; apagado = faltam ? lt.apagado : "temporada encerrada";
+      if (faltam) { destaque = eu.j ? lt.destaque : ""; frase = [eu.j ? lt.frase : "", prox ? `Próximo jogo: rodada ${prox.rodada}, x ${nomeDe(prox.casa === clube.id ? prox.fora : prox.casa)}, ${hora(prox.inicio)}.` : ""].filter(Boolean).join(" "); }
+      else { destaque = iE ? `Terminou em ${iE + 1}º.` : ""; frase = ""; }
+      const pos = rodadas.filter(r => baseJogos.some(p => p.rodada === r && feito(p))).map(r => tabelaDaBase(baseJogos.filter(p => p.rodada <= r)).findIndex(t => t.id === clube.id) + 1);
+      lado = (pos.length > 1 ? `<div class="t-numero-rotulo">Sua posição rodada a rodada</div>${graficoDePosicoes(pos, tab.length, 1)}` : "")
+        + (!faltam && !iE ? `<div class="t-carimbo t-carimbo-lado">Campeão<small>temporada ${liga.temporada}</small></div>` : ""); }
+    const cop = statusDoMataMata(copinha, liga.copa && liga.copa.copinha_diretos, dia), lj = statusDoMataMata(libJuvenil, [], dia);
+    const numeros = `<div class="t-elenco-numeros">${eu ? numero({ rotulo: "Pontos", valor: String(eu.pts), legenda: `${eu.v}V · ${eu.e}E · ${eu.d}D` })
+      + numero({ rotulo: "Saldo", valor: sgn(eu), legenda: `${eu.gp} pró · ${eu.gc} contra`, tom: eu.gp > eu.gc ? "ok" : eu.gp < eu.gc ? "bad" : "" }) : ""}
+      ${cop ? numero({ rotulo: "Copinha", ...cop }) : ""}${lj ? numero({ rotulo: "Lib. Juvenil", ...lj }) : ""}</div>`;
+    const topo = faixaFoco({ rotulo: `Liga de base · ${nomeDoGrupo(clube.grupo)}${eu ? ` · rodada ${eu.j} de ${meus.length}` : ""}`, titulo, apagado, destaque, frase, lado, numeros });
+    // tabela do grupo
+    const tabela = tab.length ? `<table class="t-tabela t-liga-tab"><tr><th></th><th class="t-esq">Clube</th><th>P</th><th>J</th><th class="t-lt-x">V</th><th class="t-lt-x">E</th><th class="t-lt-x">D</th><th class="t-lt-x">GP</th><th class="t-lt-x">GC</th><th>SG</th></tr>
+      ${tab.map((t, i) => `<tr class="${i ? "" : "camp"}${t.id === clube.id ? " t-eu" : ""}"><td>${i + 1}</td><td class="t-esq"><a class="t-lt-clube" href="#clube=${t.id}" data-clube="${t.id}">${svgEscudo(t.clube.escudo, t.clube.sigla, 22)}<span>${esc(t.clube.nome)}</span></a></td>
+        <td><b>${t.pts}</b></td><td>${t.j}</td><td class="t-lt-x">${t.v}</td><td class="t-lt-x">${t.e}</td><td class="t-lt-x">${t.d}</td><td class="t-lt-x">${t.gp}</td><td class="t-lt-x">${t.gc}</td><td>${sgn(t)}</td></tr>`).join("")}</table>
+      <p class="t-fajuda">Turno único de ${rodadas.length} rodadas, uma a cada duas da liga. O campeão do grupo recebe ${dinheiro(200)} do fundo da liga na virada e vai à Libertadores Juvenil.</p>`
+      : `<p class="t-fajuda">Começa quando o calendário da temporada for gerado.</p>`;
+    // jogos: todas as rodadas já desenhadas, as setas mostram uma de cada vez (abre na atual); o disputado abre o relatório
+    const linhaJ = p => { const c = cPor[p.casa] || {}, v = cPor[p.fora] || {}, r = feito(p), url = linkDaBase(p), ganhou = r && (p.gols_casa > p.gols_fora ? "c" : p.gols_casa < p.gols_fora ? "f" : "");
+      return `<a class="t-ljogo${p.casa === clube.id || p.fora === clube.id ? " t-eu" : ""}"${url ? ` href="${url}" target="_blank" rel="noopener"` : ""}><span class="t-ljogo-c${ganhou === "c" ? " t-ljogo-v" : ""}">${esc(c.nome || "—")}</span>${svgEscudo(c.escudo, c.sigla, 22)}
+        <b class="t-ljogo-x${r ? "" : " hora"}">${r ? `${p.gols_casa} x ${p.gols_fora}` : new Date(p.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</b>
+        ${svgEscudo(v.escudo, v.sigla, 22)}<span class="t-ljogo-f${ganhou === "f" ? " t-ljogo-v" : ""}">${esc(v.nome || "—")}</span></a>`; };
+    const diaCab = d => new Date(d).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+    const jogos = rodadas.length ? `<div class="t-bc-passos">${rodadas.map((r, i) => { const ps = baseJogos.filter(p => p.rodada === r);
+      return `<div data-bc-rod="${i}"${r === atual ? "" : " hidden"}><div class="t-liga-nav"><button type="button" data-bc-ir="${i - 1}" ${i ? "" : "disabled"} aria-label="Rodada anterior">‹</button><b>Rodada ${r}</b>
+        <span>${diaCab(ps[0].inicio)} · ${new Date(ps[0].inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}${r === atual ? " · atual" : ""}</span><button type="button" data-bc-ir="${i + 1}" ${i < rodadas.length - 1 ? "" : "disabled"} aria-label="Próxima rodada">›</button></div>
+        ${ps.map(linhaJ).join("")}</div>`; }).join("")}</div>` : "";
+    // artilheiros do grupo (gol de garoto da escolinha não entra: ele não tem id de jogador)
+    const gols = {};
+    for (const p of baseJogos) if (feito(p)) for (const x of (p.dados && p.dados.jogadores) || []) if (x.g > 0 && String(x.id).startsWith("j")) (gols[x.id] = gols[x.id] || { n: x.n, c: x.t === 0 ? p.casa : p.fora, g: 0 }).g += x.g;
+    const art = Object.values(gols).sort((a, b) => b.g - a.g).slice(0, 5);
+    const artilheiros = tab.length ? `<section class="t-bc-art-sec">${rotulo("Artilheiros do grupo")}${art.length ? art.map(a => { const c = cPor[a.c] || {};
+      return `<div class="t-bc-art${a.c === clube.id ? " t-eu" : ""}"><span>${esc(a.n)}</span>${svgEscudo(c.escudo, c.sigla, 20)}<span class="t-bc-clube">${esc(c.nome || "—")}</span><b>${a.g}</b></div>`; }).join("")
+      : `<p class="t-fajuda">Nenhum gol de juvenil ainda (gol de garoto da escolinha não entra na lista).</p>`}</section>` : "";
+    // os dois mata-matas da base
+    const regras = `Jogo único; empate vai direto aos pênaltis. Joga o time da base: juvenis, profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos e garotos da escolinha. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino.`;
+    const mataMata = (l, rot, vazio, vagas32, extra = "") => l == null ? "" : `<section class="t-secao t-copa">${rotulo(rot)}
+      ${l.length ? desenharChave(l, [1, 2, 3, 4, 5, 6].filter(f => f >= Math.min(...l.map(p => p.copinha_fase))), p => p.copinha_fase, p => feito(p) ? p : null, p => p.vencedor, vagas32, undefined, linkDaBase) : ""}
+      <p class="t-fajuda">${l.length ? "" : vazio + " "}${regras}${extra}</p></section>`;
+    const copinhaSec = mataMata(copinha, `Copinha · os 50 clubes, nas datas da Copa do Brasil · campeão ${dinheiro(200)}, vice ${dinheiro(100)}`, "O sorteio sai quando o calendário da temporada for gerado.", liga.copa ? liga.copa.copinha_chave32 : null);
+    const libSec = mataMata(libJuvenil, `Libertadores Juvenil · 16 clubes, nas datas da Libertadores · campeão ${dinheiro(300)}, vice ${dinheiro(150)}`, "Sai com o calendário da temporada, nas datas da Libertadores.", null,
+      ` Vagas pela temporada anterior: 8 do Brasil (campeões dos grupos da liga de base e da Copinha; se algum se repetir, as melhores campanhas do grupo A) e os 2 primeiros de cada país de fora, que jogam com garotos de uma base de nível ${CONFIG_LIGA_DE_BASE.nivelDeFora}. Nas oitavas, sempre Brasil x estrangeiro.`);
+    // campeões: uma temporada por vez, da mais recente
+    const temps = [...new Set(baseCampeoes.map(x => x.temporada))].sort((a, b) => b - a), ORDEM = ["A", "B", "C", "F", "D", "E", "COPINHA", "LIBJUV"];
+    const nomeComp = g => g === "COPINHA" ? "Copinha" : g === "LIBJUV" ? "Libertadores Juvenil" : `Liga de base · ${nomeDoGrupo(g).replace("Brasileiro ", "")}`;
+    const titulos = baseCampeoes.filter(x => x.clube_id === clube.id).length;
+    const campeoes = temps.length ? `<section class="t-secao">${rotulo(`Campeões da base${titulos ? ` · seu clube: ${titulos} ${titulos === 1 ? "título" : "títulos"}` : ""}`)}<div class="t-bc-passos">${temps.map((t, i) => `<div data-bc-temp="${i}"${i ? " hidden" : ""}>
+      <div class="t-liga-nav"><button type="button" data-bc-irt="${i + 1}" ${i < temps.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b><span></span><button type="button" data-bc-irt="${i - 1}" ${i ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
+      <div class="t-bc-lista">${baseCampeoes.filter(x => x.temporada === t).sort((a, b) => ORDEM.indexOf(a.grupo) - ORDEM.indexOf(b.grupo)).map(x => { const c = cPor[x.clube_id] || {};
+        return `<div class="t-bc-camp${x.clube_id === clube.id ? " t-eu" : ""}"><span>${esc(nomeComp(x.grupo))}</span>${svgEscudo(c.escudo, c.sigla, 22)}<b>${lk(x.clube_id)}</b></div>`; }).join("")}</div></div>`).join("")}</div></section>` : "";
+    // as setas trocam qual bloco aparece; o ouvinte é um só, porque a página é redesenhada a toda hora
+    if (!window.__baseCompLigado) { window.__baseCompLigado = true;
+      document.addEventListener("click", e => { const b = e.target.closest("[data-bc-ir], [data-bc-irt]"); if (!b) return;
+        const [k, attr] = b.dataset.bcIr != null ? [b.dataset.bcIr, "data-bc-rod"] : [b.dataset.bcIrt, "data-bc-temp"];
+        for (const x of b.closest(".t-bc-passos").querySelectorAll(`[${attr}]`)) x.hidden = x.getAttribute(attr) !== k; }); }
+    return `<div class="t-liga t-basec">${topo}<div class="t-liga-grade"><section>${rotulo("Classificação")}${tabela}</section><section>${rotulo("Jogos")}${jogos}${artilheiros}</section></div>${copinhaSec}${libSec}${campeoes}</div>`;
   };
   // quadro de atributos, aberto pelo botão "i"
   // faixa com as cores do uniforme no cabeçalho do clube (só aceita cor em hexadecimal)
@@ -3014,8 +3102,8 @@ async function telaClube(liga, clube) {
       <label>Competição<select id="stComp"><option value="TODOS">Todas as séries</option>${opcoesDeGrupo(clube.grupo)}<option value="COPA">Copa do Brasil</option></select></label>
       <label>Temporada<select id="stTemp"><option value="">Atual (${liga.temporada})</option></select></label>
       <label>Lista<select id="stLista"><option value="artilheiros">Artilharia</option><option value="assistencias">Assistências</option><option value="notas">Melhores notas</option><option value="goleiros">Goleiros</option><option value="cartoes">Cartões</option></select></label></div></div>
-    <div data-parte="comp:base">${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>
-${historicoDaBase()}
+    <div data-parte="comp:base">${visualNovo ? baseCompNova() : `${ligaDeBase()}<div class="duas">${cartaoDaCopinha()}${cartaoDaLibJuvenil()}</div>
+${historicoDaBase()}`}
     </div>
     <div id="compKpis"></div>
     <div id="compChave"></div>

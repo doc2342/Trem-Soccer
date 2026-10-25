@@ -1740,3 +1740,17 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
   .t-camp-th { font-size:11px; gap:6px; } .t-camp-tab th { padding-bottom:10px; } .t-camp-tab .t-tr-ico { height:26px; }
   .t-camp-tab td { height:46px; }
 }
+
+/* ---------- Competições › Base: liga de base (tabela | rodada + artilheiros), chaves da Copinha e da Lib. Juvenil, campeões por temporada ---------- */
+.t-ljogo:not([href]) { cursor:default; } .t-ljogo:not([href]):hover:not(.t-eu) { background:none; }
+.t-bc-art-sec { margin-top:28px; }
+.t-bc-art { display:grid; grid-template-columns:minmax(0, 1fr) 20px minmax(0, .8fr) 32px; align-items:center; gap:8px; height:40px; padding:0 6px; border-bottom:1px solid var(--t-fio); font-size:14px; }
+.t-bc-art span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-bc-art .t-bc-clube { color:var(--t-tinta2); }
+.t-bc-art b { font:900 21px/1 var(--t-letra); font-stretch:64%; text-align:right; font-variant-numeric:tabular-nums; }
+.t-bc-art.t-eu { background:var(--t-placa); font-weight:700; }
+.t-bc-lista { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap:0 32px; }
+.t-bc-camp { display:grid; grid-template-columns:minmax(0, 1fr) 22px minmax(0, 1fr); align-items:center; gap:10px; min-height:44px; padding:0 6px; border-bottom:1px solid var(--t-fio); font-size:14px; }
+.t-bc-camp > span { font:700 11px/1.2 var(--t-letra); letter-spacing:.1em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-bc-camp b { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .t-bc-camp b a.lk { color:inherit; }
+.t-bc-camp.t-eu { background:var(--t-placa); }
+.t-basec .t-faixa-numeros .t-numero:nth-child(n+3) .t-numero-valor { font-size:30px; white-space:nowrap; } /* Copinha e Lib. Juvenil: palavras (fase, campeão), não números */
