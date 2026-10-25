@@ -1765,3 +1765,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-bc-ligas-rot { margin:22px 0 4px; }
 .t-bc-marca { position:absolute; bottom:calc(50% + 104px); left:0; right:0; text-align:center; font:900 60px/1 var(--t-letra); font-stretch:64%; text-transform:uppercase; color:var(--t-marca); } /* Copinha: o nome grande em cima do campeão */
 @media (max-width:720px) and (pointer:coarse) { .t-bc-marca { font-size:38px; bottom:calc(50% + 96px); } }
+.t-copa .ch-campeao .t-bc-marca { position:static; margin-bottom:6px; letter-spacing:0; } /* dentro do bloco do campeão, acima de "Campeão" */
+/* celular: estatísticas numa coluna só (a regra .t-stats .t-liga-grade passava por cima da de 1024px); recordes com o número menor */
+@media (max-width:1024px) and (pointer:coarse) { .t-stats .t-liga-grade { grid-template-columns:minmax(0, 1fr); } }
+@media (max-width:720px) and (pointer:coarse) { .t-st-recs .t-numero-valor { font-size:34px; white-space:nowrap; } }

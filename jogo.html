@@ -1916,9 +1916,11 @@ async function telaClube(liga, clube) {
     // os dois mata-matas da base
     const regras = `Jogo único; empate vai direto aos pênaltis. Joga o time da base: juvenis, profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos e garotos da escolinha. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino.`;
     // marca: o nome da competição grande, em cima do campeão (só na Copinha: na chave da Lib. Juvenil não há altura para ele)
+    // com campeão, a marca entra no bloco dele (não encavala quando o nome quebra em duas linhas no celular)
+    const comMarca = (h, marca) => !marca ? h : h.includes(`<div class="ch-campeao">`) ? h.replace(`<div class="ch-campeao">`, `<div class="ch-campeao"><div class="t-bc-marca">${marca}</div>`)
+      : h.replace(/(<div class="ch-col ch-final[^"]*"><div class="ch-f">.*?<\/div><div class="ch-jogos">)/, `$1<div class="t-bc-marca">${marca}</div>`);
     const mataMata = (l, rot, vazio, vagas32, extra = "", marca = "") => l == null ? "" : `<section class="t-secao t-copa">${rotulo(rot)}
-      ${l.length ? desenharChave(l, [1, 2, 3, 4, 5, 6].filter(f => f >= Math.min(...l.map(p => p.copinha_fase))), p => p.copinha_fase, p => feito(p) ? p : null, p => p.vencedor, vagas32, undefined, linkDaBase)
-        .replace(/(<div class="ch-col ch-final[^"]*"><div class="ch-f">.*?<\/div><div class="ch-jogos">)/, `$1${marca ? `<div class="t-bc-marca">${marca}</div>` : ""}`) : ""}
+      ${l.length ? comMarca(desenharChave(l, [1, 2, 3, 4, 5, 6].filter(f => f >= Math.min(...l.map(p => p.copinha_fase))), p => p.copinha_fase, p => feito(p) ? p : null, p => p.vencedor, vagas32, undefined, linkDaBase), marca) : ""}
       <p class="t-fajuda">${l.length ? "" : vazio + " "}${regras}${extra}</p></section>`;
     const copinhaSec = mataMata(copinha, `Copinha · os 50 clubes, nas datas da Copa do Brasil · campeão ${dinheiro(200)}, vice ${dinheiro(100)}`, "O sorteio sai quando o calendário da temporada for gerado.", liga.copa ? liga.copa.copinha_chave32 : null, "", "Copinha");
     const libSec = mataMata(libJuvenil, `Libertadores Juvenil · 16 clubes, nas datas da Libertadores · campeão ${dinheiro(300)}, vice ${dinheiro(150)}`, "Sai com o calendário da temporada, nas datas da Libertadores.", null,
