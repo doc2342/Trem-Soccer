@@ -1136,3 +1136,40 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
   .t-estr-grupos { grid-template-columns:minmax(0, 1fr); gap:12px; }
   :root[data-visual=novo] .t-estr-profs [data-tdispensar] { opacity:1; } :root[data-visual=novo] .t-estr-profs .pf-func { white-space:normal; }
 }
+
+/* Clube › Estádio (visual novo): o 3D ao lado do editor, os botões mexem nos selects escondidos */
+.t-estadio .t-faixa-numeros { border-top:0; padding-top:0; }
+.t-ev-ampliar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; } .t-ev-ampliar small { color:var(--t-noite-mut); font-size:13px; }
+.t-ev { display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(320px, 1fr); gap:36px; align-items:start; }
+.t-ev-vista { position:sticky; top:12px; }
+.t-ev-vista-cab { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:10px; } .t-ev-vista-cab .t-rotulo { margin:0; }
+.t-ev-vista-cab .t-segmentos > * { padding:9px 12px; font-size:13px; white-space:nowrap; }
+.t-ev-editor .t-rotulo { margin-bottom:4px; }
+.t-ev-campo { margin-top:16px; } .t-ev-campo input:not([type]) { width:100%; padding:9px 10px; border:1px solid var(--t-fio); background:var(--t-fundo); color:var(--t-tinta); font:500 14px/1.2 var(--t-letra); }
+.t-ev-campo input:not([type]):focus { outline:none; border-color:var(--t-tinta); }
+.t-ev-rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); margin-bottom:7px; }
+.t-ev-nota, .t-ev-reforma small, .t-ev-salvar small { display:block; font-size:12.5px; color:var(--t-tinta2); margin-top:6px; }
+.t-ev-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.t-ev-chips > * { padding:8px 11px; border:1px solid var(--t-fio); background:transparent; color:var(--t-tinta2); font:500 13px/1 var(--t-letra); cursor:pointer; }
+.t-ev-chips > :hover { color:var(--t-tinta); border-color:var(--t-tinta3); }
+.t-ev-chips > [aria-pressed=true] { background:var(--t-tinta); border-color:var(--t-tinta); color:var(--t-fundo); font-weight:700; }
+.t-ev .t-segmentos > :disabled { cursor:default; opacity:.45; } .t-ev .t-segmentos > [aria-pressed=true]:disabled { opacity:.8; }
+.t-ev-editor .t-segmentos > * { padding:10px 6px; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-ev-reforma { display:flex; align-items:center; gap:14px; margin-top:10px; } .t-ev-reforma small { margin:0; } .t-ev-reforma .t-botao:disabled { display:none; }
+.t-ev-duas { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:12px; }
+.t-ev-cores { display:flex; align-items:center; gap:8px; } .t-ev-cores .t-segmentos { flex:1; }
+.t-ev-cores input[type=color] { width:38px !important; height:38px !important; padding:0 !important; border:1px solid var(--t-fio); background:none; cursor:pointer; }
+.t-ev-cores label { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--t-tinta2); }
+.t-ev-muralha { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; }
+.t-ev-salvar { margin-top:22px; padding-top:16px; border-top:1px solid var(--t-fio); }
+.t-ev-dia { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:28px; padding:18px 0 4px; border-top:2px solid var(--t-tinta); }
+.t-ev-dia .t-numero-valor { font-size:38px; }
+@media (max-width:1024px) and (pointer:coarse) { .t-ev { grid-template-columns:minmax(0, 1fr); } .t-ev-vista { position:static; } }
+@media (max-width:720px) and (pointer:coarse) { .t-ev-dia { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:18px; } .t-ev-vista-cab { flex-direction:column; align-items:stretch; } .t-ev-cores { flex-wrap:wrap; } }
+.t-estadio .t-faixa-titulo { font-size:clamp(40px, 6.4vw, 78px); }
+.t-ev-vista-cab small { font-size:12.5px; color:var(--t-tinta2); text-align:right; }
+.t-ev-diacab { margin-top:28px; }
+.t-ev-dia { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:20px 28px; }
+.t-ev-muralha, .t-ev-cores label { flex-direction:row !important; justify-content:flex-start; text-transform:none; letter-spacing:0; }
+.t-ev-cores label { margin:0; }
+@media (max-width:720px) and (pointer:coarse) { .t-ev-editor .t-segmentos > * { white-space:normal; line-height:1.15; padding:8px 4px; } }

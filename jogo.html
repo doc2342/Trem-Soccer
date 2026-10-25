@@ -1456,6 +1456,42 @@ async function telaClube(liga, clube) {
     const op = (lista, sel) => Object.entries(lista).map(([k, nome]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${nome}</option>`).join("");
     const cor = (id, c, titulo) => `<input type="color" id="${id}" value="${c}" title="${titulo}" style="width:34px;height:30px;padding:0">`;
     const linha = (rot, val, obs) => `<tr><td class="esq mut">${rot}</td><td class="esq"><b>${val}</b>${obs ? `<div class="mut" style="font-size:12px">${obs}</div>` : ""}</td></tr>`;
+    const textoDaReforma = (obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : gratis ? `<span class="ok">uma troca grátis e na hora</span>, porque o visual chegou com a liga andando; depois, trocar de modelo é uma obra de ${dinheiro(CUSTO_DA_REFORMA(n))}` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`) + ([].concat((clube.estadio_visual || {}).reforma_gratis_para || []).length ? ` · <span class="ok">troca grátis e na hora para ${[].concat(clube.estadio_visual.reforma_gratis_para).map(k => MODELOS[k] || k).join(" e ")}, ${[].concat(clube.estadio_visual.reforma_gratis_para).length > 1 ? "os estádios novos" : "o estádio novo"}</span>` : "");
+    if (visualNovo) { // faixa com o nome e a obra; o 3D ao lado do editor (botões no lugar dos selects, que ficam escondidos e são o que ligarEstadio lê); o dia de jogo embaixo
+      const mil = x => x.toLocaleString("pt-BR"), sel =(id, lista, atual, extra = "") => `<select id="${id}" hidden ${extra}>${op(lista, atual)}</select>`;
+      const botoes = (id, lista, atual, cls = "t-segmentos", trava = false) => `<div class="${cls}" data-ev="${id}">${Object.entries(lista).map(([k, nome]) => `<button type="button" data-v="${k}" aria-pressed="${k === atual}" ${trava ? "disabled" : ""}>${nome}</button>`).join("")}</div>`;
+      const campo = (rot, html, nota) => `<div class="t-ev-campo"><div class="t-ev-rot">${rot}</div>${html}${nota ? `<small class="t-ev-nota">${nota}</small>` : ""}</div>`;
+      const feito = minhaObra ? Math.round(100 * (1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total))) : 0;
+      const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Lugares", valor: mil(lugaresDoEstadio(n)), legenda: nv ? `${mil(lugaresDoEstadio(nv))} no nível ${nv}` : "nível máximo" })}
+        ${numero({ rotulo: "Torcida", valor: mil(clube.torcida || 0), legenda: `${nomeDoHumor(clube.humor ?? 8).toLowerCase()} · prestígio ${String(clube.torcida_fator == null ? 1 : +clube.torcida_fator).replace(".", ",")}` })}
+        ${numero({ rotulo: "Bônus de público", valor: pct(bonusDoEstadio(n) - 1), legenda: "refletores e estacionamento" })}
+        ${numero({ rotulo: "Nível", valor: String(n), sufixo: `de ${NIVEL_MAXIMO_DO_ESTADIO}`, legenda: nv ? `o próximo custa ${dinheiro(custo)}` : "nível máximo" })}</div>`;
+      const acao = minhaObra ? (feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "")
+        : custo == null ? "" : `<div class="t-ev-ampliar"><button type="button" class="t-botao${obra || caixa < custo ? "" : " t-botao-principal"}" data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button><small>${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</small></div>`;
+      const topo = faixaFoco({ rotulo: `Estádio · ${MODELOS[v.modelo] || ""} · ${CIDADES[cidadeDoEstadio(v)]}`, titulo: v.nomeEstadio || "Estádio sem nome",
+        destaque: minhaObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.` : nv ? `Próximo nível: ${mil(lugaresDoEstadio(nv))} lugares.` : "Nível máximo.",
+        frase: minhaObra ? `Quando terminar: ${mil(lugaresDoEstadio(obra.nivel_alvo))} lugares.` : "", lado, numeros: acao });
+      const dia = [["Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ","), `por torcedor · ${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`, "ok"],
+        ["Operação do jogo", "R$ " + custoDeOperacao(n).toFixed(2).replace(".", ","), "por torcedor · segurança, staff e limpeza; na copa, meio a meio", "bad"],
+        ["Refletores", temRefletores(n) ? pct(EXTRAS_DO_ESTADIO.publicoRefletores) : "não", temRefletores(n) ? `de público · ${dinheiro(EXTRAS_DO_ESTADIO.manutRefletores)} de manutenção` : `chegam no nível ${EXTRAS_DO_ESTADIO.nivelDosRefletores}`],
+        ["Estacionamento", est ? pct(EXTRAS_DO_ESTADIO.publicoPorEstacionamento * est) : "não", est ? `de público · nível ${est} · ${dinheiro(EXTRAS_DO_ESTADIO.manutPorEstacionamento * est)} de manutenção` : "chega no nível 3 do estádio"]];
+      return `<div class="t-estadio">${topo}
+        <section class="t-secao t-ev"><div class="t-ev-vista">
+          <div class="t-ev-vista-cab">${sel("evVista", { "3d": "Estádio 3D", wire: "Wireframe da obra", planta: "Planta" }, "3d")}${botoes("evVista", { "3d": "Estádio 3D", wire: "Wireframe da obra", planta: "Planta" }, "3d")}<small>${p.tag}</small></div>
+          <div id="estadio3d" style="min-height:200px"></div><div id="evPlanta" hidden>${plantaEstadio(p.cfg)}</div>
+          <div class="t-ev-diacab">${rotulo("Dia de jogo")}</div><div class="t-ev-dia">${dia.map(([r, val, leg, tom]) => numero({ rotulo: r, valor: val, legenda: leg, tom })).join("")}</div>
+          <p class="t-fajuda">O público depende da torcida, do humor, do adversário e da competição (final de copa lota, preliminar não), vezes o bônus do estádio, até o limite de lugares. O prestígio sobe com temporadas na Série A e títulos. Copa e playoff têm ingresso mais caro.</p></div>
+          <div class="t-ev-editor">${rotulo("Visual do estádio")}
+            ${campo("Modelo", sel("evModelo", MODELOS, v.modelo) + botoes("evModelo", MODELOS, v.modelo, "t-ev-chips"), "")}
+            <div class="t-ev-reforma"><button type="button" class="t-botao t-botao-principal" id="evReforma" disabled>${gratis ? "Trocar agora (grátis)" : "Reformar"}</button><small>${textoDaReforma}</small></div>
+            ${campo("Cidade", sel("evCidade", CIDADES, cidadeDoEstadio(v), trocada ? "disabled" : "") + botoes("evCidade", CIDADES, cidadeDoEstadio(v), "t-segmentos", trocada), trocada ? "a troca grátis de cidade já foi usada" : "o entorno · uma troca grátis, depois fica")}
+            <div class="t-ev-duas">${campo("Nome do estádio", `<input id="evNome" maxlength="32" value="${esc(v.nomeEstadio || "")}">`)}${campo("Mosaico", `<input id="evMosaico" maxlength="14" value="${esc(v.mosaico || "")}">`)}</div>
+            ${campo("Padrão", sel("evPadrao", PADROES_DO_ESTADIO, v.padrao) + botoes("evPadrao", PADROES_DO_ESTADIO, v.padrao))}
+            ${campo("Cores", `<div class="t-ev-cores">${sel("evNCores", { 1: "1", 2: "2", 3: "3" }, String(v.cores.length))}${botoes("evNCores", { 1: "1", 2: "2", 3: "3" }, String(v.cores.length))}${[0, 1, 2].map(i => cor("evCor" + i, v.cores[i] || ["#0b3d91", "#ffffff", "#c8102e"][i], "Cor " + (i + 1))).join("")}<label title="Cor das escadas">escadas ${cor("evEscadas", v.corEscadas, "Cor das escadas")}</label></div>`)}
+            <div id="evCobWrap">${campo("Cobertura", sel("evCob", COBERTURAS, v.cobertura || "") + botoes("evCob", COBERTURAS, v.cobertura || ""))}</div>
+            <label id="evMurWrap" class="t-ev-muralha" title="O fundo oeste vira uma arquibancada única, com o mosaico nela"><input type="checkbox" id="evMuralha" ${v.muralha ? "checked" : ""}> Muralha no fundo oeste</label>
+            <div class="t-ev-salvar"><button type="button" class="t-botao t-botao-principal" id="evSalvar">Salvar o visual</button><small id="evAviso">Só aparência: nome, mosaico, padrão, cores, cobertura e muralha são de graça.</small></div></div></section></div>`;
+    }
     return `<div class="g2"><div>
       <div class="card"><h2>${esc(v.nomeEstadio || "Estádio sem nome")} <span class="tag">${MODELOS[v.modelo] || ""} · ${CIDADES[cidadeDoEstadio(v)]}</span></h2>
         <div class="row" style="margin:6px 0;align-items:center"><select id="evVista"><option value="3d">Estádio 3D</option><option value="wire">Wireframe da obra</option></select><span class="mut" style="font-size:12px">Arraste para girar.</span></div>
@@ -1475,7 +1511,7 @@ async function telaClube(liga, clube) {
         <details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:12px">Como o público é calculado</summary><div class="mut" style="font-size:12px;margin-top:4px">O público depende da torcida, do humor, do adversário e da competição (final de copa lota, preliminar não), vezes o bônus do estádio, até o limite de lugares. O prestígio sobe com temporadas na Série A e títulos. Copa e playoff têm ingresso mais caro. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças. Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada.</div></details></div>
       <div class="card"><h2>🎨 Visual do estádio <span class="tag">só aparência: não muda lugares nem renda</span></h2>
         <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
-          <button id="evReforma" disabled>${gratis ? "Trocar agora (grátis)" : "Reformar"}</button><span class="mut" style="font-size:12px">${obra && obra.estrutura === "estadio_modelo" ? `reforma para ${MODELOS[alvo] || alvo} em andamento` : gratis ? `<span class="ok">uma troca grátis e na hora</span>, porque o visual chegou com a liga andando; depois, trocar de modelo é uma obra de ${dinheiro(CUSTO_DA_REFORMA(n))}` : `trocar de modelo é uma obra: ${dinheiro(CUSTO_DA_REFORMA(n))} · ${PRAZO_DA_REFORMA(n)} ${PRAZO_DA_REFORMA(n) === 1 ? "rodada" : "rodadas"}${obra ? " · espere a obra atual terminar" : ""}`}${[].concat((clube.estadio_visual || {}).reforma_gratis_para || []).length ? ` · <span class="ok">troca grátis e na hora para ${[].concat(clube.estadio_visual.reforma_gratis_para).map(k => MODELOS[k] || k).join(" e ")}, ${[].concat(clube.estadio_visual.reforma_gratis_para).length > 1 ? "os estádios novos" : "o estádio novo"}</span>` : ""}</span></div>
+          <button id="evReforma" disabled>${gratis ? "Trocar agora (grátis)" : "Reformar"}</button><span class="mut" style="font-size:12px">${textoDaReforma}</span></div>
         <div class="row" style="margin-top:8px;align-items:center"><label>Cidade <select id="evCidade" ${trocada ? "disabled" : ""}>${op(CIDADES, cidadeDoEstadio(v))}</select></label>
           <span class="mut" style="font-size:12px">${trocada ? "a troca grátis de cidade já foi usada" : "o entorno do estádio · uma troca grátis, depois fica"}</span></div>
         <div class="row" style="margin-top:8px"><label>Nome do estádio <input id="evNome" maxlength="32" value="${esc(v.nomeEstadio || "")}" style="width:220px"></label>
@@ -1502,12 +1538,16 @@ async function telaClube(liga, clube) {
       [1, 2].forEach(i => { $("evCor" + i).hidden = i >= +$("evNCores").value; });
       const gratis = eGratis(); $("evReforma").textContent = gratis ? "Trocar agora (grátis)" : "Reformar";
       $("evReforma").disabled = (gratis ? obra && obra.estrutura === "estadio_modelo" : !!obra) || $("evModelo").value === modeloDeHoje;
+      const planta = $("evVista").value === "planta"; $("estadio3d").hidden = planta; if ($("evPlanta")) $("evPlanta").hidden = !planta; // a planta só existe no visual novo
+      if (planta) return;
       const cfg = $("evVista").value === "wire" ? { ...plantaDaObra().cfg, vista: "wire" } : atual();
       if (cenas.estadio3d) cenas.estadio3d.atualizar(cfg); else montarEstadio("estadio3d", cfg);
     };
     let t; const adiado = () => { clearTimeout(t); t = setTimeout(redesenhar, 250); };
     ["evVista", "evModelo", "evPadrao", "evNCores", "evCor0", "evCor1", "evCor2", "evEscadas", "evCob", "evMuralha", "evCidade"].forEach(id => $(id).addEventListener("change", redesenhar));
     ["evNome", "evMosaico"].forEach(id => $(id).addEventListener("input", adiado));
+    document.querySelectorAll("[data-ev]").forEach(g => { g.onclick = e => { const b = e.target.closest("button"); if (!b || b.disabled) return; // visual novo: botão → select escondido
+      g.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); $(g.dataset.ev).value = b.dataset.v; $(g.dataset.ev).dispatchEvent(new Event("change")); }; });
     if (cenas.estadio3d) { cenas.estadio3d.destruir(); delete cenas.estadio3d; }
     redesenhar();
     $("evSalvar").onclick = async () => {
