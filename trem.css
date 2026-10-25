@@ -1288,3 +1288,7 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-patro-logo { flex:none; width:clamp(110px, 12vw, 170px); height:auto; max-height:200px; object-fit:contain; filter:drop-shadow(0 10px 18px rgba(0,0,0,.45)); }
 @media (max-width:720px) and (pointer:coarse) { .t-patro-logo { width:84px; } }
 .t-patro-titulo .t-faixa-titulo { font-size:clamp(40px, 5.2vw, 76px); overflow-wrap:normal; }
+/* Clube › Transferências: estado dos meus lances e o valor de cada negócio com sinal */
+[data-lance=frente] .t-giro-tipo, [data-lance=venceu] .t-giro-tipo { background:var(--t-ok); }
+[data-lance=coberto] .t-giro-tipo, [data-lance=perdeu] .t-giro-tipo, [data-lance=descartado] .t-giro-tipo { background:var(--t-erro); }
+.t-transf-valor.bad { color:var(--t-erro); } .t-transf-valor.ok { color:var(--t-ok); }

@@ -1548,7 +1548,8 @@ async function telaClube(liga, clube) {
       if (e.tipo === "perdeu") return `<span class="bad">❌ perdeu para ${lk(e.clube)}</span>${e.salario ? ` <span class="mut">(hoje ganha ${dinheiro(e.salario)})</span>` : ""}`;
       return `<span class="mut">sem acordo · segue livre</span>`;
     };
-    const lances = historicoLances == null ? `<div class="mut">O histórico dos lances aparece depois que o administrador rodar o 88_historico_de_lances.sql.</div>`
+    if (visualNovo) return transferenciasNova(quando);
+    const lances =historicoLances == null ? `<div class="mut">O histórico dos lances aparece depois que o administrador rodar o 88_historico_de_lances.sql.</div>`
       : historicoLances.length ? `<div class="rolagem"><table><tr><th class="esq">Jogador</th><th>Seu lance</th><th class="esq">Resultado</th><th>Quando</th></tr>${historicoLances.map(h => { const j = h.jogadores || {};
           return `<tr><td class="esq">${pp(j.pos || "")} ${lj(h.jogador_id, j.nome)} <span class="mut">(${j.idade ?? "?"})</span></td><td>${dinheiro(h.salario)} · ${h.temporadas} temp.</td><td class="esq">${situacao(h)}</td><td class="mut">${quando(h.criada_em)}</td></tr>`; }).join("")}</table></div>`
       : `<div class="mut">Você ainda não deu lance em nenhum leilão (contando a partir de quando o histórico foi ligado).</div>`;
@@ -1558,6 +1559,37 @@ async function telaClube(liga, clube) {
     return `<div class="card"><h2>Meus lances em leilões <span class="tag">jogadores livres · leva quem oferecer o maior salário</span></h2>${lances}</div>
       <div class="card"><h2>Entradas e saídas <span class="tag">todas as transferências do clube</span></h2>${negocios}</div>
       <div class="mut" style="font-size:12px;margin-top:6px">As propostas a outros dirigentes (enviadas e recebidas) ficam em Mercado, Negociações.</div>`;
+  };
+  // visual novo: faixa com o saldo da temporada, os lances nos leilões e as entradas e saídas em linhas (as mesmas do Mercado)
+  const transferenciasNova = quando => {
+    const eu = t => t.para_clube === clube.id, soma = l => l.reduce((s, t) => s + (t.valor || 0), 0);
+    const temp = negociosDoClube.some(t => t.temporada === liga.temporada) || !negociosDoClube.length ? liga.temporada : negociosDoClube[0].temporada; // temporada nova e vazia: mostra a última com negócios
+    const daTemp = negociosDoClube.filter(t => t.temporada === temp), chegou = daTemp.filter(eu), saiu = daTemp.filter(t => !eu(t));
+    const gasto = soma(chegou), recebido = soma(saiu), saldo = recebido - gasto;
+    const lances = (historicoLances || []).map(h => [h, estadoDoLance(h)]), andando = lances.filter(([, e]) => e.tipo === "frente" || e.tipo === "coberto"), frente = andando.filter(([, e]) => e.tipo === "frente").length;
+    const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Gasto", valor: dinheiro(gasto), legenda: "em quem chegou", tom: gasto ? "bad" : "" })}
+      ${numero({ rotulo: "Recebido", valor: dinheiro(recebido), legenda: "por quem saiu", tom: recebido ? "ok" : "" })}
+      ${numero({ rotulo: "Leilões vencidos", valor: String(lances.filter(([, e]) => e.tipo === "venceu").length), sufixo: `de ${lances.length}`, legenda: "dos seus lances" })}
+      ${numero({ rotulo: "Negócios", valor: String(negociosDoClube.length), legenda: "em todas as temporadas" })}</div>`;
+    const topo = faixaFoco({ rotulo: `Transferências · temporada ${temp}`, titulo: pl(chegou.length, "chegada", "chegadas"), apagado: `· ${pl(saiu.length, "saída", "saídas")}`,
+      destaque: saldo > 0 ? `Lucro de ${dinheiro(saldo)} nos negócios.` : saldo < 0 ? `Gasto de ${dinheiro(-saldo)} além do que entrou.` : daTemp.length ? "Nenhum dinheiro mudou de mão." : "",
+      frase: andando.length ? `${pl(andando.length, "leilão", "leilões")} em andamento${frente ? `, na frente em ${frente}` : ""}${andando.length - frente ? `, ${andando.length - frente === 1 ? "coberto em 1" : `coberto em ${andando.length - frente}`}` : ""}.` : "Nenhum leilão em andamento.", lado });
+    const ESTADO = { frente: "Na frente", coberto: "Coberto", venceu: "Venceu", descartado: "Descartado", perdeu: "Perdeu", livre: "Sem acordo" };
+    const detalhe = (e, j) => e.tipo === "frente" ? "leilão em andamento" : e.tipo === "coberto" ? `${lk(e.maior.clube_id)} ofereceu ${dinheiro(e.maior.salario)}`
+      : e.tipo === "venceu" ? "assinou com você" : e.tipo === "descartado" ? esc(e.motivo) : e.tipo === "perdeu" ? `foi para ${lk(e.clube)}${e.salario ? ` · ganha ${dinheiro(e.salario)}` : ""}` : "ninguém levou · segue livre";
+    const secLances = historicoLances == null ? "" : `<section class="t-secao">${rotulo(`Seus lances em leilões · ${lances.length}`)}${lances.length ? lances.map(([h, e]) => { const j = h.jogadores || {};
+        return `<div class="t-transf" data-lance="${e.tipo}"><span class="t-giro-tipo">${ESTADO[e.tipo]}</span><div class="t-transf-jog">${pp(j.pos || "")}${lj(h.jogador_id, j.nome)}</div>
+          <div class="t-transf-rota">${detalhe(e, j)}</div><div class="t-transf-valor">${dinheiro(h.salario)}</div><div class="t-transf-quando">${h.temporadas} temp. · ${quando(h.criada_em)}</div></div>`; }).join("")
+      : `<p class="t-fajuda">Você ainda não deu lance em nenhum leilão.</p>`}</section>`;
+    const nomeT = t => t.repatriado ? "Repatriado" : TIPO_DA_TRANSFERENCIA[t.tipo] || (t.tipo === "pre" ? "Acordo" : "Transferência");
+    const nIn = negociosDoClube.filter(eu).length, filtro = negociosDoClube.length && nIn && nIn < negociosDoClube.length ? `<div class="t-transf-filtro" id="ctFiltro"><button type="button" data-fsent="" class="ligado">Todas <small>${negociosDoClube.length}</small></button><button type="button" data-fsent="in">Chegadas <small>${nIn}</small></button><button type="button" data-fsent="out">Saídas <small>${negociosDoClube.length - nIn}</small></button></div>` : "";
+    const secNegocios = `<section class="t-secao">${rotulo("Entradas e saídas")}${filtro}${negociosDoClube.length ? negociosDoClube.map(t => { const entrou = eu(t);
+        return `<div class="t-transf" data-tipo="${esc(t.repatriado ? "repatriado" : t.tipo || "")}" data-sent="${entrou ? "in" : "out"}"><span class="t-giro-tipo">${esc(nomeT(t))}</span><div class="t-transf-jog">${pp(t.pos || "")}${lj(t.jogador_id, t.jogador)}</div>
+          <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lk(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lk(t.para_clube)}` : "dispensado"}</div>
+          <div class="t-transf-valor ${t.valor ? (entrou ? "bad" : "ok") : ""}">${t.valor ? `${entrou ? "−" : "+"}${dinheiro(t.valor)}` : `<span class="t-transf-sem">sem valor</span>`}</div><div class="t-transf-quando" title="${quando(t.criada_em)}">Temp. ${t.temporada} · ${quando(t.criada_em).slice(0, 5)}</div></div>`; }).join("")
+      : `<p class="t-fajuda">Nenhuma entrada ou saída ainda.</p>`}</section>`;
+    return `<div class="t-ctransf">${topo}${secLances}${secNegocios}<p class="t-fajuda">As propostas a outros dirigentes, enviadas e recebidas, ficam em Mercado, Negociações.</p></div>`;
   };
   // Resumo das estruturas: as cinco numa tela só, com o que cada uma faz hoje, o que ganha no próximo nível e o botão de ampliar
   const resumoDasEstruturas = () => {
@@ -3160,8 +3192,11 @@ ${historicoDaBase()}
     const b = e.target.closest("[data-ftipo]"); if (!b) return;
     const f = b.classList.contains("ligado") ? "" : b.dataset.ftipo;
     $("transfFiltro").querySelectorAll("[data-ftipo]").forEach(x => x.classList.toggle("ligado", x.dataset.ftipo === f));
-    document.querySelectorAll(".t-transf").forEach(r => { r.hidden = f === "eu" ? !r.classList.contains("t-transf-eu") : !!f && r.dataset.nomeTipo !== f; });
+    $("transfFiltro").parentNode.querySelectorAll(".t-transf").forEach(r => { r.hidden = f === "eu" ? !r.classList.contains("t-transf-eu") : !!f && r.dataset.nomeTipo !== f; });
   };
+  if ($("ctFiltro")) $("ctFiltro").onclick = e => { const b = e.target.closest("[data-fsent]"); if (!b) return;
+    $("ctFiltro").querySelectorAll("[data-fsent]").forEach(x => x.classList.toggle("ligado", x === b));
+    $("ctFiltro").parentNode.querySelectorAll(".t-transf").forEach(r => { r.hidden = !!b.dataset.fsent && r.dataset.sent !== b.dataset.fsent; }); };
   if ($("livresLista")) $("livresLista").onclick = e => {
     const tr = e.target.closest("[data-livre]"); if (!tr || e.target.closest("[data-info]")) return;
     const j = livres.find(x => String(x.id) === tr.dataset.livre), aberto = !!j.livre_ate;
