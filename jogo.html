@@ -1486,7 +1486,7 @@ async function telaClube(liga, clube) {
     let topo = faixaFoco({ rotulo: `Campeões e recordes · ${temporadas.length} ${temporadas.length === 1 ? "temporada" : "temporadas"}`, titulo: lider ? nomeC(lider.id) : "Nenhum título ainda",
       apagado: lider ? titulos(total(lider)) : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.", lado });
     if (lider && cPor[lider.id]) topo = topo.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-camp-titulo">${esc22(lider.id, 104)}<div>${h}</div></div>`);
-    const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["B,C,F", "B", "Série B", "B"], ["D,E", "D", "Série C", "C"]];
+    const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["super", "super", "Supercopa", "Sup."], ["rec", "rec", "Recopa", "Rec."], ["B,C,F", "B", "Série B", "B"], ["D,E", "D", "Série C", "C"]];
     const tabela = `<table class="t-tabela t-liga-tab t-camp-tab"><tr><th></th><th class="t-esq">Clube</th>${COLS.map(([, k, n, c]) => `<th title="${n}"><span class="t-camp-th">${ico(k)}<span class="t-camp-longo">${n}</span><span class="t-camp-curto">${c}</span></span></th>`).join("")}</tr>
       ${linhas.map((l, i) => `<tr class="${l.id === clube.id ? "t-eu" : i >= 12 ? "t-camp-mais" : ""}"><td>${i + 1}</td><td class="t-esq">${cel(l.id)}</td>${COLS.map(([ks], c) => { const v = ks.split(",").reduce((t, k) => t + (l.m[k] || []).length, 0); return `<td>${v ? c < 2 ? `<b>${v}</b>` : v : ""}</td>`; }).join("")}</tr>`).join("")}</table>
       ${linhas.length > 12 ? `<button type="button" class="t-botao t-camp-todos" data-camtodos>Ver os ${linhas.length} clubes</button>` : ""}
@@ -1502,7 +1502,7 @@ async function telaClube(liga, clube) {
       <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}${filtro}<div id="campJog" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`;
     // recordes em cartões: o número, os dois clubes com escudo (ou o jogador e o clube dele) e quando foi
     const compDe = c => !c || c === "TODOS" ? "" : ` · ${c === "SUPER" ? "Supercopa" : nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
-    const placar = r => `${esc22(r.casa, 30)}<span>${r.gols_casa} x ${r.gols_fora}</span>${esc22(r.fora, 30)}`, jogo = r => `${esc(nomeC(r.casa))} x ${esc(nomeC(r.fora))}`;
+    const placar = r => `${esc22(r.casa, 24)}<span>${r.gols_casa} x ${r.gols_fora}</span>${esc22(r.fora, 24)}`, jogo = r => `${esc(nomeC(r.casa))} x ${esc(nomeC(r.fora))}`;
     const cartao = (r, rot, valor, quem) => r ? `<div class="t-camp-r"><div class="t-numero-rotulo">${rot}</div><div class="t-camp-r-valor">${valor}</div><div class="t-camp-r-quem">${quem}</div><div class="t-camp-r-meta">T${r.temporada}${compDe(r.comp)}</div></div>` : "";
     const cartoes = d => { const c = d ? [cartao(d.goleada, "Maior goleada", d.goleada && placar(d.goleada), d.goleada && jogo(d.goleada)),
         cartao(d.gols_jogo, "Jogo com mais gols", d.gols_jogo && placar(d.gols_jogo), d.gols_jogo && jogo(d.gols_jogo)),

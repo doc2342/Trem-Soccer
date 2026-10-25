@@ -1728,3 +1728,8 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-camp-r-valor:has(svg) { display:flex; align-items:center; gap:10px; } .t-camp-r-valor svg { flex:none; }
 .t-camp-r-quem { display:block; font-size:13.5px; line-height:1.4; color:var(--t-tinta); }
 @media (max-width:720px) and (pointer:coarse) { .t-camp-comps-lado { grid-template-columns:minmax(0, 1fr); } .t-camp-r-valor:has(svg) { gap:6px; } .t-camp-r-valor svg { width:22px; height:22px; } }
+/* ranking com oito competições: a coluna do ranking ganha largura e as colunas de número encolhem */
+.t-trofeus .t-liga-grade { grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:0 40px; }
+@media (pointer:fine), (min-width:721px) { .t-camp-tab :is(td, th):nth-child(n+3) { padding-left:4px; padding-right:4px; } .t-camp-th { min-width:0; font-size:11.5px; } }
+@media (max-width:720px) and (pointer:coarse) { .t-trofeus .t-liga-grade { grid-template-columns:minmax(0, 1fr); } .t-camp-tab td { font-size:13px; } .t-camp-tab .t-lt-clube { gap:6px; } .t-camp-tab .t-lt-clube svg { width:18px; height:18px; } .t-camp-tab :is(td, th):nth-child(n+3) { padding-left:2px; padding-right:2px; } .t-camp-tab td:first-child { width:18px; padding-left:2px; } }
+.t-camp-r-valor { white-space:nowrap; } .t-camp-r-valor:has(svg) { gap:7px; font-size:40px; }
