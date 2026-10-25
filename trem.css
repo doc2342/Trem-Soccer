@@ -1569,9 +1569,9 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-copa .ch-v { color:var(--t-tinta); font-weight:700; }
 .ch-vivo { color:var(--t-marca, var(--ac)); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
 .t-copa .ch-prel summary { font-size:14px; }
-.t-copa-super .t-ljogo { max-width:620px; }
+.t-copa-super .t-ljogo { max-width:620px; margin:0 auto; }
 .t-copa-hist { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:0 32px; }
-.t-copa-h { display:grid; grid-template-columns:28px 22px minmax(0, 1fr); align-items:center; gap:10px; min-height:48px; border-bottom:1px solid var(--t-fio); }
+.t-copa-h { display:grid; grid-template-columns:40px 22px minmax(0, 1fr); align-items:center; gap:10px; min-height:48px; border-bottom:1px solid var(--t-fio); }
 .t-copa-h.t-eu { background:var(--t-placa); }
 .t-copa-ht { font:900 20px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta2); text-align:right; }
 .t-copa-hn { min-width:0; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1579,3 +1579,9 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-copa-hn a.lk, .t-copa-hn small a.lk { color:inherit; }
 .t-copa .ch-campeao { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; color:var(--t-marca); } .t-copa .ch-campeao b { font:900 24px/1.1 var(--t-letra); font-stretch:64%; letter-spacing:0; text-transform:uppercase; color:var(--t-tinta); }
 @media (max-width:720px) and (pointer:coarse) { .t-copa .ch-col { flex:0 0 96px; max-width:none; } .t-copa .ch-ponta { flex:0 0 168px; } .t-copa .ch-final { flex:0 0 150px; } .t-copa .ch-f small { white-space:normal; } }
+.t-copa .t-faixa-texto { text-align:center; align-self:center; } .t-copa .t-faixa-texto > .t-rotulo { justify-content:center; } /* tudo centrado na coluna, os números também */
+.t-copa .ch-final .ch-jogos { justify-content:center; position:relative; } /* a final na altura das semifinais; o campeão embaixo, sem empurrá-la */
+.t-copa .ch-final .ch-jogos > .ch-j { flex:none; }
+.t-carimbo.ch-carimbo { position:absolute; top:calc(50% + 52px); left:50%; transform:translateX(-50%) rotate(-6deg); margin:0; font-size:clamp(18px, 2vw, 28px); white-space:nowrap; max-width:none; }
+.ch-carimbo small { font-size:10.5px; }
+.t-copa .ch-prel { margin-top:28px; } .t-copa .ch-prel .ch-f { text-align:left; }
