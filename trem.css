@@ -1672,3 +1672,8 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-fed-faixas small { display:block; margin-top:4px; font-size:11.5px; color:inherit; opacity:.8; }
 .t-fed-faixas .t-forte { color:#fff; }
 @media (max-width:720px) and (pointer:coarse) { .t-fed-barras .t-fbarra { grid-template-columns:minmax(0, 1fr); } .t-fed-barras .t-fbarra-saldo { grid-template-columns:1fr auto; } .t-fed-barras .t-fpista > i { max-width:65%; } }
+/* Federação centralizada por uma regra só: a faixa inteira, os números das tabelas e a temporada entre as setas (as barras seguem em linha) */
+.t-fed .t-faixa-texto { text-align:center; } .t-fed .t-faixa-texto .t-rotulo { justify-content:center; }
+.t-fed .t-faixa-frase { margin-left:auto; margin-right:auto; }
+.t-fed-tab th:not(.t-esq), .t-fed-tab td:not(.t-esq) { text-align:center; }
+.t-fed .t-liga-nav b { flex:1; text-align:center; } .t-fed .t-liga-nav b small { font:500 13px/1 var(--t-letra); font-stretch:100%; text-transform:none; color:var(--t-tinta2); margin-left:6px; }

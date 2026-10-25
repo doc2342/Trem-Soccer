@@ -240,7 +240,7 @@ import { escalacaoDaBase, esquemaDaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE
 import { FORMACOES } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
-import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais } from "./src/virada.js";
+import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
 import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, multaDaDispensa, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, nomeBaseDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obraAtiva, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
 import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS, CIDADES, cidadeDoEstadio, SEDES, sedeDoJogo } from "./src/estadio.js";
@@ -1407,7 +1407,7 @@ async function telaClube(liga, clube) {
     const topo = faixaFoco({ rotulo: `Federação · fundo da liga · temporada ${liga.temporada}`, titulo: dinheiro(saldo), apagado: "no fundo", destaque: falta ? "Fundo curto." : "", frase, lado, numeros });
     // de onde veio e para onde foi: uma temporada por vez, entradas em verde e saídas em vermelho
     const movimento = t => { const l = TIPOS.map(([k, n]) => [n, valor(t, k)]).filter(([, v]) => v).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...l.map(([, v]) => Math.abs(v))), s = liquido(t), i = temporadas.indexOf(t);
-      return `<div class="t-liga-nav"><button type="button" data-fedt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}</b><span>${t === liga.temporada ? "em andamento" : ""}</span>
+      return `<div class="t-liga-nav"><button type="button" data-fedt="${temporadas[i + 1] ?? ""}" ${i < temporadas.length - 1 ? "" : "disabled"} aria-label="Temporada anterior">‹</button><b>Temporada ${t}${t === liga.temporada ? ` <small>em andamento</small>` : ""}</b>
         <button type="button" data-fedt="${temporadas[i - 1] ?? ""}" ${i > 0 ? "" : "disabled"} aria-label="Temporada seguinte">›</button></div>
         <div class="t-fbarras t-fed-barras">${l.map(([n, v]) => `<div class="t-fbarra ${v < 0 ? "sai" : "entra"}"><span>${n}</span><div class="t-fpista"><i style="width:${Math.max(0.5, Math.abs(v) / max * 80).toFixed(1)}%"></i><b>${sinal(v)}</b></div></div>`).join("")}
         <div class="t-fbarra t-fbarra-saldo"><span>Saldo da temporada</span><b class="${s > 0 ? "ok" : s < 0 ? "bad" : ""}">${sinal(s)}</b></div></div>`; };
@@ -1416,8 +1416,10 @@ async function telaClube(liga, clube) {
       <p class="t-fajuda"><b>Entra</b> 10% da bilheteria de todo jogo, o imposto sobre o lucro e as taxas de venda entre dirigentes. <b>Sai</b> os prêmios das copas e os individuais.
         O registro começou com o fundo já cheio: o que veio antes está só no saldo.</p>`;
     // o que a liga paga e cobra
-    const porDiv = d => divs.find(x => x.divisao === d) || {}, cab = `<tr><th class="t-esq"></th><th>Série A</th><th>Séries B</th><th>Séries C</th></tr>`;
-    const linha = (r, f) => `<tr><td class="t-esq">${r}</td>${[1, 2, 3].map(d => `<td>${f(porDiv(d), d)}</td>`).join("")}</tr>`;
+    // só as divisões que têm clube hoje (a Série C acabou na temporada 14; guardado não conta)
+    const ds = [1, 2, 3].filter(d => clubes.some(c => c.grupo !== GUARDADO && divisaoDoGrupo(c.grupo) === d));
+    const porDiv = d => divs.find(x => x.divisao === d) || {}, cab = `<tr><th class="t-esq"></th>${ds.map(d => `<th>${["", "Série A", "Séries B", "Séries C"][d]}</th>`).join("")}</tr>`;
+    const linha = (r, f) => `<tr><td class="t-esq">${r}</td>${ds.map(d => `<td>${f(porDiv(d), d)}</td>`).join("")}</tr>`;
     const series = `<table class="t-tabela t-fed-tab">${cab}${linha("Teto de folha", x => dinheiro(x.teto_folha))}${linha("Direitos de TV", x => dinheiro(x.receita_tv))}${linha("Patrocínio", x => dinheiro(x.receita_patrocinio))}
       ${linha("Ingresso", x => x.preco_ingresso == null ? "—" : x.preco_ingresso)}${linha("Torcida-base", x => x.torcida_base == null ? "—" : x.torcida_base.toLocaleString("pt-BR"))}
       ${linha("Campeão", (x, d) => `<b>${dinheiro(PREMIOS_DA_LIGA[d][0])}</b>`)}${linha("Lanterna", (x, d) => dinheiro(PREMIOS_DA_LIGA[d][1]))}
