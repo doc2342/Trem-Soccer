@@ -10,7 +10,7 @@ export async function montarLogin(el, aoMudar) {
   const desenhar = () => {
     el.innerHTML = etapa === "email"
       ? `<h2>Entrar</h2><div class="mut" style="margin-bottom:8px">Sem senha: você recebe um e-mail com um link para entrar.</div>
-         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar e-mail</button></form>
+         <form class="row" id="fEmail"><label style="flex:1;min-width:200px">E-mail<input id="lEmail" type="email" required autocomplete="email" value="${esc(email)}"></label><button>Enviar e-mail</button><button type="button" class="sec" id="lJaTenho">Já tenho um código</button></form>
          <div class="row" style="margin-top:12px"><button type="button" class="sec" onclick="location.href='guia.html'">📖 Guia do dirigente</button><span class="mut">Novo por aqui? Veja como o jogo funciona antes de entrar.</span></div>`
       : `<h2>Confira o seu e-mail</h2><div style="margin-bottom:8px">Enviamos um e-mail para <b>${esc(email)}</b>. Abra-o neste aparelho e clique no link para entrar. Ele vale por alguns minutos; olhe também a caixa de spam.</div>
          <form class="row" id="fCodigo"><label>Se o e-mail trouxer um código, digite aqui<input id="lCodigo" inputmode="numeric" autocomplete="one-time-code" required style="width:160px;letter-spacing:3px"></label><button>Entrar com o código</button><button type="button" class="sec" id="lVoltar">Usar outro e-mail</button></form>`;
@@ -19,9 +19,12 @@ export async function montarLogin(el, aoMudar) {
     if (fe) fe.onsubmit = async ev => {
       ev.preventDefault(); email = el.querySelector("#lEmail").value.trim(); aviso = "";
       const b = fe.querySelector("button"); b.disabled = true; b.textContent = "Enviando…";
-      try { await enviarCodigo(email); etapa = "codigo"; } catch (e) { aviso = traduzir(e.message); }
+      // o Supabase às vezes demora a mandar o e-mail e responde 504 mesmo assim enviando: só fica na etapa do e-mail
+      // quando o erro diz que nada saiu (limite de pedidos, endereço inválido); senão abre o campo do código com o aviso
+      try { await enviarCodigo(email); etapa = "codigo"; } catch (e) { aviso = traduzir(e.message); if (!/rate limit|security purposes|invalid|email/i.test(e.message || "")) { etapa = "codigo"; aviso = "O servidor demorou a responder, mas o e-mail pode ter saído. Confira a caixa (e o spam) antes de pedir de novo."; } }
       desenhar();
     };
+    if (fe) el.querySelector("#lJaTenho").onclick = () => { email = el.querySelector("#lEmail").value.trim(); if (!email) return el.querySelector("#lEmail").reportValidity(); etapa = "codigo"; aviso = ""; desenhar(); };
     if (fc) {
       fc.onsubmit = async ev => {
         ev.preventDefault(); aviso = "";
