@@ -1355,3 +1355,42 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-num input::placeholder { color:var(--t-tinta3); font-size:14px; font-weight:600; font-stretch:100%; }
 .t-num input:focus { outline:2px solid var(--t-marca); outline-offset:-1px; }
 .t-num-rep { box-shadow:inset 3px 0 0 var(--t-erro); background:var(--t-placa); } .t-num-rep input { border-color:var(--t-erro); color:var(--t-erro); }
+
+/* ---------- ficha do jogador (o quadro do botão "i") ---------- */
+:root[data-visual=novo] .quadro-atr { width:min(640px, calc(100vw - 16px)); padding:0; border:0; border-radius:0; background:var(--t-fundo); box-shadow:0 18px 50px rgba(0,0,0,.35); }
+.t-qa-topo { position:relative; display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:4px 12px; align-items:center; padding:18px 20px 16px; color:var(--t-noite-tx);
+  background:radial-gradient(120% 140% at 100% 0, var(--t-brilho) 0, transparent 55%), var(--t-noite);
+  --ac:var(--t-marca); --line:var(--t-noite-fio); --mut:var(--t-noite-mut); }
+.t-qa-topo .t-rotulo { color:var(--t-noite-mut); margin-bottom:6px; padding-right:30px; }
+.t-qa-nome { font:900 34px/.92 var(--t-letra); font-stretch:62%; text-transform:uppercase; margin:0; overflow-wrap:anywhere; }
+.t-qa-sub { color:var(--t-noite-mut); font-size:13px; margin-top:6px; }
+.t-qa-nota { display:flex; align-items:flex-end; gap:10px; margin-top:12px; }
+.t-qa-nota > b { font:900 52px/.85 var(--t-letra); font-stretch:64%; color:var(--t-marca); font-variant-numeric:tabular-nums; }
+.t-qa-nota span { font-size:12px; line-height:1.35; color:var(--t-noite-mut); } .t-qa-nota span b { color:var(--t-noite-tx); }
+.t-qa-radar svg { width:210px; height:auto; margin:8px 0 0 !important; color:var(--t-noite-tx); }
+.t-qa-fecha { position:absolute; top:10px; right:10px; width:30px; height:30px; padding:0; background:none; border:1px solid var(--t-noite-fio); color:var(--t-noite-tx); font-size:14px; cursor:pointer; }
+.t-qa-fecha:hover { border-color:var(--t-noite-tx); }
+.t-qa-numeros { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); border-bottom:1px solid var(--t-fio); }
+.t-qa-num { padding:12px 14px; min-width:0; } .t-qa-num + .t-qa-num { border-left:1px solid var(--t-fio); }
+.t-qa-valor { font:900 26px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; margin-top:5px; white-space:nowrap; }
+.t-qa-valor small { font-size:.55em; font-weight:500; color:var(--t-tinta2); margin-left:2px; }
+.t-qa-valor.t-atencao { color:var(--t-atencao); }
+.t-qa-leg { font-size:11.5px; line-height:1.3; color:var(--t-tinta2); margin-top:3px; }
+.t-qa-juvenil { grid-column:span 3; padding:12px 14px; align-self:center; font-size:13px; color:var(--t-tinta2); }
+.t-qa-fatos { padding:10px 20px; background:var(--t-placa); font-size:12.5px; line-height:1.5; color:var(--t-tinta2); }
+.t-qa-fatos b { color:var(--t-tinta); } .t-qa-fatos b.ok { color:var(--t-ok); } .t-qa-fatos b.bad { color:var(--t-erro); }
+.t-qa-grade { columns:3; column-gap:22px; padding:14px 20px 4px; }
+.t-qa-grade > div { break-inside:avoid; margin-bottom:12px; }
+.t-qa-grupo { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-tinta2); padding-bottom:5px; border-bottom:2px solid var(--t-tinta); margin-bottom:3px; }
+.t-qa-atr { display:grid; grid-template-columns:minmax(0, 1fr) 26px 20px; gap:6px; align-items:center; font-size:12.5px; padding:2px 0; color:var(--t-tinta2); }
+.t-qa-atr span { line-height:1.15; }
+.t-qa-atr i { height:4px; background:linear-gradient(90deg, var(--t-tinta3) var(--v), var(--t-fio) var(--v)); }
+.t-qa-atr b { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+.t-qa-conta { color:var(--t-tinta); font-weight:700; } .t-qa-conta i { background:linear-gradient(90deg, var(--t-marca) var(--v), var(--t-fio) var(--v)); }
+.t-qa-pe { padding:0 20px 14px; font-size:12px; color:var(--t-tinta2); } .t-qa-pe b { color:var(--t-tinta); }
+@media (max-width:620px) and (pointer:coarse) {
+  .t-qa-topo { grid-template-columns:minmax(0, 1fr); } .t-qa-radar { justify-self:center; } .t-qa-radar svg { width:180px; } .t-qa-nome { font-size:30px; }
+  .t-qa-numeros { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-qa-num:nth-child(3) { border-left:0; } .t-qa-num:nth-child(n+3) { border-top:1px solid var(--t-fio); }
+  .t-qa-juvenil { grid-column:span 1; }
+  .t-qa-grade { columns:2; padding:14px 16px 4px; } .t-qa-fatos, .t-qa-pe { padding-left:16px; padding-right:16px; } .t-qa-atr { font-size:13px; padding:3px 0; }
+}
