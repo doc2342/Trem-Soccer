@@ -1401,28 +1401,33 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 
 /* ---------- página do jogador (jogador.html) ---------- */
 .t-jp-faixa { grid-template-columns:minmax(0, 1fr) auto; gap:24px 36px; align-items:center; padding:30px clamp(16px, 4vw, 36px); --ac:var(--t-marca); --line:var(--t-noite-fio); --mut:var(--t-noite-mut); }
-.t-jp-nome { font-size:clamp(40px, 7vw, 80px); margin:4px 0 12px; }
+/* ritmo vertical da faixa: 16 entre os elementos, 8 entre um número e o seu rótulo */
+.t-jp-faixa { row-gap:16px; }
+.t-jp-quem { display:flex; flex-direction:column; align-items:flex-start; gap:16px; } .t-jp-quem > * { margin:0 !important; }
+.t-jp-faixa .t-qa-pos { margin:0; } .t-jp-faixa .t-qa-pos .t-rotulo { margin:0 6px 0 0; }
+.t-jp-nome { font-size:clamp(40px, 7vw, 80px); margin:0; }
 .t-jp-sub { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; color:var(--t-noite-mut); font-size:13.5px; } .t-jp-sub b { color:var(--t-noite-tx); } .t-jp-sub svg { flex:none; }
-.t-jp-chave { display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 34px; margin-top:22px; }
+.t-jp-chave { display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 34px; }
 .t-jp-notas { display:flex; gap:26px; text-align:center; }
+.t-jp-pes { width:40px; height:auto; fill:var(--t-noite-tx); vertical-align:middle; }
 .t-jp-notas b { display:block; font:900 80px/.85 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; color:var(--t-marca); }
 .t-jp-notas b.t-jp-teto { color:var(--t-noite-tx); }
 .t-jp-notas span { display:block; margin-top:8px; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); }
-.t-jp-temp { grid-column:1 / -1; justify-self:stretch; border-top:1px solid var(--t-noite-fio); padding-top:14px; }
-.t-jp-temp-rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-tx); margin-bottom:10px; }
-.t-jp-temp-num { display:flex; justify-content:space-between; gap:20px; } .t-jp-temp-num span { display:block; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); margin-bottom:6px; }
+.t-jp-temp { grid-column:1 / -1; justify-self:stretch; border-top:1px solid var(--t-noite-fio); padding-top:16px; }
+.t-jp-temp-rot { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-tx); margin-bottom:16px; }
+.t-jp-temp-num { display:flex; justify-content:space-between; gap:20px; } .t-jp-temp-num span { display:block; font:700 10.5px/1.2 var(--t-letra); letter-spacing:.16em; text-transform:uppercase; color:var(--t-noite-mut); margin-bottom:8px; }
 .t-jp-temp-num b { font:900 28px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; }
-.t-jp-lado { display:grid; grid-template-columns:auto auto; align-items:center; gap:4px 10px; }
-.t-jp-lado .t-qa-camisa svg { width:150px; } .t-jp-lado .t-qa-radar svg { width:270px; } /* rótulos do radar a 12 */
+.t-jp-lado { display:grid; grid-template-columns:auto auto; align-items:center; gap:16px 10px; }
+.t-jp-lado .t-qa-camisa svg { width:150px; } .t-jp-lado .t-qa-radar svg { width:270px; margin:0 !important; } /* rótulos do radar a 12 */
 .t-jp .t-qa-numeros { background:var(--t-celula); border:1px solid var(--t-fio); border-top:0; }
 .t-jp .t-qa-fatos { padding:10px 14px; font-size:13.5px; }
 /* escala da página: número de destaque 80 (teto e nota), número 28, texto 13,5, legenda 12, rótulo em caixa-alta 10,5 */
 .t-jp .t-qa-valor { font-size:28px; } .t-jp .t-qa-leg, .t-jp-cab > span { font-size:12px; }
 .t-jp .t-qa-atr { font-size:13.5px; } .t-jp .t-qa-atr { grid-template-columns:minmax(0, 1fr) 30px 22px; }
-.t-jp-bloco { margin-top:34px; min-width:0; }
-.t-jp-cab { display:flex; align-items:baseline; gap:14px; margin-bottom:12px; } .t-jp-cab .t-rotulo { margin:0; } .t-jp-cab > span { font-size:12.5px; color:var(--t-tinta2); }
+.t-jp-bloco { margin-top:32px; min-width:0; } .t-jp-bloco > .t-rotulo { margin-bottom:16px; } .t-jp-atr > div { margin-bottom:16px; }
+.t-jp-cab { display:flex; align-items:baseline; gap:14px; margin-bottom:16px; } .t-jp-cab .t-rotulo { margin:0; } .t-jp-cab > span { font-size:12.5px; color:var(--t-tinta2); }
 .t-jp-atr { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:0 22px; padding:0; }
-.t-jp-grafico { --ac:var(--t-marca); --line:var(--t-fio); --mut:var(--t-tinta2); --tx:var(--t-tinta); margin-bottom:18px; }
+.t-jp-grafico { --ac:var(--t-marca); --line:var(--t-fio); --mut:var(--t-tinta2); --tx:var(--t-tinta); margin-bottom:16px; }
 .t-jp-ano { display:grid; grid-template-columns:90px minmax(0, 1fr) 70px 220px minmax(0, 1.4fr); gap:6px 14px; align-items:center; padding:10px 8px; border-bottom:1px solid var(--t-fio); font-size:13.5px; font-variant-numeric:tabular-nums; border-left:3px solid transparent; }
 .t-jp-ano-cab { font:700 10.5px/1.2 var(--t-letra); letter-spacing:.14em; text-transform:uppercase; color:var(--t-tinta2); border-bottom:2px solid var(--t-tinta); padding-top:0; }
 .t-jp-agora { border-left-color:var(--t-marca); background:var(--t-placa); }
@@ -1433,10 +1438,15 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-jp-premio .t-giro-tipo { background:var(--t-atencao); } .t-jp-mut { color:var(--t-tinta2); }
 @media (max-width:720px) and (pointer:coarse) {
   .t-jp-faixa { grid-template-columns:minmax(0, 1fr); } .t-jp-lado { justify-content:space-around; justify-items:center; border-top:1px solid var(--t-noite-fio); padding-top:16px; }
-  .t-jp-lado .t-qa-camisa svg { width:96px; } .t-jp-lado .t-qa-radar svg { width:200px; } .t-jp-notas b { font-size:60px; }
+  .t-jp-lado .t-qa-camisa svg { width:96px; } .t-jp-lado .t-qa-radar svg { width:200px; } .t-jp-notas b { font-size:60px; } .t-jp-chave { justify-content:center; }
+  .t-jp-quem { text-align:center; align-items:center; } .t-jp-faixa .t-qa-pos, .t-jp-sub { justify-content:center; padding-right:0; } .t-jp-faixa .t-qa-pos .t-rotulo { margin:0; }
+  .t-jp-temp-rot { text-align:center; } .t-jp-temp-num { justify-content:space-around; } .t-jp-temp-num > div { text-align:center; }
+  /* celular: tudo centralizado (títulos, números, textos); só as linhas de lista (atributos, temporadas) ficam alinhadas como tabela */
+  .t-jp .t-qa-num, .t-jp .t-qa-fatos, .t-jp .t-qa-juvenil, .t-jp .t-qa-grupo, .t-jp-vazio { text-align:center; }
+  .t-jp-bloco > .t-rotulo, .t-jp-cab .t-rotulo { justify-content:center; } .t-jp-cab { align-items:center; text-align:center; }
 
   .t-jp .t-qa-numeros { grid-template-columns:repeat(2, minmax(0, 1fr)); } .t-jp .t-qa-num:nth-child(3) { border-left:0; } .t-jp .t-qa-num:nth-child(n+3) { border-top:1px solid var(--t-fio); }
-  .t-jp-cab { flex-direction:column; gap:4px; }
+  .t-jp-cab { flex-direction:column; gap:8px; }
   .t-jp-atr { grid-auto-flow:row; grid-template-columns:repeat(2, minmax(0, 1fr)); }
   .t-jp-ano { grid-template-columns:64px minmax(0, 1fr) 50px; } .t-jp-ano > :nth-child(4), .t-jp-ano > :nth-child(5) { grid-column:2 / -1; } .t-jp-ano-cab { display:none; }
 }
