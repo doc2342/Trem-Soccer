@@ -1426,10 +1426,13 @@ async function telaClube(liga, clube) {
         <div class="t-estr-nome">${ir ? `<a class="lk" ${ir}>${esc(nome)}</a>` : esc(nome)}<span class="t-estr-niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : emObra && i < obra.nivel_alvo ? "obra" : ""}"></i>`).join("")}</span></div>
         <div class="t-estr-hoje"><b>${hoje}</b><small>${leg}</small></div>
         <div class="t-estr-prox">${custo == null ? "" : `<small>nível ${prox}</small><b>${efeito(k, prox)[0]}</b>`}</div>${acao}</div>`; }).join("");
+    // ficha enxuta: o efeito só até a primeira vírgula longa (o texto inteiro fica no title)
+    const enxuta = html => html.replace(/<div class="pf-efeito">([^<]*)<\/div>/, (_, t) => `<div class="pf-efeito" title="${t}">${t.split(/ \(|; | · |, a cada/)[0]}</div>`);
+    const grupo = (k, tipos, fichas) => `<div class="t-estr-grupo" style="--n:${fichas.length}"><div class="t-estr-grupo-cab"><span>${esc(nomeDe(k))}</span><button type="button" class="t-botao t-botao-link" data-candidatos="${tipos}">Candidatos</button></div>
+      <div class="t-estr-profs">${fichas.map(enxuta).join("")}</div></div>`;
     const comissaoNova = comissao == null ? "" : `<section class="t-secao t-estr-comissao">${rotulo("Quem trabalha nelas")}
-      <div class="t-estr-profs">${relatorios == null ? "" : blocoAnalista()}${profissional("medico")}${profissional("prevencao")}${profissional("forma")}${profissional("psicologo")}</div>
-      <div class="t-estr-cand">${relatorios == null ? "" : candidatos("analista", "analista")}${candidatos("medico,prevencao", "médico e prevenção")}${candidatos("forma,psicologo", "forma e psicólogo")}</div>
-      <p class="t-fajuda">O analista trabalha no ${esc(nomeDe("ct"))}, médico e prevenção no ${esc(nomeDe("medico"))}, forma e psicólogo na ${esc(nomeDe("fisio"))}. Os treinadores ficam em Elenco, Treinamento; o olheiro, na Base.</p></section>`;
+      <div class="t-estr-grupos">${relatorios == null ? "" : grupo("ct", "analista", [blocoAnalista()])}${grupo("medico", "medico,prevencao", [profissional("medico"), profissional("prevencao")])}${grupo("fisio", "forma,psicologo", [profissional("forma"), profissional("psicologo")])}</div>
+      <span class="mut" data-cand-aviso></span>${["analista", "medico,prevencao", "forma,psicologo"].map(t => `<div data-cand-lista="${t}" class="t-estr-lista"></div>`).join("")}</section>`;
     return `<div class="t-estruturas">${topo}<section class="t-secao">${rotulo("As cinco estruturas")}
       <div class="t-estr-cab"><span>Estrutura</span><span>Hoje</span><span>Próximo nível</span><span></span></div>${linhas}
       <p class="t-fajuda">Manutenção: ${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas e ${Math.round(MANUTENCAO.estadio * 100)}% do gasto no estádio, por temporada, mais refletores e estacionamento. O prazo da obra corre em rodadas de liga.</p></section>${comissaoNova}</div>`;
