@@ -1715,3 +1715,22 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
   .t-camp-tacas .t-tr-ico { height:52px; } .t-camp-tacas b { font-size:30px; } .t-camp-tacas span { font-size:9px; letter-spacing:.06em; white-space:normal; }
 }
 @media (pointer:fine), (min-width:721px) { .t-camp-tab :is(td, th):nth-child(n+3) { min-width:0; width:1%; } .t-camp-th { min-width:44px; } }
+/* Campeões e recordes, rodada 3: os seguintes da lista em linhas na faixa; recordes em cartões com os escudos */
+.t-camp-podio { display:grid; max-width:560px; border-top:1px solid var(--t-noite-fio); }
+.t-camp-podio > div { display:grid; grid-template-columns:34px 26px minmax(0, 1fr) auto; align-items:center; gap:12px; height:44px; border-bottom:1px solid var(--t-noite-fio); color:var(--t-noite-tx); }
+.t-camp-podio b { font:900 22px/1 var(--t-letra); font-stretch:64%; color:var(--t-noite-mut); }
+.t-camp-podio span { font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-camp-podio small { margin-left:10px; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--t-marca); }
+.t-camp-podio em { font-style:normal; font-size:14px; color:var(--t-noite-mut); white-space:nowrap; }
+.t-camp-podio .t-eu b, .t-camp-podio .t-eu em { color:var(--t-noite-tx); }
+.t-camp-recs { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:22px 24px; }
+.t-camp-r-valor { font:900 44px/1 var(--t-letra); font-stretch:64%; font-variant-numeric:tabular-nums; margin:6px 0 10px; }
+.t-camp-r-quem { display:grid; gap:6px; font-size:13.5px; }
+.t-camp-r-quem > span { display:flex; align-items:center; gap:8px; min-width:0; } .t-camp-r-quem > span > svg { flex:none; }
+.t-camp-r-quem > span > span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-camp-r-meta { margin-top:8px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-tinta2); }
+.t-camp-rec { padding-bottom:22px; }
+.t-secao > .t-camp-comps { margin-top:4px; }
+@media (max-width:720px) and (pointer:coarse) { .t-camp-podio > div { grid-template-columns:28px 22px minmax(0, 1fr) auto; gap:8px; } .t-camp-podio small { display:none; } .t-camp-recs { gap:18px 14px; } .t-camp-r-valor { font-size:34px; } }
+.t-camp-r-jog { height:20px; }
+@media (max-width:720px) and (pointer:coarse) { .t-camp-tacas { align-items:start; } }

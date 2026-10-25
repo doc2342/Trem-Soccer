@@ -1454,8 +1454,8 @@ async function telaClube(liga, clube) {
     return corpo ? corpo + `<div class="mut" style="margin-top:6px;font-size:12px">Somam as temporadas guardadas na virada mais a atual, liga e copas. Os números por jogador começam na primeira virada depois do SQL 84.</div>`
       : `<div class="mut">Nenhum recorde ainda.</div>`;
   };
-  // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo, taças ao lado, pódio embaixo); ranking com escudos | campeões
-  // de uma temporada por vez (‹ ›) e recordes da liga por competição; artilheiros e quem mais jogou embaixo
+  // Competições › Campeões e recordes no visual novo: a faixa é o maior campeão (escudo, taças ao lado, os seguintes da lista embaixo); ranking com escudos |
+  // campeões de uma temporada por vez (‹ ›) e recordes da liga; os recordes e os jogadores seguem o mesmo filtro de competição
   const COMPS_DOS_RECORDES = [["geral", "Geral"], ["A", "Série A", ["A"]], ["B", "Série B", ["B", "C", "F"]], ["C", "Série C", ["D", "E"]], ["COPA", "Copa do Brasil", ["COPA"]]];
   // o melhor de cada recorde entre várias temporadas e competições, na mesma ordem do recordes_da_liga (89/143)
   const melhoresRecordes = l => { const tot = x => x.gols_casa + x.gols_fora, dif = x => Math.abs(x.gols_casa - x.gols_fora);
@@ -1463,25 +1463,29 @@ async function telaClube(liga, clube) {
       .sort((a, b) => cmp(a, b) || a.temporada - b.temporada)[0];
     return { goleada: melhor("goleada", x => x.gols_casa !== x.gols_fora, (a, b) => dif(b) - dif(a) || tot(b) - tot(a)), gols_jogo: melhor("gols", () => true, (a, b) => tot(b) - tot(a)),
       publico: melhor("publico", x => x.publico != null, (a, b) => b.publico - a.publico), nota: melhor("nota", x => x.nota != null, (a, b) => b.nota - a.nota) }; };
+  // artilheiros ou garçons de uma competição somando as listas guardadas de cada temporada (cada uma traz só os 20 primeiros)
+  const somaDasListas = (l, campo, valor) => { const m = {};
+    l.forEach(x => (x[campo] || []).forEach(j => { const a = m[j.id] = m[j.id] || { id: j.id, nome: j.nome, clube: j.clube, t: -1, v: 0 }; a.v += +j[valor] || 0; if (x.temporada > a.t) Object.assign(a, { t: x.temporada, nome: j.nome, clube: j.clube }); }));
+    return Object.values(m).filter(a => a.v > 0).sort((a, b) => b.v - a.v).slice(0, 10); };
   function campeoesNovos(linhas) {
     const el = $("campNova"); if (!el) return;
     const grupos = gruposDe({}, TIPOS_DE_TROFEU, []), ico = k => iconeDaTaca(grupos.find(g => g.k === k));
     const nomeC = id => cPor[id] ? cPor[id].nome : /^arq:/.test(id) ? id.slice(4) : "—";
-    const cel = id => cPor[id] ? `<a class="t-lt-clube" href="#clube=${id}" data-clube="${id}">${svgEscudo(cPor[id].escudo, cPor[id].sigla, 22)}<span>${esc(cPor[id].nome)}</span></a>` : `<span class="t-lt-clube t-camp-arq">${esc(nomeC(id))}</span>`;
+    const esc22 = (id, t = 22) => cPor[id] ? svgEscudo(cPor[id].escudo, cPor[id].sigla, t) : "";
+    const cel = id => cPor[id] ? `<a class="t-lt-clube" href="#clube=${id}" data-clube="${id}">${esc22(id)}<span>${esc(cPor[id].nome)}</span></a>` : `<span class="t-lt-clube t-camp-arq">${esc(nomeC(id))}</span>`;
     const curto = n => n.replace("Brasileiro ", "").replace("Vice da Copa do Brasil", "Vice da copa");
     const contagem = m => TIPOS_DE_TROFEU.filter(([k]) => k !== "vice" && m[k]).map(([k, , n]) => [k, curto(n), m[k].length]);
-    const lider = linhas[0], total = l => l.n.reduce((s, v) => s + v, 0);
+    const total = l => l.n.reduce((s, v) => s + v, 0), titulos = v => `${v} ${v === 1 ? "título" : "títulos"}`, lider = linhas[0];
     const temporadas = [...new Set(trofeus.map(x => x.temporada))].sort((a, b) => b - a);
-    // faixa: o maior campeão com o escudo; as taças dele lado a lado; embaixo o 2º, o 3º e o seu clube
+    // faixa: o maior campeão com o escudo; as taças dele lado a lado; embaixo, em linhas, o 2º, o 3º e o seu clube
     const ultimo = lider && contagem(lider.m).flatMap(([k, n]) => lider.m[k].map(t => [t, n])).sort((a, b) => b[0] - a[0])[0];
     const eu = linhas.findIndex(l => l.id === clube.id);
-    const podio = [1, 2, eu > 2 ? eu : 3].filter(i => linhas[i]).map(i => numero({ rotulo: i === eu ? `O seu clube · ${i + 1}º` : `${i + 1}º`, valor: String(total(linhas[i])), sufixo: total(linhas[i]) === 1 ? "título" : "títulos", legenda: nomeC(linhas[i].id) }));
-    if (eu < 0 && lider) podio.push(numero({ rotulo: "O seu clube", valor: "0", sufixo: "títulos", legenda: clube.nome }));
+    const podio = lider ? `<div class="t-camp-podio">${[1, 2, eu > 2 ? eu : 3].filter(i => linhas[i]).map(i => `<div class="${i === eu ? "t-eu" : ""}"><b>${i + 1}º</b>${esc22(linhas[i].id, 26)}<span>${esc(nomeC(linhas[i].id))}${i === eu ? "<small>o seu clube</small>" : ""}</span><em>${titulos(total(linhas[i]))}</em></div>`).join("")}
+      ${eu < 0 ? `<div class="t-eu"><b>—</b>${esc22(clube.id, 26)}<span>${esc(clube.nome)}<small>o seu clube</small></span><em>nenhum título</em></div>` : ""}</div>` : "";
     const lado = lider ? `<div class="t-camp-tacas">${contagem(lider.m).map(([k, n, v]) => `<div>${ico(k)}<b>${v}<small>×</small></b><span>${esc(n)}</span></div>`).join("")}</div>` : "";
     let topo = faixaFoco({ rotulo: `Campeões e recordes · ${temporadas.length} ${temporadas.length === 1 ? "temporada" : "temporadas"}`, titulo: lider ? nomeC(lider.id) : "Nenhum título ainda",
-      apagado: lider ? `${total(lider)} ${total(lider) === 1 ? "título" : "títulos"}` : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.",
-      lado, numeros: podio.length ? `<div class="t-elenco-numeros">${podio.join("")}</div>` : "" });
-    if (lider && cPor[lider.id]) topo = topo.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-camp-titulo">${svgEscudo(cPor[lider.id].escudo, cPor[lider.id].sigla, 104)}<div>${h}</div></div>`);
+      apagado: lider ? titulos(total(lider)) : "", destaque: lider ? "O maior campeão da liga." : "", frase: lider ? `O último: ${ultimo[1]} na T${ultimo[0]}.` : "Os campeões entram aqui a cada virada de temporada.", lado, numeros: podio });
+    if (lider && cPor[lider.id]) topo = topo.replace(/<h1 class="t-faixa-titulo">[\s\S]*?<\/h1>/, h => `<div class="t-camp-titulo">${esc22(lider.id, 104)}<div>${h}</div></div>`);
     const COLS = [["lib", "lib", "Libertadores", "Lib."], ["A", "A", "Série A", "A"], ["copa", "copa", "Copa do Brasil", "Copa"], ["sul", "sul", "Sul-Americana", "Sul"], ["B,C,F", "B", "Série B", "B"], ["D,E", "D", "Série C", "C"]];
     const tabela = `<table class="t-tabela t-liga-tab t-camp-tab"><tr><th></th><th class="t-esq">Clube</th>${COLS.map(([, k, n, c]) => `<th title="${n}"><span class="t-camp-th">${ico(k)}<span class="t-camp-longo">${n}</span><span class="t-camp-curto">${c}</span></span></th>`).join("")}</tr>
       ${linhas.map((l, i) => `<tr class="${l.id === clube.id ? "t-eu" : i >= 12 ? "t-camp-mais" : ""}"><td>${i + 1}</td><td class="t-esq">${cel(l.id)}</td>${COLS.map(([ks], c) => { const v = ks.split(",").reduce((t, k) => t + (l.m[k] || []).length, 0); return `<td>${v ? c < 2 ? `<b>${v}</b>` : v : ""}</td>`; }).join("")}</tr>`).join("")}</table>
@@ -1495,22 +1499,38 @@ async function telaClube(liga, clube) {
     el.innerHTML = `<div class="t-liga t-trofeus">${METAIS}${topo}${linhas.length ? `<div class="t-liga-grade"><section>${rotulo("Maiores campeões")}${tabela}</section>
       <section>${rotulo("Campeões por temporada")}<div id="campTemp">${temporada(temporadas[0])}</div>
         <div class="t-st-bloco">${rotulo("Recordes da liga")}${filtro}<div id="campRec" class="t-tr-painel t-camp-rec"><p class="t-fajuda">Carregando…</p></div></div></section></div>` : ""}
-      <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}<div id="recLigaNova" class="t-tr-painel"></div></section></div>`;
-    // recordes: "geral" vem do recordes_da_liga; os de cada competição, das temporadas guardadas mais a atual (se ainda não foi guardada)
+      <section class="t-secao">${rotulo("Jogadores · todas as temporadas")}${filtro}<div id="campJog" class="t-tr-painel"><p class="t-fajuda">Carregando…</p></div></section></div>`;
+    // recordes em cartões: o número, os dois clubes com escudo (ou o jogador e o clube dele) e quando foi
+    const compDe = c => !c || c === "TODOS" ? "" : ` · ${c === "COPA" ? "Copa do Brasil" : nomeBaseDoGrupo(c).replace("Brasileiro ", "")}`;
+    const time = id => `<span>${esc22(id, 20)}<span>${esc(nomeC(id))}</span></span>`;
+    const cartao = (r, rot, valor, quem) => r ? `<div class="t-camp-r"><div class="t-numero-rotulo">${rot}</div><div class="t-camp-r-valor">${valor}</div><div class="t-camp-r-quem">${quem}</div><div class="t-camp-r-meta">T${r.temporada}${compDe(r.comp)}</div></div>` : "";
+    const cartoes = d => { const c = d ? [cartao(d.goleada, "Maior goleada", `${d.goleada?.gols_casa} x ${d.goleada?.gols_fora}`, d.goleada && time(d.goleada.casa) + time(d.goleada.fora)),
+        cartao(d.gols_jogo, "Jogo com mais gols", `${d.gols_jogo?.gols_casa} x ${d.gols_jogo?.gols_fora}`, d.gols_jogo && time(d.gols_jogo.casa) + time(d.gols_jogo.fora)),
+        cartao(d.publico, "Maior público", (+d.publico?.publico).toLocaleString("pt-BR"), d.publico && time(d.publico.casa) + time(d.publico.fora)),
+        cartao(d.nota, "Melhor atuação", String(d.nota?.nota).replace(".", ","), d.nota && `<span class="t-camp-r-jog"><b>${esc(d.nota.nome)}</b></span>${time(d.nota.clube)}`)].join("") : "";
+      return c ? `<div class="t-camp-recs">${c}</div>` : `<p class="t-fajuda">Nenhum recorde nesta competição ainda.</p>`; };
+    const lista = (t, l, u) => `<div><div class="t-tr-lista-cab">${t}</div>${l.length ? l.map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${x.nome ? lj(x.id, x.nome) : `<i>jogador aposentado</i>`}${cPor[x.clube] ? ` <small>${esc(cPor[x.clube].nome)}</small>` : ""}</span><b>${x.v} ${u}</b></div>`).join("") : `<p class="t-fajuda">Ninguém ainda.</p>`}</div>`;
+    // "geral" vem do recordes_da_liga; cada competição, das temporadas guardadas mais a atual (se ainda não foi guardada)
     let geral = null, guardados = null; const atuais = {};
-    const numeros = d => { const n = document.createElement("div"); n.innerHTML = recordesNovos(d, true); return n.querySelector(".t-tr-recordes") || Object.assign(document.createElement("p"), { className: "t-fajuda", textContent: "Nenhum recorde nesta competição ainda." }); };
-    const mostrar = async k => { if (!$("campRec")) return;
-      if (k === "geral") { if (geral) $("campRec").replaceChildren(numeros(geral)); return; }
-      const comps = COMPS_DOS_RECORDES.find(c => c[0] === k)[2];
-      guardados = guardados || await B.recordesGuardados(liga.id);
-      const l = guardados.filter(x => comps.includes(x.comp));
-      if (!guardados.some(x => x.temporada === liga.temporada)) for (const c of comps) { if (!(c in atuais)) atuais[c] = await estatisticasDaLiga(liga.id, c).then(d => d && d.recordes).catch(() => null); if (atuais[c]) l.push({ temporada: liga.temporada, comp: c, recordes: atuais[c] }); }
-      if ($("campRec") && el.querySelector("[data-camrec].ligado").dataset.camrec === k) $("campRec").replaceChildren(numeros(melhoresRecordes(l))); };
+    const mostrar = async k => { const ligado = () => el.querySelector("[data-camrec].ligado").dataset.camrec === k;
+      let d, listas;
+      if (k === "geral") { if (!geral) return; d = geral;
+        listas = lista("Maiores artilheiros", (geral.gols || []).map(x => ({ ...x, v: x.gols })), "gols") + lista("Quem mais jogou", (geral.jogos || []).map(x => ({ ...x, v: x.jogos })), "jogos");
+      } else { const comps = COMPS_DOS_RECORDES.find(c => c[0] === k)[2];
+        guardados = guardados || await B.recordesGuardados(liga.id);
+        const l = guardados.filter(x => comps.includes(x.comp));
+        if (!guardados.some(x => x.temporada === liga.temporada)) for (const c of comps) { if (!(c in atuais)) atuais[c] = await estatisticasDaLiga(liga.id, c).catch(() => null);
+          const a = atuais[c]; if (a) l.push({ temporada: liga.temporada, comp: c, recordes: a.recordes, artilheiros: a.artilheiros, assistencias: a.assistencias }); }
+        d = melhoresRecordes(l);
+        listas = lista("Maiores artilheiros", somaDasListas(l, "artilheiros", "gols"), "gols") + lista("Mais assistências", somaDasListas(l, "assistencias", "ass"), "assist.");
+      }
+      if (!ligado()) return;
+      if ($("campRec")) $("campRec").innerHTML = cartoes(d);
+      $("campJog").innerHTML = `<div class="t-tr-listas">${listas}</div><p class="t-fajuda">${k === "geral" ? "Somam as temporadas guardadas na virada mais a atual, liga e copas." : "Somam, temporada a temporada, os 20 primeiros de cada lista desta competição."}</p>`; };
     el.onclick = e => { const t = e.target.closest("[data-camtodos]"); if (t) { const tab = el.querySelector(".t-camp-tab"), aberta = tab.classList.toggle("t-camp-aberta"); t.textContent = aberta ? "Recolher" : `Ver os ${linhas.length} clubes`; if (!aberta) tab.scrollIntoView({ block: "nearest" }); return; }
-      const r = e.target.closest("[data-camrec]"); if (r) { el.querySelectorAll("[data-camrec]").forEach(b => b.classList.toggle("ligado", b === r)); $("campRec").innerHTML = `<p class="t-fajuda">Carregando…</p>`; mostrar(r.dataset.camrec); return; }
+      const r = e.target.closest("[data-camrec]"); if (r) { el.querySelectorAll("[data-camrec]").forEach(b => b.classList.toggle("ligado", b.dataset.camrec === r.dataset.camrec)); mostrar(r.dataset.camrec); return; }
       const b = e.target.closest("[data-camt]"); if (b && b.dataset.camt) $("campTemp").innerHTML = temporada(+b.dataset.camt); };
-    recordesDaLiga(liga.id).then(d => { const r = $("recLigaNova"); if (!r) return; geral = d; r.innerHTML = recordesNovos(d, true); r.querySelector(".t-tr-recordes")?.remove();
-      if (!r.querySelector(".t-tr-listas")) r.closest("section").hidden = true; mostrar("geral"); });
+    recordesDaLiga(liga.id).then(d => { geral = d; if (!d && $("campJog")) $("campJog").innerHTML = `<p class="t-fajuda">Os recordes aparecem quando o administrador rodar o SQL 89 no banco.</p>`; else mostrar("geral"); });
   }
   function telaDosCampeoes() {
     const ids = [...new Set(trofeus.map(x => x.clube_id))].filter(id => cPor[id] || /^arq:/.test(id)), cols = TIPOS_DE_TROFEU.filter(([k]) => k !== "vice");
