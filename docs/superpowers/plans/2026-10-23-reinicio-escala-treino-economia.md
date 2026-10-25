@@ -300,3 +300,21 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado.
 - O histórico da T1 à T14 é apagado no reinício (Tarefa 7, lista completa).
 - Não existe terceira divisão; se faltar vaga, cria-se a B4 (Tarefas 2 e 5).
 - Os grupos ativos passam a ser A, B, C e D (Tarefa 2).
+
+## Roteiro por sessão (25/10, com o plano semanal curto)
+
+A virada do dia 25/10 foi adiada (nenhuma tarefa estava feita). As migrações deste plano mudam de número: **143 → 149** (reinício da liga) e **144 → 150** (valores do reinício), porque 143 a 148 já foram usados.
+
+Uma sessão por linha. Antes de cada uma: `/clear`, `/model` indicado e colar o pedido. No fim de cada sessão: marcar os `[x]` da tarefa, fazer o commit e dizer qual é a próxima.
+
+| # | Tarefas | Modelo | Pedido para colar |
+|---|---------|--------|-------------------|
+| 1 | 2 | Sonnet | Execute a Tarefa 2 do plano `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md` (veja o roteiro por sessão no fim). |
+| 2 | 1 | Sonnet | Execute a Tarefa 1 do plano do reinício (mesmo arquivo). |
+| 3 | 3 e 4 | Opus | Execute as Tarefas 3 e 4 do plano do reinício e pare no relatório para eu aprovar. **Não limpar o chat no meio.** |
+| 4 | 5 e 6 | Sonnet | Execute as Tarefas 5 e 6 do plano do reinício. (Pode ser feita enquanto o relatório da sessão 3 espera a aprovação.) |
+| 5 | 7 | Sonnet | Execute a Tarefa 7 do plano do reinício (migração 149). |
+| 6 | 8 | Sonnet | Execute a Tarefa 8 do plano do reinício com os números aprovados no relatório (migração 150). |
+| 7 | 9 | Sonnet | Execute a Tarefa 9 do plano do reinício. |
+
+Ficam para depois da virada: a troca de modelo e cidade do estádio (anotações) e o ajuste das notas dos defensores.
