@@ -1275,7 +1275,7 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-tr-vazia .t-tr-taca { opacity:.18; animation:none; } .t-tr-vazia .t-tr-grupo { color:var(--t-tinta3); }
 @keyframes t-tr-sobe { from { opacity:0; transform:translateY(14px); } }
 @media (prefers-reduced-motion:reduce) { .t-tr-taca { animation:none; } }
-@media (max-width:720px) and (pointer:coarse) { .t-tr-estante { gap:22px 24px; padding:20px 14px 14px; } .t-tr-grupo { --h:48px; } .t-tr-grupo[data-tam=g] { --h:62px; } .t-tr-grupo[data-tam=p] { --h:38px; } }
+@media (max-width:720px) and (pointer:coarse) { .t-tr-estante { gap:22px 24px; padding:20px 14px 14px; } .t-tr-grupo { --h:48px; } .t-tr-grupo[data-tam=g] { --h:62px; } .t-tr-grupo[data-tam=p] { --h:38px; } .t-tr-grupo { max-width:100%; } .t-tr-tacas { flex-wrap:wrap; row-gap:10px; } } /* muitas taças de um tipo quebram a linha em vez de vazar */
 .t-tr-svg .ou { fill:url(#t-tr-ouro); } .t-tr-svg .pg { fill:url(#t-tr-ouro); stroke:none; } .t-tr-svg .pg ~ .pt { stroke:#4a3a12; }
 button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit; font:inherit; cursor:zoom-in; } button.t-tr-taca:focus-visible { outline:2px solid var(--t-marca); outline-offset:3px; }
 /* taça pequena ao lado de cada contagem da faixa e dentro das fichas de título */
@@ -1831,15 +1831,16 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-cv-titulo { display:flex; align-items:center; gap:20px; } .t-cv-titulo > svg { flex:none; }
 .t-cv-lado { display:flex; align-items:center; gap:24px; } .t-cv-lado > svg { flex:none; } .t-cv-lado .t-elenco-numeros { flex:1; min-width:0; }
 .t-cv-admin { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.t-cv-tatica .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-cv-tatica .gramado { min-height:640px; }
+.t-cv-tatica { display:block; padding:4px 0 0; } .t-cv-tatica .t-tatica-grade { grid-template-columns:minmax(0, 1fr); } :root[data-visual=novo] .t-cv-tatica .gramado { min-height:640px; }
 .t-cv-titulo .t-faixa-titulo { font-size:clamp(40px, 6vw, 76px); }
 .t-cv-tatica .t-tatica-lado { display:flex; flex-direction:column; gap:32px; }
-.t-cv-vitrine { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:40px; margin:30px 0 0; } /* estádio | estruturas, logo abaixo da faixa */
+.t-cv-vitrine { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); gap:40px; margin:40px 0 0; } /* estádio | estruturas */
 #cvFiltro { margin:0 0 6px; } .t-cv-vitrine .t-cv-estruturas { align-self:center; }
 .t-cv-jogo { display:grid; grid-template-columns:44px minmax(0, 1fr) auto; align-items:center; gap:12px; padding:9px 8px; border-bottom:1px solid var(--t-fio); color:inherit; text-decoration:none; font-variant-numeric:tabular-nums; }
+.t-cv-jogo .t-cal-v, .t-cv-jogo .t-cal-placar { grid-area:auto; } /* no celular o Calendário dá áreas a essas peças */
 .t-cv-jogo:hover { background:var(--t-placa); }
 .t-cv-jogo-quem { min-width:0; font-size:14px; font-weight:600; } .t-cv-jogo-quem small { display:block; margin-top:2px; font-size:12.5px; font-weight:500; color:var(--t-tinta2); }
-#cvPainel { position:sticky; top:16px; margin-top:14px; }
+.t-cv-aside { position:sticky; top:16px; margin-top:14px; display:flex; flex-direction:column; gap:32px; }
 #cvPainel:empty { min-height:300px; border:2px dashed var(--t-fio); display:grid; place-items:center; }
 #cvPainel:empty::before { content:"Escolha um jogador no campo ou na lista para abrir a boleta."; max-width:220px; text-align:center; font:500 14px/1.4 var(--t-letra); color:var(--t-tinta2); }
 #cvEstadio { min-height:240px; margin-bottom:16px; }
@@ -1850,7 +1851,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-cv-temp-dest { font-size:13px; color:var(--t-tinta2); }
 .t-cv-temp-dest em { font:800 10.5px/1 var(--t-letra); font-style:normal; letter-spacing:.12em; text-transform:uppercase; color:#fff; background:var(--t-tinta2); padding:4px 7px; margin-right:8px; }
 .t-cv-temp-dest em[data-d="campeão"] { background:var(--t-marca); } .t-cv-temp-dest em[data-d=subiu] { background:var(--t-ok); } .t-cv-temp-dest em[data-d=caiu] { background:var(--t-tinta); }
-@media (max-width:1024px) and (pointer:coarse) { .t-cv-vitrine { grid-template-columns:minmax(0, 1fr); } #cvPainel { position:static; order:-1; } #cvPainel:empty { display:none; } }
+@media (max-width:1024px) and (pointer:coarse) { .t-cv-vitrine { grid-template-columns:minmax(0, 1fr); } .t-cv-aside { display:contents; } #cvPainel { order:-1; margin-top:14px; } #cvContra { margin-top:28px; } #cvPainel:empty { display:none; } }
 @media (max-width:720px) and (pointer:coarse) { .t-cv-lado { flex-direction:column; } .t-cv-titulo > svg { width:56px; height:56px; } :root[data-visual=novo] .t-cv-tatica .gramado { min-height:540px; }
   .t-cv-elenco .t-mjog { grid-template-columns:38px minmax(0, 1fr) 24px 40px 64px 22px; } .t-cv-elenco .t-mjog .t-mjog-clube, .t-cv-elenco .t-mjog.t-jog-cab > :nth-child(3) { display:none; }
   .t-cv-temp { grid-template-columns:52px minmax(0, 1fr) 40px 40px; } .t-cv-temp > :nth-child(5), .t-cv-temp-cab > :nth-child(6) { display:none; } .t-cv-temp-dest { grid-column:1 / -1; } }
