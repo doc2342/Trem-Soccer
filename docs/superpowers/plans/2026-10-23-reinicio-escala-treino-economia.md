@@ -43,7 +43,7 @@
 **Interfaces:**
 - Produz: `CONFIG_TREINO.rodadasDeReferencia = 22`; `fatorDaTemporada(rodadas: number) => number`, que devolve `rodadasDeReferencia / rodadas` (1 quando `rodadas` é 0 ou não veio); `fatorDoCaminho(j, teto)` sem freio, igual a `max(minimo, teto − partida) / divisor`. `CONFIG_TREINO.freio` e `alvoDaIdade` deixam de existir.
 
-- [ ] **Passo 1: escrever o teste que falha**
+- [x] **Passo 1: escrever o teste que falha**
 
 ```js
 // ferramentas/teste_treino_temporada.mjs
@@ -66,25 +66,25 @@ assert.ok(Math.abs(temporada(14) - temporada(22)) <= 2);
 
 Ajuste o `nomes` ao formato de `dados/nomes.json` se o gerador pedir outro.
 
-- [ ] **Passo 2: rodar e ver falhar**
+- [x] **Passo 2: rodar e ver falhar**
 
 Rode `node ferramentas/teste_treino_temporada.mjs`. Esperado: falha (`fatorDaTemporada` não existe).
 
-- [ ] **Passo 3: implementar em `src/treino.js`**
+- [x] **Passo 3: implementar em `src/treino.js`**
 
 Tire `freio` do `CONFIG_TREINO`, apague `alvoDaIdade` e deixe `fatorDoCaminho(j, teto) = max(C.caminho.minimo, teto − C.caminho.partida) / C.caminho.divisor`. Crie `rodadasDeReferencia: 22` e `export const fatorDaTemporada`. Atualize o comentário do `CONFIG_TREINO.teto`, que ainda cita a Série C. O `treinar` já aceita `fator`; não mude a assinatura.
 
-- [ ] **Passo 4: servidor e tela**
+- [x] **Passo 4: servidor e tela**
 
 No `empacotar_funcao.py`, o treino da liga passa `fator: fatorDaTemporada(rodadasDeLiga(<partidas do grupo>, p.grupo))`. Se o handler não tiver as partidas do grupo na mão, use `2 * (clubes do grupo − 1)`. Importe `fatorDaTemporada` na linha 56. O treino da liga de base (linha 219) fica como está.
 
 No `jogo.html:2656`, multiplique `total` pelo `fatorDaTemporada` do grupo do clube (`2 * (clubes do grupo − 1)`) para a previsão bater com o servidor. Busque `freio` e `alvoDaIdade` em `jogo.html`, `admin.html` e `ferramentas/` e tire o que sobrar.
 
-- [ ] **Passo 5: rodar tudo**
+- [x] **Passo 5: rodar tudo**
 
 Rode `node ferramentas/teste_treino_temporada.mjs && python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`. Esperado: tudo passa.
 
-- [ ] **Passo 6: commit**
+- [x] **Passo 6: commit**
 
 ```bash
 git add src/treino.js ferramentas/empacotar_funcao.py jogo.html ferramentas/teste_treino_temporada.mjs supabase/functions
