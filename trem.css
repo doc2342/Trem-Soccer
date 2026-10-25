@@ -1646,3 +1646,8 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-st-campo > i.t-st-meio { position:relative; left:auto; right:auto; top:auto; margin:24px -10px; flex:none; } /* entre o meio e a defesa: o círculo não pisa em ninguém */
 .t-st-meio::before { width:96px; height:96px; }
 .t-st-b span svg { margin:0 6px 0 2px; }
+/* Estatísticas, rodada 4: a nota da seleção em branco (vermelho parecia nota ruim); na lista, as colunas de números com folga, centradas */
+.t-st-cam em { background:#fff; color:var(--t-noite); }
+.t-st-tab :is(td, th):nth-child(n+3) { min-width:58px; padding-left:12px; padding-right:12px; text-align:center; }
+.t-stats .t-liga-grade { grid-template-columns:minmax(0, 1.2fr) minmax(0, 1fr); }
+@media (max-width:720px) and (pointer:coarse) { .t-st-tab :is(td, th):nth-child(n+3) { min-width:0; padding-left:6px; padding-right:6px; } }
