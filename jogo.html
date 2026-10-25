@@ -979,7 +979,7 @@ async function telaClube(liga, clube) {
     else if (v == null) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`;
       frase = `${vivo(ult) ? "Ao vivo agora." : hora(ult.inicio) + "."} ${ult.copa_fase === 6 ? `O campeão leva ${dinheiro(P_COPA.campeao)}.` : `Quem passa entra ${naFase(ult.copa_fase + 1)} e leva ${dinheiro(P_COPA.fases[ult.copa_fase + 1])}.`}`; }
     else if (v !== foco) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`; carimbo = ["Eliminado", naFase(ult.copa_fase)]; }
-    else if (ult.copa_fase === 6) { titulo = foco === clube.id ? "Final" : (cPor[foco] || {}).nome; apagado = foco === clube.id ? `x ${nomeAdv(ult)}` : `campeão · venceu ${nomeAdv(ult)} na final`; carimbo = ["Campeão", `temporada ${liga.temporada}`]; }
+    else if (ult.copa_fase === 6) { titulo = foco === clube.id ? "Final" : (cPor[foco] || {}).nome; apagado = foco === clube.id ? `x ${nomeAdv(ult)}` : "campeão"; carimbo = ["Campeão", `temporada ${liga.temporada}`]; }
     else { titulo = FASES_DA_COPA[ult.copa_fase + 1]; apagado = "classificado"; frase = fixa ? "O adversário sai do jogo vizinho na chave." : "O sorteio sai quando a fase atual terminar."; }
     // a campanha, jogo a jogo, do ponto de vista do clube da faixa
     const linhaC = p => { const r = copaRes[p.id], a = advDe(p), meu = p.casa === foco, w = quemPassou(p);
@@ -1120,7 +1120,7 @@ async function telaClube(liga, clube) {
     else if (v == null) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`;
       frase = `${vivo(ult) ? "Ao vivo agora." : hora(ult.inicio) + "."} ${ult.copa_fase === 6 ? `O campeão leva ${dinheiro(P.campeao)}.` : P.fases[ult.copa_fase + 1] ? `Quem passa entra ${naFase(ult.copa_fase + 1)} e leva ${dinheiro(P.fases[ult.copa_fase + 1])}.` : ""}`; }
     else if (v !== foco) { titulo = FASES_DA_COPA[ult.copa_fase]; apagado = `x ${nomeAdv(ult)}`; carimbo = ["Eliminado", naFase(ult.copa_fase)]; }
-    else if (ult.copa_fase === 6) { titulo = foco === clube.id ? "Final" : (cPor[foco] || {}).nome; apagado = foco === clube.id ? `x ${nomeAdv(ult)}` : `campeão · venceu ${nomeAdv(ult)} na final`; carimbo = ["Campeão", `temporada ${liga.temporada}`]; }
+    else if (ult.copa_fase === 6) { titulo = foco === clube.id ? "Final" : (cPor[foco] || {}).nome; apagado = foco === clube.id ? `x ${nomeAdv(ult)}` : paisDoGrupo((cPor[foco] || {}).grupo); carimbo = ["Campeão", `temporada ${liga.temporada}`]; }
     else { titulo = FASES_DA_COPA[ult.copa_fase + 1]; apagado = "classificado"; frase = fixa ? "O adversário sai do jogo vizinho na chave." : "O sorteio sai quando a fase atual terminar."; }
     // a campanha, jogo a jogo, com a bandeira do adversário (nas oitavas, Brasil x fora)
     const linhaC = p => { const r = copaRes[p.id], a = advDe(p), meu = p.casa === foco, w = quemPassou(p);
@@ -1133,7 +1133,7 @@ async function telaClube(liga, clube) {
     const gp = dele.reduce((t, p) => t + gols(p, true), 0), gc = dele.reduce((t, p) => t + gols(p, false), 0);
     const andamento = f => { const l = daFase(f), feitos = l.filter(p => copaRes[p.id]).length;
       return feitos ? `${feitos} de ${l.length} jogos encerrados` : l.some(vivo) ? "ao vivo" : hora(l[0].inicio); };
-    const numeros = jogos.length ? `<div class="t-elenco-numeros">${numero({ rotulo: "Prêmios", valor: foco && premioDe(foco) ? dinheiro(premioDe(foco)) : "—", legenda: !foco ? "seu clube não joga" : premioDe(foco) ? (foco === clube.id ? "recebidos nesta edição" : "do campeão nesta edição") : "as oitavas não pagam" })}
+    const numeros = jogos.length ? `<div class="t-elenco-numeros">${numero({ rotulo: "Prêmios", valor: foco && premioDe(foco) ? dinheiro(premioDe(foco)) : "—", legenda: !foco ? "seu clube não joga" : premioDe(foco) ? (foco === clube.id ? "recebidos nesta edição" : "do campeão") : "as oitavas não pagam" })}
       ${numero({ rotulo: "Gols", valor: dele.some(p => copaRes[p.id]) ? `${gp} x ${gc}` : "—", legenda: "pró x contra", tom: gp > gc ? "ok" : gp < gc ? "bad" : "" })}
       ${numero({ rotulo: "Campeão leva", valor: dinheiro(P.campeao), legenda: `vice ${dinheiro(P.vice)}` })}
       ${numero({ rotulo: "A competição", valor: atual ? FASES_DA_COPA[atual] : ultima === 6 ? "Encerrada" : FASES_DA_COPA[ultima + 1], legenda: atual ? andamento(atual) : ultima === 6 ? "final disputada" : fixa ? "a definir" : "a sortear" })}</div>` : "";
