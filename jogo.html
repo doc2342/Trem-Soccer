@@ -1267,6 +1267,35 @@ async function telaClube(liga, clube) {
   const zonaNova = ([titulo, linhas], juvenis) => { const l = elenco.filter(j => !j.juvenil === !juvenis && linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
     return l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}${cabDoElenco}${l.map(linhaNova).join("")}</section>` : ""; };
   const elencoNovo = juvenis => `<div class="t-elenco${juvenis ? " t-juvenis" : ""}"><div>${ZONAS_DO_ELENCO.slice(0, 2).map(z => zonaNova(z, juvenis)).join("")}</div><div>${ZONAS_DO_ELENCO.slice(2).map(z => zonaNova(z, juvenis)).join("")}</div></div>`;
+  // treino: o texto do "Como funciona" (os dois visuais)
+  const explicaTreino = () => `<div class="mut" style="font-size:12.5px">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
+        Cada jogador tem um teto de nota, definido pelo talento, que você não vê, e treina na medida do caminho que tem até lá: quem tem teto alto ganha mais pontos por rodada, de modo que todos chegam ao teto mais ou menos na mesma idade (por volta dos 24 anos num clube bem estruturado, dos 28 num clube sem estrutura). O teto vale para a melhor posição em que ele é natural.
+        <b>Posição nova:</b> abrindo o jogador (▾), dá para mandá-lo aprender uma posição além das que ele já tem. O treino leva só até <b>competente</b>: enquanto isso, o treino de atributos rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos, e jogar 45 minutos ou mais na posição acelera em ${Math.round(CONFIG_POSICAO.bonusPorJogar * 100)}%. De competente a <b>natural</b>, só jogando: cada jogo de 45 minutos ou mais nela (liga ou liga de base) conta, e o treino de atributos volta a render inteiro. Cada jogador guarda uma posição aprendida: escolher outra faz a anterior cair para competente.
+        <table class="mini" style="margin:6px 0"><tr><th class="esq">Distância até uma posição em que ele já é natural</th><th>Até competente: rodadas de treino (jogando nela)</th><th>De competente a natural: jogos nela</th></tr>
+          ${[["vizinha", "Vizinha (ex.: DC → DR)"], ["proxima", "Vizinha da vizinha"], ["distante", "Mais longe"]].map(([k, n]) => `<tr><td class="esq">${n}</td><td>${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao)} (${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao / (1 + CONFIG_POSICAO.bonusPorJogar))})</td><td>${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao / (1 + CONFIG_POSICAO.bonusPorJogar))}</td></tr>`).join("")}</table>
+        Números para quem tem até 23 anos; de 24 a 27 leva cerca de 1,4 vez mais, com 28 ou mais, 2,5 vezes mais.
+        O ritmo depende ainda da idade (cheio até os 23 anos, caindo até parar depois dos 30), do centro de treinamento (o seu está no nível ${clube.ct_nivel || 0}: ${Math.round((CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * (clube.ct_nivel || 0)) * 100)}%), do Trabalho em equipe do jogador e de ele ter jogado pelo menos ${CONFIG_TREINO.minutosParaBonus} minutos na rodada (+${Math.round(CONFIG_TREINO.bonusPorJogar * 100)}%).
+        No teto, o treino para de render. Atributo que chega a 50 passa os pontos para os outros do foco. Lesionado não treina.
+        A coluna "Por rodada" é uma estimativa: usa o teto visto pelo olheiro (o meio da faixa) ou, sem olheiro, um teto típico de ${CONFIG_TREINO.caminho.tetoTipico}.</div>`;
+  // visual novo: cabeçalho com Salvar, filtro profissionais/juvenis, a lista (preenchida por desenharTreino) e a comissão do treino
+  const AREAS_DO_TREINADOR = [["geral", "Geral"], ["gol", "Gol"], ["def", "Def"], ["mei", "Mei"], ["ata", "Ata"], ["fis", "Sem"]];
+  const treinoNovo = () => { const juv = elenco.filter(j => j.juvenil).length;
+    const areaDe = t => CONFIG_TREINO.coletivas.includes(t.area) ? "fis" : t.area;
+    const comissaoDoTreino = comissao == null ? "" : `<section class="t-secao t-trn-comissao">${rotulo(`Treinadores · ${comissao.length} de ${CONFIG_TREINO.maximoDeTreinadores}`)}
+      <div class="t-trn-areas">${Object.entries(AREAS).map(([k, a]) => { const v = Math.round(areasDoTreino[k] * 100), g = v - Math.round(areasSemGeral[k] * 100);
+        return `<div title="${a.at.map(x => ATRIBUTOS.find(y => y.k === x).nome).join(", ")}">${numero({ rotulo: a.nome, valor: v + "%", legenda: g > 0 ? `+${g} do geral` : "do treino normal", tom: v < 100 ? "bad" : "" })}</div>`; }).join("")}</div>
+      ${comissao.length ? `<div class="t-trn-tr t-jog-cab"><span>Treinador</span>${Object.values(AREAS).map(a => `<span title="${a.nome}">${a.nome.slice(0, 3)}</span>`).join("")}<span>Salário</span><span>Área</span><span></span></div>
+        ${comissao.map(t => `<div class="t-trn-tr"><div class="t-jog-nome">${esc(t.nome)} <small>${t.idade}</small></div>
+          ${Object.keys(AREAS).map(k => `<div class="${t.area === k && !CONFIG_TREINO.coletivas.includes(k) ? "t-trn-dele" : ""}">${t.skills[k] || 0}</div>`).join("")}<div>${dinheiro(t.salario)}</div>
+          <div class="t-segmentos t-trn-area">${AREAS_DO_TREINADOR.map(([k, n]) => `<button type="button" data-tarea-v="${t.id}:${k}" aria-pressed="${areaDe(t) === k}" title="${k === "geral" ? "Treinador geral: soma uma parte da skill em todas as áreas" : k === "fis" ? "Sem área: conta só no físico e na tática" : AREAS[k].nome}">${n}</button>`).join("")}</div>
+          <button type="button" class="t-botao t-botao-link" data-tdispensar="${t.id}">Dispensar</button></div>`).join("")}`
+      : `<div class="t-alerta">Você não tem treinadores: todas as áreas treinam a ${Math.round(CONFIG_TREINO.treinador[0] * 100)}%.</div>`}
+      <div class="t-trn-pe"><span class="mut">Comissão técnica toda: ${dinheiro(comissaoToda.reduce((t, x) => t + x.salario, 0))} por temporada, fora do teto de folha.</span><button type="button" class="t-botao t-botao-link" data-candidatos="treinador">Candidatos a treinador</button></div>
+      <span class="mut" data-cand-aviso></span><div data-cand-lista="treinador" class="t-estr-lista"></div></section>`;
+    return `<div class="t-trn"><div class="t-trn-topo"><div>${rotulo("Treino · uma sessão por rodada de liga")}<p class="t-trn-resumo" id="tResumo"></p></div>
+      <div class="t-trn-acoes"><span id="tAviso" class="mut"></span><button type="button" class="t-botao" id="tSugerir">Sugerir focos para todos</button><button type="button" class="t-botao t-botao-principal" id="tSalvar" disabled>Salvar o treino</button></div></div>
+      ${juv ? `<div class="t-transf-filtro" id="tGrupo"><button type="button" data-tgrupo="prof" class="ligado">Profissionais <small>${elenco.length - juv}</small></button><button type="button" data-tgrupo="juv">Juvenis <small>${juv}</small></button></div>` : ""}
+      <div id="treinoCorpo"></div>${comoFunciona(explicaTreino())}${comissaoDoTreino}</div>`; };
   // Mata-mata da base (Copinha e Libertadores Juvenil): a mesma chave, com fases numeradas como as da Copa
   const cartaoDeMataMata = (jogos, titulo, vazio, diretos, regrasProprias) => {
     if (jogos == null) return "";
@@ -2792,21 +2821,17 @@ ${historicoDaBase()}
       ${comoFunciona(`<div class="mut" style="font-size:12px">A coluna Tática diz quem é titular (TIT) e quem está no banco (RES) na sua tática salva${tatica ? "" : ", que você ainda não salvou"}; os juvenis ficam numa zona própria, embaixo, por posição (do goleiro ao atacante) e, em cada posição, pela nota; no celular, a linha fica verde para titular e amarela para banco. A seta ao lado da posição mostra quem joga fora dela. O botão <b>i</b> abre os atributos, o salário e a multa rescisória. Na coluna Contr., T3 quer dizer contrato até o fim da temporada 3; em amarelo, os que terminam nesta temporada. 🩹 lesionado e ⛔ suspenso, com o número de jogos fora; 🟨 amarelos acumulados.</div>`)}</div>`}
     </div>
     ${visualNovo ? `<div data-parte="elenco:juvenis"><div class="lugarDoPainel"></div>${elencoNovo(true)}</div>` : ""}
-    <div data-parte="elenco:numeros"><div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
+    <div data-parte="elenco:numeros">${visualNovo ? `<div class="t-trn"><div class="t-trn-topo"><div>${rotulo("Números da camisa · nas costas, no aviso de gol e na escalação")}
+        <p class="t-trn-resumo">De 1 a 99, sem repetir. <b>Em branco</b>, o número sai pela posição em cada jogo (goleiro 1, zagueiros 3 e 4, centroavante 9…; banco do 12 em diante). Quem sai do clube perde o número.</p></div>
+      <div class="t-trn-acoes"><span id="numAviso" class="mut"></span><button type="button" class="t-botao t-botao-principal" id="numSalvar">Salvar números</button></div></div>
+      ${ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}<div class="t-nums">${l.map(j => `<label class="t-num">${camisinha(`<input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="–" aria-label="Número de ${esc(j.nome)}">`, clube.uniforme)}
+          ${pp(j.pos)}<span class="t-num-nome">${esc(j.nome)}${j.juvenil ? " <small>juvenil</small>" : ""}</span></label>`).join("")}</div></section>` : "")(elenco.filter(j => linhas.includes(POSICOES[j.pos].linha)).sort((a, b) => !!a.juvenil - !!b.juvenil || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos)))).join("")}</div>` : `<div class="card"><h2>Números da camisa <span class="tag">aparecem nas costas, no aviso de gol e na escalação do jogo</span></h2>
       <div class="mut" style="font-size:12.5px;margin-bottom:8px">Escolha de 1 a 99, sem repetir. Quem fica em branco recebe um número pela posição em cada jogo (goleiro 1, laterais 2 e 6, zagueiros 3 e 4, volante 5, meias 8 e 10, pontas 7 e 11, centroavante 9; banco do 12 em diante), sem pegar os números já escolhidos. Quem sai do clube perde o número.</div>
       <div class="numeros-elenco">${[...elenco].sort((a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || a.nome.localeCompare(b.nome)).map(j => `<label class="num-j"><input type="number" min="1" max="99" inputmode="numeric" data-numero="${esc(j.id)}" value="${j.numero || ""}" placeholder="auto"><span>${pp(j.pos)} ${esc(j.nome)}</span></label>`).join("")}</div>
-      <div class="row" style="margin-top:10px;align-items:center"><button id="numSalvar">Salvar números</button><span id="numAviso" class="mut"></span></div></div></div>
+      <div class="row" style="margin-top:10px;align-items:center"><button id="numSalvar">Salvar números</button><span id="numAviso" class="mut"></span></div></div>`}</div>
     <div data-parte="elenco:treino">
-    ${treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
-      <div>Escolha os focos de cada jogador e salve; o treino vale a partir da próxima rodada.</div>${comoFunciona(`<div class="mut" style="font-size:12.5px">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
-        Cada jogador tem um teto de nota, definido pelo talento, que você não vê, e treina na medida do caminho que tem até lá: quem tem teto alto ganha mais pontos por rodada, de modo que todos chegam ao teto mais ou menos na mesma idade (por volta dos 24 anos num clube bem estruturado, dos 28 num clube sem estrutura). O teto vale para a melhor posição em que ele é natural.
-        <b>Posição nova:</b> abrindo o jogador (▾), dá para mandá-lo aprender uma posição além das que ele já tem. O treino leva só até <b>competente</b>: enquanto isso, o treino de atributos rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos, e jogar 45 minutos ou mais na posição acelera em ${Math.round(CONFIG_POSICAO.bonusPorJogar * 100)}%. De competente a <b>natural</b>, só jogando: cada jogo de 45 minutos ou mais nela (liga ou liga de base) conta, e o treino de atributos volta a render inteiro. Cada jogador guarda uma posição aprendida: escolher outra faz a anterior cair para competente.
-        <table class="mini" style="margin:6px 0"><tr><th class="esq">Distância até uma posição em que ele já é natural</th><th>Até competente: rodadas de treino (jogando nela)</th><th>De competente a natural: jogos nela</th></tr>
-          ${[["vizinha", "Vizinha (ex.: DC → DR)"], ["proxima", "Vizinha da vizinha"], ["distante", "Mais longe"]].map(([k, n]) => `<tr><td class="esq">${n}</td><td>${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao)} (${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao / (1 + CONFIG_POSICAO.bonusPorJogar))})</td><td>${Math.ceil(CONFIG_POSICAO[k] / CONFIG_POSICAO.porSessao / (1 + CONFIG_POSICAO.bonusPorJogar))}</td></tr>`).join("")}</table>
-        Números para quem tem até 23 anos; de 24 a 27 leva cerca de 1,4 vez mais, com 28 ou mais, 2,5 vezes mais.
-        O ritmo depende ainda da idade (cheio até os 23 anos, caindo até parar depois dos 30), do centro de treinamento (o seu está no nível ${clube.ct_nivel || 0}: ${Math.round((CONFIG_TREINO.ct[0] + CONFIG_TREINO.ct[1] * (clube.ct_nivel || 0)) * 100)}%), do Trabalho em equipe do jogador e de ele ter jogado pelo menos ${CONFIG_TREINO.minutosParaBonus} minutos na rodada (+${Math.round(CONFIG_TREINO.bonusPorJogar * 100)}%).
-        No teto, o treino para de render. Atributo que chega a 50 passa os pontos para os outros do foco. Lesionado não treina.
-        A coluna "Por rodada" é uma estimativa: usa o teto visto pelo olheiro (o meio da faixa) ou, sem olheiro, um teto típico de ${CONFIG_TREINO.caminho.tetoTipico}.</div>`)}
+    ${treinoLigado && visualNovo ? treinoNovo() : treinoLigado ? `<div class="card"><h2>Treino <span class="tag">uma sessão a cada rodada de liga</span></h2>
+      <div>Escolha os focos de cada jogador e salve; o treino vale a partir da próxima rodada.</div>${comoFunciona(explicaTreino())}
       ${comissao == null ? "" : `<div class="card" style="margin:10px 0 0"><b>Treinadores</b> <span class="mut">${comissao.length} de ${CONFIG_TREINO.maximoDeTreinadores} · comissão técnica toda: ${dinheiro(comissaoToda.reduce((t, x) => t + x.salario, 0))} por temporada, fora do teto de folha</span>
         <div class="mut" style="margin:4px 0">Cada atributo pertence a uma área de treino. Em goleiros, defesa, meio e ataque vale a skill inteira do treinador designado para a área, e cada treinador geral soma ${Math.round(CONFIG_TREINO.parteDoGeral * 100)}% da skill dele por cima (até 50; ele também conta no físico e na tática). Físico e tática são de todos: soma-se a skill de cada treinador do clube e divide-se por 2,5. Área sem ninguém treina a ${Math.round(CONFIG_TREINO.treinador[0] * 100)}%; com qualidade 50, a ${Math.round((CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1]) * 100)}%.</div>
         <div class="chips" style="margin:6px 0">${Object.entries(AREAS).map(([k, a]) => `<span class="tag" title="${a.at.map(x => ATRIBUTOS.find(y => y.k === x).nome).join(", ")}" style="border:1px solid var(--line);border-radius:6px;padding:2px 7px">${a.nome} <b class="${areasDoTreino[k] >= 1 ? "ok" : "aviso"}">${Math.round(areasDoTreino[k] * 100)}%</b>${(g => g > 0 ? ` <span class="mut" title="Quanto o treinador geral acrescenta nesta área">(+${g} do geral)</span>` : "")(Math.round(areasDoTreino[k] * 100) - Math.round(areasSemGeral[k] * 100))}</span>`).join("")}</div>
@@ -3392,6 +3417,14 @@ ${historicoDaBase()}
     catch (err) { $("numAviso").innerHTML = `<span class="bad">${esc(/definir_numeros/.test(err.message) ? "Falta rodar o SQL 139 no Supabase." : err.message)}</span>`; }
     $("numSalvar").disabled = false;
   };
+  // visual novo: o número repetido fica marcado enquanto se digita
+  if (visualNovo && $("numSalvar")) document.querySelector('[data-parte="elenco:numeros"]').oninput = () => {
+    const campos = [...document.querySelectorAll("[data-numero]")], conta = {};
+    campos.forEach(c => { if (c.value) conta[c.value] = (conta[c.value] || 0) + 1; });
+    campos.forEach(c => c.closest(".t-num").classList.toggle("t-num-rep", conta[c.value] > 1));
+    const rep = Object.keys(conta).filter(n => conta[n] > 1);
+    $("numAviso").innerHTML = rep.length ? `<span class="bad">${rep.length === 1 ? `O ${rep[0]} está` : `${rep.join(", ")} estão`} em dois jogadores.</span>` : "";
+  };
   $("cfgSalvarVisual").onclick = async () => {
     $("cfgSalvarVisual").disabled = true;
     try { await editarVisual(visual.escudo, visual.uniforme); await carregar({ user: usuario }); }
@@ -3444,7 +3477,41 @@ ${historicoDaBase()}
     const comFoco = j => ({ ...j, treino: focos.get(j.id) });
     const ordemPos = j => LISTA_POSICOES.indexOf(j.pos);
     const lista = elenco.slice().sort((a, b) => !!a.juvenil - !!b.juvenil || ordemPos(a) - ordemPos(b) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
-    const desenharTreino = () => {
+    // visual novo: uma linha por jogador (foco, complementares, ritmo); clicar abre os focos em botões, o progresso e a posição nova
+    let grupo = "prof";
+    const rodadas = n => `${n} ${n === 1 ? "rodada" : "rodadas"}`;
+    const desenharTreinoNovo = () => {
+      const doGrupo = lista.filter(j => !j.juvenil === (grupo === "prof")), prof = elenco.filter(j => !j.juvenil), auto = prof.filter(j => !(j.treino && j.treino.p)).length;
+      $("tResumo").innerHTML = `<b>${prof.length} profissionais</b> treinando: ${auto ? `${prof.length - auto} no foco escolhido, <b>${auto} no automático</b> da posição` : "todos no foco escolhido"}. O treino salvo vale a partir da próxima rodada.`;
+      const linha = j => {
+        const f = focos.get(j.id), jt = comFoco(j), visto = tetoDe[j.id], total = pontosDaSessao(jt, { ct: clube.ct_nivel || 0, teto: visto ? (visto.minimo + visto.maximo) / 2 : null }), partes = partilha(jt);
+        const ganhoDe = i => total * partes[i] * multDoAtributo(areasDoTreino, +i), ritmo = Object.keys(partes).reduce((t, i) => t + ganhoDe(i), 0) / CONFIG_TREINO.pontosPorNivel;
+        const estudo = posicaoEmEstudo(j), aberto = abertos.has(j.id);
+        const marcas = (j.fora > 0 && j.motivo === "lesão" ? marcaDe("lesionado", "Lesionado não treina", "t-atencao") : "") + (estudo ? marcaDe(`aprende ${sg(estudo)}`, `Aprendendo a posição: o treino de atributos rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos`) : "");
+        const cab = `<div class="t-trn-j clk${mudou.has(j.id) ? " t-trn-mudou" : ""}${aberto ? " t-trn-aberto" : ""}" data-tabrir="${j.id}">${pp(j.pos)}
+          <div class="t-jog-nome">${lj(j.id, j.nome)}${marcas}</div><div class="t-jog-id">${j.idade}</div>
+          <div class="t-trn-foco">${FOCOS[f.p].nome}</div><div class="t-trn-comp">${f.c.map(i => ATRIBUTOS[i].nome).join(" · ")}</div>
+          <div class="t-trn-ritmo${total > 0 ? "" : " t-trn-parou"}" title="${visto ? "Pontos de atributo por rodada, sem o bônus de quem joga" : "Estimativa sem olheiro: conta feita com um teto típico"}">${total > 0 ? (visto ? "+" : "≈+") + ritmo.toFixed(2).replace(".", ",") : "parou"}</div>
+          <div class="t-trn-seta">${aberto ? "▴" : "▾"}</div></div>`;
+        if (!aberto) return cab;
+        const doFoco = FOCOS[f.p].at, opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
+        const prog = Object.keys(partes).map(i => { const pts = (j.pts && j.pts[i]) || 0, g = ganhoDe(i), falta = g > 0 ? Math.ceil((CONFIG_TREINO.pontosPorNivel - pts) / g) : null;
+          return `<div class="t-trn-prog"><div><b>${ATRIBUTOS[i].nome}</b> ${j.at[i]}<small>${j.at[i] >= 50 ? "no máximo" : falta == null ? "parado" : `sobe em ~${rodadas(falta)}`}${comissao == null ? "" : ` · ${AREAS[AREA_DO_ATRIBUTO[i]].nome.toLowerCase()} ${Math.round(multDoAtributo(areasDoTreino, +i) * 100)}%`}</small></div><i><i style="width:${Math.min(100, pts)}%"></i></i></div>`; }).join("");
+        const posNova = j.aprende === undefined || j.pos === "GK" ? "" : (() => { const aprendida = j.aprende && j.aprende.pos && !estudo ? j.aprende.pos : null;
+          const texto = estudo ? (z => j.fam[estudo] === "C" ? `Já competente em ${sg(estudo)}: o treino não ensina mais (nem custa). Natural com cerca de ${z.jogos} jogos de 45 minutos ou mais nela.` : `Competente em ~${rodadas(z.competente)} de treino (mais rápido jogando nela); natural depois de ~${z.jogos} jogos nela.`)(prazoDaPosicao(j, estudo, +j.aprende.pts || 0))
+            : aprendida ? `Já aprendeu ${sg(aprendida)}. Escolher outra faz ${sg(aprendida)} cair para competente.` : `Custa ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% do treino até ele ficar competente; de competente a natural, só jogando na posição.`;
+          return `<div class="t-trn-bloco t-trn-largo"><div class="t-numero-rotulo">Posição nova</div><div class="t-transf-filtro">${LISTA_POSICOES.filter(p => p !== "GK" && j.fam[p] !== "N").map(p => { const z = prazoDaPosicao(j, p);
+              return `<button type="button" data-taprende-v="${j.id}:${p}" class="${p === estudo ? "ligado" : ""}" title="${POSICOES[p].nome}: ${{ vizinha: "vizinha", proxima: "próxima", distante: "distante" }[distanciaDaPosicao(j, p)]}${z.competente ? `, competente em ~${rodadas(z.competente)}` : ""}, natural com ~${z.jogos} jogos nela">${sg(p)}</button>`; }).join("")}${estudo ? `<button type="button" data-taprende-v="${j.id}:">parar</button>` : ""}</div>
+            <p class="t-trn-nota">${texto}</p>${Object.keys(j.fam).filter(p => p !== j.pos && j.fam[p] === "N" && POSICOES[p]).map(p => `<button type="button" class="t-botao t-botao-link" data-tprincipal="${j.id}:${p}" title="A posição principal é a que aparece no elenco e define o foco automático do treino">Tornar ${sg(p)} a principal</button>`).join(" ")}</div>`; })();
+        return cab + `<div class="t-trn-det"><div class="t-trn-bloco"><div class="t-numero-rotulo">Foco principal · 70% dos pontos</div><div class="t-transf-filtro">${opcoes.map(k => `<button type="button" data-tfoco-v="${j.id}:${k}" class="${k === f.p ? "ligado" : ""}">${FOCOS[k].nome}</button>`).join("")}</div>
+          <div class="t-numero-rotulo">Complementar · 30%, três atributos</div><div class="t-transf-filtro">${ATRIBUTOS.map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<button type="button" data-tcomp-v="${j.id}:${i}" class="${f.c.includes(i) ? "ligado" : ""}">${a.nome}</button>`).join("")}</div></div>
+          <div class="t-trn-bloco"><div class="t-numero-rotulo">Progresso</div><div class="t-trn-progs">${prog}</div></div>${posNova}</div>`; };
+      $("treinoCorpo").innerHTML = `<div class="t-trn-j t-jog-cab"><span></span><span>Jogador</span><span>Id.</span><span>Foco</span><span>Complementar</span><span>Por rodada</span><span></span></div>`
+        + ZONAS_DO_ELENCO.map(([titulo, linhas]) => (l => l.length ? `<section class="t-setor">${rotulo(`${titulo} · ${l.length}`)}${l.map(linha).join("")}</section>` : "")(doGrupo.filter(j => linhas.includes(POSICOES[j.pos].linha)))).join("");
+      $("tSalvar").disabled = !mudou.size;
+      if (mudou.size) $("tAviso").textContent = `${mudou.size} ${mudou.size === 1 ? "jogador mudou" : "jogadores mudaram"}: falta salvar.`;
+    };
+    const desenharTreino = () => { if (visualNovo) return desenharTreinoNovo();
       $("treinoCorpo").innerHTML = `<table class="mini ttab" style="width:100%"><tr><th>Pos</th><th class="esq">Jogador</th><th class="t-ritmo" title="Pontos de atributo por rodada, sem contar o bônus de quem joga. Estimativa: depende do teto do jogador (≈ = sem olheiro, conta feita com um teto típico)">Por rodada</th><th class="esq">Foco principal</th><th></th></tr>
         ${lista.map((j, k) => {
           const bloco = lista.some(x => x.juvenil) && (!k || !j.juvenil !== !lista[k - 1].juvenil) ? `<tr><th colspan="5" class="esq" style="padding-top:12px">${j.juvenil ? "🌱 Juvenis" : "Profissionais"} <span class="tag">${lista.filter(x => !x.juvenil === !j.juvenil).length}</span></th></tr>` : "";
@@ -3472,13 +3539,15 @@ ${historicoDaBase()}
       const limpo = [...new Set(c)].filter(i => livres.includes(i)); for (const i of [...focoAutomatico(j.pos).c, ...livres]) if (limpo.length < 3 && livres.includes(i) && !limpo.includes(i)) limpo.push(i);
       focos.set(j.id, { p, c: limpo.slice(0, 3) }); mudou.add(j.id); };
     const porId = id => elenco.find(j => String(j.id) === id);
+    const aprender = (j, valor) => { const antes = j.aprende && j.aprende.pos, tinha = antes && j.fam[antes] === "N" && antes !== j.pos;
+      if (valor === (posicaoEmEstudo(j) || "")) return;
+      if (!confirm(!valor ? `${j.nome} para de aprender ${sg(antes)} e perde o progresso feito até aqui. Confirma?`
+        : `${j.nome} passa a aprender ${sg(valor)} (${POSICOES[valor].nome}). O treino de atributos dele rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos até ele virar competente; de competente a natural, só jogando na posição.${tinha ? ` Ele deixa de ser natural em ${sg(antes)} (cai para competente).` : antes && antes !== valor ? ` O progresso em ${sg(antes)} se perde.` : ""} Confirma?`)) { desenharTreino(); return; }
+      definirPosicaoNova(j.id, valor || null).then(() => carregar({ user: usuario })).catch(err => { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; desenharTreino(); });
+    };
     $("treinoCorpo").onchange = e => {
       const t = e.target;
-      if (t.dataset.taprende) { const j = porId(t.dataset.taprende), antes = j.aprende && j.aprende.pos, tinha = antes && j.fam[antes] === "N" && antes !== j.pos;
-        if (!confirm(!t.value ? `${j.nome} para de aprender ${sg(antes)} e perde o progresso feito até aqui. Confirma?`
-          : `${j.nome} passa a aprender ${sg(t.value)} (${POSICOES[t.value].nome}). O treino de atributos dele rende ${Math.round(CONFIG_POSICAO.custoDoTreino * 100)}% menos até ele virar competente; de competente a natural, só jogando na posição.${tinha ? ` Ele deixa de ser natural em ${sg(antes)} (cai para competente).` : antes && antes !== t.value ? ` O progresso em ${sg(antes)} se perde.` : ""} Confirma?`)) { desenharTreino(); return; }
-        definirPosicaoNova(j.id, t.value || null).then(() => carregar({ user: usuario })).catch(err => { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; desenharTreino(); });
-      }
+      if (t.dataset.taprende) aprender(porId(t.dataset.taprende), t.value);
       else if (t.dataset.tfoco) { const j = porId(t.dataset.tfoco); ajustar(j, t.value, focos.get(j.id).c); desenharTreino(); }
       else if (t.dataset.tcomp) { const [id, k] = t.dataset.tcomp.split(":"), j = porId(id), f = focos.get(j.id), c = f.c.slice(); const outro = c.indexOf(+t.value); if (outro >= 0) c[outro] = c[+k]; c[+k] = +t.value; ajustar(j, f.p, c); desenharTreino(); }
     };
@@ -3487,6 +3556,12 @@ ${historicoDaBase()}
         if (confirm(`${j.nome} passa a ter ${sg(p)} (${POSICOES[p].nome}) como posição principal; ${sg(j.pos)} continua natural. O foco do treino dele volta ao automático da posição nova. Confirma?`))
           tornarPrincipal(j.id, p).then(() => carregar({ user: usuario })).catch(err => { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; });
         return; }
+      const v = e.target.closest("[data-tfoco-v], [data-tcomp-v], [data-taprende-v]");
+      if (v) { const [id, x] = (v.dataset.tfocoV || v.dataset.tcompV || v.dataset.taprendeV).split(":"), j = porId(id), f = focos.get(j.id);
+        if (v.dataset.taprendeV != null) aprender(j, x);
+        else if (v.dataset.tfocoV) { if (x !== f.p) { ajustar(j, x, f.c); desenharTreino(); } }
+        else if (!f.c.includes(+x)) { ajustar(j, f.p, [...f.c.slice(1), +x]); desenharTreino(); } // o mais antigo dos três dá lugar ao novo
+        return; }
       const b = e.target.closest("[data-tabrir]"); if (!b) return; const id = porId(b.dataset.tabrir).id; if (abertos.has(id)) abertos.delete(id); else abertos.add(id); desenharTreino(); };
     $("tSugerir").onclick = () => { elenco.forEach(j => { const a = focoAutomatico(j.pos), f = focos.get(j.id); if (a.p !== f.p || a.c.join() !== f.c.join()) { focos.set(j.id, a); mudou.add(j.id); } }); $("tAviso").textContent = mudou.size ? "" : "Todos já estão com o foco sugerido para a posição."; desenharTreino(); };
     $("tSalvar").onclick = async () => {
@@ -3494,6 +3569,8 @@ ${historicoDaBase()}
       try { await definirTreino([...mudou].map(id => ({ id, ...focos.get(id) }))); elenco.forEach(j => { if (mudou.has(j.id)) j.treino = focos.get(j.id); }); mudou.clear(); desenharTreino(); $("tAviso").innerHTML = `<span class="ok">Treino salvo. Vale a partir da próxima rodada.</span>`; }
       catch (err) { $("tAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("tSalvar").disabled = false; }
     };
+    if ($("tGrupo")) $("tGrupo").onclick = e => { const b = e.target.closest("[data-tgrupo]"); if (!b) return; grupo = b.dataset.tgrupo;
+      $("tGrupo").querySelectorAll("button").forEach(x => x.classList.toggle("ligado", x === b)); desenharTreino(); };
     desenharTreino();
     // treinadores: área de cada um, dispensa e lista de candidatos
   }
@@ -3505,9 +3582,10 @@ ${historicoDaBase()}
     try { await designarTreinador(+e.target.dataset.tarea, e.target.value); await carregar({ user: usuario }); } catch (err) { avisoComissao(e.target, err.message); }
   });
   secaoEstr.addEventListener("click", async e => {
-    const d = e.target.closest("[data-tdispensar]"), c = e.target.closest("[data-tcontratar]"), v = e.target.closest("[data-candidatos]"), b = e.target.closest("[data-procurar]");
+    const d = e.target.closest("[data-tdispensar]"), c = e.target.closest("[data-tcontratar]"), v = e.target.closest("[data-candidatos]"), b = e.target.closest("[data-procurar]"), ar = e.target.closest("[data-tarea-v]");
     try {
-      if (d) { const t = comissaoToda.find(x => x.id === +d.dataset.tdispensar); if (!confirm(`Dispensar ${t.nome}? Ele não volta, e as luvas pagas não são devolvidas.`)) return; await dispensarTreinador(t.id); await carregar({ user: usuario }); }
+      if (ar) { if (ar.getAttribute("aria-pressed") === "true") return; const [id, area] = ar.dataset.tareaV.split(":"); await designarTreinador(+id, area); await carregar({ user: usuario }); }
+      else if (d) { const t = comissaoToda.find(x => x.id === +d.dataset.tdispensar); if (!confirm(`Dispensar ${t.nome}? Ele não volta, e as luvas pagas não são devolvidas.`)) return; await dispensarTreinador(t.id); await carregar({ user: usuario }); }
       else if (c) { c.disabled = true; await contratarTreinador(+c.dataset.tcontratar); await carregar({ user: usuario }); }
       else if (b) {
         if (!confirm(`Procurar de novo custa ${dinheiro(BUSCA_DE_CANDIDATOS.custo)} e troca a lista inteira (todas as funções): quem está nela agora some. Confirma?`)) return;
