@@ -3710,6 +3710,10 @@ ${historicoDaBase()}
     return `<div class="t-rotulo">Classificação</div><table class="t-tabela t-recorte"><tr><th></th><th class="t-esq">Clube</th><th>J</th><th>SG</th><th>Pts</th></tr>${linhas.map((k, n) => (n && k - linhas[n - 1] > 1 ? `<tr class="t-reticencias"><td colspan="5">…</td></tr>` : "")
       + `<tr class="${faixas[k]}${tab[k].clube.id === clube.id ? " t-eu" : ""}"><td>${k + 1}</td><td class="t-esq"><a href="#clube=${tab[k].clube.id}" data-clube="${tab[k].clube.id}">${esc(tab[k].clube.nome)}</a></td><td>${tab[k].j}</td><td>${tab[k].gp - tab[k].gc > 0 ? "+" : ""}${tab[k].gp - tab[k].gc}</td><td><b>${tab[k].pts}</b></td></tr>`).join("")}</table>${legendaDoRecorte(linhas.map(k => faixas[k]))}`; };
   // legenda só das zonas que aparecem no recorte (camp e sobe dividem o verde; lib e playoff, o azul)
+  // fim da fase de liga: o que a posição deu, para o carimbo da faixa (Central e Competições › Liga); sem vaga nem queda, sem carimbo
+  const carimboDoFim = f => { const z = (f || "").split(" ");
+    return z.includes("cai") ? ["Rebaixado", `temporada ${liga.temporada}`] : z.includes("camp") ? ["Campeão", "com vaga na Libertadores"] : z.includes("lib") ? ["Libertadores", "classificado"]
+      : z.includes("sul") ? ["Sul-Americana", "classificado"] : z.includes("sobe") ? ["Semifinal", "direto no playoff do acesso"] : z.includes("playoff") ? ["Playoff", "do acesso"] : null; };
   const NOME_DA_FAIXA = { camp: "campeão", sobe: "semifinal do playoff", lib: "Libertadores", playoff: "playoff do acesso", sul: "Sul-Americana", cai: "rebaixamento" };
   const legendaDoRecorte = fs => { const z = Object.keys(NOME_DA_FAIXA).filter(n => fs.some(f => f.split(" ").includes(n)));
     return z.length ? `<div class="t-recorte-legenda">${z.map(n => `<span class="${n}">${NOME_DA_FAIXA[n]}</span>`).join("")}</div>` : ""; };
@@ -3719,7 +3723,7 @@ ${historicoDaBase()}
     const boa = f => /\b(camp|lib|sul|sobe|playoff)\b/.test(f), ultimaBoa = faixas.reduce((u, f, i) => boa(f) ? i + 1 : u, 0);
     const lt = leituraDaTabela({ tab, clubeId: clube.id, faixas, rodadasRestantes: meusDaLiga.length ? meusDaLiga.filter(p => !res[p.id]).length : null });
     if ($("cnFoco") && lt) $("cnFoco").innerHTML = faixaFoco({ rotulo: meusDaLiga.length ? `${nomeDoGrupo(g)} · rodada ${eu ? eu.j : 0} de ${meusDaLiga.length}` : nomeDoGrupo(g), ...lt,
-      lado: recorteDaTabela(tab, faixas) });
+      carimbo: lt.apagado === "fim da linha" && eu ? carimboDoFim(faixas[tab.indexOf(eu)]) : null, lado: recorteDaTabela(tab, faixas) });
     // painel: o módulo da Liga (posição, distância do líder e o recorte da tabela em volta do clube)
     const modLiga = $("mod-liga"), iEu = tab.findIndex(t => t.clube.id === clube.id);
     if (modLiga && iEu >= 0) {
@@ -3799,14 +3803,13 @@ ${historicoDaBase()}
         ${numero({ rotulo: "Saldo", valor: sg(f), legenda: `${f.gp} pró · ${f.gc} contra`, tom: f.gp > f.gc ? "ok" : f.gp < f.gc ? "bad" : "" })}
         ${iF ? numero({ rotulo: "Do líder", valor: String(tab[0].pts - f.pts), legenda: tab[0].pts === f.pts ? "empatado em pontos" : "pontos atrás" }) : numero({ rotulo: "Do 2º", valor: tab[1] ? String(f.pts - tab[1].pts) : "—", legenda: "pontos à frente" })}
         ${numero({ rotulo: "Esperados", valor: f1(f.esp), legenda: "pontos pelas chances criadas", tom: f.pts > f.esp + 2 ? "ok" : f.pts < f.esp - 2 ? "bad" : "" })}</div>` : "";
-      // campeonato decidido: o carimbo no lugar do gráfico (na Série B quem sobe sai do playoff, não da tabela)
+      // fase decidida: o carimbo ao lado do título (o seu destino; noutro campeonato, o campeão — na Série B quem sobe sai do playoff, não da tabela)
       const finais = partidas.filter(p => p.fase === "final"), subiu = finais.length && finais.every(p => res[p.id]) ? vencedorDoConfronto(finais, res) : null;
-      const carimbo = serieDoGrupo(g) <= 1 ? acabou && ["Campeão", tab[0].clube.nome] : subiu && cPor[subiu] && ["Acesso", cPor[subiu].nome];
-      const lado = carimbo ? `<div class="t-carimbo t-carimbo-liga">${carimbo[0]}<small>${esc(carimbo[1])}</small></div>${numeros}`
-        : `${pos.length > 1 ? `<div class="t-numero-rotulo">${meu ? "Sua posição" : "Posição do líder"} rodada a rodada</div>${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}` : ""}${numeros}`;
+      const carimbo = meu ? lt.apagado === "fim da linha" && carimboDoFim(faixas[iF]) : serieDoGrupo(g) <= 1 ? acabou && ["Campeão", `temporada ${liga.temporada}`] : subiu && cPor[subiu] && ["Acesso", cPor[subiu].nome];
+      const lado = `${pos.length > 1 ? `<div class="t-numero-rotulo">${meu ? "Sua posição" : "Posição do líder"} rodada a rodada</div>${graficoDePosicoes(pos, tab.length, ultimaBoa || undefined)}` : ""}${numeros}`;
       topo = faixaFoco({ rotulo: `${nomeDoGrupo(g)} · ${dele.length ? `rodada ${f.j} de ${dele.length}` : "calendário a sortear"}`,
         titulo: meu ? lt.titulo : f.clube.nome, apagado: meu ? lt.apagado : acabou ? "terminou em 1º" : `lidera · ${lt.apagado}`,
-        destaque: f.j ? lt.destaque : "", frase: f.j ? lt.frase : "A temporada ainda não começou.", lado });
+        destaque: f.j ? lt.destaque : "", frase: f.j ? lt.frase : "A temporada ainda não começou.", carimbo: carimbo || null, lado });
     }
     // campeonatos: Brasil primeiro, depois os países
     const curto = x => PAISES[x] || nomeDoGrupo(x).replace(/^.*?(Série \S+)$/, "$1");

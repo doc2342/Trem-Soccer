@@ -1492,8 +1492,6 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 /* ---------- Competições › Liga: faixa da corrida, campeonatos em botões, tabela | duas rodadas, temporadas anteriores ---------- */
 .t-liga .t-faixa-lado > .t-numero-rotulo { color:var(--t-noite-mut); margin-bottom:6px; }
 .t-liga .t-faixa-lado .t-elenco-numeros { margin-top:18px; }
-.t-carimbo-liga { margin:6px auto 4px; font-size:44px; padding:10px 26px 8px; }
-.t-carimbo-liga small { font-size:12px; }
 .t-liga-topo { display:flex; align-items:center; gap:16px; margin:22px 0 0; }
 .t-liga-topo .t-transf-filtro { margin:0; flex:1; }
 .t-liga-topo .t-botao-link { white-space:nowrap; }
@@ -1539,5 +1537,9 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
   .t-lt-x { display:none; } .t-liga-tab td { height:38px; padding-left:4px; padding-right:4px; } .t-liga-tab th { padding-left:4px; padding-right:4px; }
   .t-liga-topo { flex-direction:column; align-items:stretch; gap:10px; } .t-liga-topo .t-botao-link { align-self:flex-start; }
   .t-ljogo { grid-template-columns:minmax(0, 1fr) 20px 52px 20px minmax(0, 1fr); gap:6px; font-size:13px; padding:0 2px; }
-  .t-carimbo-liga { font-size:34px; }
 }
+
+/* carimbo na faixa: o estado decidido embaixo do título, encostado à direita (no vão que a frase deixava) */
+.t-carimbo.t-faixa-carimbo { margin:4px clamp(0px, 4vw, 48px) 0 auto; transform:rotate(-6deg); font-size:42px; padding:10px 24px 8px; color:#ff4a3a; border-color:#ff4a3a; outline-color:#ff4a3a; opacity:.92; }
+.t-faixa-carimbo small { font-size:12px; }
+@media (max-width:720px) and (pointer:coarse) { .t-carimbo.t-faixa-carimbo { transform:rotate(-4deg); margin:18px auto 4px; font-size:34px; } }
