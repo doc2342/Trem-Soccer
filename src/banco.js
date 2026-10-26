@@ -482,6 +482,15 @@ export const historicoDoClube = (ligaId, clubeId) => sb.from("historico").select
 export const transferenciasDoClube = clubeId => sb.from("transferencias").select("*").or(`de_clube.eq.${clubeId},para_clube.eq.${clubeId}`).order("id", { ascending: false }).limit(100).then(({ data, error }) => error ? [] : data);
 export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);
+// vitrine do agente (152_vitrine.sql): null antes dele (sem a coluna ligas.vitrine); o lance leva valor (vai para o fundo) e contrato
+export const vitrineDaLiga = async liga => {
+  if (liga.vitrine === undefined) return null;
+  if (!liga.vitrine) return { jogadores: [], lances: [] };
+  const jogadores = await sb.from("jogadores").select(CAMPOS_LIVRE + ", livre_inicio, vitrine_minimo, vitrine_dono").eq("clube_id", liga.vitrine).order("id").then(ok);
+  const lances = jogadores.length ? await sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, valor, criada_em").in("jogador_id", jogadores.map(j => j.id)).then(ok) : [];
+  return { jogadores, lances };
+};
+export const darLanceVitrine = (jogadorId, valor, salario, temporadas) => sb.rpc("dar_lance_vitrine", { p_jogador: numero(jogadorId), p_valor: valor, p_salario: salario, p_temporadas: temporadas }).then(ok);
 export const darLanceLivre = (jogadorId, salario, temporadas) => sb.rpc("dar_lance_livre", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);
 export const oferecerALiga = jogadorId => sb.rpc("oferecer_a_liga", { p_jogador: numero(jogadorId) }).then(ok);
 export const comprarOfertaDaLiga = (jogadorId, salario, temporadas) => sb.rpc("comprar_oferta_da_liga", { p_jogador: numero(jogadorId), p_salario: salario, p_temporadas: temporadas }).then(ok);

@@ -640,7 +640,7 @@ async function tela(aviso = "") {
     if (deFora && await tetoDoClube(deFora.id) !== REGUA_DE_FORA.teto) return alert("Antes de virar a temporada com outros países, execute o supabase/80_virada_com_paises.sql.");
     $("prepararVirada").disabled = true; $("previaVirada").innerHTML = `<span class="mut">Lendo elencos e resultados…</span>`;
     try {
-      const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
+      const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.filter(c => c.id !== liga.vitrine).map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 })); // a vitrine (152) fica fora: quem está nela sem lance sai na virada
       const elencos = {};
       for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
       // empréstimo: na virada todo mundo volta antes de tudo, então o plano já é montado com cada emprestado no clube de origem
@@ -717,7 +717,7 @@ async function tela(aviso = "") {
     if (!confirm("Reiniciar a LIGA na temporada 0? Apaga calendário, resultados, extratos, obras e TODO o histórico (T1 à T14), sorteia os grupos e gera elencos novos. Não dá para desfazer: faça o backup antes.")) return;
     $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
     try {
-      const rng = criarRng(Date.now() % 2147483647), todos = await clubesDaLiga(liga.id);
+      const rng = criarRng(Date.now() % 2147483647), todos = (await clubesDaLiga(liga.id)).filter(c => c.id !== liga.vitrine); // a vitrine (152) fica no X, sem elenco
       const grupos = gruposDoReinicio({ rng, clubes: todos.map(c => ({ id: c.id, grupo: c.grupo, dono: c.dono })) });
       const serie = (g, dono) => dono ? "donos" : PAISES[g] ? "fora" : g === "A" ? "A" : "B"; // guardados (X) ganham elenco de bot da B
       const jogadores = todos.flatMap(c => { const s = serie(grupos[c.id], c.dono);
