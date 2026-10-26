@@ -754,11 +754,12 @@ async function tela(aviso = "") {
     catch (e) { $("progresso").textContent = "Não deu para fazer o backup no servidor: " + e.message + " (a função backup já foi publicada?)"; }
   });
   em("baixarCopia", async () => {
-    $("progresso").textContent = "Montando a cópia…";
+    $("progresso").textContent = "Montando a cópia (leva uns 30 segundos)…";
     try {
       const c = await copiaCompleta(), a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([JSON.stringify(c)], { type: "application/json" }));
-      a.download = `trem-soccer-${c.feito_em.slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+      a.download = `trem-soccer-${c.feito_em.slice(0, 10)}.json`; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000); // revogar na hora cancela o download no Firefox e no Safari
       $("progresso").textContent = `Cópia baixada: ${Object.entries(c.tabelas).map(([t, l]) => `${t} ${l.length}`).join(", ")}.`;
     } catch (e) { $("progresso").textContent = "Não deu para montar a cópia: " + e.message; }
   });
