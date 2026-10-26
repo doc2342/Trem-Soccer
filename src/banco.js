@@ -244,10 +244,12 @@ export const caixaDoClube = clubeId => sb.from("financas").select("caixa").eq("c
 // Obra em andamento no clube (só o dono e o administrador leem); null se não há ou antes do 14_estruturas_e_obras.sql.
 export const obraAtiva = clubeId => sb.from("obras").select("*").eq("clube_id", clubeId).eq("concluida", false).maybeSingle().then(({ data, error }) => error ? null : data);
 // Começa uma obra: ct, medico, fisio, base ou estadio. As regras (uma por vez, caixa, nível máximo) são conferidas no banco.
-export const iniciarObra = estrutura => sb.rpc("iniciar_obra", { p_estrutura: estrutura }).then(ok);
-// Visual do estádio (116_estadio_visual.sql): nome, mosaico, padrão e cores de graça; trocar de modelo é uma obra.
+// troca ({ modelo, cidade }, só o que muda): o estádio muda junto com a ampliação (154). Sem troca, a chamada é a de antes do 154.
+export const iniciarObra = (estrutura, troca) => sb.rpc("iniciar_obra", { p_estrutura: estrutura,
+  ...(troca && troca.modelo ? { p_modelo: troca.modelo } : {}), ...(troca && troca.cidade ? { p_cidade: troca.cidade } : {}) }).then(ok);
+// Visual do estádio (116_estadio_visual.sql): nome, mosaico, padrão e cores de graça; modelo e cidade só mudam numa obra (154).
 export const salvarEstadioVisual = v => sb.rpc("salvar_estadio_visual", { p: v }).then(ok);
-export const reformarEstadio = modelo => sb.rpc("reformar_estadio", { p_modelo: modelo }).then(ok);
+export const reformarEstadio = (modelo, cidade) => sb.rpc("reformar_estadio", { p_modelo: modelo, ...(cidade ? { p_cidade: cidade } : {}) }).then(ok);
 // Lançamentos de uma partida (TV, patrocínio, salários) para os dois clubes; só roda uma vez por partida.
 export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: partidaId }).then(({ error }) => !error);
 
