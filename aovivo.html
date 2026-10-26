@@ -881,7 +881,7 @@ async function atualizar() {
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
   topo(gols, m, narracao, pre);
-  const notas = notasDosGols(lances), comNota = l => htmlLance(l) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
+  const notas = notasDosGols(lances), comNota = l => htmlLance(l, [clubes[partida.casa].nome, clubes[partida.fora].nome]) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
     : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}

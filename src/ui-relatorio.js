@@ -27,12 +27,16 @@ const ROTULO = { gol: "Gol", defesa: "Finalização defendida", trave: "Finaliza
 // minuto do lance como se escreve: 45+2 nos acréscimos
 export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
-export function htmlLance(l) {
+// Time que está atacando no lance, para o cabeçalho. O motor marca a perda de posse e o escanteio cedido com o time que defende
+// (quem desarma, intercepta, recupera ou corta), mas a jogada narrada é do outro; falta e lesão já vêm com o time de quem sofreu.
+export const timeAtacando = l => (l.tipo === "posse" && /desarma|intercepta|recupera a bola|fica com a bola/.test(l.texto || "")) || (l.tipo === "canto" && /cede o escanteio/.test(l.texto || "")) ? 1 - l.time : l.time;
+// nomes: [mandante, visitante]; com eles, cada lance de um time ganha o nome de quem ataca em cima (cartão: de quem levou)
+export function htmlLance(l, nomes = null) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   // cobrança da disputa de pênaltis: o desfecho vem em "pen", não em "resultado", para não contar como finalização nem gol do jogo
   const finalizacao = l.resultado !== undefined, cobranca = l.tipo === "cobranca", chave = finalizacao ? l.resultado : cobranca ? l.pen : l.tipo;
   const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
-  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span>${/\{[01?]:/.test(l.texto) ? `<span class="txt">${textoColorido(l.texto)}</span>` : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="txt">${nomes && (l.time === 0 || l.time === 1) && l.tipo !== "acrescimo" && l.tipo !== "prorrogacao" ? `<b class="atq ${COR[timeAtacando(l)]}">${esc(nomes[timeAtacando(l)])}</b>` : ""}${/\{[01?]:/.test(l.texto) ? textoColorido(l.texto) : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🚑", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 
@@ -90,7 +94,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${linkJogador(r.melhor.nome)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}</div>`;
   const analise = `<div class="duas" data-aba="resumo">${analistas.map(i => `<div class="card"><h2 class="${COR[i]}">Analista: ${n[i]}</h2><ul>${r.analise[i].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`).join("")}</div>`
     + (ordens ? analistas.filter(i => ordens[i]).map(i => htmlOrdens(ordens[i], n[i], COR[i])).join("") : "");
-  const lances = LEGENDA_LANCES + abertura + r.narracao.map(htmlLance).join("");
+  const lances = LEGENDA_LANCES + abertura + r.narracao.map(l => htmlLance(l, nomes)).join("");
   const linha = (t, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${t}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
   const estat = `<table><tr><th class="casa" style="font-size:13px">${n[0]}</th><th></th><th class="fora" style="font-size:13px">${n[1]}</th></tr>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
     ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}
@@ -161,7 +165,7 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const regua = `<div class="t-regua-cab"><span>${n[0]}</span><span>${n[1]}</span></div><div class="t-regua t-rel-regua">${NUMEROS_DO_JOGO.map(([nome, f, v = f]) => {
     const a = +v(r.estat[0]) || 0, b = +v(r.estat[1]) || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (x, maior) => maior ? `<b>${x}</b>` : `<span>${x}</span>`;
     return `<div class="t-regua-linha" style="--nos:${pct}%">${lado(f(r.estat[0]), a > b)}<span class="t-regua-nome">${nome}</span>${lado(f(r.estat[1]), b > a)}</div>`; }).join("")}</div>`;
-  const lances = `<section class="t-secao t-rel-reprise" data-aba="lances">${rotulo("Lance a lance")}${abertura}${r.narracao.map(htmlLance).join("")}</section>`;
+  const lances = `<section class="t-secao t-rel-reprise" data-aba="lances">${rotulo("Lance a lance")}${abertura}${r.narracao.map(l => htmlLance(l, nomes)).join("")}</section>`;
   const jogo = `<section class="t-secao t-rel-jogo" data-aba="graf">${clubes ? htmlGraficos(r.narracao, clubes) : ""}<div class="t-rel-numeros">${rotulo("Números")}${regua}</div></section>`;
   // capítulo 3: o vestiário — o analista de cada lado (o do dirigente primeiro) com o campo dos duelos e as ordens; depois como cada um saiu
   const ordem = meu === 1 ? [1, 0] : [0, 1];

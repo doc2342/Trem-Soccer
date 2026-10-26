@@ -8,7 +8,8 @@ import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe 
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
-  ataquesPorMinuto: 0.85, /* 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam */ // ataques iniciados por minuto, somando os dois times
+  ataquesPorMinuto: 0.68, /* 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
+    0,68 depois da T14 (3,07 gols e 12% dos jogos com 6 ou mais): meta de 2,5 gols e ~24 finalizações por jogo, como no Brasileirão */ // ataques iniciados por minuto, somando os dois times
   mando: 1.04, // multiplicador da força do mandante
   expoentePosse: 1,
   expoenteCorredor: 1.5,
@@ -120,23 +121,24 @@ export const CONFIG = {
   narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
   // faltas, cartões, lesões e bola parada
-  falta: 0.12, // por duelo (alvo: 22 faltas por jogo, com os acréscimos)
+  falta: 0.147, // por duelo (alvo: 22 faltas por jogo, com os acréscimos); era 0,12 com 0,85 ataque por minuto
   faltaPorAgressividade: 0.2, // por nível: 0,6x a 1,4x faltas entre -2 e +2
   // Quem faz a falta: sem isto, quem cobre uma zona sozinho (meia e lateral) levava mais cartão que volante e zagueiro, ao contrário do futebol
   // real (volante, zagueiro e meio-campo na frente; ponta e meia de lado atrás). Ajustado com ferramentas/sim_cartoes.mjs.
   faltaPorPosicao: { DC: 1.6, SW: 1.6, DMC: 1.3, MC: 1.2, DR: 0.83, DL: 0.83, WBR: 0.8, WBL: 0.8, MR: 0.53, ML: 0.53, AMC: 0.77, AMR: 0.71, AML: 0.71, RW: 0.71, LW: 0.71, FC: 0.83, SC: 1.3 },
-  amarelo: 0.47, amareloPorAgressividade: 0.1, vermelhoDireto: 0.003,
+  // T14 com 0,47 e 0,003: 4,9 amarelos e 0,23 vermelho por jogo; meta agora de 4 amarelos e 0,2 vermelho (ferramentas/sim_jogo.mjs, 26/10/2026)
+  amarelo: 0.37, amareloPorAgressividade: 0.1, vermelhoDireto: 0.004,
   cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
   amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
   segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
-  lesao: 0.0023, // por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
+  lesao: 0.0026, // era 0,0023 com 0,85 ataque por minuto; por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
   maxSubstituicoes: 5,
   acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, acrescimoPorGol: 0.5, acrescimoPorLesao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
   // Cera (instrução, só vale com o time ganhando): o jogo tem menos ataques, a arbitragem devolve parte do tempo no acréscimo
   // e cada minuto de cera arrisca um amarelo por retardar o reinício (goleiro mais que os outros; quem já tem amarelo se segura).
   cera: { ritmo: 0.7, acrescimo: 0.07, amarelo: 0.01, pesoGoleiro: 3 }, // ferramentas/sim_cera.mjs: +0,05 ponto por jogo, ~0,5 amarelo nos jogos em que é usada
-  escanteio: 0.45, // chance de escanteio depois de defesa ou bloqueio
-  escanteioDuelo: 0.2, // chance de escanteio quando a defesa corta uma jogada pelo lado
+  escanteio: 0.53, // chance de escanteio depois de defesa ou bloqueio (0,45 e 0,2 com 0,85 ataque por minuto; ~8 escanteios por jogo)
+  escanteioDuelo: 0.25, // chance de escanteio quando a defesa corta uma jogada pelo lado
   cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
   penalti: 0.072, // das faltas no centro do ataque
   faltaDireta: 0.27, // das faltas no ataque que não são pênalti
