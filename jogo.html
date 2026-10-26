@@ -2370,7 +2370,7 @@ async function telaClube(liga, clube) {
     const cor = (id, c, titulo) => `<input type="color" id="${id}" value="${c}" title="${titulo}" style="width:34px;height:30px;padding:0">`;
     const linha = (rot, val, obs) => `<tr><td class="esq mut">${rot}</td><td class="esq"><b>${val}</b>${obs ? `<div class="mut" style="font-size:12px">${obs}</div>` : ""}</td></tr>`;
     const textoDaReforma = (obra && obra.estrutura === "estadio_modelo" ? "troca em andamento"
-      : nv ? `o modelo e a cidade mudam junto com a próxima ampliação: escolha aqui e amplie (${nv === 2 ? "na primeira ampliação, de graça" : "+50% no custo da obra"})`
+      : nv ? `${obra ? "depois que a obra atual terminar, " : ""}o modelo e a cidade mudam junto com a próxima ampliação: escolha aqui e amplie (${nv === 2 ? "na primeira ampliação, de graça" : "+50% no custo da obra"})`
       : `trocar o modelo ou a cidade é uma obra: ${dinheiro(TROCA_NO_MAXIMO.custo)} · ${TROCA_NO_MAXIMO.prazo} rodadas${obra ? " · espere a obra atual terminar" : ""}`)
       + (gratisPara.length ? ` · <span class="ok">troca grátis e na hora para ${gratisPara.map(k => MODELOS[k] || k).join(" e ")}, ${gratisPara.length > 1 ? "os estádios novos" : "o estádio novo"}</span>` : "");
     if (visualNovo) { // faixa com o nome e a obra; o 3D ao lado do editor (botões no lugar dos selects, que ficam escondidos e são o que ligarEstadio lê); o dia de jogo embaixo
