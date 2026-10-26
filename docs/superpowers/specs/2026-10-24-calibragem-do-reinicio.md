@@ -2,7 +2,9 @@
 
 Data: 2026-10-25 · Plano: `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md` (Tarefa 4) · Design: `2026-10-23-reinicio-escala-treino-economia-design.md`
 
-**Estado: esperando a aprovação do dono do projeto.** Nada daqui foi aplicado ao jogo. A Tarefa 8 aplica só o que for aprovado.
+**Estado: aprovado em 25/10/2026.** Valem os valores propostos, com o `TALENTO_DA_BASE = −12`. Para o caixa, vale a correção 1 **só para os clubes sem dono**: todo ano o bot paga 30% do caixa acima do teto de folha, e o dinheiro vai para o fundo da liga (a Federação). A Tarefa 8 aplica isso.
+
+Efeito simulado do imposto só dos bots (recomendada, 5 sementes): na T14 o caixa mediano é de 30,8 mi no bot da B, 37,3 mi nos países, 15,7 mi no dono da A e 11,8 mi no dono da B, com o nível igual. O fundo recebe ~86 mi na T1, ~330 mi na T5 e ~450 mi por temporada da T8 em diante: é praticamente toda a sobra dos 58 bots. O fundo continua pagando os prêmios individuais e a copa; o fator da copa já está no máximo (2×, a partir de ~36 mi no fundo, `fator_da_copa` do 58), então o resto fica parado no fundo, fora da economia dos clubes. Se um dia o fundo precisar de outro destino, a decisão é separada.
 
 Há três decisões, explicadas no fim:
 1. a regra nova do talento da base;

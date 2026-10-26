@@ -47,7 +47,7 @@ export const SIM = {
   CAIXA_INICIAL: 5000,
   // correções do caixa, só para medir (desligadas; nenhuma está no jogo): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
   // e imposto anual sobre o caixa acima do teto de folha
-  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0,
+  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0, IMPOSTO_SO_DO_BOT: 0, // o imposto do caixa vai para o fundo da liga (Federação)
 };
 export const AJUSTAVEIS = { CONFIG_TREINO, CONFIG_BASE, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO, TALENTO_DO_JOVEM_POR_DIVISAO,
   REGUA_DE_FORA, PREMIOS, PREMIOS_DE_FORA, TETO_DE_FOLHA, DIVISOES, NIVEL, TALENTO_DO_REINICIO, BASE, SIM };
@@ -153,6 +153,7 @@ function rodar(semente, temporadas) {
     }
 
     // ---------- economia da temporada ----------
+    let paraOFundo = 0;
     for (const c of clubes) {
       const fora = !!PAISES[c.grupo], d = DIVISOES[fora ? 1 : c.divisao], l = posDe[c.id], n = grupos[c.grupo].length;
       const torcida = d.torcida * c.prestigio, publico = Math.min(torcida, lugaresDoEstadio(c.estadio));
@@ -162,7 +163,7 @@ function rodar(semente, temporadas) {
       const manut = MANUTENCAO.estruturas * c.gastoEstrut + MANUTENCAO.estadio * c.gastoEstadio + manutencaoExtraDoEstadio(c.estadio);
       const lucro = SIM.RECEITA * (c.dono ? 1 : SIM.RECEITA_DO_BOT) * (d.tv + d.patrocinio) + bilheteria + premio + copa - folha - manut - (c.dono ? SIM.CUSTO_TREINADORES : 0);
       c.caixa += lucro - (lucro > 0 ? impostoDoLucro(lucro, tetoDe(c)) : 0);
-      c.caixa -= SIM.IMPOSTO_DO_CAIXA * Math.max(0, c.caixa - tetoDe(c));
+      if (!(SIM.IMPOSTO_SO_DO_BOT && c.dono)) { const imp = SIM.IMPOSTO_DO_CAIXA * Math.max(0, c.caixa - tetoDe(c)); c.caixa -= imp; paraOFundo += imp; }
       c.folha = folha;
     }
 
@@ -178,6 +179,7 @@ function rodar(semente, temporadas) {
         caixaDono: med(cs.filter(c => c.dono).map(c => c.caixa)), caixaBot: med(cs.filter(c => !c.dono).map(c => c.caixa)),
       };
     }
+    medidas.fundo = paraOFundo;
     const ptsA = tabelaFinal.filter(l => l.grupo === "A").map(l => l.pontos);
     medidas.A.dif12 = ptsA[0] - ptsA[1]; medidas.A.favorito = favorito / jogosA; medidas.A.empates = empates / jogosA; medidas.A.dif = difA / jogosA;
     const posA = k => media(tabelaFinal.filter(l => l.grupo === "A" && subiuEm[l.clube_id] === t - k).map(l => l.posicao));
@@ -273,7 +275,7 @@ export function resumo(rodadas) { // média das sementes, temporada a temporada
     const em = fn => media(rodadas.map(r => fn(r[t].medidas)).filter(x => !Number.isNaN(x)));
     const m = { t };
     for (const s of ["A", "B", "fora"]) m[s] = Object.fromEntries(Object.keys(rodadas[0][t].medidas[s]).map(k => [k, em(x => x[s][k])]));
-    m.subiu = { T1: em(x => x.subiu.T1), T2: em(x => x.subiu.T2) };
+    m.subiu = { T1: em(x => x.subiu.T1), T2: em(x => x.subiu.T2) }; m.fundo = em(x => x.fundo);
     return m;
   });
 }

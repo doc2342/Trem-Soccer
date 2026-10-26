@@ -268,7 +268,9 @@ O que a RPC faz, numa transação:
 
 ### Tarefa 8: Aplicar os números aprovados
 
-Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado.
+Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md`, aprovado em 25/10).
+
+**Aprovado além da lista abaixo:** `TALENTO_DO_REINICIO = { A: −12, B: −12, fora: 0 }` no `admin.html` (deslocamento do talento dos elencos gerados no reinício, com `talentoMinimo` por baixo); `TALENTO_DA_BASE = −12` em `src/base.js` (`jovensDaBase`; o raro da safra não muda); receitas, `PREMIOS` e `PREMIO_MINIMO` sem mudança; e o **imposto do caixa dos bots**: no fechamento da temporada (145, a mesma hora do imposto sobre o lucro), cada clube sem dono paga 30% do caixa acima do seu teto de folha (`teto_do_clube`), que vai para `ligas.fundo_taca` com uma linha própria em `fundo_resumo` (tipo `imposto_do_caixa`, para a tela da Federação mostrar). Entra no 150, com teste PGlite (bot paga, dono não paga, abaixo do teto não paga, o fundo recebe). O simulador tem o equivalente em `SIM.IMPOSTO_DO_CAIXA` + `SIM.IMPOSTO_SO_DO_BOT`.
 
 **Arquivos:**
 - Modificar: `src/economia.js` (`salarioDeMercado` com o fator novo e a âncora na nota 41; tabela do comentário; `TETO_DE_FOLHA`; `PREMIO_MINIMO`)
