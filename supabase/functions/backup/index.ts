@@ -42,27 +42,40 @@ Deno.serve(async (req) => {
     const sb = createClient(url, chave, { auth: { persistSession: false } });
     if (!(await autorizado(req, sb))) return json({ erro: "Não autorizado." }, 401);
 
-    const dados = { feito_em: new Date().toISOString(), tabelas: {}, usuarios: [] };
+    // O arquivo vai sendo compactado página a página, com o texto cru do banco (sem montar tudo na memória:
+    // com as tabelas inteiras e um JSON.stringify só, a função estourava o limite e o Supabase respondia 546).
+    const feito_em = new Date().toISOString();
+    const gz = new CompressionStream("gzip"), escrita = gz.writable.getWriter(), saida = new Response(gz.readable).arrayBuffer();
+    const enc = new TextEncoder(), escreve = t => escrita.write(enc.encode(t));
+    let kbSemCompactar = 0;
     const linhas = {}, puladas = [];
+    await escreve(`{"feito_em":${JSON.stringify(feito_em)},"tabelas":{`);
+    let primeira = true;
     for (const [tabela, ordem] of TABELAS) {
-      const tudo = [];
-      let falhou = false;
+      let n = 0, aberta = false;
       for (let de = 0; ; de += PAGINA) {
-        const { data, error } = await sb.from(tabela).select("*").order(ordem).range(de, de + PAGINA - 1);
-        if (error) { falhou = true; puladas.push(`${tabela}: ${error.message}`); break; }
-        tudo.push(...data);
-        if (data.length < PAGINA) break;
+        const r = await fetch(`${url}/rest/v1/${tabela}?select=*&order=${ordem}&offset=${de}&limit=${PAGINA}`, { headers: { apikey: chave, Authorization: `Bearer ${chave}` } });
+        const texto = await r.text();
+        if (!r.ok) { puladas.push(`${tabela}${n ? ` (só ${n} linhas)` : ""}: ${texto.slice(0, 200)}`); break; }
+        if (!aberta) { await escreve(`${primeira ? "" : ","}${JSON.stringify(tabela)}:[`); aberta = true; primeira = false; }
+        const corpo = texto.trim().slice(1, -1); // tira os colchetes da página
+        const faixa = /^(\d+)-(\d+)/.exec(r.headers.get("content-range") || "");
+        const lidas = faixa ? +faixa[2] - +faixa[1] + 1 : corpo ? JSON.parse(texto).length : 0;
+        if (corpo) { await escreve((n ? "," : "") + corpo); kbSemCompactar += corpo.length / 1024; }
+        n += lidas;
+        if (lidas < PAGINA) break;
       }
-      if (!falhou) { dados.tabelas[tabela] = tudo; linhas[tabela] = tudo.length; }
+      if (aberta) { await escreve("]"); linhas[tabela] = n; }
     }
     // contas: só o identificador e o e-mail, para religar cada clube ao seu dirigente numa restauração
     const { data: contas } = await sb.auth.admin.listUsers({ perPage: 1000 });
-    dados.usuarios = (contas && contas.users || []).map(u => ({ id: u.id, email: u.email }));
+    const usuarios = (contas && contas.users || []).map(u => ({ id: u.id, email: u.email }));
+    await escreve(`},"usuarios":${JSON.stringify(usuarios)}}`);
+    await escrita.close();
+    const compactado = await saida;
 
-    const texto = JSON.stringify(dados);
-    const compactado = await new Response(new Blob([texto]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
     await sb.storage.createBucket(BALDE, { public: false }); // se já existe, o erro é ignorado
-    const nome = `backup-${dados.feito_em.slice(0, 10)}.json.gz`;
+    const nome = `backup-${feito_em.slice(0, 10)}.json.gz`;
     const envio = await sb.storage.from(BALDE).upload(nome, compactado, { contentType: "application/gzip", upsert: true });
     if (envio.error) return json({ erro: "Não consegui guardar o backup: " + envio.error.message }, 500);
 
@@ -72,7 +85,7 @@ Deno.serve(async (req) => {
     const velhos = nomes.slice(0, Math.max(0, nomes.length - DIAS));
     if (velhos.length) await sb.storage.from(BALDE).remove(velhos);
 
-    return json({ arquivo: nome, kb: Math.round(compactado.byteLength / 1024), kbSemCompactar: Math.round(texto.length / 1024), linhas, usuarios: dados.usuarios.length, guardados: nomes.length - velhos.length, apagados: velhos, puladas });
+    return json({ arquivo: nome, kb: Math.round(compactado.byteLength / 1024), kbSemCompactar: Math.round(kbSemCompactar), linhas, usuarios: usuarios.length, guardados: nomes.length - velhos.length, apagados: velhos, puladas });
   } catch (e) {
     return json({ erro: e.message }, 500);
   }
