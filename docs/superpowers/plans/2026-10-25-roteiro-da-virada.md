@@ -18,7 +18,7 @@ Plano: `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md`. S
 - [ ] **5. Publicar o site:** `python ferramentas/publicar.py`, commit e push para `main`. Leva o `dados/nomes.json` novo, que a função do servidor busca no site: ele tem que estar no ar antes do passo 6. Espere o GitHub Pages atualizar (o `versao.txt` novo aparece no site).
 - [ ] **6. Admin: "Reiniciar a liga (temporada 0)"** e depois **gerar o calendário**.
 - [ ] **7. Conferir:** `node ferramentas/saude.mjs .`
-  - Série A com 12 bots; B, C e D com 6 donos e 2 bots cada;
+  - Série A com 12 bots; B, C e D com 8 clubes cada e os donos em rodízio (com 20 donos em 26/10: 7, 7 e 6, completados por 1, 1 e 2 bots — o sorteio decide qual grupo fica com 6);
   - temporada 0;
   - onze mediano por série perto do `NIVEL_DO_REINICIO` do `admin.html` (A e B dos bots, donos 34, países);
   - fundo da liga em 40 mi;
