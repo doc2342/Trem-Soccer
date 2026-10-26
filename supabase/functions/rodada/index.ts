@@ -1796,13 +1796,60 @@ const __rodada = (() => {
   }
   // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
   const mediaDosOnze = (elenco = []) => { const n = elenco.map(j => notaBruta(j.at, j.pos)).sort((a, b) => b - a).slice(0, 11); return n.length ? n.reduce((s, x) => s + x, 0) / n.length : 0; };
-  function tecnicosDoAno(linhas, elencos) {
-    return [...new Set(linhas.map(x => x.grupo))].map(g => {
+  // quanto cada clube superou, na sua série, a colocação esperada pela força do elenco: { clube_id: posições }
+  function superacaoNaSerie(linhas, elencos) {
+    const s = {};
+    for (const g of new Set(linhas.map(x => x.grupo))) {
       const l = linhas.filter(x => x.grupo === g), forca = Object.fromEntries(l.map(x => [x.clube_id, mediaDosOnze(elencos[x.clube_id])]));
-      const esperada = Object.fromEntries([...l].sort((a, b) => forca[b.clube_id] - forca[a.clube_id]).map((x, i) => [x.clube_id, i + 1]));
-      const t = l.map(x => ({ grupo: g, clube_id: x.clube_id, numero: esperada[x.clube_id] - x.posicao, posicao: x.posicao })).sort((a, b) => b.numero - a.numero || a.posicao - b.posicao)[0];
-      return { grupo: t.grupo, clube_id: t.clube_id, numero: t.numero };
+      [...l].sort((a, b) => forca[b.clube_id] - forca[a.clube_id]).forEach((x, i) => { s[x.clube_id] = i + 1 - x.posicao; });
+    }
+    return s;
+  }
+  function tecnicosDoAno(linhas, elencos) {
+    const s = superacaoNaSerie(linhas, elencos);
+    return [...new Set(linhas.map(x => x.grupo))].map(g => {
+      const t = linhas.filter(x => x.grupo === g).sort((a, b) => s[b.clube_id] - s[a.clube_id] || a.posicao - b.posicao)[0];
+      return { grupo: g, clube_id: t.clube_id, numero: s[t.clube_id] };
     });
+  }
+  // Técnico do ano geral, só entre dirigentes: pontos da temporada inteira (spec 2026-10-26-tecnico-geral). Mata-mata: campeão, vice, semi, quartas.
+  const PESOS_DO_TECNICO_GERAL = { A: [10, 8, 7, 6, 5, 4, 3, 3, 2, 1, 0, 0], B: [4, 3, 2, 1, 1, 1], playoff: { campeao: 6, vice: 4, semi: 3 }, LIB: [11, 7, 4, 2], COPA: [6, 4, 2, 1], SUL: [5, 3, 2, 1], SUPER: 1, REC: 1 };
+  // partidas: liga, playoff ("semi", "final"), copa e "lib" (com copa_fase e vencedor); donos: Set dos ids com dirigente
+  function pontosDoTecnicoGeral({ linhas, partidas, resultados, donos }) {
+    const P = PESOS_DO_TECNICO_GERAL, pts = {}, dar = (id, v) => { if (donos.has(id) && v) pts[id] = (pts[id] || 0) + v; };
+    // liga; na Série B vale o maior entre a posição e o playoff (sem final no grupo, o 1º é o campeão)
+    for (const x of linhas) {
+      if (!donos.has(x.clube_id)) continue;
+      pts[x.clube_id] = pts[x.clube_id] || 0;
+      if (x.divisao === 1 && !PAISES[x.grupo]) dar(x.clube_id, P.A[x.posicao - 1] || 0);
+      else if (x.divisao === 2 && !PAISES[x.grupo]) {
+        const final = partidas.filter(p => p.grupo === x.grupo && p.fase === "final"), naFinal = final.some(p => p.casa === x.clube_id || p.fora === x.clube_id);
+        const campeao = final.length ? vencedorDoGrupo(partidas, resultados, x.grupo) === x.clube_id : x.posicao === 1;
+        const semi = partidas.some(p => p.grupo === x.grupo && p.fase === "semi" && (p.casa === x.clube_id || p.fora === x.clube_id));
+        dar(x.clube_id, Math.max(P.B[x.posicao - 1] || 0, campeao ? P.playoff.campeao : naFinal ? P.playoff.vice : semi ? P.playoff.semi : 0));
+      }
+    }
+    // mata-mata: a fase mais adiantada de cada clube (6 = final; final sem vencedor ainda: os dois como vice)
+    const mataMata = (jogos, regua) => {
+      const chegou = {};
+      for (const p of jogos) for (const id of [p.casa, p.fora]) chegou[id] = Math.max(chegou[id] || 0, p.copa_fase);
+      const final = jogos.find(p => p.copa_fase === 6 && p.vencedor);
+      for (const [id, f] of Object.entries(chegou)) dar(+id, final && final.vencedor === +id ? regua[0] : regua[6 - f + 1] || 0);
+    };
+    mataMata(partidas.filter(p => p.fase === "copa" && p.copa_fase > 0), P.COPA);
+    for (const g of ["LIB", "SUL"]) mataMata(partidas.filter(p => p.fase === "lib" && p.grupo === g), P[g]);
+    for (const p of partidas) {
+      if (p.fase === "copa" && p.copa_fase === 0 && p.vencedor) dar(p.vencedor, P.SUPER);
+      if (p.fase === "lib" && p.grupo === "REC" && p.vencedor) dar(p.vencedor, P.REC);
+    }
+    return pts;
+  }
+  // o vencedor ({ grupo: "TODOS", clube_id, numero: pontos }) ou null; empate: maior superação na série, depois a melhor posição
+  function tecnicoGeral({ linhas, partidas, resultados, elencos, donos }) {
+    const pts = pontosDoTecnicoGeral({ linhas, partidas, resultados, donos }), s = superacaoNaSerie(linhas, elencos);
+    const pos = Object.fromEntries(linhas.map(x => [x.clube_id, x.posicao]));
+    const t = Object.keys(pts).map(Number).filter(id => pts[id] > 0).sort((a, b) => pts[b] - pts[a] || (s[b] || 0) - (s[a] || 0) || (pos[a] || 99) - (pos[b] || 99))[0];
+    return t ? { grupo: "TODOS", clube_id: t, numero: pts[t] } : null;
   }
   // Devolve os jogos a criar agora, de todos os grupos da segunda divisão em diante, cada um na fase em que está:
   // { jogos: [{ grupo, rodada, fase, etapa, casa, fora }] } ou { erro }. O grupo avança quando a liga DELE termina.
@@ -1840,7 +1887,7 @@ const __rodada = (() => {
     if (!jogos.length) return { erro: esperando.length ? `Ainda em jogo: ${esperando.join(", ")}.` : "Os playoffs já foram todos criados." };
     return { jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal, BONUS_DA_C, BONUS_DO_ACESSO_NA_C, meritoDaSerieC, mediaDosOnze, tecnicosDoAno, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal, BONUS_DA_C, BONUS_DO_ACESSO_NA_C, meritoDaSerieC, mediaDosOnze, superacaoNaSerie, tecnicosDoAno, PESOS_DO_TECNICO_GERAL, pontosDoTecnicoGeral, tecnicoGeral, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {
