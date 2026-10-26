@@ -15,7 +15,7 @@ O que mudou e por quê:
   - TV e patrocínio dos clubes sem dono em 50%.
 - **Vendas pelo agente: 6 por temporada** (hoje 4), com o extra decrescente de hoje (`AGENTE_POR_VENDA`; a 5ª e a 6ª valem 1,5× o mercado com cotação cheia). Medido: o efeito no nível é pequeno, porque o dono simulado vende só quem ia dispensar. O risco que o simulador não mede é o dono que usa a base como fábrica de venda; o teto de folha impede que esse dinheiro vire força, e ele acaba em obras.
 - **Libertadores e Sul-Americana só a partir da T2:** na T1 as vagas sairiam da A da T0, que é só de bots. A Recopa começa sozinha na T3. A Copa do Brasil segue desde a T0.
-- **Fundo no reinício (proposta, a confirmar):** o fundo começa com 40 mi, e a cotação do agente passa a depender do saldo do fundo, não do caixa dos bots. No simulador, com o fundo zerado o saldo fica negativo da T3 à T8 (até −24 mi): os bots só passam do teto de caixa por volta da T3, e o agente paga desde a T1. Isso sem contar a copa e os prêmios individuais, que o fundo também paga.
+- **Fundo no reinício (confirmado):** o fundo começa com 40 mi, e a cotação do agente passa a depender do saldo do fundo, não do caixa dos bots. No simulador, com o fundo zerado o saldo fica negativo da T3 à T8 (até −24 mi): os bots só passam do teto de caixa por volta da T3, e o agente paga desde a T1. Isso sem contar a copa e os prêmios individuais, que o fundo também paga.
 
 Configuração final (5 sementes, média T5–T10 → T10 → T14):
 

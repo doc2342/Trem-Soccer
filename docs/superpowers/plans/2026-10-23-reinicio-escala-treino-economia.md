@@ -279,7 +279,9 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 - `VENDAS_PELO_AGENTE = 6`, no JS e no SQL (`vender_pelo_agente` conta 4 hoje).
 - **Vitrine:** clube do admin, como o guardado (grupo X), fora de liga, copa, base e mercado dos bots. O vendido ao agente vai para ela. Só donos compram, pelo que o agente pagou, e o valor vai para o fundo. Quem passar uma temporada na vitrine sai da liga na virada. Precisa de RPC de compra, tela no mercado e teste PGlite. **Antes de escrever, apresentar o desenho da tela e das RPCs ao dono do projeto.**
 - `admin.html`: Libertadores e Sul-Americana só com `liga.temporada >= 2`.
-- Fundo no reinício: 40 mi no `reiniciar_liga` (149), se o dono do projeto confirmar.
+- Fundo no reinício: **40 mi** no `reiniciar_liga` (149; confirmado em 25/10). A `cotacao_do_agente` passa a ser o saldo do fundo sobre uma régua (hoje: caixa dos bots ÷ donos ÷ 6 mi, de 0 a 1). A régua nova fica a cargo de quem implementa: com o fundo curto, o agente paga só o mercado, e ele nunca deixa o fundo negativo.
+- A vitrine **não** tem ligação com os clubes dos países: quem sobra uma temporada sai do jogo (exterior fictício), não vai para ARG, URU, COL ou CHI.
+- Pendente com o dono do projeto: tirar o segundo clube (`segundo_clube`, 91) do prêmio da confiança e pôr no lugar a prioridade na vitrine para confiança 85+. Não implementar sem a resposta.
 
 **Arquivos:**
 - Modificar: `src/economia.js` (`salarioDeMercado` com o fator novo e a âncora na nota 41; tabela do comentário; `TETO_DE_FOLHA`; `PREMIO_MINIMO`)
