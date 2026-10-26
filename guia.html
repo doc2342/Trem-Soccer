@@ -202,7 +202,7 @@ const secoes = [
     <li>Folha: não passa do teto da divisão, e um jogador não ganha mais de ${pct(MAXIMO_INDIVIDUAL)} do teto.</li>
     <li>No máximo 5 estrangeiros por clube, contando os emprestados.</li>
     <li>Quem chegou nesta janela só pode ser revendido por negociação na próxima. Depois de 5 jogos de liga pelo clube, o jogador não vai, na janela do meio, para clube da mesma divisão. Quem jogou a copa por um clube não a joga por outro na mesma temporada.</li>
-    <li>Você protege até 7 jogadores da multa. Incluir é a qualquer hora; tirar da lista, só com a janela fechada.</li>
+    <li>Você protege até 7 jogadores da multa (8 na temporada seguinte a uma confiança de ${C.protegidoExtra}+ na diretoria). Incluir é a qualquer hora; tirar da lista, só com a janela fechada.</li>
   </ul>`],
 ["financas", "Finanças", `
   <p>O dinheiro entra e sai a cada rodada de liga, no apito final; o teto de folha depende da divisão. Tudo está em Clube › Finanças, em milhares (mil) e milhões (mi) por temporada, com previsão por rodada.</p>
@@ -299,13 +299,13 @@ const secoes = [
   <ul>
     <li>A diretoria começa com confiança ${C.inicio} de 100 e dá uma meta de posição na liga, pela força do seu elenco.</li>
     <li>Na virada a confiança sobe ou cai (no máximo ${C.limite} pontos) pela posição em relação à meta, pela campanha na copa e pelas finanças.</li>
-    <li>Ela só dá recompensas, nunca demite: com ${C.verba[1][0]} ou mais, verba de ${pct(C.verba[1][1])} do teto da folha; com ${C.verba[0][0]} ou mais, ${pct(C.verba[0][1])} e mais uma compra pela multa. Com ${C.segundoClube} ou mais, você ganha o direito a um segundo clube em outro país.</li>
+    <li>Ela só dá recompensas, nunca demite: com ${C.verba[1][0]} ou mais, verba de ${pct(C.verba[1][1])} do teto da folha; com ${C.verba[0][0]} ou mais, ${pct(C.verba[0][1])} e mais um protegido na temporada seguinte; com ${C.multaExtra} ou mais, também mais uma compra pela multa e mais um garoto na peneira.</li>
   </ul>`],
 ["erros", "Erros comuns de quem está começando", `
   <ul>
     <li><b>Não salvar a tática.</b> Sem tática salva, seu time é escalado como se fosse um bot. Salve uma vez e revise antes de cada jogo.</li>
     <li><b>Perder o patrocínio.</b> Só dá para escolher antes da primeira rodada da temporada.</li>
-    <li><b>Não proteger ninguém.</b> Sem a lista de protegidos, seus melhores saem por ${MULTIPLO_DA_CLAUSULA} vezes o salário. Você tem 7 vagas.</li>
+    <li><b>Não proteger ninguém.</b> Sem a lista de protegidos, seus melhores saem por ${MULTIPLO_DA_CLAUSULA} vezes o salário. Você tem 7 vagas (8 com o prêmio da diretoria).</li>
     <li><b>Pagar salário alto para subir a multa.</b> Salário nunca desce, pesa no teto e sai do caixa toda rodada.</li>
     <li><b>Abrir leilões demais.</b> Os lances em que você está na frente contam juntos no teto; se fecharem juntos e não couberem, os que passam são descartados.</li>
     <li><b>Treinar sem treinador.</b> Sem comissão o treino rende 90% e o jogador chega ao teto anos mais tarde.</li>

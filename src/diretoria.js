@@ -9,7 +9,8 @@ export const CONFIG_DIRETORIA = {
   acima: [10, 2, 15], dentro: 3, abaixo: [-8, -2, -15], // liga: base, por posição além da primeira, teto
   copaPorFase: 2, copaTeto: 5, semVermelho: 2, vermelho: -5,
   verba: [[85, 0.10], [70, 0.05]],                // fração do teto da divisão paga na virada
-  multaExtra: 85, segundoClube: 80, simulacoes: 100,
+  protegidoExtra: 85, multaExtra: 95, peneiraExtra: 95, // prêmios da temporada seguinte (153_premios_da_diretoria.sql); cada faixa leva a de baixo
+  simulacoes: 100,
 };
 
 const FRASES = [

@@ -315,7 +315,7 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
   - Sem aviso a todos quando o jogador entra (não aprovado).
   - Sem lance até a virada: o jogador sai do jogo (exterior fictício), não vai para os países.
   - Tela: aba "Vitrine" no Mercado (nota, idade, posição, mínimo, maior lance, prazo, "Dar lance"). Migração nova com teste PGlite (mínimo, vendedor barrado, janela, vencedor, valor no fundo, saída na virada).
-- [ ] **Prêmios da diretoria** (85+/95+, sai o segundo clube): pode ir ao ar depois do reinício.
+- [x] **Prêmios da diretoria** (85+/95+, sai o segundo clube): feito em 26/10 na migração `153_premios_da_diretoria.sql` (testes `teste_premios_diretoria_sql.mjs` e `teste_peneira_extra.mjs`). A faixa da temporada sai de `confianca_historico.depois` da anterior (`premio_da_diretoria`); quando a vaga a mais dos protegidos acaba, o `aplicar_confianca` corta a lista tirando o de menor salário (lançamento de aviso). Sem clube extra por enquanto: nem prêmio nem ferramenta do admin (o dono reavalia depois).
 
 ---
 

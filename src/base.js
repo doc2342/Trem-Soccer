@@ -27,9 +27,10 @@ export const faixaDeJovens = (nivel, momento) => CONFIG_BASE[momento === "peneir
 // temporada: a temporada em que eles começam a jogar. usados: nomes que não podem se repetir.
 // jaTem: posições dos jovens que o clube já tem; cada um na posição divide por mais um a chance de vir outro igual (os desta leva também contam).
 // usa: as 11 posições da tática salva do clube; cada vaga soma um ao peso da posição (e traz líbero e alas, que fora disso a base não revela).
+// extra: jovens a mais além do sorteio (prêmio da diretoria de 95+ na peneira, 153_premios_da_diretoria.sql).
 // juvenis (60_juvenis_e_formador.sql): chegam sem contrato nem salário e com a multa travada até os 21 anos; sem isso, contrato de 3 temporadas como antes.
-export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "equilibrado", nomes, usados, temporada, juvenis = false, jaTem = [], usa = [] }) {
-  const C = CONFIG_BASE, [min, max] = faixaDeJovens(nivel, momento), n = rng.int(min, max), lista = [], tem = {};
+export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "equilibrado", nomes, usados, temporada, juvenis = false, jaTem = [], usa = [], extra = 0 }) {
+  const C = CONFIG_BASE, [min, max] = faixaDeJovens(nivel, momento), n = rng.int(min, max) + extra, lista = [], tem = {};
   for (const p of jaTem) tem[p] = (tem[p] || 0) + 1;
   const sortearPosicao = () => {
     const opcoes = [...POSICOES_DA_BASE, ...new Set(usa.filter(p => !POSICOES_DA_BASE.includes(p)))];

@@ -496,7 +496,8 @@ Deno.serve(async (req) => {
       if (!meu) return json({ erro: "Você não tem clube." });
       const { data: lg } = await sb.from("ligas").select("temporada").eq("id", meu.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
-      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0,
+      const { data: premio } = await sb.rpc("premio_da_diretoria", { p_clube: meu.id, p_temporada: lg ? lg.temporada : 0 }); // 153: com 95+, um garoto a mais (antes do 153, nada)
+      const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0, extra: (premio || 0) >= 95 ? 1 : 0,
         usa: ((((await sb.from("taticas").select("dados").eq("clube_id", meu.id).maybeSingle()).data || {}).dados || {}).vagas || []),
         jaTem: ((await sb.from("jogadores").select("pos").eq("clube_id", meu.id).lte("idade", 21)).data || []).map(j => j.pos),
         juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
