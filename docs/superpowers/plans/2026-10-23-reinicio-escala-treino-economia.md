@@ -306,7 +306,15 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 **Feito em 25/10 (migração 150, `supabase/150_valores_do_reinicio.sql`):** salário 14% com a nota 41 igual, tetos 19/15 mi (países 19), treino 130, safra e safra de fora, `TALENTO_DO_JOVEM_POR_DIVISAO.2 = −22`, `REGUA_DE_FORA` talento 0, `TALENTO_DA_BASE = −12`, `NIVEL_DO_REINICIO`/`TALENTO_DO_REINICIO` com os donos, continentais só a partir da T2, fundo de 40 mi no 149, agente pago pelo fundo (`pagar_pelo_fundo`; cotação = fundo ÷ 2 mi por dirigente; o vendedor recebe ao menos o mercado e o fundo nunca fica negativo; vale também para a `venda_automatica`), 6 vendas, TV e patrocínio dos bots em 50% e imposto do caixa dos bots (`cobrar_imposto_do_caixa`, chamado pelo `virar_temporada`). O `sim_liga.mjs` agora parte desses valores: sem ajustes, dá A 37,5 (T5–T10) → 37,9 → 38,5, B 33,5 → 33,4 → 33,3 e países 36,6 → 36,4 → 36,7.
 
 **Pendente da Tarefa 8:**
-- [ ] **Vitrine** (leilão do vendido ao agente): desenho da tela e das RPCs apresentado ao dono em 25/10; implementar depois da aprovação. Até lá o vendido continua indo para um bot.
+- [ ] **Vitrine** (leilão do vendido ao agente). Até ela entrar, o vendido continua indo para um bot. **Desenho aprovado em 25/10:**
+  - Clube do admin no grupo X (como o guardado), apontado por `ligas.vitrine`; tudo que já ignora o grupo X o deixa fora de liga, copa e mercado dos bots.
+  - `vender_pelo_agente` manda o jogador para a vitrine com `vitrine_minimo` = o **maior** entre o que o agente pagou e 3× o salário de mercado (o piso da negociação, `faixaDaNegociacao`): a vitrine nunca sai mais barata que uma venda combinada entre donos. Tudo o que o comprador paga vai para o fundo (tipo `vitrine` no `fundo_resumo`).
+  - Leilão no esquema dos livres (`ofertas_livres`, `livre_ate`, `fim_do_leilao`, 3 minutos a mais na reta final): o lance leva **valor** (≥ mínimo, vai para o fundo) e o **contrato como nos livres** (salário ≥ mercado e duração, cabendo no teto com os outros leilões em que o clube está na frente, regra do 130). Vence o maior valor; no empate, o maior salário. O primeiro lance abre o prazo.
+  - **Só com a janela aberta** (lance e fim do prazo; se a janela fecha no meio, o leilão espera a próxima).
+  - Só donos dão lance; **quem vendeu não dá lance no jogador que vendeu**, nem por outro clube que dirija.
+  - Sem aviso a todos quando o jogador entra (não aprovado).
+  - Sem lance até a virada: o jogador sai do jogo (exterior fictício), não vai para os países.
+  - Tela: aba "Vitrine" no Mercado (nota, idade, posição, mínimo, maior lance, prazo, "Dar lance"). Migração nova com teste PGlite (mínimo, vendedor barrado, janela, vencedor, valor no fundo, saída na virada).
 - [ ] **Prêmios da diretoria** (85+/95+, sai o segundo clube): pode ir ao ar depois do reinício.
 
 ---
