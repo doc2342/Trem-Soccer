@@ -296,12 +296,18 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 - Criar: `supabase/144_valores_do_reinicio.sql` (`divisoes`: teto, TV, patrocínio, ingresso, torcida base; `teto_do_clube` com o teto dos países novo; correção do caixa, se aprovada)
 - Testar: `ferramentas/teste_salario.mjs`, `ferramentas/teste_valores_do_reinicio_sql.mjs`
 
-- [ ] **Passo 1: testes que falham.** `teste_salario.mjs`: o salário de mercado de um adulto de nota 41 continua igual ao de hoje (±1); nota 40 ÷ nota 39 = o fator aprovado (±0,005); nota 41 com 20 anos = 0,8 × o adulto; `MAXIMO_INDIVIDUAL × TETO_DE_FOLHA[1]` ≥ o salário da nota 43 (o craque cabe). `teste_valores_do_reinicio_sql.mjs`: depois do 144, `divisoes` da divisão 1 e 2 têm os valores aprovados, `teto_do_clube` de um clube de país devolve o teto novo e o arquivo roda duas vezes.
-- [ ] **Passo 2:** rode os dois testes e veja falhar.
-- [ ] **Passo 3:** aplique os valores do relatório, sem inventar nenhum.
-- [ ] **Passo 4:** rode `node ferramentas/sim_liga.mjs . 10` sem ajustes: tem que reproduzir a tabela aprovada.
-- [ ] **Passo 5:** rode `python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`.
-- [ ] **Passo 6:** commit, com a mensagem "144: valores do reinício (salário, tetos, receitas, treino, base, safra)", incluindo `supabase/functions`.
+- [x] **Passo 1: testes que falham.** `teste_salario.mjs`: o salário de mercado de um adulto de nota 41 continua igual ao de hoje (±1); nota 40 ÷ nota 39 = o fator aprovado (±0,005); nota 41 com 20 anos = 0,8 × o adulto; `MAXIMO_INDIVIDUAL × TETO_DE_FOLHA[1]` ≥ o salário da nota 43 (o craque cabe). `teste_valores_do_reinicio_sql.mjs`: depois do 144, `divisoes` da divisão 1 e 2 têm os valores aprovados, `teto_do_clube` de um clube de país devolve o teto novo e o arquivo roda duas vezes.
+- [x] **Passo 2:** rode os dois testes e veja falhar.
+- [x] **Passo 3:** aplique os valores do relatório, sem inventar nenhum.
+- [x] **Passo 4:** rode `node ferramentas/sim_liga.mjs . 10` sem ajustes: tem que reproduzir a tabela aprovada.
+- [x] **Passo 5:** rode `python ferramentas/empacotar_funcao.py && node ferramentas/testes.mjs`.
+- [x] **Passo 6:** commit, com a mensagem "144: valores do reinício (salário, tetos, receitas, treino, base, safra)", incluindo `supabase/functions`.
+
+**Feito em 25/10 (migração 150, `supabase/150_valores_do_reinicio.sql`):** salário 14% com a nota 41 igual, tetos 19/15 mi (países 19), treino 130, safra e safra de fora, `TALENTO_DO_JOVEM_POR_DIVISAO.2 = −22`, `REGUA_DE_FORA` talento 0, `TALENTO_DA_BASE = −12`, `NIVEL_DO_REINICIO`/`TALENTO_DO_REINICIO` com os donos, continentais só a partir da T2, fundo de 40 mi no 149, agente pago pelo fundo (`pagar_pelo_fundo`; cotação = fundo ÷ 2 mi por dirigente; o vendedor recebe ao menos o mercado e o fundo nunca fica negativo; vale também para a `venda_automatica`), 6 vendas, TV e patrocínio dos bots em 50% e imposto do caixa dos bots (`cobrar_imposto_do_caixa`, chamado pelo `virar_temporada`). O `sim_liga.mjs` agora parte desses valores: sem ajustes, dá A 37,5 (T5–T10) → 37,9 → 38,5, B 33,5 → 33,4 → 33,3 e países 36,6 → 36,4 → 36,7.
+
+**Pendente da Tarefa 8:**
+- [ ] **Vitrine** (leilão do vendido ao agente): desenho da tela e das RPCs apresentado ao dono em 25/10; implementar depois da aprovação. Até lá o vendido continua indo para um bot.
+- [ ] **Prêmios da diretoria** (85+/95+, sai o segundo clube): pode ir ao ar depois do reinício.
 
 ---
 
@@ -310,7 +316,7 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 **Arquivos:**
 - Criar: `docs/superpowers/plans/2026-10-25-roteiro-da-virada.md` (checklist para o administrador)
 
-- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 (sem virada: o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 149, o 150 e o 151 no SQL Editor (o 149 já traz `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`); (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push (leva o `dados/nomes.json` novo, que a função do servidor busca no site: tem que estar no ar antes do passo 6); (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/D com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
+- [ ] **Passo 1:** escreva o roteiro na ordem: (1) terminar a T14 (sem virada: o reinício apaga o histórico); (2) backup no admin (`fazerBackupNoServidor`) e cópia completa; (3) rodar o 149, o 150 e o 151 no SQL Editor (o 150 confere os remendos na última consulta: tudo `true`) (o 149 já traz `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`); (4) republicar as funções `rodada` e `mercado`; (5) `python ferramentas/publicar.py` e push (leva o `dados/nomes.json` novo, que a função do servidor busca no site: tem que estar no ar antes do passo 6); (6) admin: "Reiniciar a liga" e gerar o calendário; (7) `node ferramentas/saude.mjs .`, conferindo a A com 12 bots, B/C/D com 6 donos e 2 bots, temporada 0 e onze mediano por série perto do `NIVEL_DO_REINICIO`.
 - [ ] **Passo 2:** `python ferramentas/publicar.py`; commit e push para `main`, com a mensagem "Reinício da liga pronto: roteiro do domingo".
 
 ### Tarefa 10: Nomes de camisa (planilha com pesos e apelidos)

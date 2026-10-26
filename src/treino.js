@@ -12,7 +12,7 @@ import { criarRng } from "./rng.js";
 export const CONFIG_TREINO = {
   pontosPorNivel: 100,
   rodadasDeReferencia: 22,    // rodadas da Série A: a temporada de treino é medida nelas
-  pontosPorSessao: 150,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,5 ponto de atributo por sessão
+  pontosPorSessao: 130,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,3 ponto de atributo por sessão (era 150 antes do reinício)
   partePrincipal: 0.7,
   ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
   equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe

@@ -1848,7 +1848,7 @@ const __treino = (() => {
   const CONFIG_TREINO = {
     pontosPorNivel: 100,
     rodadasDeReferencia: 22,    // rodadas da Série A: a temporada de treino é medida nelas
-    pontosPorSessao: 150,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,5 ponto de atributo por sessão
+    pontosPorSessao: 130,       // antes dos fatores; com tudo em 100% e caminho igual ao divisor, 1,3 ponto de atributo por sessão (era 150 antes do reinício)
     partePrincipal: 0.7,
     ct: [0.9, 0.04],            // sem centro de treinamento, 90%; cada nível soma 4% (110% no nível 5)
     equipe: [0.95, 1.05],       // do menor ao maior Trabalho em equipe
@@ -2167,11 +2167,13 @@ const __economia = (() => {
   const PESO_DO_FORMADO = 0.85;    // jogador formado no clube conta 85% do salário no teto (87_formado_no_teto.sql); o salário pago é cheio
   const MAXIMO_DE_TEMPORADAS = 3;
 
-  // O mínimo que o jogador aceita: cresce 12% a cada ponto de nota; jovem pede 20% menos e veterano 10% menos.
-  // Nota 25 → 250 mil; 30 → 440 mil; 35 → 780 mil; 40 → 1,37 mi; 45 → 2,4 mi.
+  // O mínimo que o jogador aceita: cresce 14% a cada ponto de nota, com a nota 41 no mesmo valor da curva antiga de 12% (reinício,
+  // docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md); jovem pede 20% menos e veterano 10% menos.
+  // Nota 25 → 190 mil; 30 → 360 mil; 35 → 700 mil; 38 → 1,03 mi; 41 → 1,535 mi; 43 → 1,99 mi.
+  const SALARIO_DA_NOTA_41 = 250 * Math.pow(1.12, 16), CURVA_DO_SALARIO = 1.14;
   function salarioDeMercado(j) {
     const nota = melhorPosicao(j).nota, idade = j.idade <= 21 ? 0.8 : j.idade >= 31 ? 0.9 : 1;
-    return Math.max(50, Math.round(250 * Math.pow(1.12, nota - 25) * idade / 5) * 5);
+    return Math.max(50, Math.round(SALARIO_DA_NOTA_41 * Math.pow(CURVA_DO_SALARIO, nota - 41) * idade / 5) * 5);
   }
   const clausula = salario => salario * MULTIPLO_DA_CLAUSULA;
   // Valor de hoje do jogador: o maior entre o salário do contrato, o salário de mercado gravado e o de mercado pela nota atual.
@@ -2207,7 +2209,7 @@ const __economia = (() => {
   // Prestígio (clubes.torcida_fator): multiplica a torcida-base da divisão; a torcida oscila entre 80% e 140% do resultado
   const PRESTIGIO_MAXIMO = 2.15;
   // Teto de folha por divisão (em milhares por temporada), para quem não lê a tabela de divisões
-  const TETO_DE_FOLHA = { 1: 20000, 2: 16000 };
+  const TETO_DE_FOLHA = { 1: 19000, 2: 15000 };
 
   // Contrato inicial de um jogador gerado: salário de mercado, duração sorteada de 1 a 3 temporadas (contando a atual)
   // e proteção contra a cláusula até o fim da primeira temporada.
@@ -2226,9 +2228,9 @@ const __economia = (() => {
   const LIMITE_DA_DIVIDA = 0.10; // abaixo de 10% do teto no negativo...
   const RODADAS_DE_PRAZO = 3;    // ...3 rodadas para agir
   const valorNoBanco = salario => 3 * (salario || 0);          // clube no vermelho: o agente paga 3 vezes o salário de mercado
-  const VENDAS_PELO_AGENTE = 4;                                // por temporada, fora do vermelho
-  // O agente paga com o caixa dos clubes sem dono. cotacao (0 a 1) diz quanto do preço cheio dá para pagar: de 1 vez o salário de mercado
-  // (caixa vazio) a 2,5 vezes (caixa folgado); para clube no vermelho, de 1 a 3 vezes.
+  const VENDAS_PELO_AGENTE = 6;                                // por temporada, fora do vermelho (150)
+  // O agente paga com o fundo da liga (150). cotacao (0 a 1) diz quanto do preço cheio dá para pagar: de 1 vez o salário de mercado
+  // (fundo vazio) a 2,5 vezes (fundo com 2 mi por dirigente); para clube no vermelho, de 1 a 3 vezes.
   // vendidas: vendas pelo agente já feitas na temporada; o extra cai na 3ª e na 5ª (109_agente_decrescente.sql). O vermelho não muda.
   const AGENTE_POR_VENDA = [1.5, 1.5, 1, 1, 0.5];
   const extraDoAgente = (vendidas = 0, vermelho = false) => vermelho ? 2 : AGENTE_POR_VENDA[Math.min(vendidas, AGENTE_POR_VENDA.length - 1)];
@@ -2237,7 +2239,7 @@ const __economia = (() => {
   const faixaDaNegociacao = salario => ({ minimo: 3 * (salario || 0), maximo: Math.round(7.5 * (salario || 0)) });
   // 440 → "440 mil"; 1370 → "1,37 mi"
   const dinheiro = mil => mil == null ? "—" : Math.abs(mil) >= 1000 ? (mil / 1000).toFixed(2).replace(".", ",") + " mi" : mil + " mil"; // espaço que não quebra: "7,97 mi" nunca se parte em duas linhas
-  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, COMIDA, comidaPorTorcedor, OPERACAO, custoDeOperacao, manutencaoExtraDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, FAIXAS_DO_IMPOSTO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
+  return { MULTIPLO_DA_CLAUSULA, MAXIMO_INDIVIDUAL, PESO_DO_FORMADO, MAXIMO_DE_TEMPORADAS, SALARIO_DA_NOTA_41, salarioDeMercado, clausula, valorDeHoje, multaDe, ADICIONAL_POR_TEMPORADA, minimoPelaDuracao, LUVAS, salarioMinimoComLuvas, luvasDaRenovacao, MANUTENCAO, NIVEL_MAXIMO_DO_ESTADIO, lugaresDoEstadio, EXTRAS_DO_ESTADIO, temRefletores, estacionamentoDoEstadio, bonusDoEstadio, COMIDA, comidaPorTorcedor, OPERACAO, custoDeOperacao, manutencaoExtraDoEstadio, PRESTIGIO_MAXIMO, TETO_DE_FOLHA, contratoInicial, PREMIO_MINIMO, FAIXAS_DO_IMPOSTO, impostoDoLucro, LIMITE_DA_DIVIDA, RODADAS_DE_PRAZO, valorNoBanco, VENDAS_PELO_AGENTE, AGENTE_POR_VENDA, extraDoAgente, valorNoAgente, faixaDaNegociacao, dinheiro };
 })();
 
 const __mercadobots = (() => {

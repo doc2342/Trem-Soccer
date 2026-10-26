@@ -19,25 +19,25 @@ import { gerarTabela, classificacaoFinal, PREMIOS, PREMIOS_DE_FORA } from "../sr
 import { planejarVirada, divisaoDoGrupo, forcaDoOnze, GRUPOS_DA_B, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO,
   TALENTO_DO_JOVEM_POR_DIVISAO, REGUA_DE_FORA, ELENCO_MINIMO_DO_BOT } from "../src/virada.js";
 import { salarioDeMercado, TETO_DE_FOLHA, MAXIMO_INDIVIDUAL, MANUTENCAO, lugaresDoEstadio, comidaPorTorcedor, custoDeOperacao,
-  manutencaoExtraDoEstadio, impostoDoLucro, valorNoAgente, VENDAS_PELO_AGENTE, MULTIPLO_DA_CLAUSULA } from "../src/economia.js";
+  manutencaoExtraDoEstadio, impostoDoLucro, valorNoAgente, VENDAS_PELO_AGENTE, MULTIPLO_DA_CLAUSULA, CURVA_DO_SALARIO } from "../src/economia.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 // nível dos elencos gerados no reinício, por série (o botão do ritmo de 4 a 5 temporadas até a liga madura)
-export const NIVEL = { A: 30, B: 30, fora: 30, donos: null }; // donos: nível próprio dos elencos dos donos (null: o da série)
+export const NIVEL = { A: 30, B: 30, fora: 34, donos: 34 }; // aprovado (NIVEL_DO_REINICIO do admin.html); // donos: nível próprio dos elencos dos donos (null: o da série)
 // deslocamento do talento dos elencos gerados no reinício, por série (proposta para o admin.html, como o TALENTO_DO_JOVEM_POR_DIVISAO dos jovens):
 // nas primeiras temporadas a liga é feita desses jogadores, e o teto deles (talento médio 48 nos adultos) é o que segura o nível da B
-export const TALENTO_DO_REINICIO = { A: 0, B: 0, fora: 0, donos: null }; // donos: idem (null: o da série)
-// deslocamento do talento dos jovens da base dos donos (proposta, não existe no jogo: hoje o talento da base é o sorteio comum, média 58); o raro da safra não muda
+export const TALENTO_DO_REINICIO = { A: -12, B: -12, fora: 0, donos: 0 }; // aprovado (TALENTO_DO_REINICIO do admin.html); // donos: idem (null: o da série)
+// deslocamento do talento dos jovens da base dos donos ALÉM do TALENTO_DA_BASE do jogo (src/base.js, −12 desde o reinício); o raro da safra não muda
 export const BASE = { talento: 0 };
 // tabela divisoes do banco (lida pelo MCP em 25/10/2026); o teto de folha é o TETO_DE_FOLHA de economia.js. Países usam a divisão 1.
 export const DIVISOES = { 1: { tv: 6500, patrocinio: 5200, ingresso: 25, torcida: 20000 }, 2: { tv: 6400, patrocinio: 4500, ingresso: 24, torcida: 14000 } };
 export const SIM = {
   sigma: 5, empate: 1.5, casa: 1.0,
-  CURVA_DO_SALARIO: 1.12,      // salário × (k / 1,12)^(nota − 41): a nota 41 custa o mesmo de hoje
+  CURVA_DO_SALARIO,            // salário × (k / a curva do jogo)^(nota − 41): a nota 41 custa o mesmo
   CT_DO_DONO: 4, BASE_DO_DONO: 4, ESTADIO_DO_DONO: 6, NIVEIS_POR_TEMPORADA: 2, // até onde o dono leva cada estrutura (2 níveis de CT e base por temporada)
   RESERVA: 0.25,               // o dono não gasta abaixo de 25% do teto em caixa
   ELENCO: 22,                  // adultos que o dono mantém
-  COMPRAS: 4, GANHO_PELA_MULTA: 1.5, VENDAS_DO_AGENTE: VENDAS_PELO_AGENTE, AGENTE_DESTINO: 0, // vendido ao agente: 0 vai para um bot (como hoje), 1 sai da liga, 2 vai para a vitrine (só donos compram, pelo que o agente pagou, e o dinheiro volta ao fundo; quem sobra uma temporada sai da liga) // compras de bot pela multa por temporada e o ganho mínimo de nota sobre o pior adulto para pagar a multa
+  COMPRAS: 4, GANHO_PELA_MULTA: 1.5, VENDAS_DO_AGENTE: VENDAS_PELO_AGENTE, AGENTE_DESTINO: 2, // vendido ao agente: 0 vai para um bot (antes do reinício), 1 sai da liga, 2 vai para a vitrine (só donos compram, pelo que o agente pagou, e o dinheiro volta ao fundo; quem sobra uma temporada sai da liga) // compras de bot pela multa por temporada e o ganho mínimo de nota sobre o pior adulto para pagar a multa
   COTACAO_DO_AGENTE: 0.5,      // o dono vende ao agente quem dispensa (até VENDAS_PELO_AGENTE), pago com o caixa dos bots
   TREINADORES: 1.08, CUSTO_TREINADORES: 1400, // multiplicador do treino e custo por temporada da comissão do dono (T13: 1,4 mi na A)
   JOGOS_DA_BASE: 14,           // jogos da liga de base por temporada (cada um vale CONFIG_LIGA_DE_BASE.bonusDeTreino de sessão aos juvenis)
@@ -45,9 +45,9 @@ export const SIM = {
   COPA: { 1: 1600, 2: 740, fora: 50 }, JOGOS_EXTRA_EM_CASA: 1, // copa e continentais por temporada (média da T13) e jogos a mais em casa
   PRESTIGIO: [0.04, 1.4],      // a torcida do dono cresce 4% por temporada, até 1,4 vez a da divisão (a A da T14 tem 1,39)
   CAIXA_INICIAL: 5000,
-  // correções do caixa, só para medir (desligadas; nenhuma está no jogo): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
+  // correções do caixa (as aprovadas, como no 150_valores_do_reinicio.sql): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
   // e imposto anual sobre o caixa acima do teto de folha
-  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0, IMPOSTO_SO_DO_BOT: 0, AGENTE_PELO_FUNDO: 0, // o imposto do caixa vai para o fundo da liga (Federação); com AGENTE_PELO_FUNDO, o agente paga com o fundo e não com o caixa dos bots
+  RECEITA: 1, RECEITA_DO_BOT: 0.5, IMPOSTO_DO_CAIXA: 0.3, IMPOSTO_SO_DO_BOT: 1, AGENTE_PELO_FUNDO: 1, // o imposto do caixa vai para o fundo da liga (Federação); com AGENTE_PELO_FUNDO, o agente paga com o fundo e não com o caixa dos bots
 };
 export const AJUSTAVEIS = { CONFIG_TREINO, CONFIG_BASE, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO, TALENTO_DO_JOVEM_POR_DIVISAO,
   REGUA_DE_FORA, PREMIOS, PREMIOS_DE_FORA, TETO_DE_FOLHA, DIVISOES, NIVEL, TALENTO_DO_REINICIO, BASE, SIM };
@@ -70,7 +70,7 @@ const media = v => v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN;
 const serie = g => PAISES[g] ? "fora" : g === "A" ? "A" : "B";
 const CUSTO_ESTRUTURA = [250, 500, 1000, 2000, 4000], CUSTO_ESTADIO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000]; // custo_da_obra (55)
 const daBase = j => j.tal > TALENTO_COMUM ? j : { ...j, tal: Math.max(talentoMinimo(j), Math.min(TALENTO_COMUM, Math.max(1, j.tal + BASE.talento))) };
-export const salario = j => Math.max(50, Math.round(salarioDeMercado(j) * Math.pow(SIM.CURVA_DO_SALARIO / 1.12, melhorPosicao(j).nota - 41)));
+export const salario = j => Math.max(50, Math.round(salarioDeMercado(j) * Math.pow(SIM.CURVA_DO_SALARIO / CURVA_DO_SALARIO, melhorPosicao(j).nota - 41)));
 
 export function simular({ semente = 1, temporadas = 10, ajustes = {} } = {}) {
   const desfaz = aplicar(ajustes);

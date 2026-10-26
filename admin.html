@@ -20,7 +20,7 @@
 import { criarRng } from "./src/rng.js";
 import { sb } from "./src/banco.js";
 import { SEDES, FINAIS } from "./src/estadio.js";
-import { notaBruta, paisDoGrupo } from "./src/modelo.js";
+import { notaBruta, paisDoGrupo, talentoMinimo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
@@ -125,8 +125,10 @@ const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, pe
 // Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
 // (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais alta com bot.
 const NIVEL_DO_NOVATO = { 1: 38, 2: 35 };
-// Nível dos elencos do reinício (temporada 0) por série; provisório até a calibragem aprovada (Tarefa 8 do plano do reinício).
-const NIVEL_DO_REINICIO = { A: 30, B: 30, fora: 30 };
+// Nível dos elencos do reinício (temporada 0) por série e o deslocamento do talento deles (com talentoMinimo por baixo); os elencos dos
+// donos têm valores próprios. Aprovados na calibragem (docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md).
+const NIVEL_DO_REINICIO = { A: 30, B: 30, fora: 34, donos: 34 };
+const TALENTO_DO_REINICIO = { A: -12, B: -12, fora: 0, donos: 0 };
 async function aprovarPedido(id, clubeId) {
   const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
@@ -479,7 +481,8 @@ async function tela(aviso = "") {
       // src/virada.js). Cada uma só sai com os 16 (4 do Brasil e 3 por país); vêm com a copa (as datas ficam em ligas.copa).
       const { libBrasil, libFora, sulBrasil, sulFora } = vagasContinentais(campanhas, daCopa, viceDaCopa), nPaises = Object.keys(PAISES).length;
       const completa = (br, fo) => comCopa && br.length === 4 && fo.length === 3 * nPaises && fo.length >= 4 && [...br, ...fo].every(id => nivel[id]);
-      const comLib = completa(libBrasil, libFora), comSul = completa(sulBrasil, sulFora);
+      // só a partir da T2: na T1 as vagas do Brasil sairiam da A da T0, que é só de bots (reinício)
+      const comLib = liga.temporada >= 2 && completa(libBrasil, libFora), comSul = liga.temporada >= 2 && completa(sulBrasil, sulFora);
       // Recopa (112): campeão da Libertadores x campeão da Sul-Americana da temporada anterior, numa data só dela depois da rodada 3
       const cont = comCopa ? await campeoesContinentais(liga.id, liga.temporada - 1) : [];
       const recopa = [(cont.find(x => x.lib === "campeão") || {}).clube_id, (cont.find(x => x.sul === "campeão") || {}).clube_id];
@@ -716,8 +719,10 @@ async function tela(aviso = "") {
     try {
       const rng = criarRng(Date.now() % 2147483647), todos = await clubesDaLiga(liga.id);
       const grupos = gruposDoReinicio({ rng, clubes: todos.map(c => ({ id: c.id, grupo: c.grupo, dono: c.dono })) });
-      const nivelDe = g => PAISES[g] ? NIVEL_DO_REINICIO.fora : g === "A" ? NIVEL_DO_REINICIO.A : NIVEL_DO_REINICIO.B; // guardados (X) ganham elenco de nível B
-      const jogadores = todos.flatMap(c => elencoNovo(rng, nivelDe(grupos[c.id]), paisDoGrupo(grupos[c.id]), 0).map(j => ({ ...j, clube_id: c.id })));
+      const serie = (g, dono) => dono ? "donos" : PAISES[g] ? "fora" : g === "A" ? "A" : "B"; // guardados (X) ganham elenco de bot da B
+      const jogadores = todos.flatMap(c => { const s = serie(grupos[c.id], c.dono);
+        return elencoNovo(rng, NIVEL_DO_REINICIO[s], paisDoGrupo(grupos[c.id]), 0)
+          .map(j => ({ ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[s]))), clube_id: c.id })); });
       const feito = await reiniciarLiga(liga.id, grupos, jogadores); await limparTreinadores(liga.id); await zerarConfianca(liga.id);
       await tela(feito + " Agora gere o calendário.");
     }

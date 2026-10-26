@@ -51,7 +51,7 @@ assert.equal((await q(`select reiniciar_liga(1, $1::jsonb, $2::jsonb) r`, [JSON.
 const e = await estado();
 assert.deepEqual(e.v, { p: 0, h: 0, t: 0, l: 0, tr: 0 });                       // (a) estado de jogo vazio
 assert.deepEqual(e.c.map(c => [c.id, c.grupo, c.divisao]), [[1, "B", 2], [2, "A", 1], [3, "ARG", 1]]);
-assert.deepEqual(e.l, { temporada: 0, pausada: false, fundo_taca: 0, temporada_fechada: null, copa: null, sedes: null });
+assert.deepEqual(e.l, { temporada: 0, pausada: false, fundo_taca: 40000, temporada_fechada: null, copa: null, sedes: null });
 assert.deepEqual(e.f, [{ clube_id: 1, caixa: 5000 }, { clube_id: 2, caixa: 5000 }, { clube_id: 3, caixa: 5000 }]);
 assert.deepEqual(e.c.map(c => [c.torcida, c.ct_nivel, c.confianca]), [[12000, 0, 50], [30000, 0, 50], [30000, 0, 50]]);
 assert.deepEqual(e.j, [{ clube_id: 1, nome: "novo1", tal: 80 }, { clube_id: 1, nome: "novo2", tal: 80 }, { clube_id: 2, nome: "novo3", tal: 80 }]); // sem os velhos nem os livres

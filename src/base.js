@@ -2,7 +2,8 @@
 // O nível da base dá quantidade e nota de chegada (15 + 1,5 por nível); o talento não depende dele. Os talentos raros vêm da safra (virada.js).
 // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
 import { limitar } from "./rng.js";
-import { gerarJogador } from "./gerador.js";
+import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
+import { talentoMinimo } from "./modelo.js";
 import { salarioDeMercado } from "./economia.js";
 
 export const CONFIG_BASE = {
@@ -13,6 +14,9 @@ export const CONFIG_BASE = {
   idade: [16, 18], contrato: 3,
   idadeDeJuvenil: 21,           // juvenil que chega à virada com esta idade sem contrato fica livre; o formado no clube fica protegido até ela
 };
+// Reinício (relatório da calibragem): os jovens da base dos dirigentes nascem com 12 de talento a menos (média 46 em vez de 58), sem descer
+// do mínimo que a nota de chegada pede; o raro da safra (acima de TALENTO_COMUM) não muda.
+export const TALENTO_DA_BASE = -12;
 export const LIMITE_DE_CONTRATADOS = 30;
 export const LIMITE_DE_JUVENIS = 25;
 // posições sorteadas para os jovens: mais gente de linha do que goleiro
@@ -36,6 +40,7 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
   for (let k = 0; k < n; k++) {
     const j = gerarJogador(rng, { id: null, pos: sortearPosicao(), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
       idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
+    if (j.tal <= TALENTO_COMUM) j.tal = Math.max(talentoMinimo(j), limitar(j.tal + TALENTO_DA_BASE, 1, TALENTO_COMUM));
     const mercado = salarioDeMercado(j);
     lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
       ...(juvenis ? { salario: null, salario_mercado: mercado, contrato_ate: null, protegido_ate: temporada + C.idadeDeJuvenil - j.idade, juvenil: true }

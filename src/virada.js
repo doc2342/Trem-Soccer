@@ -17,16 +17,16 @@ export const NOTA_DO_JOVEM_POR_DIVISAO = { 1: 26, 2: 24 };
 // Escada das divisões: o talento (teto) do jovem que o clube sem dirigente recebe é deslocado pela divisão de destino: média 66 / 50 / 38
 // (o sorteio comum tem média 58). Sem isso o teto é igual em toda divisão e os elencos convergem; simulado em ferramentas/sim_escada.mjs:
 // com a meia safra, onze mediano de 38,1 / 35,6 / 33,8 na liga madura (alvo 38 / 35 / 32).
-export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -8 };
+export const TALENTO_DO_JOVEM_POR_DIVISAO = { 1: 8, 2: -22 }; // reinício: a chave 1 só vale para os bots da A na T0
 // Outros países: campeonato de uma divisão só, sem acesso nem descenso, com régua própria, um pouco acima da Série A, para o campeão de
 // cada país chegar à Libertadores com onze de 39 a 40. Simulado em ferramentas/sim_paises.mjs (10 clubes, 20 temporadas, 4 sementes): com jovem
 // de nota 28 e talento +14, o campeão tem onze de ~38,5 nas primeiras temporadas e ~40,4 na liga madura, com folha de até ~23,9 mi.
-// O teto de 20 mi é o mesmo do banco (teto_do_clube, 140_tetos_com_duas_divisoes.sql). O prêmio da liga é maior que o da Série A porque a folha é
+// O teto (19 mi desde o reinício) é o mesmo do banco (teto_do_clube, 150_valores_do_reinicio.sql). O prêmio da liga é maior que o da Série A porque a folha é
 // maior e TV, patrocínio e ingresso são os da Série A: sem ele o clube ficaria no vermelho e venderia jogador ao banco.
-export const REGUA_DE_FORA = { nota: 28, talento: 14, teto: 20000, premios: PREMIOS_DE_FORA };
-// Safra de cada país, sorteada à parte (não tira raro do Brasil): em média 0,15 de teto 43 e 0,3 de teto 42 por temporada, a mesma
+export const REGUA_DE_FORA = { nota: 28, talento: 0, teto: 19000, premios: PREMIOS_DE_FORA }; // reinício: talento 0 e teto 19 mi (150)
+// Safra de cada país, sorteada à parte (não tira raro do Brasil): em média 0,08 de teto 43 e 0,15 de teto 42 por temporada, a mesma
 // proporção do Brasil por clube.
-export const SAFRA_DE_FORA = [{ nivel: 43, tal: 100, quantos: [[0, 0.85], [1, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.7], [1, 0.3]] }];
+export const SAFRA_DE_FORA = [{ nivel: 43, tal: 100, quantos: [[0, 0.92], [1, 0.08]] }, { nivel: 42, tal: 95, quantos: [[0, 0.85], [1, 0.15]] }]; // reinício: metade
 // Crescimento na virada: era provisório (+1 a +3 em tudo até os 23 anos) e saiu quando o treino entrou (src/treino.js):
 // agora o jogador evolui rodada a rodada, pelos focos. A queda física por idade continua aqui.
 export const crescimento = () => 0;
@@ -122,13 +122,13 @@ const nomeCurto = g => ({ B: "Série B1", C: "Série B2", D: "Série B3", E: "S�
 
 // clubes: [{ id, nome, grupo, divisao, perfil }] · elencos: { clubeId: [jogador no formato do motor] } · talentos: { idDoJogador: 1 a 100 }
 // comLivres: o mercado de jogadores livres já existe (SQL 21); sem ele, todo contrato vencido se renova sozinho.
-// Safra: os talentos raros de cada temporada. A liga sorteia quantos nascem (em média 0,75 de teto 43 e 1,5 de teto 42: metade do que era até a T9,
+// Safra: os talentos raros de cada temporada. A liga sorteia quantos nascem (desde o reinício, em média 0,2 de teto 43 e 0,65 de teto 42; antes, 0,75 e 1,5, metade do que era até a T9,
 // quando a liga madura caminhava para ~22 jogadores com 43 e ~65 com 41,5 ou mais; com a metade, ~8 e ~32) e para que clubes vão.
 // Cada clube tem um bilhete: peso 1 + nível da base (clube sem dirigente, 0,5); quem ganhou um raro nas últimas 3 temporadas (ou já ganhou nesta)
 // concorre com metade do peso. No máximo um de cada nível por clube por temporada. O raro é um dos jovens que o clube já ia receber:
 // clube sem dirigente que não repôs ninguém nesta virada fica fora do sorteio, para não aparecer um garoto a mais denunciando o raro.
 export const CONFIG_SAFRA = {
-  niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.4], [1, 0.45], [2, 0.15]] }, { nivel: 42, tal: 95, quantos: [[0, 0.1], [1, 0.4], [2, 0.4], [3, 0.1]] }],
+  niveis: [{ nivel: 43, tal: 100, quantos: [[0, 0.8], [1, 0.2]] }, { nivel: 42, tal: 95, quantos: [[0, 0.5], [1, 0.35], [2, 0.15]] }], // reinício: média 0,2 e 0,65 por temporada
   pesoDoBot: 0.5, meioPesoPor: 3, idadeNoBot: 19,
 };
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;

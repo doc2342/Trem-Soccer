@@ -54,8 +54,8 @@ begin
     n := n + 1;
   end loop;
 
-  -- temporada 0, sem pausa; temporada_fechada nula = nada fechado ainda
-  update ligas set temporada = 0, pausada = false, pausada_em = null, fundo_taca = 0, temporada_fechada = null,
+  -- temporada 0, sem pausa, fundo com 40 mi (o agente paga com ele desde o 150); temporada_fechada nula = nada fechado ainda
+  update ligas set temporada = 0, pausada = false, pausada_em = null, fundo_taca = 40000, temporada_fechada = null,
     aposentadorias_em = null, janela_inicio_fecha = null, janela_meio_abre = null, janela_meio_fecha = null,
     copa = null, sedes = null
   where id = p_liga;
