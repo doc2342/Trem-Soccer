@@ -43,7 +43,7 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
       idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
     if (j.tal <= TALENTO_COMUM) j.tal = Math.max(talentoMinimo(j), limitar(j.tal + TALENTO_DA_BASE, 1, TALENTO_COMUM));
     const mercado = salarioDeMercado(j);
-    lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
+    lista.push({ nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
       ...(juvenis ? { salario: null, salario_mercado: mercado, contrato_ate: null, protegido_ate: temporada + C.idadeDeJuvenil - j.idade, juvenil: true }
         : { salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada }) });
   }

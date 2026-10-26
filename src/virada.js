@@ -3,7 +3,7 @@
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE } from "./base.js";
 import { limitar } from "./rng.js";
-import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
+import { gerarJogador, TALENTO_COMUM, semAcento } from "./gerador.js";
 import { salarioDeMercado, TETO_DE_FOLHA, PESO_DO_FORMADO } from "./economia.js";
 
 // prêmio da liga e tabela final: moram em rodada.js, porque o servidor também usa (fecha a temporada sozinho)
@@ -160,7 +160,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     Object.values(resumo.grupos).flat().forEach(l => { if (!PAISES[l.grupo]) { l.destino = m.destino[l.clube_id]; l.para = para[l.clube_id] || null; } });
   }
 
-  const usados = new Set(Object.values(elencos).flat().map(j => j.nome));
+  // camisas já usadas em cada clube (sem acento): o jovem novo não repete a de ninguém do elenco
+  const usados = {}, usadosDe = id => usados[id] || (usados[id] = new Set((elencos[id] || []).map(j => semAcento(j.nome))));
   // jovem que o clube sem dirigente recebe (no lugar de um aposentado, ou quando a safra cai nele)
   // notaDeQuemSai: nota do aposentado que ele substitui; o jovem chega até 5 pontos abaixo dela (e nunca abaixo do piso da divisão),
   // para a liga não perder nível de uma vez quando a geração mais velha se aposenta
@@ -168,12 +169,12 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const g = grupoNovo[c.id], div = g ? divisaoDoGrupo(g) : c.divisao, fora = !!PAISES[c.grupo]; // pela divisão em que o clube vai jogar
     const piso = fora ? REGUA_DE_FORA.nota : NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM;
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
-    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados });
+    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados: usadosDe(c.id) });
     jovem.tal = limitar(jovem.tal + (fora ? REGUA_DE_FORA.talento : TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
     // o teto nunca fica abaixo da nota com que ele chega: a reposição de um craque nascia com nota 43 e teto 31 (106_teto_acima_da_nota.sql)
     jovem.tal = Math.max(jovem.tal, talentoMinimo(jovem)); // depois do deslocamento da divisão, que pode baixar o talento de novo
     const mercado = salarioDeMercado(jovem);
-    const novo = { clube_id: c.id, nome: jovem.nome, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
+    const novo = { clube_id: c.id, nome: jovem.nome, nome_completo: jovem.nome_completo, pais: jovem.pais, idade: jovem.idade, pos: jovem.pos, fam: jovem.fam, at: jovem.at, tal: jovem.tal,
       salario: mercado, salario_mercado: mercado, contrato_ate: nova + CONTRATO_DO_JOVEM - 1, protegido_ate: juvenis ? nova + CONFIG_BASE.idadeDeJuvenil - jovem.idade : nova };
     plano.novos.push(novo);
     resumo.novos.push({ clube: c.nome, dono: !!c.dono, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
@@ -182,7 +183,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
   for (const c of clubes) {
    const vencidos = [], regs = [], renovadosAqui = []; let ficam = 0;
    // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
-   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados, temporada: nova, juvenis, usa: taticas[c.id] || [],
+   if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados: usadosDe(c.id), temporada: nova, juvenis, usa: taticas[c.id] || [],
      jaTem: (elencos[c.id] || []).filter(j => j.idade < CONFIG_BASE.idadeDeJuvenil).map(j => j.pos) })) {
      if (!juvenis) ficam++; // juvenil não conta no elenco profissional
      plano.novos.push({ clube_id: c.id, ...jovem });

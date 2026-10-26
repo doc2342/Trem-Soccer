@@ -68,7 +68,7 @@ export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
 // Jogadores do banco no formato que o motor usa (id em texto, atributos em lista).
 export const elencoDoClube = clubeId => sb.from("jogadores").select("*").eq("clube_id", clubeId).order("id").then(ok).then(linhas => linhas.map(doElenco));
-export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
+export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, nomeCompleto: l.nome_completo || null, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal,
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
@@ -546,7 +546,10 @@ export const calcularNoServidor = async () => {
 export const criarLiga = nome => sb.from("ligas").insert({ nome }).select().single().then(ok);
 export async function criarClubeComElenco(ligaId, clube, elenco) {
   const c = await sb.from("clubes").insert({ liga_id: ligaId, ...clube }).select("id").single().then(ok);
-  const linhas = await sb.from("jogadores").insert(elenco.map(j => ({ clube_id: c.id, nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, principal: !!j.titular }))).select("id, nome").then(ok);
+  const linha = (j, completo) => ({ clube_id: c.id, nome: j.nome, ...(completo ? { nome_completo: j.nome_completo || null } : {}), pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, principal: !!j.titular });
+  let r = await sb.from("jogadores").insert(elenco.map(j => linha(j, true))).select("id, nome");
+  if (r.error && /nome_completo/.test(r.error.message)) r = await sb.from("jogadores").insert(elenco.map(j => linha(j, false))).select("id, nome"); // antes do 149/151
+  const linhas = ok(r);
   const talento = Object.fromEntries(elenco.map(j => [j.nome, j.tal]));
   await sb.from("jogadores_ocultos").insert(linhas.map(l => ({ jogador_id: l.id, tal: talento[l.nome] }))).then(ok);
   return c.id;

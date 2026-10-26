@@ -1,11 +1,14 @@
 -- 149 · Reinício da liga na temporada 0: reiniciar_liga(p_liga, p_grupos, p_jogadores) apaga todo o estado de jogo (inclusive o histórico),
 -- grava os grupos e os elencos novos que o admin gera, e põe a liga na temporada 0. Sai o reiniciar_teste, o guardar_estado_inicial e a tabela estado_inicial.
 -- Também troca divisao_do_grupo: não existe divisão 3 (A e países = 1; B, C, D, E, X = 2) e some a linha da divisão 3 de `divisoes`.
+-- Também cria jogadores.nome_completo (nomes de camisa: o nome fica sendo o da camisa e o completo só aparece na ficha).
 -- Precisa do 148 já executado. Depois: publicar o site; o botão está no admin ("Reiniciar a liga"). Faça o backup antes: não dá para desfazer.
 
 create or replace function public.divisao_do_grupo(p_grupo text) returns smallint language sql immutable as $$
   select (case when p_grupo = 'A' or public.pais_do_grupo(p_grupo) <> 'Brasil' then 1 else 2 end)::smallint
 $$;
+
+alter table public.jogadores add column if not exists nome_completo text;
 
 -- p_grupos: { "<clube_id>": "<grupo>" }; p_jogadores: lista no formato de elencoNovo (admin.html) + clube_id
 create or replace function public.reiniciar_liga(p_liga bigint, p_grupos jsonb, p_jogadores jsonb) returns text
@@ -45,8 +48,8 @@ begin
   delete from divisoes where liga_id = p_liga and divisao = 3;
 
   for r in select value as v from jsonb_array_elements(p_jogadores) loop
-    insert into jogadores (clube_id, nome, pais, idade, pos, fam, at, pe, principal, salario, salario_mercado, contrato_ate, protegido_ate)
-      values ((r.v->>'clube_id')::bigint, r.v->>'nome', coalesce(r.v->>'pais', 'Brasil'), (r.v->>'idade')::smallint, r.v->>'pos', r.v->'fam',
+    insert into jogadores (clube_id, nome, nome_completo, pais, idade, pos, fam, at, pe, principal, salario, salario_mercado, contrato_ate, protegido_ate)
+      values ((r.v->>'clube_id')::bigint, r.v->>'nome', r.v->>'nome_completo', coalesce(r.v->>'pais', 'Brasil'), (r.v->>'idade')::smallint, r.v->>'pos', r.v->'fam',
         array(select jsonb_array_elements_text(r.v->'at')::smallint), r.v->>'pe', coalesce((r.v->>'principal')::boolean, false),
         (r.v->>'salario')::int, (r.v->>'salario_mercado')::int, (r.v->>'contrato_ate')::int, (r.v->>'protegido_ate')::int)
       returning id into v_id;

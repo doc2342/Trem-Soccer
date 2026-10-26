@@ -68,13 +68,27 @@ function sortearFamiliaridade(rng, pos) {
   return fam;
 }
 
+// Nome de camisa (o que aparece em listas, campo e narração) e nome completo (só na ficha). Brasil: apelido, primeiro nome, sobrenome
+// ou os dois, nas chances abaixo; outros países: o sobrenome. A camisa não se repete em usados (guardada sem acento nem caixa).
+export const CONFIG_NOMES = { apelido: 0.20, primeiro: 0.50, sobrenome: 0.20 }; // o resto (10%): "Nome Sobrenome"
+export const semAcento = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 export function sortearNome(rng, nomes, pais, usados) {
-  const base = nomes.paises[pais] || nomes.paises.Brasil;
+  const base = nomes.paises[pais] || nomes.paises.Brasil, C = CONFIG_NOMES;
+  let nome, sobrenome;
   for (let i = 0; i < 20; i++) {
-    const nome = rng.pick(base.p) + " " + rng.pick(base.s);
-    if (!usados || !usados.has(nome)) { if (usados) usados.add(nome); return nome; }
+    nome = rng.pickPeso(base.p, base.pp); sobrenome = rng.pickPeso(base.s, base.ps);
+    let camisa = sobrenome;
+    if (base.a) {
+      const r = rng.n();
+      if (r < C.apelido) {
+        const apelido = rng.pickPeso(base.a, base.pa);
+        camisa = [nome, sobrenome].some(x => semAcento(x) === semAcento(apelido)) ? null : apelido;
+      } else camisa = r < C.apelido + C.primeiro ? nome : r < C.apelido + C.primeiro + C.sobrenome ? sobrenome : nome + " " + sobrenome;
+    }
+    if (camisa && !(usados && usados.has(semAcento(camisa)))) { if (usados) usados.add(semAcento(camisa)); return { nome: camisa[0].toUpperCase() + camisa.slice(1), completo: nome + " " + sobrenome }; } // "de Luca" vira "De Luca" na camisa
   }
-  return rng.pick(base.p) + " " + rng.pick(base.s);
+  if (usados) usados.add(semAcento(nome + " " + sobrenome));
+  return { nome: nome + " " + sobrenome, completo: nome + " " + sobrenome };
 }
 
 // alvo: nota que o jogador deve ter na posição natural (escala 1 a 50)
@@ -92,9 +106,11 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
   const at = sortearAtributos(rng, pos, alvo);
   aplicarPerfil(rng, at, pos, perfil);
   ajustarNota(rng, at, pos, alvo);
+  const { nome, completo } = sortearNome(rng, nomes, pais, usados);
   const j = {
     id,
-    nome: sortearNome(rng, nomes, pais, usados),
+    nome, // nome de camisa
+    nome_completo: completo,
     pais,
     idade,
     pos, // posição principal

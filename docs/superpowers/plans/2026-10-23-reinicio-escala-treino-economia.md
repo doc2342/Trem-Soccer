@@ -349,12 +349,14 @@ Pedido do dono depois do plano. Fonte: `ferramentas/nomes_com_pesos.xlsx` (cópi
 - Ficha: `jogador.html` (~linha 85) mostra `nome_completo` embaixo do título quando for diferente do `nome`; o mesmo na ficha do `jogo.html`.
 - Fora do escopo: nomes da comissão (`71_nomes_da_comissao.sql`), que a planilha não cobre.
 
-- [ ] **Passo 1: teste que falha.** `ferramentas/teste_nomes.mjs`, com `criarRng` fixo e 1.000 brasileiros: 15% a 25% com apelido; apelido nunca igual ao nome ou sobrenome do próprio jogador (sem acento); nenhuma camisa repetida no mesmo elenco; estrangeiro com o sobrenome na camisa; nome de peso 3 sai mais que o de peso 0,5; todo jogador tem `nome_completo`.
-- [ ] **Passo 2:** implemente o importador e rode; confira que o `nomes.json` sai com acentos, sem duplicatas e sem partículas.
-- [ ] **Passo 3:** implemente gerador, base, virada, banco, 149, 151, empacotador e ficha.
-- [ ] **Passo 4:** `node ferramentas/testes.mjs`. Testes presos à sequência exata do rng podem mudar de número: ajuste só o que for efeito da sequência nova, sem afrouxar nenhuma regra.
-- [ ] **Passo 5 (PARADA):** gere uma amostra (2 elencos da A, 2 da B, 10 garotos da peneira) e mostre ao dono, que ajusta as porcentagens antes do commit.
-- [ ] **Passo 6:** commit, com a mensagem "151: nomes de camisa (planilha com pesos e apelidos); nome completo só na ficha", incluindo `supabase/functions`, `dados/nomes.json` e a planilha.
+- [x] **Passo 1: teste que falha.** `ferramentas/teste_nomes.mjs`, com `criarRng` fixo e 1.000 brasileiros: 15% a 25% com apelido; apelido nunca igual ao nome ou sobrenome do próprio jogador (sem acento); nenhuma camisa repetida no mesmo elenco; estrangeiro com o sobrenome na camisa; nome de peso 3 sai mais que o de peso 0,5; todo jogador tem `nome_completo`.
+- [x] **Passo 2:** implemente o importador e rode; confira que o `nomes.json` sai com acentos, sem duplicatas e sem partículas.
+- [x] **Passo 3:** implemente gerador, base, virada, banco, 149, 151, empacotador e ficha.
+- [x] **Passo 4:** `node ferramentas/testes.mjs`. Testes presos à sequência exata do rng podem mudar de número: ajuste só o que for efeito da sequência nova, sem afrouxar nenhuma regra.
+- [x] **Passo 5 (PARADA):** gere uma amostra (2 elencos da A, 2 da B, 10 garotos da peneira) e mostre ao dono, que ajusta as porcentagens antes do commit.
+- [x] **Passo 6:** commit, com a mensagem "151: nomes de camisa (planilha com pesos e apelidos); nome completo só na ficha", incluindo `supabase/functions`, `dados/nomes.json` e a planilha.
+
+**Feito em 26/10 (migração `151_nome_completo.sql`):** amostra aprovada com 20/50/20/10 e os apelidos da planilha como estão (inclusive Zico, Cafu etc. e os nomes que já são apelido); a camisa sai com a primeira letra maiúscula ("De Luca"). Na virada, as camisas usadas são por clube (antes a lista era da liga inteira).
 
 ## Decisões do dono do projeto depois do plano
 

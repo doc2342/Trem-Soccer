@@ -11,8 +11,9 @@ Plano: `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md`. S
 - [ ] **3. SQL Editor, um arquivo por vez, nesta ordem:**
   - `149_reinicio_da_liga.sql` (já traz a `divisao_do_grupo` nova e apaga a divisão 3 das `divisoes`);
   - `150_valores_do_reinicio.sql` (a última consulta confere os remendos: **tudo `true`**);
-  - `151_nome_completo.sql` (Tarefa 10);
-  - `152_vitrine.sql` (a última consulta confere os remendos: **tudo `true`**).
+  - `151_nome_completo.sql` (Tarefa 10; a última consulta confere os remendos: **tudo `true`**);
+  - `152_vitrine.sql` (a última consulta confere os remendos: **tudo `true`**);
+  - `153_premios_da_diretoria.sql` (prêmios da diretoria; pode ir também depois do reinício).
 - [ ] **4. Republicar as funções `rodada` e `mercado`** no painel do Supabase (colar `supabase/functions/rodada/index.ts` e `supabase/functions/mercado/index.ts`, como diz o cabeçalho de cada arquivo).
 - [ ] **5. Publicar o site:** `python ferramentas/publicar.py`, commit e push para `main`. Leva o `dados/nomes.json` novo, que a função do servidor busca no site: ele tem que estar no ar antes do passo 6. Espere o GitHub Pages atualizar (o `versao.txt` novo aparece no site).
 - [ ] **6. Admin: "Reiniciar a liga (temporada 0)"** e depois **gerar o calendário**.

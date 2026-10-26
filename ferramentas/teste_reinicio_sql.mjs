@@ -37,13 +37,13 @@ insert into partidas (liga_id) values (1), (1); insert into historico values (1)
 `);
 await db.exec(sql);
 const grupos = { 1: "B", 2: "A", 3: "ARG" };
-const j = (clube_id, nome) => ({ clube_id, nome, idade: 25, pos: "MC", fam: { MC: 1 }, at: [10, 11, 12], pe: "D", principal: true, tal: 80, salario: 100, salario_mercado: 120, contrato_ate: 1, protegido_ate: 0 });
+const j = (clube_id, nome) => ({ clube_id, nome, nome_completo: nome + " da Silva", idade: 25, pos: "MC", fam: { MC: 1 }, at: [10, 11, 12], pe: "D", principal: true, tal: 80, salario: 100, salario_mercado: 120, contrato_ate: 1, protegido_ate: 0 });
 const lista = [j(1, "novo1"), j(1, "novo2"), j(2, "novo3")];
 const estado = async () => ({
   c: await q(`select id, grupo, divisao, nome, escudo, dono is not null dono, ct_nivel, confianca, torcida from clubes order by id`),
   l: (await q(`select temporada, pausada, fundo_taca, temporada_fechada, copa, sedes from ligas`))[0],
   f: await q(`select clube_id, caixa from financas order by 1`),
-  j: await q(`select clube_id, nome, (select tal from jogadores_ocultos o where o.jogador_id = jogadores.id) tal from jogadores order by id`),
+  j: await q(`select clube_id, nome, nome_completo, (select tal from jogadores_ocultos o where o.jogador_id = jogadores.id) tal from jogadores order by id`),
   v: (await q(`select (select count(*)::int from partidas) p, (select count(*)::int from historico) h, (select count(*)::int from transferencias) t, (select count(*)::int from lancamentos) l, (select count(*)::int from treinadores) tr`))[0],
   d: (await q(`select count(*)::int n from divisoes where divisao = 3`))[0].n,
 });
@@ -54,7 +54,7 @@ assert.deepEqual(e.c.map(c => [c.id, c.grupo, c.divisao]), [[1, "B", 2], [2, "A"
 assert.deepEqual(e.l, { temporada: 0, pausada: false, fundo_taca: 40000, temporada_fechada: null, copa: null, sedes: null });
 assert.deepEqual(e.f, [{ clube_id: 1, caixa: 5000 }, { clube_id: 2, caixa: 5000 }, { clube_id: 3, caixa: 5000 }]);
 assert.deepEqual(e.c.map(c => [c.torcida, c.ct_nivel, c.confianca]), [[12000, 0, 50], [30000, 0, 50], [30000, 0, 50]]);
-assert.deepEqual(e.j, [{ clube_id: 1, nome: "novo1", tal: 80 }, { clube_id: 1, nome: "novo2", tal: 80 }, { clube_id: 2, nome: "novo3", tal: 80 }]); // sem os velhos nem os livres
+assert.deepEqual(e.j, [{ clube_id: 1, nome: "novo1", nome_completo: "novo1 da Silva", tal: 80 }, { clube_id: 1, nome: "novo2", nome_completo: "novo2 da Silva", tal: 80 }, { clube_id: 2, nome: "novo3", nome_completo: "novo3 da Silva", tal: 80 }]); // sem os velhos nem os livres
 assert.equal(e.d, 0);                                                              // sem divisão 3
 assert.deepEqual(e.c[0], { id: 1, grupo: "B", divisao: 2, nome: "Dono FC", escudo: "escudo-do-dono", dono: true, ct_nivel: 0, confianca: 50, torcida: 12000 }); // (b) identidade e dono
 // (c) repetir dá o mesmo resultado, sem duplicar

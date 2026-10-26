@@ -24,6 +24,13 @@ const __rng = (() => {
     };
     const int = (min, max) => min + Math.floor(n() * (max - min + 1));
     const pick = lista => lista[Math.floor(n() * lista.length)];
+    // sorteio com peso (pesos paralelos à lista); sem pesos, igual ao pick
+    const pickPeso = (lista, pesos) => {
+      if (!pesos) return pick(lista);
+      let r = n() * pesos.reduce((a, b) => a + b, 0);
+      for (let i = 0; i < lista.length; i++) if ((r -= pesos[i]) < 0) return lista[i];
+      return lista[lista.length - 1];
+    };
     // normal por Box-Muller
     const normal = (media, desvio) => media + desvio * Math.sqrt(-2 * Math.log(1 - n())) * Math.cos(2 * Math.PI * n());
     const chance = p => n() < p;
@@ -32,7 +39,7 @@ const __rng = (() => {
       for (let i = l.length - 1; i > 0; i--) { const j = int(0, i); [l[i], l[j]] = [l[j], l[i]]; }
       return l;
     };
-    return { n, int, pick, normal, chance, embaralhar };
+    return { n, int, pick, pickPeso, normal, chance, embaralhar };
   }
 
   const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -275,13 +282,27 @@ const __gerador = (() => {
     return fam;
   }
 
+  // Nome de camisa (o que aparece em listas, campo e narração) e nome completo (só na ficha). Brasil: apelido, primeiro nome, sobrenome
+  // ou os dois, nas chances abaixo; outros países: o sobrenome. A camisa não se repete em usados (guardada sem acento nem caixa).
+  const CONFIG_NOMES = { apelido: 0.20, primeiro: 0.50, sobrenome: 0.20 }; // o resto (10%): "Nome Sobrenome"
+  const semAcento = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   function sortearNome(rng, nomes, pais, usados) {
-    const base = nomes.paises[pais] || nomes.paises.Brasil;
+    const base = nomes.paises[pais] || nomes.paises.Brasil, C = CONFIG_NOMES;
+    let nome, sobrenome;
     for (let i = 0; i < 20; i++) {
-      const nome = rng.pick(base.p) + " " + rng.pick(base.s);
-      if (!usados || !usados.has(nome)) { if (usados) usados.add(nome); return nome; }
+      nome = rng.pickPeso(base.p, base.pp); sobrenome = rng.pickPeso(base.s, base.ps);
+      let camisa = sobrenome;
+      if (base.a) {
+        const r = rng.n();
+        if (r < C.apelido) {
+          const apelido = rng.pickPeso(base.a, base.pa);
+          camisa = [nome, sobrenome].some(x => semAcento(x) === semAcento(apelido)) ? null : apelido;
+        } else camisa = r < C.apelido + C.primeiro ? nome : r < C.apelido + C.primeiro + C.sobrenome ? sobrenome : nome + " " + sobrenome;
+      }
+      if (camisa && !(usados && usados.has(semAcento(camisa)))) { if (usados) usados.add(semAcento(camisa)); return { nome: camisa[0].toUpperCase() + camisa.slice(1), completo: nome + " " + sobrenome }; } // "de Luca" vira "De Luca" na camisa
     }
-    return rng.pick(base.p) + " " + rng.pick(base.s);
+    if (usados) usados.add(semAcento(nome + " " + sobrenome));
+    return { nome: nome + " " + sobrenome, completo: nome + " " + sobrenome };
   }
 
   // alvo: nota que o jogador deve ter na posição natural (escala 1 a 50)
@@ -299,9 +320,11 @@ const __gerador = (() => {
     const at = sortearAtributos(rng, pos, alvo);
     aplicarPerfil(rng, at, pos, perfil);
     ajustarNota(rng, at, pos, alvo);
+    const { nome, completo } = sortearNome(rng, nomes, pais, usados);
     const j = {
       id,
-      nome: sortearNome(rng, nomes, pais, usados),
+      nome, // nome de camisa
+      nome_completo: completo,
       pais,
       idade,
       pos, // posição principal
@@ -346,7 +369,7 @@ const __gerador = (() => {
       pos,
     }));
   }
-  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, sortearNome, sortearPe, TALENTO_COMUM, gerarJogador, gerarElenco, gerarOnze };
+  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, CONFIG_NOMES, semAcento, sortearNome, sortearPe, TALENTO_COMUM, gerarJogador, gerarElenco, gerarOnze };
 })();
 
 const __economia = (() => {
@@ -477,7 +500,7 @@ const __base = (() => {
         idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
       if (j.tal <= TALENTO_COMUM) j.tal = Math.max(talentoMinimo(j), limitar(j.tal + TALENTO_DA_BASE, 1, TALENTO_COMUM));
       const mercado = salarioDeMercado(j);
-      lista.push({ nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
+      lista.push({ nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
         ...(juvenis ? { salario: null, salario_mercado: mercado, contrato_ate: null, protegido_ate: temporada + C.idadeDeJuvenil - j.idade, juvenil: true }
           : { salario: mercado, salario_mercado: mercado, contrato_ate: temporada + C.contrato - 1, protegido_ate: temporada }) });
     }
@@ -486,7 +509,7 @@ const __base = (() => {
   return { CONFIG_BASE, TALENTO_DA_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS, faixaDeJovens, jovensDaBase };
 })();
 // <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -517,6 +540,7 @@ Deno.serve(async (req) => {
       const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0, extra: (premio || 0) >= 95 ? 1 : 0,
         usa: ((((await sb.from("taticas").select("dados").eq("clube_id", meu.id).maybeSingle()).data || {}).dados || {}).vagas || []),
         jaTem: ((await sb.from("jogadores").select("pos").eq("clube_id", meu.id).lte("idade", 21)).data || []).map(j => j.pos),
+        usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", meu.id)).data || []).map(j => semAcento(j.nome))), // camisa sem repetir no elenco
         juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
       const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });
       if (r.error) return json({ erro: r.error.message });
@@ -541,9 +565,10 @@ Deno.serve(async (req) => {
       const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
       const rng = criarRng(Math.floor(Math.random() * 2147483647));
-      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes,
+        usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", clube.id)).data || []).map(x => semAcento(x.nome))) }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
       const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
-      reposicao = { nome: novo.nome, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
+      reposicao = { nome: novo.nome, nome_completo: novo.nome_completo, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
         salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
     }
     const { data, error } = await sb.rpc("comprar_pela_multa", { p_user: quem.user.id, p_jogador: idJogador,

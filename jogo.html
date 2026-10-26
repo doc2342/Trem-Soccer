@@ -2146,7 +2146,7 @@ async function telaClube(liga, clube) {
     const num = (r, valor, legenda, classe = "") => `<div class="t-qa-num"><div class="t-numero-rotulo">${r}</div><div class="t-qa-valor ${classe}">${valor}</div>${legenda ? `<div class="t-qa-leg">${legenda}</div>` : ""}</div>`;
     return `<div class="t-qa">
       <header class="t-qa-topo"><div class="t-qa-quem"><div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(([p, f]) => `<span class="t-qa-outra${f !== "N" && f !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})">${pp(p)}</span>`).join("")}</div>
-        <h2 class="t-qa-nome">${esc(j.nome)}</h2>
+        <h2 class="t-qa-nome">${esc(j.nome)}</h2>${(c => c && c !== j.nome ? `<div class="mut">${esc(c)}</div>` : "")(j.nomeCompleto || j.nome_completo)}
         <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
         <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}</span></div></div>
         ${uni ? `<div class="t-qa-camisa">${svgCamisa(uni, 110, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}

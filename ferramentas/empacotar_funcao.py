@@ -469,7 +469,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // >>> módulos embutidos
 """
 RODAPE_MERCADO = r"""// <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -500,6 +500,7 @@ Deno.serve(async (req) => {
       const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0, extra: (premio || 0) >= 95 ? 1 : 0,
         usa: ((((await sb.from("taticas").select("dados").eq("clube_id", meu.id).maybeSingle()).data || {}).dados || {}).vagas || []),
         jaTem: ((await sb.from("jogadores").select("pos").eq("clube_id", meu.id).lte("idade", 21)).data || []).map(j => j.pos),
+        usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", meu.id)).data || []).map(j => semAcento(j.nome))), // camisa sem repetir no elenco
         juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
       const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });
       if (r.error) return json({ erro: r.error.message });
@@ -524,9 +525,10 @@ Deno.serve(async (req) => {
       const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
       const rng = criarRng(Math.floor(Math.random() * 2147483647));
-      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes,
+        usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", clube.id)).data || []).map(x => semAcento(x.nome))) }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
       const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
-      reposicao = { nome: novo.nome, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
+      reposicao = { nome: novo.nome, nome_completo: novo.nome_completo, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,
         salario: c.salario, salario_mercado: c.mercado, contrato_ate: c.contrato_ate, protegido_ate: c.protegido_ate };
     }
     const { data, error } = await sb.rpc("comprar_pela_multa", { p_user: quem.user.id, p_jogador: idJogador,

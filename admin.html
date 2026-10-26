@@ -119,7 +119,7 @@ async function pedidos(aviso = "") {
 const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais, nomes }).map(j => {
   const { mercado, ...contrato } = contratoInicial(rng, j, temporada);
   contrato.contrato_ate = temporada + rng.int(1, 2);
-  return { nome: j.nome, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
+  return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
 });
 
 // Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
