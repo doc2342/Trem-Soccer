@@ -52,7 +52,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 '''
 
 RODAPE = r'''// <<< motor embutido
-const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno } = __rodada;
+const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
@@ -179,7 +179,14 @@ async function fecharTemporadas(sb) {
     const elencos = {};
     for (let i = 0; i < clubes.length; i += 10) for (const j of (await sb.from("jogadores").select("clube_id, at, pos").in("clube_id", clubes.slice(i, i + 10).map(c => c.id))).data || []) (elencos[j.clube_id] = elencos[j.clube_id] || []).push(j);
     const linhas = classificacaoFinal(clubes, partidas, resultados);
-    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas), p_tecnicos: tecnicosDoAno(linhas, elencos) });
+    // técnico do ano geral (só dirigentes): também a copa e os continentais, que a classificação não lê
+    const copas = [];
+    for (let de = 0; ; de += 1000) {
+      const l = (await sb.from("partidas").select("id, grupo, rodada, fase, copa_fase, casa, fora, vencedor").eq("liga_id", liga.id).in("fase", ["copa", "lib"]).order("id").range(de, de + 999)).data || [];
+      copas.push(...l); if (l.length < 1000) break;
+    }
+    const geral = tecnicoGeral({ linhas, partidas: [...partidas, ...copas], resultados, elencos, donos: new Set(clubes.filter(c => c.dono).map(c => c.id)) });
+    await sb.rpc("fechar_temporada", { p_liga: liga.id, p_temporada: liga.temporada, p_classificacao: linhas, p_merito: meritoDaSerieC(linhas), p_tecnicos: [...tecnicosDoAno(linhas, elencos), ...(geral ? [geral] : [])] });
   }
 }
 

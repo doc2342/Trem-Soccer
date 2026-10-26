@@ -675,7 +675,7 @@ async function telaClube(liga, clube) {
   // nome de um prêmio individual: "Bola de Ouro", "Artilheiro da Série B1", "Seleção da Série A"…
   const NOMES_DE_PREMIO = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque", tecnico: "Técnico do ano" };
   const ehSelecao = p => String(p.premio).startsWith("sel");
-  const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
+  const nomeDoPremio = p => { const serie = p.comp === "TODOS" ? "geral" : p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
     return ehSelecao(p) ? `Seleção ${serie}` : p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : `${NOMES_DE_PREMIO[p.premio] || p.premio} ${serie}`; };
   const premiosDoJogador = id => premiosTodos.filter(p => p.jogador_id != null && String(p.jogador_id).replace(/\D/g, "") === String(id).replace(/\D/g, "")); // liga de base: nula antes do 61_liga_de_base.sql
   const tetoDe = Object.fromEntries((tetosDoElenco || []).map(t => ["j" + t.jogador_id, t]));
@@ -1236,7 +1236,7 @@ async function telaClube(liga, clube) {
       const daqui = ps.filter(p => !ehSelecao(p) && (comp === "TODOS" ? true : p.comp === comp)).sort((a, b) => a.comp.localeCompare(b.comp) || Object.keys(NOME).indexOf(a.premio) - Object.keys(NOME).indexOf(b.premio));
       if (!(daqui.length || selecao.length) || !$("stPremios") || $("stComp").value !== comp || $("stTemp").value !== temp) return;
       if (visualNovo) return premiosNovos(daqui, selecao, deQual, NOME);
-      $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada ${deQual}</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${p.premio === "tecnico" ? (+p.numero > 0 ? `${+p.numero} ${+p.numero === 1 ? "posição" : "posições"} acima do esperado pelo elenco` : "campanha do tamanho do elenco") : String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
+      $("stPremios").innerHTML = `<h2 style="margin-top:14px">Prêmios da temporada ${deQual}</h2>` + daqui.map(p => `<div>🏅 <b>${p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio}</b>${comp === "TODOS" ? ` <span class="mut">${p.comp === "COPA" ? "Copa" : p.comp === "TODOS" ? "Geral" : esc(nomeDoGrupo(p.comp).replace("Brasileiro ", ""))}</span>` : ""}: ${esc(p.jogador || "")} (${lk(p.clube_id)})${p.numero == null ? "" : ` <span class="mut">· ${p.premio === "tecnico" && p.comp === "TODOS" ? `${+p.numero} pontos na temporada` : p.premio === "tecnico" ? (+p.numero > 0 ? `${+p.numero} ${+p.numero === 1 ? "posição" : "posições"} acima do esperado pelo elenco` : "campanha do tamanho do elenco") : String(+p.numero).replace(".", ",")}</span>`}</div>`).join("");
       if (selecao.length) $("stPremios").innerHTML += `<h2 style="margin-top:14px">Seleção da temporada ${deQual}</h2>` + [...new Set(selecao.map(p => p.comp))].map(c => `<div style="margin:3px 0">${comp === "TODOS" ? `<b>${esc(nomeDoGrupo(c).replace("Brasileiro ", ""))}:</b> ` : ""}${selecao.filter(p => p.comp === c).map(p => `${esc(sg(p.pos || ""))} ${esc(p.jogador || "")} <span class="mut">(${lk(p.clube_id)})</span>`).join(" · ")}</div>`).join("") + `<div class="mut" style="font-size:12px;margin-top:4px">Os onze de melhor nota média da série (1 goleiro, 4 de defesa, 3 de meio e 3 de ataque), com pelo menos metade dos jogos. Só de honra.</div>`;
     }).catch(() => {});
     };
@@ -1331,11 +1331,11 @@ async function telaClube(liga, clube) {
   }
   // prêmios individuais e seleção da temporada, em linhas (escudo, jogador, o número que deu o prêmio)
   function premiosNovos(daqui, selecao, deQual, NOME) {
-    const serie = c => c === "COPA" ? "Copa" : nomeDoGrupo(c).replace(/^.*?(Série \S+)$/, "$1"), varias = new Set([...daqui, ...selecao].map(p => p.comp)).size > 1;
+    const serie = c => c === "COPA" ? "Copa" : c === "TODOS" ? "Geral" : nomeDoGrupo(c).replace(/^.*?(Série \S+)$/, "$1"), varias = new Set([...daqui, ...selecao].map(p => p.comp)).size > 1;
     const escudo = id => (c => c ? svgEscudo(c.escudo, c.sigla, 22) : "<span></span>")(cPor[id]);
     const UNIDADE = { artilheiro: "gols", garcom: "assist.", melhor: "nota", revelacao: "nota", craque: "nota", goleiro: "sem sofrer", tecnico: "posições" };
-    const extra = p => p.numero == null ? "" : `${p.premio === "tecnico" ? (+p.numero > 0 ? `+${+p.numero}` : "=") : String(+p.numero).replace(".", ",")}<small>${UNIDADE[p.premio] || ""}</small>`;
-    const linhaP = p => `<div class="t-st-p${p.clube_id === clube.id ? " t-eu" : ""}">${escudo(p.clube_id)}<span class="t-st-pn"><small>${esc(p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio)}${varias ? ` · ${esc(serie(p.comp))}` : ""}</small>${esc(p.jogador || "")}</span><b title="${p.premio === "tecnico" ? "posições acima do esperado pelo elenco" : ""}">${extra(p)}</b></div>`;
+    const extra = p => p.numero == null ? "" : p.premio === "tecnico" && p.comp === "TODOS" ? `${+p.numero}<small>pts</small>` : `${p.premio === "tecnico" ? (+p.numero > 0 ? `+${+p.numero}` : "=") : String(+p.numero).replace(".", ",")}<small>${UNIDADE[p.premio] || ""}</small>`;
+    const linhaP = p => `<div class="t-st-p${p.clube_id === clube.id ? " t-eu" : ""}">${escudo(p.clube_id)}<span class="t-st-pn"><small>${esc(p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio)}${varias ? ` · ${esc(serie(p.comp))}` : ""}</small>${esc(p.jogador || "")}</span><b title="${p.premio === "tecnico" ? (p.comp === "TODOS" ? "pontos da temporada: liga, playoff, copa e continentais" : "posições acima do esperado pelo elenco") : ""}">${extra(p)}</b></div>`;
     // no campo, uma linha por faixa de posição (o ataque em cima), cada uma da esquerda para a direita; a linha do meio antes da defesa
     const FAIXAS = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM"], ["DC", "SW", "DL", "DR", "WBL", "WBR"], ["GK"]];
     const lado = p => /^(DL|WBL|ML|AML|LW)$/.test(p.pos) ? 0 : /^(DR|WBR|MR|AMR|RW)$/.test(p.pos) ? 2 : 1;

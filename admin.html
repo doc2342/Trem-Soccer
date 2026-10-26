@@ -22,7 +22,7 @@ import { sb } from "./src/banco.js";
 import { SEDES, FINAIS } from "./src/estadio.js";
 import { notaBruta, paisDoGrupo, talentoMinimo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
-import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno } from "./src/rodada.js";
+import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
@@ -675,8 +675,10 @@ async function tela(aviso = "") {
           const merito = meritoDaSerieC(plano.classificacao, plano.movimentos.filter(m => !m.caiu).map(m => m.clube_id)); 
           const premiosDoFundo = [await premiarTemporada(liga.id, merito), await premiarLigaDeBase(liga.id)].filter(Boolean).join(" ");
           await selecaoDaTemporada(liga.id); // os onze de melhor nota de cada série, só de honra
-          // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra
-          await premiarTecnicos(liga.id, tecnicosDoAno(plano.classificacao, elencos));
+          // técnico do ano de cada série: quem mais superou a colocação esperada pela força do elenco (média dos 11 melhores), só de honra;
+          // e o geral, só entre dirigentes: pontos da temporada inteira (liga, playoff da B, copa e continentais)
+          const geral = tecnicoGeral({ linhas: plano.classificacao, partidas, resultados, elencos, donos: new Set(lista.filter(c => c.dono).map(c => c.id)) });
+          await premiarTecnicos(liga.id, [...tecnicosDoAno(plano.classificacao, elencos), ...(geral ? [geral] : [])]);
           // diretoria: confiança de cada clube com dirigente (meta da temporada, ou a força do elenco sem meta), antes de a virada apagar as partidas
           let confianca = "";
           try {
