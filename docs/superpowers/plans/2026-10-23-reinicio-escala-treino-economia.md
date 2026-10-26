@@ -277,11 +277,16 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 - TV e patrocínio dos clubes sem dono em 50%, onde a rodada lança essas receitas.
 - O agente paga com o fundo (`pagar_pelos_bots` sai do `vender_pelo_agente`), e a `cotacao_do_agente` passa a depender do saldo do fundo; com o fundo curto, o agente paga só o mercado.
 - `VENDAS_PELO_AGENTE = 6`, no JS e no SQL (`vender_pelo_agente` conta 4 hoje).
-- **Vitrine:** clube do admin, como o guardado (grupo X), fora de liga, copa, base e mercado dos bots. O vendido ao agente vai para ela. Só donos compram, pelo que o agente pagou, e o valor vai para o fundo. Quem passar uma temporada na vitrine sai da liga na virada. Precisa de RPC de compra, tela no mercado e teste PGlite. **Antes de escrever, apresentar o desenho da tela e das RPCs ao dono do projeto.**
+- **Vitrine:** clube do admin, como o guardado (grupo X), fora de liga, copa, base e mercado dos bots. O vendido ao agente vai para ela. **É leilão** e reaproveita o leilão dos livres (`ofertas_livres`, `livre_ate`): lance mínimo = o que o agente pagou, só donos dão lance, quem der mais leva no fim do prazo, e o valor vai para o fundo. Quem fica sem lance até a virada sai do jogo. Sem prioridade por confiança (decidido em 25/10). Precisa de RPC de compra, tela no mercado e teste PGlite. **Antes de escrever, apresentar o desenho da tela e das RPCs ao dono do projeto.**
 - `admin.html`: Libertadores e Sul-Americana só com `liga.temporada >= 2`.
 - Fundo no reinício: **40 mi** no `reiniciar_liga` (149; confirmado em 25/10). A `cotacao_do_agente` passa a ser o saldo do fundo sobre uma régua (hoje: caixa dos bots ÷ donos ÷ 6 mi, de 0 a 1). A régua nova fica a cargo de quem implementa: com o fundo curto, o agente paga só o mercado, e ele nunca deixa o fundo negativo.
 - A vitrine **não** tem ligação com os clubes dos países: quem sobra uma temporada sai do jogo (exterior fictício), não vai para ARG, URU, COL ou CHI.
-- Pendente com o dono do projeto: tirar o segundo clube (`segundo_clube`, 91) do prêmio da confiança e pôr no lugar a prioridade na vitrine para confiança 85+. Não implementar sem a resposta.
+- **Prêmios da diretoria (decidido em 25/10; pode ir ao ar depois do reinício, não mexe na calibragem).** Cada faixa leva também a de baixo:
+  - 70+: verba de 5% do teto (como hoje);
+  - 85+: verba de 10% + 1 jogador protegido a mais contra a compra pela multa na temporada seguinte;
+  - 95+: o de 85 + 1 garoto a mais na peneira + 1 compra pela multa a mais (hoje a compra a mais vem com 85+).
+  - O segundo clube (`segundo_clube`, liberado com 80 no 91) **sai do prêmio**. O clube extra continua como ferramenta do admin.
+  - Mexe em `aplicar_confianca` (91), na compra pela multa (`multas_extras`), na proteção (`protegido_ate`) e na peneira (função `mercado`, `jovensDaBase`), com teste PGlite.
 
 **Arquivos:**
 - Modificar: `src/economia.js` (`salarioDeMercado` com o fator novo e a âncora na nota 41; tabela do comentário; `TETO_DE_FOLHA`; `PREMIO_MINIMO`)
