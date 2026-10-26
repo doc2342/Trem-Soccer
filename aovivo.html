@@ -511,7 +511,7 @@ function htmlDisputa(cobs, saiu, inteiro = false) {
   const rodadas = inteiro || n <= 11 ? [...Array(n).keys()] : [0, 1, 2, 3, 4, ...Array.from({ length: 6 }, (_, k) => n - 6 + k)];
   const bola = l => !l ? `<span class="b"></span>` : !saiu(l) ? `<span class="b vez"></span>` : l.dados.pen === "gol" ? `<span class="b gol"></span>` : `<span class="b erro">✕</span>`;
   const linha = i => `<div class="lin" style="--cor:${cor(i)}"><i></i><b>${esc(c[i].sigla || c[i].nome.slice(0, 3))}</b><span class="bolas">${rodadas.map((r, j) => (r >= 5 && (!j || rodadas[j - 1] < 5) ? `<span class="sep"></span>` : "") + bola(porTime(i)[r])).join("")}</span><span class="tot">${placar[i]}</span></div>`;
-  const lista = i => feitas.filter(l => l.dados.time === i).map(l => `<div class="${l.dados.pen === "gol" ? "ok" : "no"}">${l.dados.pen === "gol" ? "✓" : "✕"} ${linkJogador(l.dados.quem || "")} <span>${ROTULO_PEN[l.dados.pen] || ""}</span></div>`).join("");
+  const lista = i => feitas.filter(l => l.dados.time === i).map(l => `<div class="${l.dados.pen === "gol" ? "ok" : "no"}">${l.dados.pen === "gol" ? "✓" : "✕"} ${linkJogador(l.dados.quem || "", l.dados.quem || "", i)} <span>${ROTULO_PEN[l.dados.pen] || ""}</span></div>`).join("");
   return `<div class="pl"><div class="cab">Pênaltis${n > 5 ? ` <small>· ${inteiro ? `${n} rodadas` : "alternadas"}</small>` : ""}</div>${linha(0)}${linha(1)}</div>
     ${feitas.length ? `<div class="hist">${[0, 1].map(i => `<div><div class="ht" style="--cor:${cor(i)}">${esc(c[i].nome)}</div>${lista(i) || `<div class="mut">–</div>`}</div>`).join("")}</div>` : ""}`;
 }
@@ -780,8 +780,8 @@ function htmlEscalacoes(pre) {
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
   const u = uniformesDoJogo(clubes[partida.casa].uniforme || {}, clubes[partida.fora].uniforme || {}); // o visitante pode estar de reserva
   const num = (e, i) => { const m = numerosDaCamisa(e); return j => m.get(j.nome) ? camisinha(m.get(j.nome), u[i]) : ""; };
-  const time = (e, i) => { const n = num(e, i); return `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${n(j)}${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}
-    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${n(j)}${pp(j.pos)} ${linkJogador(j.nome)}</div>`).join("")}` : ""}</div>`; };
+  const time = (e, i) => { const n = num(e, i); return `<div><b class="${COR[i]}">${lkClube(i ? partida.fora : partida.casa, esc(nomes[i]))}</b>${e.titulares.map(j => `<div class="esc-j">${n(j)}${pp(j.pos)} ${linkJogador(j.nome, j.nome, i)}</div>`).join("")}
+    ${e.banco.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Banco</div>${e.banco.map(j => `<div class="esc-j mut">${n(j)}${pp(j.pos)} ${linkJogador(j.nome, j.nome, i)}</div>`).join("")}` : ""}</div>`; };
   return `<div class="card" data-aba="esc"><h2>Escalações</h2><div class="esc">${time(pre.escalacoes[0], 0)}${time(pre.escalacoes[1], 1)}</div></div>`;
 }
 // estatísticas do que já foi ao ar: finalizações, cartões e afins contados pelos lances; posse, faltas e escanteios pela parcial do último lance
@@ -808,7 +808,7 @@ function htmlEstatisticas(narracao, soTabela) {
 function htmlAbertura(pre, cronologico = false, semTimes = false) {
   if (!pre) return "";
   const nomes = [clubes[partida.casa].nome, clubes[partida.fora].nome];
-  const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${linkJogador(j.nome)} (${sg(j.pos)})`).join(", ")}.</span>` : ""}</span></div>`;
+  const time = (e, i) => `<div class="lance"><span class="min">–</span><span class="ico">📋</span><span><b class="${COR[i]}">${esc(nomes[i])}</b> entra com ${e.titulares.map(j => `${linkJogador(j.nome, j.nome, i)} (${sg(j.pos)})`).join(", ")}.${e.banco.length ? ` <span class="mut">Banco: ${e.banco.map(j => `${linkJogador(j.nome, j.nome, i)} (${sg(j.pos)})`).join(", ")}.</span>` : ""}</span></div>`;
   const partes = [...(semTimes ? [] : [time(pre.escalacoes[1], 1), time(pre.escalacoes[0], 0)]),
     `<div class="lance"><span class="min">–</span><span class="ico">🌤️</span><span>${partida.publico != null ? `${milhar(partida.publico)} torcedores vieram ${SEDES[partida.sede] ? "ao " + SEDES[partida.sede].nome : "ao estádio"}. ` : ""}Clima: ${esc(pre.clima.nome.toLowerCase())}, ${pre.clima.temp} °C.</span></div>`,
     `<div class="lance"><span class="min">–</span><span class="ico">🪙</span><span>${esc(nomes[pre.moeda])} venceu o cara ou coroa. A partida vai começar.</span></div>`];
@@ -842,7 +842,7 @@ async function atualizar() {
   avisosDaRodada(agora);
   const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
   if (!intervaloMostrado && m.texto.includes("intervalo")) { intervaloMostrado = true; setTimeout(() => cartaoDeIntervalo(narracao), 600); }
-  narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
+  narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem, l.time])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome, j.time]));
   if (res) {
     encerrada = true; clearInterval(relogio); clearInterval(tique); if (!disputaDemo) desenharDisputa([]); // o cartão de fim traz o placar dos pênaltis
     // quem acompanhou (ou chegou até 2 minutos depois do apito) vê o cartão de fim de jogo uma vez

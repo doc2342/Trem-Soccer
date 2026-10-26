@@ -57,7 +57,7 @@ async function iniciar() {
   if (!p.processada || p.gols_casa == null) { $("corpo").innerHTML = `<div class="card mut">O jogo ainda não aconteceu. O relatório aparece aqui depois do apito.</div>`; return; }
   if (!p.relatorio) { $("corpo").innerHTML = resumoAntigo(p.dados || {}, nomes); return; }
   const r = p.relatorio;
-  r.jogadores.forEach(j => lembrarJogadores([j.id, j.nome]));
+  r.jogadores.forEach(j => lembrarJogadores([j.id, j.nome, j.time]));
   $("corpo").innerHTML = htmlRelatorio(r, { nomes, clubes: c, semPlacar: true });
   ligarGraficos($("corpo"));
 }
