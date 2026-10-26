@@ -2,9 +2,41 @@
 
 Data: 2026-10-25 · Plano: `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md` (Tarefa 4) · Design: `2026-10-23-reinicio-escala-treino-economia-design.md`
 
-**Estado: aprovado em 25/10/2026.** Valem os valores propostos, com o `TALENTO_DA_BASE = −12`. Para o caixa, vale a correção 1 **só para os clubes sem dono**: todo ano o bot paga 30% do caixa acima do teto de folha, e o dinheiro vai para o fundo da liga (a Federação). A Tarefa 8 aplica isso.
+**Estado: aprovado em 25/10/2026, com a revisão abaixo (vale a revisão onde as duas divergirem).** A Tarefa 8 aplica isso.
 
-Efeito simulado do imposto só dos bots (recomendada, 5 sementes): na T14 o caixa mediano é de 30,8 mi no bot da B, 37,3 mi nos países, 15,7 mi no dono da A e 11,8 mi no dono da B, com o nível igual. O fundo recebe ~86 mi na T1, ~330 mi na T5 e ~450 mi por temporada da T8 em diante: é praticamente toda a sobra dos 58 bots. O fundo continua pagando os prêmios individuais e a copa; o fator da copa já está no máximo (2×, a partir de ~36 mi no fundo, `fator_da_copa` do 58), então o resto fica parado no fundo, fora da economia dos clubes. Se um dia o fundo precisar de outro destino, a decisão é separada.
+## Revisão depois da aprovação (25/10)
+
+O que mudou e por quê:
+- **Donos começam no nível 34** no reinício, com o talento do elenco sem o −12 (os bots continuam com −12). Com os donos no nível da série, a A só chegava a 37 na T7 (com temporadas de 17 semanas, mais de dois anos). No nível 35 ela ficava parada em ~37,5 de T1 a T14, sem sensação de crescimento. No 34, ela entra no alvo na T3 e sobe até ~38,4.
+- **O vendido ao agente vai para o bot da B** no jogo (`vender_pelo_agente`), não para os livres como no primeiro modelo. Com o fluxo real, a B madura sobe para ~35, porque recebe os descartes dos donos da A. Decidido: o vendido vai para uma **vitrine**, um clube do admin como o guardado (grupo X): fora de liga, copa, base e mercado dos bots. **Só donos compram**, pelo que o agente pagou, e o dinheiro volta ao fundo. Quem não for comprado em uma temporada sai da liga ("vendido ao exterior").
+- **Caixa dos bots:**
+  - imposto de 30% ao ano sobre o caixa acima do teto, só para os clubes sem dono, indo para o fundo;
+  - o agente passa a pagar com o fundo, não com o caixa dos bots;
+  - TV e patrocínio dos clubes sem dono em 50%.
+- **Vendas pelo agente: 6 por temporada** (hoje 4), com o extra decrescente de hoje (`AGENTE_POR_VENDA`; a 5ª e a 6ª valem 1,5× o mercado com cotação cheia). Medido: o efeito no nível é pequeno, porque o dono simulado vende só quem ia dispensar. O risco que o simulador não mede é o dono que usa a base como fábrica de venda; o teto de folha impede que esse dinheiro vire força, e ele acaba em obras.
+- **Libertadores e Sul-Americana só a partir da T2:** na T1 as vagas sairiam da A da T0, que é só de bots. A Recopa começa sozinha na T3. A Copa do Brasil segue desde a T0.
+- **Fundo no reinício (proposta, a confirmar):** o fundo começa com 40 mi, e a cotação do agente passa a depender do saldo do fundo, não do caixa dos bots. No simulador, com o fundo zerado o saldo fica negativo da T3 à T8 (até −24 mi): os bots só passam do teto de caixa por volta da T3, e o agente paga desde a T1. Isso sem contar a copa e os prêmios individuais, que o fundo também paga.
+
+Configuração final (5 sementes, média T5–T10 → T10 → T14):
+
+| Medida | Alvo | Resultado |
+|---|---|---|
+| Onze da A | 37–38 | 37,4 → 37,8 → 38,4 (T1 36,4; T3 37,0) |
+| Onze da B | 33–34 | 33,5 → 33,2 → 33,2 |
+| Onze dos países | 36–37 | 36,6 → 36,5 → 36,5 |
+| Reservas 12–16 da A | 2–3 abaixo | 2,8 abaixo na T5–T10 (34,6) e 3,8 na T14 |
+| Jogadores ≥ 42 | raros | 8 na A e 28 na liga, na T14 |
+| Elenco de dono na A | ~22 | 22 adultos e 12 juvenis |
+| Comum chega a 35 / alto chega a 37,5 | ~21 / 18–20 anos | 20,0 / 19,7 anos |
+| Quem sobe (posição média na A) | sofre, depois melhora | 8,1 na 1ª temporada, 8,2 na 2ª |
+| Caixa mediano na T14 | com destino | dono A 11,9; dono B 10,2; bot B 19,4; países 26,1 mi |
+| Fundo | — | agente paga 17–37 mi por temporada; a vitrine devolve ~9 mi; o imposto entra com 7 mi (T3), 79 mi (T10) e 152 mi (T14); saldo de ~0,5 bi na T14 |
+
+Com a vitrine, os bots gastam menos e o fundo cresce ~150 mi por temporada na T14. Se incomodar, 45% de receita nos bots deixa o fundo perto do equilíbrio (+102 mi na T14, saldo ~160 mi). Com 40% ele fica negativo.
+
+Comando da configuração final: o de "Como reproduzir" com `NIVEL.donos=34 TALENTO_DO_REINICIO.donos=0 IMPOSTO_DO_CAIXA=0.3 IMPOSTO_SO_DO_BOT=1 AGENTE_PELO_FUNDO=1 RECEITA_DO_BOT=0.5 VENDAS_DO_AGENTE=6 AGENTE_DESTINO=2` acrescentados.
+
+## Primeira versão (aprovada antes da revisão)
 
 Há três decisões, explicadas no fim:
 1. a regra nova do talento da base;

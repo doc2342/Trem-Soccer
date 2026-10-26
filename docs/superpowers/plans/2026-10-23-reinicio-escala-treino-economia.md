@@ -272,6 +272,15 @@ Só depois da aprovação da Tarefa 4. Os valores vêm do relatório aprovado (`
 
 **Aprovado além da lista abaixo:** `TALENTO_DO_REINICIO = { A: −12, B: −12, fora: 0 }` no `admin.html` (deslocamento do talento dos elencos gerados no reinício, com `talentoMinimo` por baixo); `TALENTO_DA_BASE = −12` em `src/base.js` (`jovensDaBase`; o raro da safra não muda); receitas, `PREMIOS` e `PREMIO_MINIMO` sem mudança; e o **imposto do caixa dos bots**: no fechamento da temporada (145, a mesma hora do imposto sobre o lucro), cada clube sem dono paga 30% do caixa acima do seu teto de folha (`teto_do_clube`), que vai para `ligas.fundo_taca` com uma linha própria em `fundo_resumo` (tipo `imposto_do_caixa`, para a tela da Federação mostrar). Entra no 150, com teste PGlite (bot paga, dono não paga, abaixo do teto não paga, o fundo recebe). O simulador tem o equivalente em `SIM.IMPOSTO_DO_CAIXA` + `SIM.IMPOSTO_SO_DO_BOT`.
 
+**Revisão de 25/10 (vale sobre o parágrafo acima; detalhes na seção "Revisão depois da aprovação" do relatório):**
+- `NIVEL_DO_REINICIO.donos = 34` e `TALENTO_DO_REINICIO.donos = 0` no `admin.html`: os elencos dos donos têm nível e talento próprios no reinício.
+- TV e patrocínio dos clubes sem dono em 50%, onde a rodada lança essas receitas.
+- O agente paga com o fundo (`pagar_pelos_bots` sai do `vender_pelo_agente`), e a `cotacao_do_agente` passa a depender do saldo do fundo; com o fundo curto, o agente paga só o mercado.
+- `VENDAS_PELO_AGENTE = 6`, no JS e no SQL (`vender_pelo_agente` conta 4 hoje).
+- **Vitrine:** clube do admin, como o guardado (grupo X), fora de liga, copa, base e mercado dos bots. O vendido ao agente vai para ela. Só donos compram, pelo que o agente pagou, e o valor vai para o fundo. Quem passar uma temporada na vitrine sai da liga na virada. Precisa de RPC de compra, tela no mercado e teste PGlite. **Antes de escrever, apresentar o desenho da tela e das RPCs ao dono do projeto.**
+- `admin.html`: Libertadores e Sul-Americana só com `liga.temporada >= 2`.
+- Fundo no reinício: 40 mi no `reiniciar_liga` (149), se o dono do projeto confirmar.
+
 **Arquivos:**
 - Modificar: `src/economia.js` (`salarioDeMercado` com o fator novo e a âncora na nota 41; tabela do comentário; `TETO_DE_FOLHA`; `PREMIO_MINIMO`)
 - Modificar: `src/virada.js` (`PREMIOS`, `REGUA_DE_FORA`, `CONFIG_SAFRA`, `SAFRA_DE_FORA`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`)

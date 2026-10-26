@@ -23,10 +23,10 @@ import { salarioDeMercado, TETO_DE_FOLHA, MAXIMO_INDIVIDUAL, MANUTENCAO, lugares
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 // nível dos elencos gerados no reinício, por série (o botão do ritmo de 4 a 5 temporadas até a liga madura)
-export const NIVEL = { A: 30, B: 30, fora: 30 };
+export const NIVEL = { A: 30, B: 30, fora: 30, donos: null }; // donos: nível próprio dos elencos dos donos (null: o da série)
 // deslocamento do talento dos elencos gerados no reinício, por série (proposta para o admin.html, como o TALENTO_DO_JOVEM_POR_DIVISAO dos jovens):
 // nas primeiras temporadas a liga é feita desses jogadores, e o teto deles (talento médio 48 nos adultos) é o que segura o nível da B
-export const TALENTO_DO_REINICIO = { A: 0, B: 0, fora: 0 };
+export const TALENTO_DO_REINICIO = { A: 0, B: 0, fora: 0, donos: null }; // donos: idem (null: o da série)
 // deslocamento do talento dos jovens da base dos donos (proposta, não existe no jogo: hoje o talento da base é o sorteio comum, média 58); o raro da safra não muda
 export const BASE = { talento: 0 };
 // tabela divisoes do banco (lida pelo MCP em 25/10/2026); o teto de folha é o TETO_DE_FOLHA de economia.js. Países usam a divisão 1.
@@ -37,7 +37,7 @@ export const SIM = {
   CT_DO_DONO: 4, BASE_DO_DONO: 4, ESTADIO_DO_DONO: 6, NIVEIS_POR_TEMPORADA: 2, // até onde o dono leva cada estrutura (2 níveis de CT e base por temporada)
   RESERVA: 0.25,               // o dono não gasta abaixo de 25% do teto em caixa
   ELENCO: 22,                  // adultos que o dono mantém
-  COMPRAS: 4, GANHO_PELA_MULTA: 1.5, // compras de bot pela multa por temporada e o ganho mínimo de nota sobre o pior adulto para pagar a multa
+  COMPRAS: 4, GANHO_PELA_MULTA: 1.5, VENDAS_DO_AGENTE: VENDAS_PELO_AGENTE, AGENTE_DESTINO: 0, // vendido ao agente: 0 vai para um bot (como hoje), 1 sai da liga, 2 vai para a vitrine (só donos compram, pelo que o agente pagou, e o dinheiro volta ao fundo; quem sobra uma temporada sai da liga) // compras de bot pela multa por temporada e o ganho mínimo de nota sobre o pior adulto para pagar a multa
   COTACAO_DO_AGENTE: 0.5,      // o dono vende ao agente quem dispensa (até VENDAS_PELO_AGENTE), pago com o caixa dos bots
   TREINADORES: 1.08, CUSTO_TREINADORES: 1400, // multiplicador do treino e custo por temporada da comissão do dono (T13: 1,4 mi na A)
   JOGOS_DA_BASE: 14,           // jogos da liga de base por temporada (cada um vale CONFIG_LIGA_DE_BASE.bonusDeTreino de sessão aos juvenis)
@@ -47,7 +47,7 @@ export const SIM = {
   CAIXA_INICIAL: 5000,
   // correções do caixa, só para medir (desligadas; nenhuma está no jogo): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
   // e imposto anual sobre o caixa acima do teto de folha
-  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0, IMPOSTO_SO_DO_BOT: 0, // o imposto do caixa vai para o fundo da liga (Federação)
+  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0, IMPOSTO_SO_DO_BOT: 0, AGENTE_PELO_FUNDO: 0, // o imposto do caixa vai para o fundo da liga (Federação); com AGENTE_PELO_FUNDO, o agente paga com o fundo e não com o caixa dos bots
 };
 export const AJUSTAVEIS = { CONFIG_TREINO, CONFIG_BASE, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO, TALENTO_DO_JOVEM_POR_DIVISAO,
   REGUA_DE_FORA, PREMIOS, PREMIOS_DE_FORA, TETO_DE_FOLHA, DIVISOES, NIVEL, TALENTO_DO_REINICIO, BASE, SIM };
@@ -88,14 +88,16 @@ function rodar(semente, temporadas) {
   const novoClube = (grupo, dono) => { const c = { id: clubes.length + 1, nome: "C" + (clubes.length + 1), grupo, divisao: divisaoDoGrupo(grupo), perfil: rng.pick(Object.keys(PERFIS)),
     dono: dono ? "d" : null, extra: dono, base_nivel: 0, ct_nivel: 0, estadio: 1, gastoEstrut: 0, gastoEstadio: 0, caixa: SIM.CAIXA_INICIAL, prestigio: 1 };
     clubes.push(c); elencos[c.id] = [];
-    const nivel = NIVEL[serie(grupo)], pais = PAISES[grupo] || "Brasil";
+    const nivel = dono && NIVEL.donos != null ? NIVEL.donos : NIVEL[serie(grupo)], pais = PAISES[grupo] || "Brasil";
+    const desloca = dono && TALENTO_DO_REINICIO.donos != null ? TALENTO_DO_REINICIO.donos : TALENTO_DO_REINICIO[serie(grupo)];
     for (const j of gerarElenco(rng, { nivel, perfil: c.perfil, pais, nomes }))
-      registrar(c, { ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[serie(grupo)]))) });
+      registrar(c, { ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + desloca))) });
     return c; };
   for (let k = 0; k < 12; k++) novoClube("A", false);
   for (const g of GRUPOS_DA_B) { for (let k = 0; k < 6; k++) novoClube(g, true); novoClube(g, false); novoClube(g, false); }
   for (const g of Object.keys(PAISES)) for (let k = 0; k < 10; k++) novoClube(g, false);
-  const livres = [], saida = [];
+  const livres = [], saida = [], vitrine = [];
+  let agente = 0, fundo = 0, vendidos = 0, vendidosDaVitrine = 0; // o que o agente pagou aos donos na entressafra anterior e o saldo do fundo (só o imposto do caixa e o agente)
   const adultos = c => elencos[c.id].filter(j => !j.juvenil);
 
   for (let t = 0; t <= temporadas; t++) {
@@ -179,7 +181,7 @@ function rodar(semente, temporadas) {
         caixaDono: med(cs.filter(c => c.dono).map(c => c.caixa)), caixaBot: med(cs.filter(c => !c.dono).map(c => c.caixa)),
       };
     }
-    medidas.fundo = paraOFundo;
+    fundo += paraOFundo; medidas.fundo = paraOFundo; medidas.agente = agente; medidas.saldoDoFundo = fundo; medidas.vendidos = vendidos; medidas.vitrine = vendidosDaVitrine;
     const ptsA = tabelaFinal.filter(l => l.grupo === "A").map(l => l.pontos);
     medidas.A.dif12 = ptsA[0] - ptsA[1]; medidas.A.favorito = favorito / jogosA; medidas.A.empates = empates / jogosA; medidas.A.dif = difA / jogosA;
     const posA = k => media(tabelaFinal.filter(l => l.grupo === "A" && subiuEm[l.clube_id] === t - k).map(l => l.posicao));
@@ -211,7 +213,8 @@ function rodar(semente, temporadas) {
     for (const c of clubes) { for (const j of elencos[c.id]) if (!j.juvenil) j.salario = Math.max(j.salario || 0, salario(j)); if (c.dono) c.prestigio = Math.min(SIM.PRESTIGIO[1], c.prestigio + SIM.PRESTIGIO[0]); }
 
     // ---------- entressafra: obras, mercado dos donos e reposição dos bots ----------
-    let pagoPeloAgente = 0;
+    let pagoPeloAgente = 0, vendasAoAgente = 0, daVitrine = 0;
+    vitrine.splice(0, vitrine.length, ...vitrine.filter(j => j.vitrineDesde >= t - 1)); // uma temporada na vitrine; depois, exterior
     for (const c of rng.embaralhar(clubes.filter(c => c.dono))) {
       const teto = tetoDe(c), reserva = SIM.RESERVA * teto;
       // obras: CT, base e estádio, nessa ordem, enquanto sobra caixa acima da reserva
@@ -222,8 +225,13 @@ function rodar(semente, temporadas) {
       const el = elencos[c.id], folha = () => el.filter(j => !j.juvenil).reduce((s, j) => s + j.salario, 0);
       const piores = () => el.filter(j => !j.juvenil).sort((a, b) => nota(a) - nota(b));
       let vendas = 0;
-      const dispensar = j => { el.splice(el.indexOf(j), 1); livres.push(j);
-        if (vendas < VENDAS_PELO_AGENTE) { const v = valorNoAgente(salarioDeMercado(j), false, SIM.COTACAO_DO_AGENTE, vendas); c.caixa += v; pagoPeloAgente += v; vendas++; } };
+      // dispensado: vendido ao agente enquanto houver venda na temporada (vai para o bot do Brasil de menor elenco, da mesma divisão ou abaixo,
+      // como no vender_pelo_agente), senão fica livre
+      const dispensar = j => { el.splice(el.indexOf(j), 1);
+        if (vendas >= SIM.VENDAS_DO_AGENTE) { livres.push(j); return; }
+        const v = valorNoAgente(salarioDeMercado(j), false, SIM.COTACAO_DO_AGENTE, vendas); c.caixa += v; pagoPeloAgente += v; vendas++;
+        const destino = clubes.filter(b => !b.dono && !PAISES[b.grupo] && b.divisao >= c.divisao).sort((a, b) => elencos[a.id].length - elencos[b.id].length)[0];
+        j.juvenil = false; j.salario = salarioDeMercado(j); if (SIM.AGENTE_DESTINO === 2) vitrine.push(Object.assign(j, { pago: v, vitrineDesde: t })); else if (SIM.AGENTE_DESTINO === 1) {} else if (destino) elencos[destino.id].push(j); else livres.push(j); vendasAoAgente++; };
       for (const j of el.filter(j => j.juvenil).sort((a, b) => nota(b) - nota(a))) {
         const ad = piores(), s = salario(j);
         if ((ad.length < SIM.ELENCO || nota(j) > nota(ad[0])) && folha() + s - (ad.length >= SIM.ELENCO ? ad[0].salario : 0) <= teto) {
@@ -233,26 +241,34 @@ function rodar(semente, temporadas) {
       }
       while (piores().length > SIM.ELENCO || (folha() > teto && piores().length > 16)) dispensar(piores()[0]);
       // reforços: livres (sem custo) e jogadores de bot pela multa (até SIM.COMPRAS; o bot fica com pelo menos 19), o dinheiro vai para o bot
-      const ofertas = [...livres.filter(j => j.idade <= 31).map(j => ({ j, de: null })),
+      const ofertas = [...livres.filter(j => j.idade <= 31).map(j => ({ j, de: null })), ...vitrine.map(j => ({ j, de: null, vitrine: true })),
         ...clubes.filter(b => !b.dono).flatMap(b => adultos(b).filter(j => j.idade >= 22 && j.idade <= 31).map(j => ({ j, de: b })))]
         .map(o => ({ ...o, s: Math.max(o.j.salario || 0, salario(o.j)), n: nota(o.j) })).sort((a, b) => b.n - a.n);
       let compras = 0;
       for (const o of ofertas) {
         if (o.de && (compras >= SIM.COMPRAS || adultos(o.de).length <= 19 || !elencos[o.de.id].includes(o.j))) continue;
-        if (!o.de && !livres.includes(o.j)) continue;
-        const ad = piores(), troca = ad.length >= SIM.ELENCO ? ad[0] : null, preco = o.de ? MULTIPLO_DA_CLAUSULA * o.s : 0;
-        if (troca && o.n < nota(troca) + (o.de ? SIM.GANHO_PELA_MULTA : 1)) continue;
+        if (!o.de && !(o.vitrine ? vitrine : livres).includes(o.j)) continue;
+        const ad = piores(), troca = ad.length >= SIM.ELENCO ? ad[0] : null, preco = o.de ? MULTIPLO_DA_CLAUSULA * o.s : o.vitrine ? o.j.pago : 0;
+        if (troca && o.n < nota(troca) + (o.de || o.vitrine ? SIM.GANHO_PELA_MULTA : 1)) continue;
         if (o.s > MAXIMO_INDIVIDUAL * teto || folha() + o.s - (troca ? troca.salario : 0) > teto || c.caixa - preco < reserva) continue;
         if (troca) dispensar(troca);
         c.caixa -= preco; o.j.salario = o.s;
         if (o.de) { const eb = elencos[o.de.id]; eb.splice(eb.indexOf(o.j), 1); o.de.caixa += preco; compras++; }
+        else if (o.vitrine) { vitrine.splice(vitrine.indexOf(o.j), 1); daVitrine += preco; }
         else livres.splice(livres.indexOf(o.j), 1);
         el.push(o.j);
       }
+      // com vendas sobrando, o juvenil de 20 anos ou mais que não virou profissional é vendido ao agente (senão sairia de graça aos 22)
+      for (const j of el.filter(j => j.juvenil && j.idade >= 20)) if (vendas < SIM.VENDAS_DO_AGENTE) dispensar(j);
     }
     // o agente paga com o caixa dos bots
     const bots = clubes.filter(c => !c.dono);
-    for (const c of bots) c.caixa -= pagoPeloAgente / bots.length;
+    fundo += daVitrine; vendidosDaVitrine = daVitrine;
+    if (SIM.AGENTE_PELO_FUNDO) fundo -= pagoPeloAgente; else for (const c of bots) c.caixa -= pagoPeloAgente / bots.length;
+    agente = pagoPeloAgente; vendidos = vendasAoAgente;
+    // ponytail: o bot solta o pior adulto (fica livre) quando passa de 24 adultos ou do teto, até o mínimo; é o que a renovação no teto faz no jogo
+    for (const c of bots) { const ad = () => adultos(c).sort((a, b) => nota(a) - nota(b)), folhaBot = () => adultos(c).reduce((t, j) => t + j.salario, 0);
+      while (ad().length > ELENCO_MINIMO_DO_BOT && (ad().length > 24 || folhaBot() > tetoDe(c))) { const j = ad()[0]; elencos[c.id].splice(elencos[c.id].indexOf(j), 1); livres.push(j); } }
     // ponytail: o bot só repõe o elenco até o mínimo (sem negociosEntreBots); primeiro o melhor livre, depois um jovem do piso da divisão
     for (const c of bots) while (adultos(c).length < ELENCO_MINIMO_DO_BOT) {
       const livre = livres.filter(j => j.idade <= 31).sort((a, b) => nota(b) - nota(a))[0];
@@ -275,7 +291,7 @@ export function resumo(rodadas) { // média das sementes, temporada a temporada
     const em = fn => media(rodadas.map(r => fn(r[t].medidas)).filter(x => !Number.isNaN(x)));
     const m = { t };
     for (const s of ["A", "B", "fora"]) m[s] = Object.fromEntries(Object.keys(rodadas[0][t].medidas[s]).map(k => [k, em(x => x[s][k])]));
-    m.subiu = { T1: em(x => x.subiu.T1), T2: em(x => x.subiu.T2) }; m.fundo = em(x => x.fundo);
+    m.subiu = { T1: em(x => x.subiu.T1), T2: em(x => x.subiu.T2) }; m.fundo = em(x => x.fundo); m.agente = em(x => x.agente); m.saldoDoFundo = em(x => x.saldoDoFundo); m.vendidos = em(x => x.vendidos); m.vitrine = em(x => x.vitrine);
     return m;
   });
 }
