@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { criarRng } from "../src/rng.js";
-import { notaBruta, melhorPosicao, PAISES } from "../src/modelo.js";
+import { notaBruta, melhorPosicao, talentoMinimo, PAISES } from "../src/modelo.js";
 import { gerarElenco, gerarJogador, TALENTO_COMUM, PERFIS } from "../src/gerador.js";
 import { jovensDaBase, CONFIG_BASE } from "../src/base.js";
 import { CONFIG_TREINO, treinar, ctDoClube, fatorDaTemporada } from "../src/treino.js";
@@ -19,11 +19,16 @@ import { gerarTabela, classificacaoFinal, PREMIOS, PREMIOS_DE_FORA } from "../sr
 import { planejarVirada, divisaoDoGrupo, forcaDoOnze, GRUPOS_DA_B, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO,
   TALENTO_DO_JOVEM_POR_DIVISAO, REGUA_DE_FORA, ELENCO_MINIMO_DO_BOT } from "../src/virada.js";
 import { salarioDeMercado, TETO_DE_FOLHA, MAXIMO_INDIVIDUAL, MANUTENCAO, lugaresDoEstadio, comidaPorTorcedor, custoDeOperacao,
-  manutencaoExtraDoEstadio, impostoDoLucro, valorNoAgente, VENDAS_PELO_AGENTE } from "../src/economia.js";
+  manutencaoExtraDoEstadio, impostoDoLucro, valorNoAgente, VENDAS_PELO_AGENTE, MULTIPLO_DA_CLAUSULA } from "../src/economia.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 // nível dos elencos gerados no reinício, por série (o botão do ritmo de 4 a 5 temporadas até a liga madura)
 export const NIVEL = { A: 30, B: 30, fora: 30 };
+// deslocamento do talento dos elencos gerados no reinício, por série (proposta para o admin.html, como o TALENTO_DO_JOVEM_POR_DIVISAO dos jovens):
+// nas primeiras temporadas a liga é feita desses jogadores, e o teto deles (talento médio 48 nos adultos) é o que segura o nível da B
+export const TALENTO_DO_REINICIO = { A: 0, B: 0, fora: 0 };
+// deslocamento do talento dos jovens da base dos donos (proposta, não existe no jogo: hoje o talento da base é o sorteio comum, média 58); o raro da safra não muda
+export const BASE = { talento: 0 };
 // tabela divisoes do banco (lida pelo MCP em 25/10/2026); o teto de folha é o TETO_DE_FOLHA de economia.js. Países usam a divisão 1.
 export const DIVISOES = { 1: { tv: 6500, patrocinio: 5200, ingresso: 25, torcida: 20000 }, 2: { tv: 6400, patrocinio: 4500, ingresso: 24, torcida: 14000 } };
 export const SIM = {
@@ -32,7 +37,7 @@ export const SIM = {
   CT_DO_DONO: 4, BASE_DO_DONO: 4, ESTADIO_DO_DONO: 6, NIVEIS_POR_TEMPORADA: 2, // até onde o dono leva cada estrutura (2 níveis de CT e base por temporada)
   RESERVA: 0.25,               // o dono não gasta abaixo de 25% do teto em caixa
   ELENCO: 22,                  // adultos que o dono mantém
-  OFERTAS: 6, PRECO_EM_SALARIOS: 4, // reforços oferecidos por temporada a cada dono (no nível da série) e o preço, em salários
+  COMPRAS: 4, GANHO_PELA_MULTA: 1.5, // compras de bot pela multa por temporada e o ganho mínimo de nota sobre o pior adulto para pagar a multa
   COTACAO_DO_AGENTE: 0.5,      // o dono vende ao agente quem dispensa (até VENDAS_PELO_AGENTE), pago com o caixa dos bots
   TREINADORES: 1.08, CUSTO_TREINADORES: 1400, // multiplicador do treino e custo por temporada da comissão do dono (T13: 1,4 mi na A)
   JOGOS_DA_BASE: 14,           // jogos da liga de base por temporada (cada um vale CONFIG_LIGA_DE_BASE.bonusDeTreino de sessão aos juvenis)
@@ -40,9 +45,12 @@ export const SIM = {
   COPA: { 1: 1600, 2: 740, fora: 50 }, JOGOS_EXTRA_EM_CASA: 1, // copa e continentais por temporada (média da T13) e jogos a mais em casa
   PRESTIGIO: [0.04, 1.4],      // a torcida do dono cresce 4% por temporada, até 1,4 vez a da divisão (a A da T14 tem 1,39)
   CAIXA_INICIAL: 5000,
+  // correções do caixa, só para medir (desligadas; nenhuma está no jogo): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
+  // e imposto anual sobre o caixa acima do teto de folha
+  RECEITA: 1, RECEITA_DO_BOT: 1, IMPOSTO_DO_CAIXA: 0,
 };
 export const AJUSTAVEIS = { CONFIG_TREINO, CONFIG_BASE, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO, TALENTO_DO_JOVEM_POR_DIVISAO,
-  REGUA_DE_FORA, PREMIOS, PREMIOS_DE_FORA, TETO_DE_FOLHA, DIVISOES, NIVEL, SIM };
+  REGUA_DE_FORA, PREMIOS, PREMIOS_DE_FORA, TETO_DE_FOLHA, DIVISOES, NIVEL, TALENTO_DO_REINICIO, BASE, SIM };
 
 // aplica { "OBJ.a.b": valor } e devolve a função que desfaz
 export function aplicar(ajustes = {}) {
@@ -61,6 +69,7 @@ const med = v => { const s = [...v].sort((a, b) => a - b); return s.length ? (s[
 const media = v => v.length ? v.reduce((s, x) => s + x, 0) / v.length : NaN;
 const serie = g => PAISES[g] ? "fora" : g === "A" ? "A" : "B";
 const CUSTO_ESTRUTURA = [250, 500, 1000, 2000, 4000], CUSTO_ESTADIO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000]; // custo_da_obra (55)
+const daBase = j => j.tal > TALENTO_COMUM ? j : { ...j, tal: Math.max(talentoMinimo(j), Math.min(TALENTO_COMUM, Math.max(1, j.tal + BASE.talento))) };
 export const salario = j => Math.max(50, Math.round(salarioDeMercado(j) * Math.pow(SIM.CURVA_DO_SALARIO / 1.12, melhorPosicao(j).nota - 41)));
 
 export function simular({ semente = 1, temporadas = 10, ajustes = {} } = {}) {
@@ -80,7 +89,8 @@ function rodar(semente, temporadas) {
     dono: dono ? "d" : null, extra: dono, base_nivel: 0, ct_nivel: 0, estadio: 1, gastoEstrut: 0, gastoEstadio: 0, caixa: SIM.CAIXA_INICIAL, prestigio: 1 };
     clubes.push(c); elencos[c.id] = [];
     const nivel = NIVEL[serie(grupo)], pais = PAISES[grupo] || "Brasil";
-    for (const j of gerarElenco(rng, { nivel, perfil: c.perfil, pais, nomes })) registrar(c, j);
+    for (const j of gerarElenco(rng, { nivel, perfil: c.perfil, pais, nomes }))
+      registrar(c, { ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[serie(grupo)]))) });
     return c; };
   for (let k = 0; k < 12; k++) novoClube("A", false);
   for (const g of GRUPOS_DA_B) { for (let k = 0; k < 6; k++) novoClube(g, true); novoClube(g, false); novoClube(g, false); }
@@ -118,7 +128,7 @@ function rodar(semente, temporadas) {
       }
       // peneira dos donos (juvenis do meio da temporada)
       if (rodada === CONFIG_BASE.rodadaDaPeneira) for (const c of clubes.filter(c => c.dono))
-        for (const j of jovensDaBase(rng, { nivel: c.base_nivel, momento: "peneira", perfil: c.perfil, nomes, usados, temporada: t, juvenis: true })) registrar(c, j, { desde: t, formador: c.id });
+        for (const j of jovensDaBase(rng, { nivel: c.base_nivel, momento: "peneira", perfil: c.perfil, nomes, usados, temporada: t, juvenis: true })) registrar(c, daBase(j), { desde: t, formador: c.id });
     }
     // liga de base: os juvenis dos donos ganham uma fração de sessão por jogo
     for (const c of clubes.filter(c => c.dono)) for (const j of elencos[c.id].filter(j => j.juvenil || j.idade <= 21))
@@ -150,8 +160,9 @@ function rodar(semente, temporadas) {
       const premio = l.premio, copa = SIM.COPA[fora ? "fora" : c.divisao];
       const folha = adultos(c).reduce((s, j) => s + j.salario, 0);
       const manut = MANUTENCAO.estruturas * c.gastoEstrut + MANUTENCAO.estadio * c.gastoEstadio + manutencaoExtraDoEstadio(c.estadio);
-      const lucro = d.tv + d.patrocinio + bilheteria + premio + copa - folha - manut - (c.dono ? SIM.CUSTO_TREINADORES : 0);
+      const lucro = SIM.RECEITA * (c.dono ? 1 : SIM.RECEITA_DO_BOT) * (d.tv + d.patrocinio) + bilheteria + premio + copa - folha - manut - (c.dono ? SIM.CUSTO_TREINADORES : 0);
       c.caixa += lucro - (lucro > 0 ? impostoDoLucro(lucro, tetoDe(c)) : 0);
+      c.caixa -= SIM.IMPOSTO_DO_CAIXA * Math.max(0, c.caixa - tetoDe(c));
       c.folha = folha;
     }
 
@@ -192,20 +203,20 @@ function rodar(semente, temporadas) {
     }
     for (const s of plano.safra) if (s.jogador_id != null) { talentos[s.jogador_id] = s.tal; for (const c of clubes) { const j = elencos[c.id].find(x => +x.id.slice(1) === s.jogador_id); if (j) j.tal = s.tal; } }
     for (const s of plano.safra) if (porId[s.clube_id].dono) safras[s.clube_id] = s.temporada;
-    for (const nv of plano.novos) registrar(porId[nv.clube_id], { ...nv, tal: nv.tal }, { desde: nv.idade <= 19 ? t + 1 : null, formador: nv.clube_id });
+    for (const nv of plano.novos) registrar(porId[nv.clube_id], porId[nv.clube_id].dono ? daBase(nv) : nv, { desde: nv.idade <= 19 ? t + 1 : null, formador: nv.clube_id });
     for (const m of plano.movimentos) { const c = porId[m.clube_id]; c.grupo = m.grupo; c.divisao = m.divisao; if (!m.caiu) subiuEm[c.id] = t + 1; }
-    for (const c of clubes) { for (const j of elencos[c.id]) if (!j.juvenil) j.salario = salario(j); if (c.dono) c.prestigio = Math.min(SIM.PRESTIGIO[1], c.prestigio + SIM.PRESTIGIO[0]); }
+    // o salário só sobe: a renovação é pelo maior entre o atual e o de mercado (99_renovacao_automatica.sql), e o bot reajusta quem ganha abaixo dele
+    for (const c of clubes) { for (const j of elencos[c.id]) if (!j.juvenil) j.salario = Math.max(j.salario || 0, salario(j)); if (c.dono) c.prestigio = Math.min(SIM.PRESTIGIO[1], c.prestigio + SIM.PRESTIGIO[0]); }
 
     // ---------- entressafra: obras, mercado dos donos e reposição dos bots ----------
     let pagoPeloAgente = 0;
-    const onzeDaSerie = Object.fromEntries(["A", "B", "fora"].map(s => [s, medidas[s].onze]));
     for (const c of rng.embaralhar(clubes.filter(c => c.dono))) {
       const teto = tetoDe(c), reserva = SIM.RESERVA * teto;
       // obras: CT, base e estádio, nessa ordem, enquanto sobra caixa acima da reserva
       for (const [k, ate] of [["ct_nivel", SIM.CT_DO_DONO], ["base_nivel", SIM.BASE_DO_DONO]])
         for (let n = 0; n < SIM.NIVEIS_POR_TEMPORADA && c[k] < ate && c.caixa - CUSTO_ESTRUTURA[c[k]] >= reserva; n++) { c.caixa -= CUSTO_ESTRUTURA[c[k]]; c.gastoEstrut += CUSTO_ESTRUTURA[c[k]]; c[k]++; }
       if (c.estadio < SIM.ESTADIO_DO_DONO && c.caixa - CUSTO_ESTADIO[c.estadio + 1] >= reserva) { c.caixa -= CUSTO_ESTADIO[c.estadio + 1]; c.gastoEstadio += CUSTO_ESTADIO[c.estadio + 1]; c.estadio++; }
-      // ponytail: dono de regra fixa (profissionaliza, dispensa e contrata pela nota); sem negociação entre donos nem compra pela multa
+      // ponytail: dono de regra fixa (profissionaliza, dispensa e contrata pela nota); compra de bot pela multa e livres, sem negociação entre donos
       const el = elencos[c.id], folha = () => el.filter(j => !j.juvenil).reduce((s, j) => s + j.salario, 0);
       const piores = () => el.filter(j => !j.juvenil).sort((a, b) => nota(a) - nota(b));
       let vendas = 0;
@@ -219,17 +230,22 @@ function rodar(semente, temporadas) {
         }
       }
       while (piores().length > SIM.ELENCO || (folha() > teto && piores().length > 16)) dispensar(piores()[0]);
-      const ofertas = [...livres.filter(j => j.idade <= 31).map(j => ({ j, livre: true })),
-        ...Array.from({ length: SIM.OFERTAS }, () => ({ j: { ...gerarJogador(rng, { id: null, pos: rng.pick(POS_DOS_REFORCOS), alvo: onzeDaSerie[serie(c.grupo)] - 1 + rng.normal(0, 2.5), idade: rng.int(22, 30), nomes, usados }), desde: null }, livre: false }))]
-        .map(o => ({ ...o, s: salario(o.j), n: nota(o.j) })).sort((a, b) => b.n - a.n);
+      // reforços: livres (sem custo) e jogadores de bot pela multa (até SIM.COMPRAS; o bot fica com pelo menos 19), o dinheiro vai para o bot
+      const ofertas = [...livres.filter(j => j.idade <= 31).map(j => ({ j, de: null })),
+        ...clubes.filter(b => !b.dono).flatMap(b => adultos(b).filter(j => j.idade >= 22 && j.idade <= 31).map(j => ({ j, de: b })))]
+        .map(o => ({ ...o, s: Math.max(o.j.salario || 0, salario(o.j)), n: nota(o.j) })).sort((a, b) => b.n - a.n);
+      let compras = 0;
       for (const o of ofertas) {
-        const ad = piores(), troca = ad.length >= SIM.ELENCO ? ad[0] : null, preco = o.livre ? 0 : SIM.PRECO_EM_SALARIOS * o.s;
-        if (troca && o.n < nota(troca) + 1) continue;
+        if (o.de && (compras >= SIM.COMPRAS || adultos(o.de).length <= 19 || !elencos[o.de.id].includes(o.j))) continue;
+        if (!o.de && !livres.includes(o.j)) continue;
+        const ad = piores(), troca = ad.length >= SIM.ELENCO ? ad[0] : null, preco = o.de ? MULTIPLO_DA_CLAUSULA * o.s : 0;
+        if (troca && o.n < nota(troca) + (o.de ? SIM.GANHO_PELA_MULTA : 1)) continue;
         if (o.s > MAXIMO_INDIVIDUAL * teto || folha() + o.s - (troca ? troca.salario : 0) > teto || c.caixa - preco < reserva) continue;
         if (troca) dispensar(troca);
-        c.caixa -= preco;
-        if (o.livre) { livres.splice(livres.indexOf(o.j), 1); o.j.salario = o.s; el.push(o.j); }
-        else registrar(c, o.j);
+        c.caixa -= preco; o.j.salario = o.s;
+        if (o.de) { const eb = elencos[o.de.id]; eb.splice(eb.indexOf(o.j), 1); o.de.caixa += preco; compras++; }
+        else livres.splice(livres.indexOf(o.j), 1);
+        el.push(o.j);
       }
     }
     // o agente paga com o caixa dos bots
@@ -238,7 +254,7 @@ function rodar(semente, temporadas) {
     // ponytail: o bot só repõe o elenco até o mínimo (sem negociosEntreBots); primeiro o melhor livre, depois um jovem do piso da divisão
     for (const c of bots) while (adultos(c).length < ELENCO_MINIMO_DO_BOT) {
       const livre = livres.filter(j => j.idade <= 31).sort((a, b) => nota(b) - nota(a))[0];
-      if (livre) { livres.splice(livres.indexOf(livre), 1); livre.salario = salario(livre); elencos[c.id].push(livre); continue; }
+      if (livre) { livres.splice(livres.indexOf(livre), 1); livre.salario = Math.max(livre.salario || 0, salario(livre)); elencos[c.id].push(livre); continue; }
       const piso = PAISES[c.grupo] ? REGUA_DE_FORA.nota : NOTA_DO_JOVEM_POR_DIVISAO[c.divisao];
       registrar(c, gerarJogador(rng, { id: null, pos: rng.pick(POS_DOS_REFORCOS), alvo: piso, idade: rng.int(19, 22), pais: PAISES[c.grupo] || "Brasil", nomes, usados }));
     }
@@ -262,9 +278,12 @@ export function resumo(rodadas) { // média das sementes, temporada a temporada
   });
 }
 // idade mediana em que os jovens passam de cada nota, e a curva de nota por idade, por faixa de talento (das temporadas de..ate)
+export const chegada = (curva, n) => { const i = Object.keys(curva).map(Number).sort((a, b) => a - b).find(i => curva[i] >= n); if (i == null) return NaN;
+  const ant = curva[i - 1]; return ant == null ? i : i - 1 + (n - ant) / (curva[i] - ant); }; // idade (interpolada) em que a mediana passa de n
 export function curvas(rodadas, de, ate) {
   const pontos = rodadas.flatMap(r => r.filter(x => x.t >= de && x.t <= ate).flatMap(x => x.medidas.jovens));
-  const faixas = { "comum (≤ 70)": j => j.tal <= 70, "bom (71–89)": j => j.tal > 70 && j.tal < 90, "alto (≥ 90)": j => j.tal >= 90 };
+  // "comum" de Série A: teto 35 a 38 (talento 60 a 75); abaixo de 60 o teto nem chega a reserva da A (35)
+  const faixas = { "comum (60–75)": j => j.tal >= 60 && j.tal <= 75, "bom (76–89)": j => j.tal > 75 && j.tal < 90, "alto (≥ 90)": j => j.tal >= 90 };
   return Object.fromEntries(Object.entries(faixas).map(([nome, fx]) => {
     const idades = {};
     for (const j of pontos.filter(fx)) (idades[j.idade] ||= []).push(j.nota);

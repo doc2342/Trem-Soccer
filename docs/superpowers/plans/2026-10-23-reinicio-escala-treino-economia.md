@@ -169,9 +169,9 @@ assert.equal(r[1].medidas.A.donos, 12); // a A da T1 é só de donos
 **Arquivos:**
 - Criar: `docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md`
 
-- [ ] **Passo 1:** com `sim_liga`, procure valores que batam os alvos do design na T5–T10, com média de 5 sementes. Os parâmetros: `CONFIG_TREINO.pontosPorSessao`, `caminho.divisor`, `ritmoDaIdade` (só se a idade de chegada errar), `CONFIG_BASE.nota`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`, `CONFIG_SAFRA`, `SAFRA_DE_FORA`, `REGUA_DE_FORA.nota/talento`, `CURVA_DO_SALARIO` (13–15%), `TETO_DE_FOLHA` 1 e 2, `REGUA_DE_FORA.teto`, receitas das `divisoes`, `PREMIOS`, `ctSemDono`, `NIVEL.A/B/fora`.
-- [ ] **Passo 2:** escreva o relatório. Ele traz uma tabela de alvo × resultado para cada linha da tabela de Objetivos do design, os valores novos ao lado dos atuais e a curva de nota por idade (talento comum e alto). Traz também o caixa: se ele acumula, descreva o problema e 2 correções possíveis, **sem aplicar nenhuma** (o design manda que esse ponto volte ao dono do projeto).
-- [ ] **Passo 3:** commit do relatório e **pare**. Mostre ao dono do projeto e espere a aprovação dos números e da correção do caixa. A Tarefa 8 só começa depois.
+- [x] **Passo 1:** com `sim_liga`, procure valores que batam os alvos do design na T5–T10, com média de 5 sementes. Os parâmetros: `CONFIG_TREINO.pontosPorSessao`, `caminho.divisor`, `ritmoDaIdade` (só se a idade de chegada errar), `CONFIG_BASE.nota`, `NOTA_DO_JOVEM_POR_DIVISAO`, `TALENTO_DO_JOVEM_POR_DIVISAO`, `CONFIG_SAFRA`, `SAFRA_DE_FORA`, `REGUA_DE_FORA.nota/talento`, `CURVA_DO_SALARIO` (13–15%), `TETO_DE_FOLHA` 1 e 2, `REGUA_DE_FORA.teto`, receitas das `divisoes`, `PREMIOS`, `ctSemDono`, `NIVEL.A/B/fora`.
+- [x] **Passo 2:** escreva o relatório. Ele traz uma tabela de alvo × resultado para cada linha da tabela de Objetivos do design, os valores novos ao lado dos atuais e a curva de nota por idade (talento comum e alto). Traz também o caixa: se ele acumula, descreva o problema e 2 correções possíveis, **sem aplicar nenhuma** (o design manda que esse ponto volte ao dono do projeto).
+- [x] **Passo 3:** commit do relatório e **pare**. Mostre ao dono do projeto e espere a aprovação dos números e da correção do caixa. A Tarefa 8 só começa depois.
 
 ---
 
@@ -348,6 +348,6 @@ Uma sessão por linha. Antes de cada uma: `/clear`, `/model` indicado e colar o 
 | 7 | 9 | Sonnet | Execute a Tarefa 9 do plano do reinício. |
 | 8 | 10 | Sonnet | Execute a Tarefa 10 do plano do reinício (nomes de camisa, migração 151) e pare na amostra de nomes para eu aprovar. (Pode ser feita enquanto o relatório da sessão 3 espera a aprovação.) |
 
-Feitas (25/10): sessões 1, 2, 4 e 5. Ordem do que falta: **3** (Opus) → **8** (pode correr junto, enquanto o relatório espera) → **6** (só depois do relatório aprovado) → **7**.
+Feitas (25/10): sessões 1, 2, 3 (relatório em `docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md`, esperando a aprovação), 4 e 5. Ordem do que falta: **3** (Opus) → **8** (pode correr junto, enquanto o relatório espera) → **6** (só depois do relatório aprovado) → **7**.
 
 Ficam para depois da virada: a troca de modelo e cidade do estádio (anotações) e o ajuste das notas dos defensores.
