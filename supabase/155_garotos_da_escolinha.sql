@@ -15,7 +15,7 @@
 alter table jogadores add column if not exists escolinha boolean not null default false;
 
 create or replace function public.reiniciar_liga(p_liga bigint, p_grupos jsonb, p_jogadores jsonb) returns text
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public set statement_timeout = '180s' as $$
 declare
   t text; v_id bigint; r record; n int := 0;
 begin

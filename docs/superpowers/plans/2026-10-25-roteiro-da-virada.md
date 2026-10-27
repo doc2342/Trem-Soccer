@@ -17,6 +17,7 @@ Plano: `docs/superpowers/plans/2026-10-23-reinicio-escala-treino-economia.md`. S
   - `154_troca_do_estadio_na_ampliacao.sql` (troca de modelo e cidade do estádio só na ampliação; a tela nova está na branch `troca-do-estadio`, ver o passo 5).
   - `155_garotos_da_escolinha.sql` (11 juvenis da escolinha e 2 talentosos por dono no reinício; **antes do passo 6**, senão o botão do reinício recusa).
   - `156_mudar_horario_das_partidas.sql` (botão "Mudar o horário das que faltam" no admin, para trocar a hora dos jogos no meio da temporada).
+  - `157_reinicio_sem_limite_de_tempo.sql` (dá 180 s ao reinício; sem ele o botão do passo 6 para em 8 s com "statement timeout").
 - [ ] **4. Republicar as funções `rodada` e `mercado`** no painel do Supabase (colar `supabase/functions/rodada/index.ts` e `supabase/functions/mercado/index.ts`, como diz o cabeçalho de cada arquivo).
 - [ ] **5. Publicar o site:** antes, `git merge troca-do-estadio` na `main` (a tela do estádio que combina com o 154); depois `python ferramentas/publicar.py`, commit e push para `main`. Leva o `dados/nomes.json` novo, que a função do servidor busca no site: ele tem que estar no ar antes do passo 6. Espere o GitHub Pages atualizar (o `versao.txt` novo aparece no site).
 - [ ] **6. Admin: "Reiniciar a liga (temporada 0)"** e depois **gerar o calendário**.
