@@ -10,8 +10,8 @@ Trem Soccer: an online football-manager league for a group of friends. Static si
 
 - Run locally: `python -m http.server 8797`, then open e.g. `http://localhost:8797/partida.html`. Pages load modules via `import`, so `file://` won't work.
 - Tests: no runner, no package.json. Each test is a standalone script using `node:assert`: `node ferramentas/teste_<nome>.mjs`. A failed assert exits non-zero.
-- SQL tests (`teste_*_sql.mjs` and others that run `supabase/*.sql`) use an in-memory Postgres; they skip themselves if it's missing: `npm i --no-save @electric-sql/pglite@0.2.17`. They don't load the real schema: each stubs the minimal tables/functions it needs (`eh_admin()`, `anon`/`authenticated` roles…), then executes the migration twice to prove it's idempotent. Run all: `node ferramentas/testes.mjs` (lists failures, exits non-zero).
-- `node ferramentas/saude.mjs .` reads the **live** league via the public REST key (season health report) — read-only, but real data.
+- SQL tests (`teste_*_sql.mjs` and others that run `supabase/*.sql`) use an in-memory Postgres; they skip themselves if it's missing: `npm i --no-save @electric-sql/pglite@0.2.17`. They don't load the real schema: each stubs the minimal tables/functions it needs (`eh_admin()`, `anon`/`authenticated` roles…), then executes the migration twice to prove it's idempotent. Run all: `node ferramentas/testes.mjs` (runs every `ferramentas/teste_*.mjs` on disk, tracked or not; lists failures, exits non-zero).
+- `node ferramentas/saude.mjs .` reads the **live** league via the public REST key (season health report) — read-only, but real data. The `supabase-leitura` MCP server (when connected) is also read-only on the live project: schema, SQL selects, logs, deployed Edge Functions — use it to check what's actually applied instead of guessing which migrations ran.
 - Engine simulations/tuning: `node ferramentas/sim_<nome>.mjs [jogos] [CONFIG.chave=valor ...]`; `calibragem.html` runs thousands of matches in the browser against target stats.
 - Before a commit that goes live: `python ferramentas/publicar.py` (bumps `versao.txt` and rewrites the `ARQUIVOS` list in `atualiza.js`).
 - After changing any `src/` module embedded in a server function: `python ferramentas/empacotar_funcao.py`.
@@ -30,4 +30,4 @@ Trem Soccer: an online football-manager league for a group of friends. Static si
 
 **Deploy.** Site: push to `main` on GitHub (`doc2342/Trem-Soccer`). Edge Functions: pasted into the Supabase dashboard (instructions in each generated file's header). A typical feature touches SQL file + `src/` + page, so the release is: run SQL → re-bundle and redeploy function → `publicar.py` → commit/push.
 
-`README.md` only describes Phase 1 and is out of date; trust the code and migrations over it. `ferramentas/` also holds one-off data scripts (names, flags, sponsors) and research tools; `prototipos/` is scratch UI not wired into the site.
+`README.md` only describes Phase 1 and is out of date; trust the code and migrations over it. `ferramentas/` also holds one-off data scripts (names, flags, sponsors) and research tools; `prototipos/` is scratch UI not wired into the site. Design specs and implementation plans for larger changes (e.g. the league restart) live in `docs/superpowers/specs/` and `docs/superpowers/plans/` — read the relevant one before working on that feature.

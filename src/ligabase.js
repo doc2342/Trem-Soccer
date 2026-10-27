@@ -15,13 +15,17 @@ export const CONFIG_LIGA_DE_BASE = {
   nivelDeFora: 4,       // na Libertadores Juvenil, o clube de fora sem dirigente joga com garotos de uma base de nível 4 (101_libertadores_juvenil.sql)
   bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou: equivale ao bônus de 10% por jogar em duas rodadas da liga
   minutos: 45,
-  idadeMaxima: 21,      // profissional formado no clube joga a base até esta idade (só em clube com dirigente)
+  idadeMaxima: 21,      // profissional joga a base até esta idade (só em clube com dirigente)
+  contratados: 3,       // contratados (nem formados no clube nem do elenco inicial) que entram por partida da base
   premio: 200,          // mil, ao campeão de cada grupo, pagos pelo fundo da liga
   trocas: 5,            // juvenis que entram no intervalo (as cinco substituições do motor)
   estudo: 10,           // pontos de nota a mais, na escolha da vaga, para a posição que o jogador está aprendendo (jogar nela acelera o estudo)
   rodizio: 10,          // pontos de nota a menos, na escolha de quem começa, por partida inteira (90 minutos) já jogada na base
 };
 const FORMACOES_DA_BASE = FORMACOES_BOT; // as mesmas que o bot usa
+// Profissional contratado, para a base: chegou por contratação (chegou_temporada preenchido) e não é formado no clube.
+// O elenco inicial nunca passou por contratação (chegou_temporada vazio) e joga a base como o formado.
+export const contratadoNaBase = (formador, chegou, clubeId) => chegou != null && String(formador) !== String(clubeId);
 
 export function garotoDaEscolinha(rng, pos, nivel, id) {
   const at = ATRIBUTOS.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));
@@ -29,7 +33,7 @@ export function garotoDaEscolinha(rng, pos, nivel, id) {
 }
 
 // Escolhe o esquema e distribui as vagas. A ordem de preferência: juvenil numa posição que conhece (natural ou competente); juvenil improvisado
-// numa vaga de linha (ele não tem outro jogo para jogar); profissional formado no clube, de até 21 anos, numa posição que conhece;
+// numa vaga de linha (ele não tem outro jogo para jogar); profissional de até 21 anos (contratado: true conta no limite de contratados), numa posição que conhece;
 // e só então garoto da escolinha. Entre os esquemas, vale o que encaixa mais juvenis, depois mais profissionais, depois a maior soma de notas.
 // Quem está aprendendo uma posição joga nela sempre que o esquema tiver a vaga: conta como posição conhecida e tem a preferência.
 // minutos: { id: minutos já jogados na base nesta temporada }, para o rodízio (o juvenil que jogou menos tem a preferência para começar).
@@ -41,16 +45,17 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
   const C = CONFIG_LIGA_DE_BASE, jogou = j => minutos[j.id] || 0;
   const estuda = (j, pos) => !!j.aprende && j.aprende.pos === pos && (j.fam || {})[pos] !== "N";
   const valor = (j, pos) => notaNaPosicao(j, pos) + (estuda(j, pos) ? C.estudo : 0) - (j.juvenil === false ? 0 : C.rodizio * jogou(j) / 90);
-  const encaixar = (vagas, lista) => { // cada jogador na vaga conhecida de maior valor; devolve [quantos entraram, soma dos valores, quem sobrou]
+  const encaixar = (vagas, lista, contratados = 0) => { // cada jogador na vaga conhecida de maior valor; devolve [quantos entraram, soma dos valores, quem sobrou]
     const livres = new Set(lista); let soma = 0, n = 0;
     for (;;) {
       let m = null;
       for (const v of vagas) if (!v.j) for (const j of livres) {
+        if (j.contratado && contratados >= C.contratados) continue;
         const f = (j.fam || {})[v.pos]; if (f !== "N" && f !== "C" && !estuda(j, v.pos)) continue;
         const nota = valor(j, v.pos); if (!m || nota > m.nota) m = { v, j, nota };
       }
       if (!m) break;
-      m.v.j = m.j; livres.delete(m.j); soma += m.nota; n++;
+      m.v.j = m.j; livres.delete(m.j); soma += m.nota; n++; if (m.j.contratado) contratados++;
     }
     return [n, soma, [...livres]];
   };
@@ -60,9 +65,11 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
   let melhor = null;
   for (const [nome, posicoes] of esquemas) {
     const vagas = posicoes.map(pos => ({ pos, j: null })), fixados = new Set();
+    let contratados = 0;
     for (const [i, id] of Object.entries(fixos || {})) {
       const v = vagas[i], j = [...juvenis, ...profissionais].find(x => mesmoId(x, id));
-      if (v && !v.j && j && !fixados.has(j) && (v.pos === "GK") === (j.pos === "GK")) { v.j = j; v.fixo = true; fixados.add(j); }
+      if (j && j.contratado && contratados >= C.contratados) continue;
+      if (v && !v.j && j && !fixados.has(j) && (v.pos === "GK") === (j.pos === "GK")) { v.j = j; v.fixo = true; fixados.add(j); if (j.contratado) contratados++; }
     }
     const [nJ, somaJ, fora] = encaixar(vagas, juvenis.filter(j => !fixados.has(j)));
     for (const j of fora.slice().sort((a, b) => valor(b, b.pos) - valor(a, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
@@ -70,7 +77,7 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
       const v = vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
       if (v) { v.j = j; fora.splice(fora.indexOf(j), 1); }
     }
-    const [nP, somaP] = encaixar(vagas, profissionais.filter(j => !fixados.has(j))), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
+    const [nP, somaP] = encaixar(vagas, profissionais.filter(j => !fixados.has(j)), contratados), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
     if (!melhor || pontos > melhor.pontos) melhor = { nome, vagas, fora, pontos };
   }
   // intervalo: os que ficaram de fora entram, primeiro quem jogou menos; cada um na vaga de um garoto, depois na de um profissional e por fim

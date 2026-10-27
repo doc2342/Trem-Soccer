@@ -55,7 +55,7 @@ RODAPE = r'''// <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } = __rodada;
 const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
 const { saudeDoClube } = __saude;
-const { timeDaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
+const { timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
 // Mercado entre bots (66_multa_e_bots.sql): uma vez por janela, monta os negócios entre clubes sem dono e manda gravar.
@@ -196,11 +196,11 @@ async function jogarBase(sb) {
   if (r.error || !r.data || !r.data.length) return 0;
   const jogos = r.data, ids = [...new Set(jogos.flatMap(p => [p.casa, p.fora]))];
   const clubes = Object.fromEntries(((await sb.from("clubes").select("id, nome, perfil, dono, base_nivel, ct_nivel, pais").in("id", ids)).data || []).map(c => [c.id, c]));
-  // jogam a base: os juvenis e, nos clubes com dirigente, o profissional formado no clube de até 21 anos que não esteja lesionado
+  // jogam a base: os juvenis e, nos clubes com dirigente, o profissional de até 21 anos que não esteja lesionado (o contratado, até CONFIG_LIGA_DE_BASE.contratados por partida)
   const juvenis = {}, profs = {};
   for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).lte("idade", CONFIG_LIGA_DE_BASE.idadeMaxima).order("id")).data || [])
-    if (l.juvenil || ((clubes[l.clube_id] || {}).dono && l.formador === l.clube_id && !(l.fora_jogos > 0 && l.fora_motivo === "lesão")))
-    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
+    if (l.juvenil || ((clubes[l.clube_id] || {}).dono && !(l.fora_jogos > 0 && l.fora_motivo === "lesão")))
+    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, contratado: !l.juvenil && contratadoNaBase(l.formador, l.chegou_temporada, l.clube_id), nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
   const todos = [...Object.values(juvenis).flat(), ...Object.values(profs).flat()].map(j => +String(j.id).slice(1)), talentos = {};
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
