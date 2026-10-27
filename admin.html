@@ -136,7 +136,8 @@ async function aprovarPedido(id, clubeId) {
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
   const div = c => divisaoDoGrupo(c.grupo), topo = Math.max(...bots.map(div)), c = clubeId ? bots.find(x => x.id === clubeId) : rng.pick(bots.filter(x => div(x) === topo));
   if (!c) throw new Error(clubeId ? "Esse clube não está mais livre." : "Não há vagas na liga no momento.");
-  return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada));
+  // 11 da escolinha e 2 juvenis comuns, como no reinício (160)
+  return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada).concat(juvenisDoReinicio(rng, { nomes, usados: new Set() })));
 }
 
 // Clube extra: elenco novo na média do país (nota média dos 16 melhores de cada clube sem dono de lá), com salários e contratos.
