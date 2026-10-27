@@ -2421,7 +2421,7 @@ async function telaClube(liga, clube) {
             ${campo("Cores", `<div class="t-ev-cores">${sel("evNCores", { 1: "1", 2: "2", 3: "3" }, String(v.cores.length))}${botoes("evNCores", { 1: "1", 2: "2", 3: "3" }, String(v.cores.length))}${[0, 1, 2].map(i => cor("evCor" + i, v.cores[i] || ["#0b3d91", "#ffffff", "#c8102e"][i], "Cor " + (i + 1))).join("")}<label title="Cor das escadas">escadas ${cor("evEscadas", v.corEscadas, "Cor das escadas")}</label></div>`)}
             <div id="evCobWrap">${campo("Cobertura", sel("evCob", COBERTURAS, v.cobertura || "") + botoes("evCob", COBERTURAS, v.cobertura || ""))}</div>
             <label id="evMurWrap" class="t-ev-muralha" title="O fundo oeste vira uma arquibancada única, com o mosaico nela"><input type="checkbox" id="evMuralha" ${v.muralha ? "checked" : ""}> Muralha no fundo oeste</label>
-            <div class="t-ev-salvar"><button type="button" class="t-botao t-botao-principal" id="evSalvar">Salvar o visual</button><small id="evAviso">Só aparência: nome, mosaico, padrão, cores, cobertura e muralha são de graça.</small></div></div></section></div>`;
+            <div class="t-ev-salvar"><button type="button" class="t-botao t-botao-principal" id="evSalvar">Salvar o visual</button><small id="evAviso">Só aparência: nome, mosaico, padrão, cores, cobertura e muralha são de graça. Modelo e cidade mudam com a ampliação.</small></div></div></section></div>`;
     }
     return `<div class="g2"><div>
       <div class="card"><h2>${esc(v.nomeEstadio || "Estádio sem nome")} <span class="tag">${MODELOS[v.modelo] || ""} · ${CIDADES[cidadeDoEstadio(v)]}</span></h2>
@@ -2488,8 +2488,12 @@ async function telaClube(liga, clube) {
     if (cenas.estadio3d) { cenas.estadio3d.destruir(); delete cenas.estadio3d; }
     redesenhar();
     $("evSalvar").onclick = async () => {
-      const c = atual(); $("evSalvar").disabled = true;
-      try { await B.salvarEstadioVisual({ nomeEstadio: c.nomeEstadio, mosaico: c.mosaico, padrao: c.padrao, cores: c.cores, corEscadas: c.corEscadas, cobertura: c.cobertura, muralha: c.muralha }); await carregar({ user: usuario }); }
+      const c = atual(), troca = trocaEscolhida(); $("evSalvar").disabled = true;
+      try { await B.salvarEstadioVisual({ nomeEstadio: c.nomeEstadio, mosaico: c.mosaico, padrao: c.padrao, cores: c.cores, corEscadas: c.corEscadas, cobertura: c.cobertura, muralha: c.muralha });
+        if (!Object.keys(troca).length) return await carregar({ user: usuario });
+        // modelo e cidade não se salvam aqui (154): sem recarregar, a escolha fica no editor para a ampliação ou o Trocar
+        $("evAviso").innerHTML = `<span class="ok">Visual salvo.</span> <span class="bad">O modelo e a cidade não mudaram: ${eGratis() ? "use o Trocar agora (grátis)" : nv ? `eles mudam com a ampliação para o nível ${nv}${obra ? ", depois que a obra atual terminar" : ": clique em Ampliar"}` : "use o Trocar"}.</span>`;
+        $("evSalvar").disabled = false; }
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evSalvar").disabled = false; }
     };
     $("evReforma").onclick = async () => {
