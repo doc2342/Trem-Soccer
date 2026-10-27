@@ -57,7 +57,7 @@ export function movimentos({ rng, clubes, grupos, partidas, resultados }) {
     if (divDoGrupo(g) === 1) continue;
     const v = vencedorDoGrupo(partidas, resultados, g);
     if (!v) throw new Error(`Falta a final do playoff da ${nomeCurto(g)}. Os playoffs saem sozinhos depois da última rodada do grupo (ou pelo botão "Gerar a próxima fase").`);
-    destino[v] = "subiu"; vagas.push(g);
+    destino[v] = "campeão"; vagas.push(g); // o vencedor do playoff é o campeão da B e sobe (a lista é que move)
     lista.push({ clube_id: v, grupo: "A", divisao: 1, caiu: false });
   }
   const daA = grupos.A || [];
@@ -116,6 +116,7 @@ export function movimentosDoReinicio({ clubes, grupos, partidas, resultados, ati
   Object.values(grupos).flat().forEach(l => { destino[l.clube_id] = "ficou"; });
   if (grupos.A && grupos.A.length) destino[daA[0].clube_id] = "campeão";
   lista.forEach(x => { if (!(x.caiu && destino[x.clube_id] === "campeão")) destino[x.clube_id] = x.caiu ? "caiu" : "subiu"; });
+  for (const g of gruposB) { const v = vencedorDoGrupo(partidas, resultados, g); if (v) destino[v] = "campeão"; } // campeão da B: o vencedor da final, suba ou não
   return { destino, lista };
 }
 const nomeCurto = g => ({ B: "Série B1", C: "Série B2", D: "Série B3", E: "Série B4" })[g] || "chave " + g;

@@ -60,7 +60,12 @@ assert.deepEqual(grupoFinal(m, "A").map(x => x.clube_id).sort((a, b) => a - b), 
 assert.equal(m.lista.filter(x => x.caiu).length, 12);
 const completo = g => gr[g].filter(l => !m.lista.some(x => x.clube_id === l.clube_id && !x.caiu)).length + grupoFinal(m, g).filter(x => x.caiu).length;
 for (const g of ["B", "C", "D"]) assert.equal(completo(g), 8);
-assert.equal(m.destino[1], "campeão"); assert.equal(m.destino[101], "subiu"); assert.equal(m.destino[2], "caiu"); assert.equal(m.destino[105], "ficou");
+assert.equal(m.destino[1], "campeão"); assert.equal(m.destino[101], "subiu");
+// campeão da B na T0: o vencedor da final do playoff (o bot 107 vence e fica na B, mas é o campeão)
+pa.push({ id: 90, grupo: "B", fase: "final", rodada: 18, casa: 107, fora: 101 }, { id: 91, grupo: "B", fase: "final", rodada: 19, casa: 101, fora: 107 });
+re.push({ partida_id: 90, gols_casa: 2, gols_fora: 0 }, { partida_id: 91, gols_casa: 1, gols_fora: 0 });
+const mf = movimentosDoReinicio({ clubes: cl, grupos: gr, partidas: pa, resultados: re, ativo: c => !!c.dono && c.id !== 304 });
+assert.equal(mf.destino[107], "campeão"); assert.equal(mf.destino[101], "subiu"); assert.equal(mf.destino[201], "subiu"); assert.equal(m.destino[2], "caiu"); assert.equal(m.destino[105], "ficou");
 assert.deepEqual(m.lista.filter(x => x.caiu).map(x => x.grupo).slice(0, 4), ["B", "C", "D", "D"]); // serpentina
 
 // só 10 donos ativos: sobem 10, os 2 bots melhor colocados da A ficam e caem 10

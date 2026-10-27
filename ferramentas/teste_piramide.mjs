@@ -19,6 +19,6 @@ assert.deepEqual(n.lista.filter(m => m.grupo === "A").map(m => m.clube_id), [103
 const caem = n.lista.filter(m => m.caiu);
 assert.deepEqual(caem.map(m => m.clube_id).sort((a, b) => a - b), [10, 11, 12]);
 assert.deepEqual(caem.map(m => m.grupo).sort(), ["B", "C", "D"]); // um para cada grupo que cedeu
-assert.equal(n.destino[103], "subiu"); assert.equal(n.destino[100], "ficou"); assert.equal(n.destino[1], "campeão");
+assert.equal(n.destino[103], "campeão"); // o vencedor do playoff é o campeão da B assert.equal(n.destino[100], "ficou"); assert.equal(n.destino[1], "campeão");
 assert.throws(() => movimentos({ rng: criarRng(7), clubes: c2, grupos: g2, partidas: partidas.slice(2), resultados }), /Série B1/);
 console.log("pirâmide ok");

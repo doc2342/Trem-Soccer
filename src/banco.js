@@ -405,15 +405,15 @@ export const campeoesContinentais = (ligaId, temporada) => sb.from("historico").
 export const finalistasDaCopa = ligaId => sb.from("historico").select("temporada, clube_id, copa").eq("liga_id", ligaId).in("copa", ["campeão", "vice"]).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // troféus: campeões de cada grupo (1º lugar) e finalistas da copa, de todas as temporadas guardadas na virada
 export async function trofeusDaLiga(ligaId) {
-  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, destino, copa, supercopa, lib, sul, recopa").eq("liga_id", ligaId).or("posicao.eq.1,destino.eq.subiu,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão,sul.eq.campeão,recopa.is.true").order("temporada");
+  let r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, destino, copa, supercopa, lib, sul, recopa").eq("liga_id", ligaId).or("posicao.eq.1,destino.eq.campeão,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão,sul.eq.campeão,recopa.is.true").order("temporada");
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa, lib").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true,lib.eq.campeão").order("temporada");
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa, supercopa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice),supercopa.is.true").order("temporada"); // antes do SQL 81
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao, copa").eq("liga_id", ligaId).or("posicao.eq.1,copa.in.(campeão,vice)").order("temporada"); // antes do SQL 76
   if (r.error) r = await sb.from("historico").select("temporada, clube_id, grupo, divisao, posicao").eq("liga_id", ligaId).eq("posicao", 1).order("temporada"); // antes do SQL 50
   return r.error ? [] : filtrarTrofeus(r.data);
 }
-// título de série: o 1º do grupo; na Série B, desde a T14, o vencedor do playoff (o que subiu)
-export const campeaoDaSerie = x => x.divisao === 2 && x.temporada >= 14 && !PAISES[x.grupo] ? x.destino === "subiu" : x.posicao === 1;
+// título de série: o 1º do grupo; na Série B, o vencedor da final do playoff (destino "campeão", gravado pela virada)
+export const campeaoDaSerie = x => x.divisao === 2 && !PAISES[x.grupo] ? x.destino === "campeão" : x.posicao === 1;
 // temporada de um bot que deu lugar a um dirigente (123): fica com o nome antigo, num id "arq:<nome>" que não é o do clube de hoje
 export const doArquivo = x => x.nome ? { ...x, clube_id: "arq:" + x.nome } : x;
 export const filtrarTrofeus = l => l.filter(x => campeaoDaSerie(x) || x.copa === "campeão" || x.copa === "vice" || x.supercopa || x.lib || x.sul || x.recopa).map(doArquivo);
