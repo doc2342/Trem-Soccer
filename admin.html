@@ -124,7 +124,8 @@ const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, pe
 });
 
 // Pedido do Brasil (123_dirigente_assume_a_vaga.sql): o dirigente assume a vaga do bot com elenco novo no nível da divisão
-// (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais alta com bot.
+// (onze de ~38 / 35 / 32 na A / B / C; o gerador sai uns 0,8 acima). Sem escolha, a vaga é sorteada na divisão mais baixa com bot
+// (depois do reinício os dirigentes começam todos na B; a A só se a B estiver cheia).
 const NIVEL_DO_NOVATO = { 1: 38, 2: 35 };
 // Nível dos elencos do reinício (temporada 0) por série e o deslocamento do talento deles (com talentoMinimo por baixo); os elencos dos
 // donos têm valores próprios. Aprovados na calibragem (docs/superpowers/specs/2026-10-24-calibragem-do-reinicio.md).
@@ -133,7 +134,7 @@ const TALENTO_DO_REINICIO = { A: -12, B: -12, fora: 0, donos: 0 };
 async function aprovarPedido(id, clubeId) {
   const liga = await ligaAtual(), rng = criarRng(Date.now() % 2147483647);
   const bots = (await clubesDaLiga(liga.id)).filter(c => !c.dono && paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
-  const div = c => divisaoDoGrupo(c.grupo), topo = Math.min(...bots.map(div)), c = clubeId ? bots.find(x => x.id === clubeId) : rng.pick(bots.filter(x => div(x) === topo));
+  const div = c => divisaoDoGrupo(c.grupo), topo = Math.max(...bots.map(div)), c = clubeId ? bots.find(x => x.id === clubeId) : rng.pick(bots.filter(x => div(x) === topo));
   if (!c) throw new Error(clubeId ? "Esse clube não está mais livre." : "Não há vagas na liga no momento.");
   return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada));
 }
