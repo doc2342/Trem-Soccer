@@ -49,3 +49,18 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
   }
   return lista;
 }
+
+// Reinício (155_garotos_da_escolinha.sql): cada clube com dirigente começa com um onze de 16 anos da escolinha, de teto ~25 (talento 10),
+// que não assina contrato e sai da liga aos 21, e com 2 juvenis comuns de talento de Série A (60 a 75: teto 35 a 38), para o time da base
+// não ser só de garotos anônimos enquanto a base de nível 0 revela um por temporada. Chegam com a nota da base de nível 0.
+export const JUVENIS_DO_REINICIO = { escolinha: ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMR", "AML", "FC"], talentoDaEscolinha: 10, talentosos: 2, talento: [60, 75] };
+export function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos }) {
+  const R = JUVENIS_DO_REINICIO, C = CONFIG_BASE;
+  const jovem = (pos, tal, daEscolinha) => {
+    const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados });
+    return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: 16, pos, fam: j.fam, at: j.at, tal: Math.max(talentoMinimo(j), tal),
+      salario: null, salario_mercado: salarioDeMercado(j), contrato_ate: null, protegido_ate: C.idadeDeJuvenil - 16, juvenil: true, escolinha: daEscolinha };
+  };
+  return [...(escolinha ? R.escolinha : []).map(pos => jovem(pos, R.talentoDaEscolinha, true)),
+    ...Array.from({ length: talentosos }, () => jovem(rng.pick(POSICOES_DA_BASE), rng.int(R.talento[0], R.talento[1]), false))];
+}

@@ -506,7 +506,22 @@ const __base = (() => {
     }
     return lista;
   }
-  return { CONFIG_BASE, TALENTO_DA_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS, faixaDeJovens, jovensDaBase };
+
+  // Reinício (155_garotos_da_escolinha.sql): cada clube com dirigente começa com um onze de 16 anos da escolinha, de teto ~25 (talento 10),
+  // que não assina contrato e sai da liga aos 21, e com 2 juvenis comuns de talento de Série A (60 a 75: teto 35 a 38), para o time da base
+  // não ser só de garotos anônimos enquanto a base de nível 0 revela um por temporada. Chegam com a nota da base de nível 0.
+  const JUVENIS_DO_REINICIO = { escolinha: ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMR", "AML", "FC"], talentoDaEscolinha: 10, talentosos: 2, talento: [60, 75] };
+  function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos }) {
+    const R = JUVENIS_DO_REINICIO, C = CONFIG_BASE;
+    const jovem = (pos, tal, daEscolinha) => {
+      const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados });
+      return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: 16, pos, fam: j.fam, at: j.at, tal: Math.max(talentoMinimo(j), tal),
+        salario: null, salario_mercado: salarioDeMercado(j), contrato_ate: null, protegido_ate: C.idadeDeJuvenil - 16, juvenil: true, escolinha: daEscolinha };
+    };
+    return [...(escolinha ? R.escolinha : []).map(pos => jovem(pos, R.talentoDaEscolinha, true)),
+      ...Array.from({ length: talentosos }, () => jovem(rng.pick(POSICOES_DA_BASE), rng.int(R.talento[0], R.talento[1]), false))];
+  }
+  return { CONFIG_BASE, TALENTO_DA_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS, faixaDeJovens, jovensDaBase, JUVENIS_DO_REINICIO, juvenisDoReinicio };
 })();
 // <<< módulos embutidos
 const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
@@ -539,7 +554,7 @@ Deno.serve(async (req) => {
       const { data: premio } = await sb.rpc("premio_da_diretoria", { p_clube: meu.id, p_temporada: lg ? lg.temporada : 0 }); // 153: com 95+, um garoto a mais (antes do 153, nada)
       const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0, extra: (premio || 0) >= 95 ? 1 : 0,
         usa: ((((await sb.from("taticas").select("dados").eq("clube_id", meu.id).maybeSingle()).data || {}).dados || {}).vagas || []),
-        jaTem: ((await sb.from("jogadores").select("pos").eq("clube_id", meu.id).lte("idade", 21)).data || []).map(j => j.pos),
+        jaTem: ((await sb.from("jogadores").select("*").eq("clube_id", meu.id).lte("idade", 21)).data || []).filter(j => !j.escolinha).map(j => j.pos), // o da escolinha (155) não conta
         usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", meu.id)).data || []).map(j => semAcento(j.nome))), // camisa sem repetir no elenco
         juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
       const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });

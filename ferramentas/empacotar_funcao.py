@@ -506,7 +506,7 @@ Deno.serve(async (req) => {
       const { data: premio } = await sb.rpc("premio_da_diretoria", { p_clube: meu.id, p_temporada: lg ? lg.temporada : 0 }); // 153: com 95+, um garoto a mais (antes do 153, nada)
       const jovens = jovensDaBase(criarRng(Math.floor(Math.random() * 2147483647)), { nivel: meu.base_nivel || 0, momento: "peneira", perfil: meu.perfil, nomes, temporada: lg ? lg.temporada : 0, extra: (premio || 0) >= 95 ? 1 : 0,
         usa: ((((await sb.from("taticas").select("dados").eq("clube_id", meu.id).maybeSingle()).data || {}).dados || {}).vagas || []),
-        jaTem: ((await sb.from("jogadores").select("pos").eq("clube_id", meu.id).lte("idade", 21)).data || []).map(j => j.pos),
+        jaTem: ((await sb.from("jogadores").select("*").eq("clube_id", meu.id).lte("idade", 21)).data || []).filter(j => !j.escolinha).map(j => j.pos), // o da escolinha (155) não conta
         usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", meu.id)).data || []).map(j => semAcento(j.nome))), // camisa sem repetir no elenco
         juvenis: !(await sb.from("jogadores").select("juvenil").limit(1)).error }); // juvenis sem contrato só depois do 60_juvenis_e_formador.sql
       const r = await sb.rpc("receber_jovens", { p_user: quem.user.id, p_lista: jovens });

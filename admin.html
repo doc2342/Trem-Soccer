@@ -22,6 +22,7 @@ import { sb } from "./src/banco.js";
 import { SEDES, FINAIS } from "./src/estadio.js";
 import { notaBruta, paisDoGrupo, talentoMinimo } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
+import { juvenisDoReinicio } from "./src/base.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
@@ -719,12 +720,15 @@ async function tela(aviso = "") {
     if (!confirm("Reiniciar a LIGA na temporada 0? Apaga calendário, resultados, extratos, obras e TODO o histórico (T1 à T14), sorteia os grupos e gera elencos novos. Não dá para desfazer: faça o backup antes.")) return;
     $("reiniciar").disabled = true; $("avisoTeste").textContent = "Reiniciando…";
     try {
+      // sem o 155, o reiniciar_liga do 149 gravaria os juvenis da escolinha como profissionais sem salário
+      if ((await sb.from("jogadores").select("escolinha").limit(1)).error) throw new Error("rode antes o 155_garotos_da_escolinha.sql");
       const rng = criarRng(Date.now() % 2147483647), todos = (await clubesDaLiga(liga.id)).filter(c => c.id !== liga.vitrine); // a vitrine (152) fica no X, sem elenco
       const grupos = gruposDoReinicio({ rng, clubes: todos.map(c => ({ id: c.id, grupo: c.grupo, dono: c.dono })) });
       const serie = (g, dono) => dono ? "donos" : PAISES[g] ? "fora" : g === "A" ? "A" : "B"; // guardados (X) ganham elenco de bot da B
       const jogadores = todos.flatMap(c => { const s = serie(grupos[c.id], c.dono);
         return elencoNovo(rng, NIVEL_DO_REINICIO[s], paisDoGrupo(grupos[c.id]), 0)
-          .map(j => ({ ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[s]))), clube_id: c.id })); });
+          .map(j => ({ ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[s]))), clube_id: c.id }))
+          .concat(c.dono ? juvenisDoReinicio(rng, { nomes, usados: new Set() }).map(j => ({ ...j, clube_id: c.id })) : []); }); // 11 da escolinha e 2 talentosos (155)
       const feito = await reiniciarLiga(liga.id, grupos, jogadores); await limparTreinadores(liga.id); await zerarConfianca(liga.id);
       await tela(feito + " Agora gere o calendário.");
     }

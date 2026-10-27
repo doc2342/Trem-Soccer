@@ -1,7 +1,7 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
-import { jovensDaBase, CONFIG_BASE } from "./base.js";
+import { jovensDaBase, CONFIG_BASE, LIMITE_DE_JUVENIS } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM, semAcento } from "./gerador.js";
 import { salarioDeMercado, TETO_DE_FOLHA, PESO_DO_FORMADO } from "./economia.js";
@@ -184,7 +184,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    const vencidos = [], regs = [], renovadosAqui = []; let ficam = 0;
    // promoção da base: nos clubes com dirigente, os jovens vêm conforme o nível da base (e o aposentado não é reposto, mais abaixo)
    if (c.dono) for (const jovem of jovensDaBase(rng, { nivel: c.base_nivel || 0, momento: "promocao", perfil: c.perfil, nomes, usados: usadosDe(c.id), temporada: nova, juvenis, usa: taticas[c.id] || [],
-     jaTem: (elencos[c.id] || []).filter(j => j.idade < CONFIG_BASE.idadeDeJuvenil).map(j => j.pos) })) {
+     jaTem: (elencos[c.id] || []).filter(j => j.idade < CONFIG_BASE.idadeDeJuvenil && !j.escolinha).map(j => j.pos) })) {
      if (!juvenis) ficam++; // juvenil não conta no elenco profissional
      plano.novos.push({ clube_id: c.id, ...jovem });
      resumo.novos.push({ clube: c.nome, dono: true, nome: jovem.nome, pos: jovem.pos, idade: jovem.idade });
@@ -195,7 +195,8 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
    for (const j of elencos[c.id] || []) {
     const idade = j.idade + 1;
     // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 40; antes dele, vale o sorteio na virada
-    const para = j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 40) : rng.chance(chanceDeAposentar(idade));
+    // o da escolinha (155_garotos_da_escolinha.sql) não fica livre: sai da liga quando o juvenil comum sairia
+    const para = j.escolinha ? idade > CONFIG_BASE.idadeDeJuvenil : j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 40) : rng.chance(chanceDeAposentar(idade));
     if (para) {
       plano.aposentados.push(numero(j.id));
       resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
@@ -221,6 +222,17 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     }
     else if (j.salario != null && j.contratoAte != null && j.contratoAte < nova) vencidos.push({ reg, j, mercado: salarioDeMercado({ ...j, idade, at }) });
     else ficam++;
+   }
+   // clube lotado de juvenis (155_garotos_da_escolinha.sql): cada juvenil que chega toma a vaga do mais fraco da escolinha que ficaria
+   if (c.dono && juvenis) {
+    const saem = new Set([...plano.aposentados, ...plano.livres.map(x => x.id)]), soma = j => j.at.reduce((a, b) => a + b, 0);
+    const ficamJ = (elencos[c.id] || []).filter(j => j.juvenil && !saem.has(numero(j.id)));
+    let sobra = ficamJ.length + plano.novos.filter(n => n.clube_id === c.id && n.juvenil).length - LIMITE_DE_JUVENIS;
+    for (const j of ficamJ.filter(j => j.escolinha).sort((a, b) => soma(a) - soma(b) || numero(a.id) - numero(b.id))) {
+     if (sobra-- <= 0) break;
+     plano.aposentados.push(numero(j.id));
+     resumo.aposentados.push({ clube: c.nome, dono: true, nome: j.nome, pos: j.pos, idade: j.idade + 1, escolinha: true });
+    }
    }
    // contratos vencidos renovam sozinhos por uma temporada, pelo maior entre o salário atual e o de mercado (99_renovacao_automatica.sql);
    // só fica livre quem o dirigente marcou "não renovar", a não ser que o elenco fosse ficar com menos de 16

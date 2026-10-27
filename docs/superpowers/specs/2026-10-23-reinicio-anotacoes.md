@@ -24,6 +24,7 @@ Contexto: a liga reinicia no fim da T14. Pirâmide: Série A (12, todos com dono
 - `ferramentas/saude.mjs` trata o grupo F como país.
 - Ferramentas de simulação (`sim_escada`, `sim_treino`) ainda em três divisões.
 - Geração dos elencos da liga nova já na escala nova.
+- Estádio: trocar de arquitetura (modelo) e/ou de cidade só junto com uma ampliação, pagando +50% do custo dela (uma taxa cobre as duas trocas e acompanha o prazo da ampliação); no nível máximo, a troca custa 50% do nível 8 (30 mi → 15 mi, o mesmo adicional da última ampliação). Sem trocas grátis depois do reinício (somem `reforma_gratis`, `reforma_gratis_para` e a troca única de cidade): cada um escolhe o modelo e a cidade na primeira ampliação, de graça (é montar o clube, não trocar); os +50% valem da segunda ampliação em diante. Substitui a reforma avulsa de 25% (116) e a cidade travada (119/120/126). Precisa de migração (a obra do estádio guarda modelo e cidade escolhidos), da função `rodada` aplicando na entrega e da tela (Ampliar: manter ou mudar, mostrando o +X).
 
 ## Fora do escopo
 - Travas de fluxo do mercado (4 compras, protegidos, 5 jogos, perdas por clube…).

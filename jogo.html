@@ -1690,9 +1690,9 @@ async function telaClube(liga, clube) {
     const usa = formacaoDaBase || [];
     const chip = p => { const n = lista.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
       return `<span class="tag" data-jfiltro="${p}" style="margin:2px;cursor:pointer;${v ? "border:1px solid currentColor" : "opacity:.7"}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${v ? "<b>" : ""}${esc(sg(p))} <span class="${v && !n ? "bad" : ""}">${n}</span>${v ? "</b>" : ""}</span>`; };
-    const linha = j => { const n = naBase[j.id], r = rival(j), livre = j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil;
+    const linha = j => { const n = naBase[j.id], r = rival(j), livre = j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil;
       return `<tr data-jog="${j.id}" data-jpos="${j.pos}" style="cursor:pointer"><td>${pp(j.pos)}</td>
-        <td class="esq"><b>${esc(j.nome)}</b> <span class="mut">${j.juvenil ? "juvenil" : "profissional"}</span>${livre ? ` <span class="aviso">fica livre na virada</span>` : ""}${joga.has(j.id) ? "" : ` <span class="mut">· não joga a base</span>`}</td>
+        <td class="esq"><b>${esc(j.nome)}</b> <span class="mut">${j.escolinha ? "da escolinha" : j.juvenil ? "juvenil" : "profissional"}</span>${livre ? ` <span class="aviso">fica livre na virada</span>` : ""}${joga.has(j.id) ? "" : ` <span class="mut">· não joga a base</span>`}</td>
         <td>${j.idade}</td><td class="nota">${f1(notaNaPosicao(j, j.pos))}</td>${temTeto ? `<td class="mut">${tetoDe[j.id] ? tetoDe[j.id].minimo + "–" + tetoDe[j.id].maximo : "—"}</td>` : ""}
         <td>${n ? n.j : 0}</td><td>${n ? n.min : 0}</td><td>${n && n.g ? n.g : ""}</td><td>${n && n.j ? f1(n.nota / n.j) : "—"}</td><td class="mut">${j.aprende ? esc(sg(j.aprende.pos)) : ""}</td>
         <td>${r ? `<span class="${r.dif >= 0 ? "ok" : "mut"}" title="${esc(r.t.j.nome)}, titular em ${esc(sg(r.t.pos))}, nota ${f1(notaNaPosicao(r.t.j, r.t.pos))}">${r.dif >= 0 ? `pronto (+${f1(r.dif)})` : f1(r.dif)}</span>` : `<span class="mut">—</span>`}</td></tr>`; };
@@ -1707,7 +1707,7 @@ async function telaClube(liga, clube) {
   // da liga de base e a comparação com o titular; as promessas reveladas sempre abertas embaixo
   const juvenisDaBaseNova = () => {
     const nomes = l => l.map(j => j.nome).join(", "), prontos = listaDosJovens.filter(j => (r => r && r.dif >= 0)(rivalDoJovem(j)));
-    const livres = meusJuvenis.filter(j => j.idade >= CONFIG_BASE.idadeDeJuvenil), melhor = listaDosJovens.slice().sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos))[0];
+    const livres = meusJuvenis.filter(j => !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil), melhor = listaDosJovens.slice().sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos))[0];
     const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: "sem contrato nem salário" })}
       ${numero({ rotulo: "Profissionais", valor: String(meusProfs.length), legenda: `formados aqui, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos, jogam a base` })}
       ${numero({ rotulo: "Ficam livres", valor: String(livres.length), legenda: livres.length ? "na virada, sem contrato" : "ninguém na virada", tom: livres.length ? "bad" : "" })}
@@ -1719,8 +1719,8 @@ async function telaClube(liga, clube) {
     const filtro = `<div class="t-transf-filtro" id="jFiltro"><button type="button" data-jfiltro="" class="ligado">Todas <small>${listaDosJovens.length}</small></button>${LISTA_POSICOES.filter(p => usa.includes(p) || listaDosJovens.some(j => j.pos === p)).map(p => {
       const n = listaDosJovens.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
       return `<button type="button" data-jfiltro="${p}" class="${v && !n ? "t-bj-falta" : ""}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${esc(sg(p))}${v ? `<i class="t-bj-tat"></i>` : ""} <small>${n}</small></button>`; }).join("")}</div>`;
-    const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil;
-      const marcas = (j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos`))
+    const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil;
+      const marcas = (j.escolinha ? marcaDe("escolinha", `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos`) : j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos`))
         + (livre ? marcaDe("fica livre", "Se não for profissionalizado até a virada, fica livre", "t-atencao") : "")
         + (jogaABase.has(j.id) ? "" : marcaDe("não joga a base", "Lesionado, mais velho que o limite da base ou formado em outro clube"))
         + (j.aprende ? marcaDe(`estuda ${sg(j.aprende.pos)}`, "Posição que está aprendendo") : "");
@@ -1868,7 +1868,7 @@ async function telaClube(liga, clube) {
   };
   // o que pede atenção na base: [ícone do visual velho, texto]
   const avisosDaBase = () => {
-    const avisos = [], livres = meusJuvenis.filter(j => j.idade >= CONFIG_BASE.idadeDeJuvenil);
+    const avisos = [], livres = meusJuvenis.filter(j => !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil);
     if (livres.length) avisos.push(["🌱", `${livres.map(j => esc(j.nome)).join(", ")} ${livres.length === 1 ? "fica livre" : "ficam livres"} na virada se não ${livres.length === 1 ? "for profissionalizado" : "forem profissionalizados"}.`]);
     if (meusJuvenis.length >= LIMITE_DE_JUVENIS) avisos.push(["📋", `Você está no limite de ${LIMITE_DE_JUVENIS} juvenis.`]);
     const semJovem = [...new Set((formacaoDaBase || []).filter(pos => !elenco.some(j => (j.juvenil || j.idade <= CONFIG_BASE.idadeDeJuvenil) && j.pos === pos)))];
@@ -2169,7 +2169,7 @@ async function telaClube(liga, clube) {
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(multaDe(j)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       ${(t => t ? `<div style="font-size:12.5px;margin-bottom:6px">🔭 Teto estimado pelo olheiro: nota entre <b>${t.minimo}</b> e <b>${t.maximo}</b></div>` : "")(tetoDe[j.id] || relatorioDe(j.id))}
       ${(l => l.length ? `<div style="font-size:12.5px;margin-bottom:6px">🏅 ${l.map(p => `${esc(nomeDoPremio(p))} <span class="mut">T${p.temporada}</span>`).join(" · ")}</div>` : "")(premiosDoJogador(j.id))}
-      ${j.juvenil ? `<div style="font-size:12.5px;margin-bottom:6px">🌱 Juvenil: sem contrato, não joga partida oficial.</div>` : ""}${j.formador != null && cPor[j.formador] ? `<div style="font-size:12.5px;margin-bottom:6px" title="O clube formador recebe 3% por temporada que ele passou lá (de 3% a 15%) do valor de toda venda dele entre outros clubes">🎓 Formado no ${esc(cPor[j.formador].nome)}${j.formador === ("clube_id" in j ? j.clube_id : clube.id) && j.idade <= CONFIG_BASE.idadeDeJuvenil ? " · sem multa e sem pré-contrato até os " + CONFIG_BASE.idadeDeJuvenil + " anos" : ""}</div>` : ""}
+      ${j.juvenil ? `<div style="font-size:12.5px;margin-bottom:6px">🌱 ${j.escolinha ? `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos.` : "Juvenil: sem contrato, não joga partida oficial."}</div>` : ""}${j.formador != null && cPor[j.formador] ? `<div style="font-size:12.5px;margin-bottom:6px" title="O clube formador recebe 3% por temporada que ele passou lá (de 3% a 15%) do valor de toda venda dele entre outros clubes">🎓 Formado no ${esc(cPor[j.formador].nome)}${j.formador === ("clube_id" in j ? j.clube_id : clube.id) && j.idade <= CONFIG_BASE.idadeDeJuvenil ? " · sem multa e sem pré-contrato até os " + CONFIG_BASE.idadeDeJuvenil + " anos" : ""}</div>` : ""}
       <div style="font-size:12.5px;margin-bottom:6px" title="Sobe 1 a cada partida oficial com pelo menos 45 minutos em campo. Não muda a nota: quanto mais experiência, menos o desempenho do jogador varia de um jogo para o outro, e ele rende até 3% a mais.">🎖️ Experiência <b>${Math.round(experienciaDe(j))}</b> de 100 <span class="mut">· ${experienciaDe(j) >= 70 ? "rende sempre perto do que sabe" : experienciaDe(j) >= 35 ? "ainda oscila um pouco de um jogo para o outro" : "oscila bastante de um jogo para o outro"}</span></div>
       ${j.inicio && j.inicio.t === liga.temporada ? (d => `<div style="font-size:12.5px;margin-bottom:6px" title="Comparado com a foto tirada na virada da temporada">📈 Desde o início da temporada: nota <b class="${d.nota > 0 ? "ok" : d.nota < 0 ? "bad" : ""}">${d.nota > 0 ? "+" : ""}${f1(d.nota)}</b> <span class="mut">(era ${f1(j.inicio.nota)}) · ${d.soma >= 0 ? "+" : ""}${d.soma} ${Math.abs(d.soma) === 1 ? "ponto" : "pontos"} de atributo</span></div>`)({ nota: Math.round((notaBruta(j.at, j.pos) - j.inicio.nota) * 10) / 10, soma: j.at.reduce((s, v) => s + v, 0) - j.inicio.soma }) : ""}
       <div class="qa-grade">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS).map(([nome, g]) => `<div><div class="qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="qa-linha ${conta[a.k] ? "qa-conta" : ""}"><span>${a.nome}</span><span class="${corAtr(j.at[k])}">${j.at[k]}</span></div>`).join("")}</div>`).join("")}</div>
@@ -2752,7 +2752,7 @@ async function telaClube(liga, clube) {
     if (aprenderam.length) l.push(item("🎓", `Posição nova aprendida: ${aprenderam.join(", ")}.`, "ok"));
     elenco.filter(j => j.aVenda && janela && j.botsViram === liga.temporada + ":" + janela).forEach(j => { const teto = CONFIG_MERCADO_BOTS.precoEmSalarios * salarioDeMercado(j);
       l.push(item("🏷️", `${esc(j.nome)} (${sg(j.pos)}) segue na lista por ${dinheiro(j.precoPedido)}: nenhum clube sem dirigente comprou. ${j.idade > CONFIG_MERCADO_BOTS.idadeMaxima ? `Eles não compram quem tem mais de ${CONFIG_MERCADO_BOTS.idadeMaxima} anos.` : j.precoPedido > teto ? `Eles pagam até ${dinheiro(teto)} por ele: baixando o preço, olham de novo.` : "O preço cabia, mas ele não reforça o time titular de nenhum que tenha caixa."}`)); });
-    const saindo = elenco.filter(j => j.juvenil && j.idade >= CONFIG_BASE.idadeDeJuvenil);
+    const saindo = elenco.filter(j => j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil);
     if (saindo.length) l.push(item("🌱", `${saindo.length === 1 ? "Juvenil" : "Juvenis"} com ${CONFIG_BASE.idadeDeJuvenil} anos: ${saindo.map(j => `${esc(j.nome)} (${sg(j.pos)})`).join(", ")}. Sem contrato até a virada, ${saindo.length === 1 ? "fica livre" : "ficam livres"}. Profissionalize em Clube, Elenco.`, "aviso", "elenco"));
     const veteranos = (comissaoToda || []).filter(t => t.idade >= IDADE_DE_APOSENTAR_DA_COMISSAO - 1);
     if (veteranos.length) l.push(item("👴", `${veteranos.length === 1 ? "Se aposenta" : "Se aposentam"} no fim da temporada (chegam aos ${IDADE_DE_APOSENTAR_DA_COMISSAO} anos): ${veteranos.map(t => `${esc(t.nome)} (${(t.funcao || "treinador") === "treinador" ? "treinador" : (FUNCOES_DE_SAUDE[t.funcao] || t.funcao).toLowerCase()}, ${t.idade})`).join(", ")}. Procure um substituto na lista de candidatos.`, "aviso", "estruturas:treino"));
@@ -4770,6 +4770,16 @@ ${historicoDaBase()}`}
         <div class="row" style="align-items:center"><div><b style="font-size:16px">${esc(j.nome)}</b> <span class="mut">· ${sg(j.pos)} · ${j.idade} anos · emprestado por ${esc((cPor[j.emprestadoDe] || {}).nome || "outro clube")}</span></div><button class="sec" id="ctFechar" style="margin-left:auto">Fechar</button></div>
         <div class="mut" style="margin-top:8px">Fica no seu clube até a virada da temporada e depois volta. Joga e treina normalmente. Você paga metade do salário (${dinheiro(Math.round((j.salario || 0) / 2))} por temporada), e é essa metade que conta na sua folha. Não pode ser vendido, listado, protegido, renovado nem dispensado.</div></div>`;
       $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+      return;
+    }
+    if (j.escolinha) { // da escolinha (155_garotos_da_escolinha.sql): só dá para dispensar, e ele sai da liga
+      $("contratoPainel").innerHTML = `<div class="card" style="margin:0 0 10px;border-color:var(--ac)">
+        <div class="row" style="align-items:center"><div><b style="font-size:16px">${esc(j.nome)}</b> <span class="mut">· ${sg(j.pos)} · ${j.idade} anos · da escolinha</span></div><button class="sec" id="ctFechar" style="margin-left:auto">Fechar</button></div>
+        <div class="mut" style="margin:8px 0 10px">Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos. Treina normalmente e completa o time da base enquanto os juvenis de verdade não chegam.</div>
+        <button class="sec" id="ctDispensar">Dispensar</button><div class="mut" style="margin-top:6px">Ele volta para a escolinha e sai da liga.</div><div id="ctAviso" style="margin-top:6px"></div></div>`;
+      $("ctFechar").onclick = () => { $("contratoPainel").innerHTML = ""; };
+      $("ctDispensar").onclick = async () => { if (!confirm(`Dispensar ${j.nome}? Ele sai da liga.`)) return;
+        try { await dispensarJogador(j.id); await carregar({ user: usuario }); } catch (err) { $("ctAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; } };
       return;
     }
     if (j.juvenil) { // juvenil: só dá para profissionalizar ou dispensar
