@@ -746,7 +746,8 @@ async function tela(aviso = "") {
       const serie = (g, dono) => dono ? "donos" : PAISES[g] ? "fora" : g === "A" ? "A" : "B"; // guardados (X) ganham elenco de bot da B
       const jogadores = todos.flatMap(c => { const s = serie(grupos[c.id], c.dono);
         return elencoNovo(rng, NIVEL_DO_REINICIO[s], paisDoGrupo(grupos[c.id]), 0)
-          .map(j => ({ ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[s]))), clube_id: c.id }))
+          .map(j => ({ ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + TALENTO_DO_REINICIO[s]))), clube_id: c.id,
+            ...(c.dono ? {} : { protegido_ate: null }) })) // bot não negocia: o elenco dele já tem multa na temporada 0 (158)
           .concat(c.dono ? juvenisDoReinicio(rng, { nomes, usados: new Set() }).map(j => ({ ...j, clube_id: c.id })) : []); }); // 11 da escolinha e 2 talentosos (155)
       const feito = await reiniciarLiga(liga.id, grupos, jogadores); await limparTreinadores(liga.id); await zerarConfianca(liga.id);
       await tela(feito + " Agora gere o calendário.");
