@@ -492,7 +492,7 @@ let marca = null, conferindo = false;
 // Escalação da base: arrastar com mouse ou dedo (uma vaga para uma posição nova ou outra vaga; um jovem para uma vaga). O rascunho vive aqui até
 // salvar (a recarga discreta não o apaga); acoesDaBase = { desenhar(mapa), soltar(origem, alvo) } é refeito a cada desenho da página.
 let rascunhoBase = null, arrastoBase = null, acoesDaBase = null, selBase = null, setorBase = null, soltouBaseEm = 0; // visual novo: vaga escolhida no campo e o setor visto na lista dos jovens
-const alvoDaBase = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest("#baseEsc [data-bvaga], #baseEsc [data-novapos]"); };
+const alvoDaBase = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest("#baseEsc [data-bvaga], #baseEsc [data-novapos], #baseEsc [data-btroca]"); };
 const fimDoArrastoBase = () => { if (arrastoBase && arrastoBase.fantasma) arrastoBase.fantasma.remove(); document.querySelectorAll("#baseEsc .alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrastoBase = null; };
 document.addEventListener("pointerdown", e => {
   const h = e.target.closest("#baseEsc [data-barrasta]");
@@ -1688,7 +1688,7 @@ async function telaClube(liga, clube) {
   const formacaoDaBase = tatica && tatica.dados && Array.isArray(tatica.dados.vagas) && tatica.dados.vagas.length === 11 ? tatica.dados.vagas : null;
   // esquema próprio da base (taticas_base.dados.esquema); sem ele, o do time principal
   const vagasDaBase = esquemaDaBase(taticaBase && taticaBase.dados, formacaoDaBase);
-  const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: vagasDaBase, fixos: taticaBase && taticaBase.dados && taticaBase.dados.fixos }) : null;
+  const prevista = meusJuvenis.length || meusProfs.length ? escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: vagasDaBase, fixos: taticaBase && taticaBase.dados && taticaBase.dados.fixos, trocas: taticaBase && taticaBase.dados && taticaBase.dados.trocas }) : null;
   const ordemBase = (a, b) => LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos);
   const conheceBase = (j, pos) => (j.fam || {})[pos] === "N" ? "" : (j.fam || {})[pos] === "C" ? "competente" : "improvisado";
   // Juvenis: a tabela dos jovens do clube, com os números da base e a comparação com o titular da tática principal
@@ -1757,12 +1757,12 @@ async function telaClube(liga, clube) {
   // para onde ela pode ir) e soltar um jovem numa vaga o fixa nela. O rascunho fica em rascunhoBase até salvar; cada mudança redesenha só o cartão.
   const salvoBase = (taticaBase && taticaBase.dados) || {};
   if (rascunhoBase && rascunhoBase.clube !== clube.id) { rascunhoBase = null; selBase = null; }
-  const baseInicial = () => ({ clube: clube.id, segue: !salvoBase.vagas && !salvoBase.esquema && !!formacaoDaBase, vagas: [...(vagasDaBase || (prevista ? prevista.vagas.map(v => v.pos) : FORMACOES["4-4-2"]))], fixos: { ...(salvoBase.fixos || {}) }, instr: { ...(salvoBase.instr || {}) } });
+  const baseInicial = () => ({ clube: clube.id, segue: !salvoBase.vagas && !salvoBase.esquema && !!formacaoDaBase, vagas: [...(vagasDaBase || (prevista ? prevista.vagas.map(v => v.pos) : FORMACOES["4-4-2"]))], fixos: { ...(salvoBase.fixos || {}) }, trocas: (salvoBase.trocas || []).map(x => ({ ...x })), instr: { ...(salvoBase.instr || {}) } });
   const candidatosBase = [...meusJuvenis.map(j => ({ ...j, juvenil: true })), ...meusProfs].sort(ordemBase);
   const FAIXA_BASE = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
   let prevBase = null; // a escalação que o rascunho dá: o que o arrasto usa para saber quem está em cada vaga
   const corpoDaBase = (mapa = null) => {
-    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos });
+    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas });
     const vaga = (i, col) => { const v = P.vagas[i], pos = v.pos, c = v.j ? conheceBase(v.j, pos) : "", arrasta = editavel && pos !== "GK";
       const escolha = editavel ? `<select data-tbvaga="${i}" style="max-width:100%;margin-top:4px"><option value="">automático</option>${candidatosBase.filter(j => (j.pos === "GK") === (pos === "GK")).map(j => { const k = conheceBase(j, pos);
         return `<option value="${semJ(j.id)}" ${String(R.fixos[i]) === semJ(j.id) ? "selected" : ""}>${esc(j.nome)} ${f1(notaNaPosicao(j, pos))}${k === "improvisado" ? " (improvisado)" : k === "competente" ? " (comp.)" : ""}</option>`; }).join("")}</select>` : "";
@@ -1781,7 +1781,7 @@ async function telaClube(liga, clube) {
     const opcao = k => `<label style="display:inline-block;margin:4px 12px 0 0">${ROTULOS_DA_BASE[k][0]} <select data-tbinstr="${k}" ${editavel ? "" : "disabled"}><option value="">como o bot</option>${INSTRUCOES_DA_BASE[k].map(v => `<option value='${JSON.stringify(v)}' ${R.instr[k] === v ? "selected" : ""}>${ROTULOS_DA_BASE[k][1][v]}</option>`).join("")}</select></label>`;
     const esquema = editavel ? `<div class="row" style="margin-top:6px;gap:6px;align-items:center"><b>Partir de</b> <select id="tbEsquema"><option value="">escolher um esquema…</option>${formacaoDaBase ? `<option value="=">o do time principal</option>` : ""}${Object.keys(FORMACOES).map(k => `<option>${esc(k)}</option>`).join("")}</select>
       <span class="mut" style="font-size:12px">${R.segue ? "segue o esquema do time principal" : "esquema próprio da base"}</span></div>` : "";
-    const mudou = JSON.stringify([R.segue, R.vagas, R.fixos, R.instr]) !== JSON.stringify((({ segue, vagas, fixos, instr }) => [segue, vagas, fixos, instr])(baseInicial()));
+    const mudou = JSON.stringify([R.segue, R.vagas, R.fixos, R.trocas, R.instr]) !== JSON.stringify((({ segue, vagas, fixos, trocas, instr }) => [segue, vagas, fixos, trocas, instr])(baseInicial()));
     return `${esquema}${campo}${jovens}${intervalo}${fora}
       <div style="margin-top:10px"><b>Estilo</b> <span class="mut" style="font-size:12px">· em "como o bot", fica o que o bot escolheria</span></div><div>${Object.keys(INSTRUCOES_DA_BASE).map(opcao).join("")}</div>
       ${editavel ? `<div class="row" style="margin-top:10px"><button id="tbSalvar" ${mudou ? "" : "disabled"}>Salvar a escalação da base</button>${mudou ? `<button id="tbDesfazer" class="sec">Desfazer</button><span class="aviso">alterações não salvas</span>` : ""}<span id="tbAviso"></span></div>` : ""}`;
@@ -1802,7 +1802,7 @@ async function telaClube(liga, clube) {
   const CURTO_DA_BASE = { "muito defensiva": "M. def.", "defensiva": "Def.", "ofensiva": "Of.", "muito ofensiva": "M. of.", "muito baixa": "M. baixa", "muito alta": "M. alta", "sem pressão": "Sem", "resolver rápido": "Rápido", "dentro da área": "Na área", "pelos lados": "Lados", "bola longa": "Longa" };
   const curtoB = j => { const n = j.nome.split(" "), p = n[0]; return n.length > 1 && candidatosBase.some(o => o.id !== j.id && o.nome.split(" ")[0] === p) ? `${p} ${n[n.length - 1]}` : p; };
   const corpoDaBaseNovo = (mapa = null) => {
-    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos });
+    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas });
     const sel = selBase != null && P.vagas[selBase] ? selBase : null;
     if (mapa === null && sel !== null && P.vagas[sel].pos !== "GK") mapa = sel;
     const numeros = numerosDaCamisa({ titulares: P.vagas.filter(v => v.j).map(v => ({ nome: v.j.nome, pos: v.pos, numero: v.j.numero })), banco: P.trocas.map(x => ({ nome: x.entra.nome, pos: x.entra.pos, numero: x.entra.numero })) });
@@ -1824,14 +1824,14 @@ async function telaClube(liga, clube) {
       <div class="t-tatica-forca" title="Média das notas na posição, sem os garotos da escolinha"><span>${garotos ? `Onze · ${garotos} ${garotos === 1 ? "garoto" : "garotos"}` : "Seu onze"}</span><b>${forca == null ? "—" : f1(forca)}</b></div></div>`;
     // ao lado do campo, no lugar do banco: quem entra no intervalo e quem fica fora pelo rodízio
     const troca = x => { const pos = P.vagas[x.vaga].pos, sai = P.vagas[x.vaga].j;
-      return `<div class="t-reserva"><span class="t-bola camisa">${camisa(x.entra, pos)}</span><span class="t-reserva-nome" title="${esc(x.entra.nome)}">${esc(curtoB(x.entra))}<small>${sg(pos)} · ${sai ? "por " + esc(curtoB(sai)) : "pelo garoto"}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(x.entra, pos))}</span></div>`; };
+      return `<div class="t-reserva"${editavel ? ` data-btroca="${x.vaga}"` : ""}><span class="t-bola camisa">${camisa(x.entra, pos)}</span><span class="t-reserva-nome" title="${esc(x.entra.nome)}">${esc(curtoB(x.entra))}<small>${sg(pos)} · ${sai ? "por " + esc(curtoB(sai)) : "pelo garoto"}${x.manual ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(x.entra, pos))}${x.manual && editavel ? ` <button type="button" class="t-esc-fecha" data-tbtirasub="${semJ(x.entra.id)}" title="Voltar ao automático">✕</button>` : ""}</span></div>`; };
     const vazias = Math.max(0, CONFIG_LIGA_DE_BASE.trocas - P.trocas.length);
-    const banco = `<div class="t-banco"><div class="t-numero-rotulo">No intervalo · ${P.trocas.length} de ${CONFIG_LIGA_DE_BASE.trocas}</div>${P.trocas.map(troca).join("")}${`<div class="t-reserva vazia"><span class="t-bola"></span><span class="t-reserva-nome">ninguém</span></div>`.repeat(vazias)}
+    const banco = `<div class="t-banco"><div class="t-numero-rotulo">No intervalo · ${P.trocas.length} de ${CONFIG_LIGA_DE_BASE.trocas}</div>${P.trocas.map(troca).join("")}${`<div class="t-reserva vazia"${editavel ? ` data-btroca=""` : ""}><span class="t-bola"></span><span class="t-reserva-nome">ninguém</span></div>`.repeat(vazias)}
       ${P.fora.length ? `<div class="t-numero-rotulo t-besc-fora-rot">Fora desta rodada · ${P.fora.length}</div><p class="t-besc-fora">${P.fora.map(j => esc(curtoB(j))).join(", ")}. O rodízio dá a vez a eles nas próximas.</p>` : ""}</div>`;
     // coluna da direita: esquema, lista dos jovens (com uma vaga escolhida, só quem pode jogar nela) e o salvar
     const iguais = (a, b) => [...a].sort().join() === [...b].sort().join();
     const formas = `<div class="t-tatica-montar"><div class="t-formacoes">${formacaoDaBase ? `<button type="button" data-tbforma="=" aria-pressed="${R.segue}" title="O esquema do time principal">Do principal</button>` : ""}${Object.keys(FORMACOES).map(k => `<button type="button" data-tbforma="${esc(k)}" title="${esc(k)}" aria-pressed="${!R.segue && iguais(FORMACOES[k], R.vagas)}"${editavel ? "" : " disabled"}>${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join("")}</div>
-      <p class="t-fajuda">${R.segue ? "Segue o esquema do time principal." : "Esquema próprio da base."} Clique numa vaga do campo para escolher quem joga nela e mudar a posição dela, ou arraste um jovem até a vaga.</p></div>`;
+      <p class="t-fajuda">${R.segue ? "Segue o esquema do time principal." : "Esquema próprio da base."} Clique numa vaga do campo para escolher quem joga nela e mudar a posição dela, ou arraste um jovem até a vaga. Arraste um jovem para o intervalo para ele entrar no segundo tempo.</p></div>`;
     const status = j => { const id = semJ(j.id), i = P.vagas.findIndex(v => v.j && semJ(v.j.id) === id);
       return i >= 0 ? [" titular", sg(P.vagas[i].pos) + (P.vagas[i].fixo ? " · fixo" : "")] : P.trocas.some(x => semJ(x.entra.id) === id) ? [" reserva", "intervalo"] : ["", P.fora.some(x => semJ(x.id) === id) ? "fora" : ""]; };
     const linha = (j, pos) => { const [cls, onde] = status(j), n = naBase[j.id], f = fam(j, pos);
@@ -1849,7 +1849,7 @@ async function telaClube(liga, clube) {
       ${lista.map(j => linha(j, posSel || j.pos)).join("") || `<p class="t-fajuda">Nenhum jovem neste setor.</p>`}</div>`;
     const avisos = [...P.vagas.filter(v => v.j && fam(v.j, v.pos) === "I").map(v => `${esc(v.j.nome)} está improvisado de ${sg(v.pos)}.`),
       ...(garotos ? [`${garotos === 1 ? "Uma vaga fica" : `${garotos} vagas ficam`} com garotos da escolinha.`] : [])].map(t => `<div class="t-alerta">${t}</div>`).join("");
-    const mudou = JSON.stringify([R.segue, R.vagas, R.fixos, R.instr]) !== JSON.stringify((({ segue, vagas, fixos, instr }) => [segue, vagas, fixos, instr])(baseInicial()));
+    const mudou = JSON.stringify([R.segue, R.vagas, R.fixos, R.trocas, R.instr]) !== JSON.stringify((({ segue, vagas, fixos, trocas, instr }) => [segue, vagas, fixos, trocas, instr])(baseInicial()));
     const fim = `<div class="t-tatica-fim"><div class="t-besc-avisos">${avisos}</div>${editavel ? `<div class="t-tatica-acao"><span id="tbAviso">${mudou ? `<span class="aviso">Alterações não salvas</span>` : taticaBase ? `Salva em <b>${quandoB(taticaBase.atualizada_em)}</b>` : "Automática: nada salvo ainda"}</span>${mudou ? `<button type="button" class="t-botao" id="tbDesfazer">Desfazer</button>` : ""}
       <button type="button" class="t-botao t-botao-principal" id="tbSalvar"${mudou ? "" : " disabled"}>Salvar a escalação da base</button></div>` : `<p class="t-fajuda">A tática da base ainda não está ligada no servidor: a escalação é automática.</p>`}</div>`;
     // embaixo: o estilo, em três painéis; "Auto" é o que o bot escolheria
@@ -3621,16 +3621,23 @@ ${historicoDaBase()}`}
     const desenhar = (mapa = null) => { if (visualNovo) $("baseEsc").innerHTML = corpoDaBaseNovo(mapa); else $("baseEscCorpo").innerHTML = corpoDaBase(mapa); };
     const aviso = t => { if ($("tbAviso")) $("tbAviso").innerHTML = `<span class="bad">${esc(t)}</span>`; };
     // tira o jogador de qualquer outra vaga em que esteja fixado e o fixa em k (id nulo = vaga automática)
-    const fixar = (k, id) => { const r = R(); for (const i of Object.keys(r.fixos)) if (String(r.fixos[i]) === String(id)) delete r.fixos[i]; if (id) r.fixos[k] = +id; else delete r.fixos[k]; };
+    const fixar = (k, id) => { const r = R(); r.trocas = r.trocas.filter(x => String(x.entra) !== String(id)); for (const i of Object.keys(r.fixos)) if (String(r.fixos[i]) === String(id)) delete r.fixos[i]; if (id) r.fixos[k] = +id; else delete r.fixos[k]; };
     // esquema pronto: os fixados que continuam numa vaga da mesma posição ficam
     const trocarEsquema = v => { const r = R(), novas = v === "=" ? formacaoDaBase : FORMACOES[v];
       for (const i of Object.keys(r.fixos)) if (novas[i] !== r.vagas[i]) delete r.fixos[i];
+      for (const x of r.trocas) if (x.vaga != null && novas[x.vaga] !== r.vagas[x.vaga]) x.vaga = null; // a troca escolhida segue, na vaga que o rodízio escolher
       r.vagas = [...novas]; r.segue = v === "="; };
     acoesDaBase = {
       desenhar,
       soltar(de, alvo) {
         const r = R();
         if (alvo && alvo.dataset.novapos !== undefined && de[0] === "v") { r.vagas[+de.slice(1)] = alvo.dataset.novapos; r.segue = false; return desenhar(); }
+        if (alvo && alvo.dataset.btroca !== undefined && de[0] === "j") { // jovem no intervalo: entra nesta vaga (ou, na linha vazia, onde o rodízio escolher)
+          const id = de.slice(1), j = candidatosBase.find(x => semJ(x.id) === id), v = alvo.dataset.btroca === "" ? null : +alvo.dataset.btroca;
+          if (!j) return desenhar();
+          if (prevBase.vagas.some(x => x.j && semJ(x.j.id) === id)) { desenhar(); return aviso("Ele já começa jogando."); }
+          if (v != null && (j.pos === "GK") !== (r.vagas[v] === "GK")) { desenhar(); return aviso(j.pos === "GK" ? "Goleiro só entra no gol." : "No gol só entra goleiro."); }
+          r.trocas = r.trocas.filter(x => x.entra !== id && (v == null || x.vaga !== v)).concat({ entra: id, vaga: v }); return desenhar(); }
         if (!alvo || alvo.dataset.bvaga === undefined) return desenhar();
         const k = +alvo.dataset.bvaga, gol = r.vagas[k] === "GK";
         if (de[0] === "j") { const j = candidatosBase.find(x => semJ(x.id) === de.slice(1));
@@ -3653,10 +3660,11 @@ ${historicoDaBase()}`}
     });
     // visual novo: vaga escolhida no campo, quem joga nela, posição nova no mapa, esquema e estilo em botões
     $("baseEsc").addEventListener("click", e => {
-      const t = e.target.closest("[data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
+      const t = e.target.closest("[data-tbtirasub], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
       if (!t || Date.now() - soltouBaseEm < 400) return;
       const r = R();
-      if (t.dataset.tbsetor) setorBase = t.dataset.tbsetor;
+      if (t.dataset.tbtirasub) r.trocas = r.trocas.filter(x => x.entra !== t.dataset.tbtirasub);
+      else if (t.dataset.tbsetor) setorBase = t.dataset.tbsetor;
       else if (t.dataset.tbfecha) selBase = setorBase = null;
       else if (t.dataset.tbvsel !== undefined) { selBase = selBase === +t.dataset.tbvsel ? null : +t.dataset.tbvsel; setorBase = null; }
       else if (t.dataset.novapos !== undefined) { if (selBase == null) return; if (t.classList.contains("atual")) selBase = null; else { r.vagas[selBase] = t.dataset.novapos; r.segue = false; } }
@@ -3670,7 +3678,7 @@ ${historicoDaBase()}`}
       if (e.target.id === "tbDesfazer") { rascunhoBase = null; selBase = null; return desenhar(); }
       if (e.target.id !== "tbSalvar") return;
       const r = R(); e.target.disabled = true;
-      try { await salvarTaticaDaBase(clube.id, { ...(r.segue ? {} : { vagas: r.vagas }), fixos: r.fixos, instr: r.instr }); rascunhoBase = null; selBase = null; await carregar({ user: usuario }); }
+      try { await salvarTaticaDaBase(clube.id, { ...(r.segue ? {} : { vagas: r.vagas }), fixos: r.fixos, trocas: r.trocas, instr: r.instr }); rascunhoBase = null; selBase = null; await carregar({ user: usuario }); }
       catch (err) { e.target.disabled = false; aviso(err.message); }
     });
   }

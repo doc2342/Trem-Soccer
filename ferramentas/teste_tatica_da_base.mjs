@@ -62,3 +62,21 @@ assert.equal(k.vagas.filter(v => v.j && v.j.contratado).length, CONFIG_LIGA_DE_B
 const casa = linha.map(j => ({ ...j, juvenil: false }));
 assert.ok(escalacaoDaBase([], casa, {}, { formacao }).vagas.filter(v => v.j).length > CONFIG_LIGA_DE_BASE.contratados, "elenco inicial e formados não têm limite");
 console.log("limite de contratados ok");
+
+// trocas do intervalo escolhidas pelo dirigente: valem antes das automáticas, que completam as cinco
+const semJ = j => String(j.id).replace(/^j/, "");
+const a0 = escalacaoDaBase(muitos, [], {}, { formacao });
+const banco = muitos.filter(j => !a0.vagas.some(v => v.j === j)), titular = a0.vagas[3].j;
+const escolhido = banco.filter(j => j.pos !== "GK").at(-1), vagaGol = formacao.indexOf("GK");
+const mt = escalacaoDaBase(muitos, [], {}, { formacao, trocas: [{ entra: semJ(escolhido), vaga: 3 }, { entra: semJ(titular), vaga: 5 }, { entra: semJ(banco.find(j => j.pos !== "GK" && j !== escolhido)), vaga: vagaGol }] });
+assert.deepEqual(mt.trocas[0], { vaga: 3, entra: escolhido, manual: true }, "a troca escolhida entra na vaga pedida");
+assert.ok(!mt.trocas.some(t => t.entra === titular), "quem começa não entra no intervalo");
+assert.ok(!mt.trocas.some(t => t.manual && t.vaga === vagaGol), "jogador de linha não entra no gol");
+assert.equal(mt.trocas.length, Math.min(CONFIG_LIGA_DE_BASE.trocas, banco.length), "as automáticas completam");
+assert.equal(new Set(mt.trocas.map(t => t.vaga)).size, mt.trocas.length, "uma troca por vaga");
+const sem = escalacaoDaBase(muitos, [], {}, { formacao, trocas: [{ entra: semJ(escolhido), vaga: null }] });
+assert.ok(sem.trocas[0].manual && sem.trocas[0].entra === escolhido, "sem vaga, entra onde o rodízio escolheria");
+assert.ok(!sem.fora.includes(escolhido));
+const tt = timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { trocas: [{ entra: semJ(escolhido), vaga: 3 }] } });
+assert.equal(tt.instrucoes.substituicoes[0].entra, escolhido.id);
+console.log("trocas escolhidas ok");
