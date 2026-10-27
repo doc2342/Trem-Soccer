@@ -884,18 +884,16 @@ async function telaClube(liga, clube) {
   // série do grupo para as faixas da tabela e a regra da multa; país estrangeiro tem uma divisão só, sem acesso nem descenso (0)
   const serieDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BCF".includes(g) ? 2 : 3;
   // faixa da posição i (0 = 1º) numa tabela de n clubes: Libertadores e Sul-Americana na Série A e nos países, descenso na A;
-  // na Série B (desde a T14) o 1º e o 2º vão direto à semifinal do playoff e do 3º ao 6º jogam a preliminar; a B não cai
-  // até a T13 (B e C de 10): sobe o 1º, 2º a 4º no playoff, caem 2 da B
+  // na Série B o 1º e o 2º vão direto à semifinal do playoff e do 3º ao 6º jogam a preliminar; a B não cai
   // com a final da Copa do Brasil decidida, as vagas da Série A já saem redistribuídas pela regra do calendário (vagasContinentais); o 1º ganha a cor de campeão
   // e quem cai mas tem vaga pela copa leva as duas cores
   const faixaDaTabela = (serie, i, n, tab) => { const cai = serie && i >= n - 3, v = serie === 1 && tab && vagasDaA(tab), id = tab && tab[i].clube.id;
     const vaga = v ? (v.libBrasil.includes(id) ? "lib" : v.sulBrasil.includes(id) ? "sul" : "") : i <= 2 ? "lib" : i <= 5 && !cai ? "sul" : "";
     return serie <= 1 ? [i === 0 ? "camp" : vaga, cai ? "cai" : ""].filter(Boolean).join(" ")
-    : liga.temporada < 14 ? (i === 0 ? "sobe" : i <= 3 ? "playoff" : serie === 2 && i >= n - 2 ? "cai" : "") : i <= 1 ? "sobe" : i <= 5 ? "playoff" : ""; };
+    : i <= 1 ? "sobe" : i <= 5 ? "playoff" : ""; };
   const vagasDaA = tab => { const f = copaJogos.find(p => p.copa_fase === 6 && copaRes[p.id]), campeao = f && quemPassou(f);
     return campeao ? vagasContinentais(tab.map((t, k) => ({ clube_id: t.clube.id, grupo: "A", posicao: k + 1 })), campeao, f.casa === campeao ? f.fora : f.casa) : null; };
-  const LEGENDA_DA_B = liga.temporada < 14 ? `<span class="ok">▌</span> acesso direto · <span class="casa">▌</span> playoff`
-    : `<span class="ok">▌</span> semifinal do playoff · <span class="casa">▌</span> preliminar do playoff (3º x 6º e 4º x 5º) · o vencedor do playoff sobe`;
+  const LEGENDA_DA_B = `<span class="ok">▌</span> semifinal do playoff · <span class="casa">▌</span> preliminar do playoff (3º x 6º e 4º x 5º) · o vencedor do playoff sobe`;
   // quadro do playoff do grupo: cada confronto com o placar (somado na ida e volta), quem passou em negrito
   const playoffDoGrupo = (partidas, res) => {
     const po = partidas.filter(p => p.fase && p.fase !== "liga"); if (!po.length) return "";
@@ -3048,7 +3046,7 @@ async function telaClube(liga, clube) {
         const serie = serieDoGrupo(g), na = f => tab.filter((t, i) => faixaDaTabela(serie, i, tab.length, tab).split(" ").some(x => x === f || (f === "lib" && x === "camp"))).map(t => lk(t.clube.id)), lista = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
         const aCopa = serie === 1 && !vagasDaA(tab); // a nota só enquanto a final da copa não saiu (depois as vagas já vêm certas)
         const vagas = [["🌎", "lib", "Vão à Libertadores", aCopa ? " (a 4ª vaga é do campeão da Copa do Brasil)" : ""], ["🌐", "sul", "Vão à Sul-Americana", aCopa ? " (mais o vice da Copa do Brasil)" : ""],
-          ["⬆️", "sobe", liga.temporada < 14 ? "Sobe direto" : "Vão direto à semifinal do playoff", ""], ["🎟️", "playoff", liga.temporada < 14 ? "Disputam o playoff do acesso" : "Disputam a preliminar do playoff", ""], ["⬇️", "cai", "Rebaixados", ""]];
+          ["⬆️", "sobe", "Vão direto à semifinal do playoff", ""], ["🎟️", "playoff", "Disputam a preliminar do playoff", ""], ["⬇️", "cai", "Rebaixados", ""]];
         l.push(item("🏆", `Fim do ${nomeDoGrupo(g)}: ${lk(tab[0].clube.id)} é campeão com ${tab[0].pts} pontos${tab[1] ? `, ${tab[0].pts - tab[1].pts ? `${tab[0].pts - tab[1].pts} à frente do` : "no saldo sobre o"} ${lk(tab[1].clube.id)}` : ""}.`));
         vagas.forEach(([ic, f, rot, obs]) => { const x = na(f); if (x.length) l.push(item(ic, `${nomeDoGrupo(g)} · ${rot}: ${lista(x)}${obs}.`)); });
       }
@@ -4516,7 +4514,7 @@ ${historicoDaBase()}`}
   const carimboDoFim = f => { const z = (f || "").split(" ");
     return z.includes("cai") ? ["Rebaixado", `temporada ${liga.temporada}`] : z.includes("camp") ? ["Campeão", "com vaga na Libertadores"] : z.includes("lib") ? ["Libertadores", "classificado"]
       : z.includes("sul") ? ["Sul-Americana", "classificado"] : z.includes("sobe") ? ["Semifinal", "direto no playoff do acesso"] : z.includes("playoff") ? ["Playoff", "do acesso"] : null; };
-  const NOME_DA_FAIXA = { camp: "campeão", sobe: "semifinal do playoff", lib: "Libertadores", playoff: "playoff do acesso", sul: "Sul-Americana", cai: "rebaixamento" };
+  const NOME_DA_FAIXA = { camp: "campeão", sobe: "semifinal do playoff", lib: "Libertadores", playoff: "preliminar do playoff", sul: "Sul-Americana", cai: "rebaixamento" };
   const legendaDoRecorte = fs => { const z = Object.keys(NOME_DA_FAIXA).filter(n => fs.some(f => f.split(" ").includes(n)));
     return z.length ? `<div class="t-recorte-legenda">${z.map(n => `<span class="${n}">${NOME_DA_FAIXA[n]}</span>`).join("")}</div>` : ""; };
   function preencherCentralNova({ g, tab, serie, partidas, res, meus, proximo, rival, ultimo, faixa }) {
