@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarElenco } from "../src/gerador.js";
 import { escalacaoDaBase, timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } from "../src/ligabase.js";
-import { FORMACOES } from "../src/escalacao.js";
+import { FORMACOES, TAMANHO_DO_BANCO } from "../src/escalacao.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const elenco = gerarElenco(criarRng(7), { nivel: 20, nomes, prefixoId: "j" });
@@ -91,3 +91,16 @@ const fx = escalacaoDaBase(muitos, [], {}, { formacao, fixos: { 3: semJ(titular)
 assert.deepEqual(fx.semTroca, [], "vaga fixada já não tem troca");
 assert.ok(!timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { trocas: [{ entra: null, vaga: vagaSem }] } }).instrucoes.substituicoes.some(x => x.sai === a0.vagas[vagaSem].j.id));
 console.log("troca tirada ok");
+
+// banco de nove e substituições livres: sem subs salvas valem as sugeridas; com elas, só as do dirigente (até cinco, só quem está no banco)
+const lv = escalacaoDaBase(muitos, [], {}, { formacao });
+assert.equal(lv.banco.length, Math.min(TAMANHO_DO_BANCO, muitos.length - 11), "o banco enche até nove");
+assert.ok(!lv.propria && lv.subs.length === lv.sugeridas.length && lv.subs.every(s => s.min === 45 && lv.banco.includes(s.entra)));
+const ultimo = lv.banco.at(-1), meu = escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(ultimo)], subs: [{ min: 70, vaga: 2, entra: semJ(ultimo), cond: "perdendo" }, { min: 60, vaga: 3, entra: semJ(titular) }] });
+assert.equal(meu.banco[0], ultimo, "o escolhido senta primeiro");
+assert.deepEqual(meu.subs.map(s => [s.min, s.vaga, s.entra, s.cond]), [[70, 2, ultimo, "perdendo"]], "só a sub válida do dirigente vale");
+assert.equal(escalacaoDaBase(muitos, [], {}, { formacao, subs: [] }).subs.length, 0, "lista vazia: nenhuma troca");
+const tm = timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { subs: [{ min: 70, vaga: 2, entra: semJ(ultimo), cond: "perdendo" }] } });
+assert.equal(tm.banco.length, lv.banco.length);
+assert.deepEqual(tm.instrucoes.substituicoes, [{ min: 70, sai: tm.escalacao[2].j.id, entra: ultimo.id, pos: tm.escalacao[2].pos, cond: "perdendo" }]);
+console.log("banco e subs livres ok");
