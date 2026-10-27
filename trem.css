@@ -741,7 +741,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 /* campo com a vaga escolhida: o time some e as posições possíveis aparecem por cima, em círculos tracejados; a atual em branco */
 .t-posmapa { position:absolute; inset:0; pointer-events:none; z-index:2; }
 .gramado:has(.t-posmapa) > .fila { visibility:hidden; } /* só o mapa de posições: o jogador escolhido é o círculo branco */
-.t-pos { position:absolute; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center; gap:3px; pointer-events:auto; cursor:pointer; }
+.t-pos { position:absolute; transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center; gap:3px; pointer-events:none; cursor:pointer; } .t-pos > * { pointer-events:auto; } /* a caixa do jogador escolhido é larga (o nome): só a camisa e a nota recebem o clique, para não tampar a vizinha (DC e SW, FC e SC) */
 .t-pos-bola { width:40px; height:40px; border-radius:50%; border:2px dashed rgba(255,255,255,.7); display:grid; place-items:center; font:800 11px/1 var(--t-letra); color:#fff; background:rgba(10,30,20,.55); }
 .t-pos-nota { font:700 11px/1 var(--t-letra); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 .t-pos:hover .t-pos-bola, .t-pos.alvo .t-pos-bola { border-style:solid; border-color:#fff; background:rgba(255,255,255,.18); }
@@ -864,7 +864,8 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 .t-besc .vaga .t-fixo { position:absolute; top:-2px; left:50%; margin-left:16px; width:12px; height:12px; border-radius:50%; background:var(--t-marca); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.5); }
 .t-besc .vaga.vazia .nome { margin-top:4px; }
 .t-besc .t-reserva { cursor:default; touch-action:auto; } .t-besc .t-reserva:hover { background:none; }
-.t-besc .t-reserva-nome small { display:block; color:var(--t-tinta2); font-weight:500; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; }
+.t-besc .t-reserva-nome, .t-besc .t-reserva-nome small { white-space:normal; overflow-wrap:anywhere; } /* a coluna é estreita: o nome e o 'MC · por Fulano' quebram em vez de cortar */
+.t-besc .t-reserva-nome small { display:block; color:var(--t-tinta2); font-weight:500; font-size:11.5px; }
 .t-besc .t-besc-fora-rot { margin-top:12px; } .t-besc .t-besc-fora { margin:0; color:var(--t-tinta2); font-size:13px; line-height:1.45; }
 .t-besc .t-esc-setores small { color:inherit; opacity:.6; font-weight:500; }
 .t-besc-avisos { display:flex; flex-direction:column; gap:6px; } .t-besc-avisos:empty { display:none; }

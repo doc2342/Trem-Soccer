@@ -1824,9 +1824,12 @@ async function telaClube(liga, clube) {
       <div class="t-tatica-forca" title="Média das notas na posição, sem os garotos da escolinha"><span>${garotos ? `Onze · ${garotos} ${garotos === 1 ? "garoto" : "garotos"}` : "Seu onze"}</span><b>${forca == null ? "—" : f1(forca)}</b></div></div>`;
     // ao lado do campo, no lugar do banco: quem entra no intervalo e quem fica fora pelo rodízio
     const troca = x => { const pos = P.vagas[x.vaga].pos, sai = P.vagas[x.vaga].j;
-      return `<div class="t-reserva"${editavel ? ` data-btroca="${x.vaga}"` : ""}><span class="t-bola camisa">${camisa(x.entra, pos)}</span><span class="t-reserva-nome" title="${esc(x.entra.nome)}">${esc(curtoB(x.entra))}<small>${sg(pos)} · ${sai ? "por " + esc(curtoB(sai)) : "pelo garoto"}${x.manual ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(x.entra, pos))}${x.manual && editavel ? ` <button type="button" class="t-esc-fecha" data-tbtirasub="${semJ(x.entra.id)}" title="Voltar ao automático">✕</button>` : ""}</span></div>`; };
-    const vazias = Math.max(0, CONFIG_LIGA_DE_BASE.trocas - P.trocas.length);
-    const banco = `<div class="t-banco"><div class="t-numero-rotulo">No intervalo · ${P.trocas.length} de ${CONFIG_LIGA_DE_BASE.trocas}</div>${P.trocas.map(troca).join("")}${`<div class="t-reserva vazia"${editavel ? ` data-btroca=""` : ""}><span class="t-bola"></span><span class="t-reserva-nome">ninguém</span></div>`.repeat(vazias)}
+      return `<div class="t-reserva"${editavel ? ` data-btroca="${x.vaga}"` : ""}><span class="t-bola camisa">${camisa(x.entra, pos)}</span><span class="t-reserva-nome" title="${esc(x.entra.nome)}">${esc(curtoB(x.entra))}<small>${sg(pos)} · ${sai ? "por " + esc(curtoB(sai)) : "pelo garoto"}${x.manual ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(x.entra, pos))}${editavel ? (x.manual ? ` <button type="button" class="t-esc-fecha" data-tbtirasub="${semJ(x.entra.id)}" title="Voltar ao automático">✕</button>` : ` <button type="button" class="t-esc-fecha" data-tbsemtroca="${x.vaga}" title="Tirar esta troca: ${sai ? esc(sai.nome) : "o garoto"} joga os 90 minutos">✕</button>`) : ""}</span></div>`; };
+    // troca tirada pelo dirigente: quem começa naquela vaga joga os 90; ↺ devolve a troca automática
+    const semTroca = i => { const v = P.vagas[i];
+      return `<div class="t-reserva vazia"><span class="t-bola"></span><span class="t-reserva-nome">sem troca<small>${sg(v.pos)} · ${v.j ? esc(curtoB(v.j)) : "o garoto"} joga os 90</small></span><span class="t-reserva-nota">${editavel ? `<button type="button" class="t-esc-fecha" data-tbcomtroca="${i}" title="Devolver a troca do intervalo">↺</button>` : ""}</span></div>`; };
+    const vazias = Math.max(0, CONFIG_LIGA_DE_BASE.trocas - P.trocas.length - P.semTroca.length);
+    const banco = `<div class="t-banco"><div class="t-numero-rotulo">No intervalo · ${P.trocas.length} de ${CONFIG_LIGA_DE_BASE.trocas}</div>${P.trocas.map(troca).join("")}${P.semTroca.map(semTroca).join("")}${`<div class="t-reserva vazia"${editavel ? ` data-btroca=""` : ""}><span class="t-bola"></span><span class="t-reserva-nome">ninguém</span></div>`.repeat(vazias)}
       ${P.fora.length ? `<div class="t-numero-rotulo t-besc-fora-rot">Fora desta rodada · ${P.fora.length}</div><p class="t-besc-fora">${P.fora.map(j => esc(curtoB(j))).join(", ")}. O rodízio dá a vez a eles nas próximas.</p>` : ""}</div>`;
     // coluna da direita: esquema, lista dos jovens (com uma vaga escolhida, só quem pode jogar nela) e o salvar
     const iguais = (a, b) => [...a].sort().join() === [...b].sort().join();
@@ -3625,6 +3628,7 @@ ${historicoDaBase()}`}
     // esquema pronto: os fixados que continuam numa vaga da mesma posição ficam
     const trocarEsquema = v => { const r = R(), novas = v === "=" ? formacaoDaBase : FORMACOES[v];
       for (const i of Object.keys(r.fixos)) if (novas[i] !== r.vagas[i]) delete r.fixos[i];
+      r.trocas = r.trocas.filter(x => x.entra != null || novas[x.vaga] === r.vagas[x.vaga]); // a troca tirada só vale na mesma vaga
       for (const x of r.trocas) if (x.vaga != null && novas[x.vaga] !== r.vagas[x.vaga]) x.vaga = null; // a troca escolhida segue, na vaga que o rodízio escolher
       r.vagas = [...novas]; r.segue = v === "="; };
     acoesDaBase = {
@@ -3660,10 +3664,12 @@ ${historicoDaBase()}`}
     });
     // visual novo: vaga escolhida no campo, quem joga nela, posição nova no mapa, esquema e estilo em botões
     $("baseEsc").addEventListener("click", e => {
-      const t = e.target.closest("[data-tbtirasub], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
+      const t = e.target.closest("[data-tbtirasub], [data-tbsemtroca], [data-tbcomtroca], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
       if (!t || Date.now() - soltouBaseEm < 400) return;
       const r = R();
       if (t.dataset.tbtirasub) r.trocas = r.trocas.filter(x => x.entra !== t.dataset.tbtirasub);
+      else if (t.dataset.tbsemtroca !== undefined) r.trocas = r.trocas.concat({ entra: null, vaga: +t.dataset.tbsemtroca });
+      else if (t.dataset.tbcomtroca !== undefined) r.trocas = r.trocas.filter(x => !(x.entra == null && x.vaga === +t.dataset.tbcomtroca));
       else if (t.dataset.tbsetor) setorBase = t.dataset.tbsetor;
       else if (t.dataset.tbfecha) selBase = setorBase = null;
       else if (t.dataset.tbvsel !== undefined) { selBase = selBase === +t.dataset.tbvsel ? null : +t.dataset.tbvsel; setorBase = null; }

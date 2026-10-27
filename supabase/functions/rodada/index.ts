@@ -2144,7 +2144,8 @@ const __ligabase = (() => {
   // as vagas abertas são preenchidas como sempre, e o fixado não sai no intervalo.
   // trocas = [{ entra: id, vaga: índice ou null }]: quem o dirigente põe para entrar no intervalo (vaga nula = a que o rodízio escolheria);
   // valem antes das automáticas, e as automáticas completam as cinco. Não vale quem já começa, vaga fixada nem goleiro fora do gol.
-  // Devolve { nome, vagas: [{ pos, j, fixo }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra, manual }] no intervalo, fora: [juvenis sem jogo] }.
+  // { entra: null, vaga }: troca tirada pelo dirigente; quem começa nessa vaga joga os 90 e o intervalo tem uma troca a menos.
+  // Devolve { nome, vagas: [{ pos, j, fixo }] (j nulo = vaga de garoto), trocas: [{ vaga (índice), entra, manual }] no intervalo, semTroca: [vagas sem troca], fora: [juvenis sem jogo] }.
   function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { formacao = null, fixos = null, trocas: manuais = null } = {}) {
     const C = CONFIG_LIGA_DE_BASE, jogou = j => minutos[j.id] || 0;
     const estuda = (j, pos) => !!j.aprende && j.aprende.pos === pos && (j.fam || {})[pos] !== "N";
@@ -2197,18 +2198,20 @@ const __ligabase = (() => {
       return cand.length ? cand[0].i : null;
     };
     const entrar = (j, i, manual) => { usadas.add(i); entram.add(j); trocas.push({ vaga: i, entra: j, manual }); if (j.contratado) contratados++; };
+    const semTroca = [], cheio = () => trocas.length + semTroca.length >= C.trocas;
     for (const { entra: id, vaga } of Array.isArray(manuais) ? manuais : []) {
+      if (id == null) { const v = melhor.vagas[vaga]; if (vaga != null && v && !v.fixo && !usadas.has(+vaga) && !cheio()) { usadas.add(+vaga); semTroca.push(+vaga); } continue; }
       const j = [...juvenis, ...profissionais].find(x => mesmoId(x, id));
-      if (trocas.length >= C.trocas || !j || emCampo.has(j) || entram.has(j) || (j.contratado && contratados >= C.contratados)) continue;
+      if (cheio() || !j || emCampo.has(j) || entram.has(j) || (j.contratado && contratados >= C.contratados)) continue;
       const i = vaga == null ? melhorVaga(j) : +vaga;
       if (i != null && podeEm(j, i)) entrar(j, i, true);
     }
     for (const j of reservas) {
-      if (trocas.length >= C.trocas) break;
+      if (cheio()) break;
       if (entram.has(j) || (j.contratado && contratados >= C.contratados)) continue;
       const i = melhorVaga(j); if (i != null) entrar(j, i, false);
     }
-    return { nome: melhor.nome, vagas: melhor.vagas, trocas, fora: reservas.filter(j => !entram.has(j)) };
+    return { nome: melhor.nome, vagas: melhor.vagas, trocas, semTroca, fora: reservas.filter(j => !entram.has(j)) };
   }
 
   // juvenis e profissionais: os de verdade, no formato do motor. Devolve a tática pronta da partida: { escalacao: [{ j, pos }], banco, instrucoes },

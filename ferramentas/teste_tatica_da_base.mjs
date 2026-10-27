@@ -80,3 +80,14 @@ assert.ok(!sem.fora.includes(escolhido));
 const tt = timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { trocas: [{ entra: semJ(escolhido), vaga: 3 }] } });
 assert.equal(tt.instrucoes.substituicoes[0].entra, escolhido.id);
 console.log("trocas escolhidas ok");
+
+// troca tirada pelo dirigente: quem começa na vaga joga os 90 e o intervalo tem uma a menos
+const vagaSem = a0.trocas[0].vaga;
+const st = escalacaoDaBase(muitos, [], {}, { formacao, trocas: [{ entra: null, vaga: vagaSem }] });
+assert.deepEqual(st.semTroca, [vagaSem]);
+assert.ok(!st.trocas.some(t => t.vaga === vagaSem), "ninguém entra na vaga sem troca");
+assert.equal(st.trocas.length, Math.min(CONFIG_LIGA_DE_BASE.trocas - 1, banco.length), "uma troca a menos");
+const fx = escalacaoDaBase(muitos, [], {}, { formacao, fixos: { 3: semJ(titular) }, trocas: [{ entra: null, vaga: 3 }] });
+assert.deepEqual(fx.semTroca, [], "vaga fixada já não tem troca");
+assert.ok(!timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { trocas: [{ entra: null, vaga: vagaSem }] } }).instrucoes.substituicoes.some(x => x.sai === a0.vagas[vagaSem].j.id));
+console.log("troca tirada ok");
