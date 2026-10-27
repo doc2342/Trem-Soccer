@@ -130,7 +130,7 @@ ul { margin:0; padding-left:18px; } li { margin:4px 0; }
 .linhaSub { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
 .linhaSub input { width:64px; }
 /* arrastar e soltar */
-[data-arrasta] { user-select:none; -webkit-user-select:none; }
+[data-arrasta], [data-barrasta], body.arrastando { user-select:none; -webkit-user-select:none; } /* texto selecionado vira arrasto nativo do navegador, que cancela o nosso */
 .vaga[data-arrasta], .chip[data-arrasta], .pega { touch-action:none; } /* a vaga inteira segura o dedo: tocar no selo da posição rolava a página e cancelava o arrasto */
 .pega { color:var(--mut); cursor:grab; padding:0 2px; }
 .fantasma { position:fixed; left:0; top:0; z-index:50; pointer-events:none; background:var(--ac); color:var(--ac-tx); font-weight:600; font-size:12px; padding:4px 8px; border-radius:8px; white-space:nowrap; }
