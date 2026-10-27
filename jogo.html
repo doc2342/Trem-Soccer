@@ -236,7 +236,7 @@ import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducao
 import { CONFIG_BASE, faixaDeJovens, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
 import { CONFIG_MERCADO_BOTS } from "./src/mercadobots.js";
 const prazoEmTexto = h => h >= 48 ? Math.round(h / 24) + " dias" : h >= 1 ? Math.round(h) + " horas" : Math.round(h * 60) + " minutos";
-import { escalacaoDaBase, esquemaDaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE } from "./src/ligabase.js";
+import { escalacaoDaBase, esquemaDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE, INSTRUCOES_DA_BASE } from "./src/ligabase.js";
 import { FORMACOES } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, fatorDaTemporada, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
@@ -1667,7 +1667,7 @@ async function telaClube(liga, clube) {
   const semJ = id => String(id).replace(/^j/, ""); // a tática da base grava o id do banco, sem o "j"
   const quandoB = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const comoFunciona = html => `<details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:12px">Como funciona</summary>${html}</details>`;
-  const meusJuvenis = elenco.filter(j => j.juvenil), meusProfs = elenco.filter(j => !j.juvenil && j.formador === clube.id && j.idade <= CONFIG_LIGA_DE_BASE.idadeMaxima && !(j.fora > 0 && j.motivo === "lesão"));
+  const meusJuvenis = elenco.filter(j => j.juvenil), meusProfs = elenco.filter(j => !j.juvenil && j.idade <= CONFIG_LIGA_DE_BASE.idadeMaxima && !(j.fora > 0 && j.motivo === "lesão")).map(j => ({ ...j, contratado: contratadoNaBase(j.formador, j.chegou, clube.id) }));
   const naBase = {}; // por jogador: jogos, minutos, gols e soma das notas na liga de base desta temporada (o rodízio usa os minutos)
   for (const p of baseJogos || []) if (p.processada && p.gols_casa != null) { const eu = p.casa === clube.id ? 0 : p.fora === clube.id ? 1 : -1;
     for (const x of (p.dados && p.dados.jogadores) || []) if (x.t === eu) { const n = naBase[x.id] = naBase[x.id] || { j: 0, min: 0, g: 0, nota: 0 }; n.j++; n.min += x.min || 0; n.g += x.g || 0; n.nota += x.nota || 0; } }
@@ -1709,7 +1709,7 @@ async function telaClube(liga, clube) {
     const nomes = l => l.map(j => j.nome).join(", "), prontos = listaDosJovens.filter(j => (r => r && r.dif >= 0)(rivalDoJovem(j)));
     const livres = meusJuvenis.filter(j => !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil), melhor = listaDosJovens.slice().sort((a, b) => notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos))[0];
     const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: "sem contrato nem salário" })}
-      ${numero({ rotulo: "Profissionais", valor: String(meusProfs.length), legenda: `formados aqui, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos, jogam a base` })}
+      ${numero({ rotulo: "Profissionais", valor: String(meusProfs.length), legenda: `até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos jogam a base (contratados: ${CONFIG_LIGA_DE_BASE.contratados} por jogo)` })}
       ${numero({ rotulo: "Ficam livres", valor: String(livres.length), legenda: livres.length ? "na virada, sem contrato" : "ninguém na virada", tom: livres.length ? "bad" : "" })}
       ${numero({ rotulo: "Promessas", valor: revelados == null ? "—" : String(revelados.length), legenda: revelados == null ? "" : `reveladas · ${revelados.filter(r => !(j => j && j.juvenil)(elenco.find(x => String(x.id).replace(/[^0-9]/g, "") === String(r.jogador_id)))).length} já formadas` })}</div>`;
     const topo = faixaFoco({ rotulo: "Base · juvenis", titulo: String(listaDosJovens.length), apagado: listaDosJovens.length === 1 ? "jovem no clube" : "jovens no clube",
@@ -1720,7 +1720,7 @@ async function telaClube(liga, clube) {
       const n = listaDosJovens.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
       return `<button type="button" data-jfiltro="${p}" class="${v && !n ? "t-bj-falta" : ""}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${esc(sg(p))}${v ? `<i class="t-bj-tat"></i>` : ""} <small>${n}</small></button>`; }).join("")}</div>`;
     const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil;
-      const marcas = (j.escolinha ? marcaDe("escolinha", `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos`) : j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos`))
+      const marcas = (j.escolinha ? marcaDe("escolinha", `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos`) : j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos${j.contratado ? ` (contratado: no máximo ${CONFIG_LIGA_DE_BASE.contratados} por jogo)` : ""}`))
         + (livre ? marcaDe("fica livre", "Se não for profissionalizado até a virada, fica livre", "t-atencao") : "")
         + (jogaABase.has(j.id) ? "" : marcaDe("não joga a base", "Lesionado, mais velho que o limite da base ou formado em outro clube"))
         + (j.aprende ? marcaDe(`estuda ${sg(j.aprende.pos)}`, "Posição que está aprendendo") : "");
@@ -1775,7 +1775,7 @@ async function telaClube(liga, clube) {
   };
   const abaEscalacao = () => {
     if (baseJogos == null) return "";
-    if (!prevista) return `<div class="card"><h2>Escalação da base</h2><div class="mut">Nenhum juvenil nem profissional formado no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</div></div>`;
+    if (!prevista) return `<div class="card"><h2>Escalação da base</h2><div class="mut">Nenhum juvenil nem profissional de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</div></div>`;
     const aviso = taticaBase === undefined ? `<div class="mut" style="margin-top:6px">A tática da base ainda não está ligada no servidor: a escalação é automática.</div>` : "";
     return `<div class="card" id="baseEsc"><h2>Escalação da base${taticaBase ? ` <span class="tag">salva em ${quandoB(taticaBase.atualizada_em)}</span>` : ""}</h2>
       <div class="mut" style="font-size:12px">Monte o time como na tática principal: arraste uma vaga para mudar a posição dela (dá para treinar posições que o time principal não usa) e arraste um jovem para uma vaga para fixá-lo (📌): ele começa jogando e não sai no intervalo. Em "automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos.</div>
@@ -1848,7 +1848,7 @@ async function telaClube(liga, clube) {
   };
   const escalacaoBaseNova = () => {
     if (baseJogos == null) return "";
-    if (!prevista) return `<div class="t-calendario t-base"><section class="t-secao">${rotulo("Escalação da base")}<p class="t-fajuda">Nenhum juvenil nem profissional formado no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</p></section></div>`;
+    if (!prevista) return `<div class="t-calendario t-base"><section class="t-secao">${rotulo("Escalação da base")}<p class="t-fajuda">Nenhum juvenil nem profissional de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos: o time da base é todo de garotos da escolinha.</p></section></div>`;
     return `<section class="t-faixa t-tatica t-besc" id="baseEsc">${corpoDaBaseNovo()}</section>
       <div class="t-base-pe">${comoFunciona(`<div class="mut" style="font-size:12px">Clique numa vaga para escolher quem joga nela (fixado, ele começa jogando e não sai no intervalo) e, no campo, para onde ela vai: dá para treinar posições que o time principal não usa. Em "Automático" a vaga é preenchida sozinha, com juvenis, profissionais formados no clube e, por fim, garotos da escolinha, e o rodízio dá a vez a quem jogou menos. Até ${CONFIG_LIGA_DE_BASE.trocas} juvenis que não começam entram no intervalo. No estilo, "Auto" deixa o que o bot escolheria.</div>`)}</div>`;
   };
@@ -1861,7 +1861,7 @@ async function telaClube(liga, clube) {
     const dia = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit" }), hora = d => new Date(d).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     const peneira = rodadasFeitas == null ? null : clube.peneira_temporada === liga.temporada ? ["feita", "volta na próxima temporada"]
       : rodadasFeitas < CONFIG_BASE.rodadaDaPeneira ? [`rodada ${CONFIG_BASE.rodadaDaPeneira}`, `estamos na ${rodadasFeitas}`] : ["liberada", `${fx(faixaDeJovens(n, "peneira"))} jovens`];
-    return `<div class="kpis">${kpi("Juvenis", `${meusJuvenis.length}<small> de ${LIMITE_DE_JUVENIS}</small>`, `${meusProfs.length} ${meusProfs.length === 1 ? "formado" : "formados"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos também jogam`)}
+    return `<div class="kpis">${kpi("Juvenis", `${meusJuvenis.length}<small> de ${LIMITE_DE_JUVENIS}</small>`, `${meusProfs.length} ${meusProfs.length === 1 ? "profissional" : "profissionais"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos também jogam`)}
       ${kpi("Base", `nível ${n}`, `${fx(faixaDeJovens(n, "promocao"))} jovens na virada`)}
       ${kpi("Próximo jogo", p ? dia(p.inicio) : "—", p ? `${comp} · ${hora(p.inicio)} · ${esc((cPor[p.casa === clube.id ? p.fora : p.casa] || {}).nome || "—")}` : "nenhum marcado")}
       ${peneira ? kpi("Peneira", peneira[0], peneira[1]) : ""}</div>`;
@@ -1951,7 +1951,7 @@ async function telaClube(liga, clube) {
     const proximos = todos.filter(p => !resultadoB(p)), p = proximos[0], adv = p && cPor[p.casa === clube.id ? p.fora : p.casa];
     const ultimo = todos.filter(resultadoB).pop(), rU = ultimo && resultadoB(ultimo);
     const feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas != null && rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
-    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: !meusProfs.length ? "só eles jogam a base" : `+ ${meusProfs.length} ${meusProfs.length === 1 ? "formado" : "formados"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} na base` })}
+    const lado = `<div class="t-elenco-numeros">${numero({ rotulo: "Juvenis", valor: String(meusJuvenis.length), sufixo: ` de ${LIMITE_DE_JUVENIS}`, legenda: !meusProfs.length ? "só eles jogam a base" : `+ ${meusProfs.length} ${meusProfs.length === 1 ? "profissional" : "profissionais"} até ${CONFIG_LIGA_DE_BASE.idadeMaxima} na base` })}
       ${numero({ rotulo: "Na virada", valor: fx(faixaDeJovens(n, "promocao")), legenda: "jovens sobem da base" })}
       ${numero({ rotulo: "Peneira", valor: fx(faixaDeJovens(n, "peneira")), legenda: feita ? "já feita nesta temporada" : cedo ? `libera na rodada ${CONFIG_BASE.rodadaDaPeneira}` : "jovens, uma vez por temporada" })}
       ${numero({ rotulo: "Último jogo", valor: rU ? `${rU.m} x ${rU.d}` : "—", legenda: rU ? `${compCurtaB(ultimo)} · ${(cPor[ultimo.casa === clube.id ? ultimo.fora : ultimo.casa] || {}).nome || "—"}` : "nenhum ainda", tom: rU ? { V: "ok", D: "bad" }[rU.v] : "" })}</div>`;
@@ -2093,7 +2093,7 @@ async function telaClube(liga, clube) {
       return `<div class="t-bc-art${a.c === clube.id ? " t-eu" : ""}"><span>${esc(a.n)}</span>${svgEscudo(c.escudo, c.sigla, 20)}<span class="t-bc-clube">${esc(c.nome || "—")}</span><b>${a.g}</b></div>`; }).join("")
       : `<p class="t-fajuda">Nenhum gol de juvenil ainda (gol de garoto da escolinha não entra na lista).</p>`}</section>` : "";
     // os dois mata-matas da base
-    const regras = `Jogo único; empate vai direto aos pênaltis. Joga o time da base: juvenis, profissionais formados no clube de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos e garotos da escolinha. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino.`;
+    const regras = `Jogo único; empate vai direto aos pênaltis. Joga o time da base: juvenis, profissionais de até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos (contratados, no máximo ${CONFIG_LIGA_DE_BASE.contratados}) e garotos da escolinha. Sem lesão nem cartão; quem joga 45 minutos ganha o bônus de treino.`;
     // marca: o nome da competição grande, em cima do campeão (só na Copinha: na chave da Lib. Juvenil não há altura para ele)
     // com campeão, a marca entra no bloco dele (não encavala quando o nome quebra em duas linhas no celular)
     const comMarca = (h, marca) => !marca ? h : h.includes(`<div class="ch-campeao">`) ? h.replace(`<div class="ch-campeao">`, `<div class="ch-campeao"><div class="t-bc-marca">${marca}</div>`)

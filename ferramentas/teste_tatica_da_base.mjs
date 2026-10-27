@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarElenco } from "../src/gerador.js";
-import { escalacaoDaBase, timeDaBase } from "../src/ligabase.js";
+import { escalacaoDaBase, timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } from "../src/ligabase.js";
 import { FORMACOES } from "../src/escalacao.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
@@ -53,3 +53,12 @@ const livres = ["GK", "DR", "DC", "DC", "WBL", "DMC", "MC", "AML", "MR", "SC", "
 assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { vagas: livres, esquema: "5-3-2" } }).escalacao.map(x => x.pos), livres);
 assert.deepEqual(timeDaBase(criarRng(1), { juvenis, formacao, tatica: { vagas: ["GK", "GK"] } }).escalacao.map(x => x.pos), formacao);
 console.log("vagas livres ok");
+
+// contratados: no máximo CONFIG_LIGA_DE_BASE.contratados em campo, mesmo fixados; o elenco inicial (chegou vazio) e o formado não contam
+assert.ok(!contratadoNaBase(null, null, 5) && !contratadoNaBase(5, 0, 5) && contratadoNaBase(null, 0, 5) && contratadoNaBase(9, 2, 5));
+const pros = linha.map(j => ({ ...j, juvenil: false, contratado: true }));
+const k = escalacaoDaBase([goleiro].map(j => ({ ...j, juvenil: true })), pros, {}, { formacao, fixos: Object.fromEntries(pros.slice(0, 5).map((j, i) => [i + 1, String(j.id).replace(/^j/, "")])) });
+assert.equal(k.vagas.filter(v => v.j && v.j.contratado).length, CONFIG_LIGA_DE_BASE.contratados, "só 3 contratados entram");
+const casa = linha.map(j => ({ ...j, juvenil: false }));
+assert.ok(escalacaoDaBase([], casa, {}, { formacao }).vagas.filter(v => v.j).length > CONFIG_LIGA_DE_BASE.contratados, "elenco inicial e formados não têm limite");
+console.log("limite de contratados ok");
