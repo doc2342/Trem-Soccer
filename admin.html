@@ -252,6 +252,7 @@ async function tela(aviso = "") {
   const horaDe = t => new Date(t).toTimeString().slice(0, 5);
   const horario = seguinte ? `<label class="t-adm-campo" title="Todas as partidas que ainda não fecharam a tática andam juntas, pela mesma diferença (a da próxima é a referência), e as datas reservadas da copa e dos playoffs também. Precisa do 156_mudar_horario_das_partidas.sql.">Mudar o horário das que faltam (a próxima às ${horaDe(seguinte.inicio)})<span class="t-adm-par"><input type="time" id="novaHora" value="${horaDe(seguinte.inicio)}"> <button type="button" class="t-botao" id="mudarHora">Mudar</button></span></label>` : "";
   const daqui = new Date(Date.now() + 5 * 60000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const viradaEm = liga && liga.copa && liga.copa.virada_em ? new Date(new Date(liga.copa.virada_em).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
   // visual novo: faixa (liga e próxima data) → para resolver → calendário → dirigentes → temporada → números → manutenção
   const telaNova = () => {
     const ajuda = t => `<details class="t-fajuda"><summary>Como funciona</summary><p>${t}</p></details>`;
@@ -284,6 +285,8 @@ async function tela(aviso = "") {
       <p class="t-adm-msg" id="avisoMetas"></p>
       <div class="t-adm-item"><b>Playoffs de acesso</b><span>O servidor cria cada fase sozinho, nas datas reservadas. O botão só antecipa ou escolhe outra hora.</span>
         <div class="t-adm-item-bt"><input type="datetime-local" id="inicioPlayoff" value="${daqui}"><button type="button" class="t-botao" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase</button></div></div>
+      <div class="t-adm-item"><b>Hora da virada</b><span>Mostra a contagem regressiva no jogo para todos os dirigentes, até meia hora depois da hora marcada. Vazio tira o aviso.</span>
+        <div class="t-adm-item-bt"><input type="datetime-local" id="viradaEm" value="${viradaEm}"><button type="button" class="t-botao" id="marcarVirada">Marcar</button></div></div>
       <div class="t-adm-item"><b>Virada</b><span>Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada.</span>
         <div class="t-adm-item-bt"><label class="t-adm-check" title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label>
           <button type="button" class="t-botao t-botao-principal" id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da T${liga.temporada}</button></div></div>
@@ -330,6 +333,7 @@ async function tela(aviso = "") {
     ${liga && partidas.length ? `<div class="card" id="partidasAdm"></div>` : ""}
     ${liga ? `<div class="card"><h2>Virada de temporada</h2>
       <div class="mut" style="margin-bottom:10px">Só com as ${partidas.length || 450} partidas calculadas e a última transmissão encerrada. Paga os prêmios da liga, desconta os prêmios antecipados, cobra o imposto sobre o lucro e distribui o fundo da liga, guarda a classificação no histórico, envelhece os jogadores (crescimento até os 23 anos, queda física a partir dos 31, aposentadoria a partir dos 34 com um jovem no lugar), renova os contratos vencidos dos clubes sem dono e deixa livres os dos clubes com dirigente (sem baixar o elenco de 16), zera amarelos e suspensões e apaga o calendário antigo. Depois é preciso gerar o calendário da temporada nova.</div>
+      <div class="row" style="margin-bottom:10px"><label>Hora da virada (contagem regressiva no jogo; vazio tira o aviso)<input type="datetime-local" id="viradaEm" value="${viradaEm}"></label><button class="sec" id="marcarVirada">Marcar</button></div>
       <div class="row"><label>Playoffs de acesso: início dos jogos<input type="datetime-local" id="inicioPlayoff" value="${daqui}"></label><button class="sec" id="gerarPlayoffs" ${partidas.length ? "" : "disabled"}>Gerar a próxima fase dos playoffs</button><span class="mut">O servidor já cria cada fase sozinho, nas datas reservadas no calendário, assim que a fase anterior do grupo termina. Use o botão só para antecipar ou escolher outra hora (sem datas reservadas, a ida fica na hora escolhida e a volta um intervalo depois).</span>
         <label title="Ninguém sobe nem cai: todos os clubes continuam na mesma divisão e no mesmo grupo"><input type="checkbox" id="semMovimentos"> Sem acesso e descenso</label><button id="prepararVirada" ${partidas.length && feitas === partidas.length ? "" : "disabled"}>Preparar a virada da temporada ${liga.temporada}</button></div>
       <div class="mut" style="margin-top:6px">Série B (cada grupo de 8): 14 rodadas → preliminar 3º x 6º e 4º x 5º (jogo único na casa do melhor; empate, passa o mandante) → semifinal 1º x vencedor do 4x5 e 2º x vencedor do 3x6 → final, as duas em ida e volta (volta na casa da melhor campanha; empate no agregado, passa a melhor campanha). O vencedor sobe; caem 3 da A, um para cada grupo.</div>
@@ -609,6 +613,16 @@ async function tela(aviso = "") {
     try { await apagarPartidas(liga.id); await tela("Calendário apagado."); } catch (e) { await tela("Erro ao apagar: " + e.message); }
   });
   em("processar", () => processar(false));
+  // hora da virada (ligas.copa.virada_em): o cronômetro do jogo.html lê daqui; lê a liga de novo para não perder as outras chaves da copa
+  em("marcarVirada", async () => {
+    const v = $("viradaEm").value;
+    try {
+      const copa = { ...((await ligaAtual()).copa || {}) };
+      if (v) copa.virada_em = new Date(v).toISOString(); else delete copa.virada_em;
+      await atualizarLiga(liga.id, { copa });
+      await tela(v ? `Virada marcada para ${new Date(v).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}.` : "Hora da virada apagada.");
+    } catch (e) { await tela("Erro ao marcar a virada: " + e.message); }
+  });
   em("gerarPlayoffs", async () => {
     try {
       const dados = await divisoesDosClubes(liga.id), div = Object.fromEntries(dados.map(c => [c.id, c.divisao])), base = Object.fromEntries(dados.map(c => [c.id, c.base_nivel])), lista = clubes.map(c => ({ ...c, divisao: div[c.id] || 2, base_nivel: base[c.id] || 0 }));
