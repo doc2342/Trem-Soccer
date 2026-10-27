@@ -109,8 +109,12 @@
   #campoHome { position:relative; aspect-ratio:105/68; border:2px solid #2f6f4b; }
   #campoHome .l { position:absolute; border:0 solid #2f6f4b; }
   #campoHome .jog { position:absolute; transform:translate(-50%, -50%); width:36px; height:36px; border-radius:50%; background:var(--clube); border:2px solid #fff; display:grid; place-items:center; color:#fff; font-weight:800; font-size:11px; }
+  /* as cores de setor da tela de Tática: goleiro laranja, defesa azul, meio verde, ataque vermelho */
+  #campoHome .jog.gk { background:#c9781a; } #campoHome .jog.df { background:#2d6cc0; } #campoHome .jog.md { background:#357f3c; } #campoHome .jog.fw { background:#c0332e; }
+  #campoHome .jog .nm { position:absolute; top:calc(100% + 3px); left:50%; transform:translateX(-50%); white-space:nowrap; font-size:11.5px; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  #campoHome .jog .nm b { font-weight:800; color:#c9f2d6; margin-left:3px; }
   #campoHome .jog.sobe { animation-name:sobeJog; } @keyframes sobeJog { from { opacity:.001; transform:translate(-50%, calc(-50% + 16px)); } }
-  #campoHome .etiqueta { position:absolute; right:12px; bottom:12px; background:rgba(10,14,20,.8); color:#fff; font-size:12.5px; padding:6px 12px; }
+  #campoHome .etiqueta { position:absolute; right:12px; top:12px; background:rgba(10,14,20,.8); color:#fff; font-size:12.5px; padding:6px 12px; }
   .proposta { background:var(--papel); border:1px solid var(--fio); padding:24px; }
   .proposta .topo-p { display:flex; align-items:baseline; justify-content:space-between; }
   .proposta .topo-p span:last-child { font-size:12.5px; color:var(--tinta3); }
@@ -423,11 +427,12 @@
   lance("Começa o segundo tempo. Tudo igual no placar.");
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(tique, 900);
 
-  // campo de exemplo na seção de tática (mandante à esquerda)
-  const TIME = [["GOL", 6, 50], ["LD", 22, 84], ["ZAG", 18, 62], ["ZAG", 18, 38], ["LE", 22, 16], ["VOL", 32, 50], ["MC", 40, 30], ["MC", 40, 70], ["PD", 52, 84], ["CA", 56, 50], ["PE", 52, 16]];
+  // campo de exemplo na seção de tática (mandante à esquerda): o onze do Trem Fantasma, com a nota de cada um na posição
+  const TIME = [["GOL", "gk", 7, 50, "Gordinho", "34,3"], ["LD", "df", 22, 84, "China", "36,5"], ["ZAG", "df", 18, 62, "Misael", "35,2"], ["ZAG", "df", 18, 38, "Bruxo", "34,9"], ["LE", "df", 22, 16, "Kaminski", "34,7"],
+    ["VOL", "md", 32, 50, "José", "34,0"], ["MC", "md", 42, 32, "Túlio", "34,3"], ["MC", "md", 42, 68, "Edílson", "33,1"], ["ME", "md", 50, 14, "Thor", "36,4"], ["MD", "md", 50, 86, "Kerlon", "34,9"], ["CA", "fw", 62, 50, "Otávio", "32,7"]];
   $("campoHome").innerHTML = `<div class="l" style="top:0;bottom:0;left:50%;border-left-width:2px"></div><div class="l" style="left:50%;top:50%;width:17%;aspect-ratio:1;border-radius:50%;border-width:2px;transform:translate(-50%,-50%)"></div><div class="l" style="left:0;top:22%;bottom:22%;width:16%;border-width:2px 2px 2px 0"></div><div class="l" style="right:0;top:22%;bottom:22%;width:16%;border-width:2px 0 2px 2px"></div>`
-    + TIME.map(([p, x, y], i) => `<div class="jog sobe" style="left:${x}%; top:${y}%; --i:${i}">${p}</div>`).join("")
-    + `<div class="etiqueta"><b>4-3-3</b> · pressão alta · passe curto</div>`;
+    + TIME.map(([p, setor, x, y, nome, nota], i) => `<div class="jog ${setor} sobe" style="left:${x}%; top:${y}%; --i:${i}">${p}<span class="nm">${nome}<b>${nota}</b></span></div>`).join("")
+    + `<div class="etiqueta"><b>Trem Fantasma</b> · 4-5-1 · passe misto</div>`;
 
   // bilhete = login, o mesmo fluxo do src/ui-login.js: e-mail → link ou código → entrou (novo ou de volta) → jogo.html
   const traduzir = m => /rate limit|security purposes/i.test(m) ? "Muitos pedidos de e-mail em pouco tempo. Espere um pouco e tente de novo." : /expired|invalid/i.test(m) ? "Código inválido ou vencido." : m;
