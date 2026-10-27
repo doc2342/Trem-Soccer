@@ -2,22 +2,499 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trem Soccer</title>
-<link rel="stylesheet" href="estilo.css">
-<style>a { color:var(--ac); font-weight:600; text-decoration:none; } a:hover { text-decoration:underline; }</style>
+<meta name="description" content="Trem Soccer: uma liga de futebol online entre amigos. Você escala, o motor joga, todo mundo assiste ao vivo.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..900;1,62..125,300..500&display=swap">
+<script src="atualiza.js"></script>
+<style>
+  /* Home (quem ainda não entrou; o jogo.html manda para cá quem não está logado): a linguagem da Central de referências, com o vocabulário de trem.
+     Letra pesada e estreita contra fina, uma faixa escura por seção de foco, a cor do clube só na ação. Só tema claro. */
+  :root {
+    color-scheme:light;
+    --papel:#ffffff; --placa:#f4f4f1; --fio:#e3e3de; --tinta:#111418; --tinta2:#5d636b; --tinta3:#9aa0a6;
+    --noite:#121a24; --noitefio:#2c3846; --noitetx:#eef2f6; --noitemut:#8e9aa8; --noiteclaro:#c9d2dc;
+    --clube:#d7261e; --casa:#2dd4bf; --fora:#f5a524;
+  }
+  *, *::before, *::after { box-sizing:border-box; }
+  html { scroll-padding-top:58px; }
+  body { margin:0; background:var(--papel); color:var(--tinta); font:300 16px/1.5 "Archivo", "Arial Narrow", sans-serif; }
+  h1, h2, h3, p, ol, ul { margin:0; padding:0; }
+  ol, ul { list-style:none; }
+  h1, h2, h3 { text-wrap:balance; }
+  p { text-wrap:pretty; }
+  a { color:inherit; text-decoration:none; }
+  b { font-weight:700; }
+  button, input { font:inherit; }
+  :focus-visible { outline:2px solid var(--clube); outline-offset:3px; }
+
+  .caixa { max-width:1180px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  .faixa { background:var(--noite); color:var(--noitetx); }
+  .placa { background:var(--placa); }
+  .secao { padding-top:64px; padding-bottom:64px; }
+  .vermelho { color:var(--clube); }
+  .num { font-variant-numeric:tabular-nums; }
+  .grosso { font-weight:900; text-transform:uppercase; font-stretch:64%; }
+  .meia { font-weight:800; font-stretch:75%; }
+  .rot { display:flex; align-items:center; gap:10px; font-weight:700; font-size:11.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--tinta2); }
+  .rot::before { content:""; width:18px; height:4px; background:var(--clube); flex-shrink:0; }
+  .faixa .rot { color:var(--noitemut); }
+  .mini { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--tinta2); }
+  .titulo { font-size:clamp(38px, 5.5vw, 64px); line-height:.9; margin-top:16px; max-width:820px; }
+  .linha-sob { font-weight:700; border-bottom:2px solid var(--clube); padding-bottom:1px; }
+  .botao { display:inline-block; font-weight:700; font-size:16px; padding:16px 28px; }
+  .botao.cheio { background:var(--clube); color:#fff; } .botao.cheio:hover { filter:brightness(1.1); }
+  .botao.vazado { border:1px solid var(--noitefio); color:var(--noitetx); } .botao.vazado:hover { border-color:var(--noitetx); }
+  .sobe { animation:sobe .7s cubic-bezier(.2,.7,.2,1) both; animation-delay:calc(var(--i, 0) * 110ms); }
+  @keyframes sobe { from { opacity:.001; transform:translateY(16px); } }
+
+  /* barra */
+  .barra { position:sticky; top:0; z-index:20; background:var(--papel); border-bottom:1px solid var(--fio); }
+  .barra .caixa { height:58px; display:flex; align-items:center; gap:24px; }
+  .marca { font-weight:900; font-size:22px; text-transform:uppercase; font-stretch:64%; line-height:1; white-space:nowrap; }
+  .barra nav { display:none; gap:24px; font-size:14.5px; font-weight:500; color:var(--tinta2); }
+  .barra nav a:hover { color:var(--tinta); }
+  .barra .entrar { margin-left:auto; font-size:14.5px; }
+
+  /* topo: a frase e a partida ao vivo */
+  .topo { position:relative; overflow:hidden; background:radial-gradient(900px 480px at 85% -10%, rgba(215,38,30,.28), transparent 65%), var(--noite); }
+  .topo .caixa { padding-top:56px; padding-bottom:56px; display:grid; grid-template-columns:minmax(0, 1fr); gap:48px; align-items:center; }
+  .topo h1 { font-size:clamp(50px, 8vw, 100px); line-height:.86; margin-top:20px; }
+  .topo .lead { margin-top:24px; font-size:19px; line-height:1.625; color:var(--noiteclaro); max-width:520px; }
+  .topo .lead b { color:var(--noitetx); }
+  .topo .acoes { margin-top:36px; display:flex; flex-wrap:wrap; gap:12px; }
+  .topo .ja { margin-top:20px; font-size:15px; color:var(--noitemut); } .topo .ja a { color:var(--noitetx); }
+  .ao-vivo { position:relative; overflow:hidden; background:#0b1119; border:1px solid var(--noitefio); box-shadow:0 30px 60px rgba(0,0,0,.45); }
+  .ao-vivo .cab { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid var(--noitefio); font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--noitemut); }
+  .ao-vivo .cab .vermelho { display:flex; align-items:center; gap:8px; }
+  .ao-vivo .cab i { width:8px; height:8px; border-radius:50%; background:var(--clube); }
+  .pulso { animation:pulso 1.2s infinite; } @keyframes pulso { 50% { opacity:.3; } }
+  .placar { position:relative; padding:20px 20px 16px; }
+  .placar .linha { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; }
+  .placar .time { font-size:30px; line-height:1; }
+  .placar .time + i { display:block; width:36px; height:4px; margin-top:8px; }
+  .placar .dir { text-align:right; } .placar .dir .time { color:var(--noitemut); } .placar .dir i { margin-left:auto; }
+  .placar .gols { font-weight:900; font-stretch:64%; font-size:64px; line-height:1; white-space:nowrap; }
+  .placar .gols span.x { color:var(--noitemut); font-weight:300; margin:0 4px; }
+  .placar .min { text-align:center; margin-top:12px; } .placar .min span { display:inline-block; border:1px solid var(--noitefio); padding:2px 12px; font-size:18px; }
+  #feed { padding:0 20px 16px; font-size:14px; color:var(--noiteclaro); min-height:132px; }
+  #feed li { display:flex; gap:12px; padding:6px 0; border-top:1px solid #1d2836; }
+  #feed li.destaque { color:#fff; font-weight:600; }
+  #feed .m { width:36px; flex-shrink:0; text-align:right; color:var(--noitemut); }
+  .lance-novo { animation:lance .5s ease both; } @keyframes lance { from { opacity:0; transform:translateX(-10px); } }
+  .golaco { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:16px; color:#fff; background:linear-gradient(110deg, #d7261e 0 42%, #fff 42% 45%, #d7261e 45%); animation:golaco 3.2s cubic-bezier(.2,.8,.2,1) forwards; }
+  .golaco .g { font-size:64px; line-height:1; } .golaco div:last-child { font-size:15px; line-height:1.25; } .golaco b { font-weight:800; }
+  @keyframes golaco { 0% { clip-path:inset(0 100% 0 0); } 10%, 85% { clip-path:inset(0 0 0 0); opacity:1; } 100% { clip-path:inset(0 0 0 0); opacity:0; } }
+  .gramado { background:repeating-linear-gradient(90deg, #1b4d33 0 10%, #1f5639 10% 20%); }
+  .ao-vivo .gramado { height:6px; }
+  .nota-exemplo { font-size:12.5px; color:var(--noitemut); margin-top:12px; }
+
+  /* como embarcar */
+  .titulo.curto { max-width:760px; }
+  .passos { display:grid; gap:1px; background:var(--fio); border:1px solid var(--fio); margin-top:40px; }
+  .passos li { background:var(--papel); padding:28px; }
+  .passos .n { font-size:72px; line-height:1; color:var(--clube); text-transform:none; }
+  .passos .mini { color:var(--tinta3); margin-top:16px; } .passos .mini.vermelho { color:var(--clube); }
+  .passos h3 { font-size:24px; margin-top:4px; line-height:1.25; }
+  .passos p, .vagao p { color:var(--tinta2); margin-top:8px; }
+
+  /* a composição */
+  .composicao .intro { color:var(--tinta2); font-size:17px; margin-top:16px; max-width:640px; }
+  .vagao { display:grid; gap:40px; align-items:center; margin-top:80px; }
+  .intro + .vagao { margin-top:48px; }
+  .vagao .mini { color:var(--clube); }
+  .vagao h3 { font-size:clamp(32px, 4vw, 46px); line-height:.92; margin-top:8px; }
+  .vagao p { font-size:17px; margin-top:16px; max-width:480px; }
+  #campoHome { position:relative; aspect-ratio:105/68; border:2px solid #2f6f4b; }
+  #campoHome .l { position:absolute; border:0 solid #2f6f4b; }
+  #campoHome .jog { position:absolute; transform:translate(-50%, -50%); width:36px; height:36px; border-radius:50%; background:var(--clube); border:2px solid #fff; display:grid; place-items:center; color:#fff; font-weight:800; font-size:11px; }
+  #campoHome .jog.sobe { animation-name:sobeJog; } @keyframes sobeJog { from { opacity:.001; transform:translate(-50%, calc(-50% + 16px)); } }
+  #campoHome .etiqueta { position:absolute; right:12px; bottom:12px; background:rgba(10,14,20,.8); color:#fff; font-size:12.5px; padding:6px 12px; }
+  .proposta { background:var(--papel); border:1px solid var(--fio); padding:24px; }
+  .proposta .topo-p { display:flex; align-items:baseline; justify-content:space-between; }
+  .proposta .topo-p span:last-child { font-size:12.5px; color:var(--tinta3); }
+  .proposta .quem { font-size:22px; margin-top:12px; } .proposta .quem span { font-weight:400; font-stretch:100%; color:var(--tinta2); font-size:15px; }
+  .proposta .valor { text-transform:none; font-size:64px; line-height:1; color:var(--clube); margin-top:4px; }
+  .proposta .de { color:var(--tinta2); font-size:14px; margin-top:4px; }
+  .proposta .bts { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+  .proposta .bts span { font-weight:700; font-size:14px; padding:8px 16px; border:1px solid var(--fio); }
+  .proposta .bts span:first-child { background:var(--clube); color:#fff; border-color:var(--clube); }
+  .quadro { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--fio); border:1px solid var(--fio); }
+  .quadro > div { background:var(--papel); padding:20px; }
+  .quadro .grande { white-space:nowrap; font-size:clamp(38px, 11vw, 52px); line-height:1; margin-top:8px; text-transform:none; }
+  .quadro .grande span { font-size:20px; font-weight:300; color:var(--tinta2); }
+  .quadro .sub { font-size:13.5px; color:var(--tinta2); margin-top:4px; }
+
+  /* a temporada */
+  .temporada { background:radial-gradient(800px 400px at 10% 0%, rgba(215,38,30,.18), transparent 65%), var(--noite); }
+  .etapas { display:grid; gap:1px; background:var(--noitefio); border:1px solid var(--noitefio); margin-top:40px; }
+  .etapas li { background:var(--noite); padding:20px; }
+  .etapas .quando { font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--noitemut); }
+  .etapas .quando.vermelho { color:var(--clube); }
+  .etapas .o-que { font-size:28px; line-height:1; margin-top:8px; }
+  .etapas p { font-size:14px; color:var(--noiteclaro); margin-top:8px; }
+
+  /* guichê */
+  .duvidas { max-width:860px; }
+  .duvidas .titulo { font-size:clamp(38px, 5.5vw, 56px); }
+  .perguntas { margin-top:32px; border-top:1px solid var(--fio); }
+  .perguntas details { border-bottom:1px solid var(--fio); }
+  .perguntas summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 0; cursor:pointer; font-weight:700; font-size:18px; list-style:none; }
+  .perguntas summary::-webkit-details-marker { display:none; }
+  .perguntas .mais { color:var(--clube); font-size:26px; font-weight:300; transition:transform .2s; }
+  .perguntas details[open] .mais { transform:rotate(45deg); }
+  .perguntas p { color:var(--tinta2); padding-bottom:20px; margin-top:-4px; }
+
+  /* entrar: o fim da página é a ação */
+  .fim { background:radial-gradient(700px 360px at 50% 120%, rgba(215,38,30,.35), transparent 70%), var(--noite); }
+  .fim .caixa { max-width:820px; padding-top:64px; padding-bottom:64px; }
+  .fim h2 { font-size:clamp(44px, 7vw, 84px); line-height:.88; text-align:center; }
+  .fim .caixa > p { font-size:17px; color:var(--noiteclaro); margin-top:20px; text-align:center; }
+  .rodape { padding-top:32px; padding-bottom:32px; display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center; font-size:13px; color:var(--tinta2); }
+  .rodape .marca { font-size:18px; color:var(--tinta); }
+  .rodape a { text-decoration:underline; text-underline-offset:2px; }
+
+  /* bilhete de embarque (o login) */
+  .bilhete { display:grid; grid-template-columns:minmax(0, 1fr) 210px; margin:40px auto 0; background:#fbf7e8; color:var(--tinta); box-shadow:0 24px 50px rgba(0,0,0,.35); position:relative; }
+  .bilhete .corpo { padding:26px 28px; border-right:3px dashed #c9c2a6; position:relative; min-width:0; }
+  .bilhete .corpo::before, .bilhete .corpo::after { content:""; position:absolute; right:-14px; width:26px; height:26px; border-radius:50%; background:var(--noite); }
+  .bilhete .corpo::before { top:-13px; } .bilhete .corpo::after { bottom:-13px; }
+  .bilhete label { display:block; }
+  .bilhete .rot-b { font-weight:700; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:#7a735a; }
+  .bilhete .trecho { display:flex; align-items:center; gap:14px; margin:6px 0 20px; font-weight:900; font-stretch:68%; font-size:34px; text-transform:uppercase; line-height:1; }
+  .bilhete .trecho .seta { flex:1; height:3px; background:var(--tinta); position:relative; min-width:30px; }
+  .bilhete .trecho .seta::after { content:""; position:absolute; right:-2px; top:-5px; border:6px solid transparent; border-left:9px solid var(--tinta); border-right:0; }
+  .bilhete input { width:100%; margin-top:6px; font-weight:500; font-size:18px; padding:12px; border:2px solid var(--tinta); border-radius:0; background:#fff; color:var(--tinta); }
+  .bilhete input::placeholder { color:#a9a28a; }
+  .bilhete input:focus { outline:none; border-color:var(--clube); }
+  .bilhete .canhoto { padding:26px 22px; display:flex; flex-direction:column; justify-content:space-between; gap:16px; }
+  .bilhete .canhoto .cl { font-weight:900; font-stretch:68%; font-size:40px; line-height:1; text-transform:uppercase; color:var(--clube); }
+  .bilhete .barras { height:38px; background:repeating-linear-gradient(90deg, #111418 0 2px, transparent 2px 4px, #111418 4px 7px, transparent 7px 9px, #111418 9px 10px, transparent 10px 13px); opacity:.85; }
+  .bilhete .enviar { width:100%; border:0; cursor:pointer; background:var(--clube); color:#fff; font-weight:700; font-size:16px; padding:16px 20px; }
+  .bilhete .enviar:hover { filter:brightness(1.1); } .bilhete .enviar:disabled { opacity:.6; cursor:wait; }
+  .carimbo { position:absolute; right:170px; top:22px; transform:rotate(-12deg); border:4px solid var(--clube); color:var(--clube); font-weight:900; font-stretch:70%; font-size:24px; text-transform:uppercase; padding:2px 12px; opacity:0; pointer-events:none; }
+  .carimbo.on { animation:carimba .35s cubic-bezier(.3,1.6,.5,1) forwards; }
+  @keyframes carimba { from { transform:rotate(-12deg) scale(2); opacity:0; } to { transform:rotate(-12deg) scale(1); opacity:.9; } }
+  .bilhete .para { font-weight:700; font-size:18px; word-break:break-all; margin:2px 0 6px; }
+  .bilhete .dica { font-size:14px; color:#5c5440; margin:0 0 12px; }
+  .bilhete .codigo { letter-spacing:.4em; font-size:22px; font-weight:700; }
+  .bilhete .outro { margin-top:10px; background:none; border:0; padding:0; font-size:14px; font-weight:600; color:var(--tinta); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+  .aviso { text-align:center; font-size:14px; min-height:1.5em; margin-top:14px; }
+
+  /* diálogo "Entrar" (quem já tem clube) */
+  .dlg { width:min(780px, calc(100vw - 24px)); max-height:calc(100dvh - 24px); overflow:auto; border:0; padding:28px; background:var(--noite); color:var(--noitetx); box-shadow:0 30px 80px rgba(0,0,0,.6); }
+  .dlg::backdrop { background:rgba(8,12,20,.7); }
+  .dlg h2 { font-size:44px; line-height:1; }
+  .dlg > p { font-size:15px; color:var(--noiteclaro); margin-top:8px; }
+  .dlg .fechar { position:absolute; top:10px; right:14px; background:none; border:0; color:var(--noitemut); font-size:30px; line-height:1; cursor:pointer; }
+  .dlg .fechar:hover { color:#fff; }
+  .dlg .bilhete { margin-top:22px; }
+
+  @media (min-width:640px) {
+    .etapas { grid-template-columns:repeat(2, 1fr); }
+    #campoHome .jog { width:44px; height:44px; font-size:12.5px; }
+  }
+  @media (max-width:639.98px) {
+    .dlg { padding:22px 16px; }
+    .bilhete { grid-template-columns:1fr; }
+    .bilhete .corpo { border-right:0; border-bottom:3px dashed #c9c2a6; }
+    .bilhete .corpo::before { top:auto; bottom:-13px; left:-13px; right:auto; } .bilhete .corpo::after { right:-13px; }
+    .carimbo { right:20px; top:auto; bottom:160px; }
+    #campoHome { margin-bottom:36px; } #campoHome .etiqueta { top:100%; bottom:auto; right:-2px; margin-top:8px; }
+  }
+  @media (min-width:768px) {
+    .barra nav { display:flex; }
+    .secao { padding-top:80px; padding-bottom:80px; }
+    .topo .caixa { padding-top:80px; padding-bottom:80px; }
+    .fim .caixa { padding-top:96px; padding-bottom:96px; }
+    .passos { grid-template-columns:repeat(3, 1fr); }
+  }
+  @media (min-width:1024px) {
+    .topo .caixa { grid-template-columns:1.15fr 1fr; }
+    .vagao { grid-template-columns:1fr 1fr; gap:64px; }
+    .vagao .lado2 { order:2; }
+    .etapas { grid-template-columns:repeat(5, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+</style>
 </head>
 <body>
-<main>
-  <h1>Trem Soccer</h1>
-  <div class="mut">Fase 1 em construção: já dá para entrar e criar o clube; as rodadas ainda não estão no ar.</div>
-  <div class="card"><a href="jogo.html">Entrar no jogo</a><div class="mut">Entrar com o e-mail, criar o clube e ver o elenco.</div></div>
-  <h2 style="margin-top:18px">Páginas de teste do motor</h2>
-  <div class="card"><a href="escalacao.html">Escalação e tática</a><div class="mut">Monte o time, defina as instruções e jogue contra um clube comandado pelo bot.</div></div>
-  <div class="card"><a href="relatorio.html">Bot contra bot</a><div class="mut">Uma partida entre dois clubes sem dono, com o relatório completo.</div></div>
-  <div class="card"><a href="partida.html">Partida simulada</a><div class="mut">Dois times com formações e instruções à escolha; uma partida ou mil.</div></div>
-  <div class="card"><a href="elenco.html">Elenco gerado</a><div class="mut">Os 22 jogadores iniciais, com atributos e nota em cada posição.</div></div>
-  <div class="card"><a href="calibragem.html">Calibragem do motor</a><div class="mut">Milhares de partidas comparadas com as metas. Leva cerca de meio minuto.</div></div>
-</main>
+
+<header class="barra">
+  <div class="caixa">
+    <a href="#" class="marca">Trem <span class="vermelho">Soccer</span></a>
+    <nav><a href="#como">Como embarcar</a><a href="#jogo">A composição</a><a href="#temporada">A temporada</a><a href="#duvidas">Guichê</a></nav>
+    <a href="#entrar" data-entrar class="entrar linha-sob">Entrar</a>
+  </div>
+</header>
+
+<!-- topo: a faixa escura. O foco é a frase e a partida ao vivo -->
+<section class="faixa topo">
+  <div class="caixa">
+    <div>
+      <div class="rot sobe" style="--i:0">Estação Trem Soccer · liga entre amigos</div>
+      <h1 class="grosso sobe" style="--i:1">Toda rodada, um trem sai às 21h.<br><span class="vermelho">Tem lugar para o seu clube.</span></h1>
+      <p class="lead sobe" style="--i:2"><b>Trem Soccer é uma liga de futebol online entre amigos.</b> Cada um dirige um clube. Você escala e decide; no horário da rodada, todas as partidas rolam ao vivo, lance a lance.</p>
+      <div class="acoes sobe" style="--i:3">
+        <a href="#entrar" class="botao cheio">Quero um clube</a>
+        <a href="#como" class="botao vazado">Como embarcar</a>
+      </div>
+      <p class="ja sobe" style="--i:4">Já tem clube? <a href="#entrar" data-entrar class="linha-sob">Entrar</a></p>
+    </div>
+
+    <!-- partida ao vivo (exemplo): o minuto anda e os lances entram -->
+    <div class="sobe" style="--i:2" aria-label="Exemplo de partida ao vivo">
+      <div class="ao-vivo">
+        <div class="cab"><span class="vermelho"><i class="pulso"></i>Ao vivo</span><span>Série B · rodada 15 · exemplo</span></div>
+        <div class="placar">
+          <div class="linha">
+            <div><div class="grosso time">Ferroviário</div><i style="background:var(--casa)"></i></div>
+            <div class="gols num"><span id="gC">1</span><span class="x">–</span><span id="gF">1</span></div>
+            <div class="dir"><div class="grosso time">Campinense</div><i style="background:var(--fora)"></i></div>
+          </div>
+          <div class="min"><span class="meia num" id="minuto">58'</span></div>
+          <div id="golBox"></div>
+        </div>
+        <ul id="feed"></ul>
+        <div class="gramado"></div>
+      </div>
+      <p class="nota-exemplo">Exemplo de transmissão. Na sua liga, quem joga são os clubes de vocês.</p>
+    </div>
+  </div>
+</section>
+
+<!-- como funciona: três passos, em ordem -->
+<section id="como" class="caixa secao">
+  <div class="rot">Como embarcar</div>
+  <h2 class="grosso titulo curto">Três estações até a sua primeira partida</h2>
+  <ol class="passos">
+    <li>
+      <div class="grosso n">1</div>
+      <div class="mini">Estação 1</div><h3 class="meia">Seu e-mail</h3>
+      <p>Você recebe um código e pronto. Sem senha para lembrar e sem nada para instalar: roda no navegador, no celular ou no computador.</p>
+    </li>
+    <li>
+      <div class="grosso n">2</div>
+      <div class="mini">Estação 2</div><h3 class="meia">Seu clube</h3>
+      <p>Nome, escudo, cores e uniforme. O elenco já vem montado. Os clubes sem dono são dirigidos pelo bot, então a liga está sempre cheia.</p>
+    </li>
+    <li>
+      <div class="grosso n">3</div>
+      <div class="mini vermelho">Estação final</div><h3 class="meia">A rodada</h3>
+      <p>Deixe a tática salva antes da rodada. No horário marcado, a partida passa ao vivo, com narração, placar, cartões e gráficos.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- o jogo: cada bloco tem um foco só -->
+<section id="jogo" class="placa composicao">
+  <div class="caixa secao">
+    <div class="rot">A composição</div>
+    <h2 class="grosso titulo">Cada vagão é uma parte do seu clube</h2>
+    <p class="intro">A Central é a locomotiva: o próximo jogo, a tabela e o que precisa de você. Atrás dela vêm os vagões.</p>
+
+    <div class="vagao">
+      <div>
+        <div class="mini">Vagão · Tática</div>
+        <h3 class="grosso">Você monta, o motor joga</h3>
+        <p>18 posições no campo, instruções de mentalidade, pressão, ritmo e passe, e ordens para durante o jogo: <i>se estiver empatando aos 60', entra o ponta</i>. O motor simula cada lance com a sua escalação.</p>
+      </div>
+      <div class="gramado" id="campoHome" aria-label="Exemplo de escalação no campo"></div>
+    </div>
+
+    <div class="vagao">
+      <div class="lado2">
+        <div class="mini">Vagão · Mercado</div>
+        <h3 class="grosso">Negocie com os seus amigos</h3>
+        <p>Pague a multa rescisória e leve o jogador na hora, faça propostas ao dirigente rival ou dispute os jogadores livres em leilão. Proteja até 7 do seu elenco. Tudo nas janelas de transferência.</p>
+      </div>
+      <div class="proposta">
+        <div class="topo-p"><span class="mini">Proposta recebida</span><span>exemplo</span></div>
+        <div class="meia quem">Cauã Ribamar <span>zagueiro · 24 anos</span></div>
+        <div class="grosso valor num">2,10 mi</div>
+        <div class="de">do Ferroviário de Itaquera · a multa dele é 2,60 mi</div>
+        <div class="bts"><span>Aceitar</span><span>Pedir outro valor</span><span>Recusar</span></div>
+      </div>
+    </div>
+
+    <div class="vagao">
+      <div>
+        <div class="mini">Último vagão · Clube</div>
+        <h3 class="grosso">Da base ao estádio, tudo é seu</h3>
+        <p>Revele garotos no Sub-21, leve a base à Copinha, aumente o estádio nível a nível, feche patrocínio e cuide da torcida. A diretoria acompanha: se a confiança cair demais, você está na rua.</p>
+      </div>
+      <div class="quadro">
+        <div><div class="mini">Estádio</div><div class="grosso grande num">8 <span>níveis</span></div><div class="sub">refletores, estacionamento, bares</div></div>
+        <div><div class="mini">Base</div><div class="grosso grande">Sub-21</div><div class="sub">liga de base, Copinha e Libertadores Juvenil</div></div>
+        <div><div class="mini">Treino</div><div class="grosso grande">Semana</div><div class="sub">foco, carga e treinadores</div></div>
+        <div><div class="mini">Diretoria</div><div class="grosso grande num">0–100</div><div class="sub">de confiança: de demitido a ídolo</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- a temporada: uma linha do tempo -->
+<section id="temporada" class="faixa temporada">
+  <div class="caixa secao">
+    <div class="rot">A temporada</div>
+    <h2 class="grosso titulo">Suba de divisão. Ganhe a copa. Comece de novo.</h2>
+    <ol class="etapas">
+      <li><div class="meia quando">Início</div><div class="grosso o-que">Janela aberta</div><p>Contrate, venda e acerte o elenco.</p></li>
+      <li><div class="meia quando">Liga</div><div class="grosso o-que">Rodadas</div><p>Divisões com acesso e descenso.</p></li>
+      <li><div class="meia quando">No meio</div><div class="grosso o-que">Copas</div><p>Copa do Brasil e as continentais, mata-mata com pênaltis.</p></li>
+      <li><div class="meia quando">Fim</div><div class="grosso o-que">Prêmios</div><p>Artilheiro, técnico do ano, seleção da temporada.</p></li>
+      <li><div class="meia quando vermelho">Virada</div><div class="grosso o-que">Nova temporada</div><p>Contratos vencem, garotos sobem, veteranos se aposentam.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- dúvidas -->
+<section id="duvidas" class="caixa secao duvidas">
+  <div class="rot">Guichê de informações</div>
+  <h2 class="grosso titulo">Antes de embarcar</h2>
+  <div class="perguntas">
+    <details><summary>Preciso entrar na hora do jogo?<span class="mais">+</span></summary><p>Não. A tática salva vale para a rodada, e você pode rever a partida depois, lance a lance. Assistir ao vivo é a graça, mas não é obrigação.</p></details>
+    <details><summary>Quanto tempo leva por semana?<span class="mais">+</span></summary><p>Uns minutos para conferir a escalação antes de cada rodada já bastam. Mercado, base e estádio ficam para quando você quiser se aprofundar.</p></details>
+    <details><summary>E se eu sumir por umas semanas?<span class="mais">+</span></summary><p>O time continua jogando com a última tática salva. Você volta e retoma de onde parou.</p></details>
+    <details><summary>Nunca joguei um manager. Vou entender?<span class="mais">+</span></summary><p>Sim. O elenco já vem montado, o botão "escalar os melhores" resolve a primeira rodada e o guia do dirigente explica cada parte quando você tiver curiosidade.</p></details>
+  </div>
+</section>
+
+<!-- entrar: o fim da página é a ação -->
+<section id="entrar" class="faixa fim">
+  <div class="caixa">
+    <h2 class="grosso">Emita o seu bilhete</h2>
+    <p>Novo ou de volta, o bilhete é o mesmo: coloque o seu e-mail e entre pelo link ou pelo código que chegar. Sem senha.</p>
+    <div id="bilheteFim"></div>
+  </div>
+</section>
+
+<!-- entrar (quem já tem clube): o mesmo bilhete, aberto pelo "Entrar" do topo -->
+<dialog id="dlgEntrar" class="dlg" aria-labelledby="dlgTit">
+  <button type="button" class="fechar" id="fecharEntrar" aria-label="Fechar">×</button>
+  <h2 id="dlgTit" class="grosso">Entrar</h2>
+  <p>Já tem clube? Coloque o e-mail de sempre. Primeira vez? Funciona igual.</p>
+  <div id="bilheteTopo"></div>
+</dialog>
+
+<footer class="caixa rodape">
+  <span class="marca">Trem <span class="vermelho">Soccer</span></span>
+  <span>Estação Trem Soccer · uma liga de amigos · <a href="guia.html">Guia do dirigente</a></span>
+</footer>
+
+<script type="module">
+  import { sessao, enviarCodigo, confirmarCodigo } from "./src/banco.js";
+  const $ = id => document.getElementById(id);
+
+  // quem já entrou (inclusive pelo link do e-mail, que volta para esta página) vai direto para o jogo
+  if (await sessao()) location.replace("jogo.html");
+
+  // partida de exemplo no topo: o minuto anda de 58' a 90' e recomeça; um gol aos 61'
+  const LANCES = [
+    [59, "Siqueira rouba a bola no meio e acha o ponta."],
+    [61, "GOL", 0, "Gabriel Siqueira"],
+    [66, "Arcoverde espalma o chute de fora de Nenê."],
+    [72, "Amarelo para Edinho, que parou o contra-ataque."],
+    [78, "Campinense põe três atacantes. Pressão total."],
+    [84, "Higor Sobral cabeceia, a bola raspa a trave!"],
+    [90, "Fim de jogo no Estádio da Rotunda."],
+  ];
+  let m = 58, gols = [1, 1];
+  function lance(texto, destaque) {
+    const li = document.createElement("li");
+    li.className = "lance-novo" + (destaque ? " destaque" : "");
+    li.innerHTML = `<span class="m meia num">${m}'</span><span>${texto}</span>`;
+    $("feed").prepend(li);
+    while ($("feed").children.length > 4) $("feed").lastElementChild.remove();
+  }
+  function gol(lado, quem) {
+    gols[lado]++; $(lado ? "gF" : "gC").textContent = gols[lado];
+    lance(`<span style="color:var(${lado ? "--fora" : "--casa"})">⚽ Gol!</span> ${quem}`, true);
+    $("golBox").innerHTML = `<div class="golaco"><div class="grosso g">Gol!</div><div><b>${quem}</b><br>${m}' · Ferroviário</div></div>`;
+  }
+  function tique() {
+    m++;
+    if (m > 92) { m = 58; gols = [1, 1]; $("gC").textContent = 1; $("gF").textContent = 1; $("feed").innerHTML = ""; }
+    $("minuto").textContent = Math.min(m, 90) + (m > 90 ? "+" + (m - 90) : "") + "'";
+    const l = LANCES.find(x => x[0] === m);
+    if (l) l[1] === "GOL" ? gol(l[2], l[3]) : lance(l[1]);
+  }
+  lance("Começa o segundo tempo. Tudo igual no placar.");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(tique, 900);
+
+  // campo de exemplo na seção de tática (mandante à esquerda)
+  const TIME = [["GOL", 6, 50], ["LD", 22, 84], ["ZAG", 18, 62], ["ZAG", 18, 38], ["LE", 22, 16], ["VOL", 32, 50], ["MC", 40, 30], ["MC", 40, 70], ["PD", 52, 84], ["CA", 56, 50], ["PE", 52, 16]];
+  $("campoHome").innerHTML = `<div class="l" style="top:0;bottom:0;left:50%;border-left-width:2px"></div><div class="l" style="left:50%;top:50%;width:17%;aspect-ratio:1;border-radius:50%;border-width:2px;transform:translate(-50%,-50%)"></div><div class="l" style="left:0;top:22%;bottom:22%;width:16%;border-width:2px 2px 2px 0"></div><div class="l" style="right:0;top:22%;bottom:22%;width:16%;border-width:2px 0 2px 2px"></div>`
+    + TIME.map(([p, x, y], i) => `<div class="jog sobe" style="left:${x}%; top:${y}%; --i:${i}">${p}</div>`).join("")
+    + `<div class="etiqueta"><b>4-3-3</b> · pressão alta · passe curto</div>`;
+
+  // bilhete = login, o mesmo fluxo do src/ui-login.js: e-mail → link ou código → entrou (novo ou de volta) → jogo.html
+  const traduzir = m => /rate limit|security purposes/i.test(m) ? "Muitos pedidos de e-mail em pouco tempo. Espere um pouco e tente de novo." : /expired|invalid/i.test(m) ? "Código inválido ou vencido." : m;
+  function montarBilhete(raiz, p) {
+    raiz.innerHTML = `<form class="bilhete" novalidate>
+      <span class="carimbo">Embarque liberado</span>
+      <div class="corpo">
+        <div class="rot-b">Trecho</div>
+        <div class="trecho"><span>Você</span><span class="seta"></span><span>A liga</span></div>
+        <div class="e-email"><label for="${p}-email"><span class="rot-b">Passageiro (e-mail)</span><input id="${p}-email" type="email" autocomplete="email" placeholder="seu@email.com"></label></div>
+        <div class="e-codigo" hidden>
+          <div class="rot-b">Bilhete enviado para</div><div class="para"></div>
+          <p class="dica">Abra o e-mail neste aparelho e toque no link. Se vier um código, digite aqui. Olhe também o spam.</p>
+          <label for="${p}-codigo"><span class="rot-b">Código</span><input id="${p}-codigo" class="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="000000"></label>
+          <button type="button" class="outro">Usar outro e-mail</button>
+        </div>
+      </div>
+      <div class="canhoto">
+        <div><div class="rot-b">Classe</div><div class="cl">Dirigente</div></div>
+        <div class="barras" aria-hidden="true"></div>
+        <button type="submit" class="enviar">Receber o link</button>
+      </div>
+    </form>
+    <p class="aviso" aria-live="polite"></p>`;
+    const f = raiz.querySelector("form"), aviso = raiz.querySelector(".aviso"), email = raiz.querySelector(`#${p}-email`), codigo = raiz.querySelector(`#${p}-codigo`);
+    const btn = f.querySelector(".enviar"), carimbo = f.querySelector(".carimbo");
+    let etapa = "email";
+    const dizer = (txt, bom) => { aviso.textContent = txt; aviso.style.color = bom ? "#5fd08e" : "#ff7a6e"; };
+    const mostrar = e => { etapa = e; f.querySelector(".e-email").hidden = e !== "email"; f.querySelector(".e-codigo").hidden = e !== "codigo"; btn.textContent = e === "email" ? "Receber o link" : "Embarcar"; };
+    f.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (btn.disabled) return;
+      if (etapa === "email") {
+        const e = email.value.trim();
+        if (!e || !email.checkValidity()) return dizer("Esse e-mail parece incompleto. Confira e tente de novo.");
+        btn.disabled = true; btn.textContent = "Enviando…"; dizer("");
+        // o Supabase às vezes demora a mandar o e-mail e responde 504 mesmo assim enviando: só fica na etapa do e-mail
+        // quando o erro diz que nada saiu (limite de pedidos, endereço inválido)
+        let fica = false;
+        try { await enviarCodigo(e); } catch (err) {
+          if (/rate limit|security purposes|invalid|email/i.test(err.message || "")) { fica = true; dizer(traduzir(err.message || "")); }
+          else dizer("O servidor demorou a responder, mas o e-mail pode ter saído. Confira a caixa (e o spam) antes de pedir de novo.");
+        }
+        btn.disabled = false;
+        if (fica) { btn.textContent = "Receber o link"; return; }
+        f.querySelector(".para").textContent = e; mostrar("codigo"); codigo.focus();
+        return;
+      }
+      const c = codigo.value.trim();
+      if (!/^\d{6,10}$/.test(c)) return dizer("Código inválido ou vencido.");
+      btn.disabled = true; btn.textContent = "Entrando…"; dizer("");
+      try { await confirmarCodigo(email.value.trim(), c); } catch (err) { btn.disabled = false; btn.textContent = "Embarcar"; return dizer(traduzir(err.message || "")); }
+      carimbo.classList.remove("on"); void carimbo.offsetWidth; carimbo.classList.add("on");
+      dizer("Embarque liberado. Abrindo o jogo…", true);
+      setTimeout(() => location.href = "jogo.html", 700);
+    });
+    f.querySelector(".outro").onclick = () => { mostrar("email"); dizer(""); carimbo.classList.remove("on"); email.focus(); };
+  }
+  montarBilhete($("bilheteFim"), "fim");
+  montarBilhete($("bilheteTopo"), "topo");
+  // "Entrar" do topo e do herói abrem o diálogo; sem suporte a <dialog>, o link desce até o bilhete do fim
+  document.querySelectorAll("[data-entrar]").forEach(a => a.addEventListener("click", e => {
+    if (!$("dlgEntrar").showModal) return;
+    e.preventDefault(); $("dlgEntrar").showModal(); $("topo-email").focus();
+  }));
+  $("fecharEntrar").onclick = () => $("dlgEntrar").close();
+  $("dlgEntrar").addEventListener("click", e => { if (e.target === $("dlgEntrar")) $("dlgEntrar").close(); });
+</script>
 </body>
 </html>

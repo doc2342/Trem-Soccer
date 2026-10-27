@@ -464,7 +464,7 @@ async function carregar(s) {
   usuario = s ? s.user : null;
   $("quem").textContent = usuario ? usuario.email : "";
   $("sair").hidden = !usuario; $("sair").title = usuario ? "Sair da conta " + usuario.email : "";
-  if (!usuario) { $("meusClubes").innerHTML = ""; $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
+  if (!usuario) { location.replace("index.html"); $("meusClubes").innerHTML = ""; $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
   taticaVelha = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
   const redesenho = !!$("abas"), rolagem = scrollY; // a tela do clube já está aberta: troca o conteúdo sem piscar e fica onde estava
   if (!redesenho) $("app").innerHTML = `<div class="card mut">Carregando…</div>`;
