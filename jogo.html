@@ -1833,7 +1833,7 @@ async function telaClube(liga, clube) {
     const filas = filasDoCampo(P.vagas.map((_, i) => i), i => P.vagas[i].pos).map(fila => { const k = FAIXA_BASE[POSICOES[P.vagas[fila.itens[0].x].pos].linha];
       return `<div class="fila ${fila.grade ? "grade" : ""}" style="top:${ALTURA_DA_FAIXA[k]}%">${fila.itens.map(({ x, col }) => vaga(x, fila.grade ? col : 0)).join("")}</div>`; }).join("");
     const jm = mapa === null ? null : P.vagas[mapa].j;
-    const posmapa = mapa === null ? "" : `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === P.vagas[mapa].pos ? " atual" : ""}${jm ? " camisa" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${jm ? camisa(jm, p) : sg(p)}</span><span class="t-pos-nota"><span class="pp vsig ${corDoSetor(p)}">${sg(p)}</span>${jm ? (p === P.vagas[mapa].pos ? esc(curtoB(jm)) + " · " : "") + f1(notaNaPosicao(jm, p)) : ""}</span></div>`)).join("")}</div>`;
+    const posmapa = mapa === null ? "" : `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === P.vagas[mapa].pos ? " atual" : ""}${jm ? " camisa" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${jm ? camisa(jm, p) : sg(p)}</span><span class="t-pos-nota"><span class="pp vsig ${corDoSetor(p)}">${sg(p)}</span>${jm ? f1(notaNaPosicao(jm, p)) : ""}</span></div>`)).join("")}</div>`;
     const comJ = P.vagas.filter(v => v.j), garotos = 11 - comJ.length, forca = comJ.length ? comJ.reduce((s, v) => s + notaNaPosicao(v.j, v.pos), 0) / comJ.length : null;
     const conta = l => P.vagas.filter(v => l.includes(POSICOES[v.pos].linha)).length;
     const proxB = meusDoSub21().find(p => !resultadoB(p)), advB = proxB && cPor[proxB.casa === clube.id ? proxB.fora : proxB.casa];
@@ -1859,7 +1859,10 @@ async function telaClube(liga, clube) {
     // um setor por vez, como na Tática; com uma vaga escolhida, o setor dela, ordenado pela nota ali (vaga de linha não mostra goleiros)
     const setores = posSel === "GK" ? [] : SETORES_DA_BASE.filter(([k]) => !posSel || k !== "gol"), setor = posSel === "GK" ? "gol" : setores.some(([k]) => k === setorBase) ? setorBase : posSel ? setorB(posSel) : "def";
     const lista = candidatosBase.filter(j => setorB(j.pos) === setor && (posSel === null || (j.pos === "GK") === (posSel === "GK"))).sort(posSel ? (a, b) => notaNaPosicao(b, posSel) - notaNaPosicao(a, posSel) : () => 0);
-    const escolha = `${sel === null ? rotulo(`Jovens · ${candidatosBase.length}`) : `<div class="t-esc-topo"><div class="t-numero-rotulo">Vaga de ${sg(posSel)} · ${POSICOES[posSel].nome.toLowerCase()}</div><button type="button" class="t-esc-fecha" data-tbfecha="1" title="Fechar">✕</button></div>`}
+    // as posições da mesma linha do campo (FC e SC, DC e SW...) em botões, como na Tática
+    const filaSel = posSel && posSel !== "GK" ? TIRAS.find(t => t.some(([p]) => p === posSel)) : null, jSel = sel === null ? null : P.vagas[sel].j;
+    const trocaPos = filaSel ? `<div class="t-segmentos t-esc-posicoes">${filaSel.map(([p]) => `<button type="button" data-novapos="${p}" aria-pressed="${p === posSel}"${p === posSel || !editavel ? " disabled" : ""} title="${POSICOES[p].nome}">${sg(p)}${jSel ? ` <small>${f1(notaNaPosicao(jSel, p))}</small>` : ""}</button>`).join("")}</div>` : "";
+    const escolha = `${sel === null ? rotulo(`Jovens · ${candidatosBase.length}`) : `<div class="t-esc-topo"><div class="t-numero-rotulo">Vaga de ${sg(posSel)} · ${POSICOES[posSel].nome.toLowerCase()}</div><button type="button" class="t-esc-fecha" data-tbfecha="1" title="Fechar">✕</button></div>${trocaPos}`}
       ${setores.length ? `<div class="t-segmentos t-esc-setores">${setores.map(([k, r]) => `<button type="button" data-tbsetor="${k}" aria-pressed="${k === setor}">${r} <small>${candidatosBase.filter(j => setorB(j.pos) === k).length}</small></button>`).join("")}</div>` : ""}
       <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span title="Jogos na liga de base">jogos</span><span title="Minutos na liga de base">min</span><span>${posSel ? sg(posSel) : "nota"}</span><span></span></div>
       ${sel === null ? "" : `<div class="t-esc${R.fixos[sel] == null ? " titular" : ""}" data-tbescolhe=""><span class="t-bola"></span><span class="t-esc-nome">Automático</span><span class="t-esc-onde">rodízio</span><span></span><span></span><span></span><span></span></div>`}
@@ -3680,7 +3683,7 @@ ${historicoDaBase()}`}
     });
     // visual novo: vaga escolhida no campo, quem joga nela, posição nova no mapa, esquema e estilo em botões
     $("baseEsc").addEventListener("click", e => {
-      const t = e.target.closest("[data-tbtirasub], [data-tbtirabanco], [data-tbmaissub], [data-tbsugauto], [data-tbusarsug], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
+      const t = e.target.closest("[data-tbtirasub], [data-tbtirabanco], [data-tbmaissub], [data-tbsugauto], [data-tbusarsug], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], .t-esc-posicoes [data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
       if (!t || Date.now() - soltouBaseEm < 400) return;
       const r = R();
       if (t.dataset.tbtirasub !== undefined) r.subs.splice(+t.dataset.tbtirasub, 1);

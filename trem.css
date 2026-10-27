@@ -2059,3 +2059,4 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
   .t-rel-faixa .t-faixa-lado .t-faixa-numeros { justify-content:center; }
 }
 .t-besc-subs { grid-template-columns:minmax(0, 1fr); } .t-besc-subs .linhaSub select { max-width:100%; } /* as do dirigente e, embaixo, as sugeridas pelo rodízio */
+.t-esc-posicoes { margin:0 0 12px; } .t-esc-posicoes small { opacity:.7; font-weight:500; margin-left:3px; } .t-esc-posicoes > :disabled { cursor:default; opacity:1; } /* a vaga escolhida muda de posição na própria linha (FC e SC, DC e SW) */

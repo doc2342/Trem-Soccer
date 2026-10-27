@@ -449,7 +449,7 @@ function htmlGramado(mapa = null) {
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
   // visual novo: as posições possíveis num mapa fixo por cima do campo (círculos tracejados, a nota do jogador embaixo); o campo não muda de altura
-  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}${CAMISAS && j ? " camisa" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${CAMISAS && j ? camisa(j, p) : sg(p)}</span>${j ? `<span class="t-pos-nota">${CAMISAS ? `<span class="pp vsig ${corDoSetor(p)}">${sg(p)}</span>` : ""}${p === E.vagas[mapa] ? esc(curto(j)) + " · " : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
+  if (NOVO) return filas.map(f => f.html).join("") + `<div class="t-posmapa">${TIRAS.flatMap((t, k) => t.map(([p, col]) => `<div class="t-pos${p === E.vagas[mapa] ? " atual" : ""}${CAMISAS && j ? " camisa" : ""}" data-novapos="${p}" style="left:${col * 10}%;top:${ALTURA_DA_FAIXA[k]}%" title="${POSICOES[p].nome}"><span class="t-pos-bola">${CAMISAS && j ? camisa(j, p) : sg(p)}</span>${j ? `<span class="t-pos-nota">${CAMISAS ? `<span class="pp vsig ${corDoSetor(p)}">${sg(p)}</span>` : ""}${f1(notaNaPosicao(j, p))}</span>` : ""}</div>`)).join("")}</div>`;
   const tira = k => `<div class="fila fant">${TIRAS[k].map(([p, col]) => `<div class="gh${p === E.vagas[mapa] ? " atual" : ""}" data-novapos="${p}" style="grid-column-start:${col}" title="${POSICOES[p].nome}">${sg(p)}${j ? ` ${f1(notaNaPosicao(j, p))}` : ""}</div>`).join("")}</div>`;
   return TIRAS.map((_, k) => tira(k) + filas.filter(f => f.faixa === k).map(f => f.html).join("")).join("") + filas.filter(f => f.faixa === 5).map(f => f.html).join("");
 }
@@ -554,7 +554,10 @@ function renderEscolhaNova(el) {
   const setor = setorVisto || (pos ? SETORES[POSICOES[pos].linha] : "Defesa"), nota = j => notaNaPosicao(j, pos || j.pos);
   const lista = elenco.filter(j => SETORES[POSICOES[j.pos].linha] === setor && (!sel || pos || !E.jog.includes(j.id)))
     .sort((a, b) => (a.fora > 0) - (b.fora > 0) || (pos ? 0 : LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos)) || nota(b) - nota(a));
-  el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>` : ""}
+  // as posições da mesma linha do campo (FC e SC, DC e SW...) em botões: no celular o mapa fica embaixo da folha, e aqui um toque já troca
+  const fila = pos && pos !== "GK" ? TIRAS.find(t => t.some(([p]) => p === pos)) : null, jv = fila && jogDe(E.jog[sel.i]);
+  const trocaPos = fila ? `<div class="t-segmentos t-esc-posicoes">${fila.map(([p]) => `<button type="button" data-novapos="${p}" aria-pressed="${p === pos}"${p === pos ? " disabled" : ""} title="${POSICOES[p].nome}">${sg(p)}${jv ? ` <small>${f1(notaNaPosicao(jv, p))}</small>` : ""}</button>`).join("")}</div>` : "";
+  el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>${trocaPos}` : ""}
     <div class="t-segmentos t-esc-setores">${SETORES_DA_LISTA.map(([s, r]) => `<button type="button" data-setor="${s}" aria-pressed="${s === setor}">${r}</button>`).join("")}</div>
     <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span>forma</span><span>moral</span><span>${pos ? sg(pos) : "nota"}</span><span></span></div>
     ${lista.map(j => linha(j, pos || j.pos)).join("")}${sel ? vazio("Deixar vazio") : ""}</div>`;
