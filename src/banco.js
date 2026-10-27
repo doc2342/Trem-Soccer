@@ -506,6 +506,8 @@ export const jogadoresDoClube = async clubeId => { // mesmo formato da lista do 
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("clube_id", clubeId).order("id").then(ok) : r.data;
 };
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
+// Muda o horário das partidas que faltam (156_mudar_horario_das_partidas.sql): todas andam p_minutos (negativo adianta). Devolve quantas mudaram.
+export const mudarHorario = minutos => sb.rpc("mudar_horario_das_partidas", { p_minutos: minutos }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {
   const c = await sb.from("clubes").select("dono").eq("id", clubeId).single().then(ok);
