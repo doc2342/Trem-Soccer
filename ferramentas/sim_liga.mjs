@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { criarRng } from "../src/rng.js";
 import { notaBruta, melhorPosicao, talentoMinimo, PAISES } from "../src/modelo.js";
 import { gerarElenco, gerarJogador, TALENTO_COMUM, PERFIS } from "../src/gerador.js";
-import { jovensDaBase, CONFIG_BASE } from "../src/base.js";
+import { jovensDaBase, CONFIG_BASE, juvenisDoReinicio } from "../src/base.js";
 import { CONFIG_TREINO, treinar, ctDoClube, fatorDaTemporada } from "../src/treino.js";
 import { gerarTabela, classificacaoFinal, PREMIOS, PREMIOS_DE_FORA } from "../src/rodada.js";
 import { planejarVirada, divisaoDoGrupo, forcaDoOnze, GRUPOS_DA_B, CONFIG_SAFRA, SAFRA_DE_FORA, NOTA_DO_JOVEM_POR_DIVISAO,
@@ -45,6 +45,7 @@ export const SIM = {
   COPA: { 1: 1600, 2: 740, fora: 50 }, JOGOS_EXTRA_EM_CASA: 1, // copa e continentais por temporada (média da T13) e jogos a mais em casa
   PRESTIGIO: [0.04, 1.4],      // a torcida do dono cresce 4% por temporada, até 1,4 vez a da divisão (a A da T14 tem 1,39)
   CAIXA_INICIAL: 5000,
+  JUVENIS_DO_REINICIO: 0,      // juvenis talentosos de cada dono na T0 (juvenisDoReinicio de base.js); os 11 da escolinha não entram: teto ~25 não chega a onze nenhum
   // correções do caixa (as aprovadas, como no 150_valores_do_reinicio.sql): fator sobre TV e patrocínio (de todos, ou só dos clubes sem dono)
   // e imposto anual sobre o caixa acima do teto de folha
   RECEITA: 1, RECEITA_DO_BOT: 0.5, IMPOSTO_DO_CAIXA: 0.3, IMPOSTO_SO_DO_BOT: 1, AGENTE_PELO_FUNDO: 1, // o imposto do caixa vai para o fundo da liga (Federação); com AGENTE_PELO_FUNDO, o agente paga com o fundo e não com o caixa dos bots
@@ -92,6 +93,7 @@ function rodar(semente, temporadas) {
     const desloca = dono && TALENTO_DO_REINICIO.donos != null ? TALENTO_DO_REINICIO.donos : TALENTO_DO_REINICIO[serie(grupo)];
     for (const j of gerarElenco(rng, { nivel, perfil: c.perfil, pais, nomes }))
       registrar(c, { ...j, tal: Math.max(talentoMinimo(j), Math.min(100, Math.max(1, j.tal + desloca))) });
+    if (dono) for (const j of juvenisDoReinicio(rng, { nomes, usados, escolinha: false, talentosos: SIM.JUVENIS_DO_REINICIO })) registrar(c, j, { desde: 0, formador: c.id });
     return c; };
   for (let k = 0; k < 12; k++) novoClube("A", false);
   for (const g of GRUPOS_DA_B) { for (let k = 0; k < 6; k++) novoClube(g, true); novoClube(g, false); novoClube(g, false); }

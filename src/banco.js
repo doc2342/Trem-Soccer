@@ -72,7 +72,7 @@ export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, nomeCompleto: l.no
     fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0,
     salario: l.salario == null ? null : l.salario, mercado: l.salario_mercado == null ? null : l.salario_mercado,
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
-    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
+    treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, escolinha: !!l.escolinha, formador: l.formador == null ? null : l.formador, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
     exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, emprestadoDe: l.emprestado_de === undefined ? undefined : l.emprestado_de, // indefinido: antes do 76_emprestimo_e_supercopa.sql
@@ -244,10 +244,12 @@ export const caixaDoClube = clubeId => sb.from("financas").select("caixa").eq("c
 // Obra em andamento no clube (só o dono e o administrador leem); null se não há ou antes do 14_estruturas_e_obras.sql.
 export const obraAtiva = clubeId => sb.from("obras").select("*").eq("clube_id", clubeId).eq("concluida", false).maybeSingle().then(({ data, error }) => error ? null : data);
 // Começa uma obra: ct, medico, fisio, base ou estadio. As regras (uma por vez, caixa, nível máximo) são conferidas no banco.
-export const iniciarObra = estrutura => sb.rpc("iniciar_obra", { p_estrutura: estrutura }).then(ok);
-// Visual do estádio (116_estadio_visual.sql): nome, mosaico, padrão e cores de graça; trocar de modelo é uma obra.
+// troca ({ modelo, cidade }, só o que muda): o estádio muda junto com a ampliação (154). Sem troca, a chamada é a de antes do 154.
+export const iniciarObra = (estrutura, troca) => sb.rpc("iniciar_obra", { p_estrutura: estrutura,
+  ...(troca && troca.modelo ? { p_modelo: troca.modelo } : {}), ...(troca && troca.cidade ? { p_cidade: troca.cidade } : {}) }).then(ok);
+// Visual do estádio (116_estadio_visual.sql): nome, mosaico, padrão e cores de graça; modelo e cidade só mudam numa obra (154).
 export const salvarEstadioVisual = v => sb.rpc("salvar_estadio_visual", { p: v }).then(ok);
-export const reformarEstadio = modelo => sb.rpc("reformar_estadio", { p_modelo: modelo }).then(ok);
+export const reformarEstadio = (modelo, cidade) => sb.rpc("reformar_estadio", { p_modelo: modelo, ...(cidade ? { p_cidade: cidade } : {}) }).then(ok);
 // Lançamentos de uma partida (TV, patrocínio, salários) para os dois clubes; só roda uma vez por partida.
 export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: partidaId }).then(({ error }) => !error);
 
@@ -504,6 +506,8 @@ export const jogadoresDoClube = async clubeId => { // mesmo formato da lista do 
   return r.error ? sb.from("jogadores").select(CAMPOS_DO_MERCADO).eq("clube_id", clubeId).order("id").then(ok) : r.data;
 };
 export const pausarLiga = pausar => sb.rpc("pausar_liga", { p_pausar: pausar }).then(ok);
+// Muda o horário das partidas que faltam (156_mudar_horario_das_partidas.sql): todas andam p_minutos (negativo adianta). Devolve quantas mudaram.
+export const mudarHorario = minutos => sb.rpc("mudar_horario_das_partidas", { p_minutos: minutos }).then(ok);
 // Tira o dirigente de um clube: o clube volta para o bot, e a tática e o pedido dele são apagados.
 export async function liberarClube(clubeId) {
   const c = await sb.from("clubes").select("dono").eq("id", clubeId).single().then(ok);
