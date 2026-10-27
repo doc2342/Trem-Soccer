@@ -34,7 +34,7 @@ for (const [nome, ia, ib] of [["retranca x neutro", { mentalidade: -2 }, {}], ["
   ["muito ofensivo x neutro", { mentalidade: 2 }, {}], ["contra x muito ofensivo", { contraAtaque: true }, { mentalidade: 2 }]]) {
   const r = jogar(0, ia, ib, 90), pb = 3 * r.d + r.e; console.log(`  ${nome.padEnd(28)} ${f2(r.ppj)} x ${f2(pb)} (diferença ${(r.ppj - pb >= 0 ? "+" : "") + f2(r.ppj - pb)})  gols ${f2(r.gols)}`);
 }
-// liga de bots: a tática de bot muda a mentalidade conforme a força do adversário e o placar, então o ritmo mexe nos gols da liga (meta 2,7 a 3,3)
+// liga de bots: a tática de bot muda a mentalidade conforme a força do adversário e o placar, então o ritmo mexe nos gols da liga (meta 2,5 a 2,9 aqui, ~2,5 na liga real; era 2,7 a 3,3 até 26/10/2026)
 { const rng = criarRng(123), el = s => gerarElenco(criarRng(s), { nivel: 33 + s % 9, nomes, prefixoId: "e" + s + "_" }), elencos = Array.from({ length: 20 }, (_, s) => el(s));
   let g = 0; const J = Math.ceil(N / 4);
   for (let n = 0; n < J; n++) {

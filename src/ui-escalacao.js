@@ -1,7 +1,7 @@
 // Tela de escalação e tática. Montada dentro de um elemento: na página escalacao.html (sozinha) e em Clube, Tática, de jogo.html.
 // online: usa o elenco e a tática do clube no banco; sessao: { user } de quem está logado; cabecalho: desenha o topo com as abas (só na página sozinha).
 import { criarRng } from "./rng.js";
-import { experienciaDe, nivelDoAnalista } from "./saude.js";
+import { experienciaDe, nivelDoAnalista, saudeDoClube } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
@@ -633,7 +633,9 @@ async function jogar() {
   const nomeMeu = clubeOnline ? clubeOnline.nome : "Meu time", nomeAdv = online ? online.nome : "Bot";
   const minhaForca = V.esc11.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11;
   const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca, perfil: online ? online.perfil : null });
-  const meu = prepararTime({ nome: nomeMeu, escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
+  // o preparador de prevenção vale no amistoso como no jogo oficial
+  const prevencao = clubeOnline ? saudeDoClube(await B.treinadoresDoClube(clubeOnline.id)).prevencao : 0;
+  const meu = prepararTime({ nome: nomeMeu, escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa, prevencao });
   const bot = prepararTime({ nome: nomeAdv, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
   const n = +(ler("mo_partidas") || 0) + 1; guardar("mo_partidas", n);
   const partida = casa ? simularPartida(criarRng(n), meu, bot) : simularPartida(criarRng(n), bot, meu);

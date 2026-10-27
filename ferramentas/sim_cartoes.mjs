@@ -19,7 +19,7 @@ for (const agressividade of [-2, -1, 0, 1, 2]) {
   const f = x => (x / N).toFixed(2), pct = x => (t.segundo ? (100 * x / t.segundo).toFixed(0) : "0") + "%";
   console.log(`${agressividade >= 0 ? "+" : ""}${agressividade}  | ${f(t.faltas)} | ${f(t.amarelos)} | ${f(t.vermelhos)} (${f(t.segundo)}) | ${(100 * t.baratas / N).toFixed(1)} | ${pct(t.cedo)}`);
 }
-// jogo inteiro com a tática dos bots dos dois lados: alvo de 22 faltas, 5 amarelos e 0,25 vermelho; gols de bola parada para ver o efeito das faltas
+// jogo inteiro com a tática dos bots dos dois lados: alvo de 22 faltas, 4 amarelos e 0,2 vermelho (até 26/10/2026: 5 e 0,25); gols de bola parada para ver o efeito das faltas
 {
   const rng = criarRng(91), porPos = {}, t = { faltas: 0, amarelos: 0, vermelhos: 0, gols: 0, falta: 0, penalti: 0, escanteio: 0, chutesFalta: 0, penais: 0 };
   for (let k = 0; k < N; k++) {
