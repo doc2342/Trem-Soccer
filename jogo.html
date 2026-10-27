@@ -443,6 +443,20 @@ async function enviarEscudoPendente(clube) {
   try { clube.escudo = { ...(clube.escudo || {}), img: await enviarEscudo(clube.id, await (await fetch(img)).blob()) }; } catch (x) {}
 }
 
+// Virada marcada pelo administrador (ligas.copa.virada_em): faixa fixa com a contagem regressiva; some meia hora depois da hora marcada
+let relogioDaVirada = 0;
+function cronometroDaVirada(em) {
+  clearInterval(relogioDaVirada);
+  let f = $("faixaVirada"); const alvo = em ? new Date(em).getTime() : NaN;
+  if (!(alvo > Date.now() - 1800000)) { if (f) f.remove(); return; }
+  if (!f) { f = document.createElement("div"); f.id = "faixaVirada"; f.setAttribute("role", "status");
+    f.style.cssText = "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;background:var(--ac);color:#fff;padding:9px 18px;border-radius:999px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.25);white-space:nowrap";
+    document.body.append(f); }
+  const hora = new Date(alvo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), d2 = n => String(n).padStart(2, "0");
+  const tique = () => { const s = Math.max(0, Math.round((alvo - Date.now()) / 1000));
+    f.innerHTML = s ? `Virada da temporada às ${hora} · faltam <b style="font-variant-numeric:tabular-nums">${s >= 3600 ? Math.floor(s / 3600) + ":" : ""}${d2(Math.floor(s / 60) % 60)}:${d2(s % 60)}</b>` : `A virada da temporada está acontecendo`; };
+  tique(); relogioDaVirada = setInterval(tique, 1000);
+}
 async function carregar(s) {
   devolverBarra();
   if (!s || !usuario || s.user.id !== usuario.id) memoriaDaLiga.clear();
@@ -457,6 +471,7 @@ async function carregar(s) {
   try {
     const [liga, clube] = await Promise.all([ligaAtual(), meuClube(usuario.id)]);
     if (minha !== versao) return;
+    if (liga) cronometroDaVirada(liga.copa && liga.copa.virada_em);
     if (!liga) { $("app").innerHTML = `<div class="card">Ainda não há liga aberta. Avise o administrador.</div>`; return; }
     if (clube) { Object.assign(liga, await valoresDaDivisao(liga.id, clube.divisao) || {});
       // paraquedas: na temporada seguinte ao rebaixamento, teto da divisão de cima e metade da diferença de TV
