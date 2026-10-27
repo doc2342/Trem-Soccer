@@ -104,3 +104,7 @@ const tm = timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { subs: 
 assert.equal(tm.banco.length, lv.banco.length);
 assert.deepEqual(tm.instrucoes.substituicoes, [{ min: 70, sai: tm.escalacao[2].j.id, entra: ultimo.id, pos: tm.escalacao[2].pos, cond: "perdendo" }]);
 console.log("banco e subs livres ok");
+const titularNoBanco = escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(titular)] });
+assert.ok(!titularNoBanco.vagas.some(v => v.j === titular) && titularNoBanco.banco[0] === titular, "quem o dirigente pôs no banco não começa");
+assert.ok(escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(titular)], fixos: { 3: semJ(titular) } }).vagas[3].j === titular, "fixado numa vaga, começa");
+console.log("banco escolhido não começa ok");

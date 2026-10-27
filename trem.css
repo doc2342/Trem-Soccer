@@ -863,7 +863,7 @@ a.t-topo-clube { text-decoration:none; } a.t-topo-clube:hover .t-topo-nome { tex
 :root[data-visual=novo] .t-besc .gramado { min-height:600px; }
 .t-besc .vaga .t-fixo { position:absolute; top:-2px; left:50%; margin-left:16px; width:12px; height:12px; border-radius:50%; background:var(--t-marca); border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.5); }
 .t-besc .vaga.vazia .nome { margin-top:4px; }
-.t-besc .t-reserva { cursor:default; touch-action:auto; } .t-besc .t-reserva:hover { background:none; }
+.t-besc .t-reserva { cursor:default; touch-action:auto; } .t-besc .t-reserva:hover { background:none; } .t-besc .t-reserva[data-tbbsel] { cursor:pointer; } .t-besc .t-reserva[data-tbbsel]:hover { background:var(--t-noite2); } /* tocar num lugar do banco abre a lista para escolher quem senta nele */
 .t-besc .t-reserva-nome, .t-besc .t-reserva-nome small { white-space:normal; overflow-wrap:anywhere; } /* a coluna é estreita: o nome e o 'MC · por Fulano' quebram em vez de cortar */
 .t-besc .t-reserva-nome small { display:block; color:var(--t-tinta2); font-weight:500; font-size:11.5px; }
 .t-besc .t-besc-fora-rot { margin-top:12px; } .t-besc .t-besc-fora { margin:0; color:var(--t-tinta2); font-size:13px; line-height:1.45; }

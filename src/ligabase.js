@@ -44,7 +44,7 @@ export function garotoDaEscolinha(rng, pos, nivel, id) {
 // trocas = [{ entra: id, vaga: índice ou null }]: quem o dirigente põe para entrar no intervalo (vaga nula = a que o rodízio escolheria);
 // valem antes das automáticas, e as automáticas completam as cinco. Não vale quem já começa, vaga fixada nem goleiro fora do gol.
 // { entra: null, vaga }: troca tirada pelo dirigente; quem começa nessa vaga joga os 90 e o intervalo tem uma troca a menos.
-// Essas trocas do intervalo são as sugeridas. banco = [ids] que o dirigente pôs no banco (até TAMANHO_DO_BANCO); o rodízio completa, primeiro com
+// Essas trocas do intervalo são as sugeridas. banco = [ids] que o dirigente pôs no banco (até TAMANHO_DO_BANCO; não começam, a não ser fixados); o rodízio completa, primeiro com
 // quem entra nas sugeridas, depois com os juvenis que jogaram menos e por fim com os profissionais. subs = [{ min, vaga, entra: id, pos, cond }]: as substituições do dirigente, como na
 // tática principal, com a vaga (índice) no lugar de quem sai, porque o rodízio muda quem começa; sem subs (nem a lista vazia), valem as sugeridas.
 // Só vale quem está no banco, uma vez cada, até cinco, e o contratado dentro do limite.
@@ -71,6 +71,7 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
   const doClube = vagasValidas(formacao);
   const esquemas = doClube ? [["do time principal", formacao]] : FORMACOES_DA_BASE.map(nome => [nome, FORMACOES[nome]]);
   const mesmoId = (j, id) => String(j.id).replace(/^j/, "") === String(id);
+  const reserva = j => Array.isArray(escolhidos) && escolhidos.some(id => mesmoId(j, id)); // quem o dirigente pôs no banco não começa (só se estiver fixado numa vaga)
   let melhor = null;
   for (const [nome, posicoes] of esquemas) {
     const vagas = posicoes.map(pos => ({ pos, j: null })), fixados = new Set();
@@ -80,13 +81,14 @@ export function escalacaoDaBase(juvenis, profissionais = [], minutos = {}, { for
       if (j && j.contratado && contratados >= C.contratados) continue;
       if (v && !v.j && j && !fixados.has(j) && (v.pos === "GK") === (j.pos === "GK")) { v.j = j; v.fixo = true; fixados.add(j); if (j.contratado) contratados++; }
     }
-    const [nJ, somaJ, fora] = encaixar(vagas, juvenis.filter(j => !fixados.has(j)));
+    const [nJ, somaJ, fora] = encaixar(vagas, juvenis.filter(j => !fixados.has(j) && !reserva(j)));
     for (const j of fora.slice().sort((a, b) => valor(b, b.pos) - valor(a, a.pos))) { // improvisados: nunca no gol, e goleiro nunca na linha
       if (j.pos === "GK") continue;
       const v = vagas.filter(x => !x.j && x.pos !== "GK").sort((a, b) => notaNaPosicao(j, b.pos) - notaNaPosicao(j, a.pos))[0];
       if (v) { v.j = j; fora.splice(fora.indexOf(j), 1); }
     }
-    const [nP, somaP] = encaixar(vagas, profissionais.filter(j => !fixados.has(j)), contratados), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
+    fora.push(...juvenis.filter(j => !fixados.has(j) && reserva(j)));
+    const [nP, somaP] = encaixar(vagas, profissionais.filter(j => !fixados.has(j) && !reserva(j)), contratados), pontos = nJ * 1e6 + nP * 1e4 + somaJ + somaP;
     if (!melhor || pontos > melhor.pontos) melhor = { nome, vagas, fora, pontos };
   }
   // intervalo: os que ficaram de fora entram, primeiro quem jogou menos; cada um na vaga de um garoto, depois na de um profissional e por fim

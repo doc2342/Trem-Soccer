@@ -491,7 +491,7 @@ async function carregar(s) {
 let marca = null, conferindo = false;
 // Escalação da base: arrastar com mouse ou dedo (uma vaga para uma posição nova ou outra vaga; um jovem para uma vaga). O rascunho vive aqui até
 // salvar (a recarga discreta não o apaga); acoesDaBase = { desenhar(mapa), soltar(origem, alvo) } é refeito a cada desenho da página.
-let rascunhoBase = null, arrastoBase = null, acoesDaBase = null, selBase = null, setorBase = null, soltouBaseEm = 0; // visual novo: vaga escolhida no campo e o setor visto na lista dos jovens
+let rascunhoBase = null, arrastoBase = null, acoesDaBase = null, selBase = null, setorBase = null, bancoSelB = null, soltouBaseEm = 0; // visual novo: vaga escolhida no campo, lugar escolhido no banco e o setor visto na lista dos jovens
 const alvoDaBase = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest("#baseEsc [data-bvaga], #baseEsc [data-novapos], #baseEsc [data-bbanco]"); };
 const fimDoArrastoBase = () => { if (arrastoBase && arrastoBase.fantasma) arrastoBase.fantasma.remove(); document.querySelectorAll("#baseEsc .alvo").forEach(x => x.classList.remove("alvo")); document.body.classList.remove("arrastando"); arrastoBase = null; };
 document.addEventListener("pointerdown", e => {
@@ -1840,15 +1840,16 @@ async function telaClube(liga, clube) {
     const cab = `<div class="t-tatica-cab"><div class="t-rotulo">Sub-21${proxB ? ` para ${new Date(proxB.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "")}${advB ? " · " + esc(advB.nome) : ""}` : ""} · ${conta(["defesa", "ala"])}-${conta(["volante", "meio", "meia"])}-${conta(["ataque"])}</div>
       <div class="t-tatica-forca" title="Média das notas na posição, sem os garotos da escolinha"><span>${garotos ? `Onze · ${garotos} ${garotos === 1 ? "garoto" : "garotos"}` : "Seu onze"}</span><b>${forca == null ? "—" : f1(forca)}</b></div></div>`;
     // ao lado do campo: o banco de nove (o escolhido tem o ✕; o resto o rodízio completa) e quem fica fora
-    const noBanco = j => { const id = semJ(j.id), escolhido = R.banco.includes(id), sub = P.subs.find(x => x.entra === j);
-      return `<div class="t-reserva"${editavel ? ` data-bbanco="${id}"` : ""}><span class="t-bola camisa">${camisa(j, j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curtoB(j))}<small>${sg(j.pos)}${sub ? ` · ${sub.min}'` : ""}${escolhido ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}${editavel && escolhido ? ` <button type="button" class="t-esc-fecha" data-tbtirabanco="${id}" title="Tirar do banco: o rodízio completa">✕</button>` : ""}</span></div>`; };
+    const bsel = sel === null && bancoSelB != null && bancoSelB < TAMANHO_DO_BANCO ? bancoSelB : null;
+    const noBanco = (j, i) => { const id = semJ(j.id), escolhido = R.banco.includes(id), sub = P.subs.find(x => x.entra === j);
+      return `<div class="t-reserva${bsel === i ? " sel" : ""}"${editavel ? ` data-bbanco="${id}" data-tbbsel="${i}"` : ""}><span class="t-bola camisa">${camisa(j, j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curtoB(j))}<small>${sg(j.pos)}${sub ? ` · ${sub.min}'` : ""}${escolhido ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}${editavel && escolhido ? ` <button type="button" class="t-esc-fecha" data-tbtirabanco="${id}" title="Tirar do banco: o rodízio completa">✕</button>` : ""}</span></div>`; };
     const semJogo = candidatosBase.filter(j => !P.vagas.some(v => v.j && semJ(v.j.id) === semJ(j.id)) && !P.banco.some(b => semJ(b.id) === semJ(j.id)));
-    const banco = `<div class="t-banco"><div class="t-numero-rotulo">Banco · ${P.banco.length} de ${TAMANHO_DO_BANCO}</div>${P.banco.map(noBanco).join("")}${`<div class="t-reserva vazia"${editavel ? ` data-bbanco=""` : ""}><span class="t-bola"></span><span class="t-reserva-nome">vazio</span></div>`.repeat(TAMANHO_DO_BANCO - P.banco.length)}
+    const banco = `<div class="t-banco"><div class="t-numero-rotulo">Banco · ${P.banco.length} de ${TAMANHO_DO_BANCO}</div>${P.banco.map(noBanco).join("")}${Array.from({ length: TAMANHO_DO_BANCO - P.banco.length }, (_, k) => `<div class="t-reserva vazia${bsel === P.banco.length + k ? " sel" : ""}"${editavel ? ` data-bbanco="" data-tbbsel="${P.banco.length + k}"` : ""}><span class="t-bola"></span><span class="t-reserva-nome">vazio</span></div>`).join("")}
       ${semJogo.length ? `<div class="t-numero-rotulo t-besc-fora-rot">Fora desta rodada · ${semJogo.length}</div><p class="t-besc-fora">${semJogo.map(j => esc(curtoB(j))).join(", ")}. O rodízio dá a vez a eles nas próximas.</p>` : ""}</div>`;
     // coluna da direita: esquema, lista dos jovens (com uma vaga escolhida, só quem pode jogar nela) e o salvar
     const iguais = (a, b) => [...a].sort().join() === [...b].sort().join();
     const formas = `<div class="t-tatica-montar"><div class="t-formacoes">${formacaoDaBase ? `<button type="button" data-tbforma="=" aria-pressed="${R.segue}" title="O esquema do time principal">Do principal</button>` : ""}${Object.keys(FORMACOES).map(k => `<button type="button" data-tbforma="${esc(k)}" title="${esc(k)}" aria-pressed="${!R.segue && iguais(FORMACOES[k], R.vagas)}"${editavel ? "" : " disabled"}>${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join("")}</div>
-      <p class="t-fajuda">${R.segue ? "Segue o esquema do time principal." : "Esquema próprio da base."} Clique numa vaga do campo para escolher quem joga nela e mudar a posição dela, ou arraste um jovem até a vaga. Arraste um jovem até o banco para ele ficar entre os ${TAMANHO_DO_BANCO}.</p></div>`;
+      <p class="t-fajuda">${R.segue ? "Segue o esquema do time principal." : "Esquema próprio da base."} Clique numa vaga do campo para escolher quem joga nela e mudar a posição dela, ou arraste um jovem até a vaga. Toque num lugar do banco (ou arraste um jovem até ele) para escolher quem senta ali.</p></div>`;
     const status = j => { const id = semJ(j.id), i = P.vagas.findIndex(v => v.j && semJ(v.j.id) === id);
       return i >= 0 ? [" titular", sg(P.vagas[i].pos) + (P.vagas[i].fixo ? " · fixo" : "")] : P.banco.some(x => semJ(x.id) === id) ? [" reserva", P.subs.some(x => semJ(x.entra.id) === id) ? "entra" : "banco"] : ["", "fora"]; };
     const linha = (j, pos) => { const [cls, onde] = status(j), n = naBase[j.id], f = fam(j, pos);
@@ -1862,10 +1863,12 @@ async function telaClube(liga, clube) {
     // as posições da mesma linha do campo (FC e SC, DC e SW...) em botões, como na Tática
     const filaSel = posSel && posSel !== "GK" ? TIRAS.find(t => t.some(([p]) => p === posSel)) : null, jSel = sel === null ? null : P.vagas[sel].j;
     const trocaPos = filaSel ? `<div class="t-segmentos t-esc-posicoes">${filaSel.map(([p]) => `<button type="button" data-novapos="${p}" aria-pressed="${p === posSel}"${p === posSel || !editavel ? " disabled" : ""} title="${POSICOES[p].nome}">${sg(p)}${jSel ? ` <small>${f1(notaNaPosicao(jSel, p))}</small>` : ""}</button>`).join("")}</div>` : "";
-    const escolha = `${sel === null ? rotulo(`Jovens · ${candidatosBase.length}`) : `<div class="t-esc-topo"><div class="t-numero-rotulo">Vaga de ${sg(posSel)} · ${POSICOES[posSel].nome.toLowerCase()}</div><button type="button" class="t-esc-fecha" data-tbfecha="1" title="Fechar">✕</button></div>${trocaPos}`}
+    const jBsel = bsel === null ? null : P.banco[bsel];
+    const topoBanco = `<div class="t-esc-topo"><div class="t-numero-rotulo">Banco · ${jBsel ? `no lugar de ${esc(curtoB(jBsel))}` : "lugar vazio"}</div><button type="button" class="t-esc-fecha" data-tbfecha="1" title="Fechar">✕</button></div>`;
+    const escolha = `${sel === null ? (bsel !== null ? topoBanco : rotulo(`Jovens · ${candidatosBase.length}`)) : `<div class="t-esc-topo"><div class="t-numero-rotulo">Vaga de ${sg(posSel)} · ${POSICOES[posSel].nome.toLowerCase()}</div><button type="button" class="t-esc-fecha" data-tbfecha="1" title="Fechar">✕</button></div>${trocaPos}`}
       ${setores.length ? `<div class="t-segmentos t-esc-setores">${setores.map(([k, r]) => `<button type="button" data-tbsetor="${k}" aria-pressed="${k === setor}">${r} <small>${candidatosBase.filter(j => setorB(j.pos) === k).length}</small></button>`).join("")}</div>` : ""}
       <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span title="Jogos na liga de base">jogos</span><span title="Minutos na liga de base">min</span><span>${posSel ? sg(posSel) : "nota"}</span><span></span></div>
-      ${sel === null ? "" : `<div class="t-esc${R.fixos[sel] == null ? " titular" : ""}" data-tbescolhe=""><span class="t-bola"></span><span class="t-esc-nome">Automático</span><span class="t-esc-onde">rodízio</span><span></span><span></span><span></span><span></span></div>`}
+      ${sel === null ? (bsel !== null && jBsel && R.banco.includes(semJ(jBsel.id)) ? `<div class="t-esc" data-tbescolhe=""><span class="t-bola"></span><span class="t-esc-nome">Automático</span><span class="t-esc-onde">rodízio</span><span></span><span></span><span></span><span></span></div>` : "") : `<div class="t-esc${R.fixos[sel] == null ? " titular" : ""}" data-tbescolhe=""><span class="t-bola"></span><span class="t-esc-nome">Automático</span><span class="t-esc-onde">rodízio</span><span></span><span></span><span></span><span></span></div>`}
       ${lista.map(j => linha(j, posSel || j.pos)).join("") || `<p class="t-fajuda">Nenhum jovem neste setor.</p>`}</div>`;
     const avisos = [...P.vagas.filter(v => v.j && fam(v.j, v.pos) === "I").map(v => `${esc(v.j.nome)} está improvisado de ${sg(v.pos)}.`),
       ...(garotos ? [`${garotos === 1 ? "Uma vaga fica" : `${garotos} vagas ficam`} com garotos da escolinha.`] : [])].map(t => `<div class="t-alerta">${t}</div>`).join("");
@@ -3649,17 +3652,23 @@ ${historicoDaBase()}`}
       r.trocas = r.trocas.filter(x => x.entra != null || novas[x.vaga] === r.vagas[x.vaga]); // a troca tirada só vale na mesma vaga
       for (const x of r.trocas) if (x.vaga != null && novas[x.vaga] !== r.vagas[x.vaga]) x.vaga = null; // a troca escolhida segue, na vaga que o rodízio escolher
       r.vagas = [...novas]; r.segue = v === "="; };
+    // jovem no banco: fica entre os nove (com o banco cheio, no lugar do escolhido ali); devolve o motivo quando não dá.
+    // Titular trocado com quem está no lugar: um vai para a vaga do outro (o escolhido para o banco não começa).
+    const sentarNoBanco = (id, ali) => { const r = R(), k = prevBase.vagas.findIndex(x => x.j && semJ(x.j.id) === id);
+      if (k >= 0) { const jb = prevBase.banco.find(x => semJ(x.id) === ali);
+        if (jb && (jb.pos === "GK") !== (prevBase.vagas[k].pos === "GK")) return jb.pos === "GK" ? "Goleiro só joga no gol." : "No gol só joga goleiro.";
+        if (jb) fixar(k, ali); else for (const i of Object.keys(r.fixos)) if (String(r.fixos[i]) === id) delete r.fixos[i]; } // sem ninguém no lugar, o rodízio completa a vaga dele
+      const lista = r.banco.filter(x => x !== id), onde = lista.indexOf(ali);
+      if (lista.length < TAMANHO_DO_BANCO) lista.splice(onde < 0 ? lista.length : onde, 0, id); else if (onde >= 0) lista[onde] = id; else return "O banco está cheio.";
+      r.banco = lista; return null; };
+    // celular: a lista fica embaixo do campo e do banco; ao escolher um lugar do banco ela sobe, e ao sentar alguém o banco volta
+    const celularB = () => matchMedia("(max-width:620px)").matches, rolarAte = sel => setTimeout(() => { const el = $("baseEsc").querySelector(sel); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 0);
     acoesDaBase = {
       desenhar,
       soltar(de, alvo) {
         const r = R();
         if (alvo && alvo.dataset.novapos !== undefined && de[0] === "v") { r.vagas[+de.slice(1)] = alvo.dataset.novapos; r.segue = false; return desenhar(); }
-        if (alvo && alvo.dataset.bbanco !== undefined && de[0] === "j") { // jovem no banco: fica entre os nove (com o banco cheio, no lugar do escolhido em que caiu)
-          const id = de.slice(1), ali = alvo.dataset.bbanco;
-          if (prevBase.vagas.some(x => x.j && semJ(x.j.id) === id)) { desenhar(); return aviso("Ele começa jogando: ponha outro na vaga dele."); }
-          const lista = r.banco.filter(x => x !== id), onde = lista.indexOf(ali);
-          if (lista.length < TAMANHO_DO_BANCO) lista.splice(onde < 0 ? lista.length : onde, 0, id); else if (onde >= 0) lista[onde] = id; else { desenhar(); return aviso("O banco está cheio."); }
-          r.banco = lista; return desenhar(); }
+        if (alvo && alvo.dataset.bbanco !== undefined && de[0] === "j") { const erro = sentarNoBanco(de.slice(1), alvo.dataset.bbanco); desenhar(); return erro && aviso(erro); }
         if (!alvo || alvo.dataset.bvaga === undefined) return desenhar();
         const k = +alvo.dataset.bvaga, gol = r.vagas[k] === "GK";
         if (de[0] === "j") { const j = candidatosBase.find(x => semJ(x.id) === de.slice(1));
@@ -3683,7 +3692,7 @@ ${historicoDaBase()}`}
     });
     // visual novo: vaga escolhida no campo, quem joga nela, posição nova no mapa, esquema e estilo em botões
     $("baseEsc").addEventListener("click", e => {
-      const t = e.target.closest("[data-tbtirasub], [data-tbtirabanco], [data-tbmaissub], [data-tbsugauto], [data-tbusarsug], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], .t-esc-posicoes [data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
+      const t = e.target.closest("[data-tbtirasub], [data-tbtirabanco], [data-tbmaissub], [data-tbsugauto], [data-tbusarsug], [data-tbbsel], [data-tbvsel], [data-tbescolhe], .t-pos[data-novapos], .t-esc-posicoes [data-novapos], [data-tbforma], [data-tbinstrv], [data-tbfecha], [data-tbsetor]");
       if (!t || Date.now() - soltouBaseEm < 400) return;
       const r = R();
       if (t.dataset.tbtirasub !== undefined) r.subs.splice(+t.dataset.tbtirasub, 1);
@@ -3694,11 +3703,17 @@ ${historicoDaBase()}`}
         const entra = P.banco.find(j => !usados.has(semJ(j.id))) || P.banco[0], vaga = P.vagas.findIndex((v, i) => v.pos !== "GK" && !subs.some(x => +x.vaga === i));
         if (!entra) return; r.subs = subs.concat({ min: 60, vaga: Math.max(0, vaga), entra: semJ(entra.id), cond: "sempre" }); }
       else if (t.dataset.tbsetor) setorBase = t.dataset.tbsetor;
-      else if (t.dataset.tbfecha) selBase = setorBase = null;
-      else if (t.dataset.tbvsel !== undefined) { selBase = selBase === +t.dataset.tbvsel ? null : +t.dataset.tbvsel; setorBase = null; }
+      else if (t.dataset.tbfecha) selBase = setorBase = bancoSelB = null;
+      else if (t.dataset.tbbsel !== undefined) { const i = +t.dataset.tbbsel; bancoSelB = bancoSelB === i ? null : i; selBase = setorBase = null; if (bancoSelB != null && celularB()) rolarAte(".t-tatica-lado .t-esc-topo"); }
+      else if (t.dataset.tbvsel !== undefined) { selBase = selBase === +t.dataset.tbvsel ? null : +t.dataset.tbvsel; setorBase = bancoSelB = null; }
       else if (t.dataset.novapos !== undefined) { if (selBase == null) return; if (t.classList.contains("atual")) selBase = null; else { r.vagas[selBase] = t.dataset.novapos; r.segue = false; } }
       else if (t.dataset.tbforma !== undefined) { trocarEsquema(t.dataset.tbforma); selBase = null; }
       else if (t.dataset.tbinstrv !== undefined) { if (t.dataset.v) r.instr[t.dataset.tbinstrv] = JSON.parse(t.dataset.v); else delete r.instr[t.dataset.tbinstrv]; }
+      else if (selBase == null && bancoSelB != null) { // lugar do banco escolhido: o jovem senta nele (Automático devolve o lugar ao rodízio)
+        const j = prevBase.banco[bancoSelB], ali = j ? semJ(j.id) : "", id = t.dataset.tbescolhe;
+        const erro = id ? sentarNoBanco(id, ali) : (r.banco = r.banco.filter(x => x !== ali), null);
+        if (erro) { desenhar(); return aviso(erro); }
+        bancoSelB = null; if (celularB()) rolarAte(".t-banco"); }
       else if (selBase == null) { const i = prevBase.vagas.findIndex(v => v.j && semJ(v.j.id) === t.dataset.tbescolhe); if (i < 0) return; selBase = i; setorBase = null; } // jovem sem vaga escolhida: abre a vaga dele
       else { fixar(selBase, t.dataset.tbescolhe || null); selBase = setorBase = null; }
       desenhar();
