@@ -882,7 +882,7 @@ async function telaClube(liga, clube) {
   const vivoNoContinente = !!ultCont && (!copaRes[ultCont.id] || (ultCont.copa_fase < 6 && (ultCont.vencedor || (copaRes[ultCont.id].vencedor ? +copaRes[ultCont.id].vencedor : null)) === clube.id));
   const grupos = ordenarGrupos([...new Set(clubes.map(c => c.grupo))].filter(g => g !== "X")); // "X": clubes guardados, fora das competições
   // série do grupo para as faixas da tabela e a regra da multa; país estrangeiro tem uma divisão só, sem acesso nem descenso (0)
-  const serieDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : "BCF".includes(g) ? 2 : 3;
+  const serieDoGrupo = g => PAISES[g] ? 0 : g === "A" ? 1 : 2; // desde a T14 só há A e B (grupos B, C, D...: GRUPOS_DA_B)
   // faixa da posição i (0 = 1º) numa tabela de n clubes: Libertadores e Sul-Americana na Série A e nos países, descenso na A;
   // na Série B o 1º e o 2º vão direto à semifinal do playoff e do 3º ao 6º jogam a preliminar; a B não cai
   // com a final da Copa do Brasil decidida, as vagas da Série A já saem redistribuídas pela regra do calendário (vagasContinentais); o 1º ganha a cor de campeão
