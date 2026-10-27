@@ -27,7 +27,7 @@ writeFileSync(process.argv[3] || "dados.json", JSON.stringify({ liga, clubes, jo
 
 // clube de outro país: a "divisão" dele, aqui, é o grupo (ARG, URU…), para não misturar com a Série A
 for (const c of clubes) if (!ehDaLiga(c.grupo)) c.divisao = c.grupo;
-const SERIES = [1, 2, 3, ...new Set(clubes.map(c => c.divisao).filter(d => typeof d === "string"))];
+const SERIES = [...new Set(clubes.map(c => c.divisao))].sort((a, b) => typeof a === typeof b ? (a < b ? -1 : 1) : typeof a === "number" ? -1 : 1); // só as que existem (sem a divisão 3 desde o reinício)
 const C = Object.fromEntries(clubes.map(c => [c.id, c]));
 const med = v => { const s = [...v].sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : NaN; };
 const media = v => v.reduce((s, x) => s + x, 0) / (v.length || 1);
