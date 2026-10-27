@@ -1549,6 +1549,14 @@ const __rodada = (() => {
     } catch (e) { return null; }
   }
 
+  // Adversário do amistoso: o dirigente joga com a escalação do último jogo oficial (observada: escalacaoObservada, pública desde o apito;
+  // a tática salva é segredo), com banco e instruções automáticos. Bot, ou dirigente sem jogo, joga com a tática de bot (opcoes: as do taticaBot).
+  function taticaDoAmistoso(elenco, observada, opcoes) {
+    const t = observada && observada.vagas.length === 11 && taticaDoDirigente({ vagas: observada.vagas.map(v => v.pos), jog: observada.vagas.map(v => v.j.id) }, elenco);
+    if (!t) return { ...taticaBot(elenco, opcoes), origem: "tática de bot" };
+    return { ...t, forca: t.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11, origem: "escalação do último jogo" };
+  }
+
   const forcaDoOnze = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / escalacao.length;
 
   // Instante em que um minuto de jogo passa a ser visível, com 15 minutos de intervalo, na escala da transmissão.
@@ -1887,7 +1895,7 @@ const __rodada = (() => {
     if (!jogos.length) return { erro: esperando.length ? `Ainda em jogo: ${esperando.join(", ")}.` : "Os playoffs já foram todos criados." };
     return { jogos };
   }
-  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal, BONUS_DA_C, BONUS_DO_ACESSO_NA_C, meritoDaSerieC, mediaDosOnze, superacaoNaSerie, tecnicosDoAno, PESOS_DO_TECNICO_GERAL, pontosDoTecnicoGeral, tecnicoGeral, proximaFaseDosPlayoffs };
+  return { AMARELOS_PARA_SUSPENSAO, jogosFora, DIAS_PARA_BOT, gerarTabela, taticaDoDirigente, taticaDoAmistoso, horaDoMinuto, aplicarSituacao, climaDaPartida, efeitoDoClima, jogoGrande, COPA, foraDaCopa, CONTINENTAL, foraDoContinental, calcularPartida, classificacao, DESCENSO_DA_PRIMEIRA, CLASSIFICADOS_DO_PLAYOFF, vencedorDoPlayoff, vencedorDoConfronto, rodadasDeLiga, vencedorDoGrupo, PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal, BONUS_DA_C, BONUS_DO_ACESSO_NA_C, meritoDaSerieC, mediaDosOnze, superacaoNaSerie, tecnicosDoAno, PESOS_DO_TECNICO_GERAL, pontosDoTecnicoGeral, tecnicoGeral, proximaFaseDosPlayoffs };
 })();
 
 const __treino = (() => {

@@ -5,7 +5,7 @@ import { experienciaDe, nivelDoAnalista } from "./saude.js";
 import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, NOME_DO_PE, peNaPosicao } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
-import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande } from "./rodada.js";
+import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande, taticaDoAmistoso } from "./rodada.js";
 import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
@@ -371,13 +371,16 @@ async function iniciarOnline(sessaoDeTeste) {
     catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${/row-level security/.test(e.message) ? "Não deu para salvar: a tática está fechada para o jogo que vai começar." : esc(e.message)}</span>`; }
     $("salvarOnline").disabled = false;
   };
-  // amistosos: contra qualquer clube da liga, quantas vezes quiser; o adversário joga com a tática de bot e nada fica gravado
+  // amistosos: contra qualquer clube da liga, quantas vezes quiser; o adversário com dirigente repete a escalação do último jogo oficial,
+  // o bot joga com a tática de bot (taticaDoAmistoso), e nada fica gravado
   const outros = clubes.filter(c => c.id !== clubeOnline.id);
   $("rotuloAdv").hidden = false;
   $("advOnline").innerHTML = outros.map(c => `<option value="${c.id}">${esc(B.nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("");
   const mesmoGrupo = outros.find(c => c.grupo === clubeOnline.grupo); if (mesmoGrupo) $("advOnline").value = mesmoGrupo.id;
-  const guardados = {};
-  adversarioOnline = async () => { const id = +$("advOnline").value, c = outros.find(x => x.id === id); guardados[id] = guardados[id] || await B.elencoDoClube(id); return { elenco: guardados[id], nome: c.nome, perfil: c.perfil }; };
+  const guardados = {}, observadas = {};
+  adversarioOnline = async () => { const id = +$("advOnline").value, c = outros.find(x => x.id === id); guardados[id] = guardados[id] || await B.elencoDoClube(id);
+    if (c.dono && !(id in observadas)) observadas[id] = B.escalacaoObservada(await B.escalacoesRecentes(await B.partidasDoClube(liga.id, id), id, 1), guardados[id], notaNaPosicao);
+    return { elenco: guardados[id], nome: c.nome, perfil: c.perfil, observada: observadas[id] || null }; };
   sel = null; limparReferencias(); render();
 }
 function aplicarFormacao(nome) {
@@ -632,13 +635,13 @@ async function jogar() {
   const adv = online ? online.elenco : gerarElenco(criarRng(8000 + +$("sementeAdv").value), { nivel: +$("nivelAdv").value, nomes, prefixoId: "a" });
   const nomeMeu = clubeOnline ? clubeOnline.nome : "Meu time", nomeAdv = online ? online.nome : "Bot";
   const minhaForca = V.esc11.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11;
-  const t = taticaBot(adv, { mandante: !casa, forcaAdversario: minhaForca, perfil: online ? online.perfil : null });
+  const t = taticaDoAmistoso(adv, online ? online.observada : null, { mandante: !casa, forcaAdversario: minhaForca, perfil: online ? online.perfil : null });
   const meu = prepararTime({ nome: nomeMeu, escalacao: V.esc11, banco: E.banco.map(jogDe), instrucoes: instrucoesParaOMotor(), mandante: casa });
   const bot = prepararTime({ nome: nomeAdv, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: !casa });
   const n = +(ler("mo_partidas") || 0) + 1; guardar("mo_partidas", n);
   const partida = casa ? simularPartida(criarRng(n), meu, bot) : simularPartida(criarRng(n), bot, meu);
   const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel]);
-  $("infoAdv").textContent = `${nomeAdv} (tática de bot): ${t.formacao}, nota média ${f1(t.forca)}. ${nomeMeu}: nota média ${f1(minhaForca)}.`;
+  $("infoAdv").textContent = `${nomeAdv} (${t.origem})${t.formacao ? `: ${t.formacao},` : ":"} nota média ${f1(t.forca)}. ${nomeMeu}: nota média ${f1(minhaForca)}.`;
   $("rel").innerHTML = htmlRelatorio(r, { nomes: casa ? [nomeMeu, nomeAdv] : [nomeAdv, nomeMeu], analistas: [eu], ordens: partida.ordens });
   if (online) $("rel").scrollIntoView({ behavior: "smooth", block: "start" });
   return { r, partida };

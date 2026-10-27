@@ -82,6 +82,14 @@ export function taticaDoDirigente(dados, elenco) {
   } catch (e) { return null; }
 }
 
+// Adversário do amistoso: o dirigente joga com a escalação do último jogo oficial (observada: escalacaoObservada, pública desde o apito;
+// a tática salva é segredo), com banco e instruções automáticos. Bot, ou dirigente sem jogo, joga com a tática de bot (opcoes: as do taticaBot).
+export function taticaDoAmistoso(elenco, observada, opcoes) {
+  const t = observada && observada.vagas.length === 11 && taticaDoDirigente({ vagas: observada.vagas.map(v => v.pos), jog: observada.vagas.map(v => v.j.id) }, elenco);
+  if (!t) return { ...taticaBot(elenco, opcoes), origem: "tática de bot" };
+  return { ...t, forca: t.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / 11, origem: "escalação do último jogo" };
+}
+
 const forcaDoOnze = escalacao => escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / escalacao.length;
 
 // Instante em que um minuto de jogo passa a ser visível, com 15 minutos de intervalo, na escala da transmissão.
