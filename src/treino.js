@@ -148,6 +148,8 @@ export function folgaDoTeto(id, tal) {
   return r < F[1] ? 2 : r < F[0] ? 1 : 0;
 }
 export const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
+// Chegou ao limite: ainda treinaria pela idade, mas a nota já bateu o teto (com a folga dele). Só o servidor sabe (precisa do talento).
+export const chegouAoTeto = (j, tal) => tal != null && ritmoDaIdade(j.idade) > 0 && notaDeTeto(j) >= tetoDaNota(tal) + folgaDoTeto(j.id, tal);
 
 // Fração de sessão que vale cada rodada: o grupo com menos rodadas treina mais por rodada e soma o mesmo na temporada (1 sem rodadas)
 export const fatorDaTemporada = rodadas => rodadas > 0 ? CONFIG_TREINO.rodadasDeReferencia / rodadas : 1;
@@ -187,7 +189,7 @@ export function partilha(j) {
 // fator: fração de uma sessão (a liga de base dá um bônus de 20% de sessão a quem jogou).
 export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
   const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
-  if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal) + folgaDoTeto(j.id, tal)) return null;
+  if (total <= 0 || chegouAoTeto(j, tal) || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
   const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
     if (at[i] >= ATR_MAX) continue;

@@ -2096,6 +2096,8 @@ const __treino = (() => {
     return r < F[1] ? 2 : r < F[0] ? 1 : 0;
   }
   const tetoDaNota = tal => CONFIG_TREINO.teto[0] + CONFIG_TREINO.teto[1] * (tal == null ? 50 : tal);
+  // Chegou ao limite: ainda treinaria pela idade, mas a nota já bateu o teto (com a folga dele). Só o servidor sabe (precisa do talento).
+  const chegouAoTeto = (j, tal) => tal != null && ritmoDaIdade(j.idade) > 0 && notaDeTeto(j) >= tetoDaNota(tal) + folgaDoTeto(j.id, tal);
 
   // Fração de sessão que vale cada rodada: o grupo com menos rodadas treina mais por rodada e soma o mesmo na temporada (1 sem rodadas)
   const fatorDaTemporada = rodadas => rodadas > 0 ? CONFIG_TREINO.rodadasDeReferencia / rodadas : 1;
@@ -2135,7 +2137,7 @@ const __treino = (() => {
   // fator: fração de uma sessão (a liga de base dá um bônus de 20% de sessão a quem jogou).
   function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
     const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
-    if (total <= 0 || notaDeTeto(j) >= tetoDaNota(tal) + folgaDoTeto(j.id, tal)) return null;
+    if (total <= 0 || chegouAoTeto(j, tal) || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
     const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
     for (const [i, parte] of Object.entries(partilha(j))) {
       if (at[i] >= ATR_MAX) continue;
@@ -2145,7 +2147,7 @@ const __treino = (() => {
     }
     return { at, pts, subiu };
   }
-  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, distanciaDaPosicao, custoDaPosicao, treinandoPosicao, pontosDePosicao, aprenderPosicao, AVISO_DE_DEGRAU_DIAS, degrauRecente, prazoDaPosicao, folgaDoTeto, tetoDaNota, fatorDaTemporada, fatorDoCaminho, pontosDaSessao, partilha, treinar };
+  return { CONFIG_TREINO, AREAS, AREA_DO_ATRIBUTO, qualidadeDoTreino, ctDoClube, multDoAtributo, ritmoDaIdade, FOCOS, focoDaPosicao, treinavel, focoAutomatico, focoDoJogador, CONFIG_POSICAO, ritmoDaPosicao, posicaoEmEstudo, distanciaDaPosicao, custoDaPosicao, treinandoPosicao, pontosDePosicao, aprenderPosicao, AVISO_DE_DEGRAU_DIAS, degrauRecente, prazoDaPosicao, folgaDoTeto, tetoDaNota, chegouAoTeto, fatorDaTemporada, fatorDoCaminho, pontosDaSessao, partilha, treinar };
 })();
 
 const __ligabase = (() => {
@@ -2558,7 +2560,7 @@ const __mercadobots = (() => {
 })();
 // <<< motor embutido
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } = __rodada;
-const { treinar, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
+const { treinar, chegouAoTeto, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
 const { saudeDoClube } = __saude;
 const { timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
@@ -2936,7 +2938,9 @@ Deno.serve(async (req) => {
             const r = treinar(j, { tal: talentos[j.id], ct: ctDoClube(clubes[lado]), jogou, areas, fator: fatorDoGrupo });
             // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
             const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
-            if (r || a) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
+            // no limite (163_no_teto.sql): a sessão não rendeu porque a nota bateu o teto; quem treinou sai da marca
+            const teto = !r && chegouAoTeto(j, talentos[j.id]);
+            if (r || a || teto) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), teto, ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
               if (r) { j.at = r.at; j.pts = r.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
           } }
           efeitos.treinos = treinos;

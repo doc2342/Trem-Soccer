@@ -304,6 +304,8 @@ const comChave = (consulta, colunas) => consulta(colunas + ", chave").then(r => 
 export const partidasDaCopa = ligaId => comChave(c => sb.from("partidas").select(c).eq("liga_id", ligaId).in("fase", ["copa", "lib"]).order("copa_fase").order("id"), "id, grupo, rodada, fase, copa_fase, casa, fora, inicio, fim, processada, vencedor");
 // Olheiro (supabase/36_olheiro.sql): faixa de teto do próprio elenco (com o olheiro contratado) e relatórios pagos de outros clubes.
 export const relatorioDoElenco = () => sb.rpc("relatorio_do_elenco").then(({ data, error }) => error ? null : data);
+// jogadores do meu elenco que pararam no teto (ids); vazio antes do 163_no_teto.sql
+export const noTetoDoElenco = () => sb.rpc("no_teto_do_elenco").then(({ data, error }) => error ? [] : (data || []).map(x => "j" + (x.no_teto_do_elenco ?? x)));
 export const meusRelatorios = () => sb.from("relatorios").select("jogador_id, nivel, minimo, maximo").then(({ data, error }) => error ? null : data);
 export const comprarRelatorio = (jogadorId, nivel) => sb.rpc("comprar_relatorio", { p_jogador: numero(jogadorId), p_nivel: nivel }).then(ok);
 // Venda pelo agente (supabase/41_venda_pelo_agente.sql): saída garantida, o jogador vai para um clube sem dono.
