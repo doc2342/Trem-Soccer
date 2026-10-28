@@ -1419,6 +1419,9 @@ button.t-tr-taca { background:none; border:0; padding:0; margin:0; color:inherit
 .t-qa-atr i { height:4px; background:linear-gradient(90deg, var(--t-tinta3) var(--v), var(--t-fio) var(--v)); }
 .t-qa-atr b { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
 .t-qa-conta { color:var(--t-tinta); font-weight:700; } .t-qa-conta i { background:linear-gradient(90deg, var(--t-marca) var(--v), var(--t-fio) var(--v)); }
+/* chegou ao teto (163_no_teto.sql): as barras que contam e o progresso do treino em âmbar */
+.t-qa-limite .t-qa-conta i { background:linear-gradient(90deg, var(--t-atencao) var(--v), var(--t-fio) var(--v)); } .t-qa-nolimite { color:var(--t-atencao); }
+.t-trn-limite .t-trn-prog > i > i { background:var(--t-atencao); }
 .t-qa-pe { padding:0 20px 14px; font-size:12px; color:var(--t-tinta2); } .t-qa-pe b { color:var(--t-tinta); }
 @media (max-width:620px) and (pointer:coarse) {
   .t-qa-topo { grid-template-columns:auto auto; justify-content:space-around; } .t-qa-quem { grid-column:1 / -1; } .t-qa-camisa svg { width:90px; } .t-qa-radar { justify-self:center; } .t-qa-radar svg { width:180px; } .t-qa-nome { font-size:30px; }

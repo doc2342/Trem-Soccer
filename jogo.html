@@ -2186,7 +2186,7 @@ async function telaClube(liga, clube) {
   const botaoInfo = j => { fichas.set("m" + j.id, j); return `<button class="info" data-info="m${j.id}" title="Atributos">i</button>`; };
   // visual novo: faixa escura com nome, nota e o radar; quatro números do contrato; uma linha de fatos; atributos com barrinha
   const quadroNovo = (j, conta) => {
-    const t = tetoDe[j.id] || relatorioDe(j.id), xp = Math.round(experienciaDe(j)), fim = j.contratoAte != null && j.contratoAte <= liga.temporada;
+    const t = tetoDe[j.id] || relatorioDe(j.id), limite = noTeto.has(j.id) && j.idade <= 30, xp = Math.round(experienciaDe(j)), fim = j.contratoAte != null && j.contratoAte <= liga.temporada;
     const outras = Object.entries(j.fam).filter(([p]) => p !== j.pos), premios = premiosDoJogador(j.id);
     const uni = (dono => dono === clube.id ? clube.uniforme || {} : cPor[dono] && cPor[dono].uniforme)("clube_id" in j ? j.clube_id : clube.id); // camisa do clube dele; livre não tem
     const fatos = [
@@ -2198,7 +2198,7 @@ async function telaClube(liga, clube) {
       <header class="t-qa-topo"><div class="t-qa-quem"><div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(([p, f]) => `<span class="t-qa-outra${f !== "N" && f !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})">${pp(p)}</span>`).join("")}</div>
         <h2 class="t-qa-nome">${esc(j.nome)}</h2>${(c => c && c !== j.nome ? `<div class="mut">${esc(c)}</div>` : "")(j.nomeCompleto || j.nome_completo)}
         <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · ${textoDoPe(j.pe, j.peFraco)}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
-        <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}</span></div></div>
+        <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}${limite ? `<br><b class="t-qa-nolimite">no limite</b>: parou de evoluir` : ""}</span></div></div>
         ${uni ? `<div class="t-qa-camisa">${svgCamisa(uni, 110, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}
         <div class="t-qa-radar">${poligonoDeAtributos(j)}</div>
         <button class="t-qa-fecha" data-fecha-quadro aria-label="Fechar">✕</button></header>
@@ -2208,8 +2208,8 @@ async function telaClube(liga, clube) {
         + num("Contrato", `T${j.contratoAte}`, fim ? "acaba nesta temporada" : "", fim ? "t-atencao" : "")}
         ${num("Experiência", `${xp}<small>/100</small>`, xp >= 70 ? "rende sempre perto do que sabe" : xp >= 35 ? "ainda oscila um pouco" : "oscila bastante de um jogo para o outro")}</div>
       ${fatos.length ? `<div class="t-qa-fatos">${fatos.join(" · ")}</div>` : ""}
-      <div class="t-qa-grade">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b class="${corAtr(j.at[k])}">${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div>
-      <div class="t-qa-pe">Em negrito e com a barra vermelha, os atributos que contam para a posição dele.</div></div>`;
+      <div class="t-qa-grade${limite ? " t-qa-limite" : ""}">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b class="${corAtr(j.at[k])}">${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div>
+      <div class="t-qa-pe">${limite ? "Em negrito, os atributos que contam para a posição dele; a barra âmbar diz que ele chegou ao teto e o treino não sobe mais." : "Em negrito e com a barra vermelha, os atributos que contam para a posição dele."}</div></div>`;
   };
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
     if (visualNovo) return quadroNovo(j, conta);
@@ -4422,7 +4422,7 @@ ${historicoDaBase()}`}
           <div class="t-trn-ficha-ritmo">${numero({ rotulo: "Por rodada", valor: ritmo, legenda: limite ? "chegou ao teto e parou de evoluir" : total > 0 ? (visto ? "pontos de atributo, sem o bônus de jogar" : "estimativa sem olheiro (teto típico)") : "parou pela idade (31 anos ou mais)" })}</div></div>
         <div class="t-trn-det"><div class="t-trn-bloco"><div class="t-numero-rotulo">Foco principal · 70% dos pontos</div><div class="t-transf-filtro">${opcoes.map(k => `<button type="button" data-tfoco-v="${j.id}:${k}" class="${k === f.p ? "ligado" : ""}">${FOCOS[k].nome}</button>`).join("")}</div>
           <div class="t-numero-rotulo">Complementar · 30%, três atributos</div><div class="t-transf-filtro">${ATRIBUTOS.map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<button type="button" data-tcomp-v="${j.id}:${i}" class="${f.c.includes(i) ? "ligado" : ""}">${a.nome}</button>`).join("")}</div></div>
-          <div class="t-trn-bloco"><div class="t-numero-rotulo">Progresso</div><div class="t-trn-progs">${prog}</div></div>${posNova}</div>`; };
+          <div class="t-trn-bloco"><div class="t-numero-rotulo">Progresso</div><div class="t-trn-progs${limite ? " t-trn-limite" : ""}">${prog}</div></div>${posNova}</div>`; };
     const desenharTreinoNovo = () => {
       const doGrupo = lista.filter(j => !j.juvenil === (grupo === "prof")), prof = elenco.filter(j => !j.juvenil), auto = prof.filter(j => !(j.treino && j.treino.p)).length;
       if (!doGrupo.some(j => j.id === sel)) sel = doGrupo.length ? doGrupo[0].id : null;
