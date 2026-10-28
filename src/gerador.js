@@ -1,6 +1,6 @@
 // Gerador de jogadores e de elencos iniciais.
 // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
-import { limitar } from "./rng.js";
+import { criarRng, limitar } from "./rng.js";
 import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } from "./modelo.js";
 
 // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
@@ -99,6 +99,12 @@ export function sortearPe(rng, pos) {
   if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
   return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
 }
+// Pé fraco, de 1 a 20: o ambidestro de 13 a 20, os outros de 1 a 12 (no banco, quem sorteia é o gatilho do 162_pe_fraco.sql).
+// Sai de um sorteio à parte, semeado pelo nome e pelos atributos (o id muitas vezes ainda é null), para não mudar o resto do jogador gerado com a mesma semente.
+export function sortearPeFraco(chave, pe) {
+  const rng = criarRng([...String(chave)].reduce((h, c) => Math.imul(h, 31) + c.charCodeAt(0) | 0, 162));
+  return pe === "A" ? rng.int(13, 20) : rng.int(1, 12);
+}
 // Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
 // raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
 export const TALENTO_COMUM = 92;
@@ -119,6 +125,7 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
     tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
     pe: sortearPe(rng, pos),
   };
+  j.pf = sortearPeFraco(j.nome_completo + j.at, j.pe);
   j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
   return j;
 }

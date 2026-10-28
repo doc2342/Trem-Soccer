@@ -113,19 +113,38 @@ export function notaBruta(atributos, pos) {
 //   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
 //   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
 // Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+// Com a nota do pé fraco (pf, 1 a 20; 162_pe_fraco.sql), a perda do lado trocado vai com ela: quase some com 13 ou mais e cresce de 1 a 5
+// (perda 1 = a de antes, na nota 6); o ambidestro conta como lado trocado com pé fraco alto, e quem tem 13 ou mais corta para dentro dos dois lados.
 export const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
-export const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
-export function ajusteDoPe(pe, pos) {
-  const p = POSICOES[pos];
-  if (!p || p.lado === "C" || !pe || pe === "A") return null;
-  if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
-  return p.linha === "ataque" || p.linha === "meia"
-    ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
-    : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+export const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05, perda: [13, 7, 0.1, 1.5], corta: 13 };
+export function ajusteDoPe(pe, pos, pf) {
+  const p = POSICOES[pos], C = CONFIG_PE;
+  if (!p || p.lado === "C" || !pe || pe === "A" && pf == null) return null;
+  const frente = p.linha === "ataque" || p.linha === "meia";
+  if (pe === p.lado) return frente && pf >= C.corta ? { [IDX.cru]: C.cruzaBem, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem } : { [IDX.cru]: C.cruzaBem };
+  const [nota, passo, min, max] = C.perda, perda = pf == null ? 1 : Math.min(max, Math.max(min, (nota - pf) / passo));
+  const pior = mal => pf == null ? mal : 1 - (1 - mal) * perda, cru = pior(C.cruzaMal), pas = pior(C.passaMal); // sem a nota, o número de antes, sem arredondar
+  return frente
+    ? { [IDX.cru]: cru, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem }
+    : { [IDX.cru]: cru, [IDX.pas]: pas };
 }
+// Pé fraco em palavras, como no FM (as faixas são o teto de cada nome)
+export const NIVEIS_PE_FRACO = [[3, "Péssimo"], [6, "Fraco"], [9, "Razoável"], [12, "Bom"], [16, "Muito bom"], [20, "Ambidestro"]];
+export const nomeDoPeFraco = pf => pf == null ? "" : (NIVEIS_PE_FRACO.find(([teto]) => pf <= teto) || NIVEIS_PE_FRACO[NIVEIS_PE_FRACO.length - 1])[1];
+// como o site mostra o pé: "destro · pé fraco razoável" (curto: "destro · razoável"); no nível Ambidestro, ou sem a nota, só o jeito
+export const JEITO_DO_PE = { D: "destro", E: "canhoto", A: "ambidestro" };
+export function textoDoPe(pe, pf, curto = false) {
+  if (!pe) return "";
+  const nivel = nomeDoPeFraco(pf).toLowerCase();
+  return !nivel || nivel === "ambidestro" ? JEITO_DO_PE[pe] || pe : `${JEITO_DO_PE[pe] || pe} · ${curto ? "" : "pé fraco "}${nivel}`;
+}
+// quanto o pé ruim atrapalha no motor: 1 com nota 1, 0 com 11 ou mais
+export const fraquezaDoPe = pf => Math.min(1, Math.max(0, (11 - pf) / 10));
+// temporada em que a nota do pé fraco passa a valer nas partidas (rodada.js tira a nota dos jogadores antes dela)
+export const PE_FRACO_DESDE = 1;
 // nota na posição já com o efeito do pé: é a que o bot (e o botão de escalar os melhores) usa para escolher quem joga em cada lado
 export function notaComPe(j, pos) {
-  const a = ajusteDoPe(j.pe, pos);
+  const a = ajusteDoPe(j.pe, pos, j.pf);
   if (!a) return notaNaPosicao(j, pos);
   const at = j.at.slice();
   for (const k in a) at[k] *= a[k];

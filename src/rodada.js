@@ -1,7 +1,7 @@
 // Calendário, cálculo de uma partida da liga e classificação.
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado.
 import { criarRng } from "./rng.js";
-import { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES } from "./modelo.js";
+import { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES, PE_FRACO_DESDE } from "./modelo.js";
 import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
@@ -182,10 +182,13 @@ function situacaoDaCopa(elenco, p, clubeId, fase, medico = null, continental = f
   return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa e Recopa (fase 0): cartões e trava de clube não contam
 }
 
-export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
+// temporada: a da liga; antes de PE_FRACO_DESDE (ou sem ela) os jogadores entram sem a nota do pé fraco e o motor joga como antes
+export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente, temporada }) {
+  const semPf = j => j.pf == null || temporada >= PE_FRACO_DESDE ? j : { ...j, pf: null };
   const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
   const clima = climaDaPartida(partida.id == null ? semente : partida.id);
   const lados = [casa, fora].map(l => {
+    l = { ...l, elenco: l.elenco.map(semPf), pronta: l.pronta && { ...l.pronta, escalacao: l.pronta.escalacao.map(e => ({ ...e, j: semPf(e.j) })), banco: (l.pronta.banco || []).map(semPf) } };
     const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
     // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim);
     // na Libertadores e na Sul-Americana, a lesão e a suspensão continental (na Recopa só a lesão: foraLib é da Libertadores ou da Sul-Americana)

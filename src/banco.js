@@ -15,7 +15,9 @@ export const confirmarCodigo = (email, token) => sb.auth.verifyOtp({ email, toke
 export const sair = () => sb.auth.signOut();
 
 export const ehAdmin = () => sb.rpc("eh_admin").then(ok);
-export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok);
+// temporada da liga lida por último: diz se a nota do pé fraco já vale no motor (doElenco)
+let temporadaDaLiga = null;
+export const ligaAtual = () => sb.from("ligas").select("*").order("id", { ascending: false }).limit(1).maybeSingle().then(ok).then(l => { temporadaDaLiga = l ? l.temporada : null; return l; });
 // extra (96_seletor_de_clubes.sql): antes dele a coluna não existe e a leitura é refeita sem ela
 const comExtra = (consulta, campos) => consulta(campos + ", extra").then(r => r.error ? consulta(campos) : r).then(ok);
 export const clubesDaLiga = ligaId => comExtra(c => sb.from("clubes").select(c).eq("liga_id", ligaId).order("grupo").order("nome"), "id, grupo, divisao, dono, dirigente, nome, sigla, escudo, uniforme, perfil, assumido_em, ultimo_acesso");
@@ -74,7 +76,8 @@ export const doElenco = l => ({ id: "j" + l.id, nome: l.nome, nomeCompleto: l.no
     contratoAte: l.contrato_ate == null ? null : l.contrato_ate, naoRenovar: !!l.nao_renovar, protegidoAte: l.protegido_ate == null ? null : l.protegido_ate, protegido: !!l.protegido, aVenda: !!l.a_venda, botsViram: l.bots_viram || null, precoPedido: l.preco_pedido || null, ofertaLigaAte: l.oferta_liga_ate || null,
     treino: l.treino === undefined ? undefined : l.treino, pts: l.treino_pts || null, aprende: l.aprende === undefined ? undefined : l.aprende, juvenil: l.juvenil === undefined ? undefined : !!l.juvenil, escolinha: !!l.escolinha, formador: l.formador == null ? null : l.formador, chegou: l.chegou_temporada == null ? null : l.chegou_temporada, // aprende indefinido: antes do 59_posicao_nova_e_safra.sql
     forma: l.forma === undefined ? undefined : l.forma, moral: l.moral === undefined ? undefined : l.moral,
-    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null,
+    exp: l.exp == null ? null : +l.exp, temExp: l.exp !== undefined, inicio: l.inicio_temporada || null, pe: l.pe || null, peFraco: l.pe_fraco == null ? null : l.pe_fraco, // pé fraco, para mostrar: só depois do 162_pe_fraco.sql
+    pf: l.pe_fraco != null && temporadaDaLiga >= PE_FRACO_DESDE ? l.pe_fraco : null, // e para o motor do site (escalar, força, amistoso), como no servidor: só a partir da T1
     aposentaEm: l.aposenta_em === undefined ? undefined : l.aposenta_em, emprestadoDe: l.emprestado_de === undefined ? undefined : l.emprestado_de, // indefinido: antes do 76_emprestimo_e_supercopa.sql
      preContrato: l.pre_contrato || null,
     amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube,
@@ -264,7 +267,7 @@ export const lancarRodada = partidaId => sb.rpc("lancar_rodada", { p_partida: pa
 // ---------- ferramentas do administrador (passo I) ----------
 // V1: pirâmide e reinício do teste (supabase/15_piramide_e_reinicio.sql)
 // Outros países (77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
-import { PAISES, paisDoGrupo } from "./modelo.js";
+import { PAISES, paisDoGrupo, PE_FRACO_DESDE } from "./modelo.js";
 export { PAISES, paisDoGrupo };
 // grupos em ordem de tela: os do Brasil primeiro (A a E), depois os países
 // jogos do playoff da Série B (desde a T14): preliminar em jogo único, semifinal e final em ida (rodada par) e volta (ímpar)

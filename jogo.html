@@ -231,7 +231,7 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta, NOME_DO_PE, peNaPosicao } from "./src/modelo.js";
+import { ATRIBUTOS, POSICOES, LISTA_POSICOES, PESOS, notaNaPosicao, notaBruta, peNaPosicao, textoDoPe } from "./src/modelo.js";
 import { experienciaDe, nivelDoAnalista, FUNCOES_DE_SAUDE, saudeDoClube, reducaoDeLesao, reducaoDoMedico, atendidosPeloMedico, ganhoDeForma, atendidosNaForma, corteDoPsicologo } from "./src/saude.js";
 import { CONFIG_BASE, faixaDeJovens, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS } from "./src/base.js";
 import { CONFIG_MERCADO_BOTS } from "./src/mercadobots.js";
@@ -2196,7 +2196,7 @@ async function telaClube(liga, clube) {
     return `<div class="t-qa">
       <header class="t-qa-topo"><div class="t-qa-quem"><div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(([p, f]) => `<span class="t-qa-outra${f !== "N" && f !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${f === "N" ? "natural" : f === "C" ? "competente" : "improvisado"})">${pp(p)}</span>`).join("")}</div>
         <h2 class="t-qa-nome">${esc(j.nome)}</h2>${(c => c && c !== j.nome ? `<div class="mut">${esc(c)}</div>` : "")(j.nomeCompleto || j.nome_completo)}
-        <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
+        <div class="t-qa-sub">${j.idade} anos${j.pe ? ` · ${textoDoPe(j.pe, j.peFraco)}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}${j.pais ? " · " + bandeira(j.pais) : ""}</div>
         <div class="t-qa-nota"><b>${f1(notaNaPosicao(j, j.pos))}</b><span>nota na posição${t ? `<br>teto <b>${t.minimo}–${t.maximo}</b>, pelo olheiro` : ""}</span></div></div>
         ${uni ? `<div class="t-qa-camisa">${svgCamisa(uni, 110, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}
         <div class="t-qa-radar">${poligonoDeAtributos(j)}</div>
@@ -2213,7 +2213,7 @@ async function telaClube(liga, clube) {
   const quadroDeAtributos = j0 => { const j = { ...j0, contratoAte: j0.contratoAte ?? j0.contrato_ate, protegidoAte: j0.protegidoAte ?? j0.protegido_ate }, conta = PESOS[POSICOES[j.pos].papel] || {};
     if (visualNovo) return quadroNovo(j, conta);
     return `<div class="qa-topo"><span class="qa-nome">${esc(j.nome)}</span><span class="nota" style="margin-left:auto;flex:none">${f1(notaNaPosicao(j, j.pos))}</span><button class="sec" data-fecha-quadro style="padding:1px 8px;flex:none">✕</button></div>
-      <div class="qa-sub">${pp(j.pos)} <span class="mut">${esc(POSICOES[j.pos].nome)} · ${j.idade} anos${j.pe ? ` · pé ${NOME_DO_PE[j.pe]}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}</span></div>
+      <div class="qa-sub">${pp(j.pos)} <span class="mut">${esc(POSICOES[j.pos].nome)} · ${j.idade} anos${j.pe ? ` · ${textoDoPe(j.pe, j.peFraco)}${peNaPosicao(j.pe, j.pos) === "trocado" ? " (trocado para o lado dele)" : ""}` : ""}</span></div>
       ${poligonoDeAtributos(j)}
       ${j.salario == null ? "" : `<div class="mut" style="font-size:12.5px;margin-bottom:6px">Salário ${dinheiro(j.salario)} · multa rescisória ${j.protegido ? "não tem (protegido)" : dinheiro(multaDe(j)) + (j.protegidoAte != null && j.protegidoAte >= liga.temporada ? ", só vale a partir da próxima temporada" : "")} · contrato até o fim da temporada ${j.contratoAte}</div>`}
       ${(t => t ? `<div style="font-size:12.5px;margin-bottom:6px">🔭 Teto estimado pelo olheiro: nota entre <b>${t.minimo}</b> e <b>${t.maximo}</b></div>` : "")(tetoDe[j.id] || relatorioDe(j.id))}

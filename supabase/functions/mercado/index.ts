@@ -162,19 +162,38 @@ const __modelo = (() => {
   //   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
   //   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
   // Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+  // Com a nota do pé fraco (pf, 1 a 20; 162_pe_fraco.sql), a perda do lado trocado vai com ela: quase some com 13 ou mais e cresce de 1 a 5
+  // (perda 1 = a de antes, na nota 6); o ambidestro conta como lado trocado com pé fraco alto, e quem tem 13 ou mais corta para dentro dos dois lados.
   const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
-  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
-  function ajusteDoPe(pe, pos) {
-    const p = POSICOES[pos];
-    if (!p || p.lado === "C" || !pe || pe === "A") return null;
-    if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
-    return p.linha === "ataque" || p.linha === "meia"
-      ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
-      : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05, perda: [13, 7, 0.1, 1.5], corta: 13 };
+  function ajusteDoPe(pe, pos, pf) {
+    const p = POSICOES[pos], C = CONFIG_PE;
+    if (!p || p.lado === "C" || !pe || pe === "A" && pf == null) return null;
+    const frente = p.linha === "ataque" || p.linha === "meia";
+    if (pe === p.lado) return frente && pf >= C.corta ? { [IDX.cru]: C.cruzaBem, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem } : { [IDX.cru]: C.cruzaBem };
+    const [nota, passo, min, max] = C.perda, perda = pf == null ? 1 : Math.min(max, Math.max(min, (nota - pf) / passo));
+    const pior = mal => pf == null ? mal : 1 - (1 - mal) * perda, cru = pior(C.cruzaMal), pas = pior(C.passaMal); // sem a nota, o número de antes, sem arredondar
+    return frente
+      ? { [IDX.cru]: cru, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem }
+      : { [IDX.cru]: cru, [IDX.pas]: pas };
   }
+  // Pé fraco em palavras, como no FM (as faixas são o teto de cada nome)
+  const NIVEIS_PE_FRACO = [[3, "Péssimo"], [6, "Fraco"], [9, "Razoável"], [12, "Bom"], [16, "Muito bom"], [20, "Ambidestro"]];
+  const nomeDoPeFraco = pf => pf == null ? "" : (NIVEIS_PE_FRACO.find(([teto]) => pf <= teto) || NIVEIS_PE_FRACO[NIVEIS_PE_FRACO.length - 1])[1];
+  // como o site mostra o pé: "destro · pé fraco razoável" (curto: "destro · razoável"); no nível Ambidestro, ou sem a nota, só o jeito
+  const JEITO_DO_PE = { D: "destro", E: "canhoto", A: "ambidestro" };
+  function textoDoPe(pe, pf, curto = false) {
+    if (!pe) return "";
+    const nivel = nomeDoPeFraco(pf).toLowerCase();
+    return !nivel || nivel === "ambidestro" ? JEITO_DO_PE[pe] || pe : `${JEITO_DO_PE[pe] || pe} · ${curto ? "" : "pé fraco "}${nivel}`;
+  }
+  // quanto o pé ruim atrapalha no motor: 1 com nota 1, 0 com 11 ou mais
+  const fraquezaDoPe = pf => Math.min(1, Math.max(0, (11 - pf) / 10));
+  // temporada em que a nota do pé fraco passa a valer nas partidas (rodada.js tira a nota dos jogadores antes dela)
+  const PE_FRACO_DESDE = 1;
   // nota na posição já com o efeito do pé: é a que o bot (e o botão de escalar os melhores) usa para escolher quem joga em cada lado
   function notaComPe(j, pos) {
-    const a = ajusteDoPe(j.pe, pos);
+    const a = ajusteDoPe(j.pe, pos, j.pf);
     if (!a) return notaNaPosicao(j, pos);
     const at = j.at.slice();
     for (const k in a) at[k] *= a[k];
@@ -209,13 +228,13 @@ const __modelo = (() => {
   // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
   const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
   const paisDoGrupo = g => PAISES[g] || "Brasil";
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, NIVEIS_PE_FRACO, nomeDoPeFraco, JEITO_DO_PE, textoDoPe, fraquezaDoPe, PE_FRACO_DESDE, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __gerador = (() => {
   // Gerador de jogadores e de elencos iniciais.
   // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
-  const { limitar } = __rng;
+  const { criarRng, limitar } = __rng;
   const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } = __modelo;
   // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
   // para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
@@ -313,6 +332,12 @@ const __gerador = (() => {
     if (lado === "D") return r < 0.88 ? "D" : r < 0.95 ? "A" : "E";
     return r < 0.72 ? "D" : r < 0.92 ? "E" : "A";
   }
+  // Pé fraco, de 1 a 20: o ambidestro de 13 a 20, os outros de 1 a 12 (no banco, quem sorteia é o gatilho do 162_pe_fraco.sql).
+  // Sai de um sorteio à parte, semeado pelo nome e pelos atributos (o id muitas vezes ainda é null), para não mudar o resto do jogador gerado com a mesma semente.
+  function sortearPeFraco(chave, pe) {
+    const rng = criarRng([...String(chave)].reduce((h, c) => Math.imul(h, 31) + c.charCodeAt(0) | 0, 162));
+    return pe === "A" ? rng.int(13, 20) : rng.int(1, 12);
+  }
   // Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
   // raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
   const TALENTO_COMUM = 92;
@@ -333,6 +358,7 @@ const __gerador = (() => {
       tal: limitar(Math.round(rng.normal(idade <= 21 ? 58 : 48, 17)), 1, raro ? 100 : TALENTO_COMUM), // talento oculto, 1 a 100
       pe: sortearPe(rng, pos),
     };
+    j.pf = sortearPeFraco(j.nome_completo + j.at, j.pe);
     j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
     return j;
   }
@@ -369,7 +395,7 @@ const __gerador = (() => {
       pos,
     }));
   }
-  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, CONFIG_NOMES, semAcento, sortearNome, sortearPe, TALENTO_COMUM, gerarJogador, gerarElenco, gerarOnze };
+  return { VAGAS_TITULARES, VAGAS_RESERVAS, PERFIS, CONFIG_NOMES, semAcento, sortearNome, sortearPe, sortearPeFraco, TALENTO_COMUM, gerarJogador, gerarElenco, gerarOnze };
 })();
 
 const __economia = (() => {

@@ -31,7 +31,7 @@
 
 <script type="module">
 import { sb, nomeDoGrupo, PAISES } from "./src/banco.js";
-import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, PESOS, notaBruta, notaNaPosicao } from "./src/modelo.js";
+import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, PESOS, notaBruta, notaNaPosicao, textoDoPe } from "./src/modelo.js";
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
 import { camisinha, svgCamisa } from "./src/camisa.js";
@@ -51,10 +51,10 @@ const NOVO = document.documentElement.dataset.visual === "novo";
 const NOMES_DE_PREMIO = { artilheiro: "Artilheiro", garcom: "Garçom", melhor: "Melhor jogador", goleiro: "Melhor goleiro", revelacao: "Revelação", craque: "Craque", tecnico: "Técnico do ano" };
 const nomeDoPremio = p => { const serie = p.comp === "COPA" ? "da copa" : PAISES[p.comp] ? "do " + nomeDoGrupo(p.comp) : "da " + nomeDoGrupo(p.comp).replace("Brasileiro ", "");
   return String(p.premio).startsWith("sel") ? `Seleção ${serie}` : p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : `${NOMES_DE_PREMIO[p.premio] || p.premio} ${serie}`; };
-// os dois pés vistos de baixo; o dominante cheio, o outro apagado (ambidestro: os dois cheios)
-const pegada = (x, espelho, cheio) => `<g transform="translate(${x} 0)${espelho ? " translate(20 0) scale(-1 1)" : ""}" opacity="${cheio ? 1 : 0.28}"><path d="M8.6 9.2c4.6-.6 7.4 2.4 6.9 7.2-.4 3.8-1.6 6.6-2.2 8.4-.8 2.4-2.6 3.4-4.6 3.2-2.4-.2-3.6-2-3.4-4.6.2-2.4.8-3.8.2-6.2-.8-3.8.2-7.6 3.1-8z"/>
+// os dois pés vistos de baixo; o dominante cheio, o outro mais apagado quanto pior o pé fraco (ambidestro: os dois cheios)
+const pegada = (x, espelho, cheio, pf) => `<g transform="translate(${x} 0)${espelho ? " translate(20 0) scale(-1 1)" : ""}" opacity="${cheio ? 1 : pf == null ? 0.28 : (0.15 + 0.85 * (pf - 1) / 19).toFixed(2)}"><path d="M8.6 9.2c4.6-.6 7.4 2.4 6.9 7.2-.4 3.8-1.6 6.6-2.2 8.4-.8 2.4-2.6 3.4-4.6 3.2-2.4-.2-3.6-2-3.4-4.6.2-2.4.8-3.8.2-6.2-.8-3.8.2-7.6 3.1-8z"/>
   <circle cx="6.6" cy="5.4" r="2.5"/><circle cx="10.4" cy="4.1" r="1.6"/><circle cx="13.2" cy="4.9" r="1.4"/><circle cx="15.4" cy="6.6" r="1.2"/><circle cx="16.9" cy="8.9" r="1"/></g>`;
-const pes = pe => `<svg class="t-jp-pes" viewBox="0 0 42 29" role="img" aria-label="Pé ${NOME_DO_PE[pe] || pe}"><title>Pé ${NOME_DO_PE[pe] || pe}</title>${pegada(0, true, pe !== "D")}${pegada(22, false, pe !== "E")}</svg>`;
+const pes = (pe, pf) => `<svg class="t-jp-pes" viewBox="0 0 42 29" role="img" aria-label="Pé ${NOME_DO_PE[pe] || pe}"><title>Pé ${NOME_DO_PE[pe] || pe}</title>${pegada(0, true, pe !== "D", pf)}${pegada(22, false, pe !== "E", pf)}</svg> ${textoDoPe(pe, pf)}`;
 const TIPO_CURTO = { livre: "Livre", multa: "Multa", negociada: "Negociada", divida: "Dívida", agente: "Agente" };
 
 // nota (pelos atributos, na posição principal) temporada a temporada
@@ -83,7 +83,7 @@ function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, tr
   const topo = `<section class="t-faixa t-jp-faixa"><div class="t-jp-quem">
       <div class="t-qa-pos">${rotulo(`${sg(j.pos)} · ${POSICOES[j.pos].nome}`)}${outras.map(p => `<span class="t-qa-outra${jog.fam[p] !== "N" && jog.fam[p] !== "C" ? " t-qa-impro" : ""}" title="Também joga de ${esc(POSICOES[p].nome)} (${NOME_FAMILIARIDADE[jog.fam[p]].toLowerCase()}): ${um(notaNaPosicao(jog, p))}">${pp(p)}</span>`).join("")}</div>
       <h1 class="t-faixa-titulo t-jp-nome">${esc(j.nome)}</h1>${j.nome_completo && j.nome_completo !== j.nome ? `<div class="mut">${esc(j.nome_completo)}</div>` : ""}
-      <div class="t-jp-sub">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 22)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b>"} · ${j.idade} anos${j.pe ? ` · ${pes(j.pe)}` : ""} · ${bandeira(j.pais || "Brasil")}</div>
+      <div class="t-jp-sub">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 22)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b>"} · ${j.idade} anos${j.pe ? ` · ${pes(j.pe, j.pe_fraco)}` : ""} · ${bandeira(j.pais || "Brasil")}</div>
       <div class="t-jp-chave"><div class="t-jp-notas">${teto ? `<div><b class="t-jp-teto">${teto.minimo}–${teto.maximo}</b><span>teto · olheiro</span></div>` : ""}<div><b>${um(nota)}</b><span>nota · ${sg(j.pos)}</span></div></div></div></div>
     <div class="t-jp-lado">${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 150, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}<div class="t-qa-radar">${poligonoDeAtributos(j)}</div><div class="t-jp-temp"><div class="t-jp-temp-rot">Temporada ${temporada == null ? "atual" : temporada}</div><div class="t-jp-temp-num" id="temp">${daTemporada(null)}</div></div></div></section>`;
   const numeros = `<div class="t-qa-numeros">${j.juvenil || j.salario == null ? `<div class="t-qa-juvenil">${j.juvenil ? "Juvenil: sem contrato, não joga partida oficial." : "Sem contrato."}</div>`
@@ -131,7 +131,7 @@ async function carregar() {
   const [doElenco, comprados] = await Promise.all([sb.rpc("relatorio_do_elenco").then(r => r.data || []), lista(sb.from("relatorios").select("jogador_id, minimo, maximo"))]);
   const teto = [...doElenco, ...comprados].find(t => +t.jogador_id === j.id);
   const topo = `<div class="card cabeca" style="${c1 ? `border-top-color:${c1};background:linear-gradient(100deg, ${c1}38, ${c2}14 45%, transparent 75%), var(--card)` : ""}">${clube ? svgEscudo(clube.escudo, clube.sigla, 56) : ""}
-    <div><h2>${j.numero ? camisinha(j.numero, (clube || {}).uniforme, "font-size:14px") : ""}${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · pé ${NOME_DO_PE[j.pe] || j.pe}` : ""}</div>
+    <div><h2>${j.numero ? camisinha(j.numero, (clube || {}).uniforme, "font-size:14px") : ""}${esc(j.nome)}</h2><div>${esc(POSICOES[j.pos].nome)} (${sg(j.pos)}) · ${j.idade} anos · ${bandeira(j.pais || "Brasil")} ${esc(j.pais || "Brasil")}${j.pe ? ` · ${textoDoPe(j.pe, j.pe_fraco)}` : ""}</div>
       <div class="mut">${clube ? nomeDe(j.clube_id) : "Sem clube (jogador livre)"}${j.formador ? ` · formado no ${nomeDe(j.formador)}` : ""}</div>
       ${situacao.length ? `<div class="aviso" style="margin-top:4px">${situacao.join(" · ")}</div>` : ""}</div>
     ${teto ? `<div class="nota" title="Teto de nota estimado pelo olheiro: até onde o treino pode levar o jogador"><b style="color:var(--tx)">${teto.minimo}–${teto.maximo}</b><span class="mut">teto · olheiro</span></div>` : ""}

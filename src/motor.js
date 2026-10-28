@@ -4,7 +4,7 @@
 // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
 // As constantes saíram da calibragem (calibragem.html).
 import { limitar } from "./rng.js";
-import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } from "./modelo.js";
+import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
@@ -116,6 +116,13 @@ export const CONFIG = {
   //   contra: quanto a folga da defesa, quando ela rouba a bola, aumenta a chance de contra-ataque, no teto.
   embalo: { parte: 0.5, teto: 0.28, chance: 0.12, contra: 0.5, narrar: 0.85 },
   pe: { mesmo: 0.03, ambidestro: 0.06, compensacao: 0.02 }, // confronto de pés no duelo: bônus de quem ataca e o desconto que zera o efeito médio
+  // Pé fraco (j.pf, de 1 a 20; jogador sem a nota não sente nada disto e o motor não sorteia nada a mais). Cada efeito vai em volta da média da liga
+  // (media: fraqueza média dos jogadores, ver fraquezaDoPe), para não mudar os gols: quem tem o pé ruim pior perde, quem tem melhor ganha.
+  //   tempo: logit no duelo do ataque, vezes a Marcação de quem marca / 25 (forçar para o pé ruim);
+  //   pressao: logit nos duelos da defesa e do meio, por nível de pressão de quem defende (a saída de bola do zagueiro de um pé só);
+  //   chute: parte dos chutes da área e do cruzamento rasteiro que sai com o pé ruim e o xG que ele perde com nota 1 (o xG médio fica igual);
+  //   ambidestro: o bônus do confronto de pés vai de (nota - 12) / escala; na nota média dos ambidestros (16,5) é o de antes
+  peFraco: { media: 0.42, tempo: 0.12, pressao: 0.1, chute: { parte: 0.3, perda: 0.35 }, ambidestro: 4.5 },
   desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
   recalcularACada: 5, // minutos
   narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
@@ -271,7 +278,7 @@ function recalcular(t, saldo) {
   for (const jog of t.emCampo) {
     const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
-    const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
+    const pe = ajusteDoPe(jog.j.pe, jog.pos, jog.j.pf); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
     if (pe) for (const k in pe) jog.at[k] *= pe[k];
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;
@@ -408,6 +415,13 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
     c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (forcado ? CONFIG.fatorChuteForcado : 1);
     c.chute = pivo.at[A.lon]; c.defesa = gk ? media(gk[A.ref], gk[A.pos]) : semGoleiro;
   }
+  // chute da área e do cruzamento rasteiro: parte sai com o pé ruim; a divisão devolve a média, então só quem tem o pé pior que a liga perde
+  const PF = CONFIG.peFraco.chute, pf = c.finalizador.j.pf;
+  if ((tipo === "area" || c.rasteiro) && pf != null) {
+    const ruim = rng.chance(PF.parte);
+    c.xg *= (ruim ? 1 - PF.perda * fraquezaDoPe(pf) : 1) / (1 - PF.parte * PF.perda * CONFIG.peFraco.media);
+    if (ruim) c.peRuim = pf; // a narração conta o chute com o pé ruim
+  }
   // nem toda chance do mesmo tipo vale o mesmo: umas saem limpas, outras apertadas
   const v = CONFIG.variacaoChance[tipo] || 0;
   if (v) c.xg *= Math.exp(rng.normal(0, v) - v * v / 2);
@@ -421,6 +435,13 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
 }
 
 // nm: função que escreve o nome do jogador marcado com o time ("{0:Fulano}"), para a tela pintar cada um na cor do seu clube
+// chute com o pé ruim (só com a nota do pé fraco): narrado quando faz diferença, o pé fraco ruim (até 6) ou o quase ambidestro (13 ou mais)
+function peRuimNarrado(c) {
+  const pf = c.peRuim, pe = c.finalizador.j.pe;
+  if (pf == null || pf > 6 && pf < 13) return "";
+  const qual = pe === "D" ? "de canhota" : pe === "E" ? "de direita" : c.lado === "D" ? "de direita" : "de canhota";
+  return pf <= 6 ? ` ${qual}, o pé ruim` : ` ${qual}, como se fosse o pé bom`;
+}
 function narrar(c, resultado, goleiro, nm) {
   const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
   const inicio = {
@@ -432,7 +453,7 @@ function narrar(c, resultado, goleiro, nm) {
     escanteio: `${cr} cobra o escanteio e ${f} cabeceia`,
     falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
     penalti: `${f} cobra o pênalti`,
-  }[c.tipo];
+  }[c.tipo] + peRuimNarrado(c);
   const fim = {
     gol: "GOL!",
     defesa: goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
@@ -640,9 +661,12 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     // A compensação tira de todo duelo o ganho médio, para a regra não aumentar os gols da liga. Sem pé definido, nada acontece.
     const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
     const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
-    const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
+    const PF = CONFIG.peFraco, pf = pivo && pivo.j.pf;
+    const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro * (pf == null ? 1 : (pf - 12) / PF.ambidestro)) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
+    // pé fraco de quem tem a bola: no ataque, o marcador o força para o pé ruim; atrás e no meio, a pressão pega quem só sai jogando com um pé
+    const fraco = pf == null ? 0 : (PF.media - fraquezaDoPe(pf)) * (zona[0] === "A" ? PF.tempo * (marcador ? marcador.at[A.mar] / 25 : 1) : PF.pressao * def.instr.pressao);
     // folga: a vantagem de quem ataca acima do normal da zona (negativa quando a vantagem é da defesa); o embalo que veio do duelo anterior não conta
-    const folga = tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
+    const folga = tatico + fraco + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
     const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
     let venceu = rng.chance(p), parada = false, comFalta = false;
     if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1))) {

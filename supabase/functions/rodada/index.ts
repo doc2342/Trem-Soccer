@@ -163,19 +163,38 @@ const __modelo = (() => {
   //   no lado trocado, lateral, ala e meia aberto cruzam e passam pior;
   //   ponta e meia-atacante de pé trocado cruzam pior, mas cortam para dentro e finalizam melhor.
   // Ambidestro e quem joga pelo centro não mudam. Devolve { índice do atributo: multiplicador } ou null.
+  // Com a nota do pé fraco (pf, 1 a 20; 162_pe_fraco.sql), a perda do lado trocado vai com ela: quase some com 13 ou mais e cresce de 1 a 5
+  // (perda 1 = a de antes, na nota 6); o ambidestro conta como lado trocado com pé fraco alto, e quem tem 13 ou mais corta para dentro dos dois lados.
   const NOME_DO_PE = { D: "direito", E: "esquerdo", A: "ambidestro" };
-  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05 };
-  function ajusteDoPe(pe, pos) {
-    const p = POSICOES[pos];
-    if (!p || p.lado === "C" || !pe || pe === "A") return null;
-    if (pe === p.lado) return { [IDX.cru]: CONFIG_PE.cruzaBem };
-    return p.linha === "ataque" || p.linha === "meia"
-      ? { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.fin]: CONFIG_PE.finalizaBem, [IDX.lon]: CONFIG_PE.finalizaBem }
-      : { [IDX.cru]: CONFIG_PE.cruzaMal, [IDX.pas]: CONFIG_PE.passaMal };
+  const CONFIG_PE = { cruzaBem: 1.04, cruzaMal: 0.90, passaMal: 0.97, finalizaBem: 1.05, perda: [13, 7, 0.1, 1.5], corta: 13 };
+  function ajusteDoPe(pe, pos, pf) {
+    const p = POSICOES[pos], C = CONFIG_PE;
+    if (!p || p.lado === "C" || !pe || pe === "A" && pf == null) return null;
+    const frente = p.linha === "ataque" || p.linha === "meia";
+    if (pe === p.lado) return frente && pf >= C.corta ? { [IDX.cru]: C.cruzaBem, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem } : { [IDX.cru]: C.cruzaBem };
+    const [nota, passo, min, max] = C.perda, perda = pf == null ? 1 : Math.min(max, Math.max(min, (nota - pf) / passo));
+    const pior = mal => pf == null ? mal : 1 - (1 - mal) * perda, cru = pior(C.cruzaMal), pas = pior(C.passaMal); // sem a nota, o número de antes, sem arredondar
+    return frente
+      ? { [IDX.cru]: cru, [IDX.fin]: C.finalizaBem, [IDX.lon]: C.finalizaBem }
+      : { [IDX.cru]: cru, [IDX.pas]: pas };
   }
+  // Pé fraco em palavras, como no FM (as faixas são o teto de cada nome)
+  const NIVEIS_PE_FRACO = [[3, "Péssimo"], [6, "Fraco"], [9, "Razoável"], [12, "Bom"], [16, "Muito bom"], [20, "Ambidestro"]];
+  const nomeDoPeFraco = pf => pf == null ? "" : (NIVEIS_PE_FRACO.find(([teto]) => pf <= teto) || NIVEIS_PE_FRACO[NIVEIS_PE_FRACO.length - 1])[1];
+  // como o site mostra o pé: "destro · pé fraco razoável" (curto: "destro · razoável"); no nível Ambidestro, ou sem a nota, só o jeito
+  const JEITO_DO_PE = { D: "destro", E: "canhoto", A: "ambidestro" };
+  function textoDoPe(pe, pf, curto = false) {
+    if (!pe) return "";
+    const nivel = nomeDoPeFraco(pf).toLowerCase();
+    return !nivel || nivel === "ambidestro" ? JEITO_DO_PE[pe] || pe : `${JEITO_DO_PE[pe] || pe} · ${curto ? "" : "pé fraco "}${nivel}`;
+  }
+  // quanto o pé ruim atrapalha no motor: 1 com nota 1, 0 com 11 ou mais
+  const fraquezaDoPe = pf => Math.min(1, Math.max(0, (11 - pf) / 10));
+  // temporada em que a nota do pé fraco passa a valer nas partidas (rodada.js tira a nota dos jogadores antes dela)
+  const PE_FRACO_DESDE = 1;
   // nota na posição já com o efeito do pé: é a que o bot (e o botão de escalar os melhores) usa para escolher quem joga em cada lado
   function notaComPe(j, pos) {
-    const a = ajusteDoPe(j.pe, pos);
+    const a = ajusteDoPe(j.pe, pos, j.pf);
     if (!a) return notaNaPosicao(j, pos);
     const at = j.at.slice();
     for (const k in a) at[k] *= a[k];
@@ -210,7 +229,7 @@ const __modelo = (() => {
   // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
   const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
   const paisDoGrupo = g => PAISES[g] || "Brasil";
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, NIVEIS_PE_FRACO, nomeDoPeFraco, JEITO_DO_PE, textoDoPe, fraquezaDoPe, PE_FRACO_DESDE, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __saude = (() => {
@@ -356,7 +375,7 @@ const __motor = (() => {
   // Passo D: instruções, energia, substituições e ordens condicionais, faltas, cartões, lesões e bola parada.
   // As constantes saíram da calibragem (calibragem.html).
   const { limitar } = __rng;
-  const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe } = __modelo;
+  const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const CONFIG = {
     ataquesPorMinuto: 0.68, /* 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
@@ -467,6 +486,13 @@ const __motor = (() => {
     //   contra: quanto a folga da defesa, quando ela rouba a bola, aumenta a chance de contra-ataque, no teto.
     embalo: { parte: 0.5, teto: 0.28, chance: 0.12, contra: 0.5, narrar: 0.85 },
     pe: { mesmo: 0.03, ambidestro: 0.06, compensacao: 0.02 }, // confronto de pés no duelo: bônus de quem ataca e o desconto que zera o efeito médio
+    // Pé fraco (j.pf, de 1 a 20; jogador sem a nota não sente nada disto e o motor não sorteia nada a mais). Cada efeito vai em volta da média da liga
+    // (media: fraqueza média dos jogadores, ver fraquezaDoPe), para não mudar os gols: quem tem o pé ruim pior perde, quem tem melhor ganha.
+    //   tempo: logit no duelo do ataque, vezes a Marcação de quem marca / 25 (forçar para o pé ruim);
+    //   pressao: logit nos duelos da defesa e do meio, por nível de pressão de quem defende (a saída de bola do zagueiro de um pé só);
+    //   chute: parte dos chutes da área e do cruzamento rasteiro que sai com o pé ruim e o xG que ele perde com nota 1 (o xG médio fica igual);
+    //   ambidestro: o bônus do confronto de pés vai de (nota - 12) / escala; na nota média dos ambidestros (16,5) é o de antes
+    peFraco: { media: 0.42, tempo: 0.12, pressao: 0.1, chute: { parte: 0.3, perda: 0.35 }, ambidestro: 4.5 },
     desempenhoRuim: -1.5, desempenhoBom: 1.5, // condições de substituição "jogando mal" e "jogando bem": duelos vencidos além do esperado, mais 2 por gol
     recalcularACada: 5, // minutos
     narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
@@ -622,7 +648,7 @@ const __motor = (() => {
     for (const jog of t.emCampo) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
-      const pe = ajusteDoPe(jog.j.pe, jog.pos); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
+      const pe = ajusteDoPe(jog.j.pe, jog.pos, jog.j.pf); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
       if (pe) for (const k in pe) jog.at[k] *= pe[k];
       if (jog.pos === "GK") { t.goleiro = jog; continue; }
       if (jog.pos === "SW") t.temLibero = true;
@@ -759,6 +785,13 @@ const __motor = (() => {
       c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (forcado ? CONFIG.fatorChuteForcado : 1);
       c.chute = pivo.at[A.lon]; c.defesa = gk ? media(gk[A.ref], gk[A.pos]) : semGoleiro;
     }
+    // chute da área e do cruzamento rasteiro: parte sai com o pé ruim; a divisão devolve a média, então só quem tem o pé pior que a liga perde
+    const PF = CONFIG.peFraco.chute, pf = c.finalizador.j.pf;
+    if ((tipo === "area" || c.rasteiro) && pf != null) {
+      const ruim = rng.chance(PF.parte);
+      c.xg *= (ruim ? 1 - PF.perda * fraquezaDoPe(pf) : 1) / (1 - PF.parte * PF.perda * CONFIG.peFraco.media);
+      if (ruim) c.peRuim = pf; // a narração conta o chute com o pé ruim
+    }
     // nem toda chance do mesmo tipo vale o mesmo: umas saem limpas, outras apertadas
     const v = CONFIG.variacaoChance[tipo] || 0;
     if (v) c.xg *= Math.exp(rng.normal(0, v) - v * v / 2);
@@ -772,6 +805,13 @@ const __motor = (() => {
   }
 
   // nm: função que escreve o nome do jogador marcado com o time ("{0:Fulano}"), para a tela pintar cada um na cor do seu clube
+  // chute com o pé ruim (só com a nota do pé fraco): narrado quando faz diferença, o pé fraco ruim (até 6) ou o quase ambidestro (13 ou mais)
+  function peRuimNarrado(c) {
+    const pf = c.peRuim, pe = c.finalizador.j.pe;
+    if (pf == null || pf > 6 && pf < 13) return "";
+    const qual = pe === "D" ? "de canhota" : pe === "E" ? "de direita" : c.lado === "D" ? "de direita" : "de canhota";
+    return pf <= 6 ? ` ${qual}, o pé ruim` : ` ${qual}, como se fosse o pé bom`;
+  }
   function narrar(c, resultado, goleiro, nm) {
     const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
     const inicio = {
@@ -783,7 +823,7 @@ const __motor = (() => {
       escanteio: `${cr} cobra o escanteio e ${f} cabeceia`,
       falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
       penalti: `${f} cobra o pênalti`,
-    }[c.tipo];
+    }[c.tipo] + peRuimNarrado(c);
     const fim = {
       gol: "GOL!",
       defesa: goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
@@ -991,9 +1031,12 @@ const __motor = (() => {
       // A compensação tira de todo duelo o ganho médio, para a regra não aumentar os gols da liga. Sem pé definido, nada acontece.
       const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
       const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
-      const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
+      const PF = CONFIG.peFraco, pf = pivo && pivo.j.pf;
+      const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro * (pf == null ? 1 : (pf - 12) / PF.ambidestro)) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
+      // pé fraco de quem tem a bola: no ataque, o marcador o força para o pé ruim; atrás e no meio, a pressão pega quem só sai jogando com um pé
+      const fraco = pf == null ? 0 : (PF.media - fraquezaDoPe(pf)) * (zona[0] === "A" ? PF.tempo * (marcador ? marcador.at[A.mar] / 25 : 1) : PF.pressao * def.instr.pressao);
       // folga: a vantagem de quem ataca acima do normal da zona (negativa quando a vantagem é da defesa); o embalo que veio do duelo anterior não conta
-      const folga = tatico + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
+      const folga = tatico + fraco + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
       const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
       let venceu = rng.chance(p), parada = false, comFalta = false;
       if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1))) {
@@ -1469,7 +1512,7 @@ const __rodada = (() => {
   // Calendário, cálculo de uma partida da liga e classificação.
   // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado.
   const { criarRng } = __rng;
-  const { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES } = __modelo;
+  const { notaNaPosicao, notaBruta, LISTA_POSICOES, PAISES, PE_FRACO_DESDE } = __modelo;
   const { prepararTime, simularPartida, CONFIG } = __motor;
   const { taticaBot } = __bot;
   const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
@@ -1649,10 +1692,13 @@ const __rodada = (() => {
     return { situacao, copa: fase === 0 ? [] : copa }; // Supercopa e Recopa (fase 0): cartões e trava de clube não contam
   }
 
-  function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente }) {
+  // temporada: a da liga; antes de PE_FRACO_DESDE (ou sem ela) os jogadores entram sem a nota do pé fraco e o motor joga como antes
+  function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente, temporada }) {
+    const semPf = j => j.pf == null || temporada >= PE_FRACO_DESDE ? j : { ...j, pf: null };
     const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
     const clima = climaDaPartida(partida.id == null ? semente : partida.id);
     const lados = [casa, fora].map(l => {
+      l = { ...l, elenco: l.elenco.map(semPf), pronta: l.pronta && { ...l.pronta, escalacao: l.pronta.escalacao.map(e => ({ ...e, j: semPf(e.j) })), banco: (l.pronta.banco || []).map(semPf) } };
       const inativo = !l.clube.dono || (!l.clube.extra && (!l.clube.ultimo_acesso || agora - new Date(l.clube.ultimo_acesso).getTime() > DIAS_PARA_BOT * 86400000)); // clube extra (96) nunca fica com o bot
       // na copa, "fora" passa a ser a indisponibilidade da copa (a suspensão da liga não vale; a da copa e a trava de clube, sim);
       // na Libertadores e na Sul-Americana, a lesão e a suspensão continental (na Recopa só a lesão: foraLib é da Libertadores ou da Sul-Americana)
@@ -2657,7 +2703,7 @@ async function jogarBase(sb) {
   const juvenis = {}, profs = {};
   for (const l of (await sb.from("jogadores").select("*").in("clube_id", ids).lte("idade", CONFIG_LIGA_DE_BASE.idadeMaxima).order("id")).data || [])
     if (l.juvenil || ((clubes[l.clube_id] || {}).dono && !(l.fora_jogos > 0 && l.fora_motivo === "lesão")))
-    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, contratado: !l.juvenil && contratadoNaBase(l.formador, l.chegou_temporada, l.clube_id), nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
+    ((l.juvenil ? juvenis : profs)[l.clube_id] = (l.juvenil ? juvenis : profs)[l.clube_id] || []).push({ id: "j" + l.id, contratado: !l.juvenil && contratadoNaBase(l.formador, l.chegou_temporada, l.clube_id), nome: l.nome, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, exp: l.exp == null ? null : +l.exp });
   const todos = [...Object.values(juvenis).flat(), ...Object.values(profs).flat()].map(j => +String(j.id).slice(1)), talentos = {};
   if (todos.length) for (const t of (await sb.from("jogadores_ocultos").select("jogador_id, tal").in("jogador_id", todos)).data || []) talentos["j" + t.jogador_id] = t.tal;
   const comissoes = {};
@@ -2685,7 +2731,7 @@ async function jogarBase(sb) {
       const lado = id => { const c = clubes[id] || {};
         const t = timeDaBase(rng, { juvenis: juvenis[id] || [], profissionais: profs[id] || [], nivel: c.dono ? (c.base_nivel || 0) : p.fase === "libjuv" && c.pais && c.pais !== "Brasil" ? CONFIG_LIGA_DE_BASE.nivelDeFora : CONFIG_LIGA_DE_BASE.nivelDoBot, prefixo: id, minutos: jaJogou, perfil: c.perfil, formacao: formacoes[id], tatica: taticasDaBase[id] });
         return { clube: { id, nome: c.nome || "", dono: null, perfil: c.perfil }, elenco: [...t.escalacao.map(x => x.j), ...t.banco], tatica: null, pronta: t }; };
-      const { resultado, minutos, lances } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente });
+      const { resultado, minutos, lances } = calcularPartida({ partida: { id: p.id, inicio: p.inicio, fase: "base", casa: p.casa, fora: p.fora }, casa: lado(p.casa), fora: lado(p.fora), semente, temporada: p.temporada });
       const dados = { jogadores: resultado.relatorio.jogadores.filter(x => x.minutos > 0).map(x => ({ id: x.id, n: x.nome, t: x.time, p: x.pos, g: x.gols || 0, a: x.assistencias || 0, nota: x.nota, min: x.minutos })) };
       // relatório curto: as estatísticas principais de cada lado e as frases do analista (sem os lances, para não pesar no banco)
       const R = resultado.relatorio;
@@ -2819,7 +2865,7 @@ Deno.serve(async (req) => {
     const elencos = {}, rodadasDoGrupo = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -2841,7 +2887,7 @@ Deno.serve(async (req) => {
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
         const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
-          minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647),
+          minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647), temporada: ligas[p.liga_id].temporada,
         });
         ok(await sb.from("lances").insert(lances));
         ok(await sb.from("resultados").insert(resultado));
