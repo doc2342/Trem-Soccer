@@ -181,12 +181,14 @@ const __modelo = (() => {
   // Pé fraco em palavras, como no FM (as faixas são o teto de cada nome)
   const NIVEIS_PE_FRACO = [[3, "Péssimo"], [6, "Fraco"], [9, "Razoável"], [12, "Bom"], [16, "Muito bom"], [20, "Ambidestro"]];
   const nomeDoPeFraco = pf => pf == null ? "" : (NIVEIS_PE_FRACO.find(([teto]) => pf <= teto) || NIVEIS_PE_FRACO[NIVEIS_PE_FRACO.length - 1])[1];
-  // como o site mostra o pé: "destro · pé fraco razoável" (curto: "destro · razoável"); no nível Ambidestro, ou sem a nota, só o jeito
+  // como o site mostra o pé: "destro · pé esquerdo razoável" (curto: "destro · esquerdo razoável"), dizendo qual é o pé ruim
+  // (dizer "pé fraco fraco" não dava); o ambidestro: "ambidestro · pé fraco muito bom", ou só "ambidestro" no nível Ambidestro. Sem a nota, só o jeito
   const JEITO_DO_PE = { D: "destro", E: "canhoto", A: "ambidestro" };
   function textoDoPe(pe, pf, curto = false) {
     if (!pe) return "";
-    const nivel = nomeDoPeFraco(pf).toLowerCase();
-    return !nivel || nivel === "ambidestro" ? JEITO_DO_PE[pe] || pe : `${JEITO_DO_PE[pe] || pe} · ${curto ? "" : "pé fraco "}${nivel}`;
+    const nivel = nomeDoPeFraco(pf).toLowerCase(), outro = { D: "esquerdo", E: "direito" }[pe];
+    if (!nivel || nivel === "ambidestro") return JEITO_DO_PE[pe] || pe;
+    return `${JEITO_DO_PE[pe] || pe} · ${outro ? (curto ? "" : "pé ") + outro : "pé fraco"} ${nivel}`;
   }
   // quanto o pé ruim atrapalha no motor: 1 com nota 1, 0 com 11 ou mais
   const fraquezaDoPe = pf => Math.min(1, Math.max(0, (11 - pf) / 10));
