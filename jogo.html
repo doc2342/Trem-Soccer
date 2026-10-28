@@ -1757,7 +1757,7 @@ async function telaClube(liga, clube) {
   // para onde ela pode ir) e soltar um jovem numa vaga o fixa nela. O rascunho fica em rascunhoBase até salvar; cada mudança redesenha só o cartão.
   const salvoBase = (taticaBase && taticaBase.dados) || {};
   if (rascunhoBase && rascunhoBase.clube !== clube.id) { rascunhoBase = null; selBase = null; }
-  const baseInicial = () => ({ clube: clube.id, segue: !salvoBase.vagas && !salvoBase.esquema && !!formacaoDaBase, vagas: [...(vagasDaBase || (prevista ? prevista.vagas.map(v => v.pos) : FORMACOES["4-4-2"]))], fixos: { ...(salvoBase.fixos || {}) }, trocas: (salvoBase.trocas || []).map(x => ({ ...x })), banco: (salvoBase.banco || []).map(String), subs: Array.isArray(salvoBase.subs) ? salvoBase.subs.map(x => ({ ...x })) : null, instr: { ...(salvoBase.instr || {}) } });
+  const baseInicial = () => ({ clube: clube.id, segue: !salvoBase.vagas && !salvoBase.esquema && !!formacaoDaBase, vagas: [...(vagasDaBase || (prevista ? prevista.vagas.map(v => v.pos) : FORMACOES["4-4-2"]))], fixos: { ...(salvoBase.fixos || {}) }, trocas: (salvoBase.trocas || []).map(x => ({ ...x })), banco: (salvoBase.banco || []).map(String), fora: (salvoBase.fora || []).map(String), subs: Array.isArray(salvoBase.subs) ? salvoBase.subs.map(x => ({ ...x })) : null, instr: { ...(salvoBase.instr || {}) } });
   const candidatosBase = [...meusJuvenis.map(j => ({ ...j, juvenil: true })), ...meusProfs].sort(ordemBase);
   const FAIXA_BASE = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
   let prevBase = null; // a escalação que o rascunho dá: o que o arrasto usa para saber quem está em cada vaga
@@ -1779,7 +1779,7 @@ async function telaClube(liga, clube) {
       <p class="t-fajuda">Quem jogou menos entra no intervalo. Quem joga ${CONFIG_LIGA_DE_BASE.minutos} minutos ganha o bônus de treino.</p></section>`;
   };
   const corpoDaBase = (mapa = null) => {
-    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas, banco: R.banco, subs: R.subs });
+    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas, banco: R.banco, fora: R.fora, subs: R.subs });
     const vaga = (i, col) => { const v = P.vagas[i], pos = v.pos, c = v.j ? conheceBase(v.j, pos) : "", arrasta = editavel && pos !== "GK";
       const escolha = editavel ? `<select data-tbvaga="${i}" style="max-width:100%;margin-top:4px"><option value="">automático</option>${candidatosBase.filter(j => (j.pos === "GK") === (pos === "GK")).map(j => { const k = conheceBase(j, pos);
         return `<option value="${semJ(j.id)}" ${String(R.fixos[i]) === semJ(j.id) ? "selected" : ""}>${esc(j.nome)} ${f1(notaNaPosicao(j, pos))}${k === "improvisado" ? " (improvisado)" : k === "competente" ? " (comp.)" : ""}</option>`; }).join("")}</select>` : "";
@@ -1819,7 +1819,7 @@ async function telaClube(liga, clube) {
   const CURTO_DA_BASE = { "muito defensiva": "M. def.", "defensiva": "Def.", "ofensiva": "Of.", "muito ofensiva": "M. of.", "muito baixa": "M. baixa", "muito alta": "M. alta", "sem pressão": "Sem", "resolver rápido": "Rápido", "dentro da área": "Na área", "pelos lados": "Lados", "bola longa": "Longa" };
   const curtoB = j => { const n = j.nome.split(" "), p = n[0]; return n.length > 1 && candidatosBase.some(o => o.id !== j.id && o.nome.split(" ")[0] === p) ? `${p} ${n[n.length - 1]}` : p; };
   const corpoDaBaseNovo = (mapa = null) => {
-    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas, banco: R.banco, subs: R.subs });
+    const R = rascunhoBase || baseInicial(), editavel = taticaBase !== undefined, P = prevBase = escalacaoDaBase(meusJuvenis, meusProfs, jaJogou, { formacao: R.vagas, fixos: R.fixos, trocas: R.trocas, banco: R.banco, fora: R.fora, subs: R.subs });
     const sel = selBase != null && P.vagas[selBase] ? selBase : null;
     if (mapa === null && sel !== null && P.vagas[sel].pos !== "GK") mapa = sel;
     const numeros = numerosDaCamisa({ titulares: P.vagas.filter(v => v.j).map(v => ({ nome: v.j.nome, pos: v.pos, numero: v.j.numero })), banco: P.banco.map(j => ({ nome: j.nome, pos: j.pos, numero: j.numero })) });
@@ -1842,10 +1842,10 @@ async function telaClube(liga, clube) {
     // ao lado do campo: o banco de nove (o escolhido tem o ✕; o resto o rodízio completa) e quem fica fora
     const bsel = sel === null && bancoSelB != null && bancoSelB < TAMANHO_DO_BANCO ? bancoSelB : null;
     const noBanco = (j, i) => { const id = semJ(j.id), escolhido = R.banco.includes(id), sub = P.subs.find(x => x.entra === j);
-      return `<div class="t-reserva${bsel === i ? " sel" : ""}"${editavel ? ` data-bbanco="${id}" data-tbbsel="${i}"` : ""}><span class="t-bola camisa">${camisa(j, j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curtoB(j))}<small>${sg(j.pos)}${sub ? ` · ${sub.min}'` : ""}${escolhido ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}${editavel && escolhido ? ` <button type="button" class="t-esc-fecha" data-tbtirabanco="${id}" title="Tirar do banco: o rodízio completa">✕</button>` : ""}</span></div>`; };
+      return `<div class="t-reserva${bsel === i ? " sel" : ""}"${editavel ? ` data-bbanco="${id}" data-tbbsel="${i}"` : ""}><span class="t-bola camisa">${camisa(j, j.pos)}</span><span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curtoB(j))}<small>${sg(j.pos)}${sub ? ` · ${sub.min}'` : ""}${escolhido ? " · escolhido" : ""}</small></span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}${editavel ? ` <button type="button" class="t-esc-fecha" data-tbtirabanco="${id}" title="Tirar do banco: fica fora desta rodada">✕</button>` : ""}</span></div>`; };
     const semJogo = candidatosBase.filter(j => !P.vagas.some(v => v.j && semJ(v.j.id) === semJ(j.id)) && !P.banco.some(b => semJ(b.id) === semJ(j.id)));
     const banco = `<div class="t-banco"><div class="t-numero-rotulo">Banco · ${P.banco.length} de ${TAMANHO_DO_BANCO}</div>${P.banco.map(noBanco).join("")}${Array.from({ length: TAMANHO_DO_BANCO - P.banco.length }, (_, k) => `<div class="t-reserva vazia${bsel === P.banco.length + k ? " sel" : ""}"${editavel ? ` data-bbanco="" data-tbbsel="${P.banco.length + k}"` : ""}><span class="t-bola"></span><span class="t-reserva-nome">vazio</span></div>`).join("")}
-      ${semJogo.length ? `<div class="t-numero-rotulo t-besc-fora-rot">Fora desta rodada · ${semJogo.length}</div><p class="t-besc-fora">${semJogo.map(j => esc(curtoB(j))).join(", ")}. O rodízio dá a vez a eles nas próximas.</p>` : ""}</div>`;
+      ${semJogo.length ? `<div class="t-numero-rotulo t-besc-fora-rot">Fora desta rodada · ${semJogo.length}</div><p class="t-besc-fora">${semJogo.map(j => esc(curtoB(j)) + ((R.fora || []).includes(semJ(j.id)) ? " (tirado do banco)" : "")).join(", ")}. O rodízio dá a vez a eles nas próximas${(R.fora || []).length ? "; quem você tirou do banco só volta se você o puser lá" : ""}.</p>` : ""}</div>`;
     // coluna da direita: esquema, lista dos jovens (com uma vaga escolhida, só quem pode jogar nela) e o salvar
     const iguais = (a, b) => [...a].sort().join() === [...b].sort().join();
     const formas = `<div class="t-tatica-montar"><div class="t-formacoes">${formacaoDaBase ? `<button type="button" data-tbforma="=" aria-pressed="${R.segue}" title="O esquema do time principal">Do principal</button>` : ""}${Object.keys(FORMACOES).map(k => `<button type="button" data-tbforma="${esc(k)}" title="${esc(k)}" aria-pressed="${!R.segue && iguais(FORMACOES[k], R.vagas)}"${editavel ? "" : " disabled"}>${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join("")}</div>
@@ -3660,7 +3660,7 @@ ${historicoDaBase()}`}
         if (jb) fixar(k, ali); else for (const i of Object.keys(r.fixos)) if (String(r.fixos[i]) === id) delete r.fixos[i]; } // sem ninguém no lugar, o rodízio completa a vaga dele
       const lista = r.banco.filter(x => x !== id), onde = lista.indexOf(ali);
       if (lista.length < TAMANHO_DO_BANCO) lista.splice(onde < 0 ? lista.length : onde, 0, id); else if (onde >= 0) lista[onde] = id; else return "O banco está cheio.";
-      r.banco = lista; return null; };
+      r.banco = lista; r.fora = (r.fora || []).filter(x => x !== id); return null; };
     // celular: a lista fica embaixo do campo e do banco; ao escolher um lugar do banco ela sobe, e ao sentar alguém o banco volta
     const celularB = () => matchMedia("(max-width:620px)").matches, rolarAte = sel => setTimeout(() => { const el = $("baseEsc").querySelector(sel); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 0);
     acoesDaBase = {
@@ -3696,7 +3696,7 @@ ${historicoDaBase()}`}
       if (!t || Date.now() - soltouBaseEm < 400) return;
       const r = R();
       if (t.dataset.tbtirasub !== undefined) r.subs.splice(+t.dataset.tbtirasub, 1);
-      else if (t.dataset.tbtirabanco) r.banco = r.banco.filter(x => x !== t.dataset.tbtirabanco);
+      else if (t.dataset.tbtirabanco) { const id = t.dataset.tbtirabanco; r.banco = r.banco.filter(x => x !== id); r.fora = [...new Set([...(r.fora || []), id])]; bancoSelB = null; }
       else if (t.dataset.tbsugauto) r.subs = null;
       else if (t.dataset.tbusarsug) r.subs = prevBase.sugeridas.map(x => ({ min: x.min, vaga: x.vaga, entra: semJ(x.entra.id), cond: x.cond }));
       else if (t.dataset.tbmaissub) { const P = prevBase, subs = r.subs || [], usados = new Set(subs.map(x => String(x.entra)));
@@ -3711,7 +3711,7 @@ ${historicoDaBase()}`}
       else if (t.dataset.tbinstrv !== undefined) { if (t.dataset.v) r.instr[t.dataset.tbinstrv] = JSON.parse(t.dataset.v); else delete r.instr[t.dataset.tbinstrv]; }
       else if (selBase == null && bancoSelB != null) { // lugar do banco escolhido: o jovem senta nele (Automático devolve o lugar ao rodízio)
         const j = prevBase.banco[bancoSelB], ali = j ? semJ(j.id) : "", id = t.dataset.tbescolhe;
-        const erro = id ? sentarNoBanco(id, ali) : (r.banco = r.banco.filter(x => x !== ali), null);
+        const erro = id ? sentarNoBanco(id, ali) : (r.banco = r.banco.filter(x => x !== ali), r.fora = (r.fora || []).filter(x => x !== ali), null);
         if (erro) { desenhar(); return aviso(erro); }
         bancoSelB = null; if (celularB()) rolarAte(".t-banco"); }
       else if (selBase == null) { const i = prevBase.vagas.findIndex(v => v.j && semJ(v.j.id) === t.dataset.tbescolhe); if (i < 0) return; selBase = i; setorBase = null; } // jovem sem vaga escolhida: abre a vaga dele
@@ -3722,7 +3722,7 @@ ${historicoDaBase()}`}
       if (e.target.id === "tbDesfazer") { rascunhoBase = null; selBase = null; return desenhar(); }
       if (e.target.id !== "tbSalvar") return;
       const r = R(); e.target.disabled = true;
-      try { await salvarTaticaDaBase(clube.id, { ...(r.segue ? {} : { vagas: r.vagas }), fixos: r.fixos, trocas: r.trocas, banco: r.banco, ...(r.subs ? { subs: r.subs } : {}), instr: r.instr }); rascunhoBase = null; selBase = null; await carregar({ user: usuario }); }
+      try { await salvarTaticaDaBase(clube.id, { ...(r.segue ? {} : { vagas: r.vagas }), fixos: r.fixos, trocas: r.trocas, banco: r.banco, ...(r.fora && r.fora.length ? { fora: r.fora } : {}), ...(r.subs ? { subs: r.subs } : {}), instr: r.instr }); rascunhoBase = null; selBase = null; await carregar({ user: usuario }); }
       catch (err) { e.target.disabled = false; aviso(err.message); }
     });
   }

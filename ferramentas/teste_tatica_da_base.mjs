@@ -108,3 +108,9 @@ const titularNoBanco = escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(
 assert.ok(!titularNoBanco.vagas.some(v => v.j === titular) && titularNoBanco.banco[0] === titular, "quem o dirigente pôs no banco não começa");
 assert.ok(escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(titular)], fixos: { 3: semJ(titular) } }).vagas[3].j === titular, "fixado numa vaga, começa");
 console.log("banco escolhido não começa ok");
+
+// tirado do banco: o rodízio não o põe de volta (nem no time da partida); escolhido de novo, volta
+const tirado = lv.banco[0], semEle = escalacaoDaBase(muitos, [], {}, { formacao, fora: [semJ(tirado)] });
+assert.ok(!semEle.banco.includes(tirado), "o tirado não volta ao banco");
+assert.ok(escalacaoDaBase(muitos, [], {}, { formacao, banco: [semJ(tirado)], fora: [semJ(tirado)] }).banco.includes(tirado), "escolhido de novo, senta");
+assert.ok(!timeDaBase(criarRng(1), { juvenis: muitos, formacao, tatica: { fora: [semJ(tirado)] } }).banco.some(j => j.id === tirado.id), "a partida respeita");
