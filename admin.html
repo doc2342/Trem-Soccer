@@ -25,7 +25,7 @@ import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { juvenisDoReinicio } from "./src/base.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
-import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra } from "./src/banco.js";
+import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra, batismosPendentes, decidirBatismo } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
 import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo, gruposDoReinicio } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
@@ -76,10 +76,13 @@ let nPedidos = 0, nDirigentes = 0;
 const titulo = () => { document.title = `(${nPedidos ? nPedidos + " " + (nPedidos === 1 ? "pedido" : "pedidos") + " · " : ""}${nDirigentes}) Trem Soccer · Administração`; };
 async function pedidos(aviso = "") {
   const el = $("pedidos"); if (!el) return;
-  const [l, extras] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes()]);
+  const [l, extras, batismos] = await Promise.all([pedidosPendentes(), pedidosExtraPendentes(), batismosPendentes()]);
   const escolha = Object.fromEntries([...el.querySelectorAll("select[id^=extraClube-], select[id^=pedClube-]")].map(x => [x.id, x.value])); // a lista se refaz a cada hora: guarda o que o admin já escolheu
-  const bots = l.length || extras.length ? (await clubesDaLiga((await ligaAtual()).id)).filter(c => !c.dono) : [];
-  nPedidos = l.length + extras.length; titulo();
+  const todos = l.length || extras.length || batismos.length ? await clubesDaLiga((await ligaAtual()).id) : [], bots = todos.filter(c => !c.dono);
+  nPedidos = l.length + extras.length + batismos.length; titulo();
+  // batismo da joia (161_batismo_da_joia.sql): o nome que o dirigente propôs para o talento raro da safra
+  const batismo = b => (c => `<div class="lance" style="align-items:center">${c ? svgEscudo(c.escudo, c.sigla, 44) : ""}<span>Batismo da joia · ${esc(c ? c.nome : "")}<br><b>${esc(b.nome_antigo)}</b> → <b>${esc(b.nome)}</b> (${esc(b.nome_completo)}) <span class="tag">pediu em ${dataHora(b.criado_em)}</span></span>
+    <span class="xg"><button data-aprova-batismo="${b.safra_id}">Aprovar</button> <button class="sec" data-recusa-batismo="${b.safra_id}">Recusar</button></span></div>`)(todos.find(c => c.id === b.clube_id));
   const livresBr = bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO);
   const porGrupo = ordenarGrupos([...new Set(livresBr.map(c => c.grupo))]).map(g => { const n = livresBr.filter(c => c.grupo === g).length;
     return ["g:" + g, `${nomeBaseDoGrupo(g).replace("Brasileiro ", "")} · sorteio (${n} ${n === 1 ? "bot" : "bots"})`]; }); // a vaga sorteada dentro do grupo
@@ -89,17 +92,28 @@ async function pedidos(aviso = "") {
       <div class="t-botoes"><button type="button" class="t-botao t-botao-principal" ${aprova}>Aprovar</button><button type="button" class="t-botao t-adm-perigo" ${recusa}>Recusar</button></div>
       <div class="t-adm-ped-clube"><span class="t-numero-rotulo">Assume</span>${chips(id, [["", "Sorteio"], ...opcoes], escolha[id] || "")}</div></div>`;
     el.hidden = !nPedidos && !aviso;
-    el.innerHTML = `${rotulo(`Para resolver · ${nPedidos} ${nPedidos === 1 ? "pedido de clube" : "pedidos de clube"}`)}
+    el.innerHTML = `${rotulo(`Para resolver · ${nPedidos} ${nPedidos === 1 ? "pedido" : "pedidos"}`)}
       ${l.map(p => linha(p, "", "pedClube-" + p.id, [...porGrupo, ...livresBr.slice().sort(ordem).map(c => [c.id, `${c.nome} · ${c.grupo}`])], `data-aprova="${p.id}"`, `data-recusa="${p.id}"`)).join("")}
+      ${batismos.map(batismo).join("")}
       ${extras.map(p => linha(p, "clube extra · " + p.pais, "extraClube-" + p.user_id, bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort(ordem).map(c => [c.id, c.nome]), `data-aprova-extra="${p.user_id}"`, `data-recusa-extra="${p.user_id}"`)).join("")}
       ${aviso ? `<p class="t-adm-msg">${esc(aviso)}</p>` : ""}`;
-  } else el.innerHTML = `<h2>Pedidos de clube: ${nPedidos} <span class="tag">atualiza sozinho a cada hora</span></h2>
+  } else el.innerHTML = `<h2>Pedidos: ${nPedidos} <span class="tag">atualiza sozinho a cada hora</span></h2>
     ${l.length ? l.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)})<br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="pedClube-${p.id}" title="Qual clube sem dono do Brasil o dirigente assume"><option value="">Clube: sorteio</option>${porGrupo.map(([v, t]) => `<option value="${v}" ${escolha["pedClube-" + p.id] === v ? "selected" : ""}>${esc(t)}</option>`).join("")}${bots.filter(c => paisDoGrupo(c.grupo) === "Brasil" && c.grupo !== GUARDADO).sort((a, b) => a.grupo.localeCompare(b.grupo) || a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["pedClube-" + p.id] == c.id ? "selected" : ""}>${esc(c.nome)} (grupo ${esc(c.grupo)})</option>`).join("")}</select> <button data-aprova="${p.id}">Aprovar</button> <button class="sec" data-recusa="${p.id}">Recusar</button></span></div>`).join("") : extras.length ? "" : `<div class="mut">Nenhum pedido esperando.</div>`}
     ${extras.map(p => `<div class="lance" style="align-items:center">${svgEscudo(p.escudo, p.sigla, 44)}<span><b>${esc(p.nome)}</b> (${esc(p.sigla)}) <span class="tag">clube extra · ${esc(p.pais)}</span><br><span class="tag">${esc(p.email || "")} · pediu em ${dataHora(p.criado_em)}</span></span>
       <span class="xg"><select id="extraClube-${p.user_id}" title="Qual clube sem dono vira o clube extra"><option value="">Clube: sorteio</option>${bots.filter(c => paisDoGrupo(c.grupo) === p.pais).sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}" ${escolha["extraClube-" + p.user_id] == c.id ? "selected" : ""}>${esc(c.nome)}</option>`).join("")}</select> <button data-aprova-extra="${p.user_id}">Aprovar</button> <button class="sec" data-recusa-extra="${p.user_id}">Recusar</button></span></div>`).join("")}
+    ${batismos.map(batismo).join("")}
     ${aviso ? `<div class="aviso" style="margin-top:8px">${esc(aviso)}</div>` : ""}`;
   el.onclick = async e => {
+    const ab = e.target.dataset.aprovaBatismo, rb = e.target.dataset.recusaBatismo;
+    if (ab || rb) {
+      const motivo = rb ? prompt("Motivo da recusa (o dirigente vai ver; pode ficar em branco):") : null;
+      if (rb && motivo === null) return;
+      e.target.disabled = true;
+      try { await decidirBatismo(+(ab || rb), !!ab, motivo); await pedidos(ab ? "Nome aprovado: a joia já joga com ele." : "Nome recusado."); }
+      catch (err) { await pedidos("Não deu: " + err.message); }
+      return;
+    }
     const ae = e.target.dataset.aprovaExtra, re = e.target.dataset.recusaExtra;
     if (ae || re) {
       const motivo = re ? prompt("Motivo da recusa (a pessoa vai ver; pode ficar em branco):") : null;

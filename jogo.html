@@ -642,6 +642,7 @@ async function telaClube(liga, clube) {
   const diretoriaP = clube.confianca === undefined ? Promise.resolve([[], [], null, null]) : Promise.all([da("metas", () => metasDaTemporada(liga.id, liga.temporada)), liga.temporada > 1 ? da("confianca", () => confiancaDaTemporada(liga.id, liga.temporada - 1)) : [], da("direitos", meusDireitos), da("pedidoExtra", () => meuPedidoExtra(usuario.id))]);
   const patroP = da("patrocinio", B.propostasDePatrocinio, B.semEscolhaVazia).catch(() => null); // 115_patrocinio.sql; sem ele vem null e a aba explica
   const repatriarP = B.repatriaveis(clube.id).catch(() => []);
+  const joiasP = B.joiasDoClube(liga.id, liga.temporada, clube.id).catch(() => []); // 161: joias da safra para batizar
   const vitrineP = vitrineDaLiga(liga).catch(() => null); // 152: null antes dele
   const mercadoP = (carga ? Promise.resolve() : resolverLeiloes(liga.id)).then(() => Promise.all([da("janela", () => janelaDoMercado(liga.id)), da("transferencias", () => transferenciasDaLiga(liga.id)), da("propostas", () => minhasPropostas(clube.id)), da("livres", () => livresDaLiga(liga.id)), da("ofertas", ofertasDaLiga)]));
   const [[elenco, clubes, tatica, admin, extrato, comissaoToda], [caixa, obra], [janela, transferencias, propostas, livres, ofertas], [tetosDoElenco, relatorios, prePeriodo, preContratos, cotacao], [baseJogos, copinha, libJuvenil],
@@ -677,6 +678,7 @@ async function telaClube(liga, clube) {
   let patro = await patroP;
   if (patro && patro.escolha) clube.marca = patro.escolha.marca; // patrocinador master nas placas do estádio
   const repatriar = await repatriarP;
+  const joias = await joiasP;
   const [metasDaLiga, confPassada, direitos, pedidoExtra] = await diretoriaP, extraLiberado = direitos == null ? clube.segundo_clube : direitos > 0, minhaMeta = metasDaLiga.find(m => m.clube_id === clube.id), minhaVirada = confPassada.find(x => x.clube_id === clube.id);
   // prêmio da diretoria desta temporada, pela confiança do fim da anterior (153_premios_da_diretoria.sql)
   const premio = minhaVirada ? minhaVirada.depois : 0, maxProtegidos = 7 + (premio >= CONFIG_DIRETORIA.protegidoExtra ? 1 : 0);
@@ -1982,6 +1984,16 @@ async function telaClube(liga, clube) {
     if (!g.length || g[g.length - 1][0] !== d) g.push([d, []]); g[g.length - 1][1].push(p); });
     return g.map(([d, ps]) => `<div class="t-cal-grupo"><div class="t-cal-dia">${d}</div>${ps.map(linhaDoSub21).join("")}</div>`).join(""); };
   const meusDoSub21 = () => jogosDoMeuSub21().map(([p]) => p).sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+  // Batismo da joia (161_batismo_da_joia.sql): o dirigente que ganhou um talento raro da safra propõe o nome até a primeira partida da temporada;
+  // vale o nome sorteado até o administrador aprovar. Recusado ou pendente, pode propor de novo; aprovado, trava.
+  const batismoDaJoia = () => (rodadasFeitas || 0) > 0 ? "" : joias.map(s => { const b = s.batismo, oQue = s.nivel >= 43 ? "a joia rara" : "a grande promessa";
+    if (b && b.estado === "aprovado") return `<section class="t-secao">${rotulo(`Batismo d${oQue}`)}<div class="t-carimbo">Batizado<small>${esc(b.nome)}</small></div></section>`;
+    const situacao = !b ? "" : b.estado === "pendente" ? `<div class="t-alerta">Aguardando o administrador: <b>${esc(b.nome)}</b> (${esc(b.nome_completo)}). Até lá, vale o nome sorteado.</div>`
+      : `<div class="t-alerta">O administrador recusou <b>${esc(b.nome)}</b>${b.motivo ? `: ${esc(b.motivo)}` : "."} Proponha outro.</div>`;
+    return `<section class="t-secao">${rotulo(`Batizar ${oQue}`)}<p class="t-fajuda">${esc(s.jogador)} (${esc(sg(s.pos || ""))}, ${s.idade} anos) chegou com o nome sorteado. Dê o nome dele até a primeira partida da temporada; o administrador aprova.</p>${situacao}
+      <form class="t-base-peneira" data-batismo="${s.id}"><input name="nome" maxlength="16" required placeholder="nome de camisa" value="${esc(b ? b.nome : "")}" aria-label="Nome de camisa">
+        <input name="completo" maxlength="40" required placeholder="nome completo" value="${esc(b ? b.nome_completo : "")}" aria-label="Nome completo">
+        <button class="t-botao t-botao-principal">${b && b.estado === "pendente" ? "Trocar a proposta" : "Propor o nome"}</button><span data-batismo-aviso></span></form></section>`; }).join("");
   // Base › Visão geral: a faixa é o próximo jogo do Sub-21, com os números da base e a peneira; embaixo, o que resolver e o próximo de cada competição
   const baseNova = () => {
     const n = clube.base_nivel || 0, fx = ([a, b]) => a === b ? String(a) : `${a} a ${b}`, todos = meusDoSub21();
@@ -1999,7 +2011,7 @@ async function telaClube(liga, clube) {
       ? faixaFoco({ rotulo: `Base · nível ${n} · próximo jogo do Sub-21`, titulo: adv ? adv.nome : "—", apagado: p.casa === clube.id ? "casa" : "fora", destaque: `${diaB(p.inicio)}.`, frase: `${compCurtaB(p)}.${proximos.length > 1 ? ` Depois dele, ${proximos.length === 2 ? "mais 1 jogo marcado" : `mais ${proximos.length - 1} jogos marcados`}.` : ""}`, lado, numeros: acao })
       : faixaFoco({ rotulo: `Base · nível ${n}`, titulo: "Nenhum jogo marcado", apagado: `temporada ${liga.temporada}`, frase: baseJogos == null ? "" : "Os jogos do Sub-21 entram aqui quando o calendário e os sorteios saírem.", lado, numeros: acao });
     const proxDe = ["liga", "copinha", "libjuv"].map(k => proximos.find(x => compDoSub21(x) === k)).filter(Boolean);
-    return `<div class="t-calendario t-base">${topo}<div class="t-base-linha">
+    return `<div class="t-calendario t-base">${topo}${batismoDaJoia()}<div class="t-base-linha">
       <section class="t-secao">${rotulo("Para resolver")}${avisos.length ? avisos.map(([, t]) => `<div class="t-alerta">${t}</div>`).join("") : `<p class="t-fajuda">Nada pendente na base.</p>`}</section>
       <section class="t-secao">${rotulo("Próximo em cada competição")}${proxDe.length ? proxDe.map(linhaDoSub21).join("") : `<p class="t-fajuda">Nenhum jogo marcado.</p>`}
         <p class="t-fajuda"><a class="lk" data-sub-ir="base:jogos">Todos os jogos e relatórios</a> · <a class="lk" data-sub-ir="base:escalacao">Escalação da base</a></p></section></div>
@@ -3604,7 +3616,7 @@ ${historicoDaBase()}`}
     <section data-secao="tatica"></section>
     <section data-secao="base">
     ${subAbas("base", [["geral", "🌱 Visão geral", "Geral"], ["jogos", "⚽ Jogos", "Jogos"], ["escalacao", "📋 Escalação", "Escal."], ["juvenis", "👶 Juvenis", "Juvenis"], ["estrutura", "🏗️ Estrutura", "Estrut."]])}
-    <div data-parte="base:geral">${visualNovo ? baseNova() : `${kpisDaBase()}
+    <div data-parte="base:geral">${visualNovo ? baseNova() : `${kpisDaBase()}${batismoDaJoia()}
     <div class="g2"><div>${baseJogos == null ? "" : painelDaBase()}</div>
       <div>${rodadasFeitas == null ? "" : (() => { const n = clube.base_nivel || 0, pr = faixaDeJovens(n, "promocao"), pe = faixaDeJovens(n, "peneira"), feita = clube.peneira_temporada === liga.temporada, cedo = rodadasFeitas < CONFIG_BASE.rodadaDaPeneira;
       const quantos = ([a, b]) => a === b ? (a === 0 ? "nenhum jovem" : a === 1 ? "1 jovem" : a + " jovens") : `${a} a ${b} jovens`;
@@ -4372,6 +4384,12 @@ ${historicoDaBase()}`}
     try { const msg = await fazerPeneira(); alert(msg); await carregar({ user: usuario }); }
     catch (err) { $("peneiraAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("peneira").disabled = false; }
   };
+  document.querySelectorAll("[data-batismo]").forEach(f => f.onsubmit = async e => {
+    e.preventDefault(); const aviso = f.querySelector("[data-batismo-aviso]"), botao = f.querySelector("button");
+    botao.disabled = true; aviso.textContent = "Enviando…";
+    try { await B.batizarJoia(+f.dataset.batismo, f.nome.value, f.completo.value); await carregar({ user: usuario }); }
+    catch (err) { aviso.innerHTML = `<span class="bad">${esc(err.message)}</span>`; botao.disabled = false; }
+  });
   // sub-abas do elenco (jogadores e treino) e a tela do treino
   if ($("treinoCorpo")) {
 

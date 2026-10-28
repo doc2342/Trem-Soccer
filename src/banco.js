@@ -110,6 +110,14 @@ export const definirPosicaoNova = (id, pos) => sb.rpc("aprender_posicao", { p_jo
 export const tornarPrincipal = (id, pos) => sb.rpc("tornar_principal", { p_jogador: numero(id), p_pos: pos }).then(ok);
 // talentos raros anunciados na temporada (só os que foram para clube com dirigente)
 export const safraDaTemporada = (ligaId, temporada) => sb.from("safras").select("clube_id, jogador, pos, idade, nivel").eq("liga_id", ligaId).eq("temporada", temporada).order("nivel", { ascending: false }).then(({ data, error }) => error ? [] : data);
+// batismo da joia (161_batismo_da_joia.sql): as joias do clube nesta temporada, cada uma com o pedido de nome (null sem pedido); [] antes do 161
+export const joiasDoClube = (ligaId, temporada, clubeId) => Promise.all([
+  sb.from("safras").select("id, jogador, pos, idade, nivel").eq("liga_id", ligaId).eq("temporada", temporada).eq("clube_id", clubeId),
+  sb.from("batismos").select("safra_id, nome, nome_completo, estado, motivo").eq("clube_id", clubeId)]).then(([s, b]) => s.error || b.error ? []
+  : s.data.map(x => ({ ...x, batismo: b.data.find(y => y.safra_id === x.id) || null })));
+export const batizarJoia = (safraId, nome, nomeCompleto) => sb.rpc("batizar_joia", { p_safra: safraId, p_nome: nome, p_nome_completo: nomeCompleto }).then(ok);
+export const batismosPendentes = () => sb.from("batismos").select("*").eq("estado", "pendente").order("criado_em").then(({ data, error }) => error ? [] : data);
+export const decidirBatismo = (safraId, aprovar, motivo) => sb.rpc("decidir_batismo", { p_safra: safraId, p_aprovar: aprovar, p_motivo: motivo || null }).then(ok);
 // administrador: quem ganhou talento raro nas últimas temporadas (pesa no sorteio) e o registro da safra depois da virada
 export const safrasRecentes = ligaId => sb.rpc("safras_recentes", { p_liga: ligaId }).then(({ data, error }) => error || !data ? [] : data);
 export const registrarSafra = (ligaId, lista) => sb.rpc("registrar_safra", { p_liga: ligaId, p_lista: lista }).then(({ error }) => !error);
