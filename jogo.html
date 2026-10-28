@@ -4521,6 +4521,9 @@ ${historicoDaBase()}`}
       }
       else if (v) {
         const tipos = v.dataset.candidatos.split(","), alvo = secaoEstr.querySelector(`[data-cand-lista="${v.dataset.candidatos}"]`);
+        // grupos empilhados (celular): a lista abre logo abaixo do grupo do botão, não depois do último
+        const grupo = v.closest(".t-estr-grupo");
+        if (grupo && getComputedStyle(grupo.parentElement).gridTemplateColumns.split(" ").length === 1) grupo.after(alvo);
         alvo.innerHTML = `<span class="mut">Carregando…</span>`;
         const l = (await candidatosATreinador()).filter(t => tipos.includes(t.funcao || "treinador"));
         alvo.innerHTML = l.length ? `<div class="mut" style="margin-bottom:4px">A lista é só do seu clube e se renova a cada ${prazoEmTexto(liga.horas_candidatos == null ? 168 : +liga.horas_candidatos)}. Na contratação você paga luvas de 10% do salário da temporada; o salário sai a cada rodada de liga.
