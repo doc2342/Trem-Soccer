@@ -126,7 +126,14 @@
   .proposta .bts { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
   .proposta .bts span { font-weight:700; font-size:14px; padding:8px 16px; border:1px solid var(--fio); }
   .proposta .bts span:first-child { background:var(--clube); color:#fff; border-color:var(--clube); }
-  .quadro { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--fio); border:1px solid var(--fio); }
+  .estadio-home { margin:0 0 16px; }
+.estadio-home figcaption { font-size:13.5px; color:var(--tinta2); margin-bottom:8px; }
+.estadio-home figcaption .grosso { font-size:22px; color:var(--tinta); margin-right:6px; }
+/* imagem, não controle: sem isso a roda do mouse e o dedo davam zoom/giro em vez de rolar a página */
+#estadioHome { aspect-ratio:1 / .62; background:var(--placa); border-radius:12px; pointer-events:none; transition:opacity .5s; }
+#estadioHome.troca { opacity:0; }
+#estadioHome button { display:none; }
+.quadro { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--fio); border:1px solid var(--fio); }
   .quadro > div { background:var(--papel); padding:20px; }
   .quadro .grande { white-space:nowrap; font-size:clamp(38px, 11vw, 52px); line-height:1; margin-top:8px; text-transform:none; }
   .quadro .grande span { font-size:20px; font-weight:300; color:var(--tinta2); }
@@ -329,11 +336,17 @@
         <h3 class="grosso">Da base ao estádio, tudo é seu</h3>
         <p>Revele garotos no Sub-21, leve a base à Copinha, aumente o estádio nível a nível, feche patrocínio e cuide da torcida. A diretoria acompanha: se a confiança cair demais, você está na rua.</p>
       </div>
+      <div>
+      <figure class="estadio-home">
+        <figcaption><span class="mini">Sedes das finais</span><br><span class="grosso" id="sedeNome">Maracanã</span> <span id="sedeInfo">Rio de Janeiro · 78.838 lugares</span></figcaption>
+        <div id="estadioHome" aria-label="Estádios das finais em 3D"></div>
+      </figure>
       <div class="quadro">
         <div><div class="mini">Estádio</div><div class="grosso grande num">8 <span>níveis</span></div><div class="sub">refletores, estacionamento, bares</div></div>
         <div><div class="mini">Base</div><div class="grosso grande">Sub-21</div><div class="sub">liga de base, Copinha e Libertadores Juvenil</div></div>
         <div><div class="mini">Treino</div><div class="grosso grande">Semana</div><div class="sub">foco, carga e treinadores</div></div>
         <div><div class="mini">Diretoria</div><div class="grosso grande num">0–100</div><div class="sub">de confiança: de demitido a ídolo</div></div>
+      </div>
       </div>
     </div>
   </div>
@@ -395,6 +408,25 @@
 
   // quem já entrou (inclusive pelo link do e-mail, que volta para esta página) vai direto para o jogo
   if (await sessao()) location.replace("jogo.html");
+
+  // sedes das finais (src/estadio.js), uma a cada 6 s enquanto a caixa está na tela, cada uma no horário escolhido (0 = dia, 0,55 = pôr do sol, 1 = noite;
+  // comparação em prototipos/sedes_horarios.html); o three.js só carrega quando ela aparece
+  const HORA = { wembley: 1, inflavel: 1, bomboneira: 0.55, maracana: 0.55 };
+  let cena = null, vez = 0, relogio = null, inicio = null;
+  const caixa = $("estadioHome");
+  async function mostrarSede() {
+    const { desenharEstadio, configDaSede, SEDES } = await import("./src/estadio.js");
+    const chaves = Object.keys(SEDES), k = chaves[vez++ % chaves.length], s = SEDES[k], cfg = { ...configDaSede(k), noite: HORA[k] || 0 };
+    caixa.classList.add("troca"); if (cena) await new Promise(r => setTimeout(r, 500));
+    if (cena) cena.atualizar(cfg); else cena = await desenharEstadio(caixa, cfg);
+    $("sedeNome").textContent = s.nome; $("sedeInfo").textContent = `${s.cidade} · ${s.lugares.toLocaleString("pt-BR")} lugares`;
+    caixa.classList.remove("troca");
+  }
+  new IntersectionObserver(([e]) => {
+    clearInterval(relogio); if (!e.isIntersecting) return;
+    inicio ||= mostrarSede().catch(() => caixa.closest("figure").remove());
+    relogio = setInterval(() => cena && mostrarSede(), 6000);
+  }, { rootMargin: "300px" }).observe(caixa);
 
   // partida de exemplo no topo: o minuto anda de 58' a 90' e recomeça; um gol aos 61'
   const LANCES = [

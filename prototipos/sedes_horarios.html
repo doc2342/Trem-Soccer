@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sedes por horário</title>
+<style>
+body{font-family:system-ui;margin:0 auto;padding:16px;max-width:1300px;background:#f4f2ec;color:#1b2233}
+h1{font-size:20px;margin:0 0 4px} p{margin:0 0 12px;color:#556}
+.barra{display:flex;gap:8px;margin-bottom:14px;position:sticky;top:0;background:#f4f2ec;padding:8px 0;z-index:2}
+.barra button{border:1px solid #c9c4b6;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font:600 13px system-ui}
+.barra button.on{background:#1b2233;color:#fff;border-color:#1b2233}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+.c h2{font-size:15px;margin:0 0 6px} .c h2 small{font-weight:400;color:#667}
+</style></head>
+<body>
+<h1>Sedes das finais: dia, pôr do sol e noite</h1>
+<p>Para escolher o horário de cada sede na home. Arraste para girar. <code>?n=0.55</code> na URL abre direto num horário.</p>
+<div class="barra"><button data-n="0">Dia</button><button data-n="0.55">Pôr do sol</button><button data-n="1">Noite</button></div>
+<div class="g" id="g"></div>
+<script type="module">
+import { desenharEstadio, configDaSede, SEDES } from "../src/estadio.js";
+const g = document.getElementById("g"), cenas = [];
+let n = +(new URLSearchParams(location.search).get("n") ?? 0);
+for (const [k, s] of Object.entries(SEDES)) {
+  const c = document.createElement("div"); c.className = "c";
+  c.innerHTML = `<h2>${s.nome} <small>${s.cidade} · ${s.lugares.toLocaleString("pt-BR")} lugares</small></h2><div></div>`; g.append(c);
+  cenas.push([k, await desenharEstadio(c.lastChild, { ...configDaSede(k), noite: n })]);
+}
+const marcar = () => document.querySelectorAll("[data-n]").forEach(b => b.classList.toggle("on", +b.dataset.n === n));
+marcar();
+document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { n = +b.dataset.n; marcar(); for (const [k, v] of cenas) v.atualizar({ ...configDaSede(k), noite: n }); });
+</script>
+</body></html>
