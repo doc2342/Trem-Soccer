@@ -8,7 +8,7 @@ import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe,
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 
 export const CONFIG = {
-  ataquesPorMinuto: 0.68, /* 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
+  ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
     0,68 depois da T14 (3,07 gols e 12% dos jogos com 6 ou mais): meta de 2,5 gols e ~24 finalizações por jogo, como no Brasileirão */ // ataques iniciados por minuto, somando os dois times
   mando: 1.04, // multiplicador da força do mandante
   expoentePosse: 1,
@@ -46,6 +46,7 @@ export const CONFIG = {
   semGol: {
     area: { bloqueado: 0.16, alvo: 0.46 }, longe: { bloqueado: 0.18, alvo: 0.4 }, corte: { bloqueado: 0.16, alvo: 0.4 }, cruzamento: { bloqueado: 0.12, alvo: 0.4 },
     escanteio: { bloqueado: 0.14, alvo: 0.4 }, falta: { bloqueado: 0.16, alvo: 0.38 }, profundidade: { bloqueado: 0.1, alvo: 0.55 }, penalti: { bloqueado: 0, alvo: 0.88 }, trave: 0.08,
+    alvoPorGol: 0.6, // quanto a chance de ir no gol sobe com a chance de gol: chance boa vai mais no gol e o goleiro defende mais (os gols não mudam)
   },
 
   // instruções
@@ -148,7 +149,8 @@ export const CONFIG = {
   escanteioDuelo: 0.25, // chance de escanteio quando a defesa corta uma jogada pelo lado
   cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
   penalti: 0.072, // das faltas no centro do ataque
-  faltaDireta: 0.27, // das faltas no ataque que não são pênalti
+  faltaDireta: 0.15, // das faltas no ataque que não são pênalti (0,27 até 29/10/2026: quase 2 cobranças diretas por jogo, o dobro do futebol real)
+  faltaRecomeca: true, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
 };
 
 export const INSTRUCOES_PADRAO = {
@@ -499,7 +501,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
   // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
   let atacante = null, ultimoNarrado = null, aposFalta = false, impedido = false; // aposFalta: a jogada recomeça com a cobrança de uma falta // time do ataque em andamento e do último ataque que foi narrado
-  let trilha = [], rota = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
+  let trilha = [], rota = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false, cobranca = null; // bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
   const RODA = [
     (j, t, onde) => `${j} não acha espaço ${onde}, recua e o ${t} roda a bola.`,
     (j, t, onde) => `Marcação fechada ${onde}: ${j} volta o jogo e o ${t} troca passes atrás.`,
@@ -668,10 +670,11 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     // folga: a vantagem de quem ataca acima do normal da zona (negativa quando a vantagem é da defesa); o embalo que veio do duelo anterior não conta
     const folga = tatico + fraco + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
     const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
-    let venceu = rng.chance(p), parada = false, comFalta = false;
+    let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false;
     if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1))) {
       falta(1 - i, marcador, pivo); comFalta = true;
-      if (zona[0] === "A") parada = true; else venceu = true; // falta no ataque vira bola parada; atrás, a jogada segue
+      // falta no ataque vira bola parada; atrás, quem ganhava segue, e quem perdia fica com a bola e recomeça do mesmo setor (sem faltaRecomeca, a falta dava o duelo)
+      if (zona[0] === "A") parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;
     } else {
       e.zonas[zona][venceu ? 0 : 1]++;
       if (pivo) registrar(pivo, venceu, p);
@@ -683,7 +686,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
       return { venceu: false, pivo: null, marcador, parada: false };
     }
-    return { venceu, pivo, marcador, parada, falta: comFalta, folga };
+    return { venceu, pivo, marcador, parada, falta: comFalta, folga, recomeca };
   }
 
   // desfecho do chute contra o goleiro: bloqueado, fora, trave, defesa ou gol; xg é o publicado e chanceDeGol(defesa) a chance contra outro goleiro
@@ -693,7 +696,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
     const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
     const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
-    const alvo = Math.max(limitar(S.alvo * pe, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
+    const alvo = Math.max(limitar(S.alvo * pe + CONFIG.semGol.alvoPorGol * pGol, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
     const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
       : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
     return { resultado, xg, chanceDeGol };
@@ -772,6 +775,9 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
     };
     e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false;
+    if (cobranca && cobranca.time === i && !contra) { portador = cobranca.jog; aposFalta = true; } // recomeço depois de falta: quem sofreu cobra
+    cobranca = null;
+    const recomecar = (zona, d) => { passo(i, zona, d); cobranca = { time: i, jog: d.pivo }; proximo = { time: i, zona: zona[0] }; };
     soltarCartoes();
     if (!contra && ultimoNarrado === i && !rodou) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](tm(i))], { fechada: true }));
     atacante = i;
@@ -779,10 +785,11 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     if (contra) inicio = "M";
     let lado = escolherLado(rng, atk, dz, inicio);
     let d0 = null, levado = 0; // levado: embalo que o duelo do meio deixa para o do ataque
-    if (inicio === "D") { d0 = duelo(i, "D" + lado); if (!d0.venceu) return perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
+    if (inicio === "D") { d0 = duelo(i, "D" + lado); if (!d0.venceu) return d0.recomeca ? recomecar("D" + lado, d0) : perdaDePosse(i, "D" + lado, d0); passo(i, "D" + lado, d0); }
     if (inicio !== "A") {
       if (inicio === "D") lado = escolherLado(rng, atk, dz, "M", lado);
       const d1 = duelo(i, "M" + lado, bonus + (d0 ? embalo(d0) : 0), contra);
+      if (!d1.venceu && d1.recomeca) return recomecar("M" + lado, d1);
       if (!d1.venceu) { roubada = embaloDaDefesa(d1); roubadaFacil = -d1.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
       levado = embalo(d1);
       passo(i, "M" + lado, d1);
