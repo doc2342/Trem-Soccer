@@ -201,3 +201,26 @@ Calibragem (`sim_papeis_laterais.mjs [jogos]`, times iguais, 4-2-3-1 e 3-5-2, ca
 - [ ] **Step 2:** ajustar e repetir até as metas; reempacotar.
 - [ ] **Step 3:** `node ferramentas/testes.mjs`; `python ferramentas/publicar.py`; commit e push (a função rodada precisa ser republicada e o SQL 164 executado; nada muda na T0).
 - [ ] **Step 4:** atualizar a página do plano (etapa 2 feita, números da calibragem) e a memória `plano-papeis`.
+
+---
+
+## Adendo de 30/10: transição, defesa de reserva e "ao perder a bola" — Modelo: Opus
+
+**Por quê (medido em 30/10):** contra o padrão, o Apoiador vence 5 a 7 pontos percentuais a mais e o Construtor 3 a 4. A parte com a bola deles sai de graça porque o peso no fundo com a bola quase não conta no motor: o contra-ataque gera só 2,7% dos gols (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição). A parte sem a bola do Apoiador ganha posse porque a defesa do meio entra no controle (compactação, a decidir depois da medição). Aprovado pelo dono em 30/10 ("pode seguir"; gostou do "ao perder a bola").
+
+**Regra da liga:** tudo vale a partir da T1. `simularPartida(rng, casa, fora, { regrasT1 })`, com padrão `true`; `calcularPartida` passa `temporada >= PAPEIS_DESDE`. Com `false`, o jogo é o de hoje (300 partidas idênticas).
+
+### Task 8: Regras da T1 e defesa de reserva
+- `CONFIG.t1`: valores que só valem com `regrasT1` (`ataquesPorMinuto`, `contraAtaque.com/sem`, `reserva`), aplicados e restaurados dentro de `simularPartida`.
+- Defesa de reserva do time = força de defesa que fica nas zonas D pelo mapa com a bola (`recalcular`: `t.reserva`). Ao perder a bola, a chance de contra-ataque do adversário vai por `(referência / reserva) ^ expoente`, com a referência na média das formações prontas.
+- Teste: `regrasT1: false` = jogo de hoje; dois Apoiadores sofrem mais contra-ataques que dois Fixos com `regrasT1`.
+- Meta: gols de contra-ataque perto de 10% dos gols, gols por jogo iguais aos de hoje (2,36 na conta de `conta.mjs`).
+
+### Task 9: "Ao perder a bola" (instrução do time)
+- `instr.aoPerder`: `"misto"` (hoje), `"pressionar"` (chance de retomar a bola na hora, na zona em que perdeu, pela defesa do time ali; se falhar, o contra-ataque deles fica mais provável; gasta mais energia), `"recompor"` (contra-ataque deles bem menos provável e sem pegar o time fora do lugar; em troca, menos posse).
+- `rodada.js` valida (`um(I.aoPerder, ["misto", "pressionar", "recompor"], "misto")`); a escalação ganha o botão no grupo "Estratégia"; o bot fica no misto; vale só com `regrasT1`.
+
+### Task 10: Recalibrar
+- `sim_papeis_laterais.mjs` com as regras da T1: cada papel com a vitória entre 35% e 39%; se ainda passar, entra a compactação na posse.
+- `sim_formacoes.mjs` com as regras da T1: formações dentro das metas de hoje.
+- Medir de novo o valor de cada posição (+6 em tudo) e levar ao dono (meta de 70% em aberto).

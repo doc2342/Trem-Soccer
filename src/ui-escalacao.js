@@ -97,8 +97,8 @@ const HTML_NOVO = `<div id="cabecalho"></div>
   </div>
   <div id="rel"></div>`;
 // instruções na faixa, todas abertas, em três grupos lado a lado; embaixo, o rodapé com os avisos e o salvar. Rótulos longos encurtam no botão (o inteiro fica no title)
-const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Estratégia", ["contraAtaque", "impedimento", "cera"]]];
-const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem", "Trabalhar até a área": "Até a área", "Resolver rápido (chute de fora e cruzamento)": "Rápido" };
+const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Estratégia", ["contraAtaque", "aoPerder", "impedimento", "cera"]]];
+const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem", "Trabalhar até a área": "Até a área", "Resolver rápido (chute de fora e cruzamento)": "Rápido", "Pressionar na hora (retoma a bola perto do gol deles, cansa mais; se falhar, o contra-ataque deles pega o time aberto)": "Pressionar", "Recompor atrás (quase não sofre contra-ataque, mas tem menos a bola)": "Recompor" };
 
 export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
 raiz.innerHTML = NOVO ? HTML_NOVO : HTML;
@@ -110,7 +110,7 @@ const nomes = online ? null : await (await fetch("./dados/nomes.json")).json(); 
 const guardar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 const ler = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
 
-const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", cruzamento: "misto", lado: "misto", contraAtaque: false, impedimento: false, cera: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
+const INSTR = { mentalidade: 0, pressao: 0, agressividade: 0, passe: "misto", finalizar: "misto", cruzamento: "misto", lado: "misto", contraAtaque: false, aoPerder: "misto", impedimento: false, cera: false, capitao: null, vice: null, armador: null, alvo: null, cobradores: { escanteio: [], falta: [], penalti: [] } };
 const OPCOES = {
   mentalidade: ["Mentalidade", [[-2, "Muito defensiva"], [-1, "Defensiva"], [0, "Normal"], [1, "Ofensiva"], [2, "Muito ofensiva"]]],
   pressao: ["Pressão", [[0, "Sem pressão"], [1, "Média"], [2, "Alta"]]],
@@ -120,6 +120,7 @@ const OPCOES = {
   cruzamento: ["Cruzamentos", [["alto", "Altos (cabeceio)"], ["misto", "Misto"], ["rasteiro", "Rasteiros"]]],
   lado: ["Lado do ataque", [["misto", "Livre"], ["E", "Esquerda"], ["C", "Centro"], ["D", "Direita"], ["lados", "Os dois lados"]]],
   contraAtaque: ["Contra-ataque", [[false, "Não"], [true, "Sim"]]],
+  aoPerder: ["Ao perder a bola", [["pressionar", "Pressionar na hora (retoma a bola perto do gol deles, cansa mais; se falhar, o contra-ataque deles pega o time aberto)"], ["misto", "Misto"], ["recompor", "Recompor atrás (quase não sofre contra-ataque, mas tem menos a bola)"]]],
   impedimento: ["Linha de impedimento", [[false, "Não"], [true, "Sim"]]],
   cera: ["Cera quando estiver ganhando", [[false, "Não"], [true, "Sim"]]],
 };
@@ -511,12 +512,12 @@ function render() {
   renderEscolha();
   // instruções
   const segmentos = ([k, [nome, ops]]) => `<div class="t-instr"><div class="t-numero-rotulo">${nome}</div><div class="t-segmentos">${ops.map(([v, t]) =>
-    `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k]) === String(v)}" title="${t}">${CURTO[t] || t.split(" (")[0]}</button>`).join("")}</div></div>`;
+    `<button type="button" data-instrv="${k}:${v}" aria-pressed="${String(E.instr[k] ?? INSTR[k]) === String(v)}" title="${t}">${CURTO[t] || t.split(" (")[0]}</button>`).join("")}</div></div>`;
   if (NOVO) { $("instrucoes").innerHTML = GRUPOS_INSTR.map(([g, ks]) => `<div class="t-instr-grupo"><div class="t-rotulo">${g}</div>${ks.map(k => segmentos([k, OPCOES[k]])).join("")}</div>`).join("");
     raiz.querySelector(".t-tatica-lado").classList.toggle("escolhendo", !!sel);
     const atual = [...E.vagas].sort().join(); // formação marcada: a que tem as mesmas posições do time
     $("formacao").innerHTML = Object.keys(FORMACOES).map(k => `<button type="button" data-forma="${esc(k)}" title="${esc(k)}" aria-pressed="${[...FORMACOES[k]].sort().join() === atual}">${esc(k.split(" (")[0].replace(/ (com|do) /, " "))}</button>`).join(""); }
-  else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
+  else $("instrucoes").innerHTML = Object.entries(OPCOES).map(([k, [nome, ops]]) => `<label>${nome}<select data-instr="${k}">${ops.map(([v, t]) => `<option value="${v}" ${String(E.instr[k] ?? INSTR[k]) === String(v) ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("");
   if ($("minimapa")) $("minimapa").innerHTML = htmlMiniMapa(V.esc11); // o visual novo não tem o mapa do time
   if (forcaAdv != null && $("comparaOnze")) $("comparaOnze").innerHTML = comparaOnze();
   mostrarForca();
