@@ -6,7 +6,8 @@ import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FA
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande, taticaDoAmistoso } from "./rodada.js";
-import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, COBERTURA, ZONAS, CONFIG } from "./motor.js";
+import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, desenhoDoTime, COBERTURA, ZONAS, CONFIG } from "./motor.js";
+import { PAPEIS as PAPEIS_DE_JOGO, PAPEL_PADRAO, PAPEIS_DESDE, papeisDaPosicao, papelValido, notaNoPapel } from "./papeis.js";
 import { taticaBot } from "./bot.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
@@ -146,6 +147,7 @@ setInterval(() => { const el = $("prazoTatica"); if (!el || prazoDaTatica == nul
   const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, mi = Math.floor(ms / 6e4) % 60, se = Math.floor(ms / 1e3) % 60;
   el.innerHTML = ms <= 0 ? "Tática fechada" : `Fecha em <b>${d ? `${d}d ${h}h ${z(mi)}min` : `${z(h)}:${z(mi)}:${z(se)}`}</b>`; el.classList.toggle("t-urgente", ms < 36e5); }, 1000);
 let elenco = [], porId = {}, E = null, sel = null, clubeOnline = null, adversarioOnline = null, proximoJogo = null;
+let temporadaDaLiga = null; // na liga ao vivo: antes de PAPEIS_DESDE os papéis ficam salvos, mas não entram nas partidas
 // elenco visto pela copa: "fora" passa a ser a indisponibilidade na copa, com o motivo certo
 const paraACopa = (lista, clubeId) => lista.map(j => {
   const lesionado = j.fora > 0 && j.motivo === "lesão";
@@ -164,7 +166,7 @@ let setorVisto = null; // visual novo: o setor escolhido na lista do elenco
 let salvoComo = null; // a tática como foi lida ou salva pela última vez, para saber se há mudança sem salvar
 let tirados = []; // quem a tática salva escalava mas está fora do próximo jogo: { j, i (vaga) ou null (banco) }
 const motivoCurto = j => j.motivo === "lesão" ? "lesionado" : /suspens/.test(j.motivo || "") ? "suspenso" : "fora deste jogo";
-const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos } : null).filter(Boolean);
+const escalacaoAtual = () => E.vagas.map((pos, i) => jogDe(E.jog[i]) ? { j: jogDe(E.jog[i]), pos, papel: (E.papeis || [])[i] || null } : null).filter(Boolean);
 const titulares = () => E.jog.filter(Boolean).map(jogDe).filter(Boolean);
 // visual novo: a camisa do clube, de costas e com o número, no lugar da bolinha; o goleiro com uma camisa própria
 const CAMISAS = NOVO;
@@ -182,7 +184,7 @@ const comparaOnze = () => { const minha = forcaMinha();
 function daTatica(t) {
   const I = t.instrucoes;
   return {
-    vagas: t.escalacao.map(x => x.pos), jog: t.escalacao.map(x => x.j.id), banco: t.banco.map(j => j.id),
+    vagas: t.escalacao.map(x => x.pos), jog: t.escalacao.map(x => x.j.id), papeis: t.escalacao.map(x => x.papel || null), banco: t.banco.map(j => j.id),
     instr: { ...INSTR, mentalidade: I.mentalidade, lado: I.lado, capitao: I.capitao, vice: I.vice, armador: I.armador, alvo: I.alvo, cobradores: JSON.parse(JSON.stringify(I.cobradores)) },
     subs: I.substituicoes.map(s => ({ ...s })), ordens: I.ordens.map(o => ({ min: o.min, cond: o.cond, muda: Object.entries(o.muda).map(([k, v]) => k + ":" + v)[0] })),
   };
@@ -344,6 +346,7 @@ async function iniciarOnline(sessaoDeTeste) {
     B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle(),
     B.ligaAtual().then(l => Promise.all([l, B.clubesDaLiga(l.id)])), B.minhaTatica(clubeOnline.id), B.taticaFechada(clubeOnline.id)]);
   elenco = todos.filter(j => !j.juvenil); // juvenil não joga partida oficial
+  temporadaDaLiga = liga.temporada;
   // próximo jogo: se for de copa, quem está fora é quem não pode jogar a copa (lesão, suspensão da copa ou trava de clube);
   // a suspensão da liga não vale na copa
   proximoJogo = prox.data || null;
@@ -395,6 +398,8 @@ function limparReferencias() {
   // Quem está fora do próximo jogo (lesão, suspensão, trava de copa) também sai: não dá para escalar; a vaga fica vazia e avisada
   E.jog = E.jog.map((id, i) => { if (id && porId[id] && porId[id].fora > 0) { tirados.push({ j: porId[id], i }); return null; } return id && porId[id] ? id : null; });
   E.banco = E.banco.filter(id => { if (porId[id] && porId[id].fora > 0) tirados.push({ j: porId[id], i: null }); return porId[id] && !(porId[id].fora > 0); });
+  // o papel é da vaga: some quando a vaga muda para uma posição em que ele não vale (ou a tática é de antes dos papéis)
+  if (E.papeis) E.papeis = E.vagas.map((pos, i) => papelValido(pos, E.papeis[i]) ? E.papeis[i] : null); // tática de antes dos papéis fica sem a chave (não parece mudada)
   const emCampo = new Set(E.jog.filter(Boolean)), noBanco = new Set(E.banco);
   for (const k of ["capitao", "vice", "armador", "alvo"]) if (!emCampo.has(E.instr[k])) E.instr[k] = null;
   for (const k in E.instr.cobradores) E.instr.cobradores[k] = E.instr.cobradores[k].filter(id => emCampo.has(id));
@@ -438,13 +443,31 @@ function validar() {
 const FAIXA = { ataque: 0, meia: 1, meio: 2, volante: 3, ala: 3, defesa: 4, gol: 5 };
 // mapa: índice da vaga que está sendo arrastada ou escolhida (mostra as posições para onde ela pode ir), ou null
 const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span class="${f.fam === "I" ? "bad" : "mut"}" title="${f.fam === "I" ? "Improvisado" : "Competente"} nessa vaga: perde ${f1(f.perda)} de nota.${f.melhor ? ` ${esc(f.melhor.nome)} renderia ${f1(f.ganho)}.` : ""}">⚠ −${f1(f.perda)}</span>` : ""; };
+// Papéis (src/papeis.js): o nome do papel embaixo de quem joga numa vaga que tem papéis; o padrão aparece apagado
+function rotuloDoPapel(i) {
+  const pos = E.vagas[i];
+  if (!papeisDaPosicao(pos).length) return "";
+  const p = (E.papeis || [])[i] || PAPEL_PADRAO[pos];
+  return `<div class="papel-vaga" style="font-size:11px;line-height:1.2;color:#fff;text-align:center;${p === PAPEL_PADRAO[pos] ? "opacity:.6" : "font-weight:700"}">${PAPEIS_DE_JOGO[p].nome}</div>`;
+}
+// Na escolha de uma vaga com papéis: um botão por papel com a nota de quem está nela, o que o papel faz e o que custa
+function htmlPapeisDaVaga(i) {
+  const pos = E.vagas[i], lista = papeisDaPosicao(pos), j = jogDe(E.jog[i]);
+  if (!lista.length) return "";
+  const atual = (E.papeis || [])[i] || PAPEL_PADRAO[pos], P = PAPEIS_DE_JOGO[atual];
+  const trava = temporadaDaLiga != null && temporadaDaLiga < PAPEIS_DESDE ? `<div class="mut" style="font-size:12px">Os papéis valem nas partidas a partir da temporada ${PAPEIS_DESDE}. Já dá para deixar escolhido.</div>` : "";
+  return `<div class="papeis-da-vaga" style="margin:6px 0 8px"><div class="t-numero-rotulo">Papel</div>
+    <div class="t-segmentos">${lista.map(p => `<button type="button" data-funcao="${p}" aria-pressed="${p === atual}" title="${esc(PAPEIS_DE_JOGO[p].faz)}">${PAPEIS_DE_JOGO[p].nome}${p === PAPEL_PADRAO[pos] ? "*" : ""}${j ? `<small style="display:block">${f1(notaNoPapel(j, pos, p))}</small>` : ""}</button>`).join("")}</div>
+    <div style="font-size:12px;margin-top:4px"><b>Faz:</b> ${esc(P.faz)} <b>Custa:</b> ${esc(P.custa)}</div>
+    <div class="mut" style="font-size:12px">* o jeito de hoje da posição. Trocar o papel de um titular custa um pouco de entrosamento por ${CONFIG.papeis.entrosarTroca} jogos.</div>${trava}</div>`;
+}
 function htmlGramado(mapa = null) {
   if (CAMISAS) numerar();
   const filas = filasDoCampo(E.vagas.map((_, i) => i), i => E.vagas[i]).map(fila => ({ faixa: FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha], html: `<div class="fila ${fila.grade ? "grade" : ""}"${NOVO ? ` style="top:${ALTURA_DA_FAIXA[FAIXA[POSICOES[E.vagas[fila.itens[0].x]].linha]]}%"` : ""}>${fila.itens.map(({ x: i, col }) => {
     const j = jogDe(E.jog[i]), pos = E.vagas[i];
     return `<div class="vaga ${sel && sel.tipo === "vaga" && sel.i === i ? "sel" : ""} ${j ? "fam-" + familiaridade(j, pos) : "vazia"} ${j && j.fora > 0 ? "fora" : ""} ${!j && tirados.some(t => t.i === i) ? "falta" : ""}" data-vaga="${i}" data-arrasta="${j ? j.id : ""}" ${col ? `style="grid-column:${col} / span 2"` : ""}>
       <span class="pp vpos ${corDoSetor(pos)}${CAMISAS && j ? " camisa" : ""}" title="${POSICOES[pos].nome}">${CAMISAS && j ? camisa(j, pos) : sg(pos)}</span>${NOVO && j && j.amarelos >= 3 && !(j.fora > 0) ? `<i class="t-pendurado" title="Pendurado: o próximo amarelo suspende"></i>` : ""}${NOVO ? "" : `<select class="${corDoSetor(pos)}" data-pos="${i}" title="Posição da vaga">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)}</option>`).join("")}</select>`}
-      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? (NOVO ? esc(curto(j)) : `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>`) : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `${CAMISAS ? `<span class="pp vsig ${corDoSetor(pos)}">${sg(pos)}</span>` : ""}<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? (NOVO ? "" : ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>`) : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div></div>`;
+      <div class="nome" title="${j ? esc(j.nome) : ""}">${j ? (NOVO ? esc(curto(j)) : `<span class="nc">${esc(j.nome)}</span><span class="ns">${esc(j.nome.split(" ").slice(-1)[0])}</span>`) : tirados.some(t => t.i === i) ? "escolher" : "vazio"}</div><div class="det">${j ? (j.fora > 0 ? `<span class="bad" title="Não joga a próxima partida: na liga será trocado pelo melhor disponível">${NOVO ? (j.motivo === "lesão" ? "lesionado" : "suspenso") : `${j.motivo === "lesão" ? "🩹 lesão" : "⛔ suspenso"} ${j.fora}j`}</span>` : `${CAMISAS ? `<span class="pp vsig ${corDoSetor(pos)}">${sg(pos)}</span>` : ""}<span class="nota">${f1(notaNaPosicao(j, pos))}</span>${j.amarelos >= 3 ? (NOVO ? "" : ` <span title="Pendurado: o próximo amarelo suspende">🟨</span>`) : ""}<span class="fam"> · ${NOME_FAMILIARIDADE[familiaridade(j, pos)]}</span>${selo(j, pos)}`) : "&nbsp;"}</div>${j ? rotuloDoPapel(i) : ""}</div>`;
   }).join("")}</div>` }));
   if (mapa === null) return filas.map(f => f.html).join("");
   const j = jogDe(E.jog[mapa]);
@@ -464,7 +487,8 @@ function htmlMiniMapa(esc11) {
   const campo = (o, rot) => `<div><div class="mut" style="font-size:12px;margin-bottom:4px">${rot}</div><div class="minimapa">${ORDEM_MAPA.map(z => { const t = o[z] / topo; return `<div title="${NOME_ZONA[z]}" style="background:rgba(255,255,255,${(0.08 + 0.8 * t).toFixed(2)});color:${t > 0.5 ? "#12331f" : "#dfe9e2"}">${Math.round(o[z])}</div>`; }).join("")}</div></div>`;
   const total = ZONAS.reduce((s, z) => s + atk[z] + def[z], 0), dif = ZONAS.map(z => [z, (atk[z] + def[z]) / total - PERFIL_442[z]]).sort((a, b) => b[1] - a[1]);
   const nomes = l => l.map(d => NOME_ZONA[d[0]]).join(", ");
-  return `<div class="row" style="align-items:flex-start;gap:16px">${campo(atk, "Com a bola")}${campo(def, "Sem a bola")}
+  const des = desenhoDoTime(esc11);
+  return `<div class="row" style="align-items:flex-start;gap:16px">${campo(atk, "Com a bola · " + des.com)}${campo(def, "Sem a bola · " + des.sem)}
     <div style="flex:1;min-width:150px"><div><span class="ok">Forte:</span> ${nomes(dif.slice(0, 2))}</div><div><span class="bad">Exposto:</span> ${nomes(dif.slice(-2).reverse())}</div>
     <div class="mut" style="font-size:12px;margin-top:6px">Comparado a um 4-4-2. O ataque fica no alto do mapa.</div></div></div>`;
 }
@@ -477,7 +501,8 @@ function render() {
   if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `${CAMISAS ? `<span class="t-bola camisa">${camisa(j, j.pos)}</span>` : `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span>`}<span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curto(j))}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
     $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de ${TAMANHO_DO_BANCO}`;
     const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
-    $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}`; }
+    const des = V.esc11.length === 11 ? desenhoDoTime(V.esc11) : null, mostra = des && (E.papeis || []).some(Boolean); // só com algum papel escolhido: sem escolha, nada muda
+    $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}${mostra ? ` · com a bola ${des.com}, sem a bola ${des.sem}` : ""}`; }
   else $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação
   $("validacao").innerHTML = NOVO ? [...V.erros.map(t => `<div class="t-alerta erro">${esc(t)}</div>`), ...V.avisos.map(t => `<div class="t-alerta">${esc(t)}</div>`)].join("")
@@ -557,7 +582,7 @@ function renderEscolhaNova(el) {
   // as posições da mesma linha do campo (FC e SC, DC e SW...) em botões: no celular o mapa fica embaixo da folha, e aqui um toque já troca
   const fila = pos && pos !== "GK" ? TIRAS.find(t => t.some(([p]) => p === pos)) : null, jv = fila && jogDe(E.jog[sel.i]);
   const trocaPos = fila ? `<div class="t-segmentos t-esc-posicoes">${fila.map(([p]) => `<button type="button" data-novapos="${p}" aria-pressed="${p === pos}"${p === pos ? " disabled" : ""} title="${POSICOES[p].nome}">${sg(p)}${jv ? ` <small>${f1(notaNaPosicao(jv, p))}</small>` : ""}</button>`).join("")}</div>` : "";
-  el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>${trocaPos}` : ""}
+  el.innerHTML = `${sel ? `<div class="t-esc-topo"><div class="t-numero-rotulo">${pos ? `Vaga de ${sg(pos)} · ${POSICOES[pos].nome.toLowerCase()}` : "Quem vai para o banco"}</div>${fecha}</div>${trocaPos}${pos ? htmlPapeisDaVaga(sel.i) : ""}` : ""}
     <div class="t-segmentos t-esc-setores">${SETORES_DA_LISTA.map(([s, r]) => `<button type="button" data-setor="${s}" aria-pressed="${s === setor}">${r}</button>`).join("")}</div>
     <div class="t-esc-lista"><div class="t-esc t-esc-cab"><span></span><span></span><span></span><span>forma</span><span>moral</span><span>${pos ? sg(pos) : "nota"}</span><span></span></div>
     ${lista.map(j => linha(j, pos || j.pos)).join("")}${sel ? vazio("Deixar vazio") : ""}</div>`;
@@ -578,7 +603,7 @@ function renderEscolha() {
   const situacao = j => E.jog.includes(j.id) ? "titular" : E.banco.includes(j.id) ? "reserva" : "";
   document.body.classList.toggle("escolhendo", !!sel);
   el.innerHTML = `${sel ? `<button class="sec fechaEscolha" data-fechaescolha="1">✕</button>` : ""}<h2>${pos ? `Quem joga de ${sg(pos)} (${POSICOES[pos].nome.toLowerCase()})` : sel ? "Quem vai para o banco" : "Elenco"} <span class="tag">${sel ? "clique ou arraste" : "arraste para a vaga"} · ${pos ? "pela nota na posição" : "por setor, pela nota na posição natural"}</span></h2>
-    ${pos ? `<label class="posDaVaga">Posição <select data-pos="${sel.i}">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)} · ${POSICOES[p].nome}</option>`).join("")}</select></label>` : ""}
+    ${pos ? `<label class="posDaVaga">Posição <select data-pos="${sel.i}">${LISTA_POSICOES.map(p => `<option value="${p}" ${p === pos ? "selected" : ""}>${sg(p)} · ${POSICOES[p].nome}</option>`).join("")}</select></label>${htmlPapeisDaVaga(sel.i)}` : ""}
     <div class="legenda"><span class="titular">titular</span><span class="reserva">no banco</span><span>fora da lista</span></div>
     <div class="cabl"><span>forma</span><span>moral</span><span>nota</span><span style="width:24px"></span></div>
     <div class="lista" style="max-height:340px;overflow-y:auto;overflow-x:hidden">${lista.map((j, k) => { const fam = pos ? familiaridade(j, pos) : "N", p = pos || j.pos;
@@ -707,6 +732,7 @@ raiz.addEventListener("click", e => {
   if (NOVO && (d("vaga") !== undefined || d("banco") !== undefined || d("papslot") !== undefined)) {
     setorVisto = null;
     if (d("papslot") !== undefined) setTimeout(() => $("escolha").scrollIntoView({ behavior: "smooth", block: "nearest" }), 0); }
+  if (d("funcao") !== undefined && sel && sel.tipo === "vaga") { const pos = E.vagas[sel.i], p = d("funcao"); E.papeis = E.papeis || E.vagas.map(() => null); E.papeis[sel.i] = p === PAPEL_PADRAO[pos] ? null : p; return render(); }
   if (d("skills") !== undefined) { skillsDe = skillsDe === d("skills") ? null : d("skills"); return renderEscolha(); }
   if (d("escolhe") !== undefined) return escolher(d("escolhe"));
   if (d("vaga") !== undefined) { const i = +d("vaga"); sel = sel && sel.tipo === "vaga" && sel.i === i ? null : { tipo: "vaga", i }; return render(); }

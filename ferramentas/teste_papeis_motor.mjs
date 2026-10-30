@@ -53,4 +53,10 @@ assert.ok(dc.E.DC > dc.C.DC && dc.E.DD < dc.C.DD, "bola do outro lado: ele fecha
 const ds = defesaPorCorredor(t352);
 assert.deepStrictEqual(ds.D, ds.C, "sem ala de papel, o corredor não muda a defesa");
 
+// desenho com e sem a bola (tarefa 6): cada titular de linha conta na linha em que mais está (empate: a mais adiantada)
+import { desenhoDoTime } from "../src/motor.js";
+const t442 = onze("4-4-2", 21);
+assert.deepStrictEqual(desenhoDoTime(t442), { com: "4-4-2", sem: "4-4-2" });
+assert.deepStrictEqual(desenhoDoTime(comPapel(t442, { DR: "apoiador", DL: "apoiador" })), { com: "2-4-4", sem: "4-4-2" });
+assert.deepStrictEqual(desenhoDoTime(onze("3-5-2 com alas", 21)), { com: "3-5-2", sem: "3-5-2" }, "alas de hoje: mais no meio do lado");
 console.log("teste_papeis_motor: ok");

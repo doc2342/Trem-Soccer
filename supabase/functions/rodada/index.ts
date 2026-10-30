@@ -787,6 +787,22 @@ const __motor = (() => {
     return t.defLado;
   }
 
+  // Desenho do time com e sem a bola, como "3-2-5": cada titular de linha conta na linha do campo (D, M, A) em que mais está no mapa da fase
+  // (empate: a mais adiantada). Só leitura, para a escalação; a passagem do Apoiador e o lado da bola não entram.
+  function desenhoDoTime(escalacao) {
+    const conta = fase => {
+      const n = { D: 0, M: 0, A: 0 };
+      for (const { pos, papel } of escalacao) {
+        if (pos === "GK") continue;
+        const m = mapasDoPapel(pos, papel), mapa = m ? m[fase] : COBERTURA[pos], linha = { D: 0, M: 0, A: 0 };
+        for (const [z, w] of Object.entries(mapa)) linha[z[0]] += w;
+        n[["A", "M", "D"].reduce((a, l) => linha[l] > linha[a] + 1e-9 ? l : a)]++;
+      }
+      return `${n.D}-${n.M}-${n.A}`;
+    };
+    return { com: conta("com"), sem: conta("sem") };
+  }
+
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
   function avaliarZonas(escalacao, instrucoes = {}) {
     const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
@@ -1434,7 +1450,7 @@ const __motor = (() => {
     }));
     return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
   }
-  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, avaliarZonas, simularPartida };
+  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, desenhoDoTime, avaliarZonas, simularPartida };
 })();
 
 const __bot = (() => {
