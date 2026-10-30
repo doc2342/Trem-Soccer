@@ -6,6 +6,7 @@ import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { montarRelatorio } from "./relatorio.js";
+import { papelValido, PAPEIS_DESDE, PAPEL_PADRAO } from "./papeis.js";
 import { momentoDepois, experienciaDe, experienciaDepois } from "./saude.js";
 
 export const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
@@ -74,7 +75,7 @@ export function taticaDoDirigente(dados, elenco) {
     const instrucoes = {
       mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
       passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"), cruzamento: um(I.cruzamento, ["misto", "alto", "rasteiro"], "misto"),
-      contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true,
+      contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true, aoPerder: um(I.aoPerder, ["misto", "pressionar", "recompor"], "misto"),
       capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
       cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
       substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
@@ -85,7 +86,8 @@ export function taticaDoDirigente(dados, elenco) {
         return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
       }).filter(Boolean),
     };
-    return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };
+    const papeis = Array.isArray(dados.papeis) ? dados.papeis : []; // papel de cada vaga (src/papeis.js); o que não vale na posição cai
+    return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos, papel: papelValido(pos, papeis[i]) ? papeis[i] : null })), banco: banco.map(id => porId[id]), instrucoes };
   } catch (e) { return null; }
 }
 
@@ -204,14 +206,16 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     const disponiveis = elenco.filter(j => !(j.fora > 0));
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
   });
-  const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
+  // antes de PAPEIS_DESDE (ou sem temporada) ninguém joga com papel, nem o dirigente, nem o bot
+  const semPapel = t => temporada >= PAPEIS_DESDE ? t : { ...t, escalacao: t.escalacao.map(({ papel, ...e }) => e) };
+  const taticas = lados.map((l, i) => semPapel(l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva })));
   const sem = lados.map(l => partida.fase !== "base" && semTecnico(l.clube, temporada));
   const times = lados.map((l, i) => {
     let t = taticas[i];
     if (sem[i] && !sem[1 - i]) t = { ...t, escalacao: t.escalacao.map(e => ({ ...e, j: rendeMenos(e.j) })), banco: (t.banco || []).map(rendeMenos) };
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
-  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
+  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
   const acr = p.acrescimos || [0, 0];
@@ -220,7 +224,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   const extra = criarRng((semente >>> 0) + 7919);
   lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
     n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
-    escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
+    escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}), ...(e.papel ? { papel: e.papel } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
   } });
   // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
   // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
@@ -273,6 +277,9 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     })(),
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+    // papel em que cada titular jogou, só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164). O padrão grava "padrao" e não
+    // o nome, para mudar de formação sem escolher papel (DR, Fixo, para WBR, Apoiador) não contar como troca
+    papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel && e.papel !== PAPEL_PADRAO[e.pos] ? e.papel : "padrao" }))) : [],
     posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
   };
 }

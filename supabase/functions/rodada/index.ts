@@ -234,6 +234,87 @@ const __modelo = (() => {
   return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, NIVEIS_PE_FRACO, nomeDoPeFraco, JEITO_DO_PE, textoDoPe, fraquezaDoPe, PE_FRACO_DESDE, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
+const __papeis = (() => {
+  // Papéis dos jogadores (plano fase 2): dentro da posição, o técnico escolhe o jeito de jogar. Cada papel tem os pesos da ficha (a nota no papel),
+  // um mapa de zonas com a bola e outro sem a bola (motor.js) e um ritmo de gasto de energia. Os mapas são do lado direito; o esquerdo é o espelho.
+  // O papel padrão de cada posição usa as zonas de hoje (COBERTURA do motor) nas duas fases e o gasto de hoje: sem escolha, nada muda.
+  // Primeira fatia: laterais e alas. Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
+  const { IDX, FAMILIARIDADE, familiaridade } = __modelo;
+  // temporada em que os papéis passam a valer nas partidas (rodada.js tira o papel das escalações antes dela)
+  const PAPEIS_DESDE = 1;
+
+  const ESPELHO_LADO = { E: "D", C: "C", D: "E" };
+  const espelharLado = mapa => Object.fromEntries(Object.entries(mapa).map(([z, w]) => [z[0] + ESPELHO_LADO[z[1]], w]));
+
+  // gasto: o valor aprovado (28/10); gastoDoPapel divide pelo do papel padrão da posição.
+  // mapas: só onde o papel não é o padrão (no padrão o motor usa a COBERTURA da posição).
+  const PAPEIS = {
+    fixo: {
+      nome: "Fixo", faz: "Guarda o lado da defesa e fecha o ponta adversário.", custa: "Quase não chega ao fundo: o ponta do time fica sozinho pelo lado.",
+      pesos: { des: 17, mar: 14, vel: 14, pos: 12, pas: 10, res: 7, cru: 6, cab: 5, dom: 5, com: 4, equ: 3, for: 3 },
+      mapas: { WBR: { com: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 }, sem: { MD: 0.35, DC: 0.10, DD: 0.55 } } },
+      gasto: { DR: 0.95, WBR: 0.95 },
+    },
+    apoiador: {
+      nome: "Apoiador", faz: "Chega ao fundo e cruza: soma ataque pelo lado.", custa: "As costas ficam abertas para o contra-ataque, e cansa mais.",
+      pesos: { vel: 17, cru: 14, dri: 11, res: 11, pas: 10, des: 10, pos: 7, cri: 5, dom: 5, equ: 5, mar: 5 },
+      mapas: { DR: { com: { AD: 0.35, MD: 0.35, DC: 0.05, DD: 0.25 }, sem: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 } } },
+      gasto: { DR: 1.10, WBR: 1.15 },
+    },
+    construtor: {
+      nome: "Construtor", faz: "Leva a bola da defesa ao meio pelo lado, com passe e criatividade.", custa: "Não chega ao fundo para cruzar e marca menos que o Fixo.",
+      pesos: { pas: 17, vel: 14, des: 13, pos: 11, dom: 10, mar: 10, cri: 9, res: 7, cru: 3, equ: 3, dri: 3 },
+      mapas: {
+        DR: { com: { AD: 0.05, MD: 0.40, DC: 0.10, DD: 0.45 }, sem: { MD: 0.30, DC: 0.15, DD: 0.55 } },
+        WBR: { com: { AD: 0.10, MC: 0.10, MD: 0.50, DD: 0.30 }, sem: { MD: 0.45, DC: 0.10, DD: 0.45 } },
+      },
+      gasto: { DR: 1, WBR: 1 },
+    },
+    invertido: {
+      nome: "Invertido", faz: "Com a bola, fecha por dentro e vira um volante a mais; sem ela, volta para o lado.", custa: "Na perda da bola, o corredor fica vazio até ele voltar, e cruza pouco.",
+      pesos: { pas: 17, des: 15, pos: 13, dom: 11, mar: 10, equ: 9, cri: 8, vel: 8, res: 4, agr: 3, for: 2 },
+      mapas: {
+        DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
+        WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
+      },
+      gasto: { DR: 1, WBR: 1 },
+    },
+  };
+
+  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador" };
+  const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"] };
+  // posição do lado direito que serve de base para a do esquerdo
+  const DIREITA = { DL: "DR", WBL: "WBR" };
+  const base = pos => DIREITA[pos] || pos;
+
+  // papéis de uma posição, o padrão primeiro
+  const papeisDaPosicao = pos => (PAPEIS_POR_POSICAO[base(pos)] || []).slice();
+  const papelValido = (pos, papel) => !!papel && papeisDaPosicao(pos).includes(papel);
+
+  // { com, sem } do papel na posição, já espelhado na esquerda; null quando o motor deve usar a COBERTURA da posição (padrão, sem papel ou papel inválido)
+  function mapasDoPapel(pos, papel) {
+    if (!papelValido(pos, papel) || papel === PAPEL_PADRAO[pos]) return null;
+    const m = PAPEIS[papel].mapas[base(pos)];
+    return DIREITA[pos] ? { com: espelharLado(m.com), sem: espelharLado(m.sem) } : m;
+  }
+
+  // nota do jogador no papel, na escala dos atributos, com a familiaridade da posição (como notaNaPosicao)
+  function notaNoPapel(j, pos, papel) {
+    const pesos = PAPEIS[papel].pesos;
+    let soma = 0;
+    for (const k in pesos) soma += pesos[k] * j.at[IDX[k]];
+    return soma / 100 * FAMILIARIDADE[familiaridade(j, pos)];
+  }
+
+  // multiplicador do gasto de energia, relativo ao papel padrão da posição
+  function gastoDoPapel(pos, papel) {
+    if (!papelValido(pos, papel)) return 1;
+    const b = base(pos);
+    return PAPEIS[papel].gasto[b] / PAPEIS[PAPEL_PADRAO[pos]].gasto[b];
+  }
+  return { PAPEIS_DESDE, espelharLado, PAPEIS, PAPEL_PADRAO, papeisDaPosicao, papelValido, mapasDoPapel, notaNoPapel, gastoDoPapel };
+})();
+
 const __saude = (() => {
   // Saúde (etapa T3): lesões, forma e moral.
   // Lesões: o médico encurta a recuperação dos lesionados que atende e o preparador de prevenção reduz a chance de lesão do elenco.
@@ -379,6 +460,7 @@ const __motor = (() => {
   const { limitar } = __rng;
   const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
+  const { mapasDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } = __papeis;
   const CONFIG = {
     ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
       0,68 depois da T14 (3,07 gols e 12% dos jogos com 6 ou mais): meta de 2,5 gols e ~24 finalizações por jogo, como no Brasileirão */ // ataques iniciados por minuto, somando os dois times
@@ -522,7 +604,29 @@ const __motor = (() => {
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
     penalti: 0.072, // das faltas no centro do ataque
     faltaDireta: 0.15, // das faltas no ataque que não são pênalti (0,27 até 29/10/2026: quase 2 cobranças diretas por jogo, o dobro do futebol real)
+    // Papéis (src/papeis.js), valores iniciais a calibrar (ferramentas/sim_papeis_laterais.mjs):
+    //   passagemPorDentro: o que muda no mapa com a bola do Apoiador do DR quando há um ponta aberto (RW ou MR) na frente dele (no DL, o espelho);
+    //   alaPorLado: parte do peso no fundo do lado do ala (de papel que não é o Apoiador) que sobe para o meio do lado com a bola do lado dele,
+    //     ou fecha o centro da defesa com a bola do outro lado; entrosarTroca: jogos de entrosamento de quem troca de papel (supabase/164)
+    //   transicao: no contra-ataque do adversário, quanto da defesa de quem tem papel sai do mapa com a bola (ele ainda não voltou) em vez do mapa sem a bola
+    papeis: { passagemPorDentro: { AD: -0.20, AC: 0.10, MD: 0.10 }, alaPorLado: 0.3, entrosarTroca: 3, transicao: 1 },
     faltaRecomeca: true, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
+    // Regras da T1 (adendo de 30/10 ao plano dos papéis): só valem com simularPartida(..., { regrasT1: true }), o padrão; calcularPartida liga a partir
+    // de PAPEIS_DESDE. regrasT1 é a chave que o motor lê durante a partida; t1: valores do CONFIG que mudam com as regras (aplicados e devolvidos).
+    //   reserva: defesa de reserva, a soma dos pesos nas zonas D do mapa com a bola (quem fica atrás quando o time ataca); ao perder a bola, a chance de
+    //     contra-ataque do adversário vai por (referencia / reserva) ^ expoente (a referência é a média das formações prontas);
+    //   pressionar ("ao perder a bola"): retomada = chance de recuperar na hora, vezes a pressão do time na zona contra quem tem a bola ali;
+    //     falha = quanto o contra-ataque fica mais provável quando a pressão não pega; gasto = energia a mais por minuto;
+    //   recompor: contra = quanto do contra-ataque sobra (e o time não é pego fora do lugar); posse = o que fica do controle do meio
+    regrasT1: false,
+    //   compactacao: a marcação no meio de um lado só conta para a posse até razao vezes a defesa do fundo do mesmo lado (marcar alto sem cobertura atrás
+    //     não segura a bola); o resto é o time esticado. As formações prontas ficam abaixo de 1 (o 5-4-1, 1,2)
+    //   lotacao: zona com mais de limite jogadores (soma dos pesos): o que passa rende só resto. As formações prontas ficam até 2,5, menos a árvore de Natal (3,0 no meio)
+    compactacao: { razao: 0.9 }, lotacao: { limite: 2.5, resto: 0.6 },
+    transicao: { reserva: { referencia: 3.8, expoente: 2 }, pressionar: { retomada: 0.25, falha: 1.4, gasto: 0.1 }, recompor: { contra: 0.35, posse: 0.95 } },
+    // t1 (30/10, conta de 3.000 jogos entre formações sorteadas): contra-ataque 2x mais frequente e mais forte, para os gols de contra-ataque irem de 2,7% para
+    //   ~9% (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição), e o ritmo de ataques de 0,75 para 0,69 para os gols da liga ficarem iguais (~2,37)
+    t1: { contraAtaque: { com: 0.32, sem: 0.08, logit: 0.9 }, ataquesPorMinuto: 0.69, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 } },
   };
 
   const INSTRUCOES_PADRAO = {
@@ -536,6 +640,7 @@ const __motor = (() => {
     contraAtaque: false,
     impedimento: false,
     cera: false, // só vale enquanto o time estiver ganhando
+    aoPerder: "misto", // misto, pressionar ou recompor (regras da T1)
     capitao: null, vice: null, armador: null, alvo: null, // ids de jogadores
     cobradores: { escanteio: [], falta: [], penalti: [] }, // listas de ids, em ordem de preferência
     substituicoes: [], // { min, sai, entra, pos?, cond }
@@ -566,7 +671,6 @@ const __motor = (() => {
     FC: { AC: 0.7, AE: 0.1, AD: 0.1, MC: 0.1 },
     SC: { AC: 0.9, MC: 0.1 },
   };
-  const espelharLado = cob => Object.fromEntries(Object.entries(cob).map(([z, w]) => [z[0] + ESPELHO_LADO[z[1]], w]));
   const COBERTURA = {
     GK: {},
     ...COBERTURA_BASE,
@@ -578,6 +682,9 @@ const __motor = (() => {
   };
 
   const A = IDX;
+  // a narração conta o papel só quando ele não é o padrão da posição (sem escolha, o texto é o de sempre)
+  const temPapel = (jog, ...papeis) => !!jog && !!jog.papel && jog.papel !== PAPEL_PADRAO[jog.pos] && papeis.includes(jog.papel);
+  const PONTA_ABERTO = ["RW", "LW", "MR", "ML"]; // na frente do Apoiador, quem fica aberto (padrões Agudo e Garçom); AMR/AML (Condutor) corta para dentro
   // Habilidade de quem tem a bola, por zona.
   function habilidadeAtaque(at, zona) {
     const centro = zona[1] === "C";
@@ -593,7 +700,7 @@ const __motor = (() => {
     return centro ? (at[A.mar] * 1.5 + at[A.pos] * 1.5 + at[A.des]) / 4 : (at[A.des] * 1.5 + at[A.vel] + at[A.mar] + at[A.pos] * 0.5) / 4;
   }
 
-  // escalacao: [{ j: jogador, pos }] com 11 nomes; banco: até TAMANHO_DO_BANCO (escalacao.js) jogadores; instrucoes: ver INSTRUCOES_PADRAO.
+  // escalacao: [{ j: jogador, pos, papel? }] com 11 nomes (papel: src/papeis.js; sem ele, ou inválido, o jeito de hoje da posição); banco: até TAMANHO_DO_BANCO (escalacao.js) jogadores; instrucoes: ver INSTRUCOES_PADRAO.
   // O objeto devolvido não muda durante a partida e pode ser reutilizado em várias simulações.
   // prevencao: fração a menos na chance de lesão dos jogadores deste time (preparador de prevenção), de 0 a 1
   function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, mandante = false, prevencao = 0 }) {
@@ -604,7 +711,7 @@ const __motor = (() => {
   }
 
   // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
-  const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
+  const novoJog = (j, pos, rng = null, grande = false, papel = null) => ({ j, pos, papel: papelValido(pos, papel) ? papel : null, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
   // Entrosamento de cada setor (D defesa com o goleiro, M meio, A ataque), de 1 - perda a 1. lista: [{ j, pos }]
   const SETOR = { gol: "D", defesa: "D", ala: "D", volante: "M", meio: "M", meia: "M", ataque: "A" };
@@ -620,11 +727,11 @@ const __motor = (() => {
     return {
       nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
       instr: { ...time.instrucoes },
-      emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
+      emCampo: time.escalacao.map(({ j, pos, papel }) => novoJog(j, pos, rng, grande, papel)),
       banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
       cumpridas: {}, // "s0", "o1"…: { aos } (minuto) quando a troca/ordem aconteceu, { motivo } quando foi descartada
       nomes: Object.fromEntries([...time.escalacao.map(x => x.j), ...time.banco].map(j => [j.id, j.nome])),
-      goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
+      goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, zonasDef: {}, controle: 0, comDefesa: 25,
     };
   }
 
@@ -648,7 +755,10 @@ const __motor = (() => {
     const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
     const ent = entrosamento(t.emCampo);
     t.goleiro = null; t.temLibero = false;
-    for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
+    for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
+    const alas = []; // alas de papel que não é o Apoiador: mudam com o lado da bola
+    t.reserva = 0; // defesa de reserva: peso nas zonas D com a bola
+    const transicao = {}; let naTransicao = false; // o que muda na defesa quando o adversário sai em contra-ataque (quem tem papel ainda está no mapa com a bola)
     for (const jog of t.emCampo) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
@@ -657,17 +767,82 @@ const __motor = (() => {
       if (jog.pos === "GK") { t.goleiro = jog; continue; }
       if (jog.pos === "SW") t.temLibero = true;
       const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
-      for (const [z, w] of Object.entries(COBERTURA[jog.pos])) {
+      // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
+      const m = mapasDoPapel(jog.pos, jog.papel), sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos];
+      let com = m ? m.com : COBERTURA[jog.pos];
+      // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
+      if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado)) {
+        const pd = P.lado === "D" ? CONFIG.papeis.passagemPorDentro : espelharLado(CONFIG.papeis.passagemPorDentro);
+        com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
+      }
+      if (m && P.linha === "ala") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
+      for (const [z, w] of Object.entries(com)) {
+        if (z[0] === "D") t.reserva += w;
         t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];
-        t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
         t.zonas[z].push({ jog, w, p: w * p });
       }
+      for (const [z, w] of Object.entries(sem)) {
+        t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
+        t.zonasDef[z].push({ jog, w });
+      }
+      if (m) for (const z of ZONAS) {
+        const dw = (com[z] || 0) - (sem[z] || 0);
+        if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[z[0]]; naTransicao = true; }
+      }
+    }
+    // zona lotada (regras da T1): passando de limite jogadores (soma dos pesos), o que sobra rende só a fração resto (o congestionamento do futebol real)
+    if (CONFIG.regrasT1) for (const z of ZONAS) for (const [forca, quem] of [[t.atk, t.zonas[z]], [t.def, t.zonasDef[z]]]) {
+      const W = quem.reduce((s, o) => s + o.w, 0), L = CONFIG.lotacao;
+      if (W > L.limite) forca[z] *= (L.limite + (W - L.limite) * L.resto) / W;
     }
     if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
-    const linha = t.zonas.DC, peso = linha.reduce((s, o) => s + o.w, 0);
+    // defesa com a bola em cada corredor (lado do próprio time): o ala do lado da bola sobe para pressionar, o do outro lado fecha a linha
+    t.defTransicao = naTransicao ? Object.fromEntries(ZONAS.map(z => [z, Math.max(0, t.def[z] + (transicao[z] || 0))])) : t.def;
+    t.defLado = { E: t.def, C: t.def, D: t.def };
+    if (alas.length) for (const l of ["E", "D"]) {
+      const d = { ...t.def };
+      for (const a of alas) {
+        const f = CONFIG.papeis.alaPorLado * a.w, fundo = "D" + a.lado, para = a.lado === l ? "M" + a.lado : "DC";
+        d[fundo] -= f * habilidadeDefesa(a.jog.at, fundo) * mDef.D; d[para] += f * habilidadeDefesa(a.jog.at, para) * mDef[para[0]];
+      }
+      t.defLado[l] = d;
+    }
+    const linha = t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
-    t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
-      * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
+    const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
+    t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + defNoMeio(l)) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
+      * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica)
+      * (CONFIG.regrasT1 && I.aoPerder === "recompor" ? CONFIG.transicao.recompor.posse : 1);
+  }
+
+  // Defesa de uma escalação com a bola em cada corredor (E, C, D, do lado do próprio time), descansada. Serve aos testes e às telas.
+  function defesaPorCorredor(escalacao, instrucoes = {}) {
+    const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
+    recalcular(t, 0);
+    return t.defLado;
+  }
+
+  // Desenho do time com e sem a bola, como "3-2-5": cada titular de linha conta na linha do campo (D, M, A) em que mais está no mapa da fase
+  // (empate: a mais adiantada). Só leitura, para a escalação; a passagem do Apoiador e o lado da bola não entram.
+  function desenhoDoTime(escalacao) {
+    const conta = fase => {
+      const n = { D: 0, M: 0, A: 0 };
+      for (const { pos, papel } of escalacao) {
+        if (pos === "GK") continue;
+        const m = mapasDoPapel(pos, papel), mapa = m ? m[fase] : COBERTURA[pos], linha = { D: 0, M: 0, A: 0 };
+        for (const [z, w] of Object.entries(mapa)) linha[z[0]] += w;
+        n[["A", "M", "D"].reduce((a, l) => linha[l] > linha[a] + 1e-9 ? l : a)]++;
+      }
+      return `${n.D}-${n.M}-${n.A}`;
+    };
+    return { com: conta("com"), sem: conta("sem") };
+  }
+
+  // Defesa de uma escalação pega no contra-ataque, por zona (quem tem papel ainda no mapa com a bola), descansada. Serve aos testes.
+  function defesaNaTransicao(escalacao, instrucoes = {}) {
+    const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
+    recalcular(t, 0);
+    return t.defTransicao;
   }
 
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
@@ -691,9 +866,10 @@ const __motor = (() => {
 
   // Defesa que o atacante enfrenta em cada zona (vista pelo atacante).
   // Time que não ameaça pelos lados deixa os defensores de lado livres para fechar o centro: jogo estreito encontra defesa compacta.
-  function montarDefesa(atk, def) {
+  // defZ: a defesa do adversário por zona (a do corredor da bola; sem ela, a geral)
+  function montarDefesa(atk, def, defZ = def.def) {
     const dz = {};
-    for (const z of ZONAS) dz[z] = def.def[espelho(z)];
+    for (const z of ZONAS) dz[z] = defZ[espelho(z)];
     for (const linha of ["M", "A"]) {
       let ajuda = 0;
       const livre = {}, Z = CONFIG.zonaVazia; // livre: defesa de um lado que sobra porque o adversário não ameaça ali
@@ -709,6 +885,12 @@ const __motor = (() => {
       dz[linha + forte] += vai; dz[linha + fraco] -= vai;
     }
     return dz;
+  }
+
+  // Defesa que o atacante enfrenta em cada corredor dele (o corredor E do atacante é o lado D de quem defende); o C escolhe o lado do lance
+  function defesaDoCorredor(atk, def) {
+    const C = montarDefesa(atk, def), por = l => def.defLado && def.defLado[ESPELHO_LADO[l]] !== def.def ? montarDefesa(atk, def, def.defLado[ESPELHO_LADO[l]]) : C;
+    return { E: por("E"), C, D: por("D"), T: def.defTransicao && def.defTransicao !== def.def ? montarDefesa(atk, def, def.defTransicao) : C };
   }
 
   // Em cada linha o time procura o lado em que é mais forte em relação à cobertura do adversário.
@@ -746,7 +928,7 @@ const __motor = (() => {
     const tipo = !forcado ? sortearPeso(rng, opcoes, o => o[1])[0] : lado !== "C" && fin && fin.cruzaForcado && rng.chance(fin.cruzaForcado) ? "cruzamento" : "longe";
     // chute forçado: quem chuta mal rola para quem chuta melhor (ele mesmo ou um atacante da área)
     if (forcado && D && tipo === "longe") { const quem = sortearPeso(rng, [{ jog: pivo }, ...area.filter(o => o.jog !== pivo)], o => Math.pow(pe(o.jog.at[A.lon]), 2)); if (quem) pivo = quem.jog; }
-    const zagueiro = (sortearPeso(rng, def.zonas.DC, o => o.w) || {}).jog;
+    const zagueiro = (sortearPeso(rng, def.zonasDef.DC, o => o.w) || {}).jog;
     const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
     const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
     const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro, contra };
@@ -819,7 +1001,7 @@ const __motor = (() => {
   function narrar(c, resultado, goleiro, nm) {
     const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
     const inicio = {
-      cruzamento: c.rasteiro ? `${cr} cruza rasteiro da ${lado} e ${f} bate de primeira` : `${cr} cruza da ${lado} e ${f} cabeceia`,
+      cruzamento: `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} cabeceia`}`,
       corte: `${f} vem da ${lado} em diagonal e chuta`,
       profundidade: `${cr} lança em profundidade e ${f} sai na cara do gol`,
       area: c.criador === c.finalizador ? `${f} recebe na área e finaliza` : `${cr} acha ${f} na área, que finaliza`,
@@ -849,7 +1031,17 @@ const __motor = (() => {
   const reinicio = min => min === 46 || min === 91 || min === 106;
   // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
   // opcoes.calor: calor forte, todos cansam mais rápido. opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
+  // opcoes.regrasT1 (padrão true): as regras da T1 (CONFIG.t1 e CONFIG.regrasT1); calcularPartida e as metas da diretoria desligam antes de PAPEIS_DESDE.
+  //   Os amistosos (jogo-treino) ficam no padrão: o dono liberou as regras e os papéis da T1 só neles antes da virada (30/10).
+  // ponytail: troca o CONFIG global durante a partida e devolve no fim (o motor é síncrono); se um dia rodar partidas em paralelo, passar o CONFIG adiante
   function simularPartida(rng, casa, fora, opcoes = {}) {
+    if (opcoes.regrasT1 === false) return jogarPartida(rng, casa, fora, opcoes);
+    const antes = {};
+    for (const k in CONFIG.t1) { antes[k] = CONFIG[k]; CONFIG[k] = typeof CONFIG[k] === "object" ? { ...CONFIG[k], ...CONFIG.t1[k] } : CONFIG.t1[k]; }
+    CONFIG.regrasT1 = true;
+    try { return jogarPartida(rng, casa, fora, opcoes); } finally { Object.assign(CONFIG, antes); CONFIG.regrasT1 = false; }
+  }
+  function jogarPartida(rng, casa, fora, opcoes) {
     const chuva = opcoes.chuva || 0, calor = opcoes.calor ? 1 + CONFIG.calor : 1, grande = !!opcoes.jogoGrande;
     const times = [iniciar(casa, rng, grande), iniciar(fora, rng, grande)], estat = [novaEstatistica(), novaEstatistica()];
     const jogadores = {}, lances = [], eventos = [], lesoes = [];
@@ -913,7 +1105,7 @@ const __motor = (() => {
       if (d.falta && m) { evento(i, "falta", comTrilha(`Falta de ${nm(m)} em ${nome} ${ONDE[zona[0]](lado)}.`)); rota.push([zona, p.j.id]); portador = p; aposFalta = true; return; }
       rota.push(m ? [zona, p.j.id, m.j.id] : [zona, p.j.id]);
       if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [facil ? `passa fácil por ${nm(m)}` : `passa por ${nm(m)}`] : facil ? ["sem ser incomodado"] : [])]);
-      else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás com facilidade` : `supera ${nm(m)}`] : facil ? ["com todo o espaço do mundo"] : [])]);
+      else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : lado === "C" && temPapel(p, "invertido") ? nome + " sai da lateral e fecha por dentro," : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás com facilidade` : `supera ${nm(m)}`] : facil ? ["com todo o espaço do mundo"] : [])]);
     }
     function perdaDePosse(i, zona, d) {
       impedido = false;
@@ -960,8 +1152,9 @@ const __motor = (() => {
       const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia);
       sujo = true;
     }
-    function entrar(i, j, pos) {
-      const t = times[i], jog = novoJog(j, pos, rng, grande);
+    // papel: o de quem saiu (novoJog o descarta se não valer na posição de quem entra)
+    function entrar(i, j, pos, papel = null) {
+      const t = times[i], jog = novoJog(j, pos, rng, grande, papel);
       t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
       ficha(jog, i).entrou = min; sujo = true;
       return jog;
@@ -993,7 +1186,7 @@ const __motor = (() => {
         const sai = t.emCampo.find(x => x.j.id === s.sai), entra = t.banco.find(x => x.id === s.entra);
         if (!sai || !entra) { if (!sai && min >= (s.min || 0)) { t.subsFeitas.add(k); t.cumpridas["s" + k] = { motivo: "ele já não estava em campo" }; } return; }
         if (!condicao(i, s.cond, sai)) return;
-        t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos);
+        t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos, sai.papel);
         evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
       });
     }
@@ -1004,7 +1197,7 @@ const __motor = (() => {
       const candidatos = t.banco.filter(j => (j.pos === "GK") === (jog.pos === "GK"));
       if (!candidatos.length) return;
       const entra = candidatos.reduce((m, j) => notaNaPosicao(j, jog.pos) > notaNaPosicao(m, jog.pos) ? j : m);
-      entrar(i, entra, jog.pos);
+      entrar(i, entra, jog.pos, jog.papel);
       evento(i, "substituicao", `Entra {${i}:${entra.nome}} no lugar de ${nm(jog)}.`);
     }
     function falta(i, marcador, vitima) { // i: time que cometeu
@@ -1024,7 +1217,7 @@ const __motor = (() => {
 
     // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
     function duelo(i, zona, logit = 0, contra = false) {
-      const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
+      const atk = times[i], def = times[1 - i], dz = contra && !(CONFIG.regrasT1 && def.instr.aoPerder === "recompor") ? defesas[i].T : defesas[i][zona[1]], e = estat[i]; // no contra-ataque, a defesa pega fora do lugar (transição)
       const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
       // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
       const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
@@ -1033,7 +1226,7 @@ const __motor = (() => {
       // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
       // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
       // A compensação tira de todo duelo o ganho médio, para a regra não aumentar os gols da liga. Sem pé definido, nada acontece.
-      const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
+      const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonasDef[espelho(zona)], x => x.w) || {}).jog;
       const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
       const PF = CONFIG.peFraco, pf = pivo && pivo.j.pf;
       const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro * (pf == null ? 1 : (pf - 12) / PF.ambidestro)) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
@@ -1129,22 +1322,36 @@ const __motor = (() => {
     }
 
     function atacar(i, contra = false, inicio = "D") {
-      const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
+      const atk = times[i], def = times[1 - i], dz = defesas[i].C, e = estat[i];
       const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
       // quem recupera a bola pode sair em contra-ataque, mais ainda contra time que joga para a frente
       // embalo de um duelo: quanto da folga segue para o lance seguinte (de 0 ao teto); a da defesa vale para o contra-ataque
       const embalo = d => Math.min(CONFIG.embalo.teto, Math.max(0, CONFIG.embalo.parte * d.folga));
       const embaloDaDefesa = d => Math.min(CONFIG.embalo.teto, Math.max(0, -CONFIG.embalo.parte * d.folga)) / CONFIG.embalo.teto;
       let roubada = 0, roubadaFacil = false; // roubada, de 0 a 1: com quanta folga a defesa ganhou o duelo que encerrou o ataque
-      const perdeu = () => {
+      const perdeu = zona => {
         if (contra) return;
+        const T = CONFIG.transicao, ao = CONFIG.regrasT1 ? atk.instr.aoPerder : "misto";
+        // pressionar: a retomada na hora, na zona em que perdeu, pela pressão do time ali contra quem ficou com a bola
+        if (ao === "pressionar" && !impedido) { // impedimento é falta para a defesa: não dá para retomar na hora
+          const forca = (atk.def[zona] + CONFIG.zonaVazia) / (def.atk[espelho(zona)] + CONFIG.zonaVazia);
+          if (rng.chance(limitar(T.pressionar.retomada * Math.sqrt(forca), 0.05, 0.5))) {
+            e.retomadas = (e.retomadas || 0) + 1; evento(i, "posse", `${tm(i)} pressiona logo e recupera a bola ${ONDE[zona[0]](zona[1])}.`);
+            proximo = { time: i, zona: zona[0] }; bola = null; return;
+          }
+        }
         const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
         // quem perde a bola jogando para a frente ou com a linha alta fica mais exposto; time montado para o contra-ataque aproveita mais
         const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
         // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
         const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
-        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada);
-        if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada)
+          * (CONFIG.regrasT1 ? Math.pow(T.reserva.referencia / Math.max(1, atk.reserva), T.reserva.expoente) * (ao === "pressionar" ? T.pressionar.falha : ao === "recompor" ? T.recompor.contra : 1) : 1);
+        if (rng.chance(p)) {
+          // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
+          const lateral = zona[0] === "M" && zona[1] !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === zona[1] && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
+          const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
+          estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
       };
       e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false;
       if (cobranca && cobranca.time === i && !contra) { portador = cobranca.jog; aposFalta = true; } // recomeço depois de falta: quem sofreu cobra
@@ -1162,7 +1369,7 @@ const __motor = (() => {
         if (inicio === "D") lado = escolherLado(rng, atk, dz, "M", lado);
         const d1 = duelo(i, "M" + lado, bonus + (d0 ? embalo(d0) : 0), contra);
         if (!d1.venceu && d1.recomeca) return recomecar("M" + lado, d1);
-        if (!d1.venceu) { roubada = embaloDaDefesa(d1); roubadaFacil = -d1.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "M" + lado, d1)) perdeu(); return; }
+        if (!d1.venceu) { roubada = embaloDaDefesa(d1); roubadaFacil = -d1.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "M" + lado, d1)) perdeu("M" + lado); return; }
         levado = embalo(d1);
         passo(i, "M" + lado, d1);
         lado = escolherLado(rng, atk, dz, "A", lado);
@@ -1177,7 +1384,7 @@ const __motor = (() => {
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
       const forcado = !d.venceu;
       if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
-      if (forcado && !rng.chance(CONFIG.chuteForcado * ((CONFIG.finalizar[atk.instr.finalizar] || {}).forcado || 1))) { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "A" + lado, d)) perdeu(); return; }
+      if (forcado && !rng.chance(CONFIG.chuteForcado * ((CONFIG.finalizar[atk.instr.finalizar] || {}).forcado || 1))) { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, "A" + lado, d)) perdeu("A" + lado); return; }
       const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra });
       // duelo do ataque vencido com folga: a finalização sai em melhor condição
       if (!forcado && chance && chance.xg) chance.xg = limitar(chance.xg * (1 + CONFIG.embalo.chance * embalo(d) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo);
@@ -1209,7 +1416,8 @@ const __motor = (() => {
     const minuto = () => {
       ordensESubstituicoes(0); ordensESubstituicoes(1); cera();
       for (const t of times) for (const jog of t.emCampo) {
-        const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
+        const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : gastoDoPapel(jog.pos, jog.papel)) * calor
+          * (CONFIG.regrasT1 && t.instr.aoPerder === "pressionar" ? 1 + CONFIG.transicao.pressionar.gasto : 1);
         jog.energia = Math.max(0, jog.energia - gasto);
       }
       const ritmo = CONFIG.ataquesPorMinuto * (1 + times.reduce((s, t) => s + t.instr.mentalidade * (t.instr.mentalidade < 0 ? CONFIG.ritmoPorRetranca : CONFIG.ritmoPorMentalidade), 0)) * (naCera[0] || naCera[1] ? CONFIG.cera.ritmo : 1);
@@ -1218,7 +1426,7 @@ const __motor = (() => {
         if (sujo || (k === 0 && min % CONFIG.recalcularACada === 1)) {
           const g = gols();
           recalcular(times[0], g[0] - g[1]); recalcular(times[1], g[1] - g[0]);
-          defesas = [montarDefesa(times[0], times[1]), montarDefesa(times[1], times[0])];
+          defesas = [defesaDoCorredor(times[0], times[1]), defesaDoCorredor(times[1], times[0])];
           const cc = Math.pow(times[0].controle, CONFIG.expoentePosse), cf = Math.pow(times[1].controle, CONFIG.expoentePosse);
           posseCasa = limitar(cc / (cc + cf), 0.25, 0.75);
           sujo = false;
@@ -1309,7 +1517,7 @@ const __motor = (() => {
     }));
     return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
   }
-  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, avaliarZonas, simularPartida };
+  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, desenhoDoTime, defesaNaTransicao, avaliarZonas, simularPartida };
 })();
 
 const __bot = (() => {
@@ -1321,6 +1529,7 @@ const __bot = (() => {
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
   const { FORMACOES, escalar, TAMANHO_DO_BANCO } = __escalacao;
   const { avaliarZonas, setorDaPosicao } = __motor;
+  const { papeisDaPosicao, notaNoPapel, PAPEL_PADRAO } = __papeis;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
   // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
   const ESTILO_DO_PERFIL = {
@@ -1332,6 +1541,23 @@ const __bot = (() => {
   };
   const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
   const A = IDX;
+
+  // Papéis do bot: em cada vaga com papéis, o que o jogador faz melhor, se render ao menos GANHO_DO_PAPEL a mais que o padrão (senão fica no padrão,
+  // gravado como null). Nunca dois Apoiadores nos laterais com menos de dois volantes: as duas costas ficam abertas; o de menor ganho volta ao padrão.
+  const GANHO_DO_PAPEL = 2;
+  function papeisDoBot(escalacao) {
+    const esc = escalacao.map(x => {
+      const lista = papeisDaPosicao(x.pos);
+      if (!lista.length) return { ...x, papel: null };
+      const padrao = notaNoPapel(x.j, x.pos, PAPEL_PADRAO[x.pos]);
+      const melhor = lista.reduce((m, p) => { const n = notaNoPapel(x.j, x.pos, p); return n > m.n ? { p, n } : m; }, { p: PAPEL_PADRAO[x.pos], n: padrao });
+      return { ...x, papel: melhor.p !== PAPEL_PADRAO[x.pos] && melhor.n >= padrao + GANHO_DO_PAPEL ? melhor.p : null, ganho: melhor.n - padrao };
+    });
+    const apoiadores = esc.filter(x => x.papel === "apoiador" && POSICOES_LATERAL.includes(x.pos)).sort((a, b) => a.ganho - b.ganho);
+    if (apoiadores.length >= 2 && esc.filter(x => x.pos === "DMC").length < 2) apoiadores[0].papel = null;
+    return esc.map(({ ganho, ...x }) => x);
+  }
+  const POSICOES_LATERAL = ["DR", "DL"];
 
   const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaDoMomento(x.j, x.pos), 0) / escalacao.length;
   const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
@@ -1405,9 +1631,9 @@ const __bot = (() => {
         { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1), cera: true } }, // a cera só vale enquanto estiver ganhando
       ],
     };
-    return { formacao, escalacao, banco, instrucoes, forca };
+    return { formacao, escalacao: papeisDoBot(escalacao), banco, instrucoes, forca };
   }
-  return { FORMACOES_BOT, ESTILO_DO_PERFIL, taticaBot };
+  return { FORMACOES_BOT, ESTILO_DO_PERFIL, papeisDoBot, taticaBot };
 })();
 
 const __relatorio = (() => {
@@ -1526,6 +1752,7 @@ const __rodada = (() => {
   const { taticaBot } = __bot;
   const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
   const { montarRelatorio } = __relatorio;
+  const { papelValido, PAPEIS_DESDE, PAPEL_PADRAO } = __papeis;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
@@ -1593,7 +1820,7 @@ const __rodada = (() => {
       const instrucoes = {
         mentalidade: num(I.mentalidade, -2, 2), agressividade: num(I.agressividade, -2, 2), pressao: num(I.pressao, 0, 2),
         passe: um(I.passe, ["misto", "curto", "longo"], "misto"), lado: um(I.lado, ["misto", "E", "C", "D", "lados"], "misto"), finalizar: um(I.finalizar, ["misto", "longe", "area"], "misto"), cruzamento: um(I.cruzamento, ["misto", "alto", "rasteiro"], "misto"),
-        contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true,
+        contraAtaque: I.contraAtaque === true, impedimento: I.impedimento === true, cera: I.cera === true, aoPerder: um(I.aoPerder, ["misto", "pressionar", "recompor"], "misto"),
         capitao: titular(I.capitao), vice: titular(I.vice), armador: titular(I.armador), alvo: titular(I.alvo),
         cobradores: { escanteio: lista(I.cobradores && I.cobradores.escanteio, 3), falta: lista(I.cobradores && I.cobradores.falta, 3), penalti: lista(I.cobradores && I.cobradores.penalti, 5) },
         substituicoes: (dados.subs || []).filter(s => emCampo.has(s.sai) && noBanco.has(s.entra)).slice(0, CONFIG.maxSubstituicoes)
@@ -1604,7 +1831,8 @@ const __rodada = (() => {
           return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
-      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };
+      const papeis = Array.isArray(dados.papeis) ? dados.papeis : []; // papel de cada vaga (src/papeis.js); o que não vale na posição cai
+      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos, papel: papelValido(pos, papeis[i]) ? papeis[i] : null })), banco: banco.map(id => porId[id]), instrucoes };
     } catch (e) { return null; }
   }
 
@@ -1723,14 +1951,16 @@ const __rodada = (() => {
       const disponiveis = elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
-    const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
+    // antes de PAPEIS_DESDE (ou sem temporada) ninguém joga com papel, nem o dirigente, nem o bot
+    const semPapel = t => temporada >= PAPEIS_DESDE ? t : { ...t, escalacao: t.escalacao.map(({ papel, ...e }) => e) };
+    const taticas = lados.map((l, i) => semPapel(l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva })));
     const sem = lados.map(l => partida.fase !== "base" && semTecnico(l.clube, temporada));
     const times = lados.map((l, i) => {
       let t = taticas[i];
       if (sem[i] && !sem[1 - i]) t = { ...t, escalacao: t.escalacao.map(e => ({ ...e, j: rendeMenos(e.j) })), banco: (t.banco || []).map(rendeMenos) };
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
     });
-    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
+    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE });
     // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
     const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
     const acr = p.acrescimos || [0, 0];
@@ -1739,7 +1969,7 @@ const __rodada = (() => {
     const extra = criarRng((semente >>> 0) + 7919);
     lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
       n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
-      escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
+      escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}), ...(e.papel ? { papel: e.papel } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
     } });
     // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
     // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
@@ -1792,6 +2022,9 @@ const __rodada = (() => {
       })(),
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+      // papel em que cada titular jogou, só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164). O padrão grava "padrao" e não
+      // o nome, para mudar de formação sem escolher papel (DR, Fixo, para WBR, Apoiador) não contar como troca
+      papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel && e.papel !== PAPEL_PADRAO[e.pos] ? e.papel : "padrao" }))) : [],
       posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
     };
   }
@@ -2578,6 +2811,7 @@ const __mercadobots = (() => {
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } = __rodada;
 const { treinar, chegouAoTeto, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
 const { saudeDoClube } = __saude;
+const { CONFIG } = __motor;
 const { timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
@@ -2885,7 +3119,7 @@ Deno.serve(async (req) => {
     const elencos = {}, rodadasDoGrupo = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, papelJogado: l.papel_jogado || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -2905,7 +3139,7 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens, papeis } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647), temporada: ligas[p.liga_id].temporada,
         });
@@ -2930,6 +3164,12 @@ Deno.serve(async (req) => {
         // recém-chegados: um jogo a menos para entrosar (sem efeito antes do 86_entrosamento.sql)
         await sb.rpc("entrosar_partida", { p_partida: p.id });
         for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (j.entrosar > 0) j.entrosar--;
+        // trocar de papel custa entrosamento (sem efeito antes do 164_papel_jogado.sql; antes da temporada 1, papeis vem vazio)
+        if (papeis && papeis.length) {
+          const r = await sb.rpc("marcar_papeis", { p_partida: p.id, p_papeis: papeis.map(x => ({ id: +String(x.id).slice(1), papel: x.papel })), p_jogos: CONFIG.papeis.entrosarTroca });
+          if (!r.error) { const antes = Object.fromEntries(papeis.map(x => [x.id, x.papel]));
+            for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (antes[j.id]) { if (j.papelJogado && j.papelJogado !== antes[j.id]) j.entrosar = Math.max(j.entrosar || 0, CONFIG.papeis.entrosarTroca); j.papelJogado = antes[j.id]; } }
+        }
         // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
         if (momento.length) {
           efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral, exp: m.exp }));

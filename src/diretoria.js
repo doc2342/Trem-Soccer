@@ -3,6 +3,7 @@
 import { taticaBot } from "./bot.js";
 import { prepararTime, simularPartida } from "./motor.js";
 import { notaBruta } from "./modelo.js";
+import { PAPEIS_DESDE } from "./papeis.js";
 
 export const CONFIG_DIRETORIA = {
   inicio: 50, limite: 20,                          // confiança 0–100; muda no máximo 20 por virada
@@ -30,20 +31,22 @@ export const metaPelaForca = (posForca, clubes) => [Math.max(1, posForca - 1), M
 
 // Simula a temporada de liga n vezes (turno e returno, todos com tática de bot) e devolve a faixa central (25%–75%) de posições de cada clube.
 // grupos: { g: [clube] }; elencos: { clubeId: [jogador] }. Lento de propósito (~4 ms por jogo): roda na tela do administrador, cedendo a vez ao navegador.
-export async function simularMetas({ grupos, elencos, rng, n = CONFIG_DIRETORIA.simulacoes, aoProgresso = () => {} }) {
+// temporada: a das metas; antes de PAPEIS_DESDE o jogo é o da liga de hoje (sem papéis e sem as regras da T1), como em calcularPartida
+export async function simularMetas({ grupos, elencos, rng, temporada = 0, n = CONFIG_DIRETORIA.simulacoes, aoProgresso = () => {} }) {
+  const t1 = temporada >= PAPEIS_DESDE;
   const metas = [], total = Object.values(grupos).reduce((s, l) => s + l.length * (l.length - 1), 0) * n;
   let feitos = 0;
   for (const [g, clubes] of Object.entries(grupos)) {
     const forca = Object.fromEntries(clubes.map(c => [c.id, taticaBot(elencos[c.id] || []).forca]));
     const times = {}; // um time pronto por (clube, adversário, mando): a tática do bot depende do adversário
-    const time = (c, adv, casa) => times[`${c.id}:${adv.id}:${casa}`] ||= (t => prepararTime({ nome: c.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: casa }))(
+    const time = (c, adv, casa) => times[`${c.id}:${adv.id}:${casa}`] ||= (t => prepararTime({ nome: c.nome, escalacao: t1 ? t.escalacao : t.escalacao.map(({ papel, ...e }) => e), banco: t.banco, instrucoes: t.instrucoes, mandante: casa }))(
       taticaBot(elencos[c.id] || [], { mandante: casa, forcaAdversario: forca[adv.id], perfil: c.perfil }));
     const posicoes = Object.fromEntries(clubes.map(c => [c.id, []]));
     for (let s = 0; s < n; s++) {
       const pts = Object.fromEntries(clubes.map(c => [c.id, { p: 0, sg: 0, gp: 0 }]));
       for (const a of clubes) for (const b of clubes) {
         if (a === b) continue;
-        const [x, y] = simularPartida(rng, time(a, b, true), time(b, a, false)).placar;
+        const [x, y] = simularPartida(rng, time(a, b, true), time(b, a, false), { regrasT1: t1 }).placar;
         pts[a.id].gp += x; pts[b.id].gp += y; pts[a.id].sg += x - y; pts[b.id].sg += y - x;
         if (x > y) pts[a.id].p += 3; else if (x < y) pts[b.id].p += 3; else { pts[a.id].p++; pts[b.id].p++; }
       }
