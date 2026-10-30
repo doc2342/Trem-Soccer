@@ -12,6 +12,13 @@ export const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende
 // A lesão sai do motor em dias; na liga ela vira jogos fora.
 export const jogosFora = dias => dias <= 3 ? 1 : dias <= 10 ? 2 : dias <= 20 ? 3 : 4;
 export const DIAS_PARA_BOT = 21; // dirigente sem acessar por tantos dias: o clube joga com a tática de bot
+// Time sem técnico na temporada 0: bot, ou dono que não entrou desde a virada. Contra o time de um dono ativo, os jogadores dele rendem `fator`
+// (perder para quem nem joga é chato, 30/10/2026); bot contra bot fica igual, e a liga de base não muda.
+// ponytail: data da virada fixa, só vale para a T0; para repetir em toda virada, gravar a hora da virada na liga
+export const SEM_TECNICO = { temporada: 0, desde: "2026-10-27T00:00:00Z", fator: 0.9 };
+export const semTecnico = (clube, temporada) => temporada === SEM_TECNICO.temporada && !clube.extra
+  && (!clube.dono || !clube.ultimo_acesso || new Date(clube.ultimo_acesso) < new Date(SEM_TECNICO.desde));
+const rendeMenos = j => ({ ...j, at: j.at.map(a => a * SEM_TECNICO.fator) });
 
 // Turno e returno pelo método do círculo. ids: clubes do grupo. Devolve [{ rodada, casa, fora }].
 // Os mandos alternam: o clube fixo troca a cada rodada e os demais pares alternam pela posição no círculo.
@@ -198,8 +205,10 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
   });
   const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
+  const sem = lados.map(l => partida.fase !== "base" && semTecnico(l.clube, temporada));
   const times = lados.map((l, i) => {
-    const t = taticas[i];
+    let t = taticas[i];
+    if (sem[i] && !sem[1 - i]) t = { ...t, escalacao: t.escalacao.map(e => ({ ...e, j: rendeMenos(e.j) })), banco: (t.banco || []).map(rendeMenos) };
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
   const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida) });
