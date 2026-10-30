@@ -6,6 +6,11 @@ import { taticaDoDirigente } from "./rodada.js";
 import { taticaBot, ESTILO_DO_PERFIL } from "./bot.js";
 import { gerarElenco } from "./gerador.js";
 import { montarRelatorio } from "./relatorio.js";
+import { PAPEIS_DESDE } from "./papeis.js";
+
+// a escolha do papel aparece na tática de amistoso sempre; na da liga, só a partir de PAPEIS_DESDE (sem temporada conhecida, aparece).
+// Fica aqui e não em papeis.js para não mudar a função rodada, que embute papeis.js.
+export const papeisVisiveis = ({ amistoso, temporada }) => !!amistoso || temporada == null || temporada >= PAPEIS_DESDE;
 
 export const ESTILOS_DE_BOT = Object.keys(ESTILO_DO_PERFIL);
 
