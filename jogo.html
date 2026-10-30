@@ -226,6 +226,8 @@
   <div class="card" id="login"></div>
   <div id="app" style="display:contents"></div><!-- sem caixa própria: as abas (sticky) ficam presas também na Tática, que está fora de #app -->
   <!-- aba Tática: fica fora de #app para não ser desmontada quando a tela do clube é redesenhada -->
+  <!-- Tática e Amistoso: duas partes da mesma estação (o amistoso é onde se testa a tática) -->
+  <div id="subTatica" class="subabas" hidden style="margin:12px 0"><button class="sub" data-tatica="tatica"><span class="sl">Campeonato</span><span class="sc">Campeonato</span></button><button class="sub" data-tatica="amistoso"><span class="sl">Amistoso</span><span class="sc">Amistoso</span></button></div>
   <div id="taticaFora" hidden></div>
   <!-- aba Amistoso: também fora de #app (a tática de amistoso não é desmontada quando a tela do clube é redesenhada) -->
   <div id="amistosoFora" hidden></div>
@@ -3346,7 +3348,7 @@ async function telaClube(liga, clube) {
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
-    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["amistoso", "Amistoso", "🤝"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
+    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`}
     ${visualNovo ? centralNova() : `    <section data-secao="inicio">
     ${kpisDaCentral()}
@@ -4254,7 +4256,10 @@ ${historicoDaBase()}`}
     const trocou = abaAtual !== k; abaAtual = k; if (k !== "clubeVisto") verClube = null;
     document.querySelectorAll("[data-secao]").forEach(x => { x.hidden = x.dataset.secao !== k; });
     if (trocou) scrollTo(0, 0); // aba nova abre do topo, não na altura em que a anterior estava
-    document.querySelectorAll("#abas [data-aba]").forEach(b => { b.classList.toggle("ativa", b.dataset.aba === k); if (b.classList.contains("t-estacao")) { if (b.dataset.aba === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); } });
+    const estacao = k === "amistoso" ? "tatica" : k; // o amistoso fica dentro da Tática
+    $("subTatica").hidden = !["tatica", "amistoso"].includes(k);
+    $("subTatica").querySelectorAll("[data-tatica]").forEach(b => b.classList.toggle("ativa", b.dataset.tatica === k));
+    document.querySelectorAll("#abas [data-aba]").forEach(b => { b.classList.toggle("ativa", b.dataset.aba === estacao); if (b.classList.contains("t-estacao")) { if (b.dataset.aba === estacao) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); } });
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
     mostrarAmistoso(k === "amistoso"); // o amistoso também
@@ -4278,6 +4283,7 @@ ${historicoDaBase()}`}
   if ($("recClube")) $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga.filter(h => n.rodada <= RODADAS_DA_SAFRA || !h.includes("revelou"))] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
+  $("subTatica").onclick = e => { const b = e.target.closest("[data-tatica]"); if (b) abrir(b.dataset.tatica); };
   // sub-abas presas no celular: ao trocar de parte com a página rolada, a parte nova abre no topo; --sub-h é a altura delas (barra do Ajustes fica logo abaixo)
   const voltarAoTopo = b => { const s = b.closest("[data-secao]"); if (s && s.getBoundingClientRect().top < 0) s.scrollIntoView({ block: "start" }); };
   { const sa = document.querySelector('[data-grupo="ajuste"]'); if (sa) new ResizeObserver(() => document.documentElement.style.setProperty("--sub-h", getComputedStyle(sa).position === "sticky" ? sa.offsetHeight + "px" : "0px")).observe(sa); }

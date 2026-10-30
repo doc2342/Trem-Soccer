@@ -33,11 +33,11 @@ assert.equal(leituras([]), "");
 assert.equal((leituras([{ tipo: "ok", titulo: "a", frase: "b" }, { tipo: "falhou", titulo: "c", frase: "d" }]).match(/class="t-leitura"/g) || []).length, 2);
 // linha de estações
 const nav = linhaDeEstacoes(ESTACOES, "tatica");
-assert.equal((nav.match(/class="t-estacao/g) || []).length, 8);
+assert.equal((nav.match(/class="t-estacao/g) || []).length, 7);
 assert.match(nav, /class="t-estacao ativa"[^>]*data-aba="tatica"/);
 assert.match(nav, /^<nav class="t-linha" id="abas"/);
 assert.match(nav, /<span class="t-curto">Merc\.<\/span>/);
-assert.deepEqual(ESTACOES.map(e => e.aba), ["inicio", "clube", "elenco", "tatica", "amistoso", "base", "mercado", "classificacao"]); // o Clube logo depois da Central
+assert.deepEqual(ESTACOES.map(e => e.aba), ["inicio", "clube", "elenco", "tatica", "base", "mercado", "classificacao"]); // o Clube logo depois da Central
 assert.equal(ESTACOES.at(-1).nome, "Competições");
 assert.equal(ESTACOES.at(-1).curto, "Compet.");
 // gráfico de posições
