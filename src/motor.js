@@ -6,6 +6,7 @@
 import { limitar } from "./rng.js";
 import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
+import { mapasDoPapel, gastoDoPapel, papelValido, espelharLado } from "./papeis.js";
 
 export const CONFIG = {
   ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
@@ -194,7 +195,6 @@ const COBERTURA_BASE = {
   FC: { AC: 0.7, AE: 0.1, AD: 0.1, MC: 0.1 },
   SC: { AC: 0.9, MC: 0.1 },
 };
-const espelharLado = cob => Object.fromEntries(Object.entries(cob).map(([z, w]) => [z[0] + ESPELHO_LADO[z[1]], w]));
 export const COBERTURA = {
   GK: {},
   ...COBERTURA_BASE,
@@ -221,7 +221,7 @@ function habilidadeDefesa(at, zona) {
   return centro ? (at[A.mar] * 1.5 + at[A.pos] * 1.5 + at[A.des]) / 4 : (at[A.des] * 1.5 + at[A.vel] + at[A.mar] + at[A.pos] * 0.5) / 4;
 }
 
-// escalacao: [{ j: jogador, pos }] com 11 nomes; banco: até TAMANHO_DO_BANCO (escalacao.js) jogadores; instrucoes: ver INSTRUCOES_PADRAO.
+// escalacao: [{ j: jogador, pos, papel? }] com 11 nomes (papel: src/papeis.js; sem ele, ou inválido, o jeito de hoje da posição); banco: até TAMANHO_DO_BANCO (escalacao.js) jogadores; instrucoes: ver INSTRUCOES_PADRAO.
 // O objeto devolvido não muda durante a partida e pode ser reutilizado em várias simulações.
 // prevencao: fração a menos na chance de lesão dos jogadores deste time (preparador de prevenção), de 0 a 1
 export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, mandante = false, prevencao = 0 }) {
@@ -232,7 +232,7 @@ export function prepararTime({ nome, escalacao, banco = [], instrucoes = {}, man
 }
 
 // dia: o multiplicador do jogador nesta partida (varia menos em quem tem mais experiência); sem sorteio, 1
-const novoJog = (j, pos, rng = null, grande = false) => ({ j, pos, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
+const novoJog = (j, pos, rng = null, grande = false, papel = null) => ({ j, pos, papel: papelValido(pos, papel) ? papel : null, fam: FAMILIARIDADE[familiaridade(j, pos)], energia: 100, amarelos: 0, at: j.at, dia: diaDoJogador(rng, j, grande) });
 
 // Entrosamento de cada setor (D defesa com o goleiro, M meio, A ataque), de 1 - perda a 1. lista: [{ j, pos }]
 const SETOR = { gol: "D", defesa: "D", ala: "D", volante: "M", meio: "M", meia: "M", ataque: "A" };
@@ -248,11 +248,11 @@ function iniciar(time, rng = null, grande = false) {
   return {
     nome: time.nome, mandante: time.mandante, prevencao: time.prevencao || 0,
     instr: { ...time.instrucoes },
-    emCampo: time.escalacao.map(({ j, pos }) => novoJog(j, pos, rng, grande)),
+    emCampo: time.escalacao.map(({ j, pos, papel }) => novoJog(j, pos, rng, grande, papel)),
     banco: time.banco.slice(), subs: 0, subsFeitas: new Set(), ordensFeitas: new Set(),
     cumpridas: {}, // "s0", "o1"…: { aos } (minuto) quando a troca/ordem aconteceu, { motivo } quando foi descartada
     nomes: Object.fromEntries([...time.escalacao.map(x => x.j), ...time.banco].map(j => [j.id, j.nome])),
-    goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, controle: 0, comDefesa: 25,
+    goleiro: null, temLibero: false, atk: {}, def: {}, zonas: {}, zonasDef: {}, controle: 0, comDefesa: 25,
   };
 }
 
@@ -276,7 +276,7 @@ function recalcular(t, saldo) {
   const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
   const ent = entrosamento(t.emCampo);
   t.goleiro = null; t.temLibero = false;
-  for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; }
+  for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
   for (const jog of t.emCampo) {
     const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
     jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
@@ -285,14 +285,19 @@ function recalcular(t, saldo) {
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;
     const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
-    for (const [z, w] of Object.entries(COBERTURA[jog.pos])) {
+    // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
+    const m = mapasDoPapel(jog.pos, jog.papel), com = m ? m.com : COBERTURA[jog.pos], sem = m ? m.sem : COBERTURA[jog.pos];
+    for (const [z, w] of Object.entries(com)) {
       t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];
-      t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
       t.zonas[z].push({ jog, w, p: w * p });
+    }
+    for (const [z, w] of Object.entries(sem)) {
+      t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
+      t.zonasDef[z].push({ jog, w });
     }
   }
   if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
-  const linha = t.zonas.DC, peso = linha.reduce((s, o) => s + o.w, 0);
+  const linha = t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
   t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
   t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
     * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
@@ -374,7 +379,7 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   const tipo = !forcado ? sortearPeso(rng, opcoes, o => o[1])[0] : lado !== "C" && fin && fin.cruzaForcado && rng.chance(fin.cruzaForcado) ? "cruzamento" : "longe";
   // chute forçado: quem chuta mal rola para quem chuta melhor (ele mesmo ou um atacante da área)
   if (forcado && D && tipo === "longe") { const quem = sortearPeso(rng, [{ jog: pivo }, ...area.filter(o => o.jog !== pivo)], o => Math.pow(pe(o.jog.at[A.lon]), 2)); if (quem) pivo = quem.jog; }
-  const zagueiro = (sortearPeso(rng, def.zonas.DC, o => o.w) || {}).jog;
+  const zagueiro = (sortearPeso(rng, def.zonasDef.DC, o => o.w) || {}).jog;
   const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
   const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
   const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro, contra };
@@ -588,8 +593,9 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia);
     sujo = true;
   }
-  function entrar(i, j, pos) {
-    const t = times[i], jog = novoJog(j, pos, rng, grande);
+  // papel: o de quem saiu (novoJog o descarta se não valer na posição de quem entra)
+  function entrar(i, j, pos, papel = null) {
+    const t = times[i], jog = novoJog(j, pos, rng, grande, papel);
     t.banco = t.banco.filter(x => x !== j); t.emCampo.push(jog); t.subs++; estat[i].substituicoes++;
     ficha(jog, i).entrou = min; sujo = true;
     return jog;
@@ -621,7 +627,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
       const sai = t.emCampo.find(x => x.j.id === s.sai), entra = t.banco.find(x => x.id === s.entra);
       if (!sai || !entra) { if (!sai && min >= (s.min || 0)) { t.subsFeitas.add(k); t.cumpridas["s" + k] = { motivo: "ele já não estava em campo" }; } return; }
       if (!condicao(i, s.cond, sai)) return;
-      t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos);
+      t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos, sai.papel);
       evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
     });
   }
@@ -632,7 +638,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     const candidatos = t.banco.filter(j => (j.pos === "GK") === (jog.pos === "GK"));
     if (!candidatos.length) return;
     const entra = candidatos.reduce((m, j) => notaNaPosicao(j, jog.pos) > notaNaPosicao(m, jog.pos) ? j : m);
-    entrar(i, entra, jog.pos);
+    entrar(i, entra, jog.pos, jog.papel);
     evento(i, "substituicao", `Entra {${i}:${entra.nome}} no lugar de ${nm(jog)}.`);
   }
   function falta(i, marcador, vitima) { // i: time que cometeu
@@ -661,7 +667,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
     // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
     // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
     // A compensação tira de todo duelo o ganho médio, para a regra não aumentar os gols da liga. Sem pé definido, nada acontece.
-    const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonas[espelho(zona)], x => x.w) || {}).jog;
+    const pivo = (sortearPeso(rng, atk.zonas[zona], x => x.p) || {}).jog, marcador = (sortearPeso(rng, def.zonasDef[espelho(zona)], x => x.w) || {}).jog;
     const pa = pivo && pivo.j.pe, pd = marcador && marcador.j.pe;
     const PF = CONFIG.peFraco, pf = pivo && pivo.j.pf;
     const pes = !pa || !pd ? 0 : (pa === "A" ? (pd === "A" ? 0 : CONFIG.pe.ambidestro * (pf == null ? 1 : (pf - 12) / PF.ambidestro)) : pa === pd ? CONFIG.pe.mesmo : 0) - CONFIG.pe.compensacao;
@@ -837,7 +843,7 @@ export function simularPartida(rng, casa, fora, opcoes = {}) {
   const minuto = () => {
     ordensESubstituicoes(0); ordensESubstituicoes(1); cera();
     for (const t of times) for (const jog of t.emCampo) {
-      const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : 1) * calor;
+      const gasto = CONFIG.gastoEnergia * (1 - (jog.j.at[A.res] - 25) / 100) * (1 + CONFIG.pressaoGasto * t.instr.pressao) * (1 + 0.04 * Math.abs(t.instr.mentalidade)) * (jog.pos === "GK" ? CONFIG.gastoGoleiro : gastoDoPapel(jog.pos, jog.papel)) * calor;
       jog.energia = Math.max(0, jog.energia - gasto);
     }
     const ritmo = CONFIG.ataquesPorMinuto * (1 + times.reduce((s, t) => s + t.instr.mentalidade * (t.instr.mentalidade < 0 ? CONFIG.ritmoPorRetranca : CONFIG.ritmoPorMentalidade), 0)) * (naCera[0] || naCera[1] ? CONFIG.cera.ritmo : 1);
