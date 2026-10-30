@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partida em 2D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  /* Protótipo (30/10): replay em 2D sem gravar posição nenhuma. O motor joga por zonas; aqui cada jogador vai para o mapa do papel dele
+     (com a bola quando o time ataca, sem a bola quando defende), quem leva a bola segue a rota gravada no lance, e o marcador vencido vai junto. */
+  :root { --fundo: #f4f2ec; --tinta: #16191d; --mudo: #6b6f76; --campo: #2f6b3f; --campo2: #2a6038; --linha: rgba(255,255,255,.55); --casa: #1f4fa8; --fora: #d8312b; --bola: #fff; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fundo: #121417; --tinta: #e9e7e1; --mudo: #9aa0a8; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--tinta); font: 15px/1.45 Barlow, system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font: 700 26px/1.1 "Barlow Condensed", sans-serif; letter-spacing: .02em; text-transform: uppercase; margin: 0 0 4px; }
+  .mut { color: var(--mudo); font-size: 13px; }
+  .controles { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; margin: 14px 0; }
+  label { display: grid; gap: 3px; font-size: 12px; color: var(--mudo); text-transform: uppercase; letter-spacing: .06em; }
+  select, button { font: 600 14px Barlow, sans-serif; padding: 7px 10px; border: 1px solid #c9c5bb; background: #fff; color: #16191d; border-radius: 0; }
+  button { background: var(--tinta); color: var(--fundo); border-color: var(--tinta); cursor: pointer; }
+  .placar { display: flex; align-items: center; gap: 14px; font: 700 22px "Barlow Condensed", sans-serif; margin: 6px 0 8px; }
+  .placar .c { color: var(--casa); } .placar .f { color: var(--fora); } .placar .min { font-size: 15px; color: var(--mudo); font-weight: 600; }
+  svg { width: 100%; height: auto; display: block; background: var(--campo); }
+  .texto { min-height: 3.2em; margin-top: 10px; font-size: 15px; }
+  .lista { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .lista button { background: transparent; color: var(--tinta); border: 1px solid #c9c5bb; font-weight: 500; padding: 4px 8px; font-size: 13px; }
+  .lista button.gol { border-color: var(--tinta); font-weight: 700; }
+  .lista button.atual { background: var(--tinta); color: var(--fundo); }
+  .jog { transition: transform .8s cubic-bezier(.4,.1,.2,1); }
+  .bola { transition: transform .8s cubic-bezier(.4,.1,.2,1); }
+  @media (prefers-reduced-motion: reduce) { .jog, .bola { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Partida em 2D</h1>
+  <div class="mut">Protótipo: nada de posição é gravado. Os 22 vão para o mapa com ou sem a bola do papel de cada um; quem leva a bola segue a rota que o motor já grava em cada chance.</div>
+  <div class="controles">
+    <label>Casa<select id="fCasa"></select></label>
+    <label>Laterais da casa<select id="pCasa"><option value="">Padrão</option><option value="apoiador">Apoiador</option><option value="construtor">Construtor</option><option value="invertido">Invertido</option></select></label>
+    <label>Fora<select id="fFora"></select></label>
+    <label>Semente<select id="semente"></select></label>
+    <button id="jogar">Jogar</button>
+    <button id="pausa" type="button">Pausar</button>
+  </div>
+  <div class="placar"><span class="c" id="nCasa">Casa</span><span id="gols">0 × 0</span><span class="f" id="nFora">Fora</span><span class="min" id="min"></span></div>
+  <svg id="campo" viewBox="-3 -3 111 74" role="img" aria-label="Campo com os jogadores"></svg>
+  <div class="texto" id="texto"></div>
+  <div class="lista" id="lista"></div>
+</main>
+<script type="module">
+import { criarRng } from "../src/rng.js";
+import { gerarOnze } from "../src/gerador.js";
+import { FORMACOES } from "../src/escalacao.js";
+import { prepararTime, simularPartida, COBERTURA } from "../src/motor.js";
+import { mapasDoPapel } from "../src/papeis.js";
+
+const $ = id => document.getElementById(id);
+const nomes = await fetch("../dados/nomes.json").then(r => r.json());
+for (const s of ["fCasa", "fFora"]) $(s).innerHTML = Object.keys(FORMACOES).map(f => `<option>${f}</option>`).join("");
+$("fFora").value = "4-4-2";
+$("semente").innerHTML = Array.from({ length: 20 }, (_, k) => `<option>${k + 1}</option>`).join("");
+
+// campo 105 × 68; o time 0 ataca para a direita. Zona vista por quem a ocupa: linha D/M/A (terço) × lado E/C/D (para quem ataca para a direita, E é em cima)
+const CX = { D: 17.5, M: 52.5, A: 87.5 }, CY = { E: 11, C: 34, D: 57 };
+const centro = (z, time) => { const x = CX[z[0]], y = CY[z[1]]; return time === 0 ? [x, y] : [105 - x, 68 - y]; };
+const mapa = (x, fase) => { const m = mapasDoPapel(x.pos, x.papel); return m ? m[fase] : COBERTURA[x.pos]; };
+// lugar do jogador: a média das zonas do mapa da fase, puxada um pouco para a bola (o bloco acompanha o lance), e um desvio fixo por jogador
+function lugar(x, fase, bola) {
+  if (x.pos === "GK") return x.time === 0 ? [4 + (bola ? (bola[0] - 4) * 0.06 : 0), 34] : [101 - (bola ? (101 - bola[0]) * 0.06 : 0), 34];
+  let sx = 0, sy = 0, sw = 0;
+  for (const [z, w] of Object.entries(mapa(x, fase))) { const [cx, cy] = centro(z, x.time); sx += cx * w; sy += cy * w; sw += w; }
+  let px = sx / sw + x.dx, py = sy / sw + x.dy;
+  if (bola) { px += (bola[0] - px) * (fase === "sem" ? 0.25 : 0.15); py += (bola[1] - py) * 0.18; }
+  return [Math.max(1, Math.min(104, px)), Math.max(1, Math.min(67, py))];
+}
+
+let jogadores = [], lances = [], tocando = null, pausado = false;
+function montar() {
+  const s = +$("semente").value, papel = $("pCasa").value;
+  const casa = gerarOnze(criarRng(100 + s), FORMACOES[$("fCasa").value], { nivel: 30, nomes, prefixoId: "c" }).map(x => papel && ["DR", "DL", "WBR", "WBL"].includes(x.pos) ? { ...x, papel } : x);
+  const fora = gerarOnze(criarRng(900 + s), FORMACOES[$("fFora").value], { nivel: 30, nomes, prefixoId: "f" });
+  const p = simularPartida(criarRng(s), prepararTime({ nome: "Casa", escalacao: casa }), prepararTime({ nome: "Fora", escalacao: fora }));
+  // desvio fixo por vaga, para dois jogadores do mesmo mapa (dois zagueiros) não ficarem um em cima do outro
+  const desvio = (lista, time) => lista.map((x, k) => { const iguais = lista.filter(o => o.pos === x.pos), n = iguais.indexOf(x);
+    return { id: x.j.id, nome: x.j.nome.split(" ").slice(-1)[0], pos: x.pos, papel: x.papel || null, time, num: k + 1, dx: 0, dy: iguais.length > 1 ? (n - (iguais.length - 1) / 2) * 9 * (time === 0 ? 1 : -1) : 0 }; });
+  jogadores = [...desvio(casa, 0), ...desvio(fora, 1)];
+  lances = p.lances.filter(l => l.texto);
+  desenhar();
+  $("lista").innerHTML = lances.map((l, k) => `<button data-k="${k}" class="${l.resultado === "gol" ? "gol" : ""}">${l.min}' ${l.time === 0 ? "Casa" : "Fora"}${l.resultado === "gol" ? " · gol" : ""}</button>`).join("");
+  $("lista").onclick = e => { const b = e.target.closest("[data-k]"); if (b) tocarDesde(+b.dataset.k); };
+  tocarDesde(0);
+}
+
+function desenhar() {
+  const L = 'stroke="var(--linha)" stroke-width=".35" fill="none"';
+  const faixas = Array.from({ length: 10 }, (_, k) => k % 2 ? "" : `<rect x="${k * 10.5}" y="0" width="10.5" height="68" fill="var(--campo2)"/>`).join("");
+  $("campo").innerHTML = `${faixas}<rect x="0" y="0" width="105" height="68" ${L}/><line x1="52.5" y1="0" x2="52.5" y2="68" ${L}/><circle cx="52.5" cy="34" r="9.15" ${L}/>
+    <rect x="0" y="13.84" width="16.5" height="40.32" ${L}/><rect x="88.5" y="13.84" width="16.5" height="40.32" ${L}/><rect x="0" y="24.84" width="5.5" height="18.32" ${L}/><rect x="99.5" y="24.84" width="5.5" height="18.32" ${L}/>
+    <rect x="-1.5" y="30.34" width="1.5" height="7.32" fill="none" stroke="#fff" stroke-width=".4"/><rect x="105" y="30.34" width="1.5" height="7.32" fill="none" stroke="#fff" stroke-width=".4"/>
+    <line x1="35" y1="0" x2="35" y2="68" stroke="rgba(255,255,255,.12)" stroke-width=".3" stroke-dasharray="1 1.5"/><line x1="70" y1="0" x2="70" y2="68" stroke="rgba(255,255,255,.12)" stroke-width=".3" stroke-dasharray="1 1.5"/>
+    ${jogadores.map(x => `<g class="jog" id="j${x.id}"><circle r="1.9" fill="${x.time === 0 ? "var(--casa)" : "var(--fora)"}" stroke="#fff" stroke-width=".35"/><text y=".75" text-anchor="middle" font-size="2.1" font-weight="700" fill="#fff" font-family="Barlow Condensed">${x.num}</text><text y="4.4" text-anchor="middle" font-size="1.7" fill="#fff" opacity=".85" font-family="Barlow">${x.nome}${x.papel ? " · " + x.papel : ""}</text></g>`).join("")}
+    <g class="bola" id="bola"><circle r=".9" fill="var(--bola)" stroke="#111" stroke-width=".2"/></g>`;
+}
+const por = id => jogadores.find(x => x.id === id);
+const mover = (el, [x, y]) => { if (el) el.style.transform = `translate(${x}px, ${y}px)`; };
+// um quadro: o time com a bola no mapa com a bola, o outro sem; quem leva a bola e o marcador no ponto da bola
+function quadro(time, bola, carrega, marca) {
+  const alvo = new Map(jogadores.map(x => [x.id, x.id === carrega ? bola.slice() : x.id === marca ? [bola[0] + (time === 0 ? 2.5 : -2.5), bola[1] + 1.5] : lugar(x, x.time === time ? "com" : "sem", bola)]));
+  // separação: ninguém a menos de 6 m de um colega do mesmo time (quem leva a bola fica onde está)
+  for (let it = 0; it < 12; it++) for (const a of jogadores) for (const b of jogadores) {
+    if (a === b || a.time !== b.time || a.id === carrega) continue;
+    const pa = alvo.get(a.id), pb = alvo.get(b.id), dx = pa[0] - pb[0], dy = pa[1] - pb[1], d = Math.hypot(dx, dy) || 0.01;
+    if (d < 6) { const f = (6 - d) / 2 / d; pa[0] += dx * f; pa[1] += dy * f + (d < 0.05 ? (a.num - b.num) * 0.5 : 0); pa[1] = Math.max(1, Math.min(67, pa[1])); }
+  }
+  for (const x of jogadores) mover($("j" + x.id), alvo.get(x.id));
+  mover($("bola"), [bola[0] + (time === 0 ? 1.4 : -1.4), bola[1]]);
+}
+const espera = ms => new Promise(r => { const t0 = performance.now(); const passo = () => { if (tocando !== vez) return r(false); if (pausado) return requestAnimationFrame(passo); performance.now() - t0 >= ms ? r(true) : requestAnimationFrame(passo); }; passo(); });
+let vez = 0;
+async function tocarDesde(k) {
+  const minha = ++vez; tocando = minha;
+  for (let n = k; n < lances.length && tocando === minha; n++) {
+    const l = lances[n];
+    document.querySelectorAll(".lista button").forEach(b => b.classList.toggle("atual", +b.dataset.k === n));
+    const g = lances.slice(0, n).filter(x => x.resultado === "gol"); $("gols").textContent = `${g.filter(x => x.time === 0).length} × ${g.filter(x => x.time === 1).length}`;
+    $("min").textContent = l.min + "'"; $("texto").textContent = l.texto.replace(/\{\d:([^}]+)\}/g, "$1");
+    const passos = (l.rota || []).filter(r => r[1]);
+    if (!passos.length) passos.push([l.lado === "C" ? "AC" : "A" + (l.lado || "C"), l.criador]);
+    for (const [z, quem, marcador] of passos) { const c = centro(z, l.time); quadro(l.time, [c[0] + (l.time === 0 ? 4 : -4), c[1]], quem, marcador); if (!(await espera(900))) return; }
+    // a finalização: de quem chuta para o gol (ou para o goleiro, fora, trave)
+    const fin = por(l.finalizador), gx = l.time === 0 ? 105 : 0;
+    const ponto = [l.time === 0 ? 94 : 11, l.lado === "E" ? (l.time === 0 ? 28 : 40) : l.lado === "D" ? (l.time === 0 ? 40 : 28) : 34];
+    if (fin) quadro(l.time, ponto, fin.id, null);
+    if (!(await espera(800))) return;
+    const alvo = l.resultado === "gol" ? [gx + (l.time === 0 ? .8 : -.8), 33] : l.resultado === "fora" ? [gx + (l.time === 0 ? 1 : -1), 26] : l.resultado === "trave" ? [gx, 30.4] : [gx + (l.time === 0 ? -3 : 3), 34];
+    mover($("bola"), alvo);
+    if (!(await espera(l.resultado === "gol" ? 1800 : 1200))) return;
+  }
+}
+$("jogar").onclick = montar;
+$("pausa").onclick = () => { pausado = !pausado; $("pausa").textContent = pausado ? "Continuar" : "Pausar"; };
+montar();
+</script>
+</body>
+</html>
