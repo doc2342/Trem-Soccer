@@ -28,7 +28,8 @@
   .lista button.gol { border-color: var(--tinta); font-weight: 700; }
   .lista button.atual { background: var(--tinta); color: var(--fundo); }
   .jog { transition: transform .8s cubic-bezier(.4,.1,.2,1); }
-  .bola { transition: transform .8s cubic-bezier(.4,.1,.2,1); }
+  .bola { transition: transform .8s cubic-bezier(.4,.1,.2,1), opacity .25s; }
+  .bola.corte { transition: none; opacity: 0; }
   @media (prefers-reduced-motion: reduce) { .jog, .bola { transition: none; } }
 </style>
 </head>
@@ -127,8 +128,16 @@ async function tocarDesde(k) {
     const g = lances.slice(0, n).filter(x => x.resultado === "gol"); $("gols").textContent = `${g.filter(x => x.time === 0).length} × ${g.filter(x => x.time === 1).length}`;
     $("min").textContent = l.min + "'"; $("texto").textContent = l.texto.replace(/\{\d:([^}]+)\}/g, "$1");
     const passos = (l.rota || []).filter(r => r[1]);
+    // corte entre um lance e outro: o motor só grava as jogadas que viram chance, então a bola some e reaparece no começo da jogada seguinte
+    // (sem isso ela deslizava do goleiro que defendeu até o adversário, e parecia um passe errado dele)
+    const b = $("bola"); b.classList.add("corte"); $("min").textContent = "… " + l.min + "'";
+    if (!(await espera(350))) return;
     if (!passos.length) passos.push([l.lado === "C" ? "AC" : "A" + (l.lado || "C"), l.criador]);
-    for (const [z, quem, marcador] of passos) { const c = centro(z, l.time); quadro(l.time, [c[0] + (l.time === 0 ? 4 : -4), c[1]], quem, marcador); if (!(await espera(900))) return; }
+    for (const [k, [z, quem, marcador]] of passos.entries()) {
+      const c = centro(z, l.time); quadro(l.time, [c[0] + (l.time === 0 ? 4 : -4), c[1]], quem, marcador);
+      if (k === 0) { b.getBoundingClientRect(); b.classList.remove("corte"); $("min").textContent = l.min + "'"; }
+      if (!(await espera(900))) return;
+    }
     // a finalização: de quem chuta para o gol (ou para o goleiro, fora, trave)
     const fin = por(l.finalizador), gx = l.time === 0 ? 105 : 0;
     const ponto = [l.time === 0 ? 94 : 11, l.lado === "E" ? (l.time === 0 ? 28 : 40) : l.lado === "D" ? (l.time === 0 ? 40 : 28) : 34];
