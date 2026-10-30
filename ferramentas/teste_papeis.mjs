@@ -49,13 +49,14 @@ perto(notaNoPapel(j, "WBR", "construtor"), 30 * 0.93);
 // padrão com as duas fases só com as regras da T1 (comPadrao); sem elas, o motor usa a COBERTURA de sempre
 assert.strictEqual(mapasDoPapel("WBR", null), null);
 assert.strictEqual(mapasDoPapel("DR", "fixo"), null);
-assert.strictEqual(mapasDoPapel("WBR", null, true).com.AD, 0.36);
-assert.strictEqual(mapasDoPapel("WBL", "xyz", true).sem.DE, 0.52, "esquerdo espelhado, papel inválido cai no padrão");
+assert.strictEqual(mapasDoPapel("WBR", null, true).com.AD, 0.32);
+assert.strictEqual(mapasDoPapel("WBL", "xyz", true).sem.DE, 0.45, "esquerdo espelhado, papel inválido cai no padrão");
 assert.strictEqual(mapasDoPapel("DR", null, true), null, "o lateral Fixo padrão fica com a COBERTURA");
 assert.strictEqual(mapasDoPapel("MC", null, true), null, "posição sem papéis");
-// o ala Apoiador sobe com a bola mais que o lateral Apoiador e, sem ela, fecha mais atrás (linha de 5)
+// o ala Apoiador joga mais alto que o lateral Apoiador com e sem a bola (o terceiro zagueiro cobre)
 const ala = mapasDoPapel("WBR", null, true), lat = mapasDoPapel("DR", "apoiador");
-assert.ok(ala.com.AD > lat.com.AD && ala.sem.DD > lat.sem.DD);
+const naDefesa = m => Object.entries(m).filter(([z]) => z[0] === "D").reduce((t, [, w]) => t + w, 0);
+assert.ok(ala.com.AD > lat.com.AD && naDefesa(ala.sem) < naDefesa(lat.sem));
 // o ala Fixo vai mais à frente com a bola que o lateral Fixo (COBERTURA do DR, sem AD)
 assert.ok(mapasDoPapel("WBR", "fixo").com.AD > (COBERTURA.DR.AD || 0));
 console.log("teste_papeis: ok");

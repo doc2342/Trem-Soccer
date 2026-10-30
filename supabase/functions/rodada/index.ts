@@ -260,10 +260,11 @@ const __papeis = (() => {
     apoiador: {
       nome: "Apoiador", faz: "Chega ao fundo e cruza: soma ataque pelo lado.", custa: "As costas ficam abertas para o contra-ataque, e cansa mais.",
       pesos: { vel: 17, cru: 14, dri: 11, res: 11, pas: 10, des: 10, pos: 7, cri: 5, dom: 5, equ: 5, mar: 5 },
-      // WBR é o padrão, só com as regras da T1 (mapasDoPapel comPadrao); sem elas o ala usa a COBERTURA de sempre. Com a bola sobe mais que o lateral
-      // Apoiador (DR com AD 0,30 desde 31/10, era 0,35: o mesmo pt/jogo); sem ela fecha a linha de 5. Calibrado em 31/10 (sim_papeis_laterais, 3-5-2): mais ataque com a bola que isso deixava os outros
-      // papéis do ala 0,1 pt/jogo abaixo do padrão
-      mapas: { DR: { com: { AD: 0.30, MD: 0.40, DC: 0.05, DD: 0.25 }, sem: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 } }, WBR: { com: { AD: 0.36, MD: 0.40, DD: 0.24 }, sem: { AD: 0.08, MD: 0.40, DD: 0.52 } } },
+      // WBR é o padrão, só com as regras da T1 (mapasDoPapel comPadrao); sem elas o ala usa a COBERTURA de sempre. Mais alto que o lateral Apoiador nas
+      // duas fases (DR com AD 0,30 desde 31/10, era 0,35: o mesmo pt/jogo): o terceiro zagueiro cobre, e sem a bola ele fica na linha dos volantes
+      // (só cai para a linha de 5 com o time recuado). Fontes do dono: goal.com, guidetofootball.com, footballiconic.com. Calibrado em 31/10
+      // (sim_papeis_laterais, 3-5-2, 3000 jogos): os outros papéis do ala a -0,06, -0,04 e -0,01 pt/jogo do padrão; mais que isso deixava 0,1 abaixo
+      mapas: { DR: { com: { AD: 0.30, MD: 0.40, DC: 0.05, DD: 0.25 }, sem: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 } }, WBR: { com: { AD: 0.32, MD: 0.42, DD: 0.26 }, sem: { AD: 0.10, MD: 0.45, DD: 0.45 } } },
       gasto: { DR: 1.10, WBR: 1.15 },
     },
     construtor: {
