@@ -30,6 +30,13 @@ const motivo = async (a, b) => (await q(`select motivo_amistoso($1, $2) as m`, [
 const iniciar = async (a, b, mando = "casa") => (await q(`select iniciar_amistoso($1, $2, $3) as r`, [a, b, mando]))[0].r;
 const aceitar = async (u, c, v) => { await como(u); await q(`select aceitar_amistosos($1, $2)`, [c, v]); };
 
+// sem tática de amistoso salva não dá para aceitar, e ninguém desafia o clube (nem parceiro): a tática do campeonato nunca vai para o outro
+assert.strictEqual(await motivo(1, 2), "sem_tatica");
+await como(U2);
+await assert.rejects(() => q(`select aceitar_amistosos(2, true)`), /tática de amistoso/);
+await db.exec(`insert into taticas values (2, '{"origem":"liga"}')`);
+assert.strictEqual(await motivo(1, 2), "sem_tatica", "a do campeonato não serve");
+await db.exec(`insert into taticas_amistoso (clube_id, dados) values (1, '{"origem":"amistoso1"}'), (2, '{"origem":"amistoso"}'), (3, '{"origem":"amistoso3"}')`);
 // opção desmarcada por padrão
 assert.strictEqual(await motivo(1, 2), "fechado");
 await aceitar(U2, 2, true);
@@ -38,11 +45,11 @@ await aceitar(U1, 1, true);
 assert.strictEqual(await motivo(1, 2), null);
 assert.strictEqual(await motivo(1, 4), null, "clube sem dirigente: o banco não bloqueia (o navegador confere o próximo jogo)");
 
-// tática devolvida: nenhuma → null; do campeonato; de amistoso tem prioridade
+// devolve só a tática de amistoso do desafiado
 await como(U1);
 let r = await iniciar(1, 2);
 assert.ok(r.id && Number.isInteger(r.semente));
-assert.strictEqual(r.tatica, null);
+assert.deepStrictEqual(r.tatica, { origem: "amistoso" });
 // já jogaram hoje; o contrário continua liberado; a linha nunca gravada conta e aparece na lista
 assert.strictEqual(await motivo(1, 2), "hoje");
 assert.strictEqual(await motivo(2, 1), null);
@@ -52,15 +59,6 @@ await assert.rejects(() => iniciar(1, 2), /hoje/);
 // amistoso de ontem não conta
 await db.exec(`update amistosos set criado_em = now() - interval '2 days'`);
 assert.strictEqual(await motivo(1, 2), null);
-await db.exec(`insert into taticas values (2, '{"origem":"liga"}')`);
-r = await iniciar(1, 2);
-assert.deepStrictEqual(r.tatica, { origem: "liga" });
-await db.exec(`update amistosos set criado_em = now() - interval '2 days'`);
-await como(U2);
-await q(`insert into taticas_amistoso (clube_id, dados) values (2, '{"origem":"amistoso"}')`);
-await como(U1);
-r = await iniciar(1, 2, "fora");
-assert.deepStrictEqual(r.tatica, { origem: "amistoso" });
 await db.exec(`delete from amistosos`);
 
 // sem dirigente / sem permissão / mando inválido
@@ -148,7 +146,7 @@ await db.exec(`grant select on amistosos, parcerias_amistoso, taticas_amistoso t
 await como(U3);
 await db.exec(`set role authenticated`);
 assert.strictEqual((await q(`select count(*)::int as n from amistosos`))[0].n, 0);
-assert.strictEqual((await q(`select count(*)::int as n from taticas_amistoso`))[0].n, 0, "tática de amistoso alheia não se lê");
+assert.strictEqual((await q(`select count(*)::int as n from taticas_amistoso where clube_id <> 3`))[0].n, 0, "tática de amistoso alheia não se lê");
 await assert.rejects(() => q(`insert into amistosos (desafiante, desafiado, mando, semente) values (3, 1, 'casa', 1)`));
 await db.exec(`reset role`);
 await como(U2);
@@ -158,8 +156,21 @@ await db.exec(`reset role`);
 
 // troca de dono: some a tática de amistoso, as parcerias e a opção
 await aceitar(U2, 2, true);
-await db.exec(`update clubes set dono = '00000000-0000-0000-0000-000000000009' where id = 2`);
+const U8 = "00000000-0000-0000-0000-000000000008", U9 = "00000000-0000-0000-0000-000000000009";
+await db.exec(`update clubes set dono = '${U9}' where id = 2`);
 assert.strictEqual((await q(`select count(*)::int as n from taticas_amistoso where clube_id = 2`))[0].n, 0);
 assert.strictEqual((await q(`select count(*)::int as n from parcerias_amistoso where 2 in (clube_a, clube_b)`))[0].n, 0);
 assert.strictEqual((await q(`select aceita_amistoso from clubes where id = 2`))[0].aceita_amistoso, false);
+assert.strictEqual(await motivo(1, 2), "sem_tatica");
+// quem assume não vê o histórico do dono anterior; o outro clube continua vendo
+const vistos = async u => { await como(u); await db.exec(`set role authenticated`); const n = (await q(`select count(*)::int as n from amistosos`))[0].n; await db.exec(`reset role`); return n; };
+assert.strictEqual(await vistos(U9), 0);
+assert.ok(await vistos(U1) > 0);
+// nem herda o "já jogaram hoje" do anterior
+await db.exec(`update clubes set dono = '${U8}' where id = 1`);
+await como(U8); await q(`insert into taticas_amistoso (clube_id, dados) values (1, '{}')`); await aceitar(U8, 1, true);
+await como(U9); await q(`insert into taticas_amistoso (clube_id, dados) values (2, '{}')`); await aceitar(U9, 2, true);
+await db.exec(`delete from partidas`);
+assert.strictEqual(await vistos(U8), 0);
+assert.strictEqual(await motivo(1, 2), null);
 console.log("amistosos (165): ok");

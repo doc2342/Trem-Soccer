@@ -345,7 +345,7 @@ export const tetoDoClube = clubeId => sb.rpc("teto_do_clube", { p_clube: clubeId
 export const minhaTaticaDaBase = clubeId => sb.from("taticas_base").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error ? undefined : data);
 export const salvarTaticaDaBase = (clubeId, dados) => sb.from("taticas_base").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
 // amistosos (165_amistosos.sql): as leituras devolvem undefined antes do SQL; as ações dão erro com o texto do banco
-export const MOTIVO_AMISTOSO = { fechado: "não aceita amistosos", voce_fechado: "marque \"Aceitar amistosos\" para desafiar dirigentes", hoje: "já jogaram hoje", proximo: "é o próximo adversário oficial" };
+export const MOTIVO_AMISTOSO = { sem_tatica: "ainda não salvou a tática de amistoso", fechado: "não aceita amistosos", voce_fechado: "marque \"Aceitar amistosos\" para desafiar dirigentes", hoje: "já jogaram hoje", proximo: "é o próximo adversário oficial" };
 const ouIndefinido = ({ data, error }) => error ? undefined : data;
 export const minhaTaticaDeAmistoso = clubeId => sb.from("taticas_amistoso").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ouIndefinido);
 export const salvarTaticaDeAmistoso = (clubeId, dados) => sb.from("taticas_amistoso").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);

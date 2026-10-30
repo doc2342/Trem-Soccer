@@ -54,6 +54,10 @@ export async function cartaoDosAmistosos(el, clubeId, cPor) {
   };
 }
 
+// salvar a tática de amistoso libera a opção "Aceitar amistosos": o painel montado por último se redesenha (um ouvinte só)
+let redesenharPainel = null;
+addEventListener("taticaDeAmistosoSalva", () => { if (redesenharPainel) redesenharPainel(); });
+
 export async function montarAbaAmistoso(raiz, { sessao }) {
   raiz.innerHTML = `<div class="card" id="amPainel"><div class="mut">Carregando os amistosos…</div></div><div id="amTatica"></div><div id="amReplay"></div>`;
   const $ = id => raiz.querySelector("#" + id);
@@ -67,7 +71,7 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
     .catch(e => { $("amTatica").innerHTML = `<div class="card bad">Não consegui abrir a tática de amistoso: ${esc(e.message)}</div>`; });
 
   async function desenhar() {
-    const [adv, parcerias, hist] = await Promise.all([B.adversariosDeAmistoso(clube.id), B.parceriasDoClube(clube.id), B.amistososDoClube(clube.id)]);
+    const [adv, parcerias, hist, salva] = await Promise.all([B.adversariosDeAmistoso(clube.id), B.parceriasDoClube(clube.id), B.amistososDoClube(clube.id), B.minhaTaticaDeAmistoso(clube.id)]);
     const semSql = adv === undefined;
     const aceita = !!(await B.meuClube()).aceita_amistoso;
     const parDe = outro => (parcerias || []).find(p => (p.clube_a === clube.id && p.clube_b === outro) || (p.clube_b === clube.id && p.clube_a === outro)) || null;
@@ -96,9 +100,9 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
     $("amPainel").innerHTML = `<h2 style="margin-top:0">Amistoso <span class="tag">não vale nada · sai na hora · com papéis e regras da T1</span></h2>
       ${aviso ? `<div style="margin-bottom:8px">${aviso}</div>` : ""}
       <div class="row" style="align-items:center;gap:14px">
-        <label><input type="checkbox" id="amAceita" ${aceita ? "checked" : ""} ${semSql ? "disabled" : ""}> Aceitar amistosos</label>
+        <label><input type="checkbox" id="amAceita" ${aceita ? "checked" : ""} ${semSql || !salva ? "disabled" : ""}> Aceitar amistosos</label>${semSql || salva ? "" : `<span class="aviso">Salve a tática de amistoso (abaixo) para poder aceitar.</span>`}
         <label>Mando <select id="amMando"><option value="casa">Em casa</option><option value="fora" ${mando === "fora" ? "selected" : ""}>Fora</option></select></label></div>
-      <div class="mut" style="font-size:13px;margin:4px 0 10px">Com a opção marcada, outros dirigentes que também marcaram podem desafiar você (1 por dia contra o mesmo clube, nunca contra o próximo adversário oficial). Você vê os jogos na Central. Parceiros de treino jogam sem limite. Quem desafia você joga contra a sua tática de amistoso; sem ela, contra a do campeonato.</div>
+      <div class="mut" style="font-size:13px;margin:4px 0 10px">Com a opção marcada, outros dirigentes que também marcaram podem desafiar você (1 por dia contra o mesmo clube, nunca contra o próximo adversário oficial). Você vê os jogos na Central. Parceiros de treino jogam sem limite. Quem desafia você joga contra a sua tática de amistoso, nunca contra a do campeonato: sem ela salva, ninguém desafia você.</div>
       ${semSql ? `<div class="aviso" style="margin-bottom:8px">Falta rodar o 165_amistosos.sql: por enquanto, só contra os bots de estilo.</div>` : ""}
       <h3>Bots de estilo</h3>
       ${ESTILOS_DE_BOT.map(e => `<div class="row" style="align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--line)"><span style="flex:1">${esc(NOME_DO_BOT(e))}</span><button type="button" data-jogar-bot="${e}">Jogar</button></div>`).join("")}
@@ -160,6 +164,7 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
     try { await B.aceitarAmistosos(clube.id, e.target.checked); aviso = ""; } catch (err) { aviso = `<span class="bad">${esc(err.message)}</span>`; }
     await desenhar();
   };
+  redesenharPainel = () => desenhar();
   await desenhar();
   return { sujo: () => !!tela && tela.sujo() };
 }

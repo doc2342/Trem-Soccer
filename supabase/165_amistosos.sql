@@ -2,13 +2,16 @@
 -- parceiros de treino, a opção "Aceitar amistosos" e o bloqueio do próximo adversário oficial.
 -- O banco confere as regras, lê a tática do desafiado e sorteia a semente; o navegador simula e grava o resultado na linha.
 -- Amistoso contra bot de estilo ou clube sem dirigente não passa por aqui (roda só no navegador).
--- Regras: opção desmarcada por padrão; contra dirigente, os dois com a opção marcada, 1 por dia (fuso de Brasília) contra o
+-- Regras: opção desmarcada por padrão e só liberada para quem salvou a tática de amistoso (a do campeonato nunca vai para o outro);
+-- contra dirigente, os dois com a opção marcada, 1 por dia (fuso de Brasília) contra o
 -- mesmo clube e nunca contra o próximo adversário oficial; parceiro de treino libera tudo isso.
 -- Replay e relatório completo somem depois de 7 dias (limpar_amistosos); placar e resumo ficam para sempre.
 -- Precisa do 100_tatica_da_base.sql (eh_admin, padrão de RLS). Depois: publicar o site. A função rodada não muda.
 -- Pode ser executado mais de uma vez.
 
 alter table public.clubes add column if not exists aceita_amistoso boolean not null default false;
+-- quem assume o clube não vê os amistosos do dono anterior (nem herda o "já jogaram hoje")
+alter table public.clubes add column if not exists amistosos_desde timestamptz;
 
 -- mesmo formato de taticas.dados; o desafiante não lê a do outro direto, só pela iniciar_amistoso
 create table if not exists public.taticas_amistoso (
@@ -64,9 +67,10 @@ create index if not exists amistosos_desafiado on public.amistosos (desafiado, c
 alter table public.amistosos enable row level security;
 drop policy if exists amistosos_ler on public.amistosos;
 create policy amistosos_ler on public.amistosos for select to authenticated
-  using (public.eh_admin() or exists (select 1 from public.clubes c where c.id in (desafiante, desafiado) and c.dono = auth.uid()));
+  using (public.eh_admin() or exists (select 1 from public.clubes c where c.id in (desafiante, desafiado) and c.dono = auth.uid()
+                                     and criado_em >= coalesce(c.amistosos_desde, '-infinity')));
 
--- clube que troca de dono não leva a tática de amistoso, as parcerias nem a opção do anterior
+-- clube que troca de dono não leva a tática de amistoso, as parcerias, a opção nem o histórico do anterior
 create or replace function public.amistoso_sem_dono() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -74,6 +78,7 @@ begin
     delete from taticas_amistoso where clube_id = new.id;
     delete from parcerias_amistoso where new.id in (clube_a, clube_b);
     new.aceita_amistoso := false;
+    new.amistosos_desde := now();
   end if;
   return new;
 end $$;
@@ -95,14 +100,16 @@ language sql stable security definer set search_path = public as $$
                  where clube_a = least(p_a, p_b) and clube_b = greatest(p_a, p_b) and aceita_em is not null)
 $$;
 
--- null = liberado; senão 'fechado', 'voce_fechado', 'proximo' ou 'hoje' (nessa ordem). Parceiro libera tudo.
+-- null = liberado; senão 'sem_tatica', 'fechado', 'voce_fechado', 'proximo' ou 'hoje' (nessa ordem).
+-- Parceiro libera tudo menos 'sem_tatica': sem tática de amistoso salva, ninguém joga contra o clube com dirigente.
 create or replace function public.motivo_amistoso(p_desafiante bigint, p_desafiado bigint) returns text
 language plpgsql stable security definer set search_path = public as $$
 declare v_eu clubes; v_ele clubes;
 begin
-  if public.parceiros_amistoso(p_desafiante, p_desafiado) then return null; end if;
   select * into v_eu from clubes where id = p_desafiante;
   select * into v_ele from clubes where id = p_desafiado;
+  if v_ele.dono is not null and not exists (select 1 from taticas_amistoso where clube_id = p_desafiado) then return 'sem_tatica'; end if;
+  if public.parceiros_amistoso(p_desafiante, p_desafiado) then return null; end if;
   if v_ele.dono is not null and not v_ele.aceita_amistoso then return 'fechado'; end if;
   if v_ele.dono is not null and not v_eu.aceita_amistoso then return 'voce_fechado'; end if;
   -- só a próxima partida oficial ainda não jogada de cada um (liga ou copa); para olhar mais jogos, trocar o limit
@@ -114,7 +121,7 @@ begin
     where (p.casa = p_desafiante and p.fora = p_desafiado) or (p.casa = p_desafiado and p.fora = p_desafiante)
   ) then return 'proximo'; end if;
   if v_ele.dono is not null and exists (
-    select 1 from amistosos where desafiante = p_desafiante and desafiado = p_desafiado
+    select 1 from amistosos where desafiante = p_desafiante and desafiado = p_desafiado and criado_em >= coalesce(v_eu.amistosos_desde, '-infinity')
       and (criado_em at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date
   ) then return 'hoje'; end if;
   return null;
@@ -151,6 +158,7 @@ begin
   v_m := public.motivo_amistoso(p_clube, p_desafiado);
   if v_m is not null then
     raise exception '%', case v_m
+      when 'sem_tatica' then 'Este clube ainda não salvou a tática de amistoso.'
       when 'fechado' then 'Este clube não aceita amistosos.'
       when 'voce_fechado' then 'Marque "Aceitar amistosos" para desafiar dirigentes.'
       when 'proximo' then 'É o próximo adversário oficial.'
@@ -161,9 +169,7 @@ begin
   v_semente := floor(random() * 2147483647)::integer;
   insert into amistosos (desafiante, desafiado, mando, semente) values (p_clube, p_desafiado, p_mando, v_semente)
     returning id into v_id;
-  return jsonb_build_object('id', v_id, 'semente', v_semente, 'tatica', coalesce(
-    (select dados from taticas_amistoso where clube_id = p_desafiado),
-    (select dados from taticas where clube_id = p_desafiado)));
+  return jsonb_build_object('id', v_id, 'semente', v_semente, 'tatica', (select dados from taticas_amistoso where clube_id = p_desafiado));
 end $$;
 
 create or replace function public.gravar_amistoso(p_id bigint, p_placar smallint[], p_resumo jsonb, p_partida jsonb, p_relatorio jsonb)
@@ -184,6 +190,9 @@ create or replace function public.aceitar_amistosos(p_clube bigint, p_aceita boo
 language plpgsql security definer set search_path = public as $$
 begin
   perform public.dono_do_clube_amistoso(p_clube);
+  if p_aceita and not exists (select 1 from taticas_amistoso where clube_id = p_clube) then
+    raise exception 'Salve a tática de amistoso antes de aceitar amistosos: é com ela que quem desafia você joga.';
+  end if;
   update clubes set aceita_amistoso = coalesce(p_aceita, false) where id = p_clube;
 end $$;
 
