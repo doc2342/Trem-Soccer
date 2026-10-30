@@ -59,4 +59,9 @@ const t442 = onze("4-4-2", 21);
 assert.deepStrictEqual(desenhoDoTime(t442), { com: "4-4-2", sem: "4-4-2" });
 assert.deepStrictEqual(desenhoDoTime(comPapel(t442, { DR: "apoiador", DL: "apoiador" })), { com: "2-4-4", sem: "4-4-2" });
 assert.deepStrictEqual(desenhoDoTime(onze("3-5-2 com alas", 21)), { com: "3-5-2", sem: "3-5-2" }, "alas de hoje: mais no meio do lado");
+// Transição (tarefa 7): no contra-ataque do adversário, quem defende ainda está onde estava com a bola (mapa com a bola), e o padrão não muda
+import { defesaNaTransicao } from "../src/motor.js";
+const tr = defesaNaTransicao(comPapel(a, { DR: "apoiador" })), trPadrao = defesaNaTransicao(a);
+assert.ok(tr.DD < ap.def.DD, "Apoiador pego no contra: o fundo do lado fica mais aberto que na defesa montada");
+assert.deepStrictEqual(trPadrao, z.def, "sem papel, a defesa na transição é a de sempre");
 console.log("teste_papeis_motor: ok");
