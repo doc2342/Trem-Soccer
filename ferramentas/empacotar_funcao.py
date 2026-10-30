@@ -9,7 +9,7 @@ Uso: python ferramentas/empacotar_funcao.py   (rodar de novo sempre que o motor 
 import io, os, re
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODULOS = ["rng", "modelo", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "ligabase", "economia", "mercadobots"]  # em ordem de dependência
+MODULOS = ["rng", "modelo", "papeis", "saude", "escalacao", "motor", "bot", "relatorio", "rodada", "treino", "ligabase", "economia", "mercadobots"]  # em ordem de dependência
 
 RE_IMPORT = re.compile(r'^import\s*\{([^}]*)\}\s*from\s*"\./(\w+)\.js";\s*$', re.M | re.S)
 RE_EXPORT = re.compile(r'^export\s+(?=(?:async\s+)?(?:const|let|function)\s+(\w+))', re.M)
