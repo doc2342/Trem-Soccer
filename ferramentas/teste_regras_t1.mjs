@@ -37,3 +37,14 @@ const recompoe = soma({}, { aoPerder: "recompor" }), pressiona = soma({}, { aoPe
 assert.ok(recompoe.contrasSofridos < fixos.contrasSofridos * 0.7, `recompor: ${recompoe.contrasSofridos} x ${fixos.contrasSofridos}`);
 assert.ok(pressiona.retomadas > 0.5 && fixos.retomadas === 0, `pressionar retoma a bola: ${pressiona.retomadas}`);
 console.log("teste_regras_t1: ok", JSON.stringify({ fixos, apoiadores, recompoe, pressiona }));
+
+// pacote tático (30/10): o contra-ataque guarda de onde saiu; o do escanteio afastado (R5) só existe com as regras da T1 e para quem joga no contra-ataque
+const origens = regras => { const o = {}; for (let s = 1; s <= 150; s++) for (const l of jogo(onze("4-4-2", s), onze("4-3-3 com pontas", s + 500), s, regras, { contraAtaque: true }).lances) if (l.contra) o[l.contra] = (o[l.contra] || 0) + 1; return o; };
+const o1 = origens(true), o0 = origens(false);
+assert.ok(o1.E > 0 && !o0.E && o0.A > 0 && o0.M > 0, `origens do contra-ataque: T1 ${JSON.stringify(o1)}, T0 ${JSON.stringify(o0)}`);
+
+// G1: o goleiro se aposenta a partir dos 37 (a linha, dos 35); ninguém joga com 40
+import { chanceDeAposentar } from "../src/virada.js";
+assert.deepStrictEqual([36, 37, 39, 40].map(i => +chanceDeAposentar(i, "GK").toFixed(2)), [0, 0.2, 0.6, 1]);
+assert.deepStrictEqual([34, 35, 38].map(i => +chanceDeAposentar(i, "DC").toFixed(2)), [0, 0.2, 0.8]);
+console.log("teste_regras_t1 (pacote tático): ok", JSON.stringify({ o1, o0 }));

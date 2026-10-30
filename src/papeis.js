@@ -42,12 +42,13 @@ export const PAPEIS = {
   },
   invertido: {
     nome: "Invertido", faz: "Com a bola, fecha por dentro e vira um volante a mais; sem ela, volta para o lado.", custa: "Na perda da bola, o corredor fica vazio até ele voltar, e cruza pouco.",
-    pesos: { pas: 17, des: 15, pos: 13, dom: 11, mar: 10, equ: 9, cri: 8, vel: 8, res: 4, agr: 3, for: 2 },
+    // Velocidade 8→11 e Resistência 4→8 em 30/10 (fontes do dono: vai e volta entre o meio e o lado o jogo todo), tirados de Equilíbrio, Criatividade, Agressividade e Força
+    pesos: { pas: 17, des: 15, pos: 13, dom: 11, vel: 11, mar: 10, res: 8, equ: 7, cri: 6, agr: 2 },
     mapas: {
       DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
       WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
     },
-    gasto: { DR: 1, WBR: 1 },
+    gasto: { DR: 1.05, WBR: 1.05 },
   },
 };
 

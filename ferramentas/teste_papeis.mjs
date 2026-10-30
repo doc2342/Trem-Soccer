@@ -39,7 +39,7 @@ perto(gastoDoPapel("DR", null), 1);
 perto(gastoDoPapel("WBR", "apoiador"), 1);
 perto(gastoDoPapel("DR", "apoiador"), 1.10 / 0.95);
 perto(gastoDoPapel("WBR", "fixo"), 0.95 / 1.15);
-perto(gastoDoPapel("DR", "invertido"), 1 / 0.95);
+perto(gastoDoPapel("DR", "invertido"), 1.05 / 0.95);
 perto(gastoDoPapel("MC", "fixo"), 1);
 
 // nota no papel: atributos todos 30, natural → 30; competente → 30 × 0,93

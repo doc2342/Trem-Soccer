@@ -278,12 +278,13 @@ const __papeis = (() => {
     },
     invertido: {
       nome: "Invertido", faz: "Com a bola, fecha por dentro e vira um volante a mais; sem ela, volta para o lado.", custa: "Na perda da bola, o corredor fica vazio até ele voltar, e cruza pouco.",
-      pesos: { pas: 17, des: 15, pos: 13, dom: 11, mar: 10, equ: 9, cri: 8, vel: 8, res: 4, agr: 3, for: 2 },
+      // Velocidade 8→11 e Resistência 4→8 em 30/10 (fontes do dono: vai e volta entre o meio e o lado o jogo todo), tirados de Equilíbrio, Criatividade, Agressividade e Força
+      pesos: { pas: 17, des: 15, pos: 13, dom: 11, vel: 11, mar: 10, res: 8, equ: 7, cri: 6, agr: 2 },
       mapas: {
         DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
         WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
       },
-      gasto: { DR: 1, WBR: 1 },
+      gasto: { DR: 1.05, WBR: 1.05 },
     },
   };
 
@@ -634,10 +635,34 @@ const __motor = (() => {
     //     não segura a bola); o resto é o time esticado. As formações prontas ficam abaixo de 1 (o 5-4-1, 1,2)
     //   lotacao: zona com mais de limite jogadores (soma dos pesos): o que passa rende só resto. As formações prontas ficam até 2,5, menos a árvore de Natal (3,0 no meio)
     compactacao: { razao: 0.9 }, lotacao: { limite: 2.5, resto: 0.6 },
-    transicao: { reserva: { referencia: 3.8, expoente: 2 }, pressionar: { retomada: 0.25, falha: 1.4, gasto: 0.1 }, recompor: { contra: 0.35, posse: 0.95 } },
-    // t1 (30/10, conta de 3.000 jogos entre formações sorteadas): contra-ataque 2x mais frequente e mais forte, para os gols de contra-ataque irem de 2,7% para
-    //   ~9% (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição), e o ritmo de ataques de 0,75 para 0,69 para os gols da liga ficarem iguais (~2,37)
-    t1: { contraAtaque: { com: 0.32, sem: 0.08, logit: 0.9 }, ataquesPorMinuto: 0.69, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 } },
+    transicao: { reserva: { mais: 1, expoente: 2 }, pressionar: { retomada: 0.25, falha: 1.4, gasto: 0.1 }, recompor: { contra: 0.35, posse: 0.95 } },
+    // Pacote tático/transição (aprovado em 30/10, fontes do dono: rest defence, contra-ataque, goleiros). Tudo aqui vale só nas regras da T1 (os valores da
+    // temporada 0 desligam; os da T1 ficam em t1, abaixo). ferramentas/sim_transicao.mjs
+    //   reserva (R1): quem fica atrás é comparado com o peso que o adversário deixa nas zonas de ataque no mapa sem a bola, mais um (o princípio do +1):
+    //     contra x ((saída do adversário + mais) / reserva) ^ expoente. Contra o 4-5-1 (centroavante sozinho) 2 bastam; contra o 4-4-2, ~3
+    //   pressaoLeitura (4A): peso do Posicionamento na pressão da zona A, ao lado de Velocidade, Resistência, Agressividade e Equilíbrio
+    //   contraChance (R4): o chute do contra-ataque vale qualidade x razao ^ expoente, sendo razao a mesma conta da R1 (pouca gente atrás, chance melhor);
+    //     o real é ~1,4 vez o chute de jogo corrido (0,17 x 0,12)
+    //   linhaAlta (1): a linha de impedimento expõe mais quem tem a zaga lenta: o x1,5 do contra-ataque e o furou da bola nas costas vão por
+    //     (referencia / Velocidade de quem fica atrás) ^ expoente, entre min e max; o goleiro conta como goleiro zagueiros a mais nessa média
+    //   saidaGoleiro (G2, régua da Opta: o goleiro sai pelo menos até a borda da área): na bola em profundidade ele tenta cortar com a chance tentativa
+    //     (x linhaAlta com a linha de impedimento); corta pela leitura (média de Um contra um, Velocidade e Posicionamento) contra a Velocidade de quem
+    //     corre; se não chega, o gol fica quase vazio (a defesa do goleiro no chute cai para vazio)
+    //   escanteioContra (R5): time com a instrução de contra-ataque deixa o mais adiantado lá na frente no escanteio contra; quando a zaga afasta,
+    //     sai em contra-ataque com a chance `chance` (razao: a da R4, com a zaga do adversário na área); custo: um a menos na área, cabeceio x custo
+    pressaoLeitura: 0,
+    contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
+    // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
+    //   frequente (0,32/0,08 → 0,17/0,053) e melhor (R4), para os gols de contra-ataque na régua da Opta (recuperação na própria metade) ficarem em 6,0%
+    //   (meta 5–7%; recorde da Premier League 7,1%), o chute de contra-ataque valer 1,37 vez o de jogo corrido (real ~1,4) e o time montado para o
+    //   contra-ataque fazer 17,8% dos gols assim (meta 15–20%). Ritmo 0,69 → 0,79 para a liga voltar a 2,32 gols por jogo; conversão no alvo 28,5% (T0 27,1%).
+    //   Saída do goleiro: 1,06 por jogo somando os dois (real 0,5 a 1 por goleiro), corta 79%. Posicionamento com a 4A: +7 a 12% de valor, atrás da Velocidade
+    t1: { contraAtaque: { com: 0.17, sem: 0.053, logit: 0.9 }, ataquesPorMinuto: 0.79, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 },
+      pressaoLeitura: 0.5,
+      contraChance: { qualidade: 1.17, expoente: 1, min: 0.6, max: 2 },
+      linhaAlta: { referencia: 28, expoente: 1.5, goleiro: 0.5, min: 0.6, max: 1.8 },
+      saidaGoleiro: { tentativa: 0.5, linhaAlta: 2, base: 1, inclinacao: 3, vazio: 8 },
+      escanteioContra: { chance: 0.15, razao: 1.4, custo: 1.1 } },
   };
 
   const INSTRUCOES_PADRAO = {
@@ -706,7 +731,7 @@ const __motor = (() => {
   // Habilidade de quem marca, por zona.
   function habilidadeDefesa(at, zona) {
     const centro = zona[1] === "C";
-    if (zona[0] === "A") return (at[A.vel] + at[A.res] + at[A.agr] + at[A.equ]) / 4; // pressão na saída do adversário
+    if (zona[0] === "A") return (at[A.vel] + at[A.res] + at[A.agr] + at[A.equ] + CONFIG.pressaoLeitura * at[A.pos]) / (4 + CONFIG.pressaoLeitura); // pressão na saída do adversário
     if (zona[0] === "M") return centro ? (at[A.pos] * 1.5 + at[A.des] * 1.5 + at[A.equ] * 0.5 + at[A.res] * 0.5) / 4 : (at[A.des] + at[A.vel] + at[A.mar] * 0.5 + at[A.pos] * 0.5) / 3;
     return centro ? (at[A.mar] * 1.5 + at[A.pos] * 1.5 + at[A.des]) / 4 : (at[A.des] * 1.5 + at[A.vel] + at[A.mar] + at[A.pos] * 0.5) / 4;
   }
@@ -768,7 +793,8 @@ const __motor = (() => {
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
     const alas = []; // alas de papel que não é o Apoiador: mudam com o lado da bola
-    t.reserva = 0; // defesa de reserva: peso nas zonas D com a bola
+    t.reserva = 0; t.saida = 0; t.naFrente = null; // defesa de reserva: peso nas zonas D com a bola; saída: peso nas zonas A sem a bola (R1); naFrente: o mais adiantado (R5)
+    let velAtras = 0, frente = 0;
     const transicao = {}; let naTransicao = false; // o que muda na defesa quando o adversário sai em contra-ataque (quem tem papel ainda está no mapa com a bola)
     for (const jog of t.emCampo) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
@@ -788,14 +814,17 @@ const __motor = (() => {
       }
       if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
       for (const [z, w] of Object.entries(com)) {
-        if (z[0] === "D") t.reserva += w;
+        if (z[0] === "D") { t.reserva += w; velAtras += w * jog.at[A.vel]; }
         t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];
         t.zonas[z].push({ jog, w, p: w * p });
       }
+      let naA = 0;
       for (const [z, w] of Object.entries(sem)) {
         t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
         t.zonasDef[z].push({ jog, w });
+        if (z[0] === "A") naA += w;
       }
+      t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
       if (m) for (const z of ZONAS) {
         const dw = (com[z] || 0) - (sem[z] || 0);
         if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[z[0]]; naTransicao = true; }
@@ -807,6 +836,9 @@ const __motor = (() => {
       if (W > L.limite) forca[z] *= (L.limite + (W - L.limite) * L.resto) / W;
     }
     if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
+    // Velocidade de quem fica atrás (com o goleiro), para a linha alta (1): com zaga lenta, a bola nas costas e o contra-ataque machucam mais
+    const LA = CONFIG.linhaAlta, g = LA && t.goleiro ? LA.goleiro : 0;
+    t.linhaAlta = LA ? limitar(Math.pow(LA.referencia / Math.max(1, (velAtras + g * (t.goleiro ? t.goleiro.at[A.vel] : 0)) / Math.max(0.1, t.reserva + g)), LA.expoente), LA.min, LA.max) : 1;
     // defesa com a bola em cada corredor (lado do próprio time): o ala do lado da bola sobe para pressionar, o do outro lado fecha a linha
     t.defTransicao = naTransicao ? Object.fromEntries(ZONAS.map(z => [z, Math.max(0, t.def[z] + (transicao[z] || 0))])) : t.def;
     t.defLado = { E: t.def, C: t.def, D: t.def };
@@ -992,6 +1024,9 @@ const __motor = (() => {
     // nem toda chance do mesmo tipo vale o mesmo: umas saem limpas, outras apertadas
     const v = CONFIG.variacaoChance[tipo] || 0;
     if (v) c.xg *= Math.exp(rng.normal(0, v) - v * v / 2);
+    // contra-ataque (R4, regras da T1): menos gente atrás do adversário, chance melhor
+    const CC = CONFIG.contraChance;
+    if (contra && CC) c.xg *= CC.qualidade * limitar(Math.pow(contra.razao, CC.expoente), CC.min, CC.max);
     // confronto da finalização com a postura de quem defende: retranca congestiona a área e dá espaço fora dela; time aberto deixa a área livre
     const FM = CONFIG.finalizarXmentalidade, m = def.instr.mentalidade;
     if (I.finalizar === "longe" && tipo === "longe") c.xg *= (1 + FM.longe * Math.max(0, -m)) * mod(c.chute, 25, CONFIG.finalizar.longe.qualidade); // time treinado para chutar de fora: o bom chutador rende ainda mais
@@ -1014,7 +1049,7 @@ const __motor = (() => {
     const inicio = {
       cruzamento: `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} cabeceia`}`,
       corte: `${f} vem da ${lado} em diagonal e chuta`,
-      profundidade: `${cr} lança em profundidade e ${f} sai na cara do gol`,
+      profundidade: c.goleiroSaiu ? `${cr} lança em profundidade, ${nm(goleiro)} sai da área e não chega, e ${f} fica com o gol quase vazio` : `${cr} lança em profundidade e ${f} sai na cara do gol`,
       area: c.criador === c.finalizador ? `${f} recebe na área e finaliza` : `${cr} acha ${f} na área, que finaliza`,
       longe: `${f} arrisca de fora da área`,
       escanteio: `${cr} cobra o escanteio e ${f} cabeceia`,
@@ -1023,7 +1058,7 @@ const __motor = (() => {
     }[c.tipo] + peRuimNarrado(c);
     const fim = {
       gol: "GOL!",
-      defesa: goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
+      defesa: c.goleiroSaiu ? "a zaga salva em cima da linha." : goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
       fora: "a bola sai pela linha de fundo.",
       trave: "na trave!",
       bloqueado: c.zagueiro ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.",
@@ -1284,7 +1319,16 @@ const __motor = (() => {
         const K = CONFIG.impedimento;
         const p = def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (c.contra ? K.noContraAtaque : 1), 0.05, 0.65) : K.semLinha;
         if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${nm(c.criador)} lança e ${nm(c.finalizador)} é pego em impedimento.`)); return; }
-        if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou), 0.01, 0.6);
+        if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou) * def.linhaAlta, 0.01, 0.6);
+        // saída do goleiro (G2, regras da T1): corta o lançamento pela leitura contra a Velocidade de quem corre; se não chega, o gol fica quase vazio
+        const G = CONFIG.saidaGoleiro, gk = def.goleiro, f = c.finalizador;
+        if (G && gk && rng.chance(G.tentativa * (def.instr.impedimento ? G.linhaAlta : 1))) {
+          estat[1 - i].saidasGoleiro = (estat[1 - i].saidasGoleiro || 0) + 1;
+          if (rng.chance(1 / (1 + Math.exp(-(G.base + G.inclinacao * (media(gk.at[A.um], gk.at[A.vel], gk.at[A.pos]) - f.at[A.vel]) / 50))))) {
+            recebe(c.criador); evento(1 - i, "posse", comTrilha(`${nm(c.criador)} lança ${nm(f)} nas costas da zaga, mas ${nm(gk)} sai da área e corta.`)); return;
+          }
+          c.goleiroSaiu = true; c.defesa = G.vazio;
+        }
       }
       const { resultado, xg, chanceDeGol } = chutar(c, def.goleiro);
       e.chances++; e.xg += xg; e.finalizacoes++;
@@ -1293,7 +1337,7 @@ const __motor = (() => {
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
     }
 
@@ -1305,13 +1349,19 @@ const __motor = (() => {
     // Bola levantada na área em escanteio ou falta: os melhores no jogo aéreo sobem, zagueiros inclusive.
     function bolaAlcada(i, tipo, quem) {
       const atk = times[i], def = times[1 - i], k = CONFIG.inclinacaoXg;
-      if (!rng.chance(CONFIG.cabecadaEscanteio)) { portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`)); return; }
-      const sobem = atk.emCampo.filter(x => x.pos !== "GK" && x !== quem), marcam = def.emCampo.filter(x => x.pos !== "GK");
+      // contra-ataque do escanteio (R5, regras da T1): quem joga no contra-ataque deixa o mais adiantado lá na frente
+      const R5 = CONFIG.escanteioContra, frente = R5 && tipo === "escanteio" && def.instr.contraAtaque && def.naFrente && def.emCampo.includes(def.naFrente) ? def.naFrente : null;
+      if (!rng.chance(CONFIG.cabecadaEscanteio)) {
+        portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`));
+        if (frente && rng.chance(R5.chance)) sairNoContra(1 - i, { origem: "E", razao: R5.razao }, `A bola sobra para ${nm(frente)}, que tinha ficado lá na frente, e o ${tm(1 - i)} sai em contra-ataque.`);
+        return;
+      }
+      const sobem = atk.emCampo.filter(x => x.pos !== "GK" && x !== quem), marcam = def.emCampo.filter(x => x.pos !== "GK" && x !== frente);
       if (!sobem.length) return;
       const alvo = sortearPeso(rng, sobem, x => Math.pow(x.at[A.cab] + x.at[A.for], 2) * (x.j.id === atk.instr.alvo ? CONFIG.pesoAlvo : 1));
       const zag = sortearPeso(rng, marcam, x => x.at[A.cab] + x.at[A.mar]), gk = def.goleiro ? def.goleiro.at : null;
       const c = { tipo, lado: "C", criador: quem, finalizador: alvo, zagueiro: zag };
-      c.xg = limitar(CONFIG.xgBase.escanteio * Math.pow(mod(quem.at[A.cru], 28, k), 0.6) * mod(media(alvo.at[A.cab], alvo.at[A.for]), zag ? media(zag.at[A.cab], zag.at[A.mar], zag.at[A.for]) : 12, k), 0.01, 0.6);
+      c.xg = limitar(CONFIG.xgBase.escanteio * Math.pow(mod(quem.at[A.cru], 28, k), 0.6) * mod(media(alvo.at[A.cab], alvo.at[A.for]), zag ? media(zag.at[A.cab], zag.at[A.mar], zag.at[A.for]) : 12, k) * (frente ? R5.custo : 1), 0.01, 0.6);
       c.chute = alvo.at[A.cab]; c.defesa = gk ? media(gk[A.enc], gk[A.pos]) : 5;
       finalizar(i, c);
     }
@@ -1332,6 +1382,8 @@ const __motor = (() => {
       }
     }
 
+    // contra: { origem: linha em que o adversário perdeu a bola (A, M) ou E (escanteio afastado), razao: a conta da R1, 1 sem as regras da T1 }
+    function sairNoContra(j, contra, texto) { estat[j].contraAtaques++; evento(j, "contra", texto); emContra = true; atacar(j, contra); emContra = false; if (proximo) proximo.zona = "D"; }
     function atacar(i, contra = false, inicio = "D") {
       const atk = times[i], def = times[1 - i], dz = defesas[i].C, e = estat[i];
       const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
@@ -1356,13 +1408,15 @@ const __motor = (() => {
         const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
         // contra-ataque é arma de quem espera atrás: rende mais com mentalidade defensiva e menos com o próprio time adiantado
         const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
-        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada)
-          * (CONFIG.regrasT1 ? Math.pow(T.reserva.referencia / Math.max(1, atk.reserva), T.reserva.expoente) * (ao === "pressionar" ? T.pressionar.falha : ao === "recompor" ? T.recompor.contra : 1) : 1);
+        // R1: quem ficou atrás contra o que o adversário deixou na frente, mais um
+        const razao = CONFIG.regrasT1 ? (def.saida + T.reserva.mais) / Math.max(1, atk.reserva) : 1;
+        const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta * atk.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada)
+          * (CONFIG.regrasT1 ? Math.pow(razao, T.reserva.expoente) * (ao === "pressionar" ? T.pressionar.falha : ao === "recompor" ? T.recompor.contra : 1) : 1);
         if (rng.chance(p)) {
           // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
           const lateral = zona[0] === "M" && zona[1] !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === zona[1] && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
           const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
-          estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+          sairNoContra(1 - i, { origem: zona[0], razao }, impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); }
       };
       e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false;
       if (cobranca && cobranca.time === i && !contra) { portador = cobranca.jog; aposFalta = true; } // recomeço depois de falta: quem sofreu cobra

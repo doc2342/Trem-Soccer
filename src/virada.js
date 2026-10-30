@@ -9,7 +9,8 @@ import { salarioDeMercado, TETO_DE_FOLHA, PESO_DO_FORMADO } from "./economia.js"
 // prêmio da liga e tabela final: moram em rodada.js, porque o servidor também usa (fecha a temporada sozinho)
 import { PREMIOS, PREMIOS_DE_FORA, premioDaLiga, GUARDADO, classificacaoFinal } from "./rodada.js";
 export { PREMIOS, premioDaLiga, GUARDADO };
-export const chanceDeAposentar = idade => idade >= 40 ? 1 : idade < 35 ? 0 : (idade - 34) * 0.2; // 20% aos 35 … 80% aos 38
+// 20% aos 35 … 80% aos 38; o goleiro começa aos 37 (G1, 30/10: 20% aos 37, 40% aos 38, 60% aos 39). Ninguém joga com 40. O anúncio é o do SQL 166
+export const chanceDeAposentar = (idade, pos) => idade >= 40 ? 1 : Math.max(0, (idade - (pos === "GK" ? 36 : 34)) * 0.2);
 export const NOTA_DO_JOVEM = 22, CONTRATO_DO_JOVEM = 3;
 export const REPOSICAO = { abaixoDoAposentado: 5 }; // o jovem que repõe o aposentado no bot chega até 5 pontos de nota abaixo dele
 // jovem que repõe o aposentado nos clubes sem dirigente: chega mais pronto nas divisões de cima
@@ -197,7 +198,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const idade = j.idade + 1;
     // com o anúncio de aposentadoria (SQL 46), para quem anunciou no meio da temporada ou chega aos 40; antes dele, vale o sorteio na virada
     // o da escolinha (155_garotos_da_escolinha.sql) não fica livre: sai da liga quando o juvenil comum sairia
-    const para = j.escolinha ? idade > CONFIG_BASE.idadeDeJuvenil : j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 40) : rng.chance(chanceDeAposentar(idade));
+    const para = j.escolinha ? idade > CONFIG_BASE.idadeDeJuvenil : j.aposentaEm !== undefined ? (j.aposentaEm === liga.temporada || idade >= 40) : rng.chance(chanceDeAposentar(idade, j.pos));
     if (para) {
       plano.aposentados.push(numero(j.id));
       resumo.aposentados.push({ clube: c.nome, dono: !!c.dono, nome: j.nome, pos: j.pos, idade });
