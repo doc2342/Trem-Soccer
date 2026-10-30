@@ -491,9 +491,12 @@ function rotuloDoPapel(i) {
   const p = (E.papeis || [])[i] || PAPEL_PADRAO[pos];
   return `<div class="papel-vaga" style="font-size:11px;line-height:1.2;color:#fff;text-align:center;${p === PAPEL_PADRAO[pos] ? "opacity:.6" : "font-weight:700"}">${PAPEIS_DE_JOGO[p].nome}</div>`;
 }
+// na tela os papéis aparecem sempre na mesma ordem em qualquer posição (o padrão leva o *).
+// papeisDaPosicao fica como está (padrão primeiro): o bot e a função rodada dependem dela.
+const ORDEM_DOS_PAPEIS = ["fixo", "apoiador", "construtor", "invertido"];
 // Na escolha de uma vaga com papéis: um botão por papel com a nota de quem está nela, o que o papel faz e o que custa
 function htmlPapeisDaVaga(i) {
-  const pos = E.vagas[i], lista = papeisDaPosicao(pos), j = jogDe(E.jog[i]);
+  const pos = E.vagas[i], lista = papeisDaPosicao(pos).sort((a, b) => ORDEM_DOS_PAPEIS.indexOf(a) - ORDEM_DOS_PAPEIS.indexOf(b)), j = jogDe(E.jog[i]);
   if (!verPapeis() || !lista.length) return ""; // na liga, a escolha some até a virada (os papéis salvos continuam nos dados)
   const atual = (E.papeis || [])[i] || PAPEL_PADRAO[pos], P = PAPEIS_DE_JOGO[atual];
   return `<div class="papeis-da-vaga" style="margin:6px 0 8px"><div class="t-numero-rotulo">Papel</div>

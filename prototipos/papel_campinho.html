@@ -66,6 +66,7 @@ function ponto(mapa, fase) {
 // o resto do time, apagado, num 4-2-3-1 (o lateral do papel fica de fora; o do outro lado também, para não confundir)
 const COMPANHEIROS = { GK: [60, 160], DCe: [44, 140], DCd: [76, 140], DMCe: [48, 105], DMCd: [72, 105], AML: [22, 62], AMC: [60, 64], AMR: [98, 62], ST: [60, 26] };
 
+const ORDEM = ["fixo", "apoiador", "construtor", "invertido"];
 let pos = "DR", modo = "anda", t0 = performance.now();
 const mapas = papel => mapasDoPapel(pos, papel) || { com: COBERTURA[pos], sem: COBERTURA[pos] };
 
@@ -96,7 +97,7 @@ function campo(papel) {
 }
 
 function desenhar() {
-  const lista = papeisDaPosicao(pos);
+  const lista = papeisDaPosicao(pos).sort((a, b) => ORDEM.indexOf(a) - ORDEM.indexOf(b)); // mesma ordem em qualquer posição
   document.getElementById("grade").innerHTML = lista.map(p => {
     const P = PAPEIS[p], m = mapas(p), parado = JSON.stringify(m.com) === JSON.stringify(m.sem);
     const linha = (mapa, l) => Math.round(100 * Object.entries(mapa).filter(([z]) => z[0] === l).reduce((s, [, w]) => s + w, 0));
