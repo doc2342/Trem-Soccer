@@ -34,6 +34,12 @@ assert.strictEqual(texto(jogar(undefined, apoiadores)), texto(jogar(0, dados()))
 assert.notStrictEqual(texto(jogar(1, apoiadores)), texto(jogar(1, dados())), "temporada 1: o papel muda o jogo");
 assert.ok(jogar(1, apoiadores).lances[0].dados.escalacoes[0].titulares.some(t => t.papel === "apoiador"), "a abertura grava o papel");
 assert.ok(jogar(0, apoiadores).lances[0].dados.escalacoes[0].titulares.every(t => !t.papel), "na temporada 0, não");
+// o papel jogado de cada titular em posição com papéis (o padrão também), para a troca custar entrosamento (supabase/164); na T0, nada
+const pj = jogar(1, apoiadores).papeis, idDR = onze[iDR].j.id;
+assert.ok(pj.some(x => x.id === idDR && x.papel === "apoiador"));
+assert.ok(jogar(1, dados()).papeis.some(x => x.id === idDR && x.papel === "fixo"), "o padrão também é gravado");
+assert.ok(!pj.some(x => x.id === onze[iMC].j.id), "posição sem papéis não grava");
+assert.deepStrictEqual(jogar(0, apoiadores).papeis, []);
 
 // bot: lateral que passa e cria muito e marca pouco vira Construtor ou Invertido
 const armador = e1.map(j => j.id === onze[iDR].j.id ? { ...j, at: j.at.map((v, k) => [IDX.pas, IDX.cri, IDX.dom].includes(k) ? 45 : [IDX.des, IDX.mar, IDX.cru].includes(k) ? 10 : v) } : j);

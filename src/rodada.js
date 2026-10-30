@@ -6,7 +6,7 @@ import { prepararTime, simularPartida, CONFIG } from "./motor.js";
 import { taticaBot } from "./bot.js";
 import { notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { montarRelatorio } from "./relatorio.js";
-import { papelValido, PAPEIS_DESDE } from "./papeis.js";
+import { papelValido, PAPEIS_DESDE, PAPEL_PADRAO } from "./papeis.js";
 import { momentoDepois, experienciaDe, experienciaDepois } from "./saude.js";
 
 export const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
@@ -268,6 +268,8 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     })(),
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+    // papel em que cada titular jogou (o padrão quando não escolheu), só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164)
+    papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel || PAPEL_PADRAO[e.pos] }))) : [],
     posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
   };
 }

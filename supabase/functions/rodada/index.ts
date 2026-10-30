@@ -1669,7 +1669,7 @@ const __rodada = (() => {
   const { taticaBot } = __bot;
   const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
   const { montarRelatorio } = __relatorio;
-  const { papelValido, PAPEIS_DESDE } = __papeis;
+  const { papelValido, PAPEIS_DESDE, PAPEL_PADRAO } = __papeis;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
@@ -1930,6 +1930,8 @@ const __rodada = (() => {
       })(),
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
+      // papel em que cada titular jogou (o padrão quando não escolheu), só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164)
+      papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel || PAPEL_PADRAO[e.pos] }))) : [],
       posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
     };
   }
@@ -2716,6 +2718,7 @@ const __mercadobots = (() => {
 const { calcularPartida, aplicarSituacao, proximaFaseDosPlayoffs, DIAS_PARA_BOT, CLASSIFICADOS_DO_PLAYOFF, vencedorDoGrupo, classificacaoFinal, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } = __rodada;
 const { treinar, chegouAoTeto, CONFIG_TREINO, qualidadeDoTreino, aprenderPosicao, ctDoClube, fatorDaTemporada } = __treino;
 const { saudeDoClube } = __saude;
+const { CONFIG } = __motor;
 const { timeDaBase, contratadoNaBase, CONFIG_LIGA_DE_BASE } = __ligabase;
 const { negociosEntreBots, comprasDeListados, livresParaOsBots } = __mercadobots;
 
@@ -3023,7 +3026,7 @@ Deno.serve(async (req) => {
     const elencos = {}, rodadasDoGrupo = {};
     for (let i = 0; i < ids.length; i += 20) { // em blocos, para não passar do limite de linhas por consulta
       const linhas = ok(await sb.from("jogadores").select("*").in("clube_id", ids.slice(i, i + 20)).order("id"));
-      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
+      for (const l of linhas) (elencos[l.clube_id] = elencos[l.clube_id] || []).push({ id: "j" + l.id, nome: l.nome, numero: l.numero || null, pais: l.pais, idade: l.idade, pos: l.pos, fam: l.fam, at: l.at, titular: l.principal, fora: l.fora_jogos || 0, motivo: l.fora_motivo || null, amarelos: l.amarelos || 0, entrosar: l.entrosar || 0, papelJogado: l.papel_jogado || null, treino: l.treino || null, pts: l.treino_pts || null, aprende: l.aprende || null, juvenil: !!l.juvenil, forma: l.forma == null ? null : l.forma, moral: l.moral == null ? null : l.moral, exp: l.exp == null ? null : +l.exp, pe: l.pe || null, pf: l.pe_fraco == null ? null : l.pe_fraco, amarelosCopa: l.amarelos_copa || 0, foraCopa: l.fora_copa || 0, copaClube: l.copa_clube == null ? null : l.copa_clube, amarelosLib: l.amarelos_lib || 0, foraLib: l.fora_lib || 0 });
     }
     // treinadores contratados de cada clube (sem a tabela, antes do 28_treinadores.sql, o treino segue sem eles)
     // "comissoes" guarda só os treinadores; médico e preparador de prevenção (29_saude.sql) vão para "saude"
@@ -3043,7 +3046,7 @@ Deno.serve(async (req) => {
       try {
         // juvenil (60_juvenis_e_formador.sql) não joga partida oficial: fica fora da escalação, da forma e da moral, mas treina mais abaixo
         const lado = id => ({ clube: clubes[id], elenco: (elencos[id] || []).filter(j => !j.juvenil), tatica: taticas[id] || null, saude: saudeDoClube(saude[id], clubes[id]) });
-        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens } = calcularPartida({
+        const { lances, resultado, situacao, minutos, posicoes, momento, copa, lib, vencedor, ordens, papeis } = calcularPartida({
           partida: p, casa: lado(p.casa), fora: lado(p.fora),
           minutosTransmissao: ligas[p.liga_id].minutos_transmissao, semente: Math.floor(Math.random() * 2147483647), temporada: ligas[p.liga_id].temporada,
         });
@@ -3068,6 +3071,12 @@ Deno.serve(async (req) => {
         // recém-chegados: um jogo a menos para entrosar (sem efeito antes do 86_entrosamento.sql)
         await sb.rpc("entrosar_partida", { p_partida: p.id });
         for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (j.entrosar > 0) j.entrosar--;
+        // trocar de papel custa entrosamento (sem efeito antes do 164_papel_jogado.sql; antes da temporada 1, papeis vem vazio)
+        if (papeis && papeis.length) {
+          const r = await sb.rpc("marcar_papeis", { p_partida: p.id, p_papeis: papeis.map(x => ({ id: +String(x.id).slice(1), papel: x.papel })), p_jogos: CONFIG.papeis.entrosarTroca });
+          if (!r.error) { const antes = Object.fromEntries(papeis.map(x => [x.id, x.papel]));
+            for (const lado of [p.casa, p.fora]) for (const j of elencos[lado] || []) if (antes[j.id]) { if (j.papelJogado && j.papelJogado !== antes[j.id]) j.entrosar = Math.max(j.entrosar || 0, CONFIG.papeis.entrosarTroca); j.papelJogado = antes[j.id]; } }
+        }
         // forma e moral depois do jogo (sem efeito antes do 30_forma_e_moral.sql)
         if (momento.length) {
           efeitos.momento = momento.map(m => ({ id: +String(m.id).slice(1), forma: m.forma, moral: m.moral, exp: m.exp }));
