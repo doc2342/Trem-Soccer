@@ -666,7 +666,7 @@ async function tela(aviso = "") {
     try {
       const grupos = Object.fromEntries(gruposLiga.map(g => [g, clubes.filter(c => c.grupo === g)])), lista = Object.values(grupos).flat(), elencos = {};
       for (let i = 0; i < lista.length; i += 10) await Promise.all(lista.slice(i, i + 10).map(async c => { elencos[c.id] = await elencoDoClube(c.id); }));
-      const metas = await simularMetas({ grupos, elencos, rng: criarRng(Date.now() % 2147483647), n: Math.max(10, +$("nSim").value || CONFIG_DIRETORIA.simulacoes),
+      const metas = await simularMetas({ grupos, elencos, rng: criarRng(Date.now() % 2147483647), temporada: liga.temporada, n: Math.max(10, +$("nSim").value || CONFIG_DIRETORIA.simulacoes),
         aoProgresso: (f, g) => { $("avisoMetas").textContent = `Simulando: ${nomeDoGrupo(g)}… ${Math.round(f * 100)}% do total.`; } });
       const n = await definirMetas(liga.id, metas), nome = Object.fromEntries(lista.map(c => [c.id, c]));
       $("metasInfo").innerHTML = `<b>${n} clubes com meta</b>`;

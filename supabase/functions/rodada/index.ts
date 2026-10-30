@@ -1031,7 +1031,8 @@ const __motor = (() => {
   const reinicio = min => min === 46 || min === 91 || min === 106;
   // opcoes.prorrogacao: jogo de mata-mata; empate nos 90 minutos leva a mais 30, jogados como o resto da partida
   // opcoes.calor: calor forte, todos cansam mais rápido. opcoes.chuva: 0, 1 (fraca) ou 2 (forte). opcoes.jogoGrande: a experiência pesa mais no dia de cada jogador
-  // opcoes.regrasT1 (padrão true): as regras da T1 (CONFIG.t1 e CONFIG.regrasT1); calcularPartida desliga antes de PAPEIS_DESDE.
+  // opcoes.regrasT1 (padrão true): as regras da T1 (CONFIG.t1 e CONFIG.regrasT1); calcularPartida e as metas da diretoria desligam antes de PAPEIS_DESDE.
+  //   Os amistosos (jogo-treino) ficam no padrão: o dono liberou as regras e os papéis da T1 só neles antes da virada (30/10).
   // ponytail: troca o CONFIG global durante a partida e devolve no fim (o motor é síncrono); se um dia rodar partidas em paralelo, passar o CONFIG adiante
   function simularPartida(rng, casa, fora, opcoes = {}) {
     if (opcoes.regrasT1 === false) return jogarPartida(rng, casa, fora, opcoes);
