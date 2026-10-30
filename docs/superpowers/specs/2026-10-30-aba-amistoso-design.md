@@ -76,7 +76,7 @@ A aba nova é o laboratório de táticas antes da virada e, depois dela, um luga
 - Na aba: a opção "Aceitar amistosos", a lista de parceiros e pedidos, a escolha do adversário (clubes da liga, com o motivo quando bloqueado: "fechado", "já jogaram hoje", "próximo adversário"; e os 5 bots de estilo de `ESTILO_DO_PERFIL`: sem estilo, passe curto, pressão alta, contra-ataque, linha de impedimento), o mando e o histórico (placar contra cada clube, para sempre; relatório nos últimos 7 dias).
 - **Bot de estilo:** elenco gerado (`gerarElenco`, com semente fixa por estilo e nível igual à nota média do seu onze) e `taticaBot` com o perfil do estilo **(decisão minha)**.
 - Simulação: `prepararTime` + `simularPartida(..., { regrasT1: true })` com os papéis da tática de amistoso; sem lesões e suspensões (como hoje); clima neutro.
-- **Replay acelerado:** reaproveitar a narração de `aovivo.html` (lances/eventos/narração já vêm na `partida`) num pop-up que corre o jogo em ~20 s, com botão de pular para o relatório.
+- **Replay acelerado:** reaproveitar a narração de `aovivo.html` (lances/eventos/narração já vêm na `partida`) num pop-up que corre o jogo em ~1 minuto (dono: mais que 20 s), com botões de velocidade (mais devagar / mais rápido) e de pular para o relatório.
 - **Central do desafiado:** um cartão por dia, por adversário: "Fulano jogou 3 amistosos contra você hoje: 2V 1D", com links para cada replay/relatório; some depois de visto.
 - **Tática da liga:** `htmlPapeisDaVaga` e o rótulo do papel não aparecem enquanto `temporadaDaLiga < PAPEIS_DESDE`. Na virada, um botão "Copiar papéis da tática de amistoso" **(decisão minha)**.
 - `banco.js` tolera o esquema antigo (sem as tabelas novas, a aba diz que falta rodar o SQL), como no resto do site.
