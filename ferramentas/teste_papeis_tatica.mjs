@@ -37,7 +37,7 @@ assert.ok(jogar(0, apoiadores).lances[0].dados.escalacoes[0].titulares.every(t =
 // o papel jogado de cada titular em posição com papéis (o padrão também), para a troca custar entrosamento (supabase/164); na T0, nada
 const pj = jogar(1, apoiadores).papeis, idDR = onze[iDR].j.id;
 assert.ok(pj.some(x => x.id === idDR && x.papel === "apoiador"));
-assert.ok(jogar(1, dados()).papeis.some(x => x.id === idDR && x.papel === "fixo"), "o padrão também é gravado");
+assert.ok(jogar(1, dados()).papeis.some(x => x.id === idDR && x.papel === "padrao"), "o padrão também é gravado");
 assert.ok(!pj.some(x => x.id === onze[iMC].j.id), "posição sem papéis não grava");
 assert.deepStrictEqual(jogar(0, apoiadores).papeis, []);
 

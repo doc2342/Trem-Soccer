@@ -610,7 +610,7 @@ const __motor = (() => {
     //     ou fecha o centro da defesa com a bola do outro lado; entrosarTroca: jogos de entrosamento de quem troca de papel (supabase/164)
     //   transicao: no contra-ataque do adversário, quanto da defesa de quem tem papel sai do mapa com a bola (ele ainda não voltou) em vez do mapa sem a bola
     papeis: { passagemPorDentro: { AD: -0.20, AC: 0.10, MD: 0.10 }, alaPorLado: 0.3, entrosarTroca: 3, transicao: 1 },
-    faltaRecomeca: true,
+    faltaRecomeca: true, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
     // Regras da T1 (adendo de 30/10 ao plano dos papéis): só valem com simularPartida(..., { regrasT1: true }), o padrão; calcularPartida liga a partir
     // de PAPEIS_DESDE. regrasT1 é a chave que o motor lê durante a partida; t1: valores do CONFIG que mudam com as regras (aplicados e devolvidos).
     //   reserva: defesa de reserva, a soma dos pesos nas zonas D do mapa com a bola (quem fica atrás quando o time ataca); ao perder a bola, a chance de
@@ -625,8 +625,8 @@ const __motor = (() => {
     compactacao: { razao: 0.9 }, lotacao: { limite: 2.5, resto: 0.6 },
     transicao: { reserva: { referencia: 3.8, expoente: 2 }, pressionar: { retomada: 0.25, falha: 1.4, gasto: 0.1 }, recompor: { contra: 0.35, posse: 0.95 } },
     // t1 (30/10, conta de 3.000 jogos entre formações sorteadas): contra-ataque 2x mais frequente e mais forte, para os gols de contra-ataque irem de 2,7% para
-    //   ~9% (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição), e o ritmo de ataques de 0,75 para 0,68 para os gols da liga ficarem iguais (~2,37)
-    t1: { contraAtaque: { com: 0.32, sem: 0.08, logit: 0.9 }, ataquesPorMinuto: 0.69, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 } }, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
+    //   ~9% (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição), e o ritmo de ataques de 0,75 para 0,69 para os gols da liga ficarem iguais (~2,37)
+    t1: { contraAtaque: { com: 0.32, sem: 0.08, logit: 0.9 }, ataquesPorMinuto: 0.69, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 } },
   };
 
   const INSTRUCOES_PADRAO = {
@@ -1332,7 +1332,7 @@ const __motor = (() => {
         if (contra) return;
         const T = CONFIG.transicao, ao = CONFIG.regrasT1 ? atk.instr.aoPerder : "misto";
         // pressionar: a retomada na hora, na zona em que perdeu, pela pressão do time ali contra quem ficou com a bola
-        if (ao === "pressionar") {
+        if (ao === "pressionar" && !impedido) { // impedimento é falta para a defesa: não dá para retomar na hora
           const forca = (atk.def[zona] + CONFIG.zonaVazia) / (def.atk[espelho(zona)] + CONFIG.zonaVazia);
           if (rng.chance(limitar(T.pressionar.retomada * Math.sqrt(forca), 0.05, 0.5))) {
             e.retomadas = (e.retomadas || 0) + 1; evento(i, "posse", `${tm(i)} pressiona logo e recupera a bola ${ONDE[zona[0]](zona[1])}.`);
@@ -1346,10 +1346,11 @@ const __motor = (() => {
         const eu = def.instr.mentalidade, postura = !def.instr.contraAtaque ? 1 : eu < 0 ? 1 - K.porPostura * eu : Math.max(0.4, 1 - K.posturaOfensiva * eu);
         const p = (def.instr.contraAtaque ? K.com : K.sem) * fator * postura * (atk.instr.impedimento ? K.linhaAlta : 1) * (1 + CONFIG.embalo.contra * roubada)
           * (CONFIG.regrasT1 ? Math.pow(T.reserva.referencia / Math.max(1, atk.reserva), T.reserva.expoente) * (ao === "pressionar" ? T.pressionar.falha : ao === "recompor" ? T.recompor.contra : 1) : 1);
-        // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
-        const lateral = zona[0] === "M" && zona[1] !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === zona[1] && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
-        const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
-        if (rng.chance(p)) { estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
+        if (rng.chance(p)) {
+          // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
+          const lateral = zona[0] === "M" && zona[1] !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === zona[1] && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
+          const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
+          estat[1 - i].contraAtaques++; evento(1 - i, "contra", impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); emContra = true; atacar(1 - i, true); emContra = false; if (proximo) proximo.zona = "D"; }
       };
       e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false;
       if (cobranca && cobranca.time === i && !contra) { portador = cobranca.jog; aposFalta = true; } // recomeço depois de falta: quem sofreu cobra
@@ -2011,8 +2012,9 @@ const __rodada = (() => {
       })(),
       momento,
       minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
-      // papel em que cada titular jogou (o padrão quando não escolheu), só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164)
-      papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel || PAPEL_PADRAO[e.pos] }))) : [],
+      // papel em que cada titular jogou, só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164). O padrão grava "padrao" e não
+      // o nome, para mudar de formação sem escolher papel (DR, Fixo, para WBR, Apoiador) não contar como troca
+      papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel && e.papel !== PAPEL_PADRAO[e.pos] ? e.papel : "padrao" }))) : [],
       posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
     };
   }

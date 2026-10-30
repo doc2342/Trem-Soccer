@@ -268,8 +268,9 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     })(),
     momento,
     minutos: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, (x.saiu === null ? p.duracao || 90 : x.saiu) - x.entrou])), // para o bônus de treino de quem jogou
-    // papel em que cada titular jogou (o padrão quando não escolheu), só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164)
-    papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel || PAPEL_PADRAO[e.pos] }))) : [],
+    // papel em que cada titular jogou, só nas posições com papéis e a partir de PAPEIS_DESDE: trocar custa entrosamento (164). O padrão grava "padrao" e não
+    // o nome, para mudar de formação sem escolher papel (DR, Fixo, para WBR, Apoiador) não contar como troca
+    papeis: temporada >= PAPEIS_DESDE ? taticas.flatMap(t => t.escalacao.filter(e => PAPEL_PADRAO[e.pos]).map(e => ({ id: e.j.id, papel: e.papel && e.papel !== PAPEL_PADRAO[e.pos] ? e.papel : "padrao" }))) : [],
     posicoes: Object.fromEntries(Object.entries(p.jogadores).map(([id, x]) => [id, x.pos])), // posição em que cada um começou a jogar: acelera a posição nova
   };
 }

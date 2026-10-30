@@ -390,6 +390,7 @@ async function iniciarOnline(sessaoDeTeste) {
 function aplicarFormacao(nome) {
   const esc11 = escalar(elenco.filter(j => !(j.fora > 0)), FORMACOES[nome]);
   E.vagas = esc11.map(x => x.pos); E.jog = esc11.map(x => x.j.id);
+  if (E.papeis) E.papeis = E.vagas.map(() => null); // o papel é da vaga: a formação nova começa sem papel (senão o do lateral direito ia para outra vaga)
   E.banco = E.banco.filter(id => !E.jog.includes(id));
   limparReferencias(); render();
 }
