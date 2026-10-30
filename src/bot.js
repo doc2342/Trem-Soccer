@@ -6,6 +6,7 @@ import { fatorDeMomento } from "./saude.js";
 const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
 import { FORMACOES, escalar, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { avaliarZonas, setorDaPosicao } from "./motor.js";
+import { papeisDaPosicao, notaNoPapel, PAPEL_PADRAO } from "./papeis.js";
 
 export const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
 // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
@@ -18,6 +19,23 @@ export const ESTILO_DO_PERFIL = {
 };
 const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
 const A = IDX;
+
+// Papéis do bot: em cada vaga com papéis, o que o jogador faz melhor, se render ao menos GANHO_DO_PAPEL a mais que o padrão (senão fica no padrão,
+// gravado como null). Nunca dois Apoiadores nos laterais com menos de dois volantes: as duas costas ficam abertas; o de menor ganho volta ao padrão.
+const GANHO_DO_PAPEL = 2;
+export function papeisDoBot(escalacao) {
+  const esc = escalacao.map(x => {
+    const lista = papeisDaPosicao(x.pos);
+    if (!lista.length) return { ...x, papel: null };
+    const padrao = notaNoPapel(x.j, x.pos, PAPEL_PADRAO[x.pos]);
+    const melhor = lista.reduce((m, p) => { const n = notaNoPapel(x.j, x.pos, p); return n > m.n ? { p, n } : m; }, { p: PAPEL_PADRAO[x.pos], n: padrao });
+    return { ...x, papel: melhor.p !== PAPEL_PADRAO[x.pos] && melhor.n >= padrao + GANHO_DO_PAPEL ? melhor.p : null, ganho: melhor.n - padrao };
+  });
+  const apoiadores = esc.filter(x => x.papel === "apoiador" && POSICOES_LATERAL.includes(x.pos)).sort((a, b) => a.ganho - b.ganho);
+  if (apoiadores.length >= 2 && esc.filter(x => x.pos === "DMC").length < 2) apoiadores[0].papel = null;
+  return esc.map(({ ganho, ...x }) => x);
+}
+const POSICOES_LATERAL = ["DR", "DL"];
 
 const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaDoMomento(x.j, x.pos), 0) / escalacao.length;
 const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
@@ -91,5 +109,5 @@ export function taticaBot(elenco, { mandante = false, forcaAdversario = null, pe
       { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1), cera: true } }, // a cera só vale enquanto estiver ganhando
     ],
   };
-  return { formacao, escalacao, banco, instrucoes, forca };
+  return { formacao, escalacao: papeisDoBot(escalacao), banco, instrucoes, forca };
 }

@@ -1446,6 +1446,7 @@ const __bot = (() => {
   const notaDoMomento = (j, pos) => notaComPe(j, pos) * fatorDeMomento(j);
   const { FORMACOES, escalar, TAMANHO_DO_BANCO } = __escalacao;
   const { avaliarZonas, setorDaPosicao } = __motor;
+  const { papeisDaPosicao, notaNoPapel, PAPEL_PADRAO } = __papeis;
   const FORMACOES_BOT = ["4-4-2", "4-3-3 com pontas", "4-2-3-1", "3-5-2 com alas", "4-5-1", "4-1-4-1", "4-4-1-1", "4-3-2-1 (árvore de Natal)", "5-4-1", "5-3-2", "4-4-2 losango"]; // todas menos o 4-3-3 do Dugout
   // Jeito de jogar do bot conforme o perfil do clube. É o que o dirigente pode ler no adversário para escolher a resposta.
   const ESTILO_DO_PERFIL = {
@@ -1457,6 +1458,23 @@ const __bot = (() => {
   };
   const FAVORITO = 2; // diferença de nota média a partir da qual o bot se considera favorito ou azarão
   const A = IDX;
+
+  // Papéis do bot: em cada vaga com papéis, o que o jogador faz melhor, se render ao menos GANHO_DO_PAPEL a mais que o padrão (senão fica no padrão,
+  // gravado como null). Nunca dois Apoiadores nos laterais com menos de dois volantes: as duas costas ficam abertas; o de menor ganho volta ao padrão.
+  const GANHO_DO_PAPEL = 2;
+  function papeisDoBot(escalacao) {
+    const esc = escalacao.map(x => {
+      const lista = papeisDaPosicao(x.pos);
+      if (!lista.length) return { ...x, papel: null };
+      const padrao = notaNoPapel(x.j, x.pos, PAPEL_PADRAO[x.pos]);
+      const melhor = lista.reduce((m, p) => { const n = notaNoPapel(x.j, x.pos, p); return n > m.n ? { p, n } : m; }, { p: PAPEL_PADRAO[x.pos], n: padrao });
+      return { ...x, papel: melhor.p !== PAPEL_PADRAO[x.pos] && melhor.n >= padrao + GANHO_DO_PAPEL ? melhor.p : null, ganho: melhor.n - padrao };
+    });
+    const apoiadores = esc.filter(x => x.papel === "apoiador" && POSICOES_LATERAL.includes(x.pos)).sort((a, b) => a.ganho - b.ganho);
+    if (apoiadores.length >= 2 && esc.filter(x => x.pos === "DMC").length < 2) apoiadores[0].papel = null;
+    return esc.map(({ ganho, ...x }) => x);
+  }
+  const POSICOES_LATERAL = ["DR", "DL"];
 
   const mediaNotas = escalacao => escalacao.reduce((s, x) => s + notaDoMomento(x.j, x.pos), 0) / escalacao.length;
   const melhores = (lista, nota, n) => lista.slice().sort((a, b) => nota(b) - nota(a)).slice(0, n).map(x => x.j.id);
@@ -1530,9 +1548,9 @@ const __bot = (() => {
         { min: 80, cond: "ganhando", muda: { mentalidade: Math.max(-2, mentalidade - 1), cera: true } }, // a cera só vale enquanto estiver ganhando
       ],
     };
-    return { formacao, escalacao, banco, instrucoes, forca };
+    return { formacao, escalacao: papeisDoBot(escalacao), banco, instrucoes, forca };
   }
-  return { FORMACOES_BOT, ESTILO_DO_PERFIL, taticaBot };
+  return { FORMACOES_BOT, ESTILO_DO_PERFIL, papeisDoBot, taticaBot };
 })();
 
 const __relatorio = (() => {
@@ -1651,6 +1669,7 @@ const __rodada = (() => {
   const { taticaBot } = __bot;
   const { notaDoMomento, TAMANHO_DO_BANCO } = __escalacao;
   const { montarRelatorio } = __relatorio;
+  const { papelValido, PAPEIS_DESDE } = __papeis;
   const { momentoDepois, experienciaDe, experienciaDepois } = __saude;
   const AMARELOS_PARA_SUSPENSAO = 4; // o quarto amarelo acumulado suspende por um jogo (era o terceiro até a temporada 1; em teste na temporada 2)
   // A lesão sai do motor em dias; na liga ela vira jogos fora.
@@ -1722,7 +1741,8 @@ const __rodada = (() => {
           return { min: num(o.min, 0, 89), cond: um(o.cond, condicoes.slice(0, 6), "sempre"), muda: { [k]: conv(v) } };
         }).filter(Boolean),
       };
-      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos })), banco: banco.map(id => porId[id]), instrucoes };
+      const papeis = Array.isArray(dados.papeis) ? dados.papeis : []; // papel de cada vaga (src/papeis.js); o que não vale na posição cai
+      return { escalacao: dados.vagas.map((pos, i) => ({ j: porId[jog[i]], pos, papel: papelValido(pos, papeis[i]) ? papeis[i] : null })), banco: banco.map(id => porId[id]), instrucoes };
     } catch (e) { return null; }
   }
 
@@ -1841,7 +1861,9 @@ const __rodada = (() => {
       const disponiveis = elenco.filter(j => !(j.fora > 0));
       return { ...l, disponiveis, humana, previa: humana ? forcaDoOnze(humana.escalacao) : taticaBot(disponiveis).forca };
     });
-    const taticas = lados.map((l, i) => l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva }));
+    // antes de PAPEIS_DESDE (ou sem temporada) ninguém joga com papel, nem o dirigente, nem o bot
+    const semPapel = t => temporada >= PAPEIS_DESDE ? t : { ...t, escalacao: t.escalacao.map(({ papel, ...e }) => e) };
+    const taticas = lados.map((l, i) => semPapel(l.humana || taticaBot(l.disponiveis, { mandante: i === 0 && !copa, forcaAdversario: lados[1 - i].previa, perfil: l.clube.perfil, chuva: clima.chuva })));
     const times = lados.map((l, i) => {
       const t = taticas[i];
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
@@ -1855,7 +1877,7 @@ const __rodada = (() => {
     const extra = criarRng((semente >>> 0) + 7919);
     lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
       n: -1, min: 0, tipo: "inicio", acrescimos: acr, moeda: extra.int(0, 1), clima: { nome: clima.nome, temp: clima.temp }, grande: jogoGrande(partida),
-      escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
+      escalacoes: taticas.map(t => ({ titulares: t.escalacao.map(e => ({ nome: e.j.nome, pos: e.pos, ...(e.j.numero ? { numero: e.j.numero } : {}), ...(e.papel ? { papel: e.papel } : {}) })), banco: (t.banco || []).map(j => ({ nome: j.nome, pos: j.pos, ...(j.numero ? { numero: j.numero } : {}) })) })),
     } });
     // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
     // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
