@@ -68,7 +68,7 @@ const COMPANHEIROS = { GK: [60, 160], DCe: [44, 140], DCd: [76, 140], DMCe: [48,
 
 const ORDEM = ["fixo", "apoiador", "construtor", "invertido"];
 let pos = "DR", modo = "anda", t0 = performance.now();
-const mapas = papel => mapasDoPapel(pos, papel) || { com: COBERTURA[pos], sem: COBERTURA[pos] };
+const mapas = papel => mapasDoPapel(pos, papel, true) || { com: COBERTURA[pos], sem: COBERTURA[pos] }; // como na T1: o ala padrão também tem as duas fases
 
 function campo(papel) {
   const m = mapas(papel), max = Math.max(...Object.values(m.com), ...Object.values(m.sem));

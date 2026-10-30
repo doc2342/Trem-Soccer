@@ -315,14 +315,14 @@ function recalcular(t, saldo) {
     if (jog.pos === "SW") t.temLibero = true;
     const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
     // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
-    const m = mapasDoPapel(jog.pos, jog.papel), sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos];
+    const m = mapasDoPapel(jog.pos, jog.papel, CONFIG.regrasT1), sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos]; // na T1 o ala padrão também tem as duas fases
     let com = m ? m.com : COBERTURA[jog.pos];
     // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
     if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado)) {
       const pd = P.lado === "D" ? CONFIG.papeis.passagemPorDentro : espelharLado(CONFIG.papeis.passagemPorDentro);
       com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
     }
-    if (m && P.linha === "ala") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
+    if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
     for (const [z, w] of Object.entries(com)) {
       if (z[0] === "D") t.reserva += w;
       t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];

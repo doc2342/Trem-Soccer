@@ -57,7 +57,7 @@ assert.deepStrictEqual(ds.D, ds.C, "sem ala de papel, o corredor não muda a def
 import { desenhoDoTime } from "../src/motor.js";
 const t442 = onze("4-4-2", 21);
 assert.deepStrictEqual(desenhoDoTime(t442), { com: "4-4-2", sem: "4-4-2" });
-assert.deepStrictEqual(desenhoDoTime(comPapel(t442, { DR: "apoiador", DL: "apoiador" })), { com: "2-4-4", sem: "4-4-2" });
+assert.deepStrictEqual(desenhoDoTime(comPapel(t442, { DR: "apoiador", DL: "apoiador" })), { com: "2-6-2", sem: "4-4-2" }); // com a bola os dois Apoiadores sobem até a linha do meio (AD 0,30 < MD 0,40 desde 31/10)
 assert.deepStrictEqual(desenhoDoTime(onze("3-5-2 com alas", 21)), { com: "3-5-2", sem: "3-5-2" }, "alas de hoje: mais no meio do lado");
 // Transição (tarefa 7): no contra-ataque do adversário, quem defende ainda está onde estava com a bola (mapa com a bola), e o padrão não muda
 import { defesaNaTransicao } from "../src/motor.js";
