@@ -12,6 +12,9 @@ import { papeisDaPosicao } from "../src/papeis.js";
 
 const N = +process.argv[2] || 3000;
 if (process.argv[3]) Object.assign(CONFIG.papeis, JSON.parse(process.argv[3]));
+Object.assign(CONFIG.t1, JSON.parse(process.env.T1 || "{}")); // teste das regras da T1: T1='{"baseDuelo":{"D":1.2,"M":0.25,"A":0.1}}'
+if (process.env.CFG) { const c = JSON.parse(process.env.CFG); for (const k in c) CONFIG[k] = typeof CONFIG[k] === "object" && !Array.isArray(CONFIG[k]) ? { ...CONFIG[k], ...c[k] } : c[k]; } // CFG='{"compactacao":{"razao":0.9}}'
+
 // teste de mapa: MAPAS='{"apoiador":{"DR":{"com":{...},"sem":{...}}}}' troca os mapas do lado direito (o esquerdo vem espelhado); PAPEL=apoiador roda só um
 import { PAPEIS } from "../src/papeis.js";
 for (const [p, m] of Object.entries(JSON.parse(process.env.MAPAS || "{}"))) Object.assign(PAPEIS[p].mapas, m);

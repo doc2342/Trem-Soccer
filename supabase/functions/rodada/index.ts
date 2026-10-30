@@ -619,8 +619,14 @@ const __motor = (() => {
     //     falha = quanto o contra-ataque fica mais provável quando a pressão não pega; gasto = energia a mais por minuto;
     //   recompor: contra = quanto do contra-ataque sobra (e o time não é pego fora do lugar); posse = o que fica do controle do meio
     regrasT1: false,
+    //   compactacao: a marcação no meio de um lado só conta para a posse até razao vezes a defesa do fundo do mesmo lado (marcar alto sem cobertura atrás
+    //     não segura a bola); o resto é o time esticado. As formações prontas ficam abaixo de 1 (o 5-4-1, 1,2)
+    //   lotacao: zona com mais de limite jogadores (soma dos pesos): o que passa rende só resto. As formações prontas ficam até 2,5, menos a árvore de Natal (3,0 no meio)
+    compactacao: { razao: 0.9 }, lotacao: { limite: 2.5, resto: 0.6 },
     transicao: { reserva: { referencia: 3.8, expoente: 2 }, pressionar: { retomada: 0.25, falha: 1.4, gasto: 0.1 }, recompor: { contra: 0.35, posse: 0.95 } },
-    t1: {}, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
+    // t1 (30/10, conta de 3.000 jogos entre formações sorteadas): contra-ataque 2x mais frequente e mais forte, para os gols de contra-ataque irem de 2,7% para
+    //   ~9% (real: 5,25% na conta estrita da Opta; 14 a 20% nos estudos de transição), e o ritmo de ataques de 0,75 para 0,68 para os gols da liga ficarem iguais (~2,37)
+    t1: { contraAtaque: { com: 0.32, sem: 0.08, logit: 0.9 }, ataquesPorMinuto: 0.69, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 } }, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
   };
 
   const INSTRUCOES_PADRAO = {
@@ -782,6 +788,11 @@ const __motor = (() => {
         if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[z[0]]; naTransicao = true; }
       }
     }
+    // zona lotada (regras da T1): passando de limite jogadores (soma dos pesos), o que sobra rende só a fração resto (o congestionamento do futebol real)
+    if (CONFIG.regrasT1) for (const z of ZONAS) for (const [forca, quem] of [[t.atk, t.zonas[z]], [t.def, t.zonasDef[z]]]) {
+      const W = quem.reduce((s, o) => s + o.w, 0), L = CONFIG.lotacao;
+      if (W > L.limite) forca[z] *= (L.limite + (W - L.limite) * L.resto) / W;
+    }
     if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
     // defesa com a bola em cada corredor (lado do próprio time): o ala do lado da bola sobe para pressionar, o do outro lado fecha a linha
     t.defTransicao = naTransicao ? Object.fromEntries(ZONAS.map(z => [z, Math.max(0, t.def[z] + (transicao[z] || 0))])) : t.def;
@@ -796,7 +807,8 @@ const __motor = (() => {
     }
     const linha = t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
-    t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
+    const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
+    t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + defNoMeio(l)) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
       * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica)
       * (CONFIG.regrasT1 && I.aoPerder === "recompor" ? CONFIG.transicao.recompor.posse : 1);
   }

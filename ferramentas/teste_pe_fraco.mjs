@@ -45,8 +45,8 @@ const sem = l => l.map(j => ({ ...j, pf: null }));
 assert.strictEqual(PE_FRACO_DESDE, 1);
 assert.strictEqual(jogar(0), jogar(0, sem(e1), sem(e2)), "temporada 0: a nota não entra");
 assert.strictEqual(jogar(undefined), jogar(0, sem(e1), sem(e2)), "sem temporada: também não");
-assert.strictEqual(jogar(1, sem(e1), sem(e2)), jogar(0, sem(e1), sem(e2)), "sem a nota, a temporada não muda nada");
-assert.notStrictEqual(jogar(1), jogar(0), "temporada 1: a nota muda o jogo");
+// a temporada 1 também liga as regras da T1 (motor.js, regrasT1), então a nota se compara dentro da mesma temporada
+assert.notStrictEqual(jogar(1), jogar(1, sem(e1), sem(e2)), "temporada 1: a nota muda o jogo");
 // narração: o chute com o pé ruim aparece a partir da temporada 1, nunca antes
 const narrado = t => [3, 9, 27, 81].some(sm => calcularPartida({ partida: { id: sm, inicio: "2026-11-01T11:00:00Z", fase: "liga" }, casa: lado(1, e1), fora: lado(2, e2), semente: sm, temporada: t }).lances.some(l => /pé ruim|como se fosse o pé bom/.test(l.dados.texto || "")));
 assert.ok(narrado(1) && !narrado(0));
