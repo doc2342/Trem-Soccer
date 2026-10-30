@@ -33,4 +33,24 @@ assert.ok(inv.def.MC - z.def.MC < (inv.atk.MC - z.atk.MC) / 2, "sem a bola, pouc
 const apE = avaliarZonas(comPapel(a, { DL: "apoiador" }));
 assert.ok(apE.atk.AE > z.atk.AE && Math.abs(apE.atk.AD - z.atk.AD) < 1e-9, "Apoiador no DL vai pela esquerda");
 
+// Passagem do Apoiador (tarefa 3): com ponta aberto na frente (RW), passa por dentro (mais AC); com meia de lado (AMR), por fora
+const comRW = avaliarZonas(comPapel(onze("4-3-3 com pontas", 7), { DR: "apoiador" })), semRW = avaliarZonas(onze("4-3-3 com pontas", 7));
+const comAMR = avaliarZonas(comPapel(a, { DR: "apoiador" }));
+const ganhoAC = (x, y) => x.atk.AC - y.atk.AC;
+assert.ok(ganhoAC(comRW, semRW) > ganhoAC(comAMR, z) + 1, "com ponta aberto na frente, o Apoiador passa por dentro");
+const comLW = avaliarZonas(comPapel(onze("4-3-3 com pontas", 7), { DL: "apoiador" }));
+assert.ok(ganhoAC(comLW, semRW) > ganhoAC(comAMR, z) + 1, "na esquerda também");
+
+// Ala pelo lado da bola (tarefa 3): só o ala que não é Apoiador; o 3-5-2 com alas Apoiadores joga igual a antes
+import { CONFIG, defesaPorCorredor } from "../src/motor.js";
+assert.ok(CONFIG.papeis && CONFIG.papeis.alaPorLado > 0);
+const t352 = onze("3-5-2 com alas", 11), b442 = onze("4-4-2", 12);
+assert.strictEqual(jogo(comPapel(t352, { WBR: "apoiador", WBL: "apoiador" }), b442, 5), jogo(t352, b442, 5), "alas Apoiadores: igual a antes");
+const dc = defesaPorCorredor(comPapel(t352, { WBR: "fixo" }));
+// corredor do lado dele (D): sobe para pressionar (MD mais forte, DD mais fraco); corredor oposto (E): fecha a linha (DC mais forte)
+assert.ok(dc.D.MD > dc.C.MD && dc.D.DD < dc.C.DD, "bola do lado do ala: ele pressiona");
+assert.ok(dc.E.DC > dc.C.DC && dc.E.DD < dc.C.DD, "bola do outro lado: ele fecha a linha");
+const ds = defesaPorCorredor(t352);
+assert.deepStrictEqual(ds.D, ds.C, "sem ala de papel, o corredor não muda a defesa");
+
 console.log("teste_papeis_motor: ok");

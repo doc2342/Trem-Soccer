@@ -604,6 +604,11 @@ const __motor = (() => {
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
     penalti: 0.072, // das faltas no centro do ataque
     faltaDireta: 0.15, // das faltas no ataque que não são pênalti (0,27 até 29/10/2026: quase 2 cobranças diretas por jogo, o dobro do futebol real)
+    // Papéis (src/papeis.js), valores iniciais a calibrar (ferramentas/sim_papeis_laterais.mjs):
+    //   passagemPorDentro: o que muda no mapa com a bola do Apoiador do DR quando há um ponta aberto (RW ou MR) na frente dele (no DL, o espelho);
+    //   alaPorLado: parte do peso no fundo do lado do ala (de papel que não é o Apoiador) que sobe para o meio do lado com a bola do lado dele,
+    //     ou fecha o centro da defesa com a bola do outro lado; entrosarTroca: jogos de entrosamento de quem troca de papel (supabase/164)
+    papeis: { passagemPorDentro: { AD: -0.20, AC: 0.10, MD: 0.10 }, alaPorLado: 0.3, entrosarTroca: 3 },
     faltaRecomeca: true, // falta fora do ataque em quem perdia o duelo: o time recomeça do mesmo setor, em vez de ganhar o duelo
   };
 
@@ -659,6 +664,7 @@ const __motor = (() => {
   };
 
   const A = IDX;
+  const PONTA_ABERTO = ["RW", "LW", "MR", "ML"]; // na frente do Apoiador, quem fica aberto (padrões Agudo e Garçom); AMR/AML (Condutor) corta para dentro
   // Habilidade de quem tem a bola, por zona.
   function habilidadeAtaque(at, zona) {
     const centro = zona[1] === "C";
@@ -730,6 +736,7 @@ const __motor = (() => {
     const ent = entrosamento(t.emCampo);
     t.goleiro = null; t.temLibero = false;
     for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
+    const alas = []; // alas de papel que não é o Apoiador: mudam com o lado da bola
     for (const jog of t.emCampo) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
@@ -739,7 +746,14 @@ const __motor = (() => {
       if (jog.pos === "SW") t.temLibero = true;
       const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
       // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
-      const m = mapasDoPapel(jog.pos, jog.papel), com = m ? m.com : COBERTURA[jog.pos], sem = m ? m.sem : COBERTURA[jog.pos];
+      const m = mapasDoPapel(jog.pos, jog.papel), sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos];
+      let com = m ? m.com : COBERTURA[jog.pos];
+      // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
+      if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado)) {
+        const pd = P.lado === "D" ? CONFIG.papeis.passagemPorDentro : espelharLado(CONFIG.papeis.passagemPorDentro);
+        com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
+      }
+      if (m && P.linha === "ala") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
       for (const [z, w] of Object.entries(com)) {
         t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];
         t.zonas[z].push({ jog, w, p: w * p });
@@ -750,10 +764,27 @@ const __motor = (() => {
       }
     }
     if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
+    // defesa com a bola em cada corredor (lado do próprio time): o ala do lado da bola sobe para pressionar, o do outro lado fecha a linha
+    t.defLado = { E: t.def, C: t.def, D: t.def };
+    if (alas.length) for (const l of ["E", "D"]) {
+      const d = { ...t.def };
+      for (const a of alas) {
+        const f = CONFIG.papeis.alaPorLado * a.w, fundo = "D" + a.lado, para = a.lado === l ? "M" + a.lado : "DC";
+        d[fundo] -= f * habilidadeDefesa(a.jog.at, fundo) * mDef.D; d[para] += f * habilidadeDefesa(a.jog.at, para) * mDef[para[0]];
+      }
+      t.defLado[l] = d;
+    }
     const linha = t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
     t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + t.def["M" + l]) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
       * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica);
+  }
+
+  // Defesa de uma escalação com a bola em cada corredor (E, C, D, do lado do próprio time), descansada. Serve aos testes e às telas.
+  function defesaPorCorredor(escalacao, instrucoes = {}) {
+    const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
+    recalcular(t, 0);
+    return t.defLado;
   }
 
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
@@ -777,9 +808,10 @@ const __motor = (() => {
 
   // Defesa que o atacante enfrenta em cada zona (vista pelo atacante).
   // Time que não ameaça pelos lados deixa os defensores de lado livres para fechar o centro: jogo estreito encontra defesa compacta.
-  function montarDefesa(atk, def) {
+  // defZ: a defesa do adversário por zona (a do corredor da bola; sem ela, a geral)
+  function montarDefesa(atk, def, defZ = def.def) {
     const dz = {};
-    for (const z of ZONAS) dz[z] = def.def[espelho(z)];
+    for (const z of ZONAS) dz[z] = defZ[espelho(z)];
     for (const linha of ["M", "A"]) {
       let ajuda = 0;
       const livre = {}, Z = CONFIG.zonaVazia; // livre: defesa de um lado que sobra porque o adversário não ameaça ali
@@ -795,6 +827,12 @@ const __motor = (() => {
       dz[linha + forte] += vai; dz[linha + fraco] -= vai;
     }
     return dz;
+  }
+
+  // Defesa que o atacante enfrenta em cada corredor dele (o corredor E do atacante é o lado D de quem defende); o C escolhe o lado do lance
+  function defesaDoCorredor(atk, def) {
+    const C = montarDefesa(atk, def), por = l => def.defLado && def.defLado[ESPELHO_LADO[l]] !== def.def ? montarDefesa(atk, def, def.defLado[ESPELHO_LADO[l]]) : C;
+    return { E: por("E"), C, D: por("D") };
   }
 
   // Em cada linha o time procura o lado em que é mais forte em relação à cobertura do adversário.
@@ -1111,7 +1149,7 @@ const __motor = (() => {
 
     // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
     function duelo(i, zona, logit = 0, contra = false) {
-      const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
+      const atk = times[i], def = times[1 - i], dz = defesas[i][zona[1]], e = estat[i];
       const a = atk.atk[zona] + CONFIG.zonaVazia, d = dz[zona] + CONFIG.zonaVazia;
       // confronto tático: passe contra pressão (só no ataque construído), custo de jogar no contra-ataque e lado ensaiado
       const pref = atk.instr.lado, ensaiado = pref === zona[1] || (pref === "lados" && zona[1] !== "C");
@@ -1216,7 +1254,7 @@ const __motor = (() => {
     }
 
     function atacar(i, contra = false, inicio = "D") {
-      const atk = times[i], def = times[1 - i], dz = defesas[i], e = estat[i];
+      const atk = times[i], def = times[1 - i], dz = defesas[i].C, e = estat[i];
       const bonus = contra ? CONFIG.contraAtaque.logit + (atk.instr.contraAtaque ? CONFIG.contraAtaque.logitPorMentalidade * Math.max(0, def.instr.mentalidade) : 0) : 0;
       // quem recupera a bola pode sair em contra-ataque, mais ainda contra time que joga para a frente
       // embalo de um duelo: quanto da folga segue para o lance seguinte (de 0 ao teto); a da defesa vale para o contra-ataque
@@ -1305,7 +1343,7 @@ const __motor = (() => {
         if (sujo || (k === 0 && min % CONFIG.recalcularACada === 1)) {
           const g = gols();
           recalcular(times[0], g[0] - g[1]); recalcular(times[1], g[1] - g[0]);
-          defesas = [montarDefesa(times[0], times[1]), montarDefesa(times[1], times[0])];
+          defesas = [defesaDoCorredor(times[0], times[1]), defesaDoCorredor(times[1], times[0])];
           const cc = Math.pow(times[0].controle, CONFIG.expoentePosse), cf = Math.pow(times[1].controle, CONFIG.expoentePosse);
           posseCasa = limitar(cc / (cc + cf), 0.25, 0.75);
           sujo = false;
@@ -1396,7 +1434,7 @@ const __motor = (() => {
     }));
     return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
   }
-  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, avaliarZonas, simularPartida };
+  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, avaliarZonas, simularPartida };
 })();
 
 const __bot = (() => {
