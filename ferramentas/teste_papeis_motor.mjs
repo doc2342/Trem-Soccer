@@ -65,3 +65,11 @@ const tr = defesaNaTransicao(comPapel(a, { DR: "apoiador" })), trPadrao = defesa
 assert.ok(tr.DD < ap.def.DD, "Apoiador pego no contra: o fundo do lado fica mais aberto que na defesa montada");
 assert.deepStrictEqual(trPadrao, z.def, "sem papel, a defesa na transição é a de sempre");
 console.log("teste_papeis_motor: ok");
+
+// Narração dos papéis (tarefa 7): só aparece com papel que não é o padrão
+const textos = (a, b, n) => { let t = ""; for (let s = 1; s <= n; s++) t += simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b })).narracao.map(l => l.texto).join("\n"); return t; };
+const rivais = onze("4-4-2", 31), papeisNarrados = textos(comPapel(onze("4-2-3-1", 30), { DR: "apoiador", DL: "invertido" }), rivais, 40);
+assert.ok(/chega ao fundo e cruza/.test(papeisNarrados), "cruzamento do Apoiador");
+assert.ok(/fecha por dentro/.test(papeisNarrados), "Invertido por dentro");
+assert.ok(/pelas costas de .*, que tinha subido/.test(papeisNarrados), "contra-ataque pelas costas do lateral");
+assert.ok(!/chega ao fundo e cruza|fecha por dentro|que tinha subido/.test(textos(onze("4-2-3-1", 30), rivais, 40)), "sem papel, nada disso");
