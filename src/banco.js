@@ -344,6 +344,27 @@ export const tetoDoClube = clubeId => sb.rpc("teto_do_clube", { p_clube: clubeId
 // tática da base (100_tatica_da_base.sql): undefined antes do SQL, null se o clube ainda não salvou
 export const minhaTaticaDaBase = clubeId => sb.from("taticas_base").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error ? undefined : data);
 export const salvarTaticaDaBase = (clubeId, dados) => sb.from("taticas_base").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
+// amistosos (165_amistosos.sql): as leituras devolvem undefined antes do SQL; as ações dão erro com o texto do banco
+export const MOTIVO_AMISTOSO = { sem_tatica: "ainda não salvou a tática de amistoso", fechado: "não aceita amistosos", voce_fechado: "marque \"Aceitar amistosos\" para desafiar dirigentes", hoje: "já jogaram hoje", proximo: "é o próximo adversário oficial" };
+const ouIndefinido = ({ data, error }) => error ? undefined : data;
+export const minhaTaticaDeAmistoso = clubeId => sb.from("taticas_amistoso").select("dados, atualizada_em").eq("clube_id", clubeId).maybeSingle().then(ouIndefinido);
+export const salvarTaticaDeAmistoso = (clubeId, dados) => sb.from("taticas_amistoso").upsert({ clube_id: clubeId, dados, atualizada_em: new Date().toISOString() }).then(ok);
+export const adversariosDeAmistoso = clubeId => sb.rpc("adversarios_de_amistoso", { p_clube: clubeId }).then(ouIndefinido);
+export const iniciarAmistoso = (clubeId, desafiadoId, mando) => sb.rpc("iniciar_amistoso", { p_clube: clubeId, p_desafiado: desafiadoId, p_mando: mando }).then(ok);
+export const gravarAmistoso = (id, { placar, resumo, partida, relatorio }) => sb.rpc("gravar_amistoso", { p_id: id, p_placar: placar, p_resumo: resumo, p_partida: partida, p_relatorio: relatorio }).then(ok);
+// histórico e Central: sem o jogo gravado (pesado); "tem_relatorio" diz se ainda dá para abrir (7 dias)
+export function amistososDoClube(clubeId, { desde } = {}) {
+  let c = sb.from("amistosos").select("id, desafiante, desafiado, mando, criado_em, placar, resumo, visto_em, tem_relatorio:partida->placar").or(`desafiante.eq.${clubeId},desafiado.eq.${clubeId}`).order("criado_em", { ascending: false });
+  if (desde) c = c.gte("criado_em", desde);
+  return c.then(ouIndefinido);
+}
+export const amistosoCompleto = id => sb.from("amistosos").select("*").eq("id", id).maybeSingle().then(ok);
+export const aceitarAmistosos = (clubeId, aceita) => sb.rpc("aceitar_amistosos", { p_clube: clubeId, p_aceita: aceita }).then(ok);
+export const pedirParceria = (clubeId, outroId) => sb.rpc("pedir_parceria", { p_clube: clubeId, p_outro: outroId }).then(ok);
+export const responderParceria = (clubeId, outroId, aceita) => sb.rpc("responder_parceria", { p_clube: clubeId, p_outro: outroId, p_aceita: aceita }).then(ok);
+export const desfazerParceria = (clubeId, outroId) => sb.rpc("desfazer_parceria", { p_clube: clubeId, p_outro: outroId }).then(ok);
+export const parceriasDoClube = clubeId => sb.from("parcerias_amistoso").select("clube_a, clube_b, pedida_por, aceita_em").or(`clube_a.eq.${clubeId},clube_b.eq.${clubeId}`).then(ouIndefinido);
+export const marcarAmistososVistos = (clubeId, ids) => sb.rpc("marcar_amistosos_vistos", { p_clube: clubeId, p_ids: ids }).then(ok);
 export const campeoesDaBase = ligaId => sb.from("base_campeoes").select("temporada, grupo, clube_id").eq("liga_id", ligaId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data);
 // prazos (leilão, oferta, candidatos, espera dos bots) no ritmo do calendário: 73_prazos_e_comissao.sql; sem efeito antes dele
 export const ajustarPrazos = ligaId => sb.rpc("ajustar_prazos", { p_liga: ligaId }).then(({ data, error }) => error ? null : data);

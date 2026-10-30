@@ -7,8 +7,9 @@ import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande, taticaDoAmistoso } from "./rodada.js";
 import { prepararTime, simularPartida, entrosamento, setorDaPosicao, avaliarZonas, desenhoDoTime, COBERTURA, ZONAS, CONFIG } from "./motor.js";
-import { PAPEIS as PAPEIS_DE_JOGO, PAPEL_PADRAO, PAPEIS_DESDE, papeisDaPosicao, papelValido, notaNoPapel } from "./papeis.js";
+import { PAPEIS as PAPEIS_DE_JOGO, PAPEL_PADRAO, papeisDaPosicao, papelValido, notaNoPapel } from "./papeis.js";
 import { taticaBot } from "./bot.js";
+import { papeisVisiveis } from "./amistoso.js";
 import { montarRelatorio } from "./relatorio.js";
 import { htmlRelatorio } from "./ui-relatorio.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS } from "./siglas.js";
@@ -100,7 +101,7 @@ const HTML_NOVO = `<div id="cabecalho"></div>
 const GRUPOS_INSTR = [["Postura", ["mentalidade", "pressao", "agressividade"]], ["Com a bola", ["passe", "finalizar", "cruzamento", "lado"]], ["Estratégia", ["contraAtaque", "aoPerder", "impedimento", "cera"]]];
 const CURTO = { "Muito defensiva": "Muito def.", "Muito ofensiva": "Muito of.", "Os dois lados": "Dois lados", "Sem pressão": "Sem", "Trabalhar até a área": "Até a área", "Resolver rápido (chute de fora e cruzamento)": "Rápido", "Pressionar na hora (retoma a bola perto do gol deles, cansa mais; se falhar, o contra-ataque deles pega o time aberto)": "Pressionar", "Recompor atrás (quase não sofre contra-ataque, mas tem menos a bola)": "Recompor" };
 
-export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true } = {}) {
+export async function montarEscalacao(raiz, { online = false, sessao = null, cabecalho = true, amistoso = false } = {}) {
 raiz.innerHTML = NOVO ? HTML_NOVO : HTML;
 
 const $ = id => raiz.querySelector("#" + id);
@@ -157,7 +158,9 @@ const paraACopa = (lista, clubeId) => lista.map(j => {
   return { ...j, fora: j.foraCopa > 0 ? j.foraCopa : 1, motivo: j.foraCopa > 0 ? "suspensão na copa" : "jogou a copa por outro clube" };
 });
 const ONLINE = online; // online: a tela usa o elenco e a tática do clube no banco
-const chaveElenco = () => ONLINE ? "online_" + (clubeOnline ? clubeOnline.id : 0) : `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
+const AMISTOSO = online && amistoso; // tática de amistoso (aba Amistoso): lida e salva à parte, sem próximo jogo, prazo nem trava
+const verPapeis = () => papeisVisiveis({ amistoso: AMISTOSO, temporada: temporadaDaLiga });
+const chaveElenco = () => ONLINE ? "online_" + (AMISTOSO ? "amistoso_" : "") + (clubeOnline ? clubeOnline.id : 0) : `${$("semente").value}_${$("nivel").value}_${$("perfil").value}`;
 const jogDe = id => porId[id] || null;
 const momento = v => { const n = v == null ? 50 : v; return n >= 65 ? "ok" : n <= 35 ? "bad" : ""; }; // cor da forma e da moral
 const GRUPOS = [["Técnica", "tec"], ["Defesa", "def"], ["Físico", "fis"], ["Mental", "men"], ["Goleiro", "gol"]];
@@ -342,6 +345,7 @@ async function iniciarOnline(sessaoDeTeste) {
       location.href = "jogo.html";
     };
   } catch (e) { $("cabecalho").innerHTML = `<div class="row" style="margin-bottom:10px"><a href="jogo.html" style="color:var(--ac)">← Voltar ao clube</a></div>`; }
+  if (AMISTOSO) return iniciarAmistoso(B, parar);
   // tudo de uma vez: em sequência eram oito idas ao banco antes de a tela aparecer
   const [todos, prox, [liga, clubes], salva, fechada] = await Promise.all([B.elencoDoClube(clubeOnline.id),
     B.sb.from("partidas").select("id, liga_id, grupo, rodada, fase, copa_fase, casa, fora, inicio").or(`casa.eq.${clubeOnline.id},fora.eq.${clubeOnline.id}`).eq("processada", false).order("inicio").limit(1).maybeSingle(),
@@ -385,7 +389,42 @@ async function iniciarOnline(sessaoDeTeste) {
   adversarioOnline = async () => { const id = +$("advOnline").value, c = outros.find(x => x.id === id); guardados[id] = guardados[id] || await B.elencoDoClube(id);
     if (c.dono && !(id in observadas)) observadas[id] = B.escalacaoObservada(await B.escalacoesRecentes(await B.partidasDoClube(liga.id, id), id, 1), guardados[id], notaNaPosicao);
     return { elenco: guardados[id], nome: c.nome, perfil: c.perfil, observada: observadas[id] || null }; };
+  // na virada (papéis valendo na liga): trazer os papéis testados na tática de amistoso, vaga a vaga com a mesma posição; não salva sozinho
+  if (verPapeis()) B.minhaTaticaDeAmistoso(clubeOnline.id).then(t => {
+    const A = t && t.dados;
+    if (!A || !Array.isArray(A.papeis) || !A.papeis.some(Boolean) || $("copiarPapeis")) return;
+    const b = document.createElement("button");
+    b.id = "copiarPapeis"; b.className = "sec"; b.textContent = "Copiar papéis da tática de amistoso";
+    b.onclick = () => { E.papeis = E.vagas.map((pos, i) => A.vagas[i] === pos && papelValido(pos, A.papeis[i]) ? A.papeis[i] : (E.papeis || [])[i] || null); render(); };
+    $("salvarOnline").before(b);
+  }).catch(() => {});
   sel = null; limparReferencias(); render();
+}
+// Tática de amistoso: começa da salva; sem ela, da tática do campeonato; sem nenhuma, da de bot. Todos disponíveis (amistoso não tem lesão nem suspensão).
+async function iniciarAmistoso(B, parar) {
+  const [todos, liga, salva] = await Promise.all([B.elencoDoClube(clubeOnline.id), B.ligaAtual(), B.minhaTaticaDeAmistoso(clubeOnline.id)]);
+  const semSql = salva === undefined; // sem o 165: dá para montar e jogar contra os bots, mas não para salvar
+  elenco = todos.filter(j => !j.juvenil).map(j => ({ ...j, fora: 0, motivo: null }));
+  temporadaDaLiga = liga.temporada;
+  porId = Object.fromEntries(elenco.map(j => [j.id, j]));
+  const daLiga = salva ? null : await B.minhaTatica(clubeOnline.id);
+  E = salva && salva.dados && salva.dados.vagas ? salva.dados : daLiga && daLiga.dados && daLiga.dados.vagas ? JSON.parse(JSON.stringify(daLiga.dados)) : daTatica(taticaBot(elenco, { mandante: true }));
+  salvoComo = JSON.stringify(E); tirados = [];
+  limparReferencias();
+  $("previa").hidden = true;
+  $("salvarOnline").textContent = "Salvar a tática de amistoso";
+  $("salvarOnline").hidden = semSql;
+  const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  $("avisoOnline").innerHTML = semSql ? "Falta rodar o 165_amistosos.sql: dá para jogar contra os bots, mas a tática de amistoso ainda não pode ser salva." : `Tática de amistoso: não muda o time do campeonato. ${salva ? `Salva em ${quando(salva.atualizada_em)}.` : daLiga ? "Começa igual à do campeonato." : "Começa igual à do bot."}`;
+  $("salvarOnline").onclick = async () => {
+    const V = validar();
+    if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }
+    $("salvarOnline").disabled = true;
+    try { await B.salvarTaticaDeAmistoso(clubeOnline.id, E); salvoComo = JSON.stringify(E); dispatchEvent(new Event("taticaDeAmistosoSalva")); $("avisoOnline").innerHTML = `<span class="ok">Tática de amistoso salva às ${new Date().toLocaleTimeString("pt-BR")}.</span>`; }
+    catch (e) { $("avisoOnline").innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+    $("salvarOnline").disabled = false;
+  };
+  sel = null; render();
 }
 function aplicarFormacao(nome) {
   const esc11 = escalar(elenco.filter(j => !(j.fora > 0)), FORMACOES[nome]);
@@ -448,20 +487,19 @@ const selo = (j, pos) => { const f = foraDePosicao(j, pos); return f ? ` <span c
 // Papéis (src/papeis.js): o nome do papel embaixo de quem joga numa vaga que tem papéis; o padrão aparece apagado
 function rotuloDoPapel(i) {
   const pos = E.vagas[i];
-  if (!papeisDaPosicao(pos).length) return "";
+  if (!verPapeis() || !papeisDaPosicao(pos).length) return "";
   const p = (E.papeis || [])[i] || PAPEL_PADRAO[pos];
   return `<div class="papel-vaga" style="font-size:11px;line-height:1.2;color:#fff;text-align:center;${p === PAPEL_PADRAO[pos] ? "opacity:.6" : "font-weight:700"}">${PAPEIS_DE_JOGO[p].nome}</div>`;
 }
 // Na escolha de uma vaga com papéis: um botão por papel com a nota de quem está nela, o que o papel faz e o que custa
 function htmlPapeisDaVaga(i) {
   const pos = E.vagas[i], lista = papeisDaPosicao(pos), j = jogDe(E.jog[i]);
-  if (!lista.length) return "";
+  if (!verPapeis() || !lista.length) return ""; // na liga, a escolha some até a virada (os papéis salvos continuam nos dados)
   const atual = (E.papeis || [])[i] || PAPEL_PADRAO[pos], P = PAPEIS_DE_JOGO[atual];
-  const trava = temporadaDaLiga != null && temporadaDaLiga < PAPEIS_DESDE ? `<div class="mut" style="font-size:12px">Os papéis valem nas partidas a partir da temporada ${PAPEIS_DESDE}. Já dá para deixar escolhido.</div>` : "";
   return `<div class="papeis-da-vaga" style="margin:6px 0 8px"><div class="t-numero-rotulo">Papel</div>
     <div class="t-segmentos">${lista.map(p => `<button type="button" data-funcao="${p}" aria-pressed="${p === atual}" title="${esc(PAPEIS_DE_JOGO[p].faz)}">${PAPEIS_DE_JOGO[p].nome}${p === PAPEL_PADRAO[pos] ? "*" : ""}${j ? `<small style="display:block">${f1(notaNoPapel(j, pos, p))}</small>` : ""}</button>`).join("")}</div>
     <div style="font-size:12px;margin-top:4px"><b>Faz:</b> ${esc(P.faz)} <b>Custa:</b> ${esc(P.custa)}</div>
-    <div class="mut" style="font-size:12px">* o jeito de hoje da posição. Trocar o papel de um titular custa um pouco de entrosamento por ${CONFIG.papeis.entrosarTroca} jogos.</div>${trava}</div>`;
+    <div class="mut" style="font-size:12px">* o jeito de hoje da posição.${AMISTOSO ? "" : ` Trocar o papel de um titular custa um pouco de entrosamento por ${CONFIG.papeis.entrosarTroca} jogos.`}</div></div>`;
 }
 function htmlGramado(mapa = null) {
   if (CAMISAS) numerar();
@@ -503,7 +541,7 @@ function render() {
   if (NOVO) { $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<div class="t-reserva${j ? "" : " vazia"}${j && j.fora > 0 ? " fora" : ""}${sel && sel.tipo === "banco" && sel.i === i ? " sel" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}">${j ? `${CAMISAS ? `<span class="t-bola camisa">${camisa(j, j.pos)}</span>` : `<span class="t-bola ${corDoSetor(j.pos)}">${sg(j.pos)}</span>`}<span class="t-reserva-nome" title="${esc(j.nome)}">${esc(curto(j))}</span><span class="t-reserva-nota">${f1(notaNaPosicao(j, j.pos))}</span>` : `<span class="t-bola"></span><span class="t-reserva-nome">vazio</span>`}</div>`; }).join("");
     $("nBanco").textContent = `Banco · ${E.banco.filter(jogDe).length} de ${TAMANHO_DO_BANCO}`;
     const fil = ["defesa", "ala"], meio = ["volante", "meio", "meia"], c = l => E.vagas.filter(p => l.includes(POSICOES[p].linha)).length;
-    const des = V.esc11.length === 11 ? desenhoDoTime(V.esc11) : null, mostra = des && (E.papeis || []).some(Boolean); // só com algum papel escolhido: sem escolha, nada muda
+    const des = V.esc11.length === 11 ? desenhoDoTime(V.esc11) : null, mostra = des && verPapeis() && (E.papeis || []).some(Boolean); // só com algum papel escolhido: sem escolha, nada muda
     $("rotTatica").textContent = `Tática${proximoJogo ? " para " + new Date(proximoJogo.inicio).toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") : ""} · ${c(fil)}-${c(meio)}-${c(["ataque"])}${mostra ? ` · com a bola ${des.com}, sem a bola ${des.sem}` : ""}`; }
   else $("banco").innerHTML = Array.from({ length: TAMANHO_DO_BANCO }, (_, i) => { const j = jogDe(E.banco[i]); return `<span class="chip ${j ? "" : "vazio"} ${j && j.fora > 0 ? "fora" : ""}" data-banco="${i}" data-arrasta="${j ? j.id : ""}" style="${sel && sel.tipo === "banco" && sel.i === i ? "border-color:var(--ac)" : ""}">${j ? `${pp(j.pos)} ${esc(j.nome)}` : "vazio"}</span>`; }).join("");
   // validação

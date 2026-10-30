@@ -5,8 +5,9 @@ import fs from "node:fs";
 const html = fs.readFileSync(new URL("../jogo.html", import.meta.url), "utf8"), css = fs.readFileSync(new URL("../trem.css", import.meta.url), "utf8");
 // os botões do Vestiário e do próximo jogo chegam depois da primeira montagem: o clique tem de ser delegado no contêiner
 assert.match(html, /\$\("cnVestiario"\)\.onclick = \$\("cnProximo"\)\.onclick = /);
-// o passo do amistoso abre o <details> recolhido antes de rolar até ele
-assert.match(html, /const d = \$\("amJogar"\)\.closest\("details"\); if \(d\) d\.open = true; \$\("amJogar"\)\.scrollIntoView/);
+// o amistoso virou uma aba: a Central só leva até ela
+assert.match(html, /data-aba-ir="amistoso">Jogar amistoso →/);
+assert.ok(!html.includes('$("amJogar")'));
 // o relatório do último jogo é lido uma vez por carga, não a cada redesenho
 assert.match(html, /daLiga\("relatorio:" \+ ultimo\.id, \(\) => relatorioDaPartida\(ultimo\.id\)\)/);
 // sem calendário: o aviso de hoje, não "não há mais jogos"

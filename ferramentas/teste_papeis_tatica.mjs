@@ -9,6 +9,8 @@ import { IDX } from "../src/modelo.js";
 import { taticaDoDirigente, calcularPartida } from "../src/rodada.js";
 import { taticaBot, papeisDoBot } from "../src/bot.js";
 import { FORMACOES, escalar } from "../src/escalacao.js";
+import { PAPEIS_DESDE } from "../src/papeis.js";
+import { papeisVisiveis } from "../src/amistoso.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const e1 = gerarElenco(criarRng(9), { nivel: 30, nomes, prefixoId: "a" }), e2 = gerarElenco(criarRng(19), { nivel: 30, nomes, prefixoId: "b" });
@@ -55,4 +57,9 @@ for (const f of ["4-4-2", "4-3-3 com pontas", "4-1-4-1"]) {
 }
 // bot com papel padrão: nulo (não grava o óbvio)
 assert.ok(papeisDoBot(escalar(e1, FORMACOES["4-4-2"])).every(x => x.papel === null || !["fixo"].includes(x.papel)));
+// na tática da liga o papel só aparece a partir de PAPEIS_DESDE; na de amistoso, sempre
+assert.strictEqual(papeisVisiveis({ amistoso: false, temporada: 0 }), false);
+assert.strictEqual(papeisVisiveis({ amistoso: true, temporada: 0 }), true);
+assert.strictEqual(papeisVisiveis({ amistoso: false, temporada: PAPEIS_DESDE }), true);
+assert.strictEqual(papeisVisiveis({ amistoso: false, temporada: null }), true);
 console.log("teste_papeis_tatica: ok");
