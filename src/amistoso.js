@@ -36,6 +36,12 @@ export function jogarAmistoso({ casa, fora, semente }) {
   };
 }
 
+// O jogo gravado vem do navegador de quem desafiou (dá para gravar qualquer JSON pela API): antes de desenhar, nenhum texto
+// pode virar HTML. Tira < > " de todo texto (chaves também) e troca ' por ’; números e o resto passam iguais.
+const semHtml = t => t.replace(/[<>"]/g, "").replace(/'/g, "’");
+export const limparGravado = v => typeof v === "string" ? semHtml(v) : Array.isArray(v) ? v.map(limparGravado)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [semHtml(k), limparGravado(x)])) : v;
+
 // só o que o replay e o relatório usam
 export function partidaParaGravar(p) {
   const { placar, xg, estat, lances, eventos, narracao, jogadores, ordens, acrescimos, duracao, penaltis } = p;

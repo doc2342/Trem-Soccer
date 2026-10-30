@@ -2,7 +2,7 @@
 // Contra dirigente o banco confere as regras e sorteia a semente (165_amistosos.sql) e o jogo fica gravado para os dois;
 // contra bot de estilo e clube sem dirigente o jogo roda só aqui, com semente local, e nada é gravado.
 import * as B from "./banco.js";
-import { taticaParaAmistoso, elencoDoBot, ESTILOS_DE_BOT, jogarAmistoso, partidaParaGravar } from "./amistoso.js";
+import { taticaParaAmistoso, elencoDoBot, ESTILOS_DE_BOT, jogarAmistoso, partidaParaGravar, limparGravado } from "./amistoso.js";
 import { ESTILO_DO_PERFIL } from "./bot.js";
 import { notaNaPosicao } from "./modelo.js";
 import { abrirReplay } from "./ui-replay.js";
@@ -20,7 +20,7 @@ export const placarDe = (a, clubeId) => {
 };
 // abre um amistoso gravado (replay + relatório) para qualquer um dos dois clubes
 export async function verAmistoso(raiz, id, clubeId, cPor) {
-  const a = await B.amistosoCompleto(id);
+  const a = limparGravado(await B.amistosoCompleto(id));
   if (!a || !a.partida) throw new Error("O replay deste amistoso já saiu do ar (fica 7 dias).");
   const desafianteEmCasa = a.mando === "casa", ids = desafianteEmCasa ? [a.desafiante, a.desafiado] : [a.desafiado, a.desafiante];
   const clubes = ids.map(i => cPor[i] || { nome: "?" });
@@ -98,7 +98,7 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
       <div class="row" style="align-items:center;gap:14px">
         <label><input type="checkbox" id="amAceita" ${aceita ? "checked" : ""} ${semSql ? "disabled" : ""}> Aceitar amistosos</label>
         <label>Mando <select id="amMando"><option value="casa">Em casa</option><option value="fora" ${mando === "fora" ? "selected" : ""}>Fora</option></select></label></div>
-      <div class="mut" style="font-size:13px;margin:4px 0 10px">Com a opção marcada, outros dirigentes que também marcaram podem desafiar você (1 por dia contra o mesmo clube, nunca contra o próximo adversário oficial). Você vê os jogos na Central. Parceiros de treino jogam sem limite.</div>
+      <div class="mut" style="font-size:13px;margin:4px 0 10px">Com a opção marcada, outros dirigentes que também marcaram podem desafiar você (1 por dia contra o mesmo clube, nunca contra o próximo adversário oficial). Você vê os jogos na Central. Parceiros de treino jogam sem limite. Quem desafia você joga contra a sua tática de amistoso; sem ela, contra a do campeonato.</div>
       ${semSql ? `<div class="aviso" style="margin-bottom:8px">Falta rodar o 165_amistosos.sql: por enquanto, só contra os bots de estilo.</div>` : ""}
       <h3>Bots de estilo</h3>
       ${ESTILOS_DE_BOT.map(e => `<div class="row" style="align-items:center;gap:8px;padding:4px 0;border-top:1px solid var(--line)"><span style="flex:1">${esc(NOME_DO_BOT(e))}</span><button type="button" data-jogar-bot="${e}">Jogar</button></div>`).join("")}
@@ -113,7 +113,9 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
     const casa = mando === "casa";
     try {
       const [a, l] = await Promise.all([B.minhaTaticaDeAmistoso(clube.id), B.minhaTatica(clube.id)]);
-      // joga com a tática de amistoso como está na tela (salva ou não); sem a tela, com a salva
+      // joga com a tática de amistoso como está na tela (salva ou não); sem a tela, com a salva. Tática da tela com erro não joga
+      const erro = tela && tela.validar().erros[0];
+      if (erro) throw new Error(`a tática de amistoso tem um problema: ${erro}`);
       const minha = taticaParaAmistoso((tela && tela.estado()) || (a && a.dados), l && l.dados, meuElenco, { mandante: casa });
       const forca = minha.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / minha.escalacao.length;
       const opcoes = perfil => ({ mandante: !casa, forcaAdversario: forca, perfil });
@@ -133,6 +135,8 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
       if (linha) await B.gravarAmistoso(linha.id, { placar: r.placar, resumo: r.resumo, partida: partidaParaGravar(r.partida), relatorio: r.relatorio })
         .catch(e => { aviso = `<span class="bad">O jogo não foi gravado (${esc(e.message)}): ${esc(outro.nome)} não vai ver.</span>`; });
       const clubesDoJogo = casa ? [clube, outro] : [outro, clube];
+      // o que cada lado usou (a tática pode ter caído para a do campeonato ou a de bot)
+      if (!aviso) aviso = `<span class="mut">Último jogo: ${esc(clube.nome)} com a ${esc(minha.origem)}; ${esc(outro.nome)} com a ${esc(dele.origem)}.</span>`;
       abrirReplay($("amReplay"), { partida: r.partida, relatorio: r.relatorio, nomes: clubesDoJogo.map(c => c.nome), clubes: clubesDoJogo, analistas: [casa ? 0 : 1], ordens: r.partida.ordens });
     } catch (e) { aviso = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }
     jogando = false;

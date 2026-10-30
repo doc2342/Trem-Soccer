@@ -7,7 +7,7 @@ import { criarRng } from "../src/rng.js";
 import { gerarElenco } from "../src/gerador.js";
 import { taticaBot } from "../src/bot.js";
 import { escalar, FORMACOES } from "../src/escalacao.js";
-import { taticaParaAmistoso, elencoDoBot, ESTILOS_DE_BOT, jogarAmistoso, partidaParaGravar } from "../src/amistoso.js";
+import { taticaParaAmistoso, elencoDoBot, ESTILOS_DE_BOT, jogarAmistoso, partidaParaGravar, limparGravado } from "../src/amistoso.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const e1 = gerarElenco(criarRng(9), { nivel: 30, nomes, prefixoId: "a" }), e2 = gerarElenco(criarRng(19), { nivel: 30, nomes, prefixoId: "b" });
@@ -55,4 +55,11 @@ assert.strictEqual(taticaBot(b1, { perfil: "tecnico" }).instrucoes.passe, "curto
 const g = partidaParaGravar(j1.partida);
 assert.ok(JSON.stringify(g).length < 80000, `partida gravada: ${JSON.stringify(g).length} caracteres`);
 for (const k of ["placar", "xg", "estat", "lances", "eventos", "narracao", "jogadores", "ordens", "acrescimos", "duracao"]) assert.ok(k in g, k);
+// o jogo gravado vem do navegador de quem desafiou: ao abrir, nenhum texto pode virar HTML (sem < > " e com ’ no lugar de ')
+const veneno = { placar: [1, "0\"><img src=x onerror=alert(1)>"], narracao: [{ tipo: "x\"><script>", min: "1<b>", texto: "D'Ávila <i>" }], ['<a "x">']: 1 };
+const limpo = limparGravado(veneno);
+for (const t of [...Object.values(limpo.narracao[0]), ...limpo.placar, ...Object.keys(limpo)]) assert.ok(!/[<>"']/.test(String(t)), String(t));
+assert.strictEqual(limparGravado(veneno).narracao[0].texto, "D’Ávila i");
+assert.deepStrictEqual(limparGravado(g).placar, g.placar, "o jogo de verdade passa igual");
+assert.strictEqual(JSON.stringify(limparGravado(j1.relatorio)).length, JSON.stringify(j1.relatorio).length);
 console.log("amistoso: ok");
