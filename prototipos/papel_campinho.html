@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Papéis no campinho</title>
+<!-- Protótipo (fora do site): o campinho de cada papel do lateral, como no FM. Lê os mesmos mapas que o motor usa
+     (PAPEIS[papel].mapas e COBERTURA da posição): a cor de cada zona é o peso dela, e a bolinha vai do centro do mapa
+     "sem a bola" ao centro do mapa "com a bola". Abrir com python -m http.server 8797 → /prototipos/papel_campinho.html -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  :root { --fundo:#f4f1ea; --tinta:#16181d; --mudo:#6b6f78; --linha:#d8d3c8; --ac:#d4231f; --grama:#1f5a35; --grama2:#23633b; --com:#f0c35a; --sem:#7fb2ff; }
+  @media (prefers-color-scheme: dark) { :root { --fundo:#121417; --tinta:#eceae4; --mudo:#9a9ea6; --linha:#2b2f36; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta); font:15px/1.45 Barlow, system-ui, sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 40px; }
+  h1 { font:700 28px/1.1 "Barlow Condensed", sans-serif; letter-spacing:.02em; text-transform:uppercase; margin:0 0 4px; }
+  h1::before { content:""; display:inline-block; width:22px; height:5px; background:var(--ac); margin-right:10px; vertical-align:middle; }
+  .mut { color:var(--mudo); font-size:13px; }
+  .barra { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin:16px 0 18px; }
+  .seg { display:inline-flex; border:1px solid var(--linha); }
+  .seg button { font:600 13px Barlow, sans-serif; text-transform:uppercase; letter-spacing:.05em; border:0; background:none; color:var(--tinta); padding:7px 14px; cursor:pointer; }
+  .seg button[aria-pressed="true"] { background:var(--tinta); color:var(--fundo); }
+  .fase { font:700 15px "Barlow Condensed", sans-serif; text-transform:uppercase; letter-spacing:.08em; min-width:130px; }
+  .fase i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:0; }
+  .grade { display:grid; grid-template-columns:repeat(4, 1fr); gap:18px; }
+  @media (max-width:900px) { .grade { grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:480px) { .grade { gap:10px; } }
+  .papel { border-top:3px solid var(--tinta); padding-top:10px; }
+  .papel h2 { font:700 22px/1 "Barlow Condensed", sans-serif; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; }
+  .papel h2 small { font:600 12px Barlow, sans-serif; color:var(--mudo); text-transform:none; }
+  svg { display:block; width:100%; height:auto; }
+  .txt { font-size:13px; margin-top:8px; }
+  .txt b { font-weight:600; }
+  .num { display:flex; gap:12px; font-size:12px; color:var(--mudo); margin-top:6px; }
+  .num b { font:700 18px "Barlow Condensed", sans-serif; color:var(--tinta); display:block; }
+  @media (prefers-reduced-motion: reduce) { .anda { display:none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Papéis do lateral no campinho</h1>
+  <div class="mut">A cor de cada zona é quanto ele joga ali (a mesma conta do motor). A bolinha vai de onde ele fica sem a bola até onde ele vai com a bola. O ataque é para cima.</div>
+  <div class="barra">
+    <span class="seg" id="pos"><button data-pos="DR" aria-pressed="true">Lateral direito</button><button data-pos="DL" aria-pressed="false">Lateral esquerdo</button><button data-pos="WBR" aria-pressed="false">Ala direito</button></span>
+    <span class="seg" id="modo"><button data-modo="anda" aria-pressed="true">Animar</button><button data-modo="sem" aria-pressed="false">Sem a bola</button><button data-modo="com" aria-pressed="false">Com a bola</button></span>
+    <span class="fase" id="fase"></span>
+  </div>
+  <div class="grade" id="grade"></div>
+</main>
+<script type="module">
+import { PAPEIS, PAPEL_PADRAO, papeisDaPosicao, mapasDoPapel } from "../src/papeis.js";
+import { COBERTURA } from "../src/motor.js";
+
+const W = 120, H = 170, M = 6; // campo vertical; M: margem do gramado
+const COL = { E: 0, C: 1, D: 2 }, LIN = { A: 0, M: 1, D: 2 }; // zona "MD" = linha do meio, lado direito
+const cw = (W - 2 * M) / 3, ch = (H - 2 * M) / 3;
+const centro = z => [M + cw * (COL[z[1]] + 0.5), M + ch * (LIN[z[0]] + 0.5)];
+// onde a bolinha fica: sem a bola, na zona em que ele mais joga; com a bola, na zona mais avançada em que joga pelo menos 20%
+// (empate: a de mais peso). A média das zonas puxava o Apoiador para trás e escondia a subida dele.
+function ponto(mapa, fase) {
+  const zonas = Object.entries(mapa).filter(([, w]) => fase === "sem" || w >= 0.2);
+  zonas.sort(([a, wa], [b, wb]) => (fase === "com" ? LIN[a[0]] - LIN[b[0]] : 0) || wb - wa);
+  return centro(zonas[0][0]);
+}
+// o resto do time, apagado, num 4-2-3-1 (o lateral do papel fica de fora; o do outro lado também, para não confundir)
+const COMPANHEIROS = { GK: [60, 160], DCe: [44, 140], DCd: [76, 140], DMCe: [48, 105], DMCd: [72, 105], AML: [22, 62], AMC: [60, 64], AMR: [98, 62], ST: [60, 26] };
+
+let pos = "DR", modo = "anda", t0 = performance.now();
+const mapas = papel => mapasDoPapel(pos, papel) || { com: COBERTURA[pos], sem: COBERTURA[pos] };
+
+function campo(papel) {
+  const m = mapas(papel), max = Math.max(...Object.values(m.com), ...Object.values(m.sem));
+  const zonas = fase => Object.keys(COL).flatMap(c => Object.keys(LIN).map(l => {
+    const z = l + c, w = m[fase][z] || 0;
+    return `<rect x="${M + cw * COL[c]}" y="${M + ch * LIN[l]}" width="${cw}" height="${ch}" fill="var(--${fase})" fill-opacity="${(0.75 * w / max).toFixed(3)}"/>`
+      + (w ? `<text x="${M + cw * COL[c] + 3}" y="${M + ch * LIN[l] + 10}" font-size="8" font-weight="600" fill="#fff" fill-opacity=".9">${Math.round(w * 100)}%</text>` : "");
+  })).join("");
+  const parado = JSON.stringify(m.com) === JSON.stringify(m.sem), [sx, sy] = ponto(m.sem, "sem"), [cx, cy] = parado ? [sx, sy] : ponto(m.com, "com");
+  const lado = pos === "DL" ? "e" : "d";
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${PAPEIS[papel].nome}: onde joga com e sem a bola">
+    <rect width="${W}" height="${H}" fill="var(--grama)"/>
+    ${[0, 1, 2, 3, 4, 5].map(i => `<rect y="${M + i * (H - 2 * M) / 6}" width="${W}" height="${(H - 2 * M) / 12}" fill="var(--grama2)"/>`).join("")}
+    <g data-fase="sem">${zonas("sem")}</g><g data-fase="com">${zonas("com")}</g>
+    <g fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".8">
+      <rect x="${M}" y="${M}" width="${W - 2 * M}" height="${H - 2 * M}"/><line x1="${M}" y1="${H / 2}" x2="${W - M}" y2="${H / 2}"/><circle cx="${W / 2}" cy="${H / 2}" r="12"/>
+      <rect x="${W / 2 - 26}" y="${M}" width="52" height="22"/><rect x="${W / 2 - 26}" y="${H - M - 22}" width="52" height="22"/>
+      ${[1, 2].map(i => `<line x1="${M + cw * i}" y1="${M}" x2="${M + cw * i}" y2="${H - M}" stroke-dasharray="2 3" stroke-opacity=".25"/><line x1="${M}" y1="${M + ch * i}" x2="${W - M}" y2="${M + ch * i}" stroke-dasharray="2 3" stroke-opacity=".25"/>`).join("")}
+    </g>
+    ${Object.entries(COMPANHEIROS).map(([k, [x, y]]) => `<circle cx="${pos === "DL" && k.startsWith("AM") && k !== "AMC" ? W - x : x}" cy="${y}" r="3.4" fill="#fff" fill-opacity=".35"/>`).join("")}
+    <circle cx="${pos === "DL" ? 98 : 22}" cy="140" r="3.4" fill="#fff" fill-opacity=".35"/>
+    ${parado ? "" : `<line x1="${sx}" y1="${sy}" x2="${cx}" y2="${cy}" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 3" stroke-opacity=".8" marker-end="url(#seta-${lado})"/>`}
+    <defs><marker id="seta-${lado}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#fff" fill-opacity=".8"/></marker></defs>
+    <circle class="jog" cx="${sx}" cy="${sy}" r="6" fill="var(--ac)" stroke="#fff" stroke-width="1.6" data-s="${sx},${sy}" data-c="${cx},${cy}"/>
+  </svg>`;
+}
+
+function desenhar() {
+  const lista = papeisDaPosicao(pos);
+  document.getElementById("grade").innerHTML = lista.map(p => {
+    const P = PAPEIS[p], m = mapas(p), parado = JSON.stringify(m.com) === JSON.stringify(m.sem);
+    const linha = (mapa, l) => Math.round(100 * Object.entries(mapa).filter(([z]) => z[0] === l).reduce((s, [, w]) => s + w, 0));
+    return `<section class="papel"><h2>${P.nome}${p === PAPEL_PADRAO[pos] ? " <small>padrão</small>" : ""}</h2>${campo(p)}
+      <div class="num"><span><b>${linha(m.com, "A")}%</b>no ataque com a bola</span><span><b>${linha(m.sem, "D")}%</b>na defesa sem a bola</span></div>
+      <div class="txt"><b>Faz:</b> ${P.faz}<br><b>Custa:</b> ${P.custa}${parado ? `<br><span class="mut">Com e sem a bola no mesmo lugar: é o jeito de sempre da posição.</span>` : ""}</div></section>`;
+  }).join("");
+}
+
+// animação: 1,1 s parado sem a bola, 0,8 s indo, 1,1 s com a bola, 0,8 s voltando
+const CICLO = 3800, suave = x => x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2;
+function quadro(agora) {
+  let f; // 0 = sem a bola, 1 = com a bola
+  if (modo !== "anda") f = modo === "com" ? 1 : 0;
+  else { const t = (agora - t0) % CICLO; f = t < 1100 ? 0 : t < 1900 ? suave((t - 1100) / 800) : t < 3000 ? 1 : 1 - suave((t - 3000) / 800); }
+  document.querySelectorAll(".jog").forEach(c => {
+    const [sx, sy] = c.dataset.s.split(",").map(Number), [cx, cy] = c.dataset.c.split(",").map(Number);
+    c.setAttribute("cx", sx + (cx - sx) * f); c.setAttribute("cy", sy + (cy - sy) * f);
+  });
+  document.querySelectorAll('[data-fase="com"]').forEach(g => g.setAttribute("opacity", f));
+  document.querySelectorAll('[data-fase="sem"]').forEach(g => g.setAttribute("opacity", 1 - f));
+  document.getElementById("fase").innerHTML = f > 0.5 ? `<i style="background:var(--com)"></i>Com a bola` : `<i style="background:var(--sem)"></i>Sem a bola`;
+  requestAnimationFrame(quadro);
+}
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) modo = "sem";
+
+const marcar = (grupo, attr, v) => document.querySelectorAll(`#${grupo} button`).forEach(b => b.setAttribute("aria-pressed", b.dataset[attr] === v));
+document.getElementById("pos").onclick = e => { const b = e.target.closest("[data-pos]"); if (!b) return; pos = b.dataset.pos; marcar("pos", "pos", pos); desenhar(); };
+document.getElementById("modo").onclick = e => { const b = e.target.closest("[data-modo]"); if (!b) return; modo = b.dataset.modo; t0 = performance.now(); marcar("modo", "modo", modo); };
+marcar("modo", "modo", modo);
+desenhar(); requestAnimationFrame(quadro);
+</script>
+</body>
+</html>
