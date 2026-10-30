@@ -403,7 +403,7 @@ async function iniciarOnline(sessaoDeTeste) {
 // Tática de amistoso: começa da salva; sem ela, da tática do campeonato; sem nenhuma, da de bot. Todos disponíveis (amistoso não tem lesão nem suspensão).
 async function iniciarAmistoso(B, parar) {
   const [todos, liga, salva] = await Promise.all([B.elencoDoClube(clubeOnline.id), B.ligaAtual(), B.minhaTaticaDeAmistoso(clubeOnline.id)]);
-  if (salva === undefined) return parar("Falta rodar o 165_amistosos.sql.");
+  const semSql = salva === undefined; // sem o 165: dá para montar e jogar contra os bots, mas não para salvar
   elenco = todos.filter(j => !j.juvenil).map(j => ({ ...j, fora: 0, motivo: null }));
   temporadaDaLiga = liga.temporada;
   porId = Object.fromEntries(elenco.map(j => [j.id, j]));
@@ -413,8 +413,9 @@ async function iniciarAmistoso(B, parar) {
   limparReferencias();
   $("previa").hidden = true;
   $("salvarOnline").textContent = "Salvar a tática de amistoso";
+  $("salvarOnline").hidden = semSql;
   const quando = d => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  $("avisoOnline").innerHTML = `Tática de amistoso: não muda o time do campeonato. ${salva ? `Salva em ${quando(salva.atualizada_em)}.` : daLiga ? "Começa igual à do campeonato." : "Começa igual à do bot."}`;
+  $("avisoOnline").innerHTML = semSql ? "Falta rodar o 165_amistosos.sql: dá para jogar contra os bots, mas a tática de amistoso ainda não pode ser salva." : `Tática de amistoso: não muda o time do campeonato. ${salva ? `Salva em ${quando(salva.atualizada_em)}.` : daLiga ? "Começa igual à do campeonato." : "Começa igual à do bot."}`;
   $("salvarOnline").onclick = async () => {
     const V = validar();
     if (V.erros.length) { $("avisoOnline").innerHTML = `<span class="bad">${esc(V.erros[0])}</span>`; return; }

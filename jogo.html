@@ -227,6 +227,8 @@
   <div id="app" style="display:contents"></div><!-- sem caixa própria: as abas (sticky) ficam presas também na Tática, que está fora de #app -->
   <!-- aba Tática: fica fora de #app para não ser desmontada quando a tela do clube é redesenhada -->
   <div id="taticaFora" hidden></div>
+  <!-- aba Amistoso: também fora de #app (a tática de amistoso não é desmontada quando a tela do clube é redesenhada) -->
+  <div id="amistosoFora" hidden></div>
 </main>
 
 <script type="module">
@@ -382,7 +384,7 @@ const fecharJogador = window.fecharJogador = () => { if (!quadro.innerHTML) retu
 quadro.addEventListener("close", fecharJogador); addEventListener("popstate", fecharJogador);
 // botão do meio ou ctrl+clique em atalhos que não são links (clube, aba, aba interna, jogador do mercado): abre o endereço deles em outra aba
 const enderecoDe = el => el.closest("#meusClubes") ? "" : el.dataset.clube ? "#clube=" + el.dataset.clube : el.dataset.mjog ? "jogador.html?id=" + String(el.dataset.mjog).replace(/\D/g, "")
-  : el.dataset.abaIr ? (el.dataset.abaIr === "amistoso" ? "" : "#" + el.dataset.abaIr) : el.dataset.sub ? "#" + el.dataset.sub : el.dataset.aba ? "#" + el.dataset.aba : "";
+  : el.dataset.abaIr ? "#" + el.dataset.abaIr : el.dataset.sub ? "#" + el.dataset.sub : el.dataset.aba ? "#" + el.dataset.aba : "";
 const outraAba = e => {
   if (!e.target.closest || e.target.closest("a[href]") || !(e.button === 1 || (e.button === 0 && (e.ctrlKey || e.metaKey)))) return;
   const el = e.target.closest("[data-clube], [data-mjog], [data-aba-ir], [data-sub], [data-aba]"), url = el && enderecoDe(el);
@@ -414,6 +416,19 @@ async function mostrarTatica(sim) {
   try { const { montarEscalacao } = await import("./src/ui-escalacao.js"); const eu = usuario; const t = await montarEscalacao(fora, { online: true, sessao: { user: eu }, cabecalho: false }); if (usuario && usuario.id === eu.id) telaTatica = t; }
   catch (e) { fora.innerHTML = `<div class="card bad">Não consegui abrir a tática: ${esc(e.message)}</div>`; taticaVelha = true; }
   montandoTatica = false;
+}
+// Aba Amistoso (src/ui-amistoso.js): como a Tática, refeita ao abrir depois de o clube ser relido, a não ser que a tática de amistoso tenha mudança sem salvar
+let telaAmistoso = null, amistosoVelho = true, amistosoDe = null, montandoAmistoso = false;
+async function mostrarAmistoso(sim) {
+  const fora = $("amistosoFora");
+  fora.hidden = !sim || !usuario;
+  if (fora.hidden) return;
+  if (window.marcarChegadaAmistoso) window.marcarChegadaAmistoso();
+  if (montandoAmistoso || (telaAmistoso && amistosoDe === usuario.id && (!amistosoVelho || telaAmistoso.sujo()))) return;
+  amistosoVelho = false; amistosoDe = usuario.id; telaAmistoso = null; montandoAmistoso = true;
+  try { const { montarAbaAmistoso } = await import("./src/ui-amistoso.js"); telaAmistoso = await montarAbaAmistoso(fora, { sessao: { user: usuario } }); }
+  catch (e) { fora.innerHTML = `<div class="card bad">Não consegui abrir os amistosos: ${esc(e.message)}</div>`; amistosoVelho = true; }
+  montandoAmistoso = false;
 }
 const filtrosDoMercado = {};
 const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
@@ -465,7 +480,7 @@ async function carregar(s) {
   $("quem").textContent = usuario ? usuario.email : "";
   $("sair").hidden = !usuario; $("sair").title = usuario ? "Sair da conta " + usuario.email : "";
   if (!usuario) { location.replace("index.html"); $("meusClubes").innerHTML = ""; $("app").innerHTML = ""; $("taticaFora").hidden = true; $("taticaFora").innerHTML = ""; telaTatica = null; return; }
-  taticaVelha = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
+  taticaVelha = amistosoVelho = true; // os dados do clube vão ser lidos de novo: a tática é refeita na próxima vez que a aba abrir, se não houver mudança sem salvar
   const redesenho = !!$("abas"), rolagem = scrollY; // a tela do clube já está aberta: troca o conteúdo sem piscar e fica onde estava
   if (!redesenho) $("app").innerHTML = `<div class="card mut">Carregando…</div>`;
   try {
@@ -2830,6 +2845,7 @@ async function telaClube(liga, clube) {
   // painel de chegada: primeiros passos do dirigente novo; some quando tudo foi feito ou quando ele esconde
   const CHAVE_CHEGADA = "mo_chegada_" + clube.id;
   const chegadaVista = () => { try { return JSON.parse(localStorage.getItem(CHAVE_CHEGADA)) || {}; } catch (e) { return {}; } };
+  window.marcarChegadaAmistoso = () => marcarChegada("amistoso");
   const marcarChegada = k => { const v = chegadaVista(); if (v[k]) return; v[k] = 1; try { localStorage.setItem(CHAVE_CHEGADA, JSON.stringify(v)); } catch (e) {} redesenharChegada(); };
   const chegada = () => {
     const v = chegadaVista(); if (v.fechado) return "";
@@ -2842,7 +2858,7 @@ async function telaClube(liga, clube) {
       caixa != null && [!!v.financas, "💰", "Entenda o caixa e o teto da folha", `A soma dos salários não pode passar de ${dinheiro(teto)}. O dinheiro entra e sai a cada rodada.`, "financas"],
       patro && [!!patro.escolha, "🤝", "Escolha o patrocínio", "Uma marca e uma de três propostas, de segura a agressiva. Só até a primeira rodada da temporada.", "clube:patrocinio"],
       [!!v.escudo, "🛡️", "Personalize escudo e uniformes", "Desenhe ou envie uma imagem do escudo.", "config:escudo"],
-      [!!v.amistoso, "⚽", "Jogue um amistoso", "Teste a tática salva contra qualquer clube. Não vale nada e sai na hora, logo abaixo nesta página.", "amistoso"],
+      [!!v.amistoso, "⚽", "Jogue um amistoso", "Monte uma tática de amistoso e teste contra um bot de estilo ou outro clube. Não vale nada e sai na hora.", "amistoso"],
     ].filter(Boolean);
     const feitos = passos.filter(x => x[0]).length; if (feitos === passos.length) return "";
     if (visualNovo) { const faltam = passos.filter(x => !x[0]);
@@ -3314,17 +3330,14 @@ async function telaClube(liga, clube) {
     <div class="t-linha-central">
       <div class="t-cel"><section id="cnVestiario" hidden></section></div>
       <aside class="t-cel-lado"><div class="t-cel-rolo">
+        <div id="cnAmistosos"></div>
         <section class="t-lado-bloco"><div class="t-rotulo">Para resolver</div><div class="mural t-resolver" id="muralClube">${muralDoClube()}</div></section>
-        <section class="t-lado-bloco t-amistoso-lado"><div class="t-rotulo">Amistoso</div>
-          <select id="amAdv" aria-label="Adversário do amistoso">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select>
-          <div class="t-amistoso-linha"><select id="amMando" aria-label="Mando"><option value="casa">Em casa</option><option value="fora">Fora</option></select><button type="button" class="t-botao" id="amJogar">Jogar</button></div>
-          <div id="amInfo" class="t-numero-legenda"></div></section>
+        <section class="t-lado-bloco t-amistoso-lado"><div class="t-rotulo">Amistoso</div><a class="lk" data-aba-ir="amistoso">Jogar amistoso →</a></section>
       </div></aside>
     </div>
     ${diretoriaNova()}
     <section class="t-bastidores"><div class="t-rotulo">Bastidores</div><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></section>
 
-    <div popover id="popAmistoso" class="t-pop t-pop-largo"><div class="t-pop-cab"><div class="t-rotulo">Amistoso · relatório</div><button type="button" class="t-pop-fechar" popovertarget="popAmistoso" popovertargetaction="hide" aria-label="Fechar">×</button></div><div class="t-pop-corpo" id="amRel"></div></div>
     </section>`;
   $("app").innerHTML = `${visualNovo ? topoNovo() : `<div class="card topo" style="${coresDoClube(clube)}"><div class="topo-jogo"></div>${svgEscudo(clube.escudo, clube.sigla, 72)}${svgUniforme({ ...clube.uniforme, escudo: clube.escudo, sigla: clube.sigla, marca: patro && patro.escolha ? patro.escolha.marca : null }, 52)}
       <div><h2 style="margin:0;font-size:22px">${esc(clube.nome)}</h2>
@@ -3333,22 +3346,19 @@ async function telaClube(liga, clube) {
       <div id="seloTopo" class="patro-topo" data-aba-ir="clube:patrocinio" style="cursor:pointer">${seloDoTopo()}</div>
       <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end"><div class="topo-conta"></div>${admin ? `<a href="admin.html" style="color:var(--ac)">Admin<span class="so-pc">istração</span>${pedidosAdm ? ` (📝 ${pedidosAdm})` : ""}</a>` : ""}
 </div></div>
-    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
+    <div class="abas" id="abas">${[["inicio", "Central", "🏠"], ["elenco", "Elenco", "👥"], ["tatica", "Tática", "📋"], ["amistoso", "Amistoso", "🤝"], ["base", "Base", "🌱"], ["classificacao", "Competições", "🏆", "Compet."], ["mercado", "Mercado", "🛒"], ["clube", "Clube", "🏛️"], ["config", "Ajustes", "⚙️"]]
       .map(([k, n, ic, curto]) => `<button class="aba" data-aba="${k}" title="${n}"><span class="ai">${ic}</span><span class="at at-l">${n}</span><span class="at at-c">${curto || n}</span></button>`).join("")}</div>`}
     ${visualNovo ? centralNova() : `    <section data-secao="inicio">
     ${kpisDaCentral()}
     <div id="desdeVisita" class="c-chegada-box"></div>
     <div id="chegada" class="c-chegada-box">${chegada()}</div>
+    <div id="cnAmistosos"></div>
     <div class="g2 g2-central">
     <div>
     <div class="card c-jogos"><h2>Próximos jogos</h2><div id="proximos" class="faixa"><div class="mut">Carregando…</div></div>
       <div id="proximo" style="margin-top:10px"></div>
       <div class="row" style="margin-top:10px"><button data-aba-ir="tatica">Escalação e tática</button><span class="${tatica ? "mut" : "aviso"}">${tatica ? `Tática salva em ${new Date(tatica.atualizada_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}.` : "Você ainda não salvou uma tática: até salvar, seu time é escalado como se fosse um bot."}</span></div></div>
-    <details class="card c-amistoso" ${celular ? "" : "open"}><summary><h2>Amistoso <span class="tag">quantos quiser · não vale para a tabela · relatório na hora</span></h2></summary>
-      <div class="row"><label style="flex:1;min-width:200px">Adversário<select id="amAdv">${outros.map(c => `<option value="${c.id}" ${c.grupo === clube.grupo && !outros.slice(0, outros.indexOf(c)).some(x => x.grupo === clube.grupo) ? "selected" : ""}>${esc(nomeDoGrupo(c.grupo))} · ${esc(c.nome)}${c.dono ? " (dirigente)" : ""}</option>`).join("")}</select></label>
-        <label>Mando<select id="amMando"><option value="casa">Em casa</option><option value="fora">Fora</option></select></label><button id="amJogar">Jogar amistoso</button></div>
-      <div class="mut" style="margin-top:6px">Você joga com a tática salva${tatica ? "" : " (como ainda não salvou, seu time é escalado como se fosse um bot)"}; o adversário com dirigente repete a escalação do último jogo oficial (a tática salva dele é segredo), e o bot joga com a tática de bot. Lesões, suspensões e cartões não contam em amistoso: todos os jogadores ficam disponíveis e nada do que acontece aqui vale depois.</div>
-      <div id="amInfo" class="mut" style="margin-top:6px"></div></details>
+    <div class="card c-amistoso"><h2>Amistoso <span class="tag">não vale para a tabela · sai na hora</span></h2><div class="row"><button data-aba-ir="amistoso">Jogar amistoso</button><span class="mut">Com uma tática só de amistoso, contra bots de estilo ou outros clubes.</span></div></div>
     <div class="card c-liga"><h2>Notícias da liga</h2><div class="mural" id="muralLiga">${desenharMural(muralDaLiga())}</div></div>
     </div>
     <div>
@@ -3373,7 +3383,6 @@ async function telaClube(liga, clube) {
       <div class="mut" style="margin-top:6px">A torcida cresce com as vitórias e encolhe com as derrotas. Torcida animada vai mais ao estádio.${caixa == null ? "" : ` Caixa: <b class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</b> · folha ${dinheiro(folha)} de ${dinheiro(teto)}.`}</div></div>`}
     </div>
     </div>
-    <div id="amRel"></div>
     </section>`}
     <section data-secao="classificacao">
     ${subAbas("comp", [["liga", "🏆 Liga", "Liga"], ["copa", "🏆 Copa do Brasil", "Copa"], ["lib", "🌎 Libertadores", "Liberta."], ["sul", "🌐 Sul-Americana", "Sul-Am."], ["stats", "📊 Estatísticas", "Estat."], ["fed", "🏛️ Federação", "Fed."], ["trofeus", "🏅 Campeões e recordes", "Recordes"], ["base", "🌱 Base", "Base"]])}
@@ -3615,6 +3624,7 @@ ${historicoDaBase()}`}
     </div>
     </section>
     <section data-secao="tatica"></section>
+    <section data-secao="amistoso"></section>
     <section data-secao="base">
     ${subAbas("base", [["geral", "🌱 Visão geral", "Geral"], ["jogos", "⚽ Jogos", "Jogos"], ["escalacao", "📋 Escalação", "Escal."], ["juvenis", "👶 Juvenis", "Juvenis"], ["estrutura", "🏗️ Estrutura", "Estrut."]])}
     <div data-parte="base:geral">${visualNovo ? baseNova() : `${kpisDaBase()}${batismoDaJoia()}
@@ -4247,6 +4257,7 @@ ${historicoDaBase()}`}
     document.querySelectorAll("#abas [data-aba]").forEach(b => { b.classList.toggle("ativa", b.dataset.aba === k); if (b.classList.contains("t-estacao")) { if (b.dataset.aba === k) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); } });
     if (k !== "clubeVisto") { try { localStorage.setItem("mo_aba", k); } catch (e) {} }
     mostrarTatica(k === "tatica"); // a tática fica fora de #app, logo abaixo da barra
+    mostrarAmistoso(k === "amistoso"); // o amistoso também
     if (k === "mercado" && mercadoAoAbrir) { const f = mercadoAoAbrir; mercadoAoAbrir = null; f(); }
     if (g) abrirSubAba(g, sub);
   };
@@ -4298,11 +4309,12 @@ ${historicoDaBase()}`}
   if ($("cnVestiario")) $("cnVestiario").onclick = $("cnProximo").onclick = $("cnPainel").onclick = e => { const a = e.target.closest("[data-aba-ir]"); if (!a) return;
     const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); };
   document.querySelectorAll("[data-aba-ir]").forEach(a => { if (!a.closest("#chegada, #muralLiga")) a.onclick = () => { const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub); }; });
+  // amistosos que outros dirigentes jogaram contra mim hoje (165_amistosos.sql; sem ele, nada aparece)
+  if ($("cnAmistosos")) import("./src/ui-amistoso.js").then(m => m.cartaoDosAmistosos($("cnAmistosos"), clube.id, cPor)).catch(() => {});
   // o painel de chegada é redesenhado, então os cliques dele vão por delegação
   $("chegada").onclick = e => {
     if (e.target.id === "chegadaFechar") { marcarChegada("fechado"); return; }
     const a = e.target.closest("[data-aba-ir]"); if (!a) return;
-    if (a.dataset.abaIr === "amistoso") { const d = $("amJogar").closest("details"); if (d) d.open = true; $("amJogar").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     const [k, sub] = a.dataset.abaIr.split(":"); abrir(k, sub);
   };
   document.querySelectorAll('input[name="cfgSiglas"]').forEach(r => { r.onchange = async () => { definirSiglas(r.value); await carregar({ user: usuario }); }; });
@@ -4996,29 +5008,7 @@ ${historicoDaBase()}`}
     $("contratoPainel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
-  // amistoso: tática salva contra a tática de bot do adversário; nada é gravado
-  const guardados = {};
   if ($("pedirExtra")) $("pedirExtra").onclick = () => telaPedidoExtra();
-  $("amJogar").onclick = async () => {
-    $("amJogar").disabled = true; marcarChegada("amistoso");
-    try {
-      const id = +$("amAdv").value, adv = cPor[id], casa = $("amMando").value === "casa";
-      guardados[id] = guardados[id] || await elencoDoClube(id);
-      const todos = e => e.map(j => ({ ...j, fora: 0 })); // em amistoso ninguém está lesionado nem suspenso
-      const meuElenco = todos(elenco), minha = taticaDoDirigente(tatica && tatica.dados, meuElenco) || taticaBot(meuElenco, { mandante: casa });
-      const forca = minha.escalacao.reduce((s, x) => s + notaNaPosicao(x.j, x.pos), 0) / minha.escalacao.length;
-      const elencoDele = todos(guardados[id]), observada = adv.dono ? escalacaoObservada(await escalacoesRecentes(await partidasDoClube(liga.id, id), id, 1), elencoDele, notaNaPosicao) : null;
-      const dele = taticaDoAmistoso(elencoDele, observada, { mandante: !casa, forcaAdversario: forca, perfil: adv.perfil });
-      const meu = prepararTime({ nome: clube.nome, escalacao: minha.escalacao, banco: minha.banco, instrucoes: minha.instrucoes, mandante: casa });
-      const outro = prepararTime({ nome: adv.nome, escalacao: dele.escalacao, banco: dele.banco, instrucoes: dele.instrucoes, mandante: !casa });
-      const partida = casa ? simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), meu, outro) : simularPartida(criarRng(Math.floor(Math.random() * 2147483647)), outro, meu);
-      $("amInfo").textContent = `${adv.nome} (${dele.origem}${dele.formacao ? `, ${estiloDe(adv)}): ${dele.formacao},` : "):"} nota média ${f1(dele.forca)}. ${clube.nome}: nota média ${f1(forca)}.`;
-      $("amRel").innerHTML = htmlRelatorio(montarRelatorio(partida, [3, 3]), { nomes: casa ? [clube.nome, adv.nome] : [adv.nome, clube.nome], analistas: [casa ? 0 : 1], ordens: partida.ordens, clubes: casa ? [clube, adv] : [adv, clube] });
-      ligarGraficos($("amRel"));
-      if ($("popAmistoso") && $("popAmistoso").showPopover) $("popAmistoso").showPopover(); else $("amRel").scrollIntoView({ behavior: "smooth", block: "start" }); // visual novo: o relatório abre por cima
-    } catch (e) { $("amInfo").innerHTML = `<span class="bad">Não deu para jogar: ${esc(e.message)}</span>`; }
-    $("amJogar").disabled = false;
-  };
 }
 
 $("sair").onclick = () => sair();
