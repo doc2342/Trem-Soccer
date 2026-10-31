@@ -1,6 +1,6 @@
 # Grade 5×5 do motor: design
 
-Aprovado com o dono em 30–31/10/2026, em duas sessões de brainstorming. As decisões estão na memória `grade-5x5` e os achados das fontes estão nos 7 documentos `docs/superpowers/specs/2026-10-3*-grade-5x5-fontes-*.md`. Esse resumo é o que o construtor precisa; as fontes trazem o porquê de cada número.
+Aprovado com o dono em 30–31/10/2026, em duas sessões de brainstorming. As decisões estão na memória `grade-5x5` e os achados das fontes estão nos 8 documentos `docs/superpowers/specs/2026-10-3*-grade-5x5-fontes-*.md`. Os itens marcados "(lote de conceitos)" vieram da leitura de 43 textos depois da aprovação e estão resumidos na seção 12c, para o dono conferir. Esse resumo é o que o construtor precisa; as fontes trazem o porquê de cada número.
 
 ## 1. Intenção
 
@@ -108,6 +108,7 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 - Usa o passe longo de quem lança. As instruções "passe longo" e "lados" deixam a virada mais frequente, e "curto" a deixa mais rara.
 - **Metas:** virada lado→lado em ~1% dos movimentos, com ~40–42% de acerto e ~15–17% de resultado bom. A melhor virada é de meio-espaço a meio-espaço.
 - O "pêndulo" lento de um lado ao outro não ganha nada contra a defesa que bascula bem.
+- **A defesa bascula com um passo de atraso (lote de conceitos):** o duelo de cada passo usa a arrumação (seção 9.2) do corredor onde a bola estava no passo anterior, misturada com a do corredor atual conforme a rapidez da basculação de quem defende (Posicionamento e Trabalho em equipe da linha). A virada longa pega a defesa ainda arrumada para o outro lado; a virada em dois toques curtos (pelo meio-espaço) pega a defesa no meio do caminho e erra menos que a bola longa pelo alto; o pêndulo de 3 ou mais toques para o lado encontra a defesa já arrumada. Circular para o lado e para trás sem progredir dá tempo ao adversário.
 
 ### 7.4 Voltar e o freio das voltas
 - Recuar tem risco, menor que avançar (decisão do dono).
@@ -115,6 +116,7 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 - **Existe um limite de passos por jogada, só como rede de segurança** (quase nunca atingido; o construtor escolhe o valor).
 - **Dividir o marcador:** a pressão sobre quem tem a bola pesa menos quando o time tem peso nas duas zonas vizinhas do receptor (saída dos dois lados).
 - A volta que prepara o passe para a frente tem valor (nos gols analisados, sai de primeira).
+- **Atrair a pressão (lote de conceitos):** a volta ganha contra quem pressiona dá ao próximo passo para a frente um bônus proporcional à pressão do adversário (quem saiu para apertar deixou espaço atrás: "um passo atrás, dois à frente"). Contra a retranca que não sai, o bônus é zero. É o outro lado do risco da volta: contra quem pressiona, voltar arrisca mais e rende mais; contra o bloco baixo, voltar é seguro e não rende nada. Não soma com o terceiro homem, o embalo nem o "de frente": vale o maior.
 - **Metas:** a volta é 12–13% dos movimentos que saem do centro e ~22% dos que saem do lado; 11–16 posses de 10 passes ou mais por jogo.
 
 ### 7.5 Quem decide o passo: Decisão
@@ -127,6 +129,7 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 ### 7.6 Terceiro homem
 - **Bônus de terceiro homem:** quando um passo para a frente é ganho apertado e o seguinte é um toque curto de volta, o próximo passo para a frente enfrenta **marcação enfraquecida** (o defensor foi atraído, pela mesma conta da cobertura emprestada) e quem recebe fica **de frente** (bônus no duelo seguinte). É a "tabela" aprovada em 29/10 no plano dos papéis.
 - Só vale com peso nosso na zona do terceiro homem. Cresce contra quem pressiona ou marca homem a homem; quase some contra a retranca que não sai.
+- O toque de volta em **diagonal** (para o corredor vizinho, o "up-back-through" da zona 14) rende mais que o toque reto, porque muda o ângulo e deixa quem recebe de frente (lote de conceitos).
 - O entrosamento do setor aumenta o bônus (é a superioridade "dinâmica").
 - **O lado ruim:** o toque de volta é disputado contra a pressão e o Desarme/Agressividade de quem marca na zona. Se for roubado, o adversário sai em contra-ataque contra a defesa desarrumada, com chance maior que numa perda comum ali.
 - **Metas:** terceiro homem que chega ao terço final ~0,4 por jogo em média e 1–2 nos times que mais fazem (é um piso); tabela com avanço ~4 por jogo, com laterais à frente.
@@ -162,6 +165,10 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 - A ordem é **volante → zagueiro → lateral**, e cada um deixa o seu buraco: o zagueiro que sai abre a área e a profundidade (a próxima bola em profundidade ganha bônus); o lateral que sai abre o lado (mais cruzamento).
 - **Só empresta quem não está ameaçado na própria zona** (o `ajudaAoCentro` de hoje vira regra geral; é o "prender o marcador": o 9 prende os zagueiros e o ponta aberto prende o lateral).
 - A qualidade da cobertura vem do Posicionamento.
+- **A zona pede ajuda quando está vazia ou quando está sobrecarregada (lote de conceitos):** o ataque nela passa de um limite × a defesa. É o `ajudaAoCentro` de hoje, que já fecha o centro com a defesa dos lados não ameaçados mesmo com o centro ocupado. O meio em caixa contra um time sem pontas abertos estreita a defesa e libera os lados; com pontas abertos, os laterais ficam presos.
+- **Ganhar com folga arrasta o cobridor (lote de conceitos):** os mesmos buracos também saem do duelo.
+  - Quem recebe e gira com folga na zona 14 obriga o zagueiro a sair: a próxima bola em profundidade ganha o bônus da zaga.
+  - O ponta que bate o lateral com folga no lado das faixas 4–5 puxa o zagueiro para fora: o meio-espaço vizinho fica mais fraco no passo seguinte (o corte para dentro, nas costas dele).
 
 ### 9.2 Cinco arrumações, em três corredores
 - A defesa tem **uma arrumação por coluna da bola** (hoje `defLado` E/C/D).
@@ -178,7 +185,8 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 - **Pressão:**
   - meta de PPDA de 5–8 com pressão 2 e 15–20 com pressão 0;
   - a pressão custa caro (quem pressiona sem estrutura sofre muitos chutes);
-  - quem pressiona em curva tapa a linha de passe atrás de si (sombra de cobertura).
+  - quem pressiona em curva tapa a linha de passe atrás de si (sombra de cobertura);
+  - **a pressão encurrala no lado (lote de conceitos):** a linha lateral é um defensor a mais, e o duelo num corredor de lado contra quem pressiona fica mais difícil para quem tem a bola. Quem desaba no lado deixa o lado oposto livre para a virada (seção 7.3).
 - **Impedimento:** a armadilha rende menos (e a bola nas costas rende mais) quando o time não pressiona quem passa. A linha alta (1) já usa a Velocidade da zaga.
 - **Altura da linha (referência):** pressão alta 52–55 m do próprio gol, bloco médio 35–45 m, bloco baixo 22–28 m.
 
@@ -223,6 +231,11 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 | Formações | 4-2-3-1 > 4-4-2; 4-2-3-1 < 3-5-2 e < losango no meio; 5-3-2 sofre mais cruzamentos e os defende melhor; 4-1-4-1 sofre contra 5 na última linha; árvore e losango fortes por dentro e fracos pelo lado; 4-2-4 fácil de contra-atacar | várias |
 | | O 4-3-3 ocupa com a bola os dois meios-espaços da faixa 4 | entrelinhas |
 | | "Território sem xG": o time concentrado nas faixas 1–2 tem posse e pouco xG | TFA |
+| Lote de conceitos (31/10) | Passes na jogada que termina em gol: média ~3,9; time de transição ~2,5 | Liga dos Campeões, Liverpool de Klopp |
+| | Acerto de passe por posição: volante 90–96%, zagueiro construtor 89–91%, ponta driblador 73–85% | scouts do TFA |
+| | Drible certo dos atacantes 37–55%; enfiadas ~1–4 por time por jogo, ~30% certas | TFA, Opta |
+| | Chutes no alvo 37–54%; xG por chute ~0,19 só no melhor ataque (teto) | Opta, TFA |
+| | PPDA sofrido 10–15; roubadas no terço final ~7 por jogo no time que mais pressiona | Premier League 25/26, Brighton |
 | Papéis | Os outros 3 papéis de lateral/ala perto do padrão em pontos por jogo | sim_papeis_laterais |
 | Valor das posições | Não piorar o equilíbrio de hoje (o zagueiro, em 41%, se corrige na etapa dos zagueiros) | plano dos papéis |
 
@@ -234,7 +247,7 @@ Metas já cumpridas hoje que **não podem piorar**: gols de contra-ataque, conve
 - **Analista e narração** nomeiam a zona 14, os meios-espaços, o fundo pela esquerda etc.
 - **Jogos da T0 continuam com o mapa de 9 zonas.**
 - **Guardar cada passo** da jogada: quem passou, quem recebeu, zona de origem e de destino, tipo de passo e resultado. Serve à narração, ao replay e à medição.
-- **Contadores para a calibragem** (a mesma régua das metas): SCA/GCA (as duas ações antes de chute ou gol), toques na área (passos certos na faixa 5), entradas no terço final, deep completions (passo certo a até 20 m do gol que não é cruzamento), passes e conduções progressivos, PPDA, "field tilt", índice de verticalidade (para a frente ÷ lado e trás), tabelas, terceiros homens, segundas bolas e duelos aéreos.
+- **Contadores para a calibragem** (a mesma régua das metas): SCA/GCA (as duas ações antes de chute ou gol), toques na área (passos certos na faixa 5), entradas no terço final, deep completions (passo certo a até 20 m do gol que não é cruzamento), passes e conduções progressivos, PPDA, "field tilt", índice de verticalidade (para a frente ÷ lado e trás), tabelas, terceiros homens, segundas bolas e duelos aéreos. Do lote de conceitos: passes na jogada de gol, acerto de passe por posição, dribles, enfiadas, PPDA sofrido e roubadas no terço final.
 
 ## 12b. Decisões tomadas depois da revisão do construtor (escolhas do Claude, para o dono conferir)
 
@@ -265,6 +278,23 @@ Metas já cumpridas hoje que **não podem piorar**: gols de contra-ataque, conve
 - **1a:** o relógio e a posse continuam como hoje (ataques por minuto e posse pelo controle do meio), e o caminho livre troca só o que acontece dentro de cada ataque. As metas de "~100 posses por jogo" e "~60 minutos contra bloco baixo" viram conferência aproximada.
 - **2a:** o replay dos amistosos já jogados pode mudar com a grade nova (o placar salvo não muda). Não se mantém uma terceira versão do motor.
 
+## 12c. Lote de conceitos (31/10, escolhas do Claude, para o dono conferir)
+
+43 textos lidos depois da aprovação (`2026-10-31-grade-5x5-fontes-lote-conceitos.md`). Entram 5 mecânicas, cada uma com 6 a 8 fontes concordando:
+
+| | Mecânica | Onde está |
+|---|---|---|
+| A1 | A pressão encurrala no lado | 9.3 |
+| A2 | Atrair a pressão com a volta (e o toque de volta em diagonal no terceiro homem) | 7.4, 7.6 |
+| A3 | A zona pede ajuda quando está vazia **ou sobrecarregada** | 9.1 |
+| A4 | A defesa bascula com um passo de atraso | 7.3 |
+| A5 | Ganhar com folga arrasta o cobridor | 9.1 |
+
+- **A3 corrige o plano, não o spec:** o plano de 31/10 só emprestava cobertura para a zona vazia, e com isso perdia o `ajudaAoCentro` que o motor já tem (os lados não ameaçados fecham o centro mesmo ocupado). Foi uma recomendação minha que mudou.
+- **A4 dá conta ao que o spec já dizia** ("o pêndulo lento não ganha nada"): antes não havia mecanismo para isso.
+- Todos os valores são de partida e entram na calibragem; as metas novas da seção 11 são de esforço.
+- O que só confirma o spec e o que fica para outras etapas (pontas por dentro, falso 9, volante que recua entre os zagueiros, R1 pela qualidade de quem fica, defesa do cruzamento) está no documento de fontes.
+
 ## 13. O que fica com o construtor
 
 - **A arquitetura do código:** se a grade fica em `motor.js` com um ramo `regrasT1` ou num módulo novo em `src/` (que então entra no `MODULOS` do empacotador), e como manter as 9 zonas intactas para a T0.
@@ -290,4 +320,5 @@ Metas já cumpridas hoje que **não podem piorar**: gols de contra-ataque, conve
 - `2026-10-31-grade-5x5-fontes-passe-driblab.md`: acerto de passe e Driblab.
 - `2026-10-31-grade-5x5-fontes-lote-tfa.md`: 80 PDFs do The Football Analyst e outros, incluindo a seção G2 de métricas.
 - `2026-10-31-grade-5x5-fontes-lote-html.md`: 36 HTMLs (segunda bola, cut-back, combinações, passe por dificuldade, 4-2-3-1, transições).
+- `2026-10-31-grade-5x5-fontes-lote-conceitos.md`: 43 textos do TFA e do TheMastermindSite (pressão no lado, passe para trás, meio em caixa, virada, arrasto, rest-defense, metas por posição).
 - Memória do pacote tático/transição: R1, R4, R5, G2, metas de contra-ataque, half-spaces do Athletic e Marić, mapas de xG por zona.
