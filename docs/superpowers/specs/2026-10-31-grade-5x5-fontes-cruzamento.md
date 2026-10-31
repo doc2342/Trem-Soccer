@@ -84,3 +84,30 @@ Por time: acerto de 17,6% (Leicester 21/22) a 28,5% (Newcastle 22/23); certos de
 tentados por time e jogo, ~24% certos, faixa por time 19–30%**. Ids de temporada do FotMob (para outras abas): Premier 16390 (21/22),
 17664, 20720, 23685, 27110 (25/26); Brasileirão 22978 (2024), 25077 (2025); Série B 25150; Copa do Brasil 25050; La Liga 27233;
 Bundesliga 26891; Serie A 27044; Champions 28184. URL: /pt-BR/leagues/{liga}/stats/season/{id}/teams/{aba}.
+
+## FotMob, metas gerais da Tarefa 12 (17 abas × 10 temporadas/ligas, 31/10)
+
+Baixadas por script (dados em `__NEXT_DATA__`): Premier 21/22–25/26, Brasileirão 2024 e 2025, La Liga, Bundesliga e Serie A 25/26.
+Por time e jogo (Europa ≈ média das 8 europeias; Brasil = média de 2024 e 2025):
+
+| O quê | Europa | Brasileirão | Faixa por time |
+|---|---|---|---|
+| Gols | 1,44 | 1,24 | 0,6–3,6 |
+| xG | ~1,40 | ~1,24 | |
+| Chutes no gol | 4,5 | 4,5 | 2,6–8,5 |
+| Conversão dos chutes | 11,1% | 9,4% | |
+| Grandes chances / perdidas | 2,3 / 1,4 | 2,0 / 1,2 | 1,0–4,9 |
+| Gols de bola parada | 0,30 | 0,27 | 0,05–0,65 |
+| Toques na área adversária | 25 | 20 | 14–42 |
+| Escanteios | 5,0 | 5,0 | 3,4–8,3 |
+| Cruzamentos certos / acerto | 4,3 / 24% | 4,5 / 24% | 19–30% |
+| Passes certos / acerto | 370 / 82% | 350 / 83% | 200–630 |
+| Bolas longas certas / acerto | 23 / 45% | 24 / 50% | 15–31 |
+| Desarmes | 16,6 | 16,6 | 12–22 |
+| Interceptações | 8,4 | 8,3 | 6–12 |
+| Posse recuperada no terço final | 4,2 | 3,4 | 1,9–7,6 |
+| Faltas | 11,0 | 13,3 | 7,6–15,9 |
+| Amarelos | 1,9 | 2,5 | 1,1–2,9 |
+| Vermelhos | 0,08 | 0,15 | |
+
+O Brasileirão: menos gols, menos toques na área, mais faltas e cartões; o resto igual à Europa. Script e cache em scratchpad (fotmob.py).
