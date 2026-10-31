@@ -617,8 +617,11 @@ const __motor = (() => {
     // Cera (instrução, só vale com o time ganhando): o jogo tem menos ataques, a arbitragem devolve parte do tempo no acréscimo
     // e cada minuto de cera arrisca um amarelo por retardar o reinício (goleiro mais que os outros; quem já tem amarelo se segura).
     cera: { ritmo: 0.7, acrescimo: 0.07, amarelo: 0.01, pesoGoleiro: 3 }, // ferramentas/sim_cera.mjs: +0,05 ponto por jogo, ~0,5 amarelo nos jogos em que é usada
-    escanteio: 0.53, // chance de escanteio depois de defesa ou bloqueio (0,45 e 0,2 com 0,85 ataque por minuto; ~8 escanteios por jogo)
-    escanteioDuelo: 0.25, // chance de escanteio quando a defesa corta uma jogada pelo lado
+    // chance de escanteio depois de defesa do goleiro e de bloqueio da zaga; era 0,53 para os dois até 31/10/2026, quando 60% dos escanteios saíam de
+    // finalização. No real ~40% (estimativa: ~3 defesas e ~2 bloqueios por time; site de apostas sem método: 40% bloqueio de chute ou cruzamento,
+    // 25% corte, 20% defesa, 15% rebote de bola parada); o resto vem do lado (escanteioDuelo)
+    escanteio: { defesa: 0.3, bloqueado: 0.45 },
+    escanteioDuelo: 0.39, // chance de escanteio quando a defesa corta uma jogada pelo lado (era 0,25)
     cabecadaEscanteio: 0.4, // chance de o escanteio ou a falta alçada virar finalização
     penalti: 0.072, // das faltas no centro do ataque
     faltaDireta: 0.15, // das faltas no ataque que não são pênalti (0,27 até 29/10/2026: quase 2 cobranças diretas por jogo, o dobro do futebol real)
@@ -1372,7 +1375,7 @@ const __motor = (() => {
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
       empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq)), p: parcial() });
-      if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
+      if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio[resultado])) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
     }
 
     function cobrador(t, tipo, nota) {
