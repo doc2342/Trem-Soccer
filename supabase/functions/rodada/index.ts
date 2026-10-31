@@ -569,6 +569,7 @@ const __motor = (() => {
     excentricidade: 0.1, // desvio da defesa do goleiro por ponto de Excentricidade
     // só narração (não mexe em nada do jogo): faixas da chance de gol do chute que foi no gol, e o frango quando a Excentricidade aumentou a chance em `frango` vezes
     narracaoDefesa: { facil: 0.2, boa: 0.4, milagre: 0.6, frango: 1.1 },
+    narracaoChance: { marcado: 0.88, livraSe: 1.14, apertado: 0.55, livre: 1.8 }, // só narração do chute na área: multiplicadores do xG pelo duelo com o zagueiro e pela jogada limpa ou apertada
 
     calor: 0.2, // calor forte: fração a mais de energia gasta por minuto
     // Entrosamento: recém-chegado (j.entrosar = jogos do clube que faltam, de 8 a 0) tira rendimento do setor inteiro em que joga;
@@ -1011,7 +1012,8 @@ const __motor = (() => {
     } else if (tipo === "area") {
       c.finalizador = (sortearPeso(rng, area, o => o.w * o.jog.at[A.fin] * ehAlvo(o)) || { jog: pivo }).jog;
       const f = c.finalizador.at;
-      c.xg = x.area * mod(media(f[A.dom], f[A.pos]), zag ? media(zag[A.mar], zag[A.pos]) : semZaga, k);
+      c.marcacao = mod(media(f[A.dom], f[A.pos]), zag ? media(zag[A.mar], zag[A.pos]) : semZaga, k); // a narração conta quem ganhou o duelo com o zagueiro
+      c.xg = x.area * c.marcacao;
       c.chute = f[A.fin]; c.defesa = gk ? gk[A.ref] : semGoleiro;
     } else {
       c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (forcado ? CONFIG.fatorChuteForcado : 1);
@@ -1026,7 +1028,7 @@ const __motor = (() => {
     }
     // nem toda chance do mesmo tipo vale o mesmo: umas saem limpas, outras apertadas
     const v = CONFIG.variacaoChance[tipo] || 0;
-    if (v) c.xg *= Math.exp(rng.normal(0, v) - v * v / 2);
+    if (v) { c.espaco = Math.exp(rng.normal(0, v) - v * v / 2); c.xg *= c.espaco; } // a narração conta a chance limpa ou apertada
     // contra-ataque (R4, regras da T1): menos gente atrás do adversário, chance melhor
     const CC = CONFIG.contraChance;
     if (contra && CC) c.xg *= CC.qualidade * limitar(Math.pow(contra.razao, CC.expoente), CC.min, CC.max);
@@ -1048,13 +1050,24 @@ const __motor = (() => {
     return pf <= 6 ? ` ${qual}, o pé ruim` : ` ${qual}, como se fosse o pé bom`;
   }
   // noAlvo: chance de gol do chute que foi no gol (decide defesa fácil, boa ou milagre); falha: chance com a Excentricidade do goleiro ÷ sem ela (o frango)
+  // chute na área: conta o que mais pesou na chance, se pesou (o duelo com o zagueiro ou a jogada limpa/apertada); o pé ruim já é narrado à parte
+  function porQueDaChance(c, nm) {
+    const N = CONFIG.narracaoChance, nada = { antes: "", depois: "" };
+    if (c.peRuim != null) return nada;
+    const z = c.zagueiro && c.marcacao ? Math.log(c.marcacao) : 0, e = c.espaco ? Math.log(c.espaco) : 0;
+    // cada fator medido contra o próprio corte: conta o que passou mais do corte
+    const pz = z / Math.log(z < 0 ? N.marcado : N.livraSe), pe = e / Math.log(e < 0 ? N.apertado : N.livre);
+    if (Math.max(pz, pe) < 1) return nada;
+    if (pz >= pe) return z < 0 ? { antes: "", depois: ` com ${nm(c.zagueiro)} em cima` } : { antes: `se livra de ${nm(c.zagueiro)}`, depois: "" };
+    return { antes: "", depois: e < 0 ? " sem ângulo" : " livre" };
+  }
   function narrar(c, resultado, goleiro, nm, noAlvo = 0.3, falha = 1) {
-    const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
+    const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado], q = c.tipo === "area" ? porQueDaChance(c, nm) : { antes: "", depois: "" };
     const inicio = {
       cruzamento: `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} cabeceia`}`,
       corte: `${f} vem da ${lado} em diagonal e chuta`,
       profundidade: c.goleiroSaiu ? `${cr} lança em profundidade, ${nm(goleiro)} sai da área e não chega, e ${f} fica com o gol quase vazio` : `${cr} lança em profundidade e ${f} sai na cara do gol`,
-      area: c.criador === c.finalizador ? `${f} recebe na área e finaliza` : `${cr} acha ${f} na área, que finaliza`,
+      area: c.criador === c.finalizador ? `${f} recebe na área${q.antes ? ", " + q.antes : ""} e finaliza${q.depois}` : `${cr} acha ${f} na área, que ${q.antes ? q.antes + " e " : ""}finaliza${q.depois}`,
       longe: `${f} arrisca de fora da área`,
       escanteio: `${cr} cobra o escanteio e ${f} cabeceia`,
       falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
@@ -1067,7 +1080,7 @@ const __motor = (() => {
         : noAlvo >= N.milagre ? `${gk} faz um milagre!` : noAlvo >= N.boa ? `${gk} faz grande defesa!` : noAlvo < N.facil ? `${gk} defende sem dificuldade.` : `${gk} defende.`,
       fora: "a bola sai pela linha de fundo.",
       trave: "na trave!",
-      bloqueado: c.zagueiro ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.",
+      bloqueado: c.zagueiro && !q.antes ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.", // quem se livrou do zagueiro não é bloqueado por ele
     }[resultado];
     return `${inicio}: ${fim}`;
   }
