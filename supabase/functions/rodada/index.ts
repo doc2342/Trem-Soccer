@@ -1280,8 +1280,8 @@ const __motor = (() => {
       const repeticao = CONFIG.amareloPrimeiraFalta + CONFIG.amareloPorFaltaAntes * (s.faltas - 1), segura = marcador.amarelos ? CONFIG.cuidadoComAmarelo * (min <= 45 ? CONFIG.segundoAmareloPrimeiroTempo : 1) : 1;
       if (!rng.chance(CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * repeticao * segura)) return;
       marcador.amarelos++; s.amarelos++; estat[i].amarelos++;
-      if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)} pela falta${em}: está expulso!`);
-      cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)} pela falta${em}.`);
+      if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)}: está expulso!`);
+      cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)}.`);
     }
     function expulsar(i, jog, texto) {
       estat[i].vermelhos++; jogadores[jog.j.id].vermelho = true;
@@ -1321,8 +1321,9 @@ const __motor = (() => {
       if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade) * (1 - (times[i].prevencao || 0)))) {
         const r = rng.n(), dias = r < 0.5 ? rng.int(1, 3) : r < 0.8 ? rng.int(4, 10) : rng.int(11, 30);
         jogadores[pivo.j.id].lesionado = true; lesoes.push({ id: pivo.j.id, time: i, dias });
-        sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(`${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
-        return { venceu: false, pivo: null, marcador, parada: false };
+        sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(comFalta ? `Falta de ${nm(marcador)} em ${nm(pivo)}, que se machuca e não continua.` : `${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
+        // o time de quem se machucou fica com a bola: bola parada se foi falta no ataque; senão recomeça dali (falta, ou bola ao chão para quem a tinha, Regra 8)
+        return { venceu: false, pivo: null, marcador, parada, falta: comFalta, recomeca: !parada };
       }
       return { venceu, pivo, marcador, parada, falta: comFalta, folga, recomeca, recuperou };
     }
@@ -1449,7 +1450,7 @@ const __motor = (() => {
       e.ataques++; trilha = []; rota = []; portador = null; bola = null; aposFalta = false; superados.clear();
       if (cobranca && cobranca.time === i && !contra) { portador = cobranca.jog; aposFalta = true; } // recomeço depois de falta: quem sofreu cobra
       cobranca = null;
-      const recomecar = (zona, d) => { passo(i, zona, d); cobranca = { time: i, jog: d.pivo }; proximo = { time: i, zona: zona[0] }; };
+      const recomecar = (zona, d) => { if (d.pivo) passo(i, zona, d); cobranca = { time: i, jog: d.pivo }; proximo = { time: i, zona: zona[0] }; };
       soltarCartoes();
       if (!contra && ultimoNarrado === i && !rodou) trilha.push(Object.assign([RETOMA[seq % RETOMA.length](tm(i))], { fechada: true }));
       atacante = i;
@@ -1469,9 +1470,11 @@ const __motor = (() => {
       }
       e.corredor[lado]++;
       const d = duelo(i, "A" + lado, bonus + levado, contra);
+      if (d.recomeca && !d.pivo) return recomecar("A" + lado, d); // lesão no duelo do ataque: o time recomeça dali
       if (d.parada) {
         const penal = lado === "C" && rng.chance(CONFIG.penalti); // decidido aqui (era dentro de bolaParada), para o texto da falta já dizer se foi pênalti
         if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.` : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}.`)); }
+        else if (penal) evento(i, "falta", "A falta foi dentro da área: pênalti!"); // quem sofreu se machucou (a falta já foi narrada na lesão)
         return bolaParada(i, "falta", lado, penal);
       }
       if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ONDE.A(lado)}.`)); return; }
