@@ -2736,7 +2736,7 @@ const __mercadobots = (() => {
     idadeMinima: 22,        // jovem de até 21 anos não é vendido
     idadeMaxima: 31,        // bot não compra veterano
     veterano: 30,           // a partir dos 30, o reserva conta como sobra
-    reserva: 0.25,          // depois da compra, o caixa precisa ficar acima de 25% do teto de folha
+    reserva: 0.10,          // depois da compra, o caixa precisa ficar acima de 10% do teto de folha (168; era 25%)
     maximoIndividual: 0.15, // ninguém ganha mais de 15% do teto
     elencoMinimo: 19,       // quem vende fica com pelo menos 19 jogadores profissionais
     divisoesAbaixo: 1,      // compra da mesma divisão ou de até uma abaixo
