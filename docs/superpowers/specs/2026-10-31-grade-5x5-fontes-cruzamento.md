@@ -38,3 +38,18 @@ sem o castigo fixo de acerto: em troca, contra linha alta/contra-ataque a zaga v
 tira acerto (pé fraco que já existe); P5 a defesa da área conta também o lado oposto da faixa 1 (o lateral do lado fraco, o ponta que volta);
 P6 linha alta piora a defesa do cruzamento em todo cruzamento; P7 metas da Tarefa 12: 1,8% dos cruzamentos viram gol, ~45 por gol com segunda bola
 e bola parada, e time de cruzamento não ganha mais que o de dentro.
+
+## StatMuse (link do dono, 31/10) — volume
+
+Premier League 2025-26 (temporada inteira): **17,98 cruzamentos tentados por time e jogo** (de 13,6 Burnley a 23,1 Newcastle). 2026-27 até
+agora: 17,45 tentados e ~4,0 certos por jogo (**~23% de acerto**, bate com a Statsbomb; Aston Villa 8,9 tentados e 1,1 certo, Man City 5,9 certos).
+A página não diz se conta escanteio/falta; na Opta o "cruzamento" costuma incluir a bola parada alçada, então o de jogo corrido deve ficar
+em ~13–15. Nosso jogo: 1,4 por time. Gols de cruzamento: o StatMuse não responde (422); segue aberto.
+
+## FotMob (link do dono, 31/10) — Premier League 2024/25
+
+Cruzamentos certos por time e jogo: média **~4,3** (3,1 Ipswich a 6,3 Fulham); acerto **20,7% (Aston Villa) a 27,4% (Brighton)**, média ~24% →
+~18 tentados. Toques na área adversária: 1.005 por time na temporada = **~26 por jogo** (17 Ipswich a 37,7 Man City); o nosso `toquesArea`
+(8,7) conta passos certos na faixa 5, não toques: na Tarefa 12, comparar com cuidado (cada passo na área = vários toques). Gols por jogo
+0,7–2,3. Outras abas úteis para a Tarefa 12: grandes chances, gols de bola parada, posse recuperada no terço final, passes longos, xG.
+Temporadas 2016/17 a 2026/27 no seletor.
