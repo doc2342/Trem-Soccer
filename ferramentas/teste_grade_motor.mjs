@@ -121,4 +121,41 @@ assert.strictEqual(CONFIG.grade, false);
   } finally { CONFIG.vermelhoDireto = vermelho; }
 }
 
+// Tarefa 7: o fim da jogada pelo corredor, em 2.000 jogos da T1 com formações e instruções sorteadas
+{
+  const jogo = (a, b, s, ia = {}, ib = {}) => simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a, instrucoes: ia }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }));
+  const formacoes = Object.keys(FORMACOES), r = criarRng(91), um = l => l[r.int(0, l.length - 1)];
+  const instr = () => ({ mentalidade: r.int(-2, 2), pressao: r.int(0, 2), passe: um(["misto", "curto", "longo"]), lado: um(["misto", "E", "C", "D", "lados"]),
+    finalizar: um(["misto", "longe", "area"]), cruzamento: um(["misto", "alto", "rasteiro"]), contraAtaque: r.chance(0.3), impedimento: r.chance(0.3) });
+  const porZona = {}, porTipo = {}, xgTipo = {};
+  let cutbacks = 0, toques = 0; const cruz = [0, 0];
+  for (let s = 1; s <= 2000; s++) {
+    const q = jogo(onze(um(formacoes), 3000 + s), onze(um(formacoes), 4000 + s), s, instr(), instr());
+    for (const e of q.estat) { cutbacks += e.grade.cutbacks[0]; toques += e.grade.toquesArea; cruz[0] += e.grade.cruzamentos[0]; cruz[1] += e.grade.cruzamentos[1]; }
+    for (const l of q.lances) {
+      if (!l.zona) continue; // bola parada
+      assert.ok(Number.isFinite(l.xg) && l.xg > 0 && l.xg <= 0.92, `xG ${l.tipo}`); // o publicado, com o goleiro (teto do chanceDeGol)
+      (porZona[l.zona] = porZona[l.zona] || {})[l.tipo] = (porZona[l.zona][l.tipo] || 0) + 1;
+      porTipo[l.tipo] = (porTipo[l.tipo] || 0) + 1; xgTipo[l.tipo] = (xgTipo[l.tipo] || 0) + l.xg;
+    }
+  }
+  const soma = o => Object.values(o || {}).reduce((a, b) => a + b, 0);
+  // nenhum chute de jogo corrido das faixas 1–3
+  assert.ok(Object.keys(porZona).every(z => z[0] === "4" || z[0] === "5"), Object.keys(porZona).join());
+  // do 5E/5D, quase só cruzamento e cutback
+  const lado5 = ["5E", "5D"].map(z => porZona[z] || {}), longe5 = lado5.reduce((a, o) => a + (o.longe || 0), 0), tot5 = lado5.reduce((a, o) => a + soma(o), 0);
+  assert.ok(tot5 && longe5 / tot5 < 0.05, `longe do 5E/5D: ${longe5}/${tot5}`);
+  assert.ok(porTipo.cutback > 0 && cutbacks === porTipo.cutback, "cutback");
+  // cruzamento antecipado só da faixa 4 de lado; da faixa 4 só sai cruzamento (lado) ou longe (zona 14)
+  for (const z of ["4E", "4D"]) assert.ok(Object.keys(porZona[z] || {}).every(t => t === "cruzamento" || t === "corte" || t === "longe"), z);
+  assert.ok((porZona["4E"] || {}).cruzamento > 0 || (porZona["4D"] || {}).cruzamento > 0, "cruzamento antecipado");
+  assert.ok(Object.keys(porZona).filter(z => z[0] === "4").every(z => ["4E", "4D", "4C"].includes(z)), "faixa 4 só de lado e zona 14");
+  assert.ok(toques > 0);
+  if (process.env.MEDIR) {
+    console.log(Object.fromEntries(Object.keys(porTipo).map(t => [t, `${(100 * porTipo[t] / soma(porTipo)).toFixed(1)}% xG ${(xgTipo[t] / porTipo[t]).toFixed(3)}`])));
+    console.log(Object.fromEntries(Object.entries(porZona).map(([z, o]) => [z, JSON.stringify(o)])));
+    console.log("toques na área por time e jogo", (toques / 4000).toFixed(1), "cutbacks", (cutbacks / 4000).toFixed(2), "cruzamentos", (cruz[0] / 4000).toFixed(1), "certos", (100 * cruz[1] / cruz[0]).toFixed(1) + "%");
+  }
+}
+
 console.log("teste_grade_motor: ok");
