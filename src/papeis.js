@@ -83,11 +83,13 @@ export const papelValido = (pos, papel) => !!papel && papeisDaPosicao(pos).inclu
 // { com, sem } do papel na posição, já espelhado na esquerda; null quando o motor deve usar a COBERTURA da posição (padrão, sem papel ou papel inválido).
 // comPadrao (regras da T1): o padrão, sem papel ou papel inválido usa os mapas do papel padrão da posição, se ele tiver (o ala Apoiador tem; o lateral Fixo não)
 // grade (5×5): o mapa da grade do papel, também no padrão; null fora dos laterais/alas (o motor usa manchasDoTime)
+const ESPELHADOS = new Map();
 export function mapasDoPapel(pos, papel, comPadrao = false, grade = false) {
   if (grade) {
     if (!papelValido(pos, papel)) { if (!comPadrao || !PAPEL_PADRAO[pos]) return null; papel = PAPEL_PADRAO[pos]; }
     const g = PAPEIS[papel].grade[base(pos)];
-    return DIREITA[pos] ? { com: espelharGrade(g.com), sem: espelharGrade(g.sem) } : g;
+    if (!DIREITA[pos]) return g;
+    return ESPELHADOS.get(g) || ESPELHADOS.set(g, { com: espelharGrade(g.com), sem: espelharGrade(g.sem) }).get(g); // o espelho de cada mapa, feito uma vez só
   }
   if (!papelValido(pos, papel) || papel === PAPEL_PADRAO[pos]) {
     if (!comPadrao || !PAPEL_PADRAO[pos]) return null;

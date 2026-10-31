@@ -7,14 +7,18 @@ import { limitar } from "./rng.js";
 
 export const CORREDORES = ["E", "e", "C", "d", "D"];
 export const ZONAS_GRADE = [1, 2, 3, 4, 5].flatMap(f => CORREDORES.map(c => f + c));
+// ZONA_EM[faixa][coluna]: a zona pronta (montar a chave na hora, f + c, custa caro nas contas que rodam a cada passo)
+export const ZONA_EM = [null, ...[1, 2, 3, 4, 5].map(f => ZONAS_GRADE.slice(5 * f - 5, 5 * f))];
 
 export function ehGrade(z) { return z[0] >= "1" && z[0] <= "5"; }
 export function faixaDe(z) { return +z[0]; }
 export function corredorDe(z) { return z[1]; }
-export function colunaDe(z) { return CORREDORES.indexOf(z[1]); }
+const COLUNA = { E: 0, e: 1, C: 2, d: 3, D: 4 };
+export function colunaDe(z) { return COLUNA[z[1]]; }
 
-// A faixa k de quem ataca enfrenta a faixa 6−k de quem defende, e o corredor troca de lado.
-export function espelhoGrade(z) { return (6 - faixaDe(z)) + CORREDORES[4 - colunaDe(z)]; }
+// A faixa k de quem ataca enfrenta a faixa 6−k de quem defende, e o corredor troca de lado (tabela pronta: o motor chama a cada duelo)
+const ESPELHO = Object.fromEntries(ZONAS_GRADE.map(z => [z, (6 - faixaDe(z)) + CORREDORES[4 - colunaDe(z)]]));
+export function espelhoGrade(z) { return ESPELHO[z]; }
 
 // Linha e lado "antigos" (9 zonas) de uma zona: faixa 1 → D, 2–3 → M, 4–5 → A; meio-espaço e centro → C.
 // Com código de 9 zonas, devolve o próprio z[0]/z[1].
@@ -94,7 +98,8 @@ export const MANCHAS = {
 export function espelharGrade(mapa) {
   return Object.fromEntries(Object.entries(mapa).map(([z, w]) => [z[0] + CORREDORES[4 - colunaDe(z)], w]));
 }
-const espelhada = m => ({ com: espelharGrade(m.com), sem: espelharGrade(m.sem) });
+const ESPELHADAS = new Map(); // as manchas não mudam: o espelho de cada uma é feito uma vez só
+const espelhada = m => ESPELHADAS.get(m) || ESPELHADAS.set(m, { com: espelharGrade(m.com), sem: espelharGrade(m.sem) }).get(m);
 
 // posições de lado: a do lado esquerdo usa o espelho da direita
 const LADO = { DR: "DR", WBR: "WBR", MR: "MR", AMR: "AMR", RW: "RW", DL: "DR", WBL: "WBR", ML: "MR", AML: "AMR", LW: "RW" };
@@ -130,52 +135,57 @@ export function manchasDoTime(escalacao) {
 // atk: ataque de quem ataca por zona (dele); def e posicionamento (Posicionamento médio de quem cobre cada zona): por zona de quem defende.
 // Só muda a defesa de lugar: o total não muda.
 const DENTRO = { E: ["e"], e: ["C"], C: ["e", "d"], d: ["C"], D: ["d"] }, FORA = { e: "E", d: "D" };
+// quem empresta a cada zona, na ordem: volante (mesmo corredor, uma faixa à frente de quem defende), zagueiro (vizinho do lado do centro), lateral (de fora)
+const DOADORES = Object.fromEntries(ZONAS_GRADE.map(z => { const f = faixaDe(z), c = z[1]; return [z, [...(f > 1 ? [(f - 1) + c] : []), ...DENTRO[c].map(k => f + k), ...(FORA[c] ? [f + FORA[c]] : [])]]; }));
+// as contas rodam em vetores pela posição da zona em ZONAS_GRADE (5 × (faixa − 1) + coluna; o espelho é 24 − posição): o motor refaz as 6 arrumações
+// a cada recálculo, e a chave de texto custava caro
+const DOADORES_I = ZONAS_GRADE.map(z => DOADORES[z].map(y => ZONAS_GRADE.indexOf(y)));
 export function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
-  const dz = {}, pos = {}, Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
-  for (const z of ZONAS_GRADE) { dz[z] = def[espelhoGrade(z)] || 0; pos[z] = (posicionamento && posicionamento[espelhoGrade(z)]) || 0; }
-  const atkDe = z => atk[z] || 0, ameaca = z => Math.min(1, (atkDe(z) + Z) / (dz[z] + Z));
+  const dz = new Float64Array(25), pos = new Float64Array(25), at = new Float64Array(25), Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
+  ZONAS_GRADE.forEach((z, i) => { const e = ZONAS_GRADE[24 - i]; dz[i] = def[e] || 0; pos[i] = (posicionamento && posicionamento[e]) || 0; at[i] = atk[z] || 0; });
+  const ameaca = i => Math.min(1, (at[i] + Z) / (dz[i] + Z));
   // 1. três corredores: o bloco fica na bola (centro → e C d; lado → lado, meio-espaço vizinho, centro; meio-espaço → ele, centro, lado vizinho).
   // Dos 2 livres sai a fração basculacao do que não marca ninguém ali, mais quanto mais longe da bola (o lado oposto é o lado fraco da virada);
   // com a bola no meio-espaço, zonaCinza do que sai fica no meio-espaço oposto
-  const cb = colunaDe("1" + corredorDaBola);
+  const cb = COLUNA[corredorDaBola];
   const ocupados = cb === 2 ? [1, 2, 3] : cb === 0 ? [0, 1, 2] : cb === 4 ? [2, 3, 4] : cb === 1 ? [0, 1, 2] : [2, 3, 4];
   const cinza = cb === 1 ? 3 : cb === 3 ? 1 : -1;
-  for (let f = 1; f <= 5; f++) {
+  for (let b = 0; b < 25; b += 5) {
     let sai = 0;
     for (let c = 0; c < 5; c++) if (!ocupados.includes(c)) {
-      const z = f + CORREDORES[c], v = V.basculacao * dz[z] * (1 - ameaca(z)) * Math.abs(c - cb) / 4;
-      dz[z] -= v; sai += v;
+      const i = b + c, v = V.basculacao * dz[i] * (1 - ameaca(i)) * Math.abs(c - cb) / 4;
+      dz[i] -= v; sai += v;
     }
-    if (cinza >= 0) { dz[f + CORREDORES[cinza]] += V.zonaCinza * sai; sai *= 1 - V.zonaCinza; }
-    const pesos = ocupados.map(c => dz[f + CORREDORES[c]] + Z), tot = pesos.reduce((a, b) => a + b, 0);
-    ocupados.forEach((c, i) => { dz[f + CORREDORES[c]] += sai * pesos[i] / tot; });
+    if (cinza >= 0) { dz[b + cinza] += V.zonaCinza * sai; sai *= 1 - V.zonaCinza; }
+    const pesos = ocupados.map(c => dz[b + c] + Z), tot = pesos.reduce((a, b) => a + b, 0);
+    ocupados.forEach((c, k) => { dz[b + c] += sai * pesos[k] / tot; });
   }
   // 2. cobertura emprestada: zona vazia (abaixo de vazia × a média da faixa) ou sobrecarregada (ataque acima de ameaca × a defesa) pega, nesta ordem,
   // do volante (mesmo corredor, uma faixa à frente de quem defende), do zagueiro (corredor vizinho do lado do centro) e do lateral (do lado de fora).
   // Só empresta quem não está ameaçado; até emprestimo do que sobra, pela qualidade do Posicionamento, e nunca mais que a falta.
   // ponytail: a falta (o que chega à ameaça ou ao piso da faixa) limita o empréstimo; sem ela a zona vazia passaria a vizinha. Ordem fixa das zonas
-  const emprestou = new Set(), pegou = new Set(), pisos = [0, 1, 2, 3, 4, 5].map(f => V.vazia * CORREDORES.reduce((s, c) => s + (dz[f + c] || 0), 0) / 5);
-  const precisa = z => dz[z] < pisos[faixaDe(z)] || atkDe(z) > V.ameaca * dz[z];
-  for (let f = 5; f >= 1; f--) {
-    const piso = pisos[f];
-    for (const c of ["C", "e", "d", "E", "D"]) {
-      const z = f + c;
-      if (emprestou.has(z) || !precisa(z)) continue;
-      const de = [...(f > 1 ? [(f - 1) + c] : []), ...DENTRO[c].map(k => f + k), ...(FORA[c] ? [f + FORA[c]] : [])];
-      for (const y of de) {
-        const falta = Math.max(atkDe(z), piso) - dz[z];
+  const emprestou = new Uint8Array(25), pegou = new Uint8Array(25), pisos = [0, 5, 10, 15, 20].map(b => V.vazia * (dz[b] + dz[b + 1] + dz[b + 2] + dz[b + 3] + dz[b + 4]) / 5);
+  const precisa = i => dz[i] < pisos[(i / 5) | 0] || at[i] > V.ameaca * dz[i];
+  for (let b = 20; b >= 0; b -= 5) {
+    const piso = pisos[b / 5];
+    for (const c of [2, 1, 3, 0, 4]) { // C, e, d, E, D
+      const i = b + c;
+      if (emprestou[i] || !precisa(i)) continue;
+      for (const y of DOADORES_I[i]) {
+        const falta = Math.max(at[i], piso) - dz[i];
         if (falta <= 0) break;
-        if (pegou.has(y) || atkDe(y) >= dz[y] || precisa(y)) continue;
-        const v = Math.min(falta, V.emprestimo * (dz[y] - atkDe(y)) * limitar(pos[y] / 25, 0.6, 1.3));
+        if (pegou[y] || at[y] >= dz[y] || precisa(y)) continue;
+        const v = Math.min(falta, V.emprestimo * (dz[y] - at[y]) * limitar(pos[y] / 25, 0.6, 1.3));
         if (v <= 0) continue;
-        dz[y] -= v; dz[z] += v; emprestou.add(y); pegou.add(z);
-        // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
-        if (y === "5C") buracos.profundidade = 1 + V.buracoZaga;
-        if (faixaDe(y) >= 4 && (y[1] === "E" || y[1] === "D")) buracos.cruzamento = 1 + V.buracoLateral;
+        dz[y] -= v; dz[i] += v; emprestou[y] = 1; pegou[i] = 1;
+        // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
+        if (y === 22) buracos.profundidade = 1 + V.buracoZaga;
+        if (y >= 15 && (y % 5 === 0 || y % 5 === 4)) buracos.cruzamento = 1 + V.buracoLateral;
       }
     }
   }
-  return { dz, buracos };
+  // vetor: a defesa pela posição da zona (o que o motor lê); dz, a mesma por zona, montada só quando alguém lê (testes, telas)
+  return { vetor: dz, buracos, get dz() { return Object.fromEntries(ZONAS_GRADE.map((z, i) => [z, dz[i]])); } };
 }
 
 // Basculação com um passo de atraso (spec 7.3): a defesa do passo mistura a arrumação de onde a bola estava com a de onde está, pela rapidez
@@ -211,14 +221,18 @@ export function tipoDoPasso(de, para) {
 
 // Destinos de de: para trás só uma faixa (corredor ≤ 1 ou a virada), para o lado até a virada, para a frente até a faixa 5.
 // Condução é um modo do passo (a bola no pé), não um destino: só em subir, diagonal e lado.
+const OPCOES = {}; // as opções de cada zona não mudam: feitas uma vez (quem chama não altera a lista)
 export function opcoesDoPasso(de) {
-  const r = [];
+  if (OPCOES[de]) return OPCOES[de];
+  const r = OPCOES[de] = [];
   for (const para of ZONAS_GRADE) {
     if (para === de || faixaDe(para) < faixaDe(de) - 1) continue;
     const tipo = tipoDoPasso(de, para);
     if (tipo === "voltar" && Math.abs(colunaDe(para) - colunaDe(de)) > 1) continue;
-    r.push({ para, tipo });
-    if (tipo === "subir" || tipo === "diagonal" || tipo === "lado") r.push({ para, tipo, conduzir: true });
+    // i: posição do destino em ZONAS_GRADE; k: posição da opção na lista (o motor guarda contas por elas)
+    const i = ZONAS_GRADE.indexOf(para);
+    r.push({ para, tipo, i, k: r.length });
+    if (tipo === "subir" || tipo === "diagonal" || tipo === "lado") r.push({ para, tipo, conduzir: true, i, k: r.length });
   }
   return r;
 }
@@ -228,15 +242,16 @@ export function dificuldade(tipo, de, para, V) {
   const D = V.dificuldade, df = faixaDe(para) - faixaDe(de), dc = Math.abs(colunaDe(para) - colunaDe(de)), cd = corredorDe(de);
   let l = tipo === "voltar" ? D.voltar : tipo === "lado" ? D.lado + D.ladoLonge * (dc - 1) : tipo === "subir" ? D.subir
     : tipo === "diagonal" ? (cd === "e" || cd === "d" ? D.diagonalMeio : D.diagonal) : tipo === "pular" ? D.pular * (df - 1)
-    : tipo === "virada" ? D.virada : D.inversao * (Math.abs(df) + dc - 2);
+    : tipo === "virada" ? D.virada : D.pular * (df - 1) + D.inversao * (df + dc - 2); // a inversão paga as faixas puladas, como o pular, e a distância
   if ((cd === "E" || cd === "D") && dc && tipo !== "voltar" && tipo !== "virada") l += D.paraDentro; // do lado para dentro: mais interceptado
   return l + D.pertoDoGol * Math.max(0, faixaDe(para) - 3);
 }
 
+const LARGURA = { E: "E", e: "e", C: "C", d: "e", D: "E" }; // corredor sem o lado
 // Valor da zona: o xT da 5×5 (spec 8), plano na largura até a faixa 5
 export function valorDaZona(z, V) {
   const f = faixaDe(z);
-  return f < 5 ? V.valorZona.faixas[f - 1] : V.valorZona.f5[({ d: "e", D: "E" })[z[1]] || z[1]];
+  return f < 5 ? V.valorZona.faixas[f - 1] : V.valorZona.f5[LARGURA[z[1]]];
 }
 
 // Quem tem a bola escolhe: peso v^γ, com γ pela Decisão (o bom decisor fica perto da melhor opção, o mau perto da média).
@@ -260,3 +275,7 @@ export function proximoImpulso({ folga, tipo, de, temVizinho, pressaoAdv = 0, me
 
 // Rede de segurança do laço da jogada (spec 7.4): quase nunca atingida
 export const LIMITE_DE_PASSOS = 12;
+
+// Preferência de passo por papel (aprovada pelo dono em 31/10): multiplica o valor de cada opção. Neutra nesta entrega; a etapa dos papéis preenche
+// (Distribuidor/Construtor: virada e pular; Técnico/Condutor: condução; Organizador: lado e volta; Criador/Articulador: diagonal e enfiada; …)
+export function preferenciaDoPasso(papel, tipo, conduzir) { return 1; }

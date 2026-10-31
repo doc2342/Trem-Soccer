@@ -27,7 +27,9 @@ const jogos = regrasT1 => {
 };
 const hash = ps => createHash("sha256").update(JSON.stringify(ps.map(p => [p.placar, p.narracao, p.estat, p.jogadores]))).digest("hex");
 
+CONFIG.t1.grade = false; // a T1 de 9 zonas
 const h0 = hash(jogos(false)), h1 = hash(jogos(true));
+CONFIG.t1.grade = true;
 console.log("HASH_T0 =", h0, "\nHASH_T1_SEM_GRADE =", h1);
 assert.strictEqual(h0, HASH_T0, "a temporada 0 mudou");
 assert.strictEqual(h1, HASH_T1_SEM_GRADE, "a T1 com 9 zonas mudou");

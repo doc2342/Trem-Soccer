@@ -1,5 +1,6 @@
 // Relatório da partida: resultado esperado pelo xG, notas dos jogadores, mapa de zonas e comentário do analista.
 import { ZONAS } from "./motor.js";
+import { ehGrade, paraNoveZonas } from "./grade.js";
 
 // Distribuição do número de gols a partir do xG de cada finalização (cada uma entra ou não, de forma independente).
 function distribuicaoGols(xgs) {
@@ -90,8 +91,13 @@ function analise(partida, esperado, jogadores, i, nivel) {
   return frases;
 }
 
+// Jogo da grade 5×5 (T1): os duelos das 25 zonas somados nas 9 de sempre (arredondados), para o analista e as telas que leem o relatório.
+// ponytail: a Tarefa 11 do plano da grade passa a gravar as 25 e ensina as telas a ler
+const nasNoveZonas = e => e.zonas && ehGrade(Object.keys(e.zonas)[0]) ? { ...e, zonas: Object.fromEntries(Object.entries(paraNoveZonas(e.zonas)).map(([z, v]) => [z, v.map(Math.round)])) } : e;
+
 // nivelAnalista: [nível do analista do mandante, do visitante], de 1 a 3
 export function montarRelatorio(partida, nivelAnalista = [3, 3]) {
+  partida = { ...partida, estat: partida.estat.map(nasNoveZonas) };
   const esperado = resultadoEsperado(partida.lances), jogadores = notas(partida);
   return {
     placar: partida.placar, xg: partida.xg, esperado,

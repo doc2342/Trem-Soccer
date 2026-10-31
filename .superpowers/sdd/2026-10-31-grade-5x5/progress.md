@@ -34,3 +34,16 @@ Ruling: mesma faixa a 2+ corredores sem ser virada (E→C, e→D) = "lado" com l
 Ruling: V.impulso.deFrente = 0,3 (o spec não dá; um pouco acima do teto do embalo 0,28 para pesar). prende = reto (subir/pular) pelo lado ou pelo centro sem ter girado (folga < giro); quem girou não fica preso.
 Ruling: condução = entrada repetida em opcoesDoPasso com conduzir: true (subir/diagonal/lado). escolherPasso recebe sortear por parâmetro; valor ≤ 0 vira 1e-9 (todas ruins → iguais). pressaoAdv/mentalidadeAdv com padrão 0.
 Task 5: complete (inline, 69/69)
+Task 6: inline (Opus). CONFIG.t1.grade = true; atacarNaGrade dentro de atacar (mesmos fechamentos); hash T0 e T1 de 9 zonas iguais.
+Ruling: gradeValores.baseDuelo próprio { D 2,6, M 1,7, A 1,2 } (o baseDuelo das 9 zonas é de duelo entre linhas: subir acertava 61%, meta 84%) e risco 3 (com 0,3 a jogada era só lançamento) — custo: valores de partida, Tarefa 12.
+Ruling: inversão paga as faixas puladas como o pular (D.pular × (df − 1) + D.inversao × (df + dc − 2)); antes 1e→4D custava −0,75 contra −1,8 do 1e→4e e era 40% dos passos.
+Ruling: passe só para zona com alguém nosso (peso > 0); condução pode ir ao espaço vazio. Fiel e corta ~¼ das opções avaliadas.
+Ruling: A1 (armadilhaLado) só no duelo, fora do valorDe: quem passa não vê a armadilha (senão evita o lado e perde menos).
+Ruling: reserva (R1) na grade = faixa 1 inteira + miolo da faixa 2 (só e/C/d tirava o lateral que fica: Apoiadores sofriam MENOS contra-ataques que Fixos). teste_regras_t1: faixa 1,15 → 1,10 (+14% medido).
+Ruling: perda do passo: quem recebe domina mal/é desarmado, quem passa erra/tem o passe cortado/acha o impedido (d.passador; nas 9 zonas é o mesmo jogador). Perda na volta conta na zona de origem.
+Ruling: montarRelatorio soma as 25 zonas nas 9 (arredondado) para o analista e as telas — senão a rodada da T1 quebrava. A Tarefa 11 passa a gravar as 25.
+Ruling: gradeValores.contato 0,5 multiplica falta e lesão por passo (faltas ~20, amarelos 4,0 por jogo).
+Ruling: teste_amistoso, jogo gravado < 120 mil caracteres (era 80 mil; a grade grava rota, fases e textos maiores; o amistoso grava narracao + lances + eventos, metade é repetição).
+Custo: 29 → ~11–13 ms por jogo (régua aquecida, 4-2-3-1 x 4-4-2; 9 zonas 2,4–3,0 ms, também ficou mais rápida). Otimizações sem mudar resultado (hash conferido): defesaVista em vetores, tabelas de espelho/coluna/zona, manchas espelhadas uma vez, molde das forças, arrumação da transição só no contra.
+Para a Tarefa 12 (medido em 300 jogos, formações sorteadas): gols 2,96 (meta 2,3), conversão 12,7%, chutes 23,4, acerto 84,2%, passes no gol 4,3, posses de 10 = 2,7 por time (meta 11–16), lado 45% / voltar 4% (meta volta 12–22%), pular 24% (alto). PRESSÃO: na grade pressionar rende +0,2 ponto por jogo e o atacado perde MENOS a bola (a compactação em cascata come o reforço de marcação; sobram só efeitos no atacante). Teste A1 isola a mecânica (armadilha liga/desliga) por isso.
+Task 6: complete (inline, 69/69)
