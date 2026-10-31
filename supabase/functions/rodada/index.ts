@@ -626,6 +626,7 @@ const __motor = (() => {
   const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const { mapasDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } = __papeis;
+  const { ZONAS_GRADE, linhaDaZona, ladoDaZona, corredorDe, faixaDe, manchasDoTime, espelharGrade } = __grade;
   const CONFIG = {
     ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
       0,68 depois da T14 (3,07 gols e 12% dos jogos com 6 ou mais): meta de 2,5 gols e ~24 finalizações por jogo, como no Brasileirão */ // ataques iniciados por minuto, somando os dois times
@@ -813,6 +814,17 @@ const __motor = (() => {
     //   escanteioContra (R5): time com a instrução de contra-ataque deixa o mais adiantado lá na frente no escanteio contra; quando a zaga afasta,
     //     sai em contra-ataque com a chance `chance` (razao: a da R4, com a zaga do adversário na área); custo: um a menos na área, cabeceio x custo
     pressaoLeitura: 0,
+    // Grade 5×5 (docs/superpowers/specs/2026-10-31-grade-5x5-design.md): a chave que o motor lê durante a partida; só nas regras da T1 (t1.grade).
+    // gradeValores, números de partida (a calibragem ajusta):
+    //   lotacao: limite de jogadores (soma dos pesos) por corredor, o lado lota antes (zonas menores que as de 9); o que passa rende só resto
+    //   compactacao: a defesa de cada zona da faixa k (2 a 5) só vale até razao vezes a da faixa k−1 no mesmo corredor (o bolsão entre as linhas)
+    //   pesoPosse: peso de cada corredor das faixas 2–3 no controle do meio (d = e, D = E)
+    //   passagemPorDentro: o mesmo de papeis.passagemPorDentro, na grade (o Apoiador com ponta aberto na frente passa pelo meio-espaço)
+    grade: false,
+    gradeValores: {
+      lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
+      passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
+    },
     contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
     // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
     //   frequente (0,32/0,08 → 0,17/0,053) e melhor (R4), para os gols de contra-ataque na régua da Opta (recuperação na própria metade) ficarem em 6,0%
@@ -824,7 +836,8 @@ const __motor = (() => {
       contraChance: { qualidade: 1.17, expoente: 1, min: 0.6, max: 2 },
       linhaAlta: { referencia: 28, expoente: 1.5, goleiro: 0.5, min: 0.6, max: 1.8 },
       saidaGoleiro: { tentativa: 0.5, linhaAlta: 2, base: 1, inclinacao: 3, vazio: 8 },
-      escanteioContra: { chance: 0.15, razao: 1.4, custo: 1.1 } },
+      escanteioContra: { chance: 0.15, razao: 1.4, custo: 1.1 },
+      grade: false }, // a Tarefa 6 do plano da grade liga, junto com a jogada na grade
   };
 
   const INSTRUCOES_PADRAO = {
@@ -853,6 +866,10 @@ const __motor = (() => {
   // A zona de ataque de um time é a zona de defesa do outro, com o lado trocado.
   const ESPELHO_LINHA = { D: "A", M: "M", A: "D" }, ESPELHO_LADO = { E: "D", C: "C", D: "E" };
   const espelho = z => ESPELHO_LINHA[z[0]] + ESPELHO_LADO[z[1]];
+  // zonas em uso: as 25 da grade (regras da T1 com CONFIG.grade) ou as 9 de sempre
+  const zonasDoMotor = () => CONFIG.grade ? ZONAS_GRADE : ZONAS;
+  const meioEspaco = z => z[1] === "e" || z[1] === "d";
+  const largura = z => ({ d: "e", D: "E" })[z[1]] || z[1]; // corredor sem o lado (d = e, D = E), para os valores por corredor da grade
 
   // Quanto cada posição cobre de cada zona (soma 1). As posições da esquerda são o espelho das da direita.
   const COBERTURA_BASE = {
@@ -884,17 +901,28 @@ const __motor = (() => {
   const temPapel = (jog, ...papeis) => !!jog && !!jog.papel && jog.papel !== PAPEL_PADRAO[jog.pos] && papeis.includes(jog.papel);
   const PONTA_ABERTO = ["RW", "LW", "MR", "ML"]; // na frente do Apoiador, quem fica aberto (padrões Agudo e Garçom); AMR/AML (Condutor) corta para dentro
   // Habilidade de quem tem a bola, por zona.
+  // Na grade, cada zona vale pela linha antiga da faixa (1 = D, 2–3 = M, 4–5 = A) e pelo lado do corredor; o meio-espaço tem conta própria por faixa.
   function habilidadeAtaque(at, zona) {
-    const centro = zona[1] === "C";
-    if (zona[0] === "D") return (at[A.pas] * 2 + at[A.dom] + at[A.pos]) / 4; // saída de bola
-    if (zona[0] === "M") return centro ? (at[A.pas] * 2 + at[A.cri] * 1.5 + at[A.dom] + at[A.equ] * 0.5) / 5 : (at[A.dri] + at[A.vel] + at[A.pas] + at[A.dom]) / 4;
+    if (meioEspaco(zona)) {
+      const f = faixaDe(zona);
+      if (f >= 4) return (at[A.cri] * 1.25 + at[A.dom] * 1.25 + at[A.pas] + at[A.dri] + at[A.lon] * 0.5) / 5;
+      if (f >= 2) return (at[A.pas] * 1.5 + at[A.dom] * 1.25 + at[A.cri] + at[A.dri] * 0.5 + at[A.vel] * 0.5) / 4.75;
+      return (at[A.pas] * 2 + at[A.dom] + at[A.pos] + at[A.vel] * 0.5) / 4.5;
+    }
+    const centro = ladoDaZona(zona) === "C", linha = linhaDaZona(zona);
+    if (linha === "D") return (at[A.pas] * 2 + at[A.dom] + at[A.pos]) / 4; // saída de bola
+    if (linha === "M") return centro ? (at[A.pas] * 2 + at[A.cri] * 1.5 + at[A.dom] + at[A.equ] * 0.5) / 5 : (at[A.dri] + at[A.vel] + at[A.pas] + at[A.dom]) / 4;
     return centro ? (at[A.cri] * 1.5 + at[A.pas] + at[A.dom] + at[A.dri] * 0.5) / 4 : (at[A.dri] * 1.5 + at[A.vel] * 1.5 + at[A.cru] * 0.5 + at[A.dom] * 0.5) / 4;
   }
   // Habilidade de quem marca, por zona.
   function habilidadeDefesa(at, zona) {
-    const centro = zona[1] === "C";
-    if (zona[0] === "A") return (at[A.vel] + at[A.res] + at[A.agr] + at[A.equ] + CONFIG.pressaoLeitura * at[A.pos]) / (4 + CONFIG.pressaoLeitura); // pressão na saída do adversário
-    if (zona[0] === "M") return centro ? (at[A.pos] * 1.5 + at[A.des] * 1.5 + at[A.equ] * 0.5 + at[A.res] * 0.5) / 4 : (at[A.des] + at[A.vel] + at[A.mar] * 0.5 + at[A.pos] * 0.5) / 3;
+    const linha = linhaDaZona(zona);
+    if (meioEspaco(zona) && linha !== "A") return faixaDe(zona) === 1
+      ? (at[A.pos] * 1.5 + at[A.mar] * 1.25 + at[A.vel] + at[A.des] * 0.75) / 4.5 // o canal zagueiro–lateral
+      : (at[A.pos] * 1.25 + at[A.des] * 1.25 + at[A.vel] * 0.75 + at[A.res] * 0.5 + at[A.mar] * 0.5) / 4.25;
+    const centro = ladoDaZona(zona) === "C";
+    if (linha === "A") return (at[A.vel] + at[A.res] + at[A.agr] + at[A.equ] + CONFIG.pressaoLeitura * at[A.pos]) / (4 + CONFIG.pressaoLeitura); // pressão na saída do adversário
+    if (linha === "M") return centro ? (at[A.pos] * 1.5 + at[A.des] * 1.5 + at[A.equ] * 0.5 + at[A.res] * 0.5) / 4 : (at[A.des] + at[A.vel] + at[A.mar] * 0.5 + at[A.pos] * 0.5) / 3;
     return centro ? (at[A.mar] * 1.5 + at[A.pos] * 1.5 + at[A.des]) / 4 : (at[A.des] * 1.5 + at[A.vel] + at[A.mar] + at[A.pos] * 0.5) / 4;
   }
 
@@ -953,12 +981,14 @@ const __motor = (() => {
     const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
     const ent = entrosamento(t.emCampo);
     t.goleiro = null; t.temLibero = false;
-    for (const z of ZONAS) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
+    const grade = CONFIG.grade, Z = zonasDoMotor(), G = CONFIG.gradeValores, manchas = grade ? manchasDoTime(t.emCampo) : null;
+    t.atk = {}; t.def = {}; t.zonas = {}; t.zonasDef = {}; // novos a cada conta: sem resto das zonas da outra notação
+    for (const z of Z) { t.atk[z] = 0; t.def[z] = 0; t.zonas[z] = []; t.zonasDef[z] = []; }
     const alas = []; // alas de papel que não é o Apoiador: mudam com o lado da bola
     t.reserva = 0; t.saida = 0; t.naFrente = null; // defesa de reserva: peso nas zonas D com a bola; saída: peso nas zonas A sem a bola (R1); naFrente: o mais adiantado (R5)
     let velAtras = 0, frente = 0;
     const transicao = {}; let naTransicao = false; // o que muda na defesa quando o adversário sai em contra-ataque (quem tem papel ainda está no mapa com a bola)
-    for (const jog of t.emCampo) {
+    for (const [i, jog] of t.emCampo.entries()) {
       const f = jog.fam * base * eficacia(jog) * fatorDeMomento(jog.j) * (jog.dia || 1) * ent[setorDaPosicao(jog.pos)]; // forma e moral do jogador (1 quando as duas estão em 50)
       jog.at = jog.j.at.map(v => v * f); // atributos efetivos neste momento da partida
       const pe = ajusteDoPe(jog.j.pe, jog.pos, jog.j.pf); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
@@ -967,55 +997,68 @@ const __motor = (() => {
       if (jog.pos === "SW") t.temLibero = true;
       const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
       // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
-      const m = mapasDoPapel(jog.pos, jog.papel, CONFIG.regrasT1), sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos]; // na T1 o ala padrão também tem as duas fases
+      // na grade: o mapa da grade do papel (laterais e alas) ou a mancha da posição pela contagem da família (src/grade.js)
+      const m = grade ? mapasDoPapel(jog.pos, jog.papel, true, true) || manchas[i] : mapasDoPapel(jog.pos, jog.papel, CONFIG.regrasT1);
+      const sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos]; // na T1 o ala padrão também tem as duas fases
       let com = m ? m.com : COBERTURA[jog.pos];
       // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
       if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado)) {
-        const pd = P.lado === "D" ? CONFIG.papeis.passagemPorDentro : espelharLado(CONFIG.papeis.passagemPorDentro);
+        const pdD = grade ? G.passagemPorDentro : CONFIG.papeis.passagemPorDentro, pd = P.lado === "D" ? pdD : (grade ? espelharGrade : espelharLado)(pdD);
         com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
       }
-      if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem["D" + P.lado] || 0 });
+      const fundo = (grade ? "1" : "D") + P.lado; // fundo do lado: zona D de 9 ou faixa 1 da grade
+      if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem[fundo] || 0 });
       for (const [z, w] of Object.entries(com)) {
-        if (z[0] === "D") { t.reserva += w; velAtras += w * jog.at[A.vel]; }
-        t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[z[0]];
+        // reserva (R1): na grade, quem fica nos corredores de dentro (e, C, d) das faixas 1–2
+        if (grade ? faixaDe(z) <= 2 && ladoDaZona(z) === "C" : z[0] === "D") { t.reserva += w; velAtras += w * jog.at[A.vel]; }
+        t.atk[z] += w * habilidadeAtaque(jog.at, z) * mAtk[linhaDaZona(z)];
         t.zonas[z].push({ jog, w, p: w * p });
       }
       let naA = 0;
       for (const [z, w] of Object.entries(sem)) {
-        t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[z[0]];
+        t.def[z] += w * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)];
         t.zonasDef[z].push({ jog, w });
-        if (z[0] === "A") naA += w;
+        if (linhaDaZona(z) === "A") naA += w; // na grade, as faixas 4–5
       }
       t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
-      if (m) for (const z of ZONAS) {
+      if (m) for (const z of Z) {
         const dw = (com[z] || 0) - (sem[z] || 0);
-        if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[z[0]]; naTransicao = true; }
+        if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)]; naTransicao = true; }
       }
     }
-    // zona lotada (regras da T1): passando de limite jogadores (soma dos pesos), o que sobra rende só a fração resto (o congestionamento do futebol real)
-    if (CONFIG.regrasT1) for (const z of ZONAS) for (const [forca, quem] of [[t.atk, t.zonas[z]], [t.def, t.zonasDef[z]]]) {
-      const W = quem.reduce((s, o) => s + o.w, 0), L = CONFIG.lotacao;
-      if (W > L.limite) forca[z] *= (L.limite + (W - L.limite) * L.resto) / W;
+    // zona lotada (regras da T1): passando de limite jogadores (soma dos pesos), o que sobra rende só a fração resto (o congestionamento do futebol real).
+    // Na grade, o limite é por corredor (o lado lota antes)
+    if (CONFIG.regrasT1 || grade) for (const z of Z) for (const [forca, quem] of [[t.atk, t.zonas[z]], [t.def, t.zonasDef[z]]]) {
+      const W = quem.reduce((s, o) => s + o.w, 0), L = grade ? G.lotacao : CONFIG.lotacao, limite = grade ? L[largura(z)] : L.limite;
+      if (W > limite) forca[z] *= (limite + (W - limite) * L.resto) / W;
     }
-    if (t.goleiro) t.def.DC *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
+    // compactação na grade (spec 9.3): a defesa da faixa k (2 a 5) só vale até razao vezes a da faixa k−1 no mesmo corredor (já compactada);
+    // o que passa disso não conta (o bolsão entre as linhas). As faixas 2–3 entram assim no controle do meio
+    if (grade) for (let k = 2; k <= 5; k++) for (const c of ["E", "e", "C", "d", "D"]) t.def[k + c] = Math.min(t.def[k + c], G.compactacao.razao * t.def[(k - 1) + c]);
+    const centroDaDefesa = grade ? "1C" : "DC";
+    if (t.goleiro) t.def[centroDaDefesa] *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
     // Velocidade de quem fica atrás (com o goleiro), para a linha alta (1): com zaga lenta, a bola nas costas e o contra-ataque machucam mais
     const LA = CONFIG.linhaAlta, g = LA && t.goleiro ? LA.goleiro : 0;
     t.linhaAlta = LA ? limitar(Math.pow(LA.referencia / Math.max(1, (velAtras + g * (t.goleiro ? t.goleiro.at[A.vel] : 0)) / Math.max(0.1, t.reserva + g)), LA.expoente), LA.min, LA.max) : 1;
     // defesa com a bola em cada corredor (lado do próprio time): o ala do lado da bola sobe para pressionar, o do outro lado fecha a linha
-    t.defTransicao = naTransicao ? Object.fromEntries(ZONAS.map(z => [z, Math.max(0, t.def[z] + (transicao[z] || 0))])) : t.def;
+    t.defTransicao = naTransicao ? Object.fromEntries(Z.map(z => [z, Math.max(0, t.def[z] + (transicao[z] || 0))])) : t.def;
     t.defLado = { E: t.def, C: t.def, D: t.def };
     if (alas.length) for (const l of ["E", "D"]) {
       const d = { ...t.def };
       for (const a of alas) {
-        const f = CONFIG.papeis.alaPorLado * a.w, fundo = "D" + a.lado, para = a.lado === l ? "M" + a.lado : "DC";
-        d[fundo] -= f * habilidadeDefesa(a.jog.at, fundo) * mDef.D; d[para] += f * habilidadeDefesa(a.jog.at, para) * mDef[para[0]];
+        // na grade: do lado da faixa 1 para o lado da faixa 2 (o lado da bola) ou para o 1C
+        const f = CONFIG.papeis.alaPorLado * a.w, fundo = (grade ? "1" : "D") + a.lado, para = a.lado === l ? (grade ? "2" : "M") + a.lado : centroDaDefesa;
+        d[fundo] -= f * habilidadeDefesa(a.jog.at, fundo) * mDef.D; d[para] += f * habilidadeDefesa(a.jog.at, para) * mDef[linhaDaZona(para)];
       }
       t.defLado[l] = d;
     }
-    const linha = t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
+    const linha = grade ? ["1e", "1C", "1d"].flatMap(z => t.zonasDef[z]) : t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
     const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
-    t.controle = LADOS.reduce((s, l) => s + (t.atk["M" + l] + defNoMeio(l)) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0)
+    // na grade, o controle do meio vem das faixas 2–3, com o peso de cada corredor
+    const meio = grade ? ZONAS_GRADE.filter(z => faixaDe(z) === 2 || faixaDe(z) === 3).reduce((s, z) => s + (t.atk[z] + t.def[z]) * G.pesoPosse[largura(z)], 0)
+      : LADOS.reduce((s, l) => s + (t.atk["M" + l] + defNoMeio(l)) * (l === "C" ? CONFIG.pesoCentroPosse : 1), 0);
+    t.controle = meio
       * (I.contraAtaque ? CONFIG.contraAtaque.posse : 1) * (1 + (I.mentalidade < 0 ? CONFIG.mentalidadePosseRetranca : CONFIG.mentalidadePosse) * I.mentalidade) * Math.pow(t.emCampo.length / 11, CONFIG.posseNumerica)
       * (CONFIG.regrasT1 && I.aoPerder === "recompor" ? CONFIG.transicao.recompor.posse : 1);
   }
@@ -1051,10 +1094,15 @@ const __motor = (() => {
   }
 
   // Força de ataque e de defesa de uma escalação em cada zona, descansada e sem instruções. Serve ao bot e às telas.
-  function avaliarZonas(escalacao, instrucoes = {}) {
-    const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
-    recalcular(t, 0);
-    return { atk: t.atk, def: t.def };
+  // grade: a conta na grade 5×5 (liga a chave só durante a conta)
+  function avaliarZonas(escalacao, instrucoes = {}, { grade = false } = {}) {
+    const antes = CONFIG.grade;
+    CONFIG.grade = grade;
+    try {
+      const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes }));
+      recalcular(t, 0);
+      return { atk: t.atk, def: t.def };
+    } finally { CONFIG.grade = antes; }
   }
 
   function sortearPeso(rng, lista, peso) {
@@ -1254,7 +1302,7 @@ const __motor = (() => {
   const novaEstatistica = () => ({
     posse: 0, ataques: 0, contraAtaques: 0, corredor: { E: 0, C: 0, D: 0 }, chances: 0, finalizacoes: 0, noGol: 0, xg: 0, gols: 0,
     faltas: 0, amarelos: 0, vermelhos: 0, escanteios: 0, impedimentos: 0, substituicoes: 0,
-    zonas: Object.fromEntries(ZONAS.map(z => [z, [0, 0]])), // duelos de ataque vencidos e perdidos por zona
+    zonas: Object.fromEntries(zonasDoMotor().map(z => [z, [0, 0]])), // duelos de ataque vencidos e perdidos por zona
   });
 
   // Simula uma partida inteira. O mesmo rng (mesma semente) dá sempre o mesmo jogo.
