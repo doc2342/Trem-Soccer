@@ -1,6 +1,6 @@
 // Grade 5×5 no motor: força por zona na grade em recalcular/avaliarZonas (Tarefa 3; sem a grade, nada muda; com ela, só chaves da grade, sem NaN),
 // a defesa que o atacante enfrenta (Tarefa 4), a jogada na grade, ligada na T1 (Tarefa 6), o fim por corredor (Tarefa 7) e o terceiro homem,
-// a bola longa e a segunda bola (Tarefa 8).
+// a bola longa e a segunda bola (Tarefa 8) e a transição (Tarefa 9).
 // Uso: node ferramentas/teste_grade_motor.mjs
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -134,11 +134,13 @@ assert.strictEqual(CONFIG.grade, false);
   const instr = () => ({ mentalidade: r.int(-2, 2), pressao: r.int(0, 2), passe: um(["misto", "curto", "longo"]), lado: um(["misto", "E", "C", "D", "lados"]),
     finalizar: um(["misto", "longe", "area"]), cruzamento: um(["misto", "alto", "rasteiro"]), contraAtaque: r.chance(0.3), impedimento: r.chance(0.3) });
   const porZona = {}, porTipo = {}, xgTipo = {};
-  let cutbacks = 0, toques = 0; const cruz = [0, 0], T8 = {};
+  let cutbacks = 0, toques = 0; const cruz = [0, 0], T8 = {}, T9 = { inicio: {}, perdas: 0, chutes: 0, corredor: { E: 0, e: 0, C: 0, d: 0, D: 0 } };
   for (let s = 1; s <= 2000; s++) {
     const q = jogo(onze(um(formacoes), 3000 + s), onze(um(formacoes), 4000 + s), s, instr(), instr());
     for (const e of q.estat) for (const k of ["tabelas", "terceiros", "aereos", "segundas", "longas", "sobras"]) { const t = T8[k] = T8[k] || [0, 0]; t[0] += e.grade[k][0]; t[1] += e.grade[k][1]; }
     for (const l of q.lances) for (const r of l.rota || []) assert.ok(ehGrade(r[0]) && ehGrade(r[1]) && typeof r[5] === "boolean");
+    // Tarefa 9: a faixa em que o contra começou, pela linha antiga da perda (D, M, A)
+    for (const e of q.estat) { for (const [k, n] of Object.entries(e.grade.contraInicio)) T9.inicio[k] = (T9.inicio[k] || 0) + n; T9.perdas += e.grade.perdasAtras; T9.chutes += e.grade.perdasAtrasChute; for (const c in T9.corredor) T9.corredor[c] += e.grade.contraPorCorredor[c]; }
     for (const e of q.estat) { cutbacks += e.grade.cutbacks[0]; toques += e.grade.toquesArea; cruz[0] += e.grade.cruzamentos[0]; cruz[1] += e.grade.cruzamentos[1]; }
     for (const l of q.lances) {
       if (!l.zona) continue; // bola parada
@@ -163,7 +165,14 @@ assert.strictEqual(CONFIG.grade, false);
   for (const [k, [n, g]] of Object.entries(T8)) assert.ok(n > 0 && g > 0 && g < n, `${k}: ${n}/${g}`);
   assert.strictEqual(T8.longas[0], T8.aereos[0]); // toda bola longa tem o duelo aéreo
   assert.strictEqual(T8.longas[1], T8.segundas[1]); // e quem fica com a segunda bola fica com o lançamento
+  // Tarefa 9: o contra começa na faixa espelho da perda (perda na faixa 2 dele, linha M → contra da faixa 4 nossa), não sempre no meio
+  const permitido = { D: "5", M: "34", A: "12" };
+  assert.ok(Object.keys(T9.inicio).every(k => permitido[k[0]].includes(k[1])), JSON.stringify(T9.inicio));
+  assert.ok(T9.inicio.M4 > 0 && T9.inicio.A1 > 0 && T9.inicio.D5 > 0, JSON.stringify(T9.inicio));
+  assert.ok(T9.perdas > 0 && T9.chutes > 0 && T9.chutes < T9.perdas);
+  const somaC = soma(T9.corredor); assert.ok(somaC > 0 && (T9.corredor.e + T9.corredor.C + T9.corredor.d) / somaC > 0.5, JSON.stringify(T9.corredor));
   if (process.env.MEDIR) {
+    console.log("perda nas faixas 1–2 que vira chute", (100 * T9.chutes / T9.perdas).toFixed(1) + "%", "chutes de contra por e/C/d", (100 * (T9.corredor.e + T9.corredor.C + T9.corredor.d) / somaC).toFixed(0) + "%", JSON.stringify(T9.inicio));
     console.log(Object.fromEntries(Object.keys(porTipo).map(t => [t, `${(100 * porTipo[t] / soma(porTipo)).toFixed(1)}% xG ${(xgTipo[t] / porTipo[t]).toFixed(3)}`])));
     console.log(Object.fromEntries(Object.entries(porZona).map(([z, o]) => [z, JSON.stringify(o)])));
     console.log(Object.fromEntries(Object.entries(T8).map(([k, [n, g]]) => [k, `${(n / 4000).toFixed(2)} por time, ${(100 * g / n).toFixed(0)}%`])));
@@ -181,6 +190,17 @@ assert.strictEqual(CONFIG.grade, false);
     const ganho = ib => acerto(ib, 2) - acerto(ib, 0), pressao = ganho({ pressao: 2 }), retranca = ganho({ mentalidade: -2 });
     assert.ok(pressao > retranca + 0.1, `terceiro homem: ganho contra a pressão ${pressao.toFixed(2)}, contra a retranca ${retranca.toFixed(2)}`);
   } finally { T.bonus = b0; }
+}
+
+// Tarefa 9: quem rouba sem espaço recicla em vez de contra-atacar (mesmas sementes, com e sem a reciclagem)
+{
+  const jogo = (a, b, s, ia, ib) => simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a, instrucoes: ia }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }));
+  const a = onze("4-2-3-1", 1), b = onze("4-4-2", 2), G = CONFIG.gradeValores, r0 = G.reciclar;
+  const contras = rec => { G.reciclar = rec; let n = 0, k = 0; for (let s = 1; s <= 150; s++) for (const e of jogo(a, b, s, { contraAtaque: true }, { mentalidade: 1, contraAtaque: true }).estat) { n += e.contraAtaques; k += e.grade.reciclagens; } return [n, k]; };
+  try {
+    const [com, recicladas] = contras(r0), [sem, zero] = contras(0);
+    assert.ok(recicladas > 0 && zero === 0 && com < sem, `contras com reciclagem ${com} (${recicladas} recicladas), sem ${sem}`);
+  } finally { G.reciclar = r0; }
 }
 
 console.log("teste_grade_motor: ok");

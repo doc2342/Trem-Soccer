@@ -24,7 +24,7 @@ const instrucoes = rng => ({
   mentalidade: pega(rng, [-1, 0, 0, 0, 1]), pressao: pega(rng, [0, 1, 1, 2]), passe: pega(rng, ["misto", "curto", "longo"]),
   contraAtaque: rng.chance(0.25), impedimento: rng.chance(0.25), aoPerder: pega(rng, ["misto", "misto", "misto", "pressionar", "recompor"]),
 });
-const OPTA = { A: 1, E: 1, M: 0.5 }, PARADA = new Set(["escanteio", "falta", "penalti"]);
+const OPTA = { A: 1, E: 1, M: 0.5, D: 0 }, PARADA = new Set(["escanteio", "falta", "penalti"]); // D: na grade, a perda na faixa 1 de quem atacava (roubada no campo de ataque)
 const mais = (esc, at, quanto, filtro = () => true) => esc.map(x => x.pos !== "GK" && filtro(x) ? { ...x, j: { ...x.j, at: x.j.at.map((v, k) => k === at ? Math.min(50, v + quanto) : v) } } : x);
 const ATAQUE = new Set(["SC", "FC", "RW", "LW", "AMR", "AML"]);
 const pc = v => (100 * v).toFixed(1) + "%", f2 = v => v.toFixed(3);
