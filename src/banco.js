@@ -253,8 +253,8 @@ export const extratoDoClube = (clubeId, limite = 400) => sb.from("lancamentos").
 // Caixa do clube, em milhares; null antes do 12_caixa.sql ou para quem não é o dono.
 export const caixaDoClube = clubeId => sb.from("financas").select("caixa").eq("clube_id", clubeId).maybeSingle().then(({ data, error }) => error || !data ? null : data.caixa);
 // Obra em andamento no clube (só o dono e o administrador leem); null se não há ou antes do 14_estruturas_e_obras.sql.
-export const obraAtiva = clubeId => sb.from("obras").select("*").eq("clube_id", clubeId).eq("concluida", false).maybeSingle().then(({ data, error }) => error ? null : data);
-// Começa uma obra: ct, medico, fisio, base ou estadio. As regras (uma por vez, caixa, nível máximo) são conferidas no banco.
+export const obrasAtivas = clubeId => sb.from("obras").select("*").eq("clube_id", clubeId).eq("concluida", false).order("id").then(({ data, error }) => error ? null : data || []);
+// Começa uma obra: ct, medico, fisio, base ou estadio. As regras (uma de estrutura e uma do estádio por vez, caixa, nível máximo) são conferidas no banco.
 // troca ({ modelo, cidade }, só o que muda): o estádio muda junto com a ampliação (154). Sem troca, a chamada é a de antes do 154.
 export const iniciarObra = (estrutura, troca) => sb.rpc("iniciar_obra", { p_estrutura: estrutura,
   ...(troca && troca.modelo ? { p_modelo: troca.modelo } : {}), ...(troca && troca.cidade ? { p_cidade: troca.cidade } : {}) }).then(ok);
