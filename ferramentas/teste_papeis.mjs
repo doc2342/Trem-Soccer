@@ -4,6 +4,7 @@ import assert from "node:assert";
 import { PAPEIS, PAPEL_PADRAO, PAPEIS_DESDE, papeisDaPosicao, papelValido, mapasDoPapel, notaNoPapel, gastoDoPapel } from "../src/papeis.js";
 import { ATRIBUTOS } from "../src/modelo.js";
 import { COBERTURA } from "../src/motor.js";
+import { ZONAS_GRADE, espelharGrade } from "../src/grade.js";
 
 const perto = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9, `${msg || ""} ${a} != ${b}`);
 const soma = o => Object.values(o).reduce((s, v) => s + v, 0);
@@ -59,4 +60,16 @@ const naDefesa = m => Object.entries(m).filter(([z]) => z[0] === "D").reduce((t,
 assert.ok(ala.com.AD > lat.com.AD && naDefesa(ala.sem) < naDefesa(lat.sem));
 // o ala Fixo vai mais à frente com a bola que o lateral Fixo (COBERTURA do DR, sem AD)
 assert.ok(mapasDoPapel("WBR", "fixo").com.AD > (COBERTURA.DR.AD || 0));
+// mapas na grade 5×5: todo papel tem mapa de DR e WBR que soma 1; o esquerdo é o espelho
+for (const [k, p] of Object.entries(PAPEIS)) for (const pos of ["DR", "WBR"]) for (const f of ["com", "sem"]) {
+  perto(soma(p.grade[pos][f]), 1, k + " " + pos + " " + f);
+  assert.ok(Object.keys(p.grade[pos][f]).every(z => ZONAS_GRADE.includes(z)), k + " " + pos);
+}
+const g = (pos, papel) => mapasDoPapel(pos, papel, true, true);
+assert.ok(g("DR", "apoiador").com["4D"] + g("DR", "apoiador").com["5D"] > (g("DR", "fixo").com["4D"] || 0) + (g("DR", "fixo").com["5D"] || 0));
+assert.ok(g("DR", "invertido").com["2d"] > g("DR", "invertido").com["1D"]);
+assert.deepStrictEqual(g("DL", "construtor").com, espelharGrade(g("DR", "construtor").com));
+assert.deepStrictEqual(g("WBR", undefined), PAPEIS.apoiador.grade.WBR); // sem papel: o padrão da posição
+assert.strictEqual(mapasDoPapel("DR", "fixo", false, false), null); // fora da grade, o de hoje
+assert.strictEqual(g("MC", "fixo"), null);
 console.log("teste_papeis: ok");

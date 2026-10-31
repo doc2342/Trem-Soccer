@@ -296,7 +296,71 @@ const __grade = (() => {
 
   // Quem decide o passo: Criatividade e Trabalho em equipe.
   function decisao(at) { return (at[IDX.cri] + at[IDX.equ]) / 2; }
-  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao };
+
+  // Manchas: quanto de cada jogador fica em cada zona, sem e com a bola (lado direito; o esquerdo é o espelho).
+  // Rascunho aprovado em .superpowers/brainstorm/29-1793397721/content/manchas-v2.html, números de partida (a calibragem ajusta).
+  // Zagueiros, volantes e atacantes repetidos têm a versão da dupla ("2d", o da direita) e do trio.
+  const MANCHAS = {
+    DC1: { sem: { "1C": 0.6, "1e": 0.12, "1d": 0.12, "2C": 0.16 }, com: { "1C": 0.55, "1e": 0.15, "1d": 0.15, "2C": 0.15 } },
+    DC2d: { sem: { "1d": 0.4, "1C": 0.35, "1D": 0.05, "2d": 0.1, "2C": 0.1 }, com: { "1d": 0.55, "1C": 0.15, "1D": 0.1, "2d": 0.15, "2C": 0.05 } },
+    DC3c: { sem: { "1C": 0.65, "1e": 0.1, "1d": 0.1, "2C": 0.15 }, com: { "1C": 0.6, "1e": 0.1, "1d": 0.1, "2C": 0.2 } },
+    DC3d: { sem: { "1d": 0.45, "1D": 0.2, "1C": 0.15, "2d": 0.1, "2D": 0.1 }, com: { "1d": 0.4, "1D": 0.25, "2d": 0.2, "2D": 0.1, "1C": 0.05 } },
+    SW: { sem: { "1C": 0.5, "1e": 0.15, "1d": 0.15, "2C": 0.2 }, com: { "1C": 0.35, "2C": 0.35, "2e": 0.1, "2d": 0.1, "3C": 0.1 } },
+    DR: { sem: { "1D": 0.55, "1d": 0.15, "2D": 0.25, "3D": 0.05 }, com: { "1D": 0.35, "2D": 0.3, "3D": 0.25, "1d": 0.05, "4D": 0.05 } },
+    WBR: { sem: { "1D": 0.35, "2D": 0.45, "3D": 0.15, "1d": 0.05 }, com: { "2D": 0.25, "3D": 0.35, "4D": 0.3, "1D": 0.1 } },
+    DMC1: { sem: { "2C": 0.45, "1C": 0.2, "2e": 0.1, "2d": 0.1, "3C": 0.15 }, com: { "2C": 0.5, "3C": 0.2, "1C": 0.15, "2e": 0.075, "2d": 0.075 } },
+    DMC2d: { sem: { "2d": 0.4, "2C": 0.25, "1d": 0.1, "1C": 0.1, "3d": 0.15 }, com: { "2d": 0.45, "2C": 0.15, "3d": 0.25, "3C": 0.1, "1d": 0.05 } },
+    MC1: { sem: { "3C": 0.5, "3e": 0.1, "3d": 0.1, "2C": 0.15, "4C": 0.15 }, com: { "3C": 0.45, "3e": 0.1, "3d": 0.1, "2C": 0.1, "4C": 0.25 } },
+    MC2d: { sem: { "3d": 0.45, "3C": 0.2, "3D": 0.05, "2d": 0.15, "4d": 0.15 }, com: { "3d": 0.4, "3C": 0.15, "2d": 0.1, "4d": 0.3, "3D": 0.05 } },
+    AMC: { sem: { "4C": 0.45, "3C": 0.35, "4e": 0.1, "4d": 0.1 }, com: { "4C": 0.45, "4e": 0.1, "4d": 0.1, "5C": 0.15, "3C": 0.2 } },
+    // o AMC com o peso do 4C passado para o 4d e o do 4e dividido entre 4d e 4C (caixa do Pep, árvore de Natal)
+    AMC2d: { sem: { "4d": 0.6, "4C": 0.05, "3C": 0.35 }, com: { "4d": 0.6, "4C": 0.05, "5C": 0.15, "3C": 0.2 } },
+    MR: { sem: { "3D": 0.5, "2D": 0.15, "3d": 0.15, "4D": 0.2 }, com: { "3D": 0.35, "4D": 0.4, "5D": 0.1, "3d": 0.15 } },
+    AMR: { sem: { "4D": 0.5, "3D": 0.35, "4d": 0.15 }, com: { "4D": 0.45, "4d": 0.25, "5D": 0.15, "3D": 0.15 } },
+    RW: { sem: { "4D": 0.45, "3D": 0.25, "5D": 0.2, "4d": 0.1 }, com: { "5D": 0.45, "4D": 0.3, "5d": 0.15, "4d": 0.1 } },
+    FC1: { sem: { "5C": 0.45, "4C": 0.35, "5e": 0.05, "5d": 0.05, "3C": 0.1 }, com: { "5C": 0.6, "4C": 0.2, "5e": 0.1, "5d": 0.1 } },
+    SC1: { sem: { "5C": 0.7, "4C": 0.25, "3C": 0.05 }, com: { "5C": 0.85, "5e": 0.05, "5d": 0.05, "4C": 0.05 } },
+    FC2d: { sem: { "5d": 0.35, "4d": 0.35, "4C": 0.15, "3d": 0.15 }, com: { "5d": 0.45, "5C": 0.2, "4d": 0.25, "5D": 0.1 } },
+    SC2d: { sem: { "5d": 0.55, "5C": 0.25, "4d": 0.2 }, com: { "5d": 0.6, "5C": 0.3, "5D": 0.1 } },
+    FC3d: { sem: { "5d": 0.35, "5D": 0.2, "4d": 0.3, "4D": 0.15 }, com: { "5d": 0.45, "5D": 0.25, "4d": 0.2, "5C": 0.1 } },
+  };
+
+  // troca o corredor de cada chave (lado direito ↔ esquerdo), sem mudar a faixa
+  function espelharGrade(mapa) {
+    return Object.fromEntries(Object.entries(mapa).map(([z, w]) => [z[0] + CORREDORES[4 - colunaDe(z)], w]));
+  }
+  const espelhada = m => ({ com: espelharGrade(m.com), sem: espelharGrade(m.sem) });
+
+  // posições de lado: a do lado esquerdo usa o espelho da direita
+  const LADO = { DR: "DR", WBR: "WBR", MR: "MR", AMR: "AMR", RW: "RW", DL: "DR", WBL: "WBR", ML: "MR", AML: "AMR", LW: "RW" };
+  const FAMILIA = { DC: "zaga", SW: "zaga", DMC: "volante", MC: "meio", AMC: "meia", FC: "ataque", SC: "ataque" };
+  // variante de cada posição por quantos da família há: [sozinho, da dupla, do centro do trio]
+  const VARIANTE = {
+    DC: ["DC1", "DC2d", "DC3c"], SW: ["SW", "DC2d", "DC3c"], DMC: ["DMC1", "DMC2d", "DMC1"], MC: ["MC1", "MC2d", "MC1"],
+    AMC: ["AMC", "AMC2d", "AMC"], FC: ["FC1", "FC2d", "FC1"], SC: ["SC1", "SC2d", "SC1"],
+  };
+  // no trio, quem fica no meio-espaço usa a versão de lado do trio quando existe
+  const DE_LADO_DO_TRIO = { DC: "DC3d", SW: "DC3d", FC: "FC3d", SC: "FC3d" };
+
+  // { com, sem } de cada jogador, na ordem da escalação (null no goleiro). Por família: 1 no centro; 2 um em cada meio-espaço
+  // (o primeiro da escalação no direito, o segundo no esquerdo); 3 meio-espaço direito / centro / meio-espaço esquerdo.
+  // ponytail: ordem da escalação decide o lado; trocar pelo pé dominante se a calibragem pedir. 4 ou mais: os que passam de 3 repetem o centro.
+  function manchasDoTime(escalacao) {
+    const n = {}, i = {};
+    for (const j of escalacao) if (FAMILIA[j.pos]) n[FAMILIA[j.pos]] = (n[FAMILIA[j.pos]] || 0) + 1;
+    return escalacao.map(j => {
+      if (LADO[j.pos]) return j.pos === LADO[j.pos] ? MANCHAS[j.pos] : espelhada(MANCHAS[LADO[j.pos]]);
+      const f = FAMILIA[j.pos];
+      if (!f) return null;
+      const k = i[f] = (i[f] || 0) + 1, total = n[f], v = VARIANTE[j.pos];
+      if (total === 1) return MANCHAS[v[0]];
+      if (total === 2) return k === 1 ? MANCHAS[v[1]] : espelhada(MANCHAS[v[1]]);
+      if (k === 2 || k > 3) return MANCHAS[v[2]];
+      const m = MANCHAS[DE_LADO_DO_TRIO[j.pos] || v[1]];
+      return k === 1 ? m : espelhada(m);
+    });
+  }
+  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime };
 })();
 
 const __papeis = (() => {
@@ -305,6 +369,7 @@ const __papeis = (() => {
   // O papel padrão de cada posição usa as zonas de hoje (COBERTURA do motor) nas duas fases e o gasto de hoje: sem escolha, nada muda.
   // Primeira fatia: laterais e alas. Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
   const { IDX, FAMILIARIDADE, familiaridade } = __modelo;
+  const { MANCHAS, espelharGrade } = __grade;
   // temporada em que os papéis passam a valer nas partidas (rodada.js tira o papel das escalações antes dela)
   const PAPEIS_DESDE = 1;
 
@@ -320,6 +385,8 @@ const __papeis = (() => {
       // no ala, um pouco mais à frente com a bola que o lateral (AD 0,15). No DR é o padrão e fica com a COBERTURA nas duas fases:
       // medido em 31/10, dividir o Fixo do lateral em com/sem a bola o deixava pego na transição e 0,1 pt/jogo abaixo dos outros papéis
       mapas: { WBR: { com: { AD: 0.15, MD: 0.40, DD: 0.45 }, sem: { MD: 0.35, DC: 0.10, DD: 0.55 } } },
+      // na grade (spec 6): atrás, no lado da faixa 1. No DR é a mancha do lateral padrão (o Fixo é o padrão do DR)
+      grade: { DR: MANCHAS.DR, WBR: { com: { "1D": 0.40, "2D": 0.30, "3D": 0.15, "4D": 0.15 }, sem: { "1D": 0.55, "1d": 0.10, "2D": 0.30, "3D": 0.05 } } },
       gasto: { DR: 0.95, WBR: 0.95 },
     },
     apoiador: {
@@ -330,6 +397,11 @@ const __papeis = (() => {
       // (só cai para a linha de 5 com o time recuado). Fontes do dono: goal.com, guidetofootball.com, footballiconic.com. Calibrado em 31/10
       // (sim_papeis_laterais, 3-5-2, 3000 jogos): os outros papéis do ala a -0,06, -0,04 e -0,01 pt/jogo do padrão; mais que isso deixava 0,1 abaixo
       mapas: { DR: { com: { AD: 0.30, MD: 0.40, DC: 0.05, DD: 0.25 }, sem: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 } }, WBR: { com: { AD: 0.32, MD: 0.42, DD: 0.26 }, sem: { AD: 0.10, MD: 0.45, DD: 0.45 } } },
+      // na grade: sobe pelo lado até as faixas 4–5; o ala (padrão) fica na faixa 2 sem a bola
+      grade: {
+        DR: { com: { "1D": 0.20, "1d": 0.05, "2D": 0.15, "3D": 0.25, "4D": 0.20, "5D": 0.15 }, sem: { "1D": 0.45, "1d": 0.05, "2D": 0.25, "3D": 0.15, "4D": 0.10 } },
+        WBR: { com: { "1D": 0.16, "2D": 0.20, "3D": 0.32, "4D": 0.20, "5D": 0.12 }, sem: { "1D": 0.35, "2D": 0.45, "3D": 0.10, "4D": 0.10 } },
+      },
       gasto: { DR: 1.10, WBR: 1.15 },
     },
     construtor: {
@@ -338,6 +410,11 @@ const __papeis = (() => {
       mapas: {
         DR: { com: { AD: 0.05, MD: 0.40, DC: 0.10, DD: 0.45 }, sem: { MD: 0.30, DC: 0.15, DD: 0.55 } },
         WBR: { com: { AD: 0.10, MC: 0.10, MD: 0.50, DD: 0.30 }, sem: { MD: 0.45, DC: 0.10, DD: 0.45 } },
+      },
+      // na grade: na faixa 2, entre o lado e o meio-espaço
+      grade: {
+        DR: { com: { "1D": 0.30, "1d": 0.05, "2D": 0.30, "2d": 0.25, "3D": 0.05, "4D": 0.05 }, sem: { "1D": 0.55, "1d": 0.15, "2D": 0.25, "3D": 0.05 } },
+        WBR: { com: { "1D": 0.15, "2D": 0.30, "2d": 0.30, "3D": 0.15, "3d": 0.05, "4D": 0.05 }, sem: { "1D": 0.40, "1d": 0.05, "2D": 0.45, "3D": 0.10 } },
       },
       gasto: { DR: 1, WBR: 1 },
     },
@@ -348,6 +425,11 @@ const __papeis = (() => {
       mapas: {
         DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
         WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
+      },
+      // na grade: com a bola no meio-espaço da faixa 2; sem ela, de volta ao lado
+      grade: {
+        DR: { com: { "1D": 0.30, "1d": 0.10, "2d": 0.40, "2C": 0.05, "2D": 0.10, "3d": 0.05 }, sem: { "1D": 0.55, "1d": 0.15, "2D": 0.25, "2d": 0.05 } },
+        WBR: { com: { "1D": 0.15, "2d": 0.35, "2D": 0.15, "3d": 0.20, "3D": 0.10, "4d": 0.05 }, sem: { "1D": 0.40, "2D": 0.45, "2d": 0.05, "3D": 0.10 } },
       },
       gasto: { DR: 1.05, WBR: 1.05 },
     },
@@ -365,7 +447,13 @@ const __papeis = (() => {
 
   // { com, sem } do papel na posição, já espelhado na esquerda; null quando o motor deve usar a COBERTURA da posição (padrão, sem papel ou papel inválido).
   // comPadrao (regras da T1): o padrão, sem papel ou papel inválido usa os mapas do papel padrão da posição, se ele tiver (o ala Apoiador tem; o lateral Fixo não)
-  function mapasDoPapel(pos, papel, comPadrao = false) {
+  // grade (5×5): o mapa da grade do papel, também no padrão; null fora dos laterais/alas (o motor usa manchasDoTime)
+  function mapasDoPapel(pos, papel, comPadrao = false, grade = false) {
+    if (grade) {
+      if (!papelValido(pos, papel)) { if (!comPadrao || !PAPEL_PADRAO[pos]) return null; papel = PAPEL_PADRAO[pos]; }
+      const g = PAPEIS[papel].grade[base(pos)];
+      return DIREITA[pos] ? { com: espelharGrade(g.com), sem: espelharGrade(g.sem) } : g;
+    }
     if (!papelValido(pos, papel) || papel === PAPEL_PADRAO[pos]) {
       if (!comPadrao || !PAPEL_PADRAO[pos]) return null;
       papel = PAPEL_PADRAO[pos];

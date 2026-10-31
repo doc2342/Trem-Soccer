@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Papéis no campinho</title>
 <!-- Protótipo (fora do site): o campinho de cada papel do lateral, como no FM. Lê os mesmos mapas que o motor usa
-     (PAPEIS[papel].mapas e COBERTURA da posição): a cor de cada zona é o peso dela, e a bolinha vai do centro do mapa
+     (PAPEIS[papel].grade, a grade 5×5 das regras da T1): a cor de cada zona é o peso dela, e a bolinha vai do centro do mapa
      "sem a bola" ao centro do mapa "com a bola". Abrir com python -m http.server 8797 → /prototipos/papel_campinho.html -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
@@ -50,17 +50,17 @@
 </main>
 <script type="module">
 import { PAPEIS, PAPEL_PADRAO, papeisDaPosicao, mapasDoPapel } from "../src/papeis.js";
-import { COBERTURA } from "../src/motor.js";
+import { ZONAS_GRADE, faixaDe, colunaDe } from "../src/grade.js";
 
 const W = 120, H = 170, M = 6; // campo vertical; M: margem do gramado
-const COL = { E: 0, C: 1, D: 2 }, LIN = { A: 0, M: 1, D: 2 }; // zona "MD" = linha do meio, lado direito
-const cw = (W - 2 * M) / 3, ch = (H - 2 * M) / 3;
-const centro = z => [M + cw * (COL[z[1]] + 0.5), M + ch * (LIN[z[0]] + 0.5)];
+const lin = z => 5 - faixaDe(z); // faixa 5 (ataque) em cima
+const cw = (W - 2 * M) / 5, ch = (H - 2 * M) / 5;
+const centro = z => [M + cw * (colunaDe(z) + 0.5), M + ch * (lin(z) + 0.5)];
 // onde a bolinha fica: sem a bola, na zona em que ele mais joga; com a bola, na zona mais avançada em que joga pelo menos 20%
 // (empate: a de mais peso). A média das zonas puxava o Apoiador para trás e escondia a subida dele.
 function ponto(mapa, fase) {
   const zonas = Object.entries(mapa).filter(([, w]) => fase === "sem" || w >= 0.2);
-  zonas.sort(([a, wa], [b, wb]) => (fase === "com" ? LIN[a[0]] - LIN[b[0]] : 0) || wb - wa);
+  zonas.sort(([a, wa], [b, wb]) => (fase === "com" ? faixaDe(b) - faixaDe(a) : 0) || wb - wa);
   return centro(zonas[0][0]);
 }
 // o resto do time, apagado, num 4-2-3-1 (o lateral do papel fica de fora; o do outro lado também, para não confundir)
@@ -68,15 +68,15 @@ const COMPANHEIROS = { GK: [60, 160], DCe: [44, 140], DCd: [76, 140], DMCe: [48,
 
 const ORDEM = ["fixo", "apoiador", "construtor", "invertido"];
 let pos = "DR", modo = "anda", t0 = performance.now();
-const mapas = papel => mapasDoPapel(pos, papel, true) || { com: COBERTURA[pos], sem: COBERTURA[pos] }; // como na T1: o ala padrão também tem as duas fases
+const mapas = papel => mapasDoPapel(pos, papel, true, true); // como na T1 com a grade: todo papel tem as duas fases
 
 function campo(papel) {
   const m = mapas(papel), max = Math.max(...Object.values(m.com), ...Object.values(m.sem));
-  const zonas = fase => Object.keys(COL).flatMap(c => Object.keys(LIN).map(l => {
-    const z = l + c, w = m[fase][z] || 0;
-    return `<rect x="${M + cw * COL[c]}" y="${M + ch * LIN[l]}" width="${cw}" height="${ch}" fill="var(--${fase})" fill-opacity="${(0.75 * w / max).toFixed(3)}"/>`
-      + (w ? `<text x="${M + cw * COL[c] + 3}" y="${M + ch * LIN[l] + 10}" font-size="8" font-weight="600" fill="#fff" fill-opacity=".9">${Math.round(w * 100)}%</text>` : "");
-  })).join("");
+  const zonas = fase => ZONAS_GRADE.map(z => {
+    const w = m[fase][z] || 0, x = M + cw * colunaDe(z), y = M + ch * lin(z);
+    return `<rect x="${x}" y="${y}" width="${cw}" height="${ch}" fill="var(--${fase})" fill-opacity="${(0.75 * w / max).toFixed(3)}"/>`
+      + (w ? `<text x="${x + 2}" y="${y + 8}" font-size="6.5" font-weight="600" fill="#fff" fill-opacity=".9">${Math.round(w * 100)}%</text>` : "");
+  }).join("");
   const parado = JSON.stringify(m.com) === JSON.stringify(m.sem), [sx, sy] = ponto(m.sem, "sem"), [cx, cy] = parado ? [sx, sy] : ponto(m.com, "com");
   const lado = pos === "DL" ? "e" : "d";
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${PAPEIS[papel].nome}: onde joga com e sem a bola">
@@ -86,7 +86,7 @@ function campo(papel) {
     <g fill="none" stroke="#fff" stroke-opacity=".55" stroke-width=".8">
       <rect x="${M}" y="${M}" width="${W - 2 * M}" height="${H - 2 * M}"/><line x1="${M}" y1="${H / 2}" x2="${W - M}" y2="${H / 2}"/><circle cx="${W / 2}" cy="${H / 2}" r="12"/>
       <rect x="${W / 2 - 26}" y="${M}" width="52" height="22"/><rect x="${W / 2 - 26}" y="${H - M - 22}" width="52" height="22"/>
-      ${[1, 2].map(i => `<line x1="${M + cw * i}" y1="${M}" x2="${M + cw * i}" y2="${H - M}" stroke-dasharray="2 3" stroke-opacity=".25"/><line x1="${M}" y1="${M + ch * i}" x2="${W - M}" y2="${M + ch * i}" stroke-dasharray="2 3" stroke-opacity=".25"/>`).join("")}
+      ${[1, 2, 3, 4].map(i => `<line x1="${M + cw * i}" y1="${M}" x2="${M + cw * i}" y2="${H - M}" stroke-dasharray="2 3" stroke-opacity=".25"/><line x1="${M}" y1="${M + ch * i}" x2="${W - M}" y2="${M + ch * i}" stroke-dasharray="2 3" stroke-opacity=".25"/>`).join("")}
     </g>
     ${Object.entries(COMPANHEIROS).map(([k, [x, y]]) => `<circle cx="${pos === "DL" && k.startsWith("AM") && k !== "AMC" ? W - x : x}" cy="${y}" r="3.4" fill="#fff" fill-opacity=".35"/>`).join("")}
     <circle cx="${pos === "DL" ? 98 : 22}" cy="140" r="3.4" fill="#fff" fill-opacity=".35"/>
@@ -100,9 +100,9 @@ function desenhar() {
   const lista = papeisDaPosicao(pos).sort((a, b) => ORDEM.indexOf(a) - ORDEM.indexOf(b)); // mesma ordem em qualquer posição
   document.getElementById("grade").innerHTML = lista.map(p => {
     const P = PAPEIS[p], m = mapas(p), parado = JSON.stringify(m.com) === JSON.stringify(m.sem);
-    const linha = (mapa, l) => Math.round(100 * Object.entries(mapa).filter(([z]) => z[0] === l).reduce((s, [, w]) => s + w, 0));
+    const faixas = (mapa, fs) => Math.round(100 * Object.entries(mapa).filter(([z]) => fs.includes(faixaDe(z))).reduce((s, [, w]) => s + w, 0));
     return `<section class="papel"><h2>${P.nome}${p === PAPEL_PADRAO[pos] ? " <small>padrão</small>" : ""}</h2>${campo(p)}
-      <div class="num"><span><b>${linha(m.com, "A")}%</b>no ataque com a bola</span><span><b>${linha(m.sem, "D")}%</b>na defesa sem a bola</span></div>
+      <div class="num"><span><b>${faixas(m.com, [4, 5])}%</b>nas faixas 4–5 com a bola</span><span><b>${faixas(m.sem, [1])}%</b>na faixa 1 sem a bola</span></div>
       <div class="txt"><b>Faz:</b> ${P.faz}<br><b>Custa:</b> ${P.custa}${parado ? `<br><span class="mut">Com e sem a bola no mesmo lugar: é o jeito de sempre da posição.</span>` : ""}</div></section>`;
   }).join("");
 }

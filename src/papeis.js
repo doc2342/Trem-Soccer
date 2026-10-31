@@ -3,6 +3,7 @@
 // O papel padrão de cada posição usa as zonas de hoje (COBERTURA do motor) nas duas fases e o gasto de hoje: sem escolha, nada muda.
 // Primeira fatia: laterais e alas. Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
 import { IDX, FAMILIARIDADE, familiaridade } from "./modelo.js";
+import { MANCHAS, espelharGrade } from "./grade.js";
 
 // temporada em que os papéis passam a valer nas partidas (rodada.js tira o papel das escalações antes dela)
 export const PAPEIS_DESDE = 1;
@@ -19,6 +20,8 @@ export const PAPEIS = {
     // no ala, um pouco mais à frente com a bola que o lateral (AD 0,15). No DR é o padrão e fica com a COBERTURA nas duas fases:
     // medido em 31/10, dividir o Fixo do lateral em com/sem a bola o deixava pego na transição e 0,1 pt/jogo abaixo dos outros papéis
     mapas: { WBR: { com: { AD: 0.15, MD: 0.40, DD: 0.45 }, sem: { MD: 0.35, DC: 0.10, DD: 0.55 } } },
+    // na grade (spec 6): atrás, no lado da faixa 1. No DR é a mancha do lateral padrão (o Fixo é o padrão do DR)
+    grade: { DR: MANCHAS.DR, WBR: { com: { "1D": 0.40, "2D": 0.30, "3D": 0.15, "4D": 0.15 }, sem: { "1D": 0.55, "1d": 0.10, "2D": 0.30, "3D": 0.05 } } },
     gasto: { DR: 0.95, WBR: 0.95 },
   },
   apoiador: {
@@ -29,6 +32,11 @@ export const PAPEIS = {
     // (só cai para a linha de 5 com o time recuado). Fontes do dono: goal.com, guidetofootball.com, footballiconic.com. Calibrado em 31/10
     // (sim_papeis_laterais, 3-5-2, 3000 jogos): os outros papéis do ala a -0,06, -0,04 e -0,01 pt/jogo do padrão; mais que isso deixava 0,1 abaixo
     mapas: { DR: { com: { AD: 0.30, MD: 0.40, DC: 0.05, DD: 0.25 }, sem: { AD: 0.10, MD: 0.40, DC: 0.05, DD: 0.45 } }, WBR: { com: { AD: 0.32, MD: 0.42, DD: 0.26 }, sem: { AD: 0.10, MD: 0.45, DD: 0.45 } } },
+    // na grade: sobe pelo lado até as faixas 4–5; o ala (padrão) fica na faixa 2 sem a bola
+    grade: {
+      DR: { com: { "1D": 0.20, "1d": 0.05, "2D": 0.15, "3D": 0.25, "4D": 0.20, "5D": 0.15 }, sem: { "1D": 0.45, "1d": 0.05, "2D": 0.25, "3D": 0.15, "4D": 0.10 } },
+      WBR: { com: { "1D": 0.16, "2D": 0.20, "3D": 0.32, "4D": 0.20, "5D": 0.12 }, sem: { "1D": 0.35, "2D": 0.45, "3D": 0.10, "4D": 0.10 } },
+    },
     gasto: { DR: 1.10, WBR: 1.15 },
   },
   construtor: {
@@ -37,6 +45,11 @@ export const PAPEIS = {
     mapas: {
       DR: { com: { AD: 0.05, MD: 0.40, DC: 0.10, DD: 0.45 }, sem: { MD: 0.30, DC: 0.15, DD: 0.55 } },
       WBR: { com: { AD: 0.10, MC: 0.10, MD: 0.50, DD: 0.30 }, sem: { MD: 0.45, DC: 0.10, DD: 0.45 } },
+    },
+    // na grade: na faixa 2, entre o lado e o meio-espaço
+    grade: {
+      DR: { com: { "1D": 0.30, "1d": 0.05, "2D": 0.30, "2d": 0.25, "3D": 0.05, "4D": 0.05 }, sem: { "1D": 0.55, "1d": 0.15, "2D": 0.25, "3D": 0.05 } },
+      WBR: { com: { "1D": 0.15, "2D": 0.30, "2d": 0.30, "3D": 0.15, "3d": 0.05, "4D": 0.05 }, sem: { "1D": 0.40, "1d": 0.05, "2D": 0.45, "3D": 0.10 } },
     },
     gasto: { DR: 1, WBR: 1 },
   },
@@ -47,6 +60,11 @@ export const PAPEIS = {
     mapas: {
       DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
       WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
+    },
+    // na grade: com a bola no meio-espaço da faixa 2; sem ela, de volta ao lado
+    grade: {
+      DR: { com: { "1D": 0.30, "1d": 0.10, "2d": 0.40, "2C": 0.05, "2D": 0.10, "3d": 0.05 }, sem: { "1D": 0.55, "1d": 0.15, "2D": 0.25, "2d": 0.05 } },
+      WBR: { com: { "1D": 0.15, "2d": 0.35, "2D": 0.15, "3d": 0.20, "3D": 0.10, "4d": 0.05 }, sem: { "1D": 0.40, "2D": 0.45, "2d": 0.05, "3D": 0.10 } },
     },
     gasto: { DR: 1.05, WBR: 1.05 },
   },
@@ -64,7 +82,13 @@ export const papelValido = (pos, papel) => !!papel && papeisDaPosicao(pos).inclu
 
 // { com, sem } do papel na posição, já espelhado na esquerda; null quando o motor deve usar a COBERTURA da posição (padrão, sem papel ou papel inválido).
 // comPadrao (regras da T1): o padrão, sem papel ou papel inválido usa os mapas do papel padrão da posição, se ele tiver (o ala Apoiador tem; o lateral Fixo não)
-export function mapasDoPapel(pos, papel, comPadrao = false) {
+// grade (5×5): o mapa da grade do papel, também no padrão; null fora dos laterais/alas (o motor usa manchasDoTime)
+export function mapasDoPapel(pos, papel, comPadrao = false, grade = false) {
+  if (grade) {
+    if (!papelValido(pos, papel)) { if (!comPadrao || !PAPEL_PADRAO[pos]) return null; papel = PAPEL_PADRAO[pos]; }
+    const g = PAPEIS[papel].grade[base(pos)];
+    return DIREITA[pos] ? { com: espelharGrade(g.com), sem: espelharGrade(g.sem) } : g;
+  }
   if (!papelValido(pos, papel) || papel === PAPEL_PADRAO[pos]) {
     if (!comPadrao || !PAPEL_PADRAO[pos]) return null;
     papel = PAPEL_PADRAO[pos];
