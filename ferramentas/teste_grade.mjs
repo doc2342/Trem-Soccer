@@ -1,7 +1,9 @@
 // Grade 5×5 (src/grade.js): geometria, espelho, linha/lado antigos, nomes, soma em 9 zonas e Decisão.
 // Uso: node ferramentas/teste_grade.mjs
 import assert from "node:assert";
-import { ZONAS_GRADE, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, ehGrade, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto } from "../src/grade.js";
+import { ZONAS_GRADE, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, ehGrade, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto,
+  tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, LIMITE_DE_PASSOS } from "../src/grade.js";
+import { criarRng } from "../src/rng.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { IDX } from "../src/modelo.js";
 import { ZONAS, CONFIG } from "../src/motor.js";
@@ -128,5 +130,62 @@ assert.deepStrictEqual(arrasto({ zona: "4D", folga: 2, V }), { zonaFraca: "5d", 
 assert.strictEqual(arrasto({ zona: "5E", folga: 2, V }).zonaFraca, "5e");
 assert.strictEqual(arrasto({ zona: "3C", folga: 2, V }), null);
 assert.strictEqual(arrasto({ zona: "4C", folga: 0.1, V }), null);
+
+// Tarefa 5: o passo
+assert.strictEqual(tipoDoPasso("2E", "3e"), "diagonal"); assert.strictEqual(tipoDoPasso("3d", "3e"), "virada");
+assert.strictEqual(tipoDoPasso("2E", "2D"), "virada"); assert.strictEqual(tipoDoPasso("1C", "5C"), "pular");
+assert.strictEqual(tipoDoPasso("3C", "2C"), "voltar"); assert.strictEqual(tipoDoPasso("1E", "3D"), "inversao");
+assert.strictEqual(tipoDoPasso("2C", "3C"), "subir"); assert.strictEqual(tipoDoPasso("3e", "3C"), "lado");
+assert.strictEqual(tipoDoPasso("3E", "2D"), "virada"); assert.strictEqual(tipoDoPasso("2E", "3C"), "inversao");
+// opções: nunca a própria zona, volta só uma faixa, condução só em subir/diagonal/lado
+for (const z of ZONAS_GRADE) {
+  const ops = opcoesDoPasso(z);
+  assert.ok(ops.length && ops.every(o => o.para !== z && ZONAS_GRADE.includes(o.para) && faixaDe(o.para) >= faixaDe(z) - 1 && o.tipo === tipoDoPasso(z, o.para)), z);
+  assert.ok(ops.filter(o => o.conduzir).every(o => ["subir", "diagonal", "lado"].includes(o.tipo)), z);
+}
+assert.ok(opcoesDoPasso("1C").some(o => o.para === "5C" && o.tipo === "pular"));
+assert.ok(opcoesDoPasso("3C").some(o => o.para === "3C") === false && opcoesDoPasso("3E").some(o => o.para === "2D" && o.tipo === "virada"));
+// escada: voltar > lado > subir > pular > virada (em acerto)
+{
+  const esc = [["voltar", "3C", "2C"], ["lado", "3C", "3d"], ["subir", "2C", "3C"], ["pular", "1C", "3C"], ["virada", "2E", "2D"]].map(([t, a, b]) => dificuldade(t, a, b, V));
+  for (let k = 1; k < esc.length; k++) assert.ok(esc[k - 1] > esc[k], "escada " + k);
+}
+// do meio-espaço, a diagonal é mais fácil que do centro; do lado para dentro, mais difícil; perto do gol, mais difícil
+assert.ok(dificuldade("diagonal", "3d", "4C", V) > dificuldade("diagonal", "3C", "4d", V));
+assert.ok(dificuldade("lado", "3E", "3e", V) < dificuldade("lado", "3e", "3E", V) && dificuldade("lado", "3e", "3D", V) < dificuldade("lado", "3e", "3C", V));
+assert.ok(dificuldade("subir", "4C", "5C", V) < dificuldade("subir", "2C", "3C", V));
+assert.ok(dificuldade("inversao", "1E", "3D", V) < dificuldade("inversao", "2E", "3C", V));
+// valor da zona: o xT da 5×5, plano na largura até a faixa 5
+assert.strictEqual(valorDaZona("1E", V), valorDaZona("1C", V)); assert.strictEqual(valorDaZona("4d", V), 0.075);
+assert.deepStrictEqual(["5E", "5e", "5C", "5d", "5D"].map(z => valorDaZona(z, V)), [0.13, 0.15, 0.22, 0.15, 0.13]);
+// Decisão: com as mesmas opções, o decisor 45 escolhe a de maior valor mais vezes que o de 10
+{
+  const sortear = (rng, lista, peso) => { let t = 0; const p = lista.map(x => { const w = Math.max(0, peso(x)); t += w; return w; }); let r = rng.n() * t; for (let i = 0; i < lista.length; i++) { r -= p[i]; if (r <= 0) return lista[i]; } return lista[lista.length - 1]; };
+  const ops = [{ para: "3C", v: 0.03 }, { para: "3d", v: 0.02 }, { para: "2C", v: 0.012 }, { para: "4C", v: 0.05 }];
+  const melhor = dec => { const rng = criarRng(7); let n = 0; for (let k = 0; k < 10000; k++) if (escolherPasso(rng, ops, o => o.v, dec, V, sortear).para === "4C") n++; return n; };
+  assert.ok(melhor(45) > melhor(25) + 500 && melhor(25) > melhor(10) + 500);
+  assert.ok(escolherPasso(criarRng(1), ops, () => -1, 20, V, sortear)); // valor nenhum positivo: ainda escolhe alguma
+}
+// impulso: nunca passa do teto; de frente pela diagonal do meio-espaço só com companheiro no corredor vizinho; o maior vale, nunca a soma
+{
+  const imp = o => proximoImpulso({ folga: 0, tipo: "subir", de: "3C", temVizinho: false, pressaoAdv: 0, mentalidadeAdv: 0, V, ...o });
+  assert.ok(imp({ folga: 9 }).logit <= Math.max(V.impulso.teto, V.impulso.deFrente) + 1e-9);
+  assert.strictEqual(imp({ folga: -1 }).logit, 0);
+  assert.strictEqual(imp({ tipo: "diagonal", de: "3d", folga: 0.1 }).deFrente, false);
+  assert.strictEqual(imp({ tipo: "diagonal", de: "3d", folga: 0.1, temVizinho: true }).deFrente, true);
+  assert.strictEqual(imp({ tipo: "diagonal", de: "3C", folga: 0.1, temVizinho: true }).deFrente, false); // centro→: sem bônus
+  assert.strictEqual(imp({ folga: 2 }).deFrente, true); // a folga passou do giro
+  assert.strictEqual(imp({ tipo: "subir", de: "3E", folga: 0.1 }).prende, true); // reto pela lateral
+  assert.strictEqual(imp({ tipo: "subir", de: "2C", folga: 0.1 }).prende, true); // vertical pelo centro, apertado
+  assert.strictEqual(imp({ tipo: "subir", de: "2C", folga: 2 }).prende, false); // girou
+  assert.strictEqual(imp({ tipo: "diagonal", de: "2C", folga: 0.1 }).prende, false);
+  // A2: volta ganha contra pressão 2 → logit > 0; contra pressão 0 ou mentalidade −2 → 0; nunca soma com o embalo
+  assert.ok(perto(imp({ tipo: "voltar", pressaoAdv: 2 }).logit, V.atrairPressao * 2));
+  assert.strictEqual(imp({ tipo: "voltar", pressaoAdv: 0 }).logit, 0);
+  assert.strictEqual(imp({ tipo: "voltar", pressaoAdv: 2, mentalidadeAdv: -2 }).logit, 0);
+  const emb = imp({ tipo: "voltar", folga: 0.3 }).logit;
+  assert.ok(perto(imp({ tipo: "voltar", folga: 0.3, pressaoAdv: 2 }).logit, Math.max(emb, V.atrairPressao * 2)));
+}
+assert.strictEqual(LIMITE_DE_PASSOS, 12);
 
 console.log("teste_grade: ok");

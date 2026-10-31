@@ -207,12 +207,20 @@ export const CONFIG = {
   //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
   //   quando o zagueiro/o lateral sai para cobrir; basculacaoRapidez: a defesa bascula com um passo de atraso (Posicionamento e Trabalho em equipe);
   //   arrasto: folga do duelo que arrasta o cobridor (a do narrar do embalo) e quanto o meio-espaço vizinho perde quando o ponta bate o lateral
+  //   o passo (spec 7): dificuldade, logit de cada tipo (voltar > lado > subir > pular > virada, metas ~95/84/50/40% de acerto; ladoLonge por
+  //   corredor além do 1º, paraDentro saindo do lado, pertoDoGol por faixa acima da 3); valorZona, o xT da 5×5; decisao, γ do peso v^γ pela Decisão;
+  //   impulso: o embalo de hoje (parte, teto), giro (folga que vira quem recebe de frente, = arrasto.folga), deFrente (bônus de quem recebe de frente),
+  //   prende (peso das opções para a frente de quem recebe de costas); atrairPressao: logit por nível de pressão do adversário na volta ganha (A2)
   grade: false,
   gradeValores: {
     lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
     passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
     vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
     basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
+    dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -0.9, virada: -1.0, inversao: -0.25,
+      paraDentro: -0.2, pertoDoGol: -0.3 },
+    valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 1.5, inclinacao: 1.5 },
+    impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
   },
   contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
   // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos

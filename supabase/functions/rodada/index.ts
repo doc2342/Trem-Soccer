@@ -431,7 +431,72 @@ const __grade = (() => {
     if (f >= 4 && (c === "E" || c === "D")) return { zonaFraca: Math.min(5, f + 1) + (c === "E" ? "e" : "d"), fator: 1 - V.arrasto.lado };
     return null;
   }
-  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto };
+
+  // O passo (spec 7): tipo pelo deslocamento. Virada: de lado a lado oposto ou de meio-espaço a meio-espaço oposto, na mesma faixa ou ±1;
+  // voltar: uma faixa para trás; lado: mesma faixa; subir/diagonal: uma faixa, mesmo corredor/vizinho; pular: 2+ faixas, corredor ≤ 1;
+  // inversão: o resto (muda faixa e corredor, distância somada ≥ 3)
+  function tipoDoPasso(de, para) {
+    const df = faixaDe(para) - faixaDe(de), a = colunaDe(de), b = colunaDe(para), dc = Math.abs(b - a);
+    if (Math.abs(df) <= 1 && a + b === 4 && dc >= 2) return "virada";
+    if (df < 0) return "voltar";
+    if (df === 0) return "lado";
+    if (dc >= 2) return "inversao";
+    if (df >= 2) return "pular";
+    return dc ? "diagonal" : "subir";
+  }
+
+  // Destinos de de: para trás só uma faixa (corredor ≤ 1 ou a virada), para o lado até a virada, para a frente até a faixa 5.
+  // Condução é um modo do passo (a bola no pé), não um destino: só em subir, diagonal e lado.
+  function opcoesDoPasso(de) {
+    const r = [];
+    for (const para of ZONAS_GRADE) {
+      if (para === de || faixaDe(para) < faixaDe(de) - 1) continue;
+      const tipo = tipoDoPasso(de, para);
+      if (tipo === "voltar" && Math.abs(colunaDe(para) - colunaDe(de)) > 1) continue;
+      r.push({ para, tipo });
+      if (tipo === "subir" || tipo === "diagonal" || tipo === "lado") r.push({ para, tipo, conduzir: true });
+    }
+    return r;
+  }
+
+  // Logit somado ao duelo do destino (V = CONFIG.gradeValores). O passe que atravessa faixa sofre a marcação dela no motor (V.atravessa).
+  function dificuldade(tipo, de, para, V) {
+    const D = V.dificuldade, df = faixaDe(para) - faixaDe(de), dc = Math.abs(colunaDe(para) - colunaDe(de)), cd = corredorDe(de);
+    let l = tipo === "voltar" ? D.voltar : tipo === "lado" ? D.lado + D.ladoLonge * (dc - 1) : tipo === "subir" ? D.subir
+      : tipo === "diagonal" ? (cd === "e" || cd === "d" ? D.diagonalMeio : D.diagonal) : tipo === "pular" ? D.pular * (df - 1)
+      : tipo === "virada" ? D.virada : D.inversao * (Math.abs(df) + dc - 2);
+    if ((cd === "E" || cd === "D") && dc && tipo !== "voltar" && tipo !== "virada") l += D.paraDentro; // do lado para dentro: mais interceptado
+    return l + D.pertoDoGol * Math.max(0, faixaDe(para) - 3);
+  }
+
+  // Valor da zona: o xT da 5×5 (spec 8), plano na largura até a faixa 5
+  function valorDaZona(z, V) {
+    const f = faixaDe(z);
+    return f < 5 ? V.valorZona.faixas[f - 1] : V.valorZona.f5[({ d: "e", D: "E" })[z[1]] || z[1]];
+  }
+
+  // Quem tem a bola escolhe: peso v^γ, com γ pela Decisão (o bom decisor fica perto da melhor opção, o mau perto da média).
+  // sortear: o sortearPeso do motor, por parâmetro para não duplicar. Valor nenhum positivo: as opções ficam iguais.
+  function escolherPasso(rng, opcoes, valorDe, dec, V, sortear) {
+    const g = Math.max(0, V.decisao.base + V.decisao.inclinacao * (dec - 25) / 25);
+    return sortear(rng, opcoes, o => Math.pow(Math.max(1e-9, valorDe(o)), g));
+  }
+
+  // O que o passo ganho deixa para o seguinte, num valor só (spec 12b: embalo, "a folga decide o próximo passo" e quem recebe de frente não somam):
+  // logit = o maior entre o embalo, o bônus de frente e o de atrair a pressão (A2: a volta ganha contra quem pressiona, zero contra a retranca).
+  // deFrente: diagonal saindo do meio-espaço com companheiro no corredor vizinho da faixa seguinte (temVizinho), ou folga acima do giro.
+  // prende: reto pela lateral ou vertical pelo centro sem girar (quem recebe fica de costas e tende a devolver).
+  function proximoImpulso({ folga, tipo, de, temVizinho, pressaoAdv = 0, mentalidadeAdv = 0, V }) {
+    const I = V.impulso, c = corredorDe(de), reto = tipo === "subir" || tipo === "pular";
+    const deFrente = (tipo === "diagonal" && (c === "e" || c === "d") && !!temVizinho) || folga >= I.giro;
+    const prende = !deFrente && reto && (c === "E" || c === "D" || c === "C");
+    const atrair = tipo === "voltar" && pressaoAdv >= 1 && mentalidadeAdv > -1 ? V.atrairPressao * pressaoAdv : 0;
+    return { logit: Math.max(Math.min(I.teto, Math.max(0, I.parte * folga)), deFrente ? I.deFrente : 0, atrair), deFrente, prende };
+  }
+
+  // Rede de segurança do laço da jogada (spec 7.4): quase nunca atingida
+  const LIMITE_DE_PASSOS = 12;
+  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto, tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, LIMITE_DE_PASSOS };
 })();
 
 const __papeis = (() => {
@@ -896,12 +961,20 @@ const __motor = (() => {
     //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
     //   quando o zagueiro/o lateral sai para cobrir; basculacaoRapidez: a defesa bascula com um passo de atraso (Posicionamento e Trabalho em equipe);
     //   arrasto: folga do duelo que arrasta o cobridor (a do narrar do embalo) e quanto o meio-espaço vizinho perde quando o ponta bate o lateral
+    //   o passo (spec 7): dificuldade, logit de cada tipo (voltar > lado > subir > pular > virada, metas ~95/84/50/40% de acerto; ladoLonge por
+    //   corredor além do 1º, paraDentro saindo do lado, pertoDoGol por faixa acima da 3); valorZona, o xT da 5×5; decisao, γ do peso v^γ pela Decisão;
+    //   impulso: o embalo de hoje (parte, teto), giro (folga que vira quem recebe de frente, = arrasto.folga), deFrente (bônus de quem recebe de frente),
+    //   prende (peso das opções para a frente de quem recebe de costas); atrairPressao: logit por nível de pressão do adversário na volta ganha (A2)
     grade: false,
     gradeValores: {
       lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
       passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
       vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
       basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
+      dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -0.9, virada: -1.0, inversao: -0.25,
+        paraDentro: -0.2, pertoDoGol: -0.3 },
+      valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 1.5, inclinacao: 1.5 },
+      impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
     },
     contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
     // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos

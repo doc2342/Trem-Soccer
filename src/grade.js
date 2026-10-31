@@ -195,3 +195,68 @@ export function arrasto({ zona, folga, V }) {
   if (f >= 4 && (c === "E" || c === "D")) return { zonaFraca: Math.min(5, f + 1) + (c === "E" ? "e" : "d"), fator: 1 - V.arrasto.lado };
   return null;
 }
+
+// O passo (spec 7): tipo pelo deslocamento. Virada: de lado a lado oposto ou de meio-espaço a meio-espaço oposto, na mesma faixa ou ±1;
+// voltar: uma faixa para trás; lado: mesma faixa; subir/diagonal: uma faixa, mesmo corredor/vizinho; pular: 2+ faixas, corredor ≤ 1;
+// inversão: o resto (muda faixa e corredor, distância somada ≥ 3)
+export function tipoDoPasso(de, para) {
+  const df = faixaDe(para) - faixaDe(de), a = colunaDe(de), b = colunaDe(para), dc = Math.abs(b - a);
+  if (Math.abs(df) <= 1 && a + b === 4 && dc >= 2) return "virada";
+  if (df < 0) return "voltar";
+  if (df === 0) return "lado";
+  if (dc >= 2) return "inversao";
+  if (df >= 2) return "pular";
+  return dc ? "diagonal" : "subir";
+}
+
+// Destinos de de: para trás só uma faixa (corredor ≤ 1 ou a virada), para o lado até a virada, para a frente até a faixa 5.
+// Condução é um modo do passo (a bola no pé), não um destino: só em subir, diagonal e lado.
+export function opcoesDoPasso(de) {
+  const r = [];
+  for (const para of ZONAS_GRADE) {
+    if (para === de || faixaDe(para) < faixaDe(de) - 1) continue;
+    const tipo = tipoDoPasso(de, para);
+    if (tipo === "voltar" && Math.abs(colunaDe(para) - colunaDe(de)) > 1) continue;
+    r.push({ para, tipo });
+    if (tipo === "subir" || tipo === "diagonal" || tipo === "lado") r.push({ para, tipo, conduzir: true });
+  }
+  return r;
+}
+
+// Logit somado ao duelo do destino (V = CONFIG.gradeValores). O passe que atravessa faixa sofre a marcação dela no motor (V.atravessa).
+export function dificuldade(tipo, de, para, V) {
+  const D = V.dificuldade, df = faixaDe(para) - faixaDe(de), dc = Math.abs(colunaDe(para) - colunaDe(de)), cd = corredorDe(de);
+  let l = tipo === "voltar" ? D.voltar : tipo === "lado" ? D.lado + D.ladoLonge * (dc - 1) : tipo === "subir" ? D.subir
+    : tipo === "diagonal" ? (cd === "e" || cd === "d" ? D.diagonalMeio : D.diagonal) : tipo === "pular" ? D.pular * (df - 1)
+    : tipo === "virada" ? D.virada : D.inversao * (Math.abs(df) + dc - 2);
+  if ((cd === "E" || cd === "D") && dc && tipo !== "voltar" && tipo !== "virada") l += D.paraDentro; // do lado para dentro: mais interceptado
+  return l + D.pertoDoGol * Math.max(0, faixaDe(para) - 3);
+}
+
+// Valor da zona: o xT da 5×5 (spec 8), plano na largura até a faixa 5
+export function valorDaZona(z, V) {
+  const f = faixaDe(z);
+  return f < 5 ? V.valorZona.faixas[f - 1] : V.valorZona.f5[({ d: "e", D: "E" })[z[1]] || z[1]];
+}
+
+// Quem tem a bola escolhe: peso v^γ, com γ pela Decisão (o bom decisor fica perto da melhor opção, o mau perto da média).
+// sortear: o sortearPeso do motor, por parâmetro para não duplicar. Valor nenhum positivo: as opções ficam iguais.
+export function escolherPasso(rng, opcoes, valorDe, dec, V, sortear) {
+  const g = Math.max(0, V.decisao.base + V.decisao.inclinacao * (dec - 25) / 25);
+  return sortear(rng, opcoes, o => Math.pow(Math.max(1e-9, valorDe(o)), g));
+}
+
+// O que o passo ganho deixa para o seguinte, num valor só (spec 12b: embalo, "a folga decide o próximo passo" e quem recebe de frente não somam):
+// logit = o maior entre o embalo, o bônus de frente e o de atrair a pressão (A2: a volta ganha contra quem pressiona, zero contra a retranca).
+// deFrente: diagonal saindo do meio-espaço com companheiro no corredor vizinho da faixa seguinte (temVizinho), ou folga acima do giro.
+// prende: reto pela lateral ou vertical pelo centro sem girar (quem recebe fica de costas e tende a devolver).
+export function proximoImpulso({ folga, tipo, de, temVizinho, pressaoAdv = 0, mentalidadeAdv = 0, V }) {
+  const I = V.impulso, c = corredorDe(de), reto = tipo === "subir" || tipo === "pular";
+  const deFrente = (tipo === "diagonal" && (c === "e" || c === "d") && !!temVizinho) || folga >= I.giro;
+  const prende = !deFrente && reto && (c === "E" || c === "D" || c === "C");
+  const atrair = tipo === "voltar" && pressaoAdv >= 1 && mentalidadeAdv > -1 ? V.atrairPressao * pressaoAdv : 0;
+  return { logit: Math.max(Math.min(I.teto, Math.max(0, I.parte * folga)), deFrente ? I.deFrente : 0, atrair), deFrente, prende };
+}
+
+// Rede de segurança do laço da jogada (spec 7.4): quase nunca atingida
+export const LIMITE_DE_PASSOS = 12;
