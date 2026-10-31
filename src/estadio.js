@@ -44,7 +44,7 @@ const M = { tradicional: { nome: "Tradicional", a0: 96, b0: 66, pista: 1 }, cald
   wembley: { nome: "Wembley", a0: 59.5, b0: 41, R: 16, teto: "arena", arco: 1, via: 1, tetoIn: 0.22, corTeto: "#a3a8ab", folga: 12, fachada: ["#2f3d47", "#4d5f6b", "#3e4f5b"] },
   maracana: { nome: "Maracanã", a0: 86, b0: 63, geral: 6, marquise: 1, rampas: 1, fachada: ["#5f666b", "#7d8489", "#6e757a"] } };
 const FACHADA = ["#8f8b82", "#d6d2c8", "#c4c0b5"]; // m.fachada troca as 3 cores das placas da fachada
-const ROWS = [12, 12, 18, 24, 28, 41, 47, 53], CUSTO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000], PRAZO = [0, 1, 3, 6, 11, 18, 22, 27, 36]; // os mesmos de custo_da_obra e prazo_da_obra (55)
+const ROWS = [12, 12, 18, 24, 28, 41, 47, 53], CUSTO = [0, 0, 1500, 3000, 5000, 8000, 12000, 20000, 30000], PRAZO = [0, 1, 4, 8, 14, 23, 28, 34, 46]; // os mesmos de custo_da_obra (55) e prazo_da_obra (167, em dias)
 const lug = l => l < 1 ? 0 : l <= 5 ? 5000 + 5000 * l : [40000, 50000, 60000][l - 6];
 const din = v => v >= 1000 ? (v / 1000).toLocaleString("pt-BR") + " mi" : v + " mil";
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -767,6 +767,6 @@ export function plantaEstadio(config) {
   s += `<g font-size="11" fill="${BR}"><rect x="480" y="288" width="172" height="164" fill="none" stroke="${BR}" stroke-width="0.8"/>${[316, 344, 372, 400, 428].map(y => `<line x1="480" y1="${y}" x2="652" y2="${y}" stroke="${BR}" stroke-width="0.5"/>`).join("")}
   <line x1="566" y1="428" x2="566" y2="452" stroke="${BR}" stroke-width="0.5"/>
   ${cl.map(([y, t, fs], i) => `<text x="488" y="${y}" ${fs ? `font-size="${fs}"` : ""} ${i == 4 ? `fill="${AM}"` : ""}>${t}</text>`).join("")}
-  <text x="488" y="445">${custo ? din(custo) : "—"}</text><text x="574" y="445">${prazo} rodada${prazo > 1 ? "s" : ""}</text></g></svg>`;
+  <text x="488" y="445">${custo ? din(custo) : "—"}</text><text x="574" y="445">${prazo} dia${prazo > 1 ? "s" : ""}</text></g></svg>`;
   return s;
 }

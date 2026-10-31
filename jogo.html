@@ -2245,7 +2245,7 @@ async function telaClube(liga, clube) {
   // estruturas e estádio: nível atual, custo e prazo do próximo, e a obra em andamento (uma por vez)
   const ESTRUTURAS = [["ct", "Centro de treinamento", "ct_nivel", "acelera o treino"], ["medico", "Departamento médico", "medico_nivel", "o médico cuida de mais lesionados ao mesmo tempo"],
     ["fisio", "Fisioterapia", "fisio_nivel", "o preparador de forma atende mais jogadores"], ["base", "Base", "base_nivel", "revela mais jovens, e mais prontos"], ["estadio", "Estádio", "estadio_nivel", "mais lugares e mais bilheteria"]];
-  const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 3, 6, 11, 18, 22, 27, 36], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
+  const CUSTO = { estadio: [null, null, 1500, 3000, 5000, 8000, 12000, 20000, 30000], outras: [null, 250, 500, 1000, 2000, 4000] }, PRAZO = [null, 1, 4, 8, 14, 23, 28, 34, 46], ACUMULADO = [0, 250, 750, 1750, 3750, 7750];
   const GASTO_NO_ESTADIO = [0, 0, 1500, 4500, 9500, 17500, 29500, 49500, 79500]; // para a manutenção do estádio
   // manutenção por temporada, a mesma conta do manutencao_por_temporada (68_economia.sql)
   const manutencaoDoClube = () => Math.round(MANUTENCAO.estruturas * ["ct_nivel", "medico_nivel", "fisio_nivel", "base_nivel"].reduce((t, x) => t + ACUMULADO[clube[x] || 0], 0)) + Math.round(MANUTENCAO.estadio * GASTO_NO_ESTADIO[clube.estadio_nivel || 1]) + manutencaoExtraDoEstadio(clube.estadio_nivel);
@@ -2334,16 +2334,16 @@ async function telaClube(liga, clube) {
     if (visualNovo) return estruturasNova({ mil, fx, pct, manut, nomeObra, reforma, total, maxTotal });
     return `<div class="kpis">${kpi("Caixa", `<span class="${caixa < 0 ? "bad" : ""}">${dinheiro(caixa)}</span>`, "o valor da obra sai na hora")}
       ${kpi("Manutenção", dinheiro(manut), "por temporada")}
-      ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> rodadas</small>` : "nenhuma", obra ? (reforma ? "reforma do estádio" : `${esc(nomeObra)} para o nível ${obra.nivel_alvo}`) : "uma por vez")}
+      ${kpi("Obra", obra ? `${obra.rodadas_restantes}<small> dias</small>` : "nenhuma", obra ? (reforma ? "reforma do estádio" : `${esc(nomeObra)} para o nível ${obra.nivel_alvo}`) : "uma por vez")}
       ${kpi("Níveis", `${total}<small> de ${maxTotal}</small>`, "somando as cinco")}</div>
     <div class="card"><h2>Estruturas <span class="tag">uma obra por vez</span></h2>
       <div class="estrs">${ESTRUTURAS.map(([k, nome, campo]) => { const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
         return `<div class="estr ${emObra ? "em-obra" : ""}">
           <div class="estr-topo"><a class="lk" ${k === "base" ? `data-aba-ir="base:estrutura"` : k === "estadio" ? `data-sub-ir="clube:estadio"` : `href="#estr-${k}"`}><b>${nome}</b></a><span class="niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span></div>
             <div class="mut" style="font-size:12.5px">Hoje: ${efeito(k, n)}.${custo == null ? " Nível máximo." : ` No nível ${prox}: ${efeito(k, prox)}.`}</div>
-          ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
-            <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
-      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em rodadas de liga. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base e o estádio têm aba própria).</div></div>`;
+          ${emObra ? `<div class="aviso" style="margin-top:auto">em obra: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias</div>` : custo == null ? "" : `<div style="margin-top:auto"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""} style="padding:5px 10px">${n === 0 ? "Construir" : "Ampliar"}</button>
+            <div class="mut" style="font-size:12px">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "dia" : "dias"}${obra ? "" : caixa < custo ? " · falta caixa" : ""}</div></div>`}</div>`; }).join("")}
+      </div><div class="mut" style="margin-top:8px;font-size:12px">O valor da obra sai do caixa no início e a estrutura só muda de nível quando a obra termina. O prazo corre em dias, com ou sem jogo. Os detalhes e a equipe de cada estrutura estão logo abaixo (a base e o estádio têm aba própria).</div></div>`;
   };
   // painel cinza com quem trabalha numa estrutura (Clube › Estruturas e Base › Estrutura): ficha enxuta, o efeito só até a primeira vírgula longa
   // (o texto inteiro fica no title), e o botão dos candidatos
@@ -2364,15 +2364,15 @@ async function telaClube(liga, clube) {
       ${numero({ rotulo: "Níveis", valor: String(total), sufixo: `de ${maxTotal}`, legenda: "somando as cinco" })}</div>`;
     const topo = obra
       ? faixaFoco({ rotulo: "Estruturas · obra em andamento", titulo: reforma ? "Reforma do estádio" : nomeObra, apagado: reforma ? "troca de modelo" : `para o nível ${obra.nivel_alvo}`,
-          destaque: `Faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`, frase: reforma || !ESTRUTURAS.some(x => x[0] === obra.estrutura) ? "Uma obra por vez: as outras esperam esta terminar." : `Quando terminar: ${efeito(obra.estrutura, obra.nivel_alvo).join(" ")}. Uma obra por vez: as outras esperam.`, lado,
+          destaque: `Faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.`, frase: reforma || !ESTRUTURAS.some(x => x[0] === obra.estrutura) ? "Uma obra por vez: as outras esperam esta terminar." : `Quando terminar: ${efeito(obra.estrutura, obra.nivel_alvo).join(" ")}. Uma obra por vez: as outras esperam.`, lado,
           numeros: feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "" })
       : faixaFoco({ rotulo: "Estruturas · obra", titulo: "Canteiro livre", apagado: "nenhuma obra", destaque: "Escolha uma ampliação abaixo.", frase: "O valor sai do caixa no início e a estrutura muda de nível quando a obra termina. Uma obra por vez.", lado });
     const linhas = ESTRUTURAS.map(([k, nome, campo]) => {
       const n = clube[campo] || 0, maximo = k === "estadio" ? NIVEL_MAXIMO_DO_ESTADIO : 5, prox = n + 1, custo = prox > maximo ? null : (k === "estadio" ? CUSTO.estadio : CUSTO.outras)[prox], emObra = obra && obra.estrutura === k;
       const [hoje, leg] = efeito(k, n), ir = k === "base" ? `data-aba-ir="base:estrutura"` : k === "estadio" ? `data-sub-ir="clube:estadio"` : "";
-      const acao = emObra ? `<div class="t-estr-acao t-estr-obra"><b>em obra</b><small>faltam ${obra.rodadas_restantes} rodadas</small></div>`
+      const acao = emObra ? `<div class="t-estr-acao t-estr-obra"><b>em obra</b><small>faltam ${obra.rodadas_restantes} dias</small></div>`
         : custo == null ? `<div class="t-estr-acao"><small>nível máximo</small></div>`
-        : `<div class="t-estr-acao">${obra ? `<small>${dinheiro(custo)} · ${PRAZO[prox]} rod.</small><small>depois da obra</small>` : `<button type="button" class="t-botao${caixa < custo ? "" : " t-botao-principal"}" data-obra="${k}" ${caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"}</button><small>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${caixa < custo ? " · falta caixa" : ""}</small>`}</div>`;
+        : `<div class="t-estr-acao">${obra ? `<small>${dinheiro(custo)} · ${PRAZO[prox]} d</small><small>depois da obra</small>` : `<button type="button" class="t-botao${caixa < custo ? "" : " t-botao-principal"}" data-obra="${k}" ${caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"}</button><small>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "dia" : "dias"}${caixa < custo ? " · falta caixa" : ""}</small>`}</div>`;
       return `<div class="t-estr${emObra ? " t-estr-em-obra" : ""}">
         <div class="t-estr-nome">${ir ? `<a class="lk" ${ir}>${esc(nome)}</a>` : esc(nome)}<span class="t-estr-niveis" title="nível ${n} de ${maximo}">${Array.from({ length: maximo }, (_, i) => `<i class="${i < n ? "on" : emObra && i < obra.nivel_alvo ? "obra" : ""}"></i>`).join("")}</span></div>
         <div class="t-estr-hoje"><b>${hoje}</b><small>${leg}</small></div>
@@ -2396,18 +2396,18 @@ async function telaClube(liga, clube) {
     const feito = emObra ? Math.round(100 * (1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total))) : 0;
     const acao = emObra ? (feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "")
       : custo == null ? `<div class="t-carimbo">Nível máximo<small>base completa</small></div>`
-      : `<div class="t-base-peneira"><button type="button" class="t-botao t-botao-principal" data-obra="base" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button><span data-obra-aviso>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</span></div>`;
+      : `<div class="t-base-peneira"><button type="button" class="t-botao t-botao-principal" data-obra="base" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button><span data-obra-aviso>${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "dia" : "dias"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</span></div>`;
     const topo = faixaFoco({ rotulo: "Base · estrutura", titulo: `Nível ${n}`,
-      destaque: emObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.` : custo == null ? "" : `No nível ${prox}: ${fx(faixaDeJovens(prox, "promocao"))} na virada, ${fx(faixaDeJovens(prox, "peneira"))} na peneira, nota ${nota(prox)}.`,
+      destaque: emObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.` : custo == null ? "" : `No nível ${prox}: ${fx(faixaDeJovens(prox, "promocao"))} na virada, ${fx(faixaDeJovens(prox, "peneira"))} na peneira, nota ${nota(prox)}.`,
       frase: "O talento não depende da base: ela só dá mais chance no sorteio dos talentos raros da temporada.", lado, numeros: acao });
     const escada = [0, 1, 2, 3, 4, 5].map(k => { const estado = k === n ? "hoje" : emObra && k === obra.nivel_alvo ? "obra" : k < n ? "feito" : "depois";
       return `<div class="t-be-nivel" data-estado="${estado}"><span class="t-be-n">Nível ${k}</span><b>${fx(faixaDeJovens(k, "promocao"))}</b><b>${fx(faixaDeJovens(k, "peneira"))}</b><b>${nota(k)}</b>
-        <span class="t-be-custo">${estado === "hoje" ? "hoje" : estado === "obra" ? `em obra · faltam ${obra.rodadas_restantes} rod.` : k === 0 ? "—" : `${dinheiro(CUSTO.outras[k])} · ${PRAZO[k]} rod.`}</span></div>`; }).join("");
+        <span class="t-be-custo">${estado === "hoje" ? "hoje" : estado === "obra" ? `em obra · faltam ${obra.rodadas_restantes} d` : k === 0 ? "—" : `${dinheiro(CUSTO.outras[k])} · ${PRAZO[k]} d`}</span></div>`; }).join("");
     const olheiro = comissao == null || relatorios == null ? "" : `<section class="t-secao t-estr-comissao">${rotulo("Quem avalia os jovens")}
       <div class="t-estr-grupos t-be-grupos">${grupoDaEstrutura("base", "olheiro", [blocoOlheiro()])}</div><span class="mut" data-cand-aviso></span><div data-cand-lista="olheiro" class="t-estr-lista"></div></section>`;
     return `<div class="t-base t-bestr">${topo}<section class="t-secao">${rotulo("Os níveis da base")}
       <div class="t-be-nivel t-be-cab"><span>Nível</span><span>Na virada</span><span>Na peneira</span><span>Nota de chegada</span><span>Custo · prazo</span></div>${escada}
-      <p class="t-fajuda">O valor da obra sai do caixa no início e a base só muda de nível quando ela termina; o prazo corre em rodadas de liga. Uma obra por vez, entre todas as estruturas. Os garotos da escolinha que completam o time da base também são melhores quanto maior o nível.</p></section>${olheiro}</div>`;
+      <p class="t-fajuda">O valor da obra sai do caixa no início e a base só muda de nível quando ela termina; o prazo corre em dias, com ou sem jogo. Uma obra por vez, entre todas as estruturas. Os garotos da escolinha que completam o time da base também são melhores quanto maior o nível.</p></section>${olheiro}</div>`;
   };
   // estádio: visual de hoje (3D) e o que a obra em andamento, ou a próxima ampliação, vai construir (planta e wireframe)
   // trocar modelo ou cidade (154): junto com a ampliação, +50% do custo dela (a primeira é de graça); no nível máximo, uma obra de metade do nível 8
@@ -2421,9 +2421,9 @@ async function telaClube(liga, clube) {
     const v = configDoClube(clube, obra), n = clube.estadio_nivel || 1, ev = clube.estadio_visual || {};
     const troca = { ...(ev.modelo_alvo ? { modelo: ev.modelo_alvo } : {}), ...(ev.cidade_alvo ? { cidade: ev.cidade_alvo } : {}) };
     const com = [troca.modelo && `o modelo ${MODELOS[troca.modelo] || troca.modelo}`, troca.cidade && `a cidade ${CIDADES[troca.cidade] || troca.cidade}`].filter(Boolean).join(" e ");
-    if (obra && obra.estrutura === "estadio_modelo" && com) return { tag: `troca para ${com} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas`,
+    if (obra && obra.estrutura === "estadio_modelo" && com) return { tag: `troca para ${com} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias`,
       cfg: { ...v, ...troca, reforma: true, obra: 1 - obra.rodadas_restantes / Math.max(1, obra.rodadas_total), custo: obra.custo, prazo: obra.rodadas_total } };
-    if (obra && obra.estrutura === "estadio") return { tag: `obra para o nível ${obra.nivel_alvo}${com ? `, com ${com}` : ""} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas`, cfg: { ...v, ...troca } };
+    if (obra && obra.estrutura === "estadio") return { tag: `obra para o nível ${obra.nivel_alvo}${com ? `, com ${com}` : ""} · faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias`, cfg: { ...v, ...troca } };
     if (n < NIVEL_MAXIMO_DO_ESTADIO) return { tag: `prévia da ampliação para o nível ${n + 1}`, cfg: { ...v, ...escolha, nivel: n + 1, obra: 0 } };
     return { tag: "nível máximo", cfg: { ...v, ...escolha } };
   };
@@ -2438,7 +2438,7 @@ async function telaClube(liga, clube) {
     const linha = (rot, val, obs) => `<tr><td class="esq mut">${rot}</td><td class="esq"><b>${val}</b>${obs ? `<div class="mut" style="font-size:12px">${obs}</div>` : ""}</td></tr>`;
     const textoDaReforma = (obra && obra.estrutura === "estadio_modelo" ? "troca em andamento"
       : nv ? `${obra ? "depois que a obra atual terminar, " : ""}o modelo e a cidade mudam junto com a próxima ampliação: escolha aqui e amplie (${nv === 2 ? "na primeira ampliação, de graça" : "+50% no custo da obra"})`
-      : `trocar o modelo ou a cidade é uma obra: ${dinheiro(TROCA_NO_MAXIMO.custo)} · ${TROCA_NO_MAXIMO.prazo} rodadas${obra ? " · espere a obra atual terminar" : ""}`)
+      : `trocar o modelo ou a cidade é uma obra: ${dinheiro(TROCA_NO_MAXIMO.custo)} · ${TROCA_NO_MAXIMO.prazo} dias${obra ? " · espere a obra atual terminar" : ""}`)
       + (gratisPara.length ? ` · <span class="ok">troca grátis e na hora para ${gratisPara.map(k => MODELOS[k] || k).join(" e ")}, ${gratisPara.length > 1 ? "os estádios novos" : "o estádio novo"}</span>` : "");
     if (visualNovo) { // faixa com o nome e a obra; o 3D ao lado do editor (botões no lugar dos selects, que ficam escondidos e são o que ligarEstadio lê); o dia de jogo embaixo
       const mil = x => x.toLocaleString("pt-BR"), sel =(id, lista, atual, extra = "") => `<select id="${id}" hidden ${extra}>${op(lista, atual)}</select>`;
@@ -2450,9 +2450,9 @@ async function telaClube(liga, clube) {
         ${numero({ rotulo: "Bônus de público", valor: pct(bonusDoEstadio(n) - 1), legenda: "refletores e estacionamento" })}
         ${numero({ rotulo: "Nível", valor: String(n), sufixo: `de ${NIVEL_MAXIMO_DO_ESTADIO}`, legenda: nv ? `o próximo custa ${dinheiro(custo)}` : "nível máximo" })}</div>`;
       const acao = minhaObra ? (feito ? `<div class="t-obra-barra" title="${feito}% concluída"><i style="width:${feito}%"></i></div>` : "")
-        : custo == null ? "" : `<div class="t-ev-ampliar"><button type="button" class="t-botao${obra || caixa < custo ? "" : " t-botao-principal"}" data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button><small id="evAmpliar" data-obra-aviso>${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</small></div>`;
+        : custo == null ? "" : `<div class="t-ev-ampliar"><button type="button" class="t-botao${obra || caixa < custo ? "" : " t-botao-principal"}" data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button><small id="evAmpliar" data-obra-aviso>${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "dia" : "dias"}${obra ? " · já há outra obra" : caixa < custo ? " · falta caixa" : ""}</small></div>`;
       const topo = faixaFoco({ rotulo: `Estádio · ${MODELOS[v.modelo] || ""} · ${CIDADES[cidadeDoEstadio(v)]}`, titulo: v.nomeEstadio || "Estádio sem nome",
-        destaque: minhaObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.` : nv ? `Próximo nível: ${mil(lugaresDoEstadio(nv))} lugares.` : "Nível máximo.",
+        destaque: minhaObra ? `Obra para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.` : nv ? `Próximo nível: ${mil(lugaresDoEstadio(nv))} lugares.` : "Nível máximo.",
         frase: minhaObra ? `Quando terminar: ${mil(lugaresDoEstadio(obra.nivel_alvo))} lugares.` : "", lado, numeros: acao });
       const dia = [["Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ","), `por torcedor · ${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`, "ok"],
         ["Operação do jogo", "R$ " + custoDeOperacao(n).toFixed(2).replace(".", ","), "por torcedor · segurança, staff e limpeza; na copa, meio a meio", "bad"],
@@ -2488,9 +2488,9 @@ async function telaClube(liga, clube) {
           ${linha("Bônus de público", pct(bonusDoEstadio(n) - 1), "refletores e estacionamento; o teto são os lugares")}
           ${linha("Comida e bebida", "R$ " + comidaPorTorcedor(n, clube.humor).toFixed(2).replace(".", ",") + " por torcedor", `${dinheiro(COMIDA.manutPorNivel * n)} de manutenção dos bares`)}
           ${linha("Operação do jogo", "R$ " + custoDeOperacao(n).toFixed(2).replace(".", ",") + " por torcedor", "segurança, staff e limpeza; na copa, meio a meio")}</table>
-        ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
+        ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.</div>`
           : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="estadio" ${obra || caixa < custo ? "disabled" : ""}>Ampliar para o nível ${nv}</button>
-            <span class="mut" id="evAmpliar" data-obra-aviso style="font-size:12px">${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
+            <span class="mut" id="evAmpliar" data-obra-aviso style="font-size:12px">${dinheiro(custo)} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "dia" : "dias"}${obra ? " · já há outra obra (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
         <details style="margin-top:8px"><summary class="mut" style="cursor:pointer;font-size:12px">Como o público é calculado</summary><div class="mut" style="font-size:12px;margin-top:4px">O público depende da torcida, do humor, do adversário e da competição (final de copa lota, preliminar não), vezes o bônus do estádio, até o limite de lugares. O prestígio sobe com temporadas na Série A e títulos. Copa e playoff têm ingresso mais caro. O Sócio-Torcedor e a bilheteria estão em Clube, Finanças. Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada.</div></details></div>
       <div class="card"><h2>🎨 Visual do estádio <span class="tag">só aparência: não muda lugares nem renda</span></h2>
         <div class="row" style="margin-top:8px;align-items:center"><label>Modelo <select id="evModelo">${op(MODELOS, v.modelo)}</select></label>
@@ -2525,7 +2525,7 @@ async function telaClube(liga, clube) {
       if (amp && nv && $("evAmpliar") && gratis) { amp.disabled = true; $("evAmpliar").innerHTML = `${MODELOS[troca.modelo]} é grátis e na hora: use o Trocar agora (grátis) antes de ampliar`; } else
       if (amp && nv && $("evAmpliar")) { // a ampliação mostra a taxa da troca escolhida
         const taxa = mudou ? taxaDaTroca(nv) : 0, total = CUSTO.estadio[nv] + taxa; amp.disabled = !!obra || caixa < total;
-        $("evAmpliar").innerHTML = `${dinheiro(CUSTO.estadio[nv])} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "rodada" : "rodadas"}${nv === 2 ? " · troca grátis: primeira ampliação" : taxa ? ` · +${dinheiro(taxa)} pela troca (50%)` : ""}${obra ? " · já há outra obra" : caixa < total ? " · falta caixa" : ""}`;
+        $("evAmpliar").innerHTML = `${dinheiro(CUSTO.estadio[nv])} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "dia" : "dias"}${nv === 2 ? " · troca grátis: primeira ampliação" : taxa ? ` · +${dinheiro(taxa)} pela troca (50%)` : ""}${obra ? " · já há outra obra" : caixa < total ? " · falta caixa" : ""}`;
       }
       const planta = $("evVista").value === "planta"; $("estadio3d").hidden = planta; if ($("evPlanta")) $("evPlanta").hidden = !planta; // a planta só existe no visual novo
       if (planta) { $("evPlanta").innerHTML = plantaEstadio(plantaDaObra(troca).cfg); return; }
@@ -2550,7 +2550,7 @@ async function telaClube(liga, clube) {
     };
     $("evReforma").onclick = async () => {
       const t = trocaEscolhida(), gratis = eGratis(), para = [t.modelo && `o modelo ${MODELOS[t.modelo]}`, t.cidade && `a cidade ${CIDADES[t.cidade]}`].filter(Boolean).join(" e ");
-      if (gratis ? !confirm(`Trocar o estádio para o modelo ${MODELOS[t.modelo]} agora, de graça? É a troca grátis do estádio novo (a cidade fica a mesma).`) : !confirm(`Trocar o estádio para ${para}? Custa ${dinheiro(TROCA_NO_MAXIMO.custo)} agora, leva ${TROCA_NO_MAXIMO.prazo} rodadas e ocupa a vaga de obra. Não dá para cancelar.`)) return;
+      if (gratis ? !confirm(`Trocar o estádio para o modelo ${MODELOS[t.modelo]} agora, de graça? É a troca grátis do estádio novo (a cidade fica a mesma).`) : !confirm(`Trocar o estádio para ${para}? Custa ${dinheiro(TROCA_NO_MAXIMO.custo)} agora, leva ${TROCA_NO_MAXIMO.prazo} dias e ocupa a vaga de obra. Não dá para cancelar.`)) return;
       $("evReforma").disabled = true;
       try { await (gratis ? B.reformarEstadio(t.modelo) : B.reformarEstadio(t.modelo || null, t.cidade)); await carregar({ user: usuario }); }
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evReforma").disabled = false; }
@@ -2598,9 +2598,9 @@ async function telaClube(liga, clube) {
     return `<div class="card"><h2>${nome} <span class="tag">nível ${n} de ${maximo}</span></h2>
       <div>${efeito[0]}.${efeito[1] ? ` <span class="mut">No nível ${prox}: ${efeito[1]}.</span>` : ` <span class="mut">Nível máximo.</span>`}</div>
       ${efeito[2] ? `<div style="margin-top:6px">${efeito[2]}</div>` : ""}
-      ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.</div>`
+      ${minhaObra ? `<div class="aviso" style="margin-top:8px">Obra em andamento para o nível ${obra.nivel_alvo}: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.</div>`
         : custo == null ? "" : `<div class="row" style="margin-top:10px;align-items:center"><button data-obra="${k}" ${obra || caixa < custo ? "disabled" : ""}>${n === 0 ? "Construir" : "Ampliar"} para o nível ${prox}</button>
-          <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "rodada" : "rodadas"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
+          <span class="mut">${dinheiro(custo)} · ${PRAZO[prox]} ${PRAZO[prox] === 1 ? "dia" : "dias"}${obra ? " · já há outra obra em andamento (uma por vez)" : caixa < custo ? " · caixa insuficiente" : ""}</span></div>`}
       ${comissaoDa(k)}
       <div class="mut" style="margin-top:8px;font-size:12px">Manutenção de todas as estruturas: ${dinheiro(manutencaoDoClube())} por temporada (${Math.round(MANUTENCAO.estruturas * 100)}% do que foi gasto nas quatro estruturas, ${Math.round(MANUTENCAO.estadio * 100)}% do que foi gasto no estádio, mais refletores e estacionamento). O prazo da obra corre em rodadas de liga.</div></div>`;
   };
@@ -2706,7 +2706,7 @@ async function telaClube(liga, clube) {
       if (prox > NIVEL_MAXIMO_DO_ESTADIO) estadio = `<div class="t-foport"><div><h3>O estádio lota.</h3><p>A torcida pediria cerca de ${demanda.toLocaleString("pt-BR")} lugares, e o estádio já está no nível máximo.</p></div></div>`;
       else { const novos = lugaresDoEstadio(prox), ganho = Math.round((Math.min(demanda, novos) - lugares) * porJogo / Math.max(1, publico));
         estadio = `<div class="t-foport"><div><h3>O estádio lota.</h3><p>A torcida pediria cerca de <b>${demanda.toLocaleString("pt-BR")}</b> lugares e cabem ${lugares.toLocaleString("pt-BR")}. No nível ${prox} (${novos.toLocaleString("pt-BR")} lugares), cada jogo em casa renderia cerca de <b class="ok">${sinal(ganho)}</b> a mais.</p></div>
-          <div class="t-foport-acao">${emObra ? `<p>Obra em andamento: faltam ${obra.rodadas_restantes} rodadas.</p>` : `${botao({ texto: "Ampliar o estádio", abaIr: "clube:estadio", tipo: "principal" })}<small>${dinheiro(CUSTO.estadio[prox])} · ${PRAZO[prox]} rodadas</small>`}</div></div>`; }
+          <div class="t-foport-acao">${emObra ? `<p>Obra em andamento: faltam ${obra.rodadas_restantes} dias.</p>` : `${botao({ texto: "Ampliar o estádio", abaIr: "clube:estadio", tipo: "principal" })}<small>${dinheiro(CUSTO.estadio[prox])} · ${PRAZO[prox]} dias</small>`}</div></div>`; }
     }
     // por rodada: o que entra e sai daqui para a frente (a mesma conta da previsão do visual antigo)
     const partes = [["TV", tv], ["patrocínio", pat], ["salários", -sal], ["comissão técnica", -com], ["manutenção", -man]].filter(x => x[1]);
@@ -2834,7 +2834,7 @@ async function telaClube(liga, clube) {
       l.push(item("📝", `${vencem.length} ${vencem.length === 1 ? "contrato vence" : "contratos vencem"} no fim desta temporada.${renovam.length ? ` ${renovam.length === 1 ? "Renova" : "Renovam"} sozinho${renovam.length === 1 ? "" : "s"} por uma temporada na virada: ${nomes(renovam.map(r => r.j))}.` : ""}${saem.length ? ` ${saem.length === 1 ? "Sai" : "Saem"} livre${saem.length === 1 ? "" : "s"} (marcado${saem.length === 1 ? "" : "s"} "não renovar"): ${nomes(saem)}.` : ""} Para deixar alguém sair, marque "não renovar" no contrato dele.`, livres != null ? "aviso" : "", "elenco"));
       if (pelo.length) l.push(item("⚠️", `Com as renovações a folha passaria do teto de ${dinheiro(liga.teto_folha)}: na virada ${pelo.length === 1 ? "ficaria livre" : "ficariam livres"} ${nomes(pelo)} (os mais caros primeiro). Venda alguém, marque "não renovar" ou renove por outro valor.`, "aviso", "elenco"));
     }
-    if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} rodadas.`));
+    if (obra) l.push(item("🏗️", `Obra em andamento: faltam ${obra.rodadas_restantes} de ${obra.rodadas_total} dias.`));
     if (janela) l.push(item("🛒", `Janela ${janela === "inicio" ? "de início" : janela === "fim" ? "de fim de temporada" : "do meio"} aberta: dá para comprar e vender.`));
     if (visualNovo) { const a = l.map(alertaCurto); if (!a.length) return item("✅", "Nada para resolver.", "mut"); if (a.length <= 4) return a.join("");
       const pags = []; for (let k = 0; k < a.length; k += 4) pags.push(a.slice(k, k + 4));
