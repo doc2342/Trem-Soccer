@@ -378,7 +378,7 @@ async function tela(aviso = "") {
   const transf = async (aviso = "") => {
     if (!$("transfAdm")) return;
     const l = await transferenciasDaLiga(liga.id, 60), nome = Object.fromEntries(clubes.map(c => [c.id, c.nome]));
-    const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre", agente: "venda pelo agente", agente_vermelho: "agente (caixa no vermelho)" };
+    const TIPO = { multa: "multa rescisória", negociada: "negociada", divida: "oferta à liga", livre: "jogador livre", agente: "venda pelo agente", agente_vermelho: "agente (caixa no vermelho)", vitrine_lista: "vitrine (lista)" };
     const janela = t => t.janela ? " · " + (t.janela === "inicio" ? "início" : t.janela === "fim" ? "fim de temporada" : t.janela === "saida" ? "janela de saídas" : "meio") : "";
     if (NOVO) $("transfAdm").innerHTML = `${rotulo("Transferências")}
       ${l.length ? `<div class="t-adm-larga"><table class="t-tabela t-adm-tab"><tr><th class="t-esq">Jogador</th><th class="t-esq">De → para</th><th class="t-esq">Tipo</th><th>Valor</th><th>Taxa</th><th>Quando</th><th></th></tr>
