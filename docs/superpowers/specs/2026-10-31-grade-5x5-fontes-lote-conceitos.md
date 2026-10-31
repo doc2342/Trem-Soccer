@@ -36,9 +36,9 @@ Resultado: **5 mecânicas novas ou corrigidas** (seção A), **metas novas de es
 |---|---|---|
 | Passes na jogada que termina em gol | média ~3,9 (12,5 s); time de transição ~2,5 (7,8 s) | Liga dos Campeões e Liverpool de Klopp (marcação individual na pressão alta) |
 | Acerto de passe por posição | volante 90–96%; zagueiro construtor 89–91%; ponta driblador 73–85%; passe para a frente do meia de elite 80–88% | Witsel, De Jong, Caicedo, Schlotterbeck, Olise, Sarr, Díaz, Dembélé |
-| Drible certo dos atacantes | 37–55% (duelo ofensivo ~37%) | Marmoush, Semenyo, Esposito |
-| Enfiadas | ~1–4 por time por jogo, ~30% certas (o Barcelona de Flick, ponto fora da curva, 7,4 com 32%) | Opta, Barcelona 26/27 |
-| xG por chute | o melhor ataque ~0,19 (é o teto, não a média) | Opta, Barcelona 26/27 |
+| Drible certo dos atacantes | 32–57% (duelo ofensivo ~37%) | Marmoush, Semenyo, Esposito, Rogers, Ndiaye |
+| Enfiadas | ~2–6 por time por jogo, ~30% certas (o Barcelona de Flick, ponto fora da curva, ~10 por jogo em 24/25 e 7,4 com 32% em 26/27) | Opta, Coaches' Voice |
+| xG por chute | média da liga 0,11–0,12; o melhor ataque ~0,19 (teto) | Opta (modelo novo de xG), Barcelona 26/27 |
 | Chutes no alvo | 37–54% | United de Carrick, Marmoush, Esposito, Semenyo |
 | PPDA sofrido | 10–15 (o mais pressionado ~10, o menos ~15) | Premier League 25/26 |
 | Roubadas no terço final | o time que mais pressiona ~7 por jogo | Brighton de Hürzeler |
@@ -68,3 +68,17 @@ Confirmam metas que já estavam no spec: PPDA de quem pressiona 5–9 (Zorya 5,3
 - Goleiro como homem a mais na saída (4 contra 3), lateral especialista em arremesso longo, tiro de meta longo do time direto (Aravaca: 4 de cada 5).
 - Placar mudando o bloco (o Bayern recua com a vantagem e perde o domínio).
 - Movimentação sem a bola (Bielsa, Haaland, entrelinhas dinâmica × fixa): atributo Movimentação, na caixinha.
+
+## E. Último lote (11 textos, 31/10)
+
+Coaches' Voice (virada de jogo; Barcelona de Flick), Opta Analyst (xG novo, notas de jogador, ranking de força), Between The Posts (Independiente × Boca), Running The Show (Empoli de Andreazzoli), Breaking The Lines (Morgan Rogers; ganhos marginais), The False 9 (marcação por zona no escanteio), Barcelona × Real Madrid de Mourinho. Todos lidos por inteiro. **Nenhuma mecânica nova**; ajustes só em metas (seção B: enfiadas, xG por chute, drible).
+
+- **Confirma A4:** "atrair antes de atacar" (a virada sem antes puxar o adversário dá tempo para a defesa bascular), virada dupla de lateral a lateral com no máximo dois toques, a bola tem que chegar rápida e no pé de trás, o ponta do lado fraco precisa ficar lá (Coaches' Voice). O Empoli defende só em volta da bola e ignora quem está longe; o jogador aberto e isolado é mais fácil de defender, porque a defesa corre enquanto a bola viaja.
+- **Confirma A2:** o Empoli atrai a pressão com os laterais baixos para receber atrás dela, e o up-back-through do losango escalonado sai em diagonal.
+- **Confirma a seção 10:** interceptar dá um contra mais limpo que desarmar (o Empoli prefere interceptar); o Real de Mourinho com 38% de posse teve 5 contra-ataques contra 2, chutou 10 contra 18 e ganhou com a linha alta do Barcelona.
+- **Confirma a meta de gols depois dos 75':** pernas cansadas, bloco menos compacto, jogo aberto (Independiente × Boca). O motor já tira eficácia pela energia.
+- **Metas:** PPDA de quem pressiona 7,7 (Barcelona de Flick); Rodri 91% de acerto sendo o jogador mais pressionado da liga; chutes no alvo de centroavante ~49% (Lewandowski); gols de bola parada ~0,65 por jogo na Premier League daquela temporada.
+- **Estacionado:**
+  - notas de jogador por posição em escore padronizado, com 6 partes (chute, passe, posse, defesa, ataque, goleiro), e "adversários ultrapassados pelo passe" como crédito ao construtor: para a memória `rever-notas-jogadores`;
+  - força dos times por Elo com 80% do placar e 20% do xG: ideia para ranking de clubes, fora da grade;
+  - marcação por zona × individual no escanteio: para a ideia "defesa no escanteio", já estacionada.

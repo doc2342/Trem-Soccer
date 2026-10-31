@@ -233,8 +233,8 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 | | "Território sem xG": o time concentrado nas faixas 1–2 tem posse e pouco xG | TFA |
 | Lote de conceitos (31/10) | Passes na jogada que termina em gol: média ~3,9; time de transição ~2,5 | Liga dos Campeões, Liverpool de Klopp |
 | | Acerto de passe por posição: volante 90–96%, zagueiro construtor 89–91%, ponta driblador 73–85% | scouts do TFA |
-| | Drible certo dos atacantes 37–55%; enfiadas ~1–4 por time por jogo, ~30% certas | TFA, Opta |
-| | Chutes no alvo 37–54%; xG por chute ~0,19 só no melhor ataque (teto) | Opta, TFA |
+| | Drible certo dos atacantes 32–57%; enfiadas ~2–6 por time por jogo, ~30% certas | TFA, Opta, Coaches' Voice |
+| | Chutes no alvo 37–54%; xG por chute 0,11–0,12 na média da liga, ~0,19 só no melhor ataque (teto) | Opta, TFA |
 | | PPDA sofrido 10–15; roubadas no terço final ~7 por jogo no time que mais pressiona | Premier League 25/26, Brighton |
 | Papéis | Os outros 3 papéis de lateral/ala perto do padrão em pontos por jogo | sim_papeis_laterais |
 | Valor das posições | Não piorar o equilíbrio de hoje (o zagueiro, em 41%, se corrige na etapa dos zagueiros) | plano dos papéis |
@@ -320,5 +320,5 @@ Metas já cumpridas hoje que **não podem piorar**: gols de contra-ataque, conve
 - `2026-10-31-grade-5x5-fontes-passe-driblab.md`: acerto de passe e Driblab.
 - `2026-10-31-grade-5x5-fontes-lote-tfa.md`: 80 PDFs do The Football Analyst e outros, incluindo a seção G2 de métricas.
 - `2026-10-31-grade-5x5-fontes-lote-html.md`: 36 HTMLs (segunda bola, cut-back, combinações, passe por dificuldade, 4-2-3-1, transições).
-- `2026-10-31-grade-5x5-fontes-lote-conceitos.md`: 43 textos do TFA e do TheMastermindSite (pressão no lado, passe para trás, meio em caixa, virada, arrasto, rest-defense, metas por posição).
+- `2026-10-31-grade-5x5-fontes-lote-conceitos.md`: 43 textos do TFA e do TheMastermindSite (pressão no lado, passe para trás, meio em caixa, virada, arrasto, rest-defense, metas por posição) e mais 11 do último lote (Coaches' Voice, Opta, Empoli), que só confirmaram.
 - Memória do pacote tático/transição: R1, R4, R5, G2, metas de contra-ataque, half-spaces do Athletic e Marić, mapas de xG por zona.
