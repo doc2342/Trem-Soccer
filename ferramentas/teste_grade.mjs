@@ -2,7 +2,7 @@
 // Uso: node ferramentas/teste_grade.mjs
 import assert from "node:assert";
 import { ZONAS_GRADE, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, ehGrade, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto,
-  tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, LIMITE_DE_PASSOS } from "../src/grade.js";
+  tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, segundaBola, LIMITE_DE_PASSOS } from "../src/grade.js";
 import { criarRng } from "../src/rng.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { IDX } from "../src/modelo.js";
@@ -187,5 +187,14 @@ assert.deepStrictEqual(["5E", "5e", "5C", "5d", "5D"].map(z => valorDaZona(z, V)
   assert.ok(perto(imp({ tipo: "voltar", folga: 0.3, pressaoAdv: 2 }).logit, Math.max(emb, V.atrairPressao * 2)));
 }
 assert.strictEqual(LIMITE_DE_PASSOS, 12);
+
+// Tarefa 8: segunda bola pela presença, com o acaso segurando: igual dá ~50%; 3× mais presença fica abaixo de 85%; sem ninguém, 50%
+{
+  const r = criarRng(8), V = CONFIG.gradeValores, taxa = (a, b) => { let n = 0; for (let k = 0; k < 10000; k++) n += segundaBola(r, a, b, V); return n / 10000; };
+  assert.ok(Math.abs(taxa(1, 1) - 0.5) < 0.02);
+  const t3 = taxa(3, 1);
+  assert.ok(t3 > 0.6 && t3 < 0.85, `3x: ${t3}`);
+  assert.ok(Math.abs(taxa(0, 0) - 0.5) < 0.02);
+}
 
 console.log("teste_grade: ok");

@@ -1,5 +1,6 @@
 // Grade 5×5 no motor: força por zona na grade em recalcular/avaliarZonas (Tarefa 3; sem a grade, nada muda; com ela, só chaves da grade, sem NaN),
-// a defesa que o atacante enfrenta (Tarefa 4) e a jogada na grade, ligada na T1 (Tarefa 6).
+// a defesa que o atacante enfrenta (Tarefa 4), a jogada na grade, ligada na T1 (Tarefa 6), o fim por corredor (Tarefa 7) e o terceiro homem,
+// a bola longa e a segunda bola (Tarefa 8).
 // Uso: node ferramentas/teste_grade_motor.mjs
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -92,7 +93,12 @@ assert.strictEqual(CONFIG.grade, false);
     }
   } finally { CONFIG.gradeValores.armadilhaLado = armadilha; }
   const ms = (performance.now() - t0) / 300;
-  assert.ok(ms < 3 * 4.1 * 1.5, `custo da grade: ${ms.toFixed(1)} ms por jogo`);
+  // a régua é a T0 (9 zonas) medida agora, nos mesmos times: o tempo absoluto muda com a carga da máquina (4,1 ms na régua de antes da grade, ~2,5 depois)
+  const t9 = performance.now();
+  for (let s = 1; s <= 300; s++) simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b, instrucoes: { pressao: 2 } }), { regrasT1: false });
+  const ms9 = (performance.now() - t9) / 300;
+  if (process.env.MEDIR) console.log("custo", ms.toFixed(1), "T0", ms9.toFixed(1));
+  assert.ok(ms < 3 * 4.1 / 2.5 * ms9 * 1.5, `custo da grade: ${ms.toFixed(1)} ms por jogo (T0 ${ms9.toFixed(1)} ms)`);
   // A1: a pressão encurrala no lado: com a armadilha, a bola se perde mais nos corredores de lado
   assert.ok(perdaNoLado[1][0] / perdaNoLado[1][1] > perdaNoLado[0][0] / perdaNoLado[0][1], `A1: ${JSON.stringify(perdaNoLado)}`);
   // A4: no mesmo destino (3D), a virada vinda do 3E pega a defesa ainda arrumada do outro lado; o passe de uma coluna, vindo do 3d, já a encontra no lugar
@@ -128,9 +134,11 @@ assert.strictEqual(CONFIG.grade, false);
   const instr = () => ({ mentalidade: r.int(-2, 2), pressao: r.int(0, 2), passe: um(["misto", "curto", "longo"]), lado: um(["misto", "E", "C", "D", "lados"]),
     finalizar: um(["misto", "longe", "area"]), cruzamento: um(["misto", "alto", "rasteiro"]), contraAtaque: r.chance(0.3), impedimento: r.chance(0.3) });
   const porZona = {}, porTipo = {}, xgTipo = {};
-  let cutbacks = 0, toques = 0; const cruz = [0, 0];
+  let cutbacks = 0, toques = 0; const cruz = [0, 0], T8 = {};
   for (let s = 1; s <= 2000; s++) {
     const q = jogo(onze(um(formacoes), 3000 + s), onze(um(formacoes), 4000 + s), s, instr(), instr());
+    for (const e of q.estat) for (const k of ["tabelas", "terceiros", "aereos", "segundas", "longas", "sobras"]) { const t = T8[k] = T8[k] || [0, 0]; t[0] += e.grade[k][0]; t[1] += e.grade[k][1]; }
+    for (const l of q.lances) for (const r of l.rota || []) assert.ok(ehGrade(r[0]) && ehGrade(r[1]) && typeof r[5] === "boolean");
     for (const e of q.estat) { cutbacks += e.grade.cutbacks[0]; toques += e.grade.toquesArea; cruz[0] += e.grade.cruzamentos[0]; cruz[1] += e.grade.cruzamentos[1]; }
     for (const l of q.lances) {
       if (!l.zona) continue; // bola parada
@@ -151,11 +159,28 @@ assert.strictEqual(CONFIG.grade, false);
   assert.ok((porZona["4E"] || {}).cruzamento > 0 || (porZona["4D"] || {}).cruzamento > 0, "cruzamento antecipado");
   assert.ok(Object.keys(porZona).filter(z => z[0] === "4").every(z => ["4E", "4D", "4C"].includes(z)), "faixa 4 só de lado e zona 14");
   assert.ok(toques > 0);
+  // Tarefa 8: aparecem tabelas, terceiros homens, duelos aéreos, segundas bolas (da bola longa e do cruzamento afastado), cada uma ganha às vezes
+  for (const [k, [n, g]] of Object.entries(T8)) assert.ok(n > 0 && g > 0 && g < n, `${k}: ${n}/${g}`);
+  assert.strictEqual(T8.longas[0], T8.aereos[0]); // toda bola longa tem o duelo aéreo
+  assert.strictEqual(T8.longas[1], T8.segundas[1]); // e quem fica com a segunda bola fica com o lançamento
   if (process.env.MEDIR) {
     console.log(Object.fromEntries(Object.keys(porTipo).map(t => [t, `${(100 * porTipo[t] / soma(porTipo)).toFixed(1)}% xG ${(xgTipo[t] / porTipo[t]).toFixed(3)}`])));
     console.log(Object.fromEntries(Object.entries(porZona).map(([z, o]) => [z, JSON.stringify(o)])));
+    console.log(Object.fromEntries(Object.entries(T8).map(([k, [n, g]]) => [k, `${(n / 4000).toFixed(2)} por time, ${(100 * g / n).toFixed(0)}%`])));
     console.log("toques na área por time e jogo", (toques / 4000).toFixed(1), "cutbacks", (cutbacks / 4000).toFixed(2), "cruzamentos", (cruz[0] / 4000).toFixed(1), "certos", (100 * cruz[1] / cruz[0]).toFixed(1) + "%");
   }
+}
+
+// Tarefa 8: o bônus do terceiro homem cresce contra a pressão e quase some contra a retranca. Isolado (bônus ampliado ligado × desligado, mesmas
+// sementes): a contagem crua dá o contrário (contra a retranca o time vive no campo de ataque; contra a pressão a volta é roubada, o lado ruim)
+{
+  const jogo = (a, b, s, ib) => simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }));
+  const a = onze("4-2-3-1", 1), b = onze("4-4-2", 2), T = CONFIG.gradeValores.terceiro, b0 = T.bonus;
+  const acerto = (ib, bonus) => { T.bonus = bonus; const t = [0, 0]; for (let s = 1; s <= 150; s++) { const g = jogo(a, b, s, ib).estat[0].grade.terceiros; t[0] += g[0]; t[1] += g[1]; } return t[1] / t[0]; };
+  try {
+    const ganho = ib => acerto(ib, 2) - acerto(ib, 0), pressao = ganho({ pressao: 2 }), retranca = ganho({ mentalidade: -2 });
+    assert.ok(pressao > retranca + 0.1, `terceiro homem: ganho contra a pressão ${pressao.toFixed(2)}, contra a retranca ${retranca.toFixed(2)}`);
+  } finally { T.bonus = b0; }
 }
 
 console.log("teste_grade_motor: ok");

@@ -71,5 +71,10 @@ const textos = (a, b, n) => { let t = ""; for (let s = 1; s <= n; s++) t += simu
 const rivais = onze("4-4-2", 31), papeisNarrados = textos(comPapel(onze("4-2-3-1", 30), { DR: "apoiador", DL: "invertido" }), rivais, 40);
 assert.ok(/chega ao fundo e cruza/.test(papeisNarrados), "cruzamento do Apoiador");
 assert.ok(/fecha por dentro/.test(papeisNarrados), "Invertido por dentro");
-assert.ok(/pelas costas de .*, que tinha subido/.test(papeisNarrados), "contra-ataque pelas costas do lateral");
+// ~1 a cada 50 jogos (perda no lado do meio com o lateral que subiu e contra-ataque), e nenhum nas sementes baixas desde a Tarefa 8 da grade:
+// procura até a semente 400 e para no primeiro
+const costas = () => { const a = comPapel(onze("4-2-3-1", 30), { DR: "apoiador", DL: "invertido" });
+  for (let s = 1; s <= 400; s++) if (simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: rivais })).narracao.some(l => /pelas costas de .*, que tinha subido/.test(l.texto))) return true;
+  return false; };
+assert.ok(/pelas costas de .*, que tinha subido/.test(papeisNarrados) || costas(), "contra-ataque pelas costas do lateral");
 assert.ok(!/chega ao fundo e cruza|fecha por dentro|que tinha subido/.test(textos(onze("4-2-3-1", 30), rivais, 40)), "sem papel, nada disso");
