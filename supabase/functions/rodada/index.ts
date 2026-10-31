@@ -567,6 +567,8 @@ const __motor = (() => {
     pesoArmador: 2, pesoAlvo: 1.8,
     comunicacaoGoleiro: 0.002, // por ponto de Comunicação do goleiro acima de 25: defesa do centro
     excentricidade: 0.1, // desvio da defesa do goleiro por ponto de Excentricidade
+    // só narração (não mexe em nada do jogo): faixas da chance de gol do chute que foi no gol, e o frango quando a Excentricidade aumentou a chance em `frango` vezes
+    narracaoDefesa: { facil: 0.2, boa: 0.4, milagre: 0.6, frango: 1.1 },
 
     calor: 0.2, // calor forte: fração a mais de energia gasta por minuto
     // Entrosamento: recém-chegado (j.entrosar = jogos do clube que faltam, de 8 a 0) tira rendimento do setor inteiro em que joga;
@@ -1045,7 +1047,8 @@ const __motor = (() => {
     const qual = pe === "D" ? "de canhota" : pe === "E" ? "de direita" : c.lado === "D" ? "de direita" : "de canhota";
     return pf <= 6 ? ` ${qual}, o pé ruim` : ` ${qual}, como se fosse o pé bom`;
   }
-  function narrar(c, resultado, goleiro, nm) {
+  // noAlvo: chance de gol do chute que foi no gol (decide defesa fácil, boa ou milagre); falha: chance com a Excentricidade do goleiro ÷ sem ela (o frango)
+  function narrar(c, resultado, goleiro, nm, noAlvo = 0.3, falha = 1) {
     const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado];
     const inicio = {
       cruzamento: `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} cabeceia`}`,
@@ -1057,9 +1060,11 @@ const __motor = (() => {
       falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
       penalti: `${f} cobra o pênalti`,
     }[c.tipo] + peRuimNarrado(c);
+    const N = CONFIG.narracaoDefesa, gk = goleiro && nm(goleiro);
     const fim = {
-      gol: "GOL!",
-      defesa: c.goleiroSaiu ? "a zaga salva em cima da linha." : goleiro ? `${nm(goleiro)} defende.` : "a defesa fica com a bola.",
+      gol: gk && c.tipo !== "penalti" && falha >= N.frango && noAlvo < N.facil * 2 ? `GOL! Falha de ${gk}, que aceita um chute defensável!` : "GOL!",
+      defesa: c.goleiroSaiu ? "a zaga salva em cima da linha." : !gk ? "a defesa fica com a bola." : c.tipo === "penalti" ? `${gk} pega o pênalti!`
+        : noAlvo >= N.milagre ? `${gk} faz um milagre!` : noAlvo >= N.boa ? `${gk} faz grande defesa!` : noAlvo < N.facil ? `${gk} defende sem dificuldade.` : `${gk} defende.`,
       fora: "a bola sai pela linha de fundo.",
       trave: "na trave!",
       bloqueado: c.zagueiro ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.",
@@ -1311,7 +1316,8 @@ const __motor = (() => {
       const alvo = Math.max(limitar(S.alvo * pe + CONFIG.semGol.alvoPorGol * pGol, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
       const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
         : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
-      return { resultado, xg, chanceDeGol };
+      // para a narração: a chance de gol do chute que foi no gol (difícil ou fácil para o goleiro) e quanto a Excentricidade o piorou no lance
+      return { resultado, xg, chanceDeGol, noAlvo: pGol / ((1 - S.bloqueado) * alvo), falha: xg > 0 ? pGol / xg : 1 };
     }
 
     function finalizar(i, c) {
@@ -1331,14 +1337,14 @@ const __motor = (() => {
           c.goleiroSaiu = true; c.defesa = G.vazio;
         }
       }
-      const { resultado, xg, chanceDeGol } = chutar(c, def.goleiro);
+      const { resultado, xg, chanceDeGol, noAlvo, falha } = chutar(c, def.goleiro);
       e.chances++; e.xg += xg; e.finalizacoes++;
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
       if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm)), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha)), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio)) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
     }
 
