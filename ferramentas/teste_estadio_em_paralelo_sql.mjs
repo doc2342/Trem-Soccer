@@ -27,4 +27,14 @@ assert.deepEqual(await q(`select clube_id, rodadas_restantes r, round(extract(ep
 await q(`insert into obras (clube_id, estrutura, nivel_alvo, custo, rodadas_total, rodadas_restantes) values (1, 'estadio', 2, 1500, 3, 3)`);
 await assert.rejects(q(`insert into obras (clube_id, estrutura, nivel_alvo, custo, rodadas_total, rodadas_restantes) values (1, 'medico', 1, 250, 1, 1)`), /obras_uma_por_canteiro/);
 await assert.rejects(q(`insert into obras (clube_id, estrutura, nivel_alvo, custo, rodadas_total, rodadas_restantes) values (1, 'estadio_modelo', 8, 15000, 21, 21)`), /obras_uma_por_canteiro/);
+// 170: as obras de antes vão para a escala nova (o que falta × prazo novo ÷ antigo, dias cheios para baixo, mínimo 1), uma vez só
+const s170 = fs.readFileSync(new URL("../supabase/170_obras_na_escala_nova.sql", import.meta.url), "utf8");
+await db.exec(`create function prazo_da_reforma(p_nivel int) returns int language sql as $$ select greatest(1, prazo_da_obra(least(8, greatest(1, p_nivel))) / 2) $$;
+  insert into clubes values (3, 1), (4, 1);
+  insert into obras (clube_id, estrutura, nivel_alvo, custo, rodadas_total, rodadas_restantes, termina_em) values
+    (3, 'estadio', 2, 1500, 4, 3, now() + interval '3 days'), (4, 'base', 2, 500, 4, 2, now() + interval '2 days')`);
+await db.exec(s170); await db.exec(s170);
+assert.deepEqual(await q(`select clube_id, estrutura, rodadas_total t, rodadas_restantes r, round(extract(epoch from termina_em - now()) / 3600) h from obras where clube_id > 1 or estrutura = 'estadio' order by id`),
+  [{ clube_id: 2, estrutura: "base", t: 1, r: 0, h: "-12" }, { clube_id: 1, estrutura: "estadio", t: 3, r: 3, h: null },
+   { clube_id: 3, estrutura: "estadio", t: 3, r: 2, h: "48" }, { clube_id: 4, estrutura: "base", t: 3, r: 1, h: "24" }]);
 console.log("teste_estadio_em_paralelo_sql: ok");
