@@ -53,3 +53,34 @@ Cruzamentos certos por time e jogo: média **~4,3** (3,1 Ipswich a 6,3 Fulham); 
 (8,7) conta passos certos na faixa 5, não toques: na Tarefa 12, comparar com cuidado (cada passo na área = vários toques). Gols por jogo
 0,7–2,3. Outras abas úteis para a Tarefa 12: grandes chances, gols de bola parada, posse recuperada no terço final, passes longos, xG.
 Temporadas 2016/17 a 2026/27 no seletor.
+
+### FotMob, Premier League em 5 temporadas (links do dono)
+
+| Temporada | Certos por jogo | Acerto |
+|---|---|---|
+| 2021/22 | 4,00 | 22,5% |
+| 2022/23 | 4,13 | 23,9% |
+| 2023/24 | 4,18 | 24,0% |
+| 2024/25 | 4,26 | 24,1% |
+| 2025/26 | 4,25 | 23,5% |
+| **Média** | **4,2** | **23,6%** (≈ 18 tentados) |
+
+Por time: acerto de 17,6% (Leicester 21/22) a 28,5% (Newcastle 22/23); certos de 2,6 a 6,3 por jogo. Faltam outras ligas (Brasileirão).
+
+### FotMob, outras ligas (links do dono)
+
+| Liga | Certos por jogo | Acerto | Faixa por time (acerto) |
+|---|---|---|---|
+| Brasileirão 2025 | 4,56 | 24,5% | 20,8 Cruzeiro – 28,1 Botafogo |
+| Brasileirão 2024 | 4,51 | 23,8% | 18,9 Cruzeiro – 27,4 Bahia |
+| Série B 2025 | 4,82 | 24,0% | 21,6 – 27,7 |
+| Copa do Brasil 2025 (9 times listados) | 4,49 | 22,2% | 16,0 – 26,7 |
+| La Liga 25/26 | 4,26 | 24,2% | 21,3 – 26,9 |
+| Bundesliga 25/26 | 4,48 | 25,1% | 19,5 – 29,5 |
+| Serie A 25/26 | 4,26 | 24,9% | 20,4 – 29,9 |
+| Champions 25/26 | 3,64 | 24,4% | 14,5 – 35,6 |
+
+**Conclusão:** acerto ~24% em toda liga; o Brasil cruza um pouco mais (~19 tentados contra ~18). Meta da Tarefa 12: **~18 cruzamentos
+tentados por time e jogo, ~24% certos, faixa por time 19–30%**. Ids de temporada do FotMob (para outras abas): Premier 16390 (21/22),
+17664, 20720, 23685, 27110 (25/26); Brasileirão 22978 (2024), 25077 (2025); Série B 25150; Copa do Brasil 25050; La Liga 27233;
+Bundesliga 26891; Serie A 27044; Champions 28184. URL: /pt-BR/leagues/{liga}/stats/season/{id}/teams/{aba}.
