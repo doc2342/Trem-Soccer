@@ -130,14 +130,15 @@ export const CONFIG = {
   narrarPerda: { D: 0.12, M: 0.18, A: 0.6 }, // fração das perdas de posse que entra na narração, por linha do campo
 
   // faltas, cartões, lesões e bola parada
-  falta: 0.147, // por duelo (alvo: 22 faltas por jogo, com os acréscimos); era 0,12 com 0,85 ataque por minuto
+  falta: 0.153, // 0,147 até 31/10/2026, quando quem tem amarelo passou a fazer menos falta; por duelo (alvo: 22 faltas por jogo, com os acréscimos); era 0,12 com 0,85 ataque por minuto
   faltaPorAgressividade: 0.2, // por nível: 0,6x a 1,4x faltas entre -2 e +2
   // Quem faz a falta: sem isto, quem cobre uma zona sozinho (meia e lateral) levava mais cartão que volante e zagueiro, ao contrário do futebol
   // real (volante, zagueiro e meio-campo na frente; ponta e meia de lado atrás). Ajustado com ferramentas/sim_cartoes.mjs.
   faltaPorPosicao: { DC: 1.6, SW: 1.6, DMC: 1.3, MC: 1.2, DR: 0.83, DL: 0.83, WBR: 0.8, WBL: 0.8, MR: 0.53, ML: 0.53, AMC: 0.77, AMR: 0.71, AML: 0.71, RW: 0.71, LW: 0.71, FC: 0.83, SC: 1.3 },
   // T14 com 0,47 e 0,003: 4,9 amarelos e 0,23 vermelho por jogo; meta agora de 4 amarelos e 0,2 vermelho (ferramentas/sim_jogo.mjs, 26/10/2026)
   amarelo: 0.37, amareloPorAgressividade: 0.1, vermelhoDireto: 0.004,
-  cuidadoComAmarelo: 0.12, // quem já tem amarelo se segura: multiplicador da chance do segundo
+  cuidadoComAmarelo: 0.16, // era 0,12 antes do faltaComAmarelo (31/10/2026: 2º amarelo 0,11 → 0,09 por jogo, vermelho direto 0,08); o juiz alivia o segundo: multiplicador da chance de amarelo na falta de quem já tem um
+  faltaComAmarelo: 0.6, // e quem já tem amarelo se segura: faz menos faltas (multiplicador da chance de falta no duelo)
   amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
   segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
   lesao: 0.0026, // era 0,0023 com 0,85 ataque por minuto; por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
@@ -817,7 +818,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
     const folga = tatico + fraco + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
     const p = 1 / (1 + Math.exp(-(CONFIG.baseDuelo[zona[0]] + logit + folga)));
     let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false;
-    if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1))) {
+    if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1))) {
       falta(1 - i, marcador, pivo); comFalta = true;
       // falta no ataque vira bola parada; atrás, quem ganhava segue, e quem perdia fica com a bola e recomeça do mesmo setor (sem faltaRecomeca, a falta dava o duelo)
       if (zona[0] === "A") parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;
