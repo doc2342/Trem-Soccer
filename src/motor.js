@@ -238,9 +238,14 @@ export const CONFIG = {
       antecipado: { valor: 0.025, xg: 0.8, contra: 1.4, linhaAlta: 1.25 }, chutar: 0.02,
       // acerto do cruzamento (meta 20–25% certos): logit = base + cruzador × (Cruzamento − 25) / 25 + inclinacao × ln((nossos + vazio) / (deles + vazio)),
       // quem ganha a bola = Posicionamento + Força no alto, Posicionamento + Velocidade no chão (pacote aéreo de 29/10), o goleiro sai (goleiro ×
-      // Encaixe/Um contra um); menos afobado (o forçado) e antecipado (chega menos gente); errado vira perda de bola, escanteio às vezes; cego: peso
-      // com que o mau decisor cruza mesmo com a área vazia (o bom evita), pela Decisão de 15 (todo) a 35 (nada)
-      cruzamento: { base: -0.5, cruzador: 0.6, inclinacao: 1, vazio: 3, goleiro: 0.3, afobado: 0.6, antecipado: 0.3, escanteio: 0.15, cego: 0.4 } },
+      // Encaixe/Um contra um); menos afobado (o forçado); errado vira perda de bola, escanteio às vezes; cego: peso com que o mau decisor cruza mesmo
+      // com a área vazia (o bom evita), pela Decisão de 15 (todo) a 35 (nada). Fontes de cruzamento (31/10, aprovadas P1–P6): cruzador pesa mais
+      // (o bom acerta 30–40%, média 23,6%); pressao: menos × marcação/(marcação + vazio) na zona de quem cruza; peRuim: menos × fraqueza do pé de
+      // quem cruza da linha de fundo do lado trocado; ladoFraco: parte do lado oposto da faixa 1 (lateral do lado fraco, ponta que volta) na defesa
+      // da área; linhaAlta: a defesa da área × isso contra linha alta; virada: e × isso no antecipado do contra-ataque ou contra linha alta (a zaga
+      // corre de frente para o próprio gol)
+      cruzamento: { base: 0, cruzador: 1.0, inclinacao: 1, vazio: 3, goleiro: 0.3, afobado: 0.6, escanteio: 0.15, cego: 0.4,
+        pressao: 0.6, peRuim: 0.5, ladoFraco: 0.6, linhaAlta: 0.85, virada: 0.85 } },
   },
   contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
   // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
@@ -620,7 +625,7 @@ const cegueira = at => limitar((35 - decisao(at)) / 20, 0, 1);
 // Com a grade (zona = onde a jogada termina, buracos = o que a cobertura emprestada abriu), a mistura vem do corredor (spec 8): 5C área, profundidade
 // e longe; meio-espaço da faixa 5 cutback, enfiada e o corte (raro); lado da faixa 5 cruzamento da linha de fundo e cutback; 4E/4D o cruzamento
 // antecipado; 4C (zona 14) o chute de longe. Sem zona, o de sempre.
-function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = false, superados = null, zona = null, buracos = null } = {}) {
+function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = false, superados = null, zona = null, buracos = null, marcacao = 0 } = {}) {
   const area = naArea(atk), x = CONFIG.xgBase, k = CONFIG.inclinacaoXg, I = atk.instr;
   const alvoAereo = area.reduce((s, o) => s + o.w * media(o.jog.at[A.cab], o.jog.at[A.for]), 0) / 30;
   const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
@@ -664,9 +669,15 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
     const Cz = CONFIG.cruzamento;
     if (zona) { // na grade o cruzamento pode não achar ninguém (o mais comum no futebol): a área vazia, a zaga ou o goleiro chegam antes
       const CZ = G.cruzamento, ganha = j => j.at[A.pos] + (c.rasteiro ? j.at[A.vel] : j.at[A.for]);
-      const nos = area.reduce((s, o) => s + o.w * ganha(o.jog), 0) / 2, eles = naZaga(def).reduce((s, o) => s + o.w * ganha(o.jog), 0) / 2 + (gk ? CZ.goleiro * media(gk[A.enc], gk[A.um]) : 0);
+      const fraco = def.zonasDef[lado === "E" ? "1E" : "1D"] || []; // o lado oposto da faixa 1 de quem defende (o espelho troca os lados)
+      const alta = def.instr.impedimento || def.instr.mentalidade > 0;
+      const nos = area.reduce((s, o) => s + o.w * ganha(o.jog), 0) / 2;
+      const eles = ((naZaga(def).reduce((s, o) => s + o.w * ganha(o.jog), 0) + CZ.ladoFraco * fraco.reduce((s, o) => s + o.w * ganha(o.jog), 0)) / 2
+        * (alta ? CZ.linhaAlta : 1) * (!f5 && (contra || alta) ? CZ.virada : 1) + (gk ? CZ.goleiro * media(gk[A.enc], gk[A.um]) : 0));
       c.vazia = !area.length;
-      const l = CZ.base + CZ.cruzador * (pivo.at[A.cru] - 25) / 25 + CZ.inclinacao * Math.log((nos + CZ.vazio) / (eles + CZ.vazio)) - (forcado ? CZ.afobado : 0) - (f5 ? 0 : CZ.antecipado);
+      const pf = pivo.j.pf, trocado = f5 && pf != null && (pivo.j.pe === "E" || pivo.j.pe === "D") && pivo.j.pe !== lado; // da linha de fundo, sem tempo de ajeitar
+      const l = CZ.base + CZ.cruzador * (pivo.at[A.cru] - 25) / 25 + CZ.inclinacao * Math.log((nos + CZ.vazio) / (eles + CZ.vazio)) - (forcado ? CZ.afobado : 0)
+        - CZ.pressao * marcacao / (marcacao + CZ.vazio) - (trocado ? CZ.peRuim * fraquezaDoPe(pf) : 0);
       if (!f5) c.antecipado = true;
       if (c.vazia || !rng.chance(1 / (1 + Math.exp(-l)))) { c.errado = true; return c; }
     }
@@ -1266,7 +1277,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           const o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, portador ? decisao(portador.at) : 25, G, sortearPeso);
           // rede de segurança (ou opção nenhuma): não acha espaço, perde a bola ou roda, como nas 9 zonas
           if (!o) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
-          if (o.fim) { e.corredor[ladoDaZona(atual)]++; return fimDaChance(criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos })); }
+          if (o.fim) { e.corredor[ladoDaZona(atual)]++; return fimDaChance(criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka) })); }
           const para = o.para, lado = ladoDaZona(para), naFaixa5 = faixaDe(para) === 5;
           if (naFaixa5) e.corredor[lado]++;
           const d = duelo(i, para, logitDe(o, true), contra, { dz: defesaNo(o.i), quem: o.conduzir ? portador : null });
@@ -1292,7 +1303,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
             const forcado = !d.venceu;
             if (forcado && lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
             if (forcado && !rng.chance(CONFIG.chuteForcado * ((CONFIG.finalizar[atk.instr.finalizar] || {}).forcado || 1))) return perda(para);
-            const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra, superados, zona: para, buracos });
+            const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado, contra, superados, zona: para, buracos, marcacao: defesaNo(o.i) });
             if (!forcado && chance && chance.xg) chance.xg = limitar(chance.xg * (1 + CONFIG.embalo.chance * embalo(d) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo);
             return fimDaChance(chance);
           }
