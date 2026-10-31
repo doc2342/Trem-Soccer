@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { criarRng } from "../src/rng.js";
 import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
-import { avaliarZonas, defesaNaTransicao, CONFIG } from "../src/motor.js";
+import { avaliarZonas, defesaNaTransicao, defesaVistaNaGrade, CONFIG } from "../src/motor.js";
 import { ZONAS_GRADE } from "../src/grade.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
@@ -47,5 +47,21 @@ try {
 // erro no meio da conta não deixa a grade ligada
 assert.throws(() => avaliarZonas(null, {}, { grade: true }));
 assert.strictEqual(CONFIG.grade, false);
+
+// Tarefa 4: as 5 arrumações e a da transição, cada uma { dz, buracos }; a do centro conserva a defesa
+{
+  const r = defesaVistaNaGrade(onze("4-2-3-1", 7), onze("4-4-2", 8, { DR: "invertido" }));
+  assert.strictEqual(CONFIG.grade, false);
+  for (const c of ["E", "e", "C", "d", "D", "T"]) {
+    assert.deepStrictEqual(Object.keys(r[c].dz).sort(), ZONAS_GRADE.slice().sort(), c);
+    assert.ok(Object.values(r[c].dz).every(v => Number.isFinite(v) && v >= 0), c);
+    assert.ok(r[c].buracos.profundidade >= 1 && r[c].buracos.cruzamento >= 1, c);
+  }
+  const soma = m => Object.values(m).reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(soma(r.C.dz) - soma(r.def)) < 1e-6);
+  assert.notDeepStrictEqual(r.E.dz, r.D.dz);
+  const estr = defesaVistaNaGrade(estranha, onze("3-5-2 com alas", 4));
+  assert.ok(["E", "e", "C", "d", "D", "T"].every(c => Object.values(estr[c].dz).every(Number.isFinite)));
+}
 
 console.log("teste_grade_motor: ok");

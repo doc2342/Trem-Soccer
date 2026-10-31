@@ -7,7 +7,7 @@ import { limitar } from "./rng.js";
 import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
 import { mapasDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } from "./papeis.js";
-import { ZONAS_GRADE, linhaDaZona, ladoDaZona, corredorDe, faixaDe, manchasDoTime, espelharGrade } from "./grade.js";
+import { ZONAS_GRADE, CORREDORES, linhaDaZona, ladoDaZona, corredorDe, faixaDe, colunaDe, manchasDoTime, espelharGrade, defesaVista } from "./grade.js";
 
 export const CONFIG = {
   ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
@@ -202,10 +202,17 @@ export const CONFIG = {
   //   compactacao: a defesa de cada zona da faixa k (2 a 5) só vale até razao vezes a da faixa k−1 no mesmo corredor (o bolsão entre as linhas)
   //   pesoPosse: peso de cada corredor das faixas 2–3 no controle do meio (d = e, D = E)
   //   passagemPorDentro: o mesmo de papeis.passagemPorDentro, na grade (o Apoiador com ponta aberto na frente passa pelo meio-espaço)
+  //   defesa que o atacante enfrenta (defesaVista, spec 9.1–9.2): vazio, o zonaVazia de sempre; basculacao, o de sempre, dos 2 corredores livres
+  //   para os 3 da bola; zonaCinza, parte que fica no meio-espaço oposto com a bola no meio-espaço; vazia (× a média da faixa) e ameaca (ataque ×
+  //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
+  //   quando o zagueiro/o lateral sai para cobrir; basculacaoRapidez: a defesa bascula com um passo de atraso (Posicionamento e Trabalho em equipe);
+  //   arrasto: folga do duelo que arrasta o cobridor (a do narrar do embalo) e quanto o meio-espaço vizinho perde quando o ponta bate o lateral
   grade: false,
   gradeValores: {
     lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
     passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
+    vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
+    basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
   },
   contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
   // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
@@ -435,6 +442,7 @@ function recalcular(t, saldo) {
     }
     t.defLado[l] = d;
   }
+  if (grade) { t.defLado.e = t.defLado.E; t.defLado.d = t.defLado.D; } // na grade, a bola no meio-espaço conta como a do lado vizinho
   const linha = grade ? ["1e", "1C", "1d"].flatMap(z => t.zonasDef[z]) : t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
   t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
   const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
@@ -488,6 +496,16 @@ export function avaliarZonas(escalacao, instrucoes = {}, { grade = false } = {})
   } finally { CONFIG.grade = antes; }
 }
 
+// Defesa que o ataque de escAtk enfrenta contra escDef na grade (as 5 arrumações e a da transição), descansada. Serve aos testes.
+export function defesaVistaNaGrade(escAtk, escDef, instrAtk = {}, instrDef = {}) {
+  const antes = CONFIG.grade;
+  CONFIG.grade = true;
+  try {
+    const [a, d] = [[escAtk, instrAtk], [escDef, instrDef]].map(([escalacao, instrucoes]) => { const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes })); recalcular(t, 0); return t; });
+    return { ...defesaDoCorredor(a, d), def: d.def };
+  } finally { CONFIG.grade = antes; }
+}
+
 function sortearPeso(rng, lista, peso) {
   let total = 0;
   const pesos = lista.map(x => { const p = Math.max(0, peso(x)); total += p; return p; });
@@ -524,7 +542,18 @@ function montarDefesa(atk, def, defZ = def.def) {
 }
 
 // Defesa que o atacante enfrenta em cada corredor dele (o corredor E do atacante é o lado D de quem defende); o C escolhe o lado do lance
+// Na grade: as 5 arrumações (corredor da bola, do atacante) e a da transição, cada uma { dz, buracos }
 function defesaDoCorredor(atk, def) {
+  if (CONFIG.grade) {
+    const posicionamento = Object.fromEntries(ZONAS_GRADE.map(z => {
+      const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0);
+      return [z, w ? q.reduce((s, o) => s + o.w * o.jog.at[A.pos], 0) / w : 0];
+    }));
+    const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores });
+    const r = Object.fromEntries(CORREDORES.map(c => [c, vista(def.defLado[CORREDORES[4 - colunaDe("1" + c)]], c)]));
+    r.T = vista(def.defTransicao, "C");
+    return r;
+  }
   const C = montarDefesa(atk, def), por = l => def.defLado && def.defLado[ESPELHO_LADO[l]] !== def.def ? montarDefesa(atk, def, def.defLado[ESPELHO_LADO[l]]) : C;
   return { E: por("E"), C, D: por("D"), T: def.defTransicao && def.defTransicao !== def.def ? montarDefesa(atk, def, def.defTransicao) : C };
 }

@@ -3,6 +3,7 @@
 // sempre do ponto de vista do time que ocupa a zona. Código: dígito da faixa + letra do corredor ("1E" … "5D").
 // O dígito nunca colide com os códigos de 9 zonas ("DE" … "AD"), que seguem valendo na T0.
 import { IDX } from "./modelo.js";
+import { limitar } from "./rng.js";
 
 export const CORREDORES = ["E", "e", "C", "d", "D"];
 export const ZONAS_GRADE = [1, 2, 3, 4, 5].flatMap(f => CORREDORES.map(c => f + c));
@@ -123,4 +124,74 @@ export function manchasDoTime(escalacao) {
     const m = MANCHAS[DE_LADO_DO_TRIO[j.pos] || v[1]];
     return k === 1 ? m : espelhada(m);
   });
+}
+
+// Defesa que o atacante enfrenta (spec 9.1 e 9.2), tudo na visão de quem ataca: dz[z] = def[espelhoGrade(z)] mais os ajustes.
+// atk: ataque de quem ataca por zona (dele); def e posicionamento (Posicionamento médio de quem cobre cada zona): por zona de quem defende.
+// Só muda a defesa de lugar: o total não muda.
+const DENTRO = { E: ["e"], e: ["C"], C: ["e", "d"], d: ["C"], D: ["d"] }, FORA = { e: "E", d: "D" };
+export function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
+  const dz = {}, pos = {}, Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
+  for (const z of ZONAS_GRADE) { dz[z] = def[espelhoGrade(z)] || 0; pos[z] = (posicionamento && posicionamento[espelhoGrade(z)]) || 0; }
+  const atkDe = z => atk[z] || 0, ameaca = z => Math.min(1, (atkDe(z) + Z) / (dz[z] + Z));
+  // 1. três corredores: o bloco fica na bola (centro → e C d; lado → lado, meio-espaço vizinho, centro; meio-espaço → ele, centro, lado vizinho).
+  // Dos 2 livres sai a fração basculacao do que não marca ninguém ali, mais quanto mais longe da bola (o lado oposto é o lado fraco da virada);
+  // com a bola no meio-espaço, zonaCinza do que sai fica no meio-espaço oposto
+  const cb = colunaDe("1" + corredorDaBola);
+  const ocupados = cb === 2 ? [1, 2, 3] : cb === 0 ? [0, 1, 2] : cb === 4 ? [2, 3, 4] : cb === 1 ? [0, 1, 2] : [2, 3, 4];
+  const cinza = cb === 1 ? 3 : cb === 3 ? 1 : -1;
+  for (let f = 1; f <= 5; f++) {
+    let sai = 0;
+    for (let c = 0; c < 5; c++) if (!ocupados.includes(c)) {
+      const z = f + CORREDORES[c], v = V.basculacao * dz[z] * (1 - ameaca(z)) * Math.abs(c - cb) / 4;
+      dz[z] -= v; sai += v;
+    }
+    if (cinza >= 0) { dz[f + CORREDORES[cinza]] += V.zonaCinza * sai; sai *= 1 - V.zonaCinza; }
+    const pesos = ocupados.map(c => dz[f + CORREDORES[c]] + Z), tot = pesos.reduce((a, b) => a + b, 0);
+    ocupados.forEach((c, i) => { dz[f + CORREDORES[c]] += sai * pesos[i] / tot; });
+  }
+  // 2. cobertura emprestada: zona vazia (abaixo de vazia × a média da faixa) ou sobrecarregada (ataque acima de ameaca × a defesa) pega, nesta ordem,
+  // do volante (mesmo corredor, uma faixa à frente de quem defende), do zagueiro (corredor vizinho do lado do centro) e do lateral (do lado de fora).
+  // Só empresta quem não está ameaçado; até emprestimo do que sobra, pela qualidade do Posicionamento, e nunca mais que a falta.
+  // ponytail: a falta (o que chega à ameaça ou ao piso da faixa) limita o empréstimo; sem ela a zona vazia passaria a vizinha. Ordem fixa das zonas
+  const emprestou = new Set(), pegou = new Set(), pisos = [0, 1, 2, 3, 4, 5].map(f => V.vazia * CORREDORES.reduce((s, c) => s + (dz[f + c] || 0), 0) / 5);
+  const precisa = z => dz[z] < pisos[faixaDe(z)] || atkDe(z) > V.ameaca * dz[z];
+  for (let f = 5; f >= 1; f--) {
+    const piso = pisos[f];
+    for (const c of ["C", "e", "d", "E", "D"]) {
+      const z = f + c;
+      if (emprestou.has(z) || !precisa(z)) continue;
+      const de = [...(f > 1 ? [(f - 1) + c] : []), ...DENTRO[c].map(k => f + k), ...(FORA[c] ? [f + FORA[c]] : [])];
+      for (const y of de) {
+        const falta = Math.max(atkDe(z), piso) - dz[z];
+        if (falta <= 0) break;
+        if (pegou.has(y) || atkDe(y) >= dz[y] || precisa(y)) continue;
+        const v = Math.min(falta, V.emprestimo * (dz[y] - atkDe(y)) * limitar(pos[y] / 25, 0.6, 1.3));
+        if (v <= 0) continue;
+        dz[y] -= v; dz[z] += v; emprestou.add(y); pegou.add(z);
+        // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
+        if (y === "5C") buracos.profundidade = 1 + V.buracoZaga;
+        if (faixaDe(y) >= 4 && (y[1] === "E" || y[1] === "D")) buracos.cruzamento = 1 + V.buracoLateral;
+      }
+    }
+  }
+  return { dz, buracos };
+}
+
+// Basculação com um passo de atraso (spec 7.3): a defesa do passo mistura a arrumação de onde a bola estava com a de onde está, pela rapidez
+export function defesaComAtraso(arrumacoes, corredorAntes, corredorAgora, rapidez) {
+  const a = arrumacoes[corredorAntes].dz, b = arrumacoes[corredorAgora].dz;
+  return Object.fromEntries(Object.keys(b).map(z => [z, rapidez * b[z] + (1 - rapidez) * a[z]]));
+}
+// pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende
+export function rapidezBasculacao(pos, equ, V) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2) / 25, 0.2, 1); }
+
+// Ganhar com folga arrasta o cobridor (spec 9.1): girar na zona 14 tira o zagueiro (bola em profundidade); bater o lateral no lado das faixas 4–5
+// puxa o zagueiro para fora e enfraquece o meio-espaço vizinho na faixa seguinte (na faixa 5, na mesma)
+export function arrasto({ zona, folga, V }) {
+  if (folga < V.arrasto.folga) return null;
+  if (zona === "4C") return { profundidade: 1 + V.buracoZaga };
+  const f = faixaDe(zona), c = corredorDe(zona);
+  if (f >= 4 && (c === "E" || c === "D")) return { zonaFraca: Math.min(5, f + 1) + (c === "E" ? "e" : "d"), fator: 1 - V.arrasto.lado };
+  return null;
 }

@@ -240,6 +240,7 @@ const __grade = (() => {
   // sempre do ponto de vista do time que ocupa a zona. Código: dígito da faixa + letra do corredor ("1E" … "5D").
   // O dígito nunca colide com os códigos de 9 zonas ("DE" … "AD"), que seguem valendo na T0.
   const { IDX } = __modelo;
+  const { limitar } = __rng;
   const CORREDORES = ["E", "e", "C", "d", "D"];
   const ZONAS_GRADE = [1, 2, 3, 4, 5].flatMap(f => CORREDORES.map(c => f + c));
 
@@ -360,7 +361,77 @@ const __grade = (() => {
       return k === 1 ? m : espelhada(m);
     });
   }
-  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime };
+
+  // Defesa que o atacante enfrenta (spec 9.1 e 9.2), tudo na visão de quem ataca: dz[z] = def[espelhoGrade(z)] mais os ajustes.
+  // atk: ataque de quem ataca por zona (dele); def e posicionamento (Posicionamento médio de quem cobre cada zona): por zona de quem defende.
+  // Só muda a defesa de lugar: o total não muda.
+  const DENTRO = { E: ["e"], e: ["C"], C: ["e", "d"], d: ["C"], D: ["d"] }, FORA = { e: "E", d: "D" };
+  function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
+    const dz = {}, pos = {}, Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
+    for (const z of ZONAS_GRADE) { dz[z] = def[espelhoGrade(z)] || 0; pos[z] = (posicionamento && posicionamento[espelhoGrade(z)]) || 0; }
+    const atkDe = z => atk[z] || 0, ameaca = z => Math.min(1, (atkDe(z) + Z) / (dz[z] + Z));
+    // 1. três corredores: o bloco fica na bola (centro → e C d; lado → lado, meio-espaço vizinho, centro; meio-espaço → ele, centro, lado vizinho).
+    // Dos 2 livres sai a fração basculacao do que não marca ninguém ali, mais quanto mais longe da bola (o lado oposto é o lado fraco da virada);
+    // com a bola no meio-espaço, zonaCinza do que sai fica no meio-espaço oposto
+    const cb = colunaDe("1" + corredorDaBola);
+    const ocupados = cb === 2 ? [1, 2, 3] : cb === 0 ? [0, 1, 2] : cb === 4 ? [2, 3, 4] : cb === 1 ? [0, 1, 2] : [2, 3, 4];
+    const cinza = cb === 1 ? 3 : cb === 3 ? 1 : -1;
+    for (let f = 1; f <= 5; f++) {
+      let sai = 0;
+      for (let c = 0; c < 5; c++) if (!ocupados.includes(c)) {
+        const z = f + CORREDORES[c], v = V.basculacao * dz[z] * (1 - ameaca(z)) * Math.abs(c - cb) / 4;
+        dz[z] -= v; sai += v;
+      }
+      if (cinza >= 0) { dz[f + CORREDORES[cinza]] += V.zonaCinza * sai; sai *= 1 - V.zonaCinza; }
+      const pesos = ocupados.map(c => dz[f + CORREDORES[c]] + Z), tot = pesos.reduce((a, b) => a + b, 0);
+      ocupados.forEach((c, i) => { dz[f + CORREDORES[c]] += sai * pesos[i] / tot; });
+    }
+    // 2. cobertura emprestada: zona vazia (abaixo de vazia × a média da faixa) ou sobrecarregada (ataque acima de ameaca × a defesa) pega, nesta ordem,
+    // do volante (mesmo corredor, uma faixa à frente de quem defende), do zagueiro (corredor vizinho do lado do centro) e do lateral (do lado de fora).
+    // Só empresta quem não está ameaçado; até emprestimo do que sobra, pela qualidade do Posicionamento, e nunca mais que a falta.
+    // ponytail: a falta (o que chega à ameaça ou ao piso da faixa) limita o empréstimo; sem ela a zona vazia passaria a vizinha. Ordem fixa das zonas
+    const emprestou = new Set(), pegou = new Set(), pisos = [0, 1, 2, 3, 4, 5].map(f => V.vazia * CORREDORES.reduce((s, c) => s + (dz[f + c] || 0), 0) / 5);
+    const precisa = z => dz[z] < pisos[faixaDe(z)] || atkDe(z) > V.ameaca * dz[z];
+    for (let f = 5; f >= 1; f--) {
+      const piso = pisos[f];
+      for (const c of ["C", "e", "d", "E", "D"]) {
+        const z = f + c;
+        if (emprestou.has(z) || !precisa(z)) continue;
+        const de = [...(f > 1 ? [(f - 1) + c] : []), ...DENTRO[c].map(k => f + k), ...(FORA[c] ? [f + FORA[c]] : [])];
+        for (const y of de) {
+          const falta = Math.max(atkDe(z), piso) - dz[z];
+          if (falta <= 0) break;
+          if (pegou.has(y) || atkDe(y) >= dz[y] || precisa(y)) continue;
+          const v = Math.min(falta, V.emprestimo * (dz[y] - atkDe(y)) * limitar(pos[y] / 25, 0.6, 1.3));
+          if (v <= 0) continue;
+          dz[y] -= v; dz[z] += v; emprestou.add(y); pegou.add(z);
+          // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
+          if (y === "5C") buracos.profundidade = 1 + V.buracoZaga;
+          if (faixaDe(y) >= 4 && (y[1] === "E" || y[1] === "D")) buracos.cruzamento = 1 + V.buracoLateral;
+        }
+      }
+    }
+    return { dz, buracos };
+  }
+
+  // Basculação com um passo de atraso (spec 7.3): a defesa do passo mistura a arrumação de onde a bola estava com a de onde está, pela rapidez
+  function defesaComAtraso(arrumacoes, corredorAntes, corredorAgora, rapidez) {
+    const a = arrumacoes[corredorAntes].dz, b = arrumacoes[corredorAgora].dz;
+    return Object.fromEntries(Object.keys(b).map(z => [z, rapidez * b[z] + (1 - rapidez) * a[z]]));
+  }
+  // pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende
+  function rapidezBasculacao(pos, equ, V) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2) / 25, 0.2, 1); }
+
+  // Ganhar com folga arrasta o cobridor (spec 9.1): girar na zona 14 tira o zagueiro (bola em profundidade); bater o lateral no lado das faixas 4–5
+  // puxa o zagueiro para fora e enfraquece o meio-espaço vizinho na faixa seguinte (na faixa 5, na mesma)
+  function arrasto({ zona, folga, V }) {
+    if (folga < V.arrasto.folga) return null;
+    if (zona === "4C") return { profundidade: 1 + V.buracoZaga };
+    const f = faixaDe(zona), c = corredorDe(zona);
+    if (f >= 4 && (c === "E" || c === "D")) return { zonaFraca: Math.min(5, f + 1) + (c === "E" ? "e" : "d"), fator: 1 - V.arrasto.lado };
+    return null;
+  }
+  return { CORREDORES, ZONAS_GRADE, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto };
 })();
 
 const __papeis = (() => {
@@ -626,7 +697,7 @@ const __motor = (() => {
   const { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe } = __modelo;
   const { fatorDeMomento, diaDoJogador } = __saude;
   const { mapasDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } = __papeis;
-  const { ZONAS_GRADE, linhaDaZona, ladoDaZona, corredorDe, faixaDe, manchasDoTime, espelharGrade } = __grade;
+  const { ZONAS_GRADE, CORREDORES, linhaDaZona, ladoDaZona, corredorDe, faixaDe, colunaDe, manchasDoTime, espelharGrade, defesaVista } = __grade;
   const CONFIG = {
     ataquesPorMinuto: 0.75, /* 0,68 até a falta no meio deixar de dar o duelo (29/10/2026, ferramentas/sim_conversao.mjs); 0,84 com o embalo; 0,9 quando a energia passou a pesar (time cansado finaliza pior); 0,85 com os acréscimos (~6 min a mais), para os gols da liga ficarem onde estavam;
       0,68 depois da T14 (3,07 gols e 12% dos jogos com 6 ou mais): meta de 2,5 gols e ~24 finalizações por jogo, como no Brasileirão */ // ataques iniciados por minuto, somando os dois times
@@ -820,10 +891,17 @@ const __motor = (() => {
     //   compactacao: a defesa de cada zona da faixa k (2 a 5) só vale até razao vezes a da faixa k−1 no mesmo corredor (o bolsão entre as linhas)
     //   pesoPosse: peso de cada corredor das faixas 2–3 no controle do meio (d = e, D = E)
     //   passagemPorDentro: o mesmo de papeis.passagemPorDentro, na grade (o Apoiador com ponta aberto na frente passa pelo meio-espaço)
+    //   defesa que o atacante enfrenta (defesaVista, spec 9.1–9.2): vazio, o zonaVazia de sempre; basculacao, o de sempre, dos 2 corredores livres
+    //   para os 3 da bola; zonaCinza, parte que fica no meio-espaço oposto com a bola no meio-espaço; vazia (× a média da faixa) e ameaca (ataque ×
+    //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
+    //   quando o zagueiro/o lateral sai para cobrir; basculacaoRapidez: a defesa bascula com um passo de atraso (Posicionamento e Trabalho em equipe);
+    //   arrasto: folga do duelo que arrasta o cobridor (a do narrar do embalo) e quanto o meio-espaço vizinho perde quando o ponta bate o lateral
     grade: false,
     gradeValores: {
       lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
       passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
+      vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
+      basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
     },
     contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
     // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
@@ -1053,6 +1131,7 @@ const __motor = (() => {
       }
       t.defLado[l] = d;
     }
+    if (grade) { t.defLado.e = t.defLado.E; t.defLado.d = t.defLado.D; } // na grade, a bola no meio-espaço conta como a do lado vizinho
     const linha = grade ? ["1e", "1C", "1d"].flatMap(z => t.zonasDef[z]) : t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
     const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
@@ -1106,6 +1185,16 @@ const __motor = (() => {
     } finally { CONFIG.grade = antes; }
   }
 
+  // Defesa que o ataque de escAtk enfrenta contra escDef na grade (as 5 arrumações e a da transição), descansada. Serve aos testes.
+  function defesaVistaNaGrade(escAtk, escDef, instrAtk = {}, instrDef = {}) {
+    const antes = CONFIG.grade;
+    CONFIG.grade = true;
+    try {
+      const [a, d] = [[escAtk, instrAtk], [escDef, instrDef]].map(([escalacao, instrucoes]) => { const t = iniciar(prepararTime({ nome: "", escalacao, instrucoes })); recalcular(t, 0); return t; });
+      return { ...defesaDoCorredor(a, d), def: d.def };
+    } finally { CONFIG.grade = antes; }
+  }
+
   function sortearPeso(rng, lista, peso) {
     let total = 0;
     const pesos = lista.map(x => { const p = Math.max(0, peso(x)); total += p; return p; });
@@ -1142,7 +1231,18 @@ const __motor = (() => {
   }
 
   // Defesa que o atacante enfrenta em cada corredor dele (o corredor E do atacante é o lado D de quem defende); o C escolhe o lado do lance
+  // Na grade: as 5 arrumações (corredor da bola, do atacante) e a da transição, cada uma { dz, buracos }
   function defesaDoCorredor(atk, def) {
+    if (CONFIG.grade) {
+      const posicionamento = Object.fromEntries(ZONAS_GRADE.map(z => {
+        const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0);
+        return [z, w ? q.reduce((s, o) => s + o.w * o.jog.at[A.pos], 0) / w : 0];
+      }));
+      const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores });
+      const r = Object.fromEntries(CORREDORES.map(c => [c, vista(def.defLado[CORREDORES[4 - colunaDe("1" + c)]], c)]));
+      r.T = vista(def.defTransicao, "C");
+      return r;
+    }
     const C = montarDefesa(atk, def), por = l => def.defLado && def.defLado[ESPELHO_LADO[l]] !== def.def ? montarDefesa(atk, def, def.defLado[ESPELHO_LADO[l]]) : C;
     return { E: por("E"), C, D: por("D"), T: def.defTransicao && def.defTransicao !== def.def ? montarDefesa(atk, def, def.defTransicao) : C };
   }
@@ -1823,7 +1923,7 @@ const __motor = (() => {
     }));
     return { duracao, acrescimos, placar: gols(), xg: [estat[0].xg, estat[1].xg], estat, lances, eventos, narracao, jogadores, lesoes, ordens, penaltis };
   }
-  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, desenhoDoTime, defesaNaTransicao, avaliarZonas, simularPartida };
+  return { CONFIG, INSTRUCOES_PADRAO, ZONAS, espelho, COBERTURA, prepararTime, setorDaPosicao, entrosamento, defesaPorCorredor, desenhoDoTime, defesaNaTransicao, avaliarZonas, defesaVistaNaGrade, simularPartida };
 })();
 
 const __bot = (() => {
