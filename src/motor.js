@@ -403,7 +403,8 @@ function recalcular(t, saldo) {
       if (linhaDaZona(z) === "A") naA += w; // na grade, as faixas 4–5
     }
     t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
-    if (m) for (const z of Z) {
+    // transição: só quem tem papel fora do jeito de sempre da posição (na grade, os mapas de todos têm as duas fases; o Fixo padrão não entra)
+    if (grade ? mapasDoPapel(jog.pos, jog.papel, true) : m) for (const z of Z) {
       const dw = (com[z] || 0) - (sem[z] || 0);
       if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)]; naTransicao = true; }
     }
@@ -416,9 +417,9 @@ function recalcular(t, saldo) {
   }
   // compactação na grade (spec 9.3): a defesa da faixa k (2 a 5) só vale até razao vezes a da faixa k−1 no mesmo corredor (já compactada);
   // o que passa disso não conta (o bolsão entre as linhas). As faixas 2–3 entram assim no controle do meio
-  if (grade) for (let k = 2; k <= 5; k++) for (const c of ["E", "e", "C", "d", "D"]) t.def[k + c] = Math.min(t.def[k + c], G.compactacao.razao * t.def[(k - 1) + c]);
   const centroDaDefesa = grade ? "1C" : "DC";
   if (t.goleiro) t.def[centroDaDefesa] *= 1 + (t.goleiro.j.at[A.com] - 25) * CONFIG.comunicacaoGoleiro;
+  if (grade) for (let k = 2; k <= 5; k++) for (const c of ["E", "e", "C", "d", "D"]) t.def[k + c] = Math.min(t.def[k + c], G.compactacao.razao * t.def[(k - 1) + c]);
   // Velocidade de quem fica atrás (com o goleiro), para a linha alta (1): com zaga lenta, a bola nas costas e o contra-ataque machucam mais
   const LA = CONFIG.linhaAlta, g = LA && t.goleiro ? LA.goleiro : 0;
   t.linhaAlta = LA ? limitar(Math.pow(LA.referencia / Math.max(1, (velAtras + g * (t.goleiro ? t.goleiro.at[A.vel] : 0)) / Math.max(0.1, t.reserva + g)), LA.expoente), LA.min, LA.max) : 1;

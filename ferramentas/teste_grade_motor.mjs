@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { criarRng } from "../src/rng.js";
 import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
-import { avaliarZonas, CONFIG } from "../src/motor.js";
+import { avaliarZonas, defesaNaTransicao, CONFIG } from "../src/motor.js";
 import { ZONAS_GRADE } from "../src/grade.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
@@ -37,6 +37,13 @@ assert.ok(Object.values(e.atk).concat(Object.values(e.def)).every(Number.isFinit
 // o papel do lateral muda a grade: o Apoiador tem mais ataque no lado da faixa 4–5 que o Fixo
 const ap = avaliarZonas(onze("4-2-3-1", 7, { DR: "apoiador" }), {}, { grade: true }), fx = avaliarZonas(onze("4-2-3-1", 7, { DR: "fixo" }), {}, { grade: true });
 assert.ok(ap.atk["5D"] > fx.atk["5D"]);
+// transição na grade: só quem tem papel (o Fixo padrão do DR e as manchas das posições não entram), como nas 9 zonas
+CONFIG.grade = true;
+try {
+  const semPapel = onze("4-4-2", 7), invertido = onze("4-4-2", 7, { DR: "invertido" });
+  assert.deepStrictEqual(defesaNaTransicao(semPapel), avaliarZonas(semPapel, {}, { grade: true }).def);
+  assert.ok(defesaNaTransicao(invertido)["2d"] > avaliarZonas(invertido, {}, { grade: true }).def["2d"]);
+} finally { CONFIG.grade = false; }
 // erro no meio da conta não deixa a grade ligada
 assert.throws(() => avaliarZonas(null, {}, { grade: true }));
 assert.strictEqual(CONFIG.grade, false);
