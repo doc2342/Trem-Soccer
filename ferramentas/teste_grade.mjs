@@ -37,7 +37,7 @@ assert.strictEqual(nove.DE, 1.5);
 const noveEstat = paraNoveZonas({ "4d": [2, 4], "4D": [1, 1] });
 assert.deepStrictEqual(noveEstat, { AD: [2, 3], AC: [1, 2] }); // pares [ganhos, perdidos]
 
-const at = new Array(Object.keys(IDX).length).fill(10); at[IDX.cri] = 16; at[IDX.equ] = 12;
+const at = new Array(Object.keys(IDX).length).fill(10); at[IDX.dec] = 14;
 assert.strictEqual(decisao(at), 14);
 
 // manchas: cada variante soma 1 nas duas fases, só com chaves da grade

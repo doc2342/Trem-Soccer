@@ -66,8 +66,11 @@ export function paraNoveZonas(mapa25) {
 // estat.zonas de qualquer jogo em 9 zonas: o da grade somado (paraNoveZonas), o de 9 zonas como veio. Para as telas que leem 9.
 export function emNoveZonas(z) { return z && Object.keys(z).length && ehGrade(Object.keys(z)[0]) ? paraNoveZonas(z) : z; }
 
-// Quem decide o passo: Criatividade e Trabalho em equipe.
-export function decisao(at) { return (at[IDX.cri] + at[IDX.equ]) / 2; }
+// Quem decide o passo: o atributo Decisões. Sob pressão (0 a 2) o bom decisor perde pouco e o mau perde muito: é a Compostura, sem atributo próprio.
+export function decisao(at) { return at[IDX.dec]; }
+export function decisaoSobPressao(dec, pressao, V) { return dec - V.decisao.pressao * pressao * (1 - dec / 50); }
+// Quem chega na bola no espaço: a Velocidade e a Movimentação (o tempo da corrida). Quem marca corre só com a Velocidade.
+export function chegada(at) { return (at[IDX.vel] + at[IDX.mov]) / 2; }
 
 // Manchas: quanto de cada jogador fica em cada zona, sem e com a bola (lado direito; o esquerdo é o espelho).
 // Rascunho aprovado em .superpowers/brainstorm/29-1793397721/content/manchas-v2.html, números de partida (a calibragem ajusta).
