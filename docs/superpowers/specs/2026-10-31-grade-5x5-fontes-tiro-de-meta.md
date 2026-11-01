@@ -25,7 +25,7 @@ Sem número: tiro de meta curto/longo do Brasileirão, taxa de rebote de uma lig
 
 - **Curto é maioria por pouco**, e a definição muda a conta: 51% na própria área, ~55% sem sair do terço defensivo. Base do motor: ~56%. A tendência virou em 2025/26 (amostra de 3 rodadas).
 - **A instrução de passe cobre a identidade:** o motor dá 77% e 23% de curtos a curto e longo, perto de Chelsea (84%) e Forest (17%).
-- **Risco do curto:** dá mais chutes a favor e mais chutes contra. Conta do dono do motor: ~15 tiros de meta por jogo × 288 jogos, ~40% curtos → ~2,5% dos curtos viram chute sofrido e ~0,5% gol sofrido.
+- **Risco do curto:** dá mais chutes a favor e mais chutes contra. Estimativa nossa, juntando fontes: ~12 tiros de meta por jogo × 288 jogos, 40% curtos (Stats Perform, 2019/20) → ~3% dos curtos viram chute sofrido e ~0,7% gol sofrido.
 - **Regra:** o adversário fica fora da área até a bola rolar, então o 1º passe curto sai sem pressão; a pressão pega quem recebe. Não há impedimento direto do tiro de meta.
 
 ## Propostas (não implementadas, esperam o dono)
