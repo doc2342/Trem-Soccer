@@ -223,8 +223,8 @@ function aerea(t) {
   meta("esforco", G, "segunda bola do time que ganhou no alto", "26–36%", pc(r(t.segundas[1], t.segundas[0])), entre(r(t.segundas[1], t.segundas[0]), 0.26, 0.36));
   meta("esforco", G, "quem lança fica com a bola", "~25% (20–30)", pc(r(t.lancadorFica[1], t.lancadorFica[0])), entre(r(t.lancadorFica[1], t.lancadorFica[0]), 0.2, 0.3));
   meta("info", G, "sobra do cruzamento afastado: por time; nossa", "—", `${f2(t.sobras[0] / j / 2)}; ${pc(r(t.sobras[1], t.sobras[0]))}`, null);
-  // tiro de meta (Tarefa 9c): 595 em 51 jogos na Euro 2020 (Human Movement, 2023); Opta, Premier League 2023/24: 46,6% dos passes do goleiro longos
-  meta("esforco", G, "tiros de meta por time; curtos", "~5,8; ~50%", `${f1(t.tiros[0] / j / 2)}; ${pc(r(t.tiros[1], t.tiros[0]))}`, entre(t.tiros[0] / j / 2, 4.5, 7) && entre(r(t.tiros[1], t.tiros[0]), 0.4, 0.6));
+  // tiro de meta (Tarefa 9c): 595 em 51 jogos na Euro 2020 (Human Movement, 2023); Opta, Premier League 2024/25: 50,7% na própria área, ~45% saem do terço defensivo
+  meta("esforco", G, "tiros de meta por time; curtos", "~5,8; ~55%", `${f1(t.tiros[0] / j / 2)}; ${pc(r(t.tiros[1], t.tiros[0]))}`, entre(t.tiros[0] / j / 2, 4.5, 7) && entre(r(t.tiros[1], t.tiros[0]), 0.5, 0.62));
   meta("info", G, "tiros de meta curtos roubados (% dos curtos); reposições com a mão por time, curtas", "—", `${pc(r(t.tiros[2], t.tiros[1]))}; ${f1(t.maos[0] / j / 2)}, ${pc(r(t.maos[1], t.maos[0]))}`, null);
 }
 

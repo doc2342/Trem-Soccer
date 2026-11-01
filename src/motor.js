@@ -273,10 +273,10 @@ export const CONFIG = {
     entrelinhas: { peso: 0.6, dificuldade: -0.2 },
     // reposição do goleiro (Tarefa 9c, dono 31/10): tiro de meta depois do chute para fora, a bola nas mãos depois da defesa que ele segura. Vai longe com
     // logit = base + instr + pressao × (pressão do adversário − 1) + goleiro × (Passe dele − referencia) / 25, e maos na reposição com a mão. O goleiro não
-    // tem Passe longo (Chute de longe ~6 no gerador): vale o Passe, que o gerador dá em torno de referencia. Base 0: Opta, Premier League, 47% dos passes
-    // do goleiro longos (≥ 32 m) em 2023/24 e 2024/25. roubo: logit do tiro de meta curto por ponto de pressão (a saída sofrida; na reposição com a mão, o
+    // tem Passe longo (Chute de longe ~6 no gerador): vale o Passe, que o gerador dá em torno de referencia. Base −0,25 (~56% curtos): Opta, Premier League
+    // 2024/25, 50,7% dos tiros de meta ficam na própria área e cerca de 45% saem do terço defensivo (fontes-tiro-de-meta). roubo: logit do tiro de meta curto por ponto de pressão (a saída sofrida; na reposição com a mão, o
     // adversário está voltando). Longo: duelo aéreo nas faixas 4–5, segunda bola uma faixa abaixo
-    reposicao: { base: 0, instr: { curto: -1.2, misto: 0, longo: 1.2 }, pressao: 0.5, goleiro: 1.5, referencia: 12, maos: -1, roubo: 0.6 },
+    reposicao: { base: -0.25, instr: { curto: -1.2, misto: 0, longo: 1.2 }, pressao: 0.5, goleiro: 1.5, referencia: 12, maos: -1, roubo: 0.6 },
   },
   contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
   // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
