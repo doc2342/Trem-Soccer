@@ -3,7 +3,7 @@
 -- Precisa do 163. Pode rodar com a T0 em andamento: quem tem 22 continua igual.
 -- Depois: republicar as funções "rodada" e "mercado" e publicar o site. Tem que estar no ar ANTES da virada T0→T1 (sem ele, a entrega falha e o admin mostra o erro).
 --
--- Os novos ficam no fim do vetor (índices 22, 23 e 24): treino.c e treino_pts guardam índices.
+-- Os novos ficam no fim do vetor (índices 22, 23 e 24): treino.c e treino_pts guardam índices. O filtro por jogador fica em focoDoJogador (src/treino.js): quem tem 22 ignora esses índices.
 -- O valor de cada jogador é calculado no site (atributosNovos em src/modelo.js); aqui só se grava.
 
 alter table public.jogadores drop constraint if exists jogadores_at_check;
@@ -29,6 +29,28 @@ begin
 end $$;
 revoke execute on function public.aplicar_treino(jsonb) from public, anon, authenticated;
 grant execute on function public.aplicar_treino(jsonb) to service_role;
+
+-- igual ao 27, com os índices dos atributos novos (limite 21 → 24): sem isto, salvar um foco com eles falha para o elenco inteiro
+create or replace function public.definir_treino(p_lista jsonb) returns int
+language plpgsql security definer set search_path = public as $$
+declare v_clube bigint; x record; n int := 0;
+begin
+  select id into v_clube from clubes where dono = auth.uid();
+  if v_clube is null then raise exception 'Você não tem clube.'; end if;
+  for x in select * from jsonb_to_recordset(coalesce(p_lista, '[]'::jsonb)) as t(id bigint, p text, c jsonb) loop
+    if x.p is not null and x.p not in ('goleiro', 'zagueiro', 'lateral', 'volante', 'meia', 'ponta', 'atacante', 'fisico') then raise exception 'Foco de treino desconhecido: %.', x.p; end if;
+    if x.p is not null and (jsonb_typeof(x.c) is distinct from 'array' or jsonb_array_length(x.c) > 3
+        or exists (select 1 from jsonb_array_elements(x.c) e where jsonb_typeof(e) <> 'number' or (e::text)::numeric not between 0 and 24)) then
+      raise exception 'O foco complementar é uma lista de até 3 atributos.';
+    end if;
+    update jogadores set treino = case when x.p is null then null else jsonb_build_object('p', x.p, 'c', x.c) end
+      where id = x.id and clube_id = v_clube;
+    if found then n := n + 1; end if;
+  end loop;
+  return n;
+end $$;
+revoke execute on function public.definir_treino(jsonb) from public, anon;
+grant execute on function public.definir_treino(jsonb) to authenticated;
 
 -- A entrega da virada. p_lista: [{ "id": 123, "novos": [plo, mov, dec] }]. Devolve quantos receberam.
 -- Só toca em quem ainda tem 22: repetir depois de uma falha no meio do lote entrega só a quem falta.

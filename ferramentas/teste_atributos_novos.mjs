@@ -127,4 +127,8 @@ assert.ok(p1.novos.every(n => n.at.length === 25), "jovem da T1 com 25");
 assert.ok(p0.novos.every(n => n.at.length === 22), "antes da T1, 22");
 assert.ok(p1.jogadores.filter(x => x.at).every(x => x.at.length === 22), "elenco antigo com 22 até a entrega");
 
+// o botão do admin só refaz a foto do início quando entregou alguém: clicar sem nada a entregar zeraria o "desde o início da temporada" da liga toda
+const botao = readFileSync(new URL("../admin.html", import.meta.url), "utf8").match(/em\("entregarAtributos"[\s\S]*?\n  \}\);/)[0];
+assert.ok(/n \? await marcarInicioDaTemporada/.test(botao), "foto só com entrega");
+
 console.log("ok");

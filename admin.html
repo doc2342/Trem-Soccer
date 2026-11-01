@@ -762,8 +762,8 @@ async function tela(aviso = "") {
     $("entregarAtributos").disabled = true;
     try {
       const n = await darAtributosNovos(entregaDosAtributos);
-      await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos));
-      alert(`Atributos novos entregues a ${n} jogadores. Foto do início refeita.`);
+      const foto = n ? await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos)) : 0; // sem entrega, a foto da temporada fica como está
+      alert(!n ? "Ninguém sem os atributos novos: nada mudou." : `Atributos novos entregues a ${n} jogadores. ${foto == null ? "A foto do início NÃO foi refeita." : "Foto do início refeita."}`);
     } catch (e) { alert("Não deu: " + e.message + " (o 172_atributos_novos.sql já foi executado?)"); }
     $("entregarAtributos").disabled = false;
   });

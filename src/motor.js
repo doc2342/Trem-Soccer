@@ -264,7 +264,7 @@ export const CONFIG = {
     segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4,
     contra: { centro: 0.15 }, reciclar: 0.8, pressionarMeio: 1.2, impedimento: { base: 0.6, pressao: 0.2 },
     // passe no espaço (Tarefa 9b, dono 31/10): a bola na frente, em zona sem ninguém nosso, para quem chega da faixa de baixo (mesmo corredor ou vizinho).
-    // peso: o ataque do duelo = habilidade de quem chega no destino × Velocidade/25 × peso; dificuldade: logit; corrida: × (Velocidade dele − a de quem
+    // peso: o ataque do duelo = habilidade de quem chega no destino × chegada/25 × peso; dificuldade: logit; corrida: × (chegada dele − Velocidade de quem
     // marca ali)/25; impedimento: parte da conta da profundidade nas faixas 4–5
     espaco: { peso: 0.6, dificuldade: -0.3, corrida: 0.5, impedimento: 0.5 },
     // passe entrelinhas (dono, 31/10): na faixa 4 por dentro (4e, zona 14, 4d) sem ninguém nosso, alguém aparece entre o meio e a defesa deles: o 9 que

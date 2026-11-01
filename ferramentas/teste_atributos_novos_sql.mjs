@@ -10,9 +10,14 @@ await db.exec(`
 create role anon; create role authenticated; create role service_role;
 create table admin_agora (sim boolean); insert into admin_agora values (true);
 create function eh_admin() returns boolean language sql as $$ select sim from admin_agora $$;
-create table jogadores (id bigint primary key, at smallint[] not null check (array_length(at, 1) = 22), treino_pts smallint[], fam jsonb, aprende jsonb);
+create schema auth; create table auth.atual (uid uuid); insert into auth.atual values ('00000000-0000-0000-0000-000000000001');
+create function auth.uid() returns uuid language sql as $$ select uid from auth.atual $$;
+create table clubes (id bigint primary key, dono uuid); insert into clubes values (1, '00000000-0000-0000-0000-000000000001');
+create table jogadores (id bigint primary key, clube_id bigint default 1, at smallint[] not null check (array_length(at, 1) = 22), treino_pts smallint[], treino jsonb, fam jsonb, aprende jsonb);
 create table jogadores_ocultos (jogador_id bigint primary key, tal smallint, no_teto boolean not null default false);
 `);
+// definir_treino como está no ar (27): o 172 tem que trocar o limite de índices, que vai até 21
+await db.exec(fs.readFileSync(new URL("../supabase/27_treino.sql", import.meta.url), "utf8").match(/create or replace function public\.definir_treino[\s\S]*?end \$\$;/)[0]);
 const sql = fs.readFileSync(new URL("../supabase/172_atributos_novos.sql", import.meta.url), "utf8");
 await db.exec(sql);
 await db.exec(sql); // idempotente
@@ -34,6 +39,13 @@ assert.strictEqual((await tam(2)).at[24], 21);
 assert.strictEqual(await treina([{ id: 2, at: v(25, 22), pts: v(22, 1) }]), 0);
 assert.strictEqual(await treina([{ id: 1, at: v(23, 22), pts: v(23, 1) }]), 0);
 assert.strictEqual((await tam(2)).at[24], 21);
+
+// salvar o foco com os atributos novos (MC automático: dec, plo, res = 24, 22, 17): a lista inteira falharia e travaria o elenco todo
+const foco = l => q(`select definir_treino($1::jsonb) as n`, [JSON.stringify(l)]).then(r => r[0].n);
+assert.strictEqual(await foco([{ id: 2, p: "meia", c: [24, 22, 17] }]), 1);
+assert.deepStrictEqual((await q(`select treino from jogadores where id = 2`))[0].treino, { p: "meia", c: [24, 22, 17] });
+await assert.rejects(foco([{ id: 2, p: "meia", c: [25] }]), /foco complementar/);
+await assert.rejects(foco([{ id: 2, p: "meia", c: [1, 2, 3, 4] }]), /foco complementar/);
 
 // entrega: 22 vira 25 com os 3 no fim; treino_pts ganha zeros, null continua null
 await novo(4, 22, v(22, 7)); await novo(5, 22);
