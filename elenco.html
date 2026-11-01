@@ -34,7 +34,7 @@
 <body>
 <main>
   <h1>Passo A · Elenco gerado</h1>
-  <div class="mut">Página de conferência do modelo de jogador: 22 atributos, 18 posições, familiaridade e nota por posição.</div>
+  <div class="mut">Página de conferência do modelo de jogador: 25 atributos, 18 posições, familiaridade e nota por posição.</div>
 
   <div class="card row">
     <label>Nível (nota média dos 16 principais)<input id="nivel" type="number" min="15" max="42" value="30" style="width:110px"></label>
@@ -51,7 +51,7 @@
 
 <script type="module">
 import { criarRng } from "./src/rng.js";
-import { ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, NOME_FAMILIARIDADE, notaBruta, notaNaPosicao, familiaridade } from "./src/modelo.js";
+import { ATRIBUTOS, IDX, atributosDe, pesosDe, POSICOES, LISTA_POSICOES, PESOS, NOME_FAMILIARIDADE, notaBruta, notaNaPosicao, familiaridade } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 
 const $ = id => document.getElementById(id);
@@ -86,10 +86,10 @@ function mostrar() {
     ["Domínio médio", f1(mediaAtr("dom"))], ["Posicionamento médio", f1(mediaAtr("pos"))],
   ].map(([a, b]) => `<div>${a}<b>${b}</b></div>`).join("");
 
-  $("tabela").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${ATRIBUTOS.map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>` +
+  $("tabela").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Também joga</th>${atributosDe(elenco[0]).map(a => `<th title="${a.nome}">${a.k}</th>`).join("")}</tr>` +
     elenco.map((j, i) => `<tr class="clk ${!j.titular && elenco[i - 1].titular ? "sep" : ""} ${selecionado === j.id ? "sel" : ""}" data-id="${j.id}">
       <td><span class="pp">${j.pos}</span></td><td class="esq">${esc(j.nome)}</td><td>${j.idade}</td><td class="nota">${f1(nota(j))}</td><td class="esq">${outras(j)}</td>
-      ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${PESOS[POSICOES[j.pos].papel][ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`).join("") + `</table>`;
+      ${j.at.map((v, k) => `<td class="${corAtr(v)}" title="${ATRIBUTOS[k].nome}${pesosDe(j.at, POSICOES[j.pos].papel)[ATRIBUTOS[k].k] ? " · conta para a posição" : ""}">${v}</td>`).join("")}</tr>`).join("") + `</table>`;
   mostrarFicha();
 }
 
@@ -118,7 +118,7 @@ function mostrarEquilibrio() {
     const faixa = l => `${f1(Math.min(...l))} a ${f1(Math.max(...l))}`;
     linhas.push(`<tr><td class="esq">${p.nome}</td><td>${faixa(tit)}</td><td>${faixa(res)}</td><td>${f1(media(vel))}</td><td>${f1(media(forca))}</td><td>${f1(media(dom))}</td><td>${f1(media(pos))}</td><td>${f1(media(soma))}</td></tr>`);
   }
-  $("equilibrio").innerHTML = `<table><tr><th class="esq">Perfil</th><th>Nota dos 16 principais</th><th>Nota dos reservas</th><th>Velocidade</th><th>Força</th><th>Domínio</th><th>Posicionamento</th><th>Soma dos 22 atributos</th></tr>${linhas.join("")}</table>`;
+  $("equilibrio").innerHTML = `<table><tr><th class="esq">Perfil</th><th>Nota dos 16 principais</th><th>Nota dos reservas</th><th>Velocidade</th><th>Força</th><th>Domínio</th><th>Posicionamento</th><th>Soma dos atributos</th></tr>${linhas.join("")}</table>`;
 }
 
 $("gerar").onclick = () => { $("semente").value = +$("semente").value + 1; gerar(); };

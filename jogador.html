@@ -31,7 +31,7 @@
 
 <script type="module">
 import { sb, nomeDoGrupo, PAISES } from "./src/banco.js";
-import { ATRIBUTOS, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, PESOS, notaBruta, notaNaPosicao, textoDoPe } from "./src/modelo.js";
+import { atributosDe, pesosDe, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, notaBruta, notaNaPosicao, textoDoPe } from "./src/modelo.js";
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
 import { camisinha, svgCamisa } from "./src/camisa.js";
@@ -72,7 +72,7 @@ function grafico(pts, L = 600, A = 150) {
 
 // visual novo: faixa escura com quem é, a nota e a temporada dele, camisa e radar; números do contrato; atributos; a carreira numa linha por temporada
 function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, transf, premios, historico, pts, numerosP }) {
-  const xp = Math.round(experienciaDe(j)), fim = j.contrato_ate != null && temporada != null && j.contrato_ate <= temporada, conta = PESOS[POSICOES[j.pos].papel] || {};
+  const xp = Math.round(experienciaDe(j)), fim = j.contrato_ate != null && temporada != null && j.contrato_ate <= temporada, conta = pesosDe(j.at, POSICOES[j.pos].papel) || {};
   const outras = Object.keys(jog.fam).filter(p => p !== j.pos && jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
   const ini = j.inicio_temporada, num = (r, valor, legenda, classe = "") => `<div class="t-qa-num"><div class="t-numero-rotulo">${r}</div><div class="t-qa-valor ${classe}">${valor}</div>${legenda ? `<div class="t-qa-leg">${legenda}</div>` : ""}</div>`;
   const virg = v => v == null ? "—" : String(v).replace(".", ",");
@@ -91,7 +91,7 @@ function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, tr
       + num("Contrato", j.contrato_ate == null ? "—" : `T${j.contrato_ate}`, fim ? "acaba nesta temporada" : "", fim ? "t-atencao" : "")}
     ${num("Experiência", `${xp}<small>/100</small>`, xp >= 70 ? "rende sempre perto do que sabe" : xp >= 35 ? "ainda oscila um pouco" : "oscila bastante de um jogo para o outro")}</div>
     ${fatos.length ? `<div class="t-qa-fatos">${fatos.join(" · ")}</div>` : ""}`;
-  const atributos = `<section class="t-jp-bloco"><div class="t-jp-cab">${rotulo("Atributos")}<span>em negrito, os que contam para ${POSICOES[j.pos].nome.toLowerCase()}</span></div><div class="t-qa-grade t-jp-atr">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b>${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div></section>`;
+  const atributos = `<section class="t-jp-bloco"><div class="t-jp-cab">${rotulo("Atributos")}<span>em negrito, os que contam para ${POSICOES[j.pos].nome.toLowerCase()}</span></div><div class="t-qa-grade t-jp-atr">${(j.pos === "GK" ? [GRUPOS_DE_ATRIBUTOS[4], ...GRUPOS_DE_ATRIBUTOS.slice(0, 4)] : GRUPOS_DE_ATRIBUTOS.slice(0, 4)).map(([nome, g]) => `<div><div class="t-qa-grupo">${nome}</div>${atributosDe(j).map((a, k) => a.grupo !== g ? "" : `<div class="t-qa-atr${conta[a.k] ? " t-qa-conta" : ""}"><span>${a.nome}</span><i style="--v:${Math.min(100, j.at[k] * 2)}%"></i><b>${j.at[k]}</b></div>`).join("")}</div>`).join("")}</div></section>`;
   // carreira: uma linha por temporada (a de agora em cima), com a transferência e o prêmio daquela temporada dentro da linha
   const anos = [...new Set([temporada, ...historico.map(h => h.temporada), ...transf.map(t => t.temporada), ...premios.map(p => p.temporada)].filter(t => t != null))].sort((a, b) => b - a);
   const eventos = t => transf.filter(x => x.temporada === t).map(x => `<div class="t-jp-ev" data-tipo="${esc(x.tipo)}"><span class="t-giro-tipo">${TIPO_CURTO[x.tipo] || esc(x.tipo)}</span>${x.de_clube ? nomeDe(x.de_clube) : "livre"}<b>→</b>${nomeDe(x.para_clube)}${x.valor ? ` <strong>${dinheiro(x.valor)}</strong>` : ""}</div>`).join("")
@@ -138,7 +138,7 @@ async function carregar() {
     <div class="nota"${teto ? ' style="margin-left:18px"' : ""}><b>${um(nota)}</b><span class="mut">nota · ${sg(j.pos)}</span></div></div>`;
 
   const atributos = Object.entries(GRUPOS).filter(([g]) => g !== "gol" || j.pos === "GK").map(([g, nome]) => `<div class="card"><h2>${nome}</h2>
-    ${ATRIBUTOS.map((a, i) => a.grupo !== g ? "" : `<div class="atr"><span>${a.nome}</span><b>${j.at[i]}</b><i><b style="width:${j.at[i] * 2}%"></b></i></div>`).join("")}</div>`).join("");
+    ${atributosDe(j).map((a, i) => a.grupo !== g ? "" : `<div class="atr"><span>${a.nome}</span><b>${j.at[i]}</b><i><b style="width:${j.at[i] * 2}%"></b></i></div>`).join("")}</div>`).join("");
 
   const posicoes = Object.keys(jog.fam).filter(p => jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
   const contrato = `<div class="card"><h2>Contrato</h2><div class="num">

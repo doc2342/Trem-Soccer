@@ -8,7 +8,7 @@ Liga online de manager para os amigos do DO-BR. O desenho do jogo está no docum
 
 | Passo | Situação |
 | --- | --- |
-| A. Jogadores (22 atributos, 18 posições, gerador de elenco) | pronto |
+| A. Jogadores (25 atributos, 18 posições, gerador de elenco) | pronto |
 | B. Motor: núcleo (9 zonas, xG) | pronto |
 | C. Calibragem | pronto |
 | D. Instruções e energia | pronto |

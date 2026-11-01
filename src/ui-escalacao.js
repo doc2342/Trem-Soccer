@@ -2,7 +2,7 @@
 // online: usa o elenco e a tática do clube no banco; sessao: { user } de quem está logado; cabecalho: desenha o topo com as abas (só na página sozinha).
 import { criarRng } from "./rng.js";
 import { experienciaDe, nivelDoAnalista, saudeDoClube } from "./saude.js";
-import { ATRIBUTOS, PESOS, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, peNaPosicao, textoDoPe } from "./modelo.js";
+import { atributosDe, pesosDe, POSICOES, LISTA_POSICOES, IDX, FAMILIARIDADE, NOME_FAMILIARIDADE, notaNaPosicao, familiaridade, peNaPosicao, textoDoPe } from "./modelo.js";
 import { gerarElenco, PERFIS } from "./gerador.js";
 import { FORMACOES, escalar, notaDoMomento, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { foraDaCopa, foraDoContinental, climaDaPartida, efeitoDoClima, jogoGrande, taticaDoAmistoso } from "./rodada.js";
@@ -599,7 +599,7 @@ function render() {
 }
 
 const SETORES = { gol: "Goleiros", defesa: "Defesa", ala: "Defesa", volante: "Meio-campo", meio: "Meio-campo", meia: "Meio-campo", ataque: "Ataque" };
-const htmlSkills = (j, p) => `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${ATRIBUTOS.map((a, k) => a.grupo !== g ? "" : `<div class="${(PESOS[POSICOES[p].papel] || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
+const htmlSkills = (j, p) => `<div class="skills">${(j.pos === "GK" ? [GRUPOS[4], ...GRUPOS.slice(0, 4)] : GRUPOS.slice(0, 4)).map(([nome, g]) => `<div class="grupo"><h4>${nome}</h4>${atributosDe(j).map((a, k) => a.grupo !== g ? "" : `<div class="${(pesosDe(j.at, POSICOES[p].papel) || {})[a.k] ? "conta" : ""}"><span>${a.nome}</span><span>${j.at[k]}</span></div>`).join("")}</div>`).join("")}
   <div class="mut" style="column-span:all;font-size:12px;margin-top:4px">Em destaque, os atributos que contam para ${sg(p)}. Experiência ${Math.round(experienciaDe(j))} de 100: quanto mais alta, menos ele oscila de um jogo para o outro e mais rende (até 3%).</div></div>`;
 const SETORES_DA_LISTA = [["Goleiros", "Goleiros"], ["Defesa", "Defesa"], ["Meio-campo", "Meio"], ["Ataque", "Ataque"]];
 // visual novo: a lista mora na faixa escura, um setor por vez (sem rolagem); a posição da vaga muda no próprio campo
