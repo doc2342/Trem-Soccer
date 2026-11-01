@@ -3313,7 +3313,7 @@ const __treino = (() => {
   // depende de quem trabalha nela). Não há empurrão para quem está atrasado nem freio para quem está adiantado.
   // A temporada rende o mesmo em qualquer grupo: a sessão vale rodadasDeReferencia / rodadas do grupo (fatorDaTemporada).
   // Módulo puro: usado pela função do servidor (uma sessão por partida de liga) e pelas páginas (focos, sugestão e previsão).
-  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto, TETO_DO_TALENTO } = __modelo;
+  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaDeTeto, TETO_DO_TALENTO, pesosDe } = __modelo;
   const { criarRng } = __rng;
   const CONFIG_TREINO = {
     pontosPorNivel: 100,
@@ -3343,10 +3343,10 @@ const __treino = (() => {
   const AREAS = {
     gol: { nome: "Goleiros", at: ["ref", "um", "enc"] },
     def: { nome: "Defesa", at: ["des", "mar", "cab"] },
-    mei: { nome: "Meio", at: ["pas", "cri", "dom", "cru"] },
+    mei: { nome: "Meio", at: ["pas", "cri", "dom", "cru", "plo"] },
     ata: { nome: "Ataque", at: ["fin", "lon", "dri"] },
     fis: { nome: "Físico", at: ["vel", "for", "res"] },
-    tat: { nome: "Tática", at: ["com", "pos", "equ", "agr", "inf", "exc"] },
+    tat: { nome: "Tática", at: ["com", "pos", "equ", "agr", "inf", "exc", "mov", "dec"] },
   };
   const AREA_DO_ATRIBUTO = ATRIBUTOS.map(a => Object.keys(AREAS).find(k => AREAS[k].at.includes(a.k)) || "tat");
   const multDaQualidade = q => CONFIG_TREINO.treinador[0] + CONFIG_TREINO.treinador[1] * Math.min(50, Math.max(0, q)) / 50;
@@ -3393,18 +3393,19 @@ const __treino = (() => {
   // atributos que o jogador pode treinar: os de goleiro só para goleiro
   const treinavel = (pos, i) => ATRIBUTOS[i].grupo !== "gol" || pos === "GK";
   // Foco automático: a função da posição e, como complemento, os 3 atributos que mais pesam na posição e não estão no foco principal.
-  function focoAutomatico(pos) {
-    const p = focoDaPosicao(pos), doFoco = new Set(FOCOS[p].at), pesos = PESOS[(POSICOES[pos] || {}).papel] || {};
+  // Com o at do jogador, lê os pesos do vetor dele: quem tem 25 recebe os atributos novos que mais pesam.
+  function focoAutomatico(pos, at = null) {
+    const p = focoDaPosicao(pos), doFoco = new Set(FOCOS[p].at), papel = (POSICOES[pos] || {}).papel, pesos = (at ? pesosDe(at, papel) : PESOS[papel]) || {};
     const c = Object.keys(pesos).filter(k => !doFoco.has(k) && treinavel(pos, IDX[k])).sort((a, b) => pesos[b] - pesos[a]).slice(0, 3).map(k => IDX[k]);
     for (const k of ["vel", "for", "res", "equ"]) if (c.length < 3 && !doFoco.has(k) && !c.includes(IDX[k])) c.push(IDX[k]);
     return { p, c };
   }
   // Foco em uso: o salvo pelo dirigente, se for válido; senão, o automático.
   function focoDoJogador(j) {
-    const t = j.treino, auto = focoAutomatico(j.pos);
+    const t = j.treino, auto = focoAutomatico(j.pos, j.at);
     // goleiro só treina o foco de goleiro ou o físico; jogador de linha não treina o foco de goleiro
     if (!t || !FOCOS[t.p] || ((t.p === "goleiro") !== (j.pos === "GK") && t.p !== "fisico")) return auto;
-    const c = Array.isArray(t.c) ? [...new Set(t.c.map(Number))].filter(i => i >= 0 && i < ATRIBUTOS.length && treinavel(j.pos, i)).slice(0, 3) : [];
+    const c = Array.isArray(t.c) ? [...new Set(t.c.map(Number))].filter(i => i >= 0 && i < j.at.length && treinavel(j.pos, i)).slice(0, 3) : [];
     return { p: t.p, c: c.length ? c : auto.c };
   }
 
@@ -3483,7 +3484,7 @@ const __treino = (() => {
     if (vivos.length === Object.keys(bruta).length) return bruta;
     const partes = {}, soma = vivos.reduce((t, [, v]) => t + v, 0);
     if (soma > 0) { vivos.forEach(([i, v]) => { partes[i] = v / soma; }); return partes; }
-    const pesos = PESOS[(POSICOES[j.pos] || {}).papel] || {}, resto = Object.keys(pesos).filter(k => j.at[IDX[k]] < ATR_MAX && treinavel(j.pos, IDX[k]));
+    const pesos = pesosDe(j.at, (POSICOES[j.pos] || {}).papel) || {}, resto = Object.keys(pesos).filter(k => j.at[IDX[k]] < ATR_MAX && treinavel(j.pos, IDX[k]));
     const total = resto.reduce((t, k) => t + pesos[k], 0);
     resto.forEach(k => { partes[IDX[k]] = pesos[k] / total; });
     return partes;
@@ -3496,7 +3497,7 @@ const __treino = (() => {
   function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
     const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
     if (total <= 0 || chegouAoTeto(j, tal) || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
-    const at = j.at.slice(), pts = ATRIBUTOS.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
+    const at = j.at.slice(), pts = at.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
     for (const [i, parte] of Object.entries(partilha(j))) {
       if (at[i] >= ATR_MAX) continue;
       pts[i] += Math.round(total * parte * multDoAtributo(areas, i));
