@@ -47,9 +47,9 @@ const __rng = (() => {
 })();
 
 const __modelo = (() => {
-  // Modelo de jogador: 22 atributos (os 21 do Dugout + Resistência), 18 posições e nota por posição.
+  // Modelo de jogador: 25 atributos (os 21 do Dugout + Resistência, e da T1 em diante Passe longo, Movimentação e Decisões), 18 posições e nota por posição.
   // Os pesos e os fatores de familiaridade são ponto de partida; a calibragem do motor pode mexer neles.
-
+  const { criarRng } = __rng;
   // uma constante exportada por linha: o empacotador das funções do servidor só enxerga o primeiro nome de cada "export const"
   const ATR_MIN = 1;
   const ATR_MAX = 50;
@@ -78,8 +78,18 @@ const __modelo = (() => {
     { k: "agr", nome: "Agressividade", grupo: "men" },
     { k: "inf", nome: "Influência", grupo: "men" },
     { k: "exc", nome: "Excentricidade", grupo: "men" },
+    // da T1 em diante, sempre no fim: treino.c e treino_pts guardam índices. lon continua o Chute de longe
+    { k: "plo", nome: "Passe longo", grupo: "tec" },
+    { k: "mov", nome: "Movimentação", grupo: "men" },
+    { k: "dec", nome: "Decisões", grupo: "men" },
   ];
   const IDX = Object.fromEntries(ATRIBUTOS.map((a, i) => [a.k, i]));
+  // O tamanho do vetor é a trava: at com 22 lê os pesos e o foco de hoje, at com 25 lê os da T1. O histórico gravado com 22, a T0 e o que o gerador sorteia não mudam.
+  const N_DA_T0 = 22;
+  const ATRIBUTOS_DA_T0 = ATRIBUTOS.slice(0, N_DA_T0);
+  const ATRIBUTOS_DESDE = 1; // temporada em que a liga recebe os 3
+  const temNovos = at => at.length > N_DA_T0;
+  const atributosDe = j => ATRIBUTOS.slice(0, j.at.length);
 
   // linha: gol, defesa, ala, volante, meio, meia, ataque · lado: E, C, D
   const POSICOES = {
@@ -121,6 +131,31 @@ const __modelo = (() => {
     SC: { fin: 22, cab: 20, for: 18, pos: 12, dom: 10, equ: 4, vel: 4, lon: 4, agr: 3, pas: 3 },
   };
 
+  // Os mesmos pesos na T1, com os 3 atributos: quem tem at de 25 lê esta tabela (cada linha soma 100).
+  const PESOS_T1 = {
+    GK: { ref: 22, enc: 18, um: 16, pos: 16, com: 12, dec: 4, plo: 4, vel: 4, for: 4 },
+    DC: { mar: 18, des: 18, pos: 14, cab: 14, for: 10, vel: 8, com: 5, dec: 5, plo: 5, pas: 3 },
+    SW: { pos: 22, des: 14, vel: 14, mar: 10, com: 10, pas: 6, plo: 6, dec: 6, cab: 6, dom: 4, cri: 2 },
+    LAT: { des: 18, mar: 16, vel: 16, pos: 12, cru: 10, res: 8, pas: 6, com: 4, dec: 4, mov: 3, for: 3 },
+    ALA: { vel: 14, cru: 16, res: 12, des: 12, dri: 8, mov: 6, mar: 8, pos: 8, pas: 8, dec: 4, dom: 4 },
+    DMC: { des: 18, pos: 16, mar: 12, pas: 10, dec: 12, plo: 6, for: 6, res: 8, dom: 4, agr: 4, cab: 2, equ: 2 },
+    MC: { pas: 18, cri: 12, dom: 10, dec: 12, plo: 8, pos: 8, equ: 4, res: 8, des: 8, lon: 4, vel: 4, dri: 4 },
+    AMC: { cri: 18, pas: 14, dom: 12, lon: 10, dri: 12, fin: 8, dec: 10, mov: 6, pos: 4, vel: 6 },
+    MLAT: { cru: 16, pas: 12, vel: 12, dom: 8, cri: 8, dri: 10, res: 8, mov: 6, dec: 6, plo: 4, pos: 4, des: 6 },
+    AMLAT: { dri: 16, cri: 12, cru: 12, vel: 12, pas: 8, dom: 8, lon: 8, fin: 8, mov: 8, dec: 6, pos: 2 },
+    PONTA: { dri: 18, vel: 18, cru: 12, fin: 12, dom: 8, mov: 10, dec: 4, cri: 4, pos: 4, pas: 4, res: 4, lon: 2 },
+    FC: { fin: 22, dom: 14, vel: 12, dri: 10, mov: 12, pos: 8, dec: 4, cri: 6, pas: 4, lon: 4, cab: 4 },
+    SC: { fin: 22, cab: 18, for: 16, mov: 10, pos: 10, dom: 8, vel: 4, lon: 2, dec: 4, agr: 3, pas: 3 },
+  };
+  const pesosDe = (at, papel) => (temNovos(at) ? PESOS_T1 : PESOS)[papel];
+
+  // Valor inicial dos 3 para quem já existe: [Passe longo, Movimentação, Decisões] em relação à nota, por posição principal.
+  const AJUSTE_INICIAL = {
+    GK: [-10, -24, -3], DC: [-5, -16, -4], SW: [-3, -14, -2], DR: [-8, -4, -8], DL: [-8, -4, -8], WBR: [-6, -3, -8], WBL: [-6, -3, -8],
+    DMC: [-2, -12, -2], MC: [0, -6, 0], AMC: [-3, -2, 0], MR: [-9, -3, -6], ML: [-9, -3, -6], AMR: [-6, -1, -6], AML: [-6, -1, -6],
+    RW: [-8, 0, -6], LW: [-8, 0, -6], FC: [-12, 0, -10], SC: [-14, 0, -10],
+  };
+
   // Familiaridade com a posição, como no Dugout: Natural, Competente, Improvisado.
   const FAMILIARIDADE = { N: 1, C: 0.93, I: 0.8 };
   const NOME_FAMILIARIDADE = { N: "Natural", C: "Competente", I: "Improvisado" };
@@ -151,7 +186,7 @@ const __modelo = (() => {
 
   // Nota do jogador numa posição, na escala dos atributos (1 a 50), sem a familiaridade.
   function notaBruta(atributos, pos) {
-    const pesos = PESOS[POSICOES[pos].papel];
+    const pesos = pesosDe(atributos, POSICOES[pos].papel);
     let soma = 0;
     for (const k in pesos) soma += pesos[k] * atributos[IDX[k]];
     return soma / 100;
@@ -206,6 +241,26 @@ const __modelo = (() => {
 
   const notaNaPosicao = (jogador, pos) => notaBruta(jogador.at, pos) * FAMILIARIDADE[familiaridade(jogador, pos)];
 
+  // [Passe longo, Movimentação, Decisões] de quem tem 22: sorteio próprio, semeado pela chave (como sortearPeFraco), que serve à entrega na virada,
+  // ao gerador e ao motor. Depois sobe ou desce em rodízio os que pesam na posição, até 6 do sorteio, para a nota ficar a 0,1 da antiga.
+  function atributosNovos(j, chave = j.id) {
+    const rng = criarRng([...String(chave)].reduce((h, c) => Math.imul(h, 31) + c.charCodeAt(0) | 0, 172));
+    const at = j.at.slice(0, N_DA_T0), nota = notaBruta(at, j.pos), [a, b, c] = AJUSTE_INICIAL[j.pos], idade = (j.idade ?? 25) - 25;
+    const plo = j.pos === "GK" ? nota + a + rng.normal(0, 7) : 0.6 * (nota + a) + 0.4 * at[IDX.pas] + 0.15 * idade + rng.normal(0, 4);
+    const mov = nota + b + rng.normal(0, 4), dec = nota + c + 0.3 * idade + rng.normal(0, 3.5);
+    const novos = [plo, mov, dec].map(v => Math.max(ATR_MIN, Math.min(ATR_MAX, Math.round(v)))), sorteados = novos.slice();
+    const pesos = PESOS_T1[POSICOES[j.pos].papel], giram = [0, 1, 2].filter(i => pesos[ATRIBUTOS[N_DA_T0 + i].k]);
+    for (let i = 0, parados = 0; parados < giram.length; i++) {
+      const dif = nota - notaBruta([...at, ...novos], j.pos);
+      if (Math.abs(dif) <= 0.1) break;
+      const x = giram[i % giram.length], v = novos[x] + Math.sign(dif);
+      if (Math.abs(v - sorteados[x]) > 6 || v < ATR_MIN || v > ATR_MAX) parados++;
+      else { novos[x] = v; parados = 0; }
+    }
+    return novos;
+  }
+  const comNovos = j => temNovos(j.at) ? j.at : [...j.at, ...atributosNovos(j)];
+
   // Teto da nota = 23 + 0,20 × talento (1 a 100). Talento mínimo para o teto não ficar abaixo da nota de hoje: ninguém nasce acima do próprio teto.
   const TETO_DO_TALENTO = [23, 0.20];
   const talentoMinimo = j => Math.max(1, Math.min(100, Math.ceil((notaDeTeto(j) - TETO_DO_TALENTO[0]) / TETO_DO_TALENTO[1])));
@@ -230,14 +285,14 @@ const __modelo = (() => {
   // Outros países (supabase/77_paises.sql): cada um é um grupo de 10 clubes sem dirigente, com uma divisão só. O grupo diz o país.
   const PAISES = { ARG: "Argentina", URU: "Uruguai", COL: "Colômbia", CHI: "Chile" };
   const paisDoGrupo = g => PAISES[g] || "Brasil";
-  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, POSICOES, LISTA_POSICOES, PESOS, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, NIVEIS_PE_FRACO, nomeDoPeFraco, JEITO_DO_PE, textoDoPe, fraquezaDoPe, PE_FRACO_DESDE, notaComPe, peNaPosicao, notaNaPosicao, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
+  return { ATR_MIN, ATR_MAX, ATRIBUTOS, IDX, N_DA_T0, ATRIBUTOS_DA_T0, ATRIBUTOS_DESDE, temNovos, atributosDe, POSICOES, LISTA_POSICOES, PESOS, PESOS_T1, pesosDe, AJUSTE_INICIAL, FAMILIARIDADE, NOME_FAMILIARIDADE, VIZINHAS, familiaridade, notaBruta, NOME_DO_PE, CONFIG_PE, ajusteDoPe, NIVEIS_PE_FRACO, nomeDoPeFraco, JEITO_DO_PE, textoDoPe, fraquezaDoPe, PE_FRACO_DESDE, notaComPe, peNaPosicao, notaNaPosicao, atributosNovos, comNovos, TETO_DO_TALENTO, talentoMinimo, notaDeTeto, melhorPosicao, PAISES, paisDoGrupo };
 })();
 
 const __gerador = (() => {
   // Gerador de jogadores e de elencos iniciais.
   // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
   const { criarRng, limitar } = __rng;
-  const { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } = __modelo;
+  const { ATRIBUTOS_DA_T0, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo, atributosNovos } = __modelo;
   // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
   // para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
   const VAGAS_TITULARES = ["GK", "DR", "DC", "DC", "DL", "MR", "MC", "MC", "ML", "FC", "SC", "DC", "DMC", "AMC", "RW", "LW"];
@@ -257,7 +312,7 @@ const __gerador = (() => {
 
   function sortearAtributos(rng, pos, nivel) {
     const papel = POSICOES[pos].papel, pesos = PESOS[papel];
-    return ATRIBUTOS.map(({ k, grupo }) => {
+    return ATRIBUTOS_DA_T0.map(({ k, grupo }) => {
       const peso = pesos[k] || 0;
       if (peso >= 14) return arredondar(rng.normal(nivel + 7, 2.5));
       if (peso >= 8) return arredondar(rng.normal(nivel + 2, 3.5));
@@ -274,7 +329,7 @@ const __gerador = (() => {
     if (!chaves.length || pos === "GK") return;
     let aTirar = 0;
     for (const k of chaves) { const antes = at[IDX[k]]; at[IDX[k]] = arredondar(antes + bonus[k]); aTirar += at[IDX[k]] - antes; }
-    const outros = ATRIBUTOS.filter(a => a.grupo !== "gol" && !(a.k in bonus)).map(a => IDX[a.k]);
+    const outros = ATRIBUTOS_DA_T0.filter(a => a.grupo !== "gol" && !(a.k in bonus)).map(a => IDX[a.k]);
     for (let guarda = 0; aTirar > 0 && guarda < 200; guarda++) {
       const i = rng.pick(outros);
       if (at[i] > ATR_MIN + 2) { at[i]--; aTirar--; }
@@ -343,7 +398,7 @@ const __gerador = (() => {
   // Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
   // raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
   const TALENTO_COMUM = 92;
-  function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false }) {
+  function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false, novos = false }) {
     const at = sortearAtributos(rng, pos, alvo);
     aplicarPerfil(rng, at, pos, perfil);
     ajustarNota(rng, at, pos, alvo);
@@ -361,6 +416,7 @@ const __gerador = (() => {
       pe: sortearPe(rng, pos),
     };
     j.pf = sortearPeFraco(j.nome_completo + j.at, j.pe);
+    if (novos) j.at = [...j.at, ...atributosNovos(j, j.nome_completo + j.at)]; // sorteio à parte: não consome o rng, os 22 saem iguais
     j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
     return j;
   }
@@ -373,16 +429,16 @@ const __gerador = (() => {
   }
 
   // nivel: nota média dos 16 de nível titular. Todos os elencos gerados com o mesmo nível têm a mesma força média.
-  function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
+  function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j", novos = false }) {
     const usados = new Set(), elenco = [];
     const dTit = desvios(rng, VAGAS_TITULARES.length, 1.5), dRes = desvios(rng, VAGAS_RESERVAS.length, 1.5);
     const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 4));
     VAGAS_TITULARES.forEach((pos, i) => elenco.push({
-      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true }),
+      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true, novos }),
       titular: true,
     }));
     VAGAS_RESERVAS.forEach((pos, i) => elenco.push({
-      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true }),
+      ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true, novos }),
       titular: false,
     }));
     return elenco;
@@ -390,10 +446,10 @@ const __gerador = (() => {
 
   // Onze sob medida para uma formação: cada vaga recebe um jogador natural dela, todos em torno do mesmo nível.
   // Serve para comparar formações em condições iguais (calibragem) e para montar times da IA.
-  function gerarOnze(rng, vagas, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
+  function gerarOnze(rng, vagas, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j", novos = false }) {
     const d = desvios(rng, vagas.length, 1.5), usados = new Set();
     return vagas.map((pos, i) => ({
-      j: gerarJogador(rng, { id: prefixoId + i, pos, alvo: nivel + d[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
+      j: gerarJogador(rng, { id: prefixoId + i, pos, alvo: nivel + d[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, novos }),
       pos,
     }));
   }

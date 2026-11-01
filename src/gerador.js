@@ -1,7 +1,7 @@
 // Gerador de jogadores e de elencos iniciais.
 // Perfil equilibrado: atributos principais da posição altos, secundários médios, o resto variado.
 import { criarRng, limitar } from "./rng.js";
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo } from "./modelo.js";
+import { ATRIBUTOS_DA_T0, ATR_MIN, ATR_MAX, IDX, POSICOES, PESOS, VIZINHAS, notaBruta, talentoMinimo, atributosNovos } from "./modelo.js";
 
 // Elenco inicial: 16 jogadores de nível titular (um 4-4-2 mais zagueiro, volante, meia-atacante e duas pontas),
 // para o dirigente ter variação tática desde o primeiro dia, e 6 reservas mais fracos.
@@ -22,7 +22,7 @@ const arredondar = v => limitar(Math.round(v), ATR_MIN, ATR_MAX);
 
 function sortearAtributos(rng, pos, nivel) {
   const papel = POSICOES[pos].papel, pesos = PESOS[papel];
-  return ATRIBUTOS.map(({ k, grupo }) => {
+  return ATRIBUTOS_DA_T0.map(({ k, grupo }) => {
     const peso = pesos[k] || 0;
     if (peso >= 14) return arredondar(rng.normal(nivel + 7, 2.5));
     if (peso >= 8) return arredondar(rng.normal(nivel + 2, 3.5));
@@ -39,7 +39,7 @@ function aplicarPerfil(rng, at, pos, perfil) {
   if (!chaves.length || pos === "GK") return;
   let aTirar = 0;
   for (const k of chaves) { const antes = at[IDX[k]]; at[IDX[k]] = arredondar(antes + bonus[k]); aTirar += at[IDX[k]] - antes; }
-  const outros = ATRIBUTOS.filter(a => a.grupo !== "gol" && !(a.k in bonus)).map(a => IDX[a.k]);
+  const outros = ATRIBUTOS_DA_T0.filter(a => a.grupo !== "gol" && !(a.k in bonus)).map(a => IDX[a.k]);
   for (let guarda = 0; aTirar > 0 && guarda < 200; guarda++) {
     const i = rng.pick(outros);
     if (at[i] > ATR_MIN + 2) { at[i]--; aTirar--; }
@@ -108,7 +108,7 @@ export function sortearPeFraco(chave, pe) {
 // Talento comum vai até 92 (teto de nota 41). Os raros (teto 42 e 43) só nascem na safra de cada temporada (virada.js);
 // raro: true libera o sorteio inteiro, e só a criação dos elencos de uma liga nova usa.
 export const TALENTO_COMUM = 92;
-export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false }) {
+export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfil = "equilibrado", nomes, usados, raro = false, novos = false }) {
   const at = sortearAtributos(rng, pos, alvo);
   aplicarPerfil(rng, at, pos, perfil);
   ajustarNota(rng, at, pos, alvo);
@@ -126,6 +126,7 @@ export function gerarJogador(rng, { id, pos, alvo, idade, pais = "Brasil", perfi
     pe: sortearPe(rng, pos),
   };
   j.pf = sortearPeFraco(j.nome_completo + j.at, j.pe);
+  if (novos) j.at = [...j.at, ...atributosNovos(j, j.nome_completo + j.at)]; // sorteio à parte: não consome o rng, os 22 saem iguais
   j.tal = Math.max(j.tal, talentoMinimo(j)); // reposição forte (nota do aposentado ou do vendido) com talento sorteado baixo nascia acima do teto
   return j;
 }
@@ -138,16 +139,16 @@ function desvios(rng, n, desvio) {
 }
 
 // nivel: nota média dos 16 de nível titular. Todos os elencos gerados com o mesmo nível têm a mesma força média.
-export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
+export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j", novos = false }) {
   const usados = new Set(), elenco = [];
   const dTit = desvios(rng, VAGAS_TITULARES.length, 1.5), dRes = desvios(rng, VAGAS_RESERVAS.length, 1.5);
   const jovens = new Set(rng.embaralhar(VAGAS_RESERVAS.map((_, i) => i)).slice(0, 4));
   VAGAS_TITULARES.forEach((pos, i) => elenco.push({
-    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true }),
+    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel + dTit[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, raro: true, novos }),
     titular: true,
   }));
   VAGAS_RESERVAS.forEach((pos, i) => elenco.push({
-    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true }),
+    ...gerarJogador(rng, { id: prefixoId + elenco.length, pos, alvo: nivel - FOLGA_RESERVA + dRes[i], idade: jovens.has(i) ? rng.int(18, 21) : rng.int(24, 33), pais, perfil, nomes, usados, raro: true, novos }),
     titular: false,
   }));
   return elenco;
@@ -155,10 +156,10 @@ export function gerarElenco(rng, { nivel = 30, perfil = "equilibrado", pais = "B
 
 // Onze sob medida para uma formação: cada vaga recebe um jogador natural dela, todos em torno do mesmo nível.
 // Serve para comparar formações em condições iguais (calibragem) e para montar times da IA.
-export function gerarOnze(rng, vagas, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j" }) {
+export function gerarOnze(rng, vagas, { nivel = 30, perfil = "equilibrado", pais = "Brasil", nomes, prefixoId = "j", novos = false }) {
   const d = desvios(rng, vagas.length, 1.5), usados = new Set();
   return vagas.map((pos, i) => ({
-    j: gerarJogador(rng, { id: prefixoId + i, pos, alvo: nivel + d[i], idade: rng.int(23, 30), pais, perfil, nomes, usados }),
+    j: gerarJogador(rng, { id: prefixoId + i, pos, alvo: nivel + d[i], idade: rng.int(23, 30), pais, perfil, nomes, usados, novos }),
     pos,
   }));
 }

@@ -5,7 +5,7 @@
 // Rodízio: quem jogou menos minutos na temporada da base tem a preferência para começar, e os juvenis que não começam são sugeridos para entrar
 // no intervalo (até cinco), no lugar dos garotos da escolinha, depois dos profissionais e depois de quem mais jogou. Assim até 16 juvenis jogam 45 minutos.
 // O dirigente pode montar o banco (até nove, como no time principal) e as substituições dele no lugar das sugeridas.
-import { ATRIBUTOS, LISTA_POSICOES, notaBruta, notaNaPosicao } from "./modelo.js";
+import { ATRIBUTOS_DA_T0, LISTA_POSICOES, notaBruta, notaNaPosicao } from "./modelo.js";
 import { limitar } from "./rng.js";
 import { FORMACOES, TAMANHO_DO_BANCO } from "./escalacao.js";
 import { taticaBot, FORMACOES_BOT } from "./bot.js";
@@ -29,7 +29,7 @@ const FORMACOES_DA_BASE = FORMACOES_BOT; // as mesmas que o bot usa
 export const contratadoNaBase = (formador, chegou, clubeId) => chegou != null && String(formador) !== String(clubeId);
 
 export function garotoDaEscolinha(rng, pos, nivel, id) {
-  const at = ATRIBUTOS.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));
+  const at = ATRIBUTOS_DA_T0.map(a => limitar(Math.round((a.grupo === "gol" && pos !== "GK" ? 3 : nivel) + rng.normal(0, 2)), 1, 50));
   return { id, nome: "Garoto da escolinha", pais: "Brasil", idade: 16, pos, fam: { [pos]: "N" }, at, pe: "D", escolinha: true };
 }
 
