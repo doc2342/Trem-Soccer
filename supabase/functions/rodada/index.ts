@@ -1670,6 +1670,9 @@ const __motor = (() => {
     // Na grade, o texto conta no máximo narrar.passos passos (passosChance no ataque que termina em finalização): os que quebraram linha e o último;
     // as voltas e os toques de lado deixados de fora viram "roda a bola atrás" quando são 3 ou mais. Todos continuam na rota.
     const atras = f => f.passo.tipo === "voltar" || f.passo.tipo === "lado";
+    // reciclar (grade): quem roubou não vê espaço para o contra-ataque (q: quem roubou, ou null; t: o time)
+    const RECICLA = [(q, t) => `${q || t} olha para a frente, não vê espaço para o contra-ataque e segura a bola.`, (q, t) => `${t} recupera, mas prefere não arriscar o contra-ataque: troca passes para reorganizar.`,
+      (q, t) => `Sem espaço para sair rápido, ${q ? q + " toca para trás" : t + " recomeça com calma"}.`];
     const RODA_ATRAS = [t => `O ${t} roda a bola atrás`, t => `O ${t} troca passes com calma`, t => `O ${t} toca de pé em pé`, t => `O ${t} circula a bola`];
     function enxuta(t, chance) {
       const ps = t.filter(f => f.passo);
@@ -2012,7 +2015,8 @@ const __motor = (() => {
           // na grade (spec 10): o contra nasce na zona da roubada; quem roubou recicla se não vê espaço (o mau decisor às vezes sai mesmo assim)
           const zc = grade ? espelhoGrade(zona) : null, ladrao = ultimaPerda.marcador;
           if (grade && espacoNoContra(1 - i, zc) < G.reciclar && rng.chance(limitar((ladrao ? decisao(ladrao.at) : 25) / 35, 0.3, 1))) {
-            estat[1 - i].grade.reciclagens++; proximo = { time: 1 - i, zona: zc }; bola = null; return;
+            estat[1 - i].grade.reciclagens++; proximo = { time: 1 - i, zona: zc }; bola = null;
+            evento(1 - i, "posse", RECICLA[seq % RECICLA.length](ladrao ? nm(ladrao) : null, tm(1 - i))); return;
           }
           // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
           const lateral = linhaDaZona(zona) === "M" && ladoDaZona(zona) !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === ladoDaZona(zona) && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
