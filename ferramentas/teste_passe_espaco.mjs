@@ -9,7 +9,7 @@ import { prepararTime, simularPartida } from "../src/motor.js";
 const veloz = (esc, mais) => esc.map(x => x.pos === "GK" ? x : { ...x, j: { ...x.j, at: x.j.at.map((v, k) => k === IDX.vel ? Math.min(50, v + mais) : v) } });
 const medir = mais => {
   const r = [0, 0]; let narrado = false;
-  for (let s = 0; s < 60; s++) {
+  for (let s = 0; s < 400; s++) {
     const reg = [], a = prepararTime({ nome: "A", escalacao: veloz(onze(100 + s, "4-3-2-1 (árvore de Natal)"), mais) }), b = prepararTime({ nome: "B", escalacao: onze(200 + s, "4-4-2") });
     const p = simularPartida(criarRng(s), a, b, { registro: reg });
     r[0] += p.estat[0].grade.espaco[0]; r[1] += p.estat[0].grade.espaco[1];
@@ -24,7 +24,7 @@ const medir = mais => {
   return { r, narrado };
 };
 const base = medir(0), rapido = medir(15);
-assert.ok(base.r[0] > 30, `passe no espaço acontece: ${base.r[0]} em 60 jogos`);
+assert.ok(base.r[0] > 200, `passe no espaço acontece: ${base.r[0]} em 400 jogos`);
 assert.ok(base.narrado, "a narração conta o passe no espaço");
 const taxa = r => r[1] / r[0];
 assert.ok(taxa(rapido.r) > taxa(base.r), `mais veloz ganha mais: ${taxa(rapido.r).toFixed(3)} x ${taxa(base.r).toFixed(3)}`);

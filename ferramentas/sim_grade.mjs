@@ -39,7 +39,7 @@ export function jogar(N, jogo = null, semente = 7) {
     porPos: { volante: [0, 0], zagueiro: [0, 0], ponta: [0, 0] }, dribles: [0, 0], enfiadas: [0, 0], espaco: [0, 0], entre: [0, 0],
     ppda: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, roubadas: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, perdasAtras: 0, perdasAtrasChute: 0, contraCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 },
     golsContraN: 0, xgZona: ZONAS_GRADE.map(() => [0, 0]), entradas: 0, entradasPosse: [0, 0], progressivos: [0, 0], fundos: 0, sca: 0, gca: 0,
-    territorio: [], faltas: 0, amarelos: 0, escanteios: 0, rodadas: [] };
+    territorio: [], faltas: 0, amarelos: 0, escanteios: 0, tiros: [0, 0, 0], maos: [0, 0], rodadas: [] };
   for (let n = 0; n < N; n++) {
     const p0 = jogo ? jogo(n, rng) : null;
     const fa = p0 ? p0.fa : pega(rng, FORMACOES_BOT), fb = p0 ? p0.fb : pega(rng, FORMACOES_BOT);
@@ -66,6 +66,7 @@ export function jogar(N, jogo = null, semente = 7) {
       t.posses10 += g.posses10; t.passosNoGol.push(...g.passosNoGol); t.tabelas += g.tabelas[1]; t.terceiros += g.terceiros[1]; t.cutbacks += g.cutbacks[1];
       t.cruz[0] += g.cruzamentos[0]; t.cruz[1] += g.cruzamentos[1]; t.toques += g.toquesArea; t.aereos[0] += g.aereos[0]; t.aereos[1] += g.aereos[1];
       t.segundas[0] += g.segundas[0]; t.segundas[1] += g.segundas[1]; t.lancadorFica[0] += g.longas[0]; t.lancadorFica[1] += g.longas[1]; t.sobras[0] += g.sobras[0]; t.sobras[1] += g.sobras[1];
+      g.tiros.forEach((v, k) => { t.tiros[k] += v; }); t.maos[0] += g.maos[0]; t.maos[1] += g.maos[1];
       t.perdasAtras += g.perdasAtras; t.perdasAtrasChute += g.perdasAtrasChute; for (const c in g.contraPorCorredor) t.contraCorredor[c] += g.contraPorCorredor[c];
     });
     // passos de todos os ataques (registro)
@@ -222,6 +223,9 @@ function aerea(t) {
   meta("esforco", G, "segunda bola do time que ganhou no alto", "26–36%", pc(r(t.segundas[1], t.segundas[0])), entre(r(t.segundas[1], t.segundas[0]), 0.26, 0.36));
   meta("esforco", G, "quem lança fica com a bola", "~25% (20–30)", pc(r(t.lancadorFica[1], t.lancadorFica[0])), entre(r(t.lancadorFica[1], t.lancadorFica[0]), 0.2, 0.3));
   meta("info", G, "sobra do cruzamento afastado: por time; nossa", "—", `${f2(t.sobras[0] / j / 2)}; ${pc(r(t.sobras[1], t.sobras[0]))}`, null);
+  // tiro de meta (Tarefa 9c): 595 em 51 jogos na Euro 2020 (Human Movement, 2023); Opta, Premier League 2023/24: 46,6% dos passes do goleiro longos
+  meta("esforco", G, "tiros de meta por time; curtos", "~5,8; ~50%", `${f1(t.tiros[0] / j / 2)}; ${pc(r(t.tiros[1], t.tiros[0]))}`, entre(t.tiros[0] / j / 2, 4.5, 7) && entre(r(t.tiros[1], t.tiros[0]), 0.4, 0.6));
+  meta("info", G, "tiros de meta curtos roubados (% dos curtos); reposições com a mão por time, curtas", "—", `${pc(r(t.tiros[2], t.tiros[1]))}; ${f1(t.maos[0] / j / 2)}, ${pc(r(t.maos[1], t.maos[0]))}`, null);
 }
 
 // território sem xG e entradas no terço final (do registro de todas as partidas)
