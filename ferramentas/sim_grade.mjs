@@ -120,7 +120,8 @@ function geral(t) {
   const j = t.jogos, G = "geral";
   const gols = t.gols / j, conv = r(t.gols, t.noGol), contra = r(t.golsContra, t.gols), cruz = r(t.golsTipo.cruzamento || 0, t.gols);
   const pen = r(t.golsTipo.penalti || 0, t.gols), esc = r(t.golsTipo.escanteio || 0, t.gols), acerto = r(t.estatPassos[1], t.estatPassos[0]);
-  meta("obrigatoria", G, "gols por jogo", "~2,3 (2,1–2,5)", f2(gols), entre(gols, 2.1, 2.5));
+  // gols: o Brasileirão do FotMob (1,24 por time) manda sobre os ~2,3 do spec (plano, Tarefa 12); Europa 2,88
+  meta("obrigatoria", G, "gols por jogo", "~2,5 Brasileirão (2,3–2,7)", f2(gols), entre(gols, 2.3, 2.7));
   meta("obrigatoria", G, "conversão no alvo", "~30% (27–33)", pc(conv), entre(conv, 0.27, 0.33));
   meta("obrigatoria", "transicao", "gols de contra-ataque (régua Opta)", "5–7%", pc(contra), entre(contra, 0.05, 0.07));
   meta("obrigatoria", "finalizacao", "gols de cruzamento", "13–20%", pc(cruz), entre(cruz, 0.13, 0.20));

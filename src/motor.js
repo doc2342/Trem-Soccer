@@ -1236,8 +1236,10 @@ function jogarPartida(rng, casa, fora, opcoes) {
           estat[1 - i].grade.reciclagens++; proximo = { time: 1 - i, zona: zc }; bola = null;
           evento(1 - i, "posse", RECICLA[seq % RECICLA.length](ladrao ? nm(ladrao) : null, tm(1 - i))); return;
         }
-        // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele
-        const lateral = linhaDaZona(zona) === "M" && ladoDaZona(zona) !== "C" ? atk.emCampo.find(x => POSICOES[x.pos].lado === ladoDaZona(zona) && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
+        // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele.
+        // Na grade: faixas 2–4 do lado dele (lado ou meio-espaço), onde o Apoiador ataca e o Invertido fecha por dentro
+        const ladoPerda = ehGrade(zona) ? (faixaDe(zona) >= 2 && faixaDe(zona) <= 4 ? { E: "E", e: "E", d: "D", D: "D" }[zona[1]] : null) : linhaDaZona(zona) === "M" && ladoDaZona(zona) !== "C" ? ladoDaZona(zona) : null;
+        const lateral = ladoPerda ? atk.emCampo.find(x => POSICOES[x.pos].lado === ladoPerda && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
         const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
         // roubada no centro ou interceptação: contra melhor; contra a linha alta, quem recebe no meio-espaço sai livre (entre o zagueiro e o lateral)
         const naGrade = grade ? { zona: zc, logit: zona[1] === "C" || ultimaPerda.causa === "corte" ? G.contra.centro : 0, livre: !!atk.instr.impedimento } : {};
