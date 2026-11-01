@@ -31,4 +31,17 @@ Lidos o resumo, as conclusões e os números dos resultados; método e referênc
 - Estudo citado na tese: treino perceptivo levou o acerto de 63% para 77%. A posição do pé de apoio tem cerca de 80% de confiabilidade.
 - O goleiro lê melhor por experiência; o batedor pode reduzir a rotação ou usar fintas.
 
-Consequência possível, não aprovada: no pênalti, a Excentricidade de quem bate esconde o lado (a mudança de ritmo e o pulinho na corrida, como Neymar e Jorginho; a paradinha é proibida hoje) e a experiência do goleiro lê melhor. O efeito é pequeno e a régua do pênalti já existe. Não muda a Tarefa 12.
+## Pênaltis do Jorginho (4 textos do dono, lidos inteiros)
+
+Chelsea (fala do jogador), The i Paper (Bosnich e Richard Lee), Goal.com, The Athletic (análise de todas as cobranças). Mais um texto da IESE sobre personalidades em equipes de empresa: nada de futebol, nada a aproveitar, e não sustenta punir elenco com muitos líderes.
+
+- Regra: Lee diz que o árbitro não pode marcar parada no pulo, porque ele continua em movimento. É a variação legal que o dono citou.
+- Pênalti converte cerca de 75% no mundo. Jorginho: 39 cobranças e 5 erros até a Euro 2020 (87%), um trecho de 15 em 16, 70% dos goleiros para o lado errado em jogo e 75% em disputa.
+- É um pôquer: quem bate espera o goleiro se mexer e decide por último. Se o goleiro se mexe cedo, a bola rola devagar no outro canto, sem força. Se o goleiro fica parado até o fim, quem bate perde opções e precisa acertar o canto: as 4 defesas sofridas vieram assim, e a bola na trave veio de buscar demais o canto.
+- Bruno Fernandes é visto como um grau acima porque varia: contra quem fica parado, bate forte no canto.
+- Equilíbrio de lado: 14 × 19 em 33 cobranças. Estudar o batedor e já tê-lo enfrentado ajuda o goleiro (Leno). Sem o goleiro se mexer, o destro costuma cruzar para a direita do goleiro.
+- Jorginho: "o pênalti é 70 a 75% cabeça".
+
+Proposta, não aprovada: o pênalti como duelo de estilos. Quem bate espera o goleiro (Excentricidade e Decisões) ou escolhe o canto antes; o goleiro pula cedo ou espera (Decisões). Esperar contra quem pula cedo dá gol fácil; contra quem espera, sobe o risco de defesa e de trave. A média fica perto da taxa de hoje e só o especialista sobe, até uns 85%. Narração própria: rola no contrapé, o goleiro espera até o fim. É um lance isolado, então pode vir depois da calibragem do fluxo, antes da virada.
+
+Consequência da tese, também não aprovada: no pênalti, a Excentricidade de quem bate esconde o lado (a mudança de ritmo e o pulinho na corrida, como Neymar e Jorginho; a paradinha é proibida hoje) e a experiência do goleiro lê melhor. O efeito é pequeno e a régua do pênalti já existe. Não muda a Tarefa 12.
