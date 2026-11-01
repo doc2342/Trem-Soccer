@@ -192,6 +192,39 @@ function situacaoDaCopa(elenco, p, clubeId, fase, medico = null, continental = f
 }
 
 // temporada: a da liga; antes de PE_FRACO_DESDE (ou sem ela) os jogadores entram sem a nota do pé fraco e o motor joga como antes
+// Narração em fases (só nos jogos da grade): cada frase fica na tela pelo tempo de ler, e o desfecho vem depois de uma pausa.
+//   minimo, maximo, base, porLetra: segundos por frase; pausa: antes do desfecho; folga: depois dele, antes do próximo lance;
+//   antecedencia: a jogada chega antes de começar, porque a tela busca a cada 10 s (ela não traz o resultado)
+export const FASES = { minimo: 2.5, maximo: 7, base: 1.5, porLetra: 0.045, pausa: 1, folga: 3, antecedencia: 12 };
+export const tempoDaFrase = t => Math.min(FASES.maximo, Math.max(FASES.minimo, FASES.base + t.replace(/\{[01?]:([^}]*)\}/g, "$1").length * FASES.porLetra));
+// separa o que vem antes do desfecho ("… finaliza: GOL!" vira "… finaliza…" e "GOL!"); sem o que separar, a última frase inteira é o desfecho
+export function desdobrarFases(fases) {
+  const antes = fases.slice(0, -1), u = fases[fases.length - 1], k = u.lastIndexOf(": "), m = k < 0 ? u.lastIndexOf(", mas ") : -1, corte = k >= 0 ? k : m;
+  if (corte < 0) return { antes, desfecho: u };
+  const fim = u.slice(corte + 2);
+  return { antes: [...antes, u.slice(0, corte) + "…"], desfecho: fim[0] === "{" ? fim : fim[0].toUpperCase() + fim.slice(1) };
+}
+export const fasesNoAr = (d, agora) => d.tempos.filter(t => d.comeca + t <= agora).length;
+// As linhas da tabela lances. O lance em fases vira duas: a jogada, sem o resultado, e o lance inteiro na hora em que a jogada termina; o banco esconde
+// essa linha até lá, então nenhuma tela vê o gol antes. O lance seguinte espera. hora(l) e limite(l): em ms; limite é o apito do tempo em que o lance cai.
+// A hora nunca volta de uma ordem para a seguinte: a transmissão busca só as ordens maiores que a última que tem.
+export function lancesDaTransmissao(narracao, partida_id, hora, limite, inicio = 0) {
+  const ls = [], poe = (min, ms, dados) => { ls.push({ partida_id, ordem: ls.length, min, libera_em: new Date(ms).toISOString(), dados }); ultimo = ms; };
+  let livre = 0, ultimo = inicio;
+  for (const l of narracao) {
+    const t = Math.max(hora(l), livre), antes = l.fases ? desdobrarFases(l.fases).antes : [];
+    if (!antes.length) { poe(l.min, t, l); continue; }
+    const esperas = antes.map((f, i) => tempoDaFrase(f) + (i === antes.length - 1 ? FASES.pausa : 0)), total = esperas.reduce((a, b) => a + b, 0) * 1000;
+    const escala = t + total > limite(l) ? Math.max(0, (limite(l) - t) / total) : 1, fim = Math.round(t + total * escala);
+    let soma = 0;
+    const tempos = esperas.map(e => { const x = Math.round(soma * 1000 * escala); soma += e; return x; });
+    poe(l.min, Math.max(t - FASES.antecedencia * 1000, ultimo), { n: l.n, min: l.min, s: l.s, ...(l.ac ? { ac: l.ac } : {}), time: l.time, tipo: "jogada", fases: antes, comeca: t, tempos, fim });
+    poe(l.min, fim, l);
+    livre = fim + FASES.folga * 1000;
+  }
+  return ls;
+}
+
 export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105, semente, temporada }) {
   const semPf = j => j.pf == null || temporada >= PE_FRACO_DESDE ? j : { ...j, pf: null };
   const agora = new Date(partida.inicio).getTime(), lib = partida.fase === "lib", copa = lib || partida.fase === "copa"; // copa e Libertadores: campo neutro, prorrogação e pênaltis
@@ -220,7 +253,8 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
   const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3), registro);
   const acr = p.acrescimos || [0, 0];
-  const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, (l.s === undefined ? l.min : l.min - 1 + l.s / 60) + (l.ac || 0), minutosTransmissao, acr, l.min).toISOString(), dados: l }));
+  const apito = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).getTime(), meioTempo = horaDoMinuto(partida.inicio, 45 + acr[0], minutosTransmissao, acr, 45).getTime();
+  const lances = lancesDaTransmissao(p.narracao, partida.id, l => horaDoMinuto(partida.inicio, (l.s === undefined ? l.min : l.min - 1 + l.s / 60) + (l.ac || 0), minutosTransmissao, acr, l.min).getTime(), l => l.min <= 45 ? meioTempo : apito, new Date(partida.inicio).getTime());
   // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)
   const extra = criarRng((semente >>> 0) + 7919);
   lances.unshift({ partida_id: partida.id, ordem: -1, min: 0, libera_em: new Date(partida.inicio).toISOString(), dados: {
@@ -229,7 +263,7 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
   } });
   // Copa: empate nos 90 minutos vai à prorrogação, jogada pelo motor como o resto da partida; persistindo, aos pênaltis, que o motor também
   // bate um a um. Com prorrogação, a transmissão e o resultado terminam depois do horário de fim da partida; com pênaltis, depois da última cobrança.
-  const placar = p.placar.slice(), fimDoJogo = horaDoMinuto(partida.inicio, p.duracao + (p.duracao > 90 ? 0 : acr[1]), minutosTransmissao, acr, p.duracao).getTime();
+  const placar = p.placar.slice(), fimDoJogo = Math.max(apito, ...lances.map(l => new Date(l.libera_em).getTime())); // a fila pode passar uns segundos do apito
   let fimReal = new Date(fimDoJogo).toISOString(), penaltis = null, vencedor = null;
   if (copa) {
     const nomes = [casa.clube.nome, fora.clube.nome];

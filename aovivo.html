@@ -185,7 +185,10 @@
     .aovivo > .lan .lance { font-size:15px; } .aovivo > .lan .lance.posse, .aovivo > .lan .lance.roda, .aovivo > .lan .lance.falta, .aovivo > .lan .lance.canto { font-size:13px; }
   }
   /* depois do apito (PC e celular): na reprise, só os lances principais até pedir todos; no ao vivo, todos sempre */
-  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.acrescimo):not(.penaltis):not(.cobranca), #corpo:not(.todos) .legenda.lances { display:none; }
+  .lance .txt > div + div { margin-top:4px; }
+  .lance .desfecho { font-weight:600; }
+  .lance.gol .desfecho { font-family:var(--display); font-weight:700; font-size:24px; line-height:1.1; color:var(--ac); }
+  #corpo:not(.todos) .lance:not(.gol):not(.fin):not(.jogada):not(.perigo):not(.amarelo):not(.vermelho):not(.lesao):not(.substituicao):not(.ordem):not(.prorrogacao):not(.acrescimo):not(.penaltis):not(.cobranca), #corpo:not(.todos) .legenda.lances { display:none; }
   #corpo.todos .v1, #corpo:not(.todos) .v2 { display:none; }
   /* celular: uma aba por vez (Resumo, Lances, Estatísticas...) */
   .abas.soCel { display:none; }
@@ -216,7 +219,7 @@
 <script type="module">
 import { SEDES } from "./src/estadio.js";
 import { nomeDoGrupo, nomeDoPlayoff, PAISES, FASES_DA_COPA, ehCopa, nomeDaCopa, precoDoIngresso, ligaAtual, partidaPorId, clubesPorIds, lancesEGols, partidasDaCopa, relatorioDaPartida, partidasDoGrupo, clubesDaLiga, resultadosDe, estatisticasDaLiga } from "./src/banco.js";
-import { classificacao } from "./src/rodada.js";
+import { classificacao, fasesNoAr } from "./src/rodada.js";
 import { fraseDoPresidente, variacaoDaConfianca, posicaoPelosEsperados } from "./src/diretoria.js";
 import { metasDaTemporada, marcasDosClubes, valoresDaDivisao } from "./src/banco.js";
 import { MARCAS, selo, placasDoEstadio, ANUNCIE, jogoPatrocinado, marcaDaCompeticao } from "./src/patrocinio.js";
@@ -306,7 +309,7 @@ function intervaloComercial(m) {
   passar();
 }
 // lances do 1º tempo já no ar (os do 2º tempo podem estar baixados antes da hora e não entram)
-const primeiroTempo = () => baixados.filter(l => l.dados && l.dados.tipo !== "inicio" && l.dados.min <= 45 && (!l.libera_em || new Date(l.libera_em).getTime() <= Date.now())).map(l => l.dados);
+const primeiroTempo = () => baixados.filter(l => l.dados && l.dados.tipo !== "inicio" && l.dados.tipo !== "jogada" && l.dados.min <= 45 && (!l.libera_em || new Date(l.libera_em).getTime() <= Date.now())).map(l => l.dados);
 // placares dos jogos do grupo no apito do 1º tempo e a tabela como ficaria com eles (setas: comparadas com o início da rodada)
 function telaDaRodada(pt) {
   const total = (new Date(partida.fim) - new Date(partida.inicio)) / 60000, T = Math.min(Date.now(), new Date(partida.inicio).getTime() + (45 + acrDoJogo()[0]) * total / 105 * 60000);
@@ -484,6 +487,17 @@ function placa(d) {
 const suspense = passo => Math.min(14000, 0.45 * passo);
 // a disputa acaba quando um não alcança mais o outro nas cinco, ou, nas alternadas, com o mesmo número de cobranças e placar diferente (a regra do motor)
 const decidida = (pl, bt) => bt[0] < 5 || bt[1] < 5 ? pl[0] > pl[1] + 5 - bt[1] || pl[1] > pl[0] + 5 - bt[0] : bt[0] === bt[1] && pl[0] !== pl[1];
+// Narração em fases: a jogada chega antes da hora, sem o resultado; cada frase entra no seu tempo. O desfecho é outro lance, que o banco só libera quando a
+// jogada termina: uma busca marcada para essa hora o traz, sem esperar a volta do relógio de 10 s.
+let jogadas = [], jogadasHtml = "";
+const marcadas = new Set();
+const htmlJogadas = () => jogadas.map(d => [d, fasesNoAr(d, Date.now())]).filter(([, n]) => n).reverse().map(([d, n]) => htmlLance({ ...d, frases: d.fases.slice(0, n) })).join("");
+function desenharJogadas() { const alvo = $("jogadas"), h = htmlJogadas(); if (!alvo || (h === jogadasHtml && alvo.innerHTML)) return; jogadasHtml = h; alvo.innerHTML = h; }
+function acompanharJogadas(lances, narracao) {
+  const saiu = new Set(narracao.map(l => l.n));
+  jogadas = lances.map(l => l.dados).filter(d => d.tipo === "jogada" && !saiu.has(d.n));
+  jogadas.filter(d => d.fim > Date.now() && !marcadas.has(d.n)).forEach(d => { marcadas.add(d.n); setTimeout(() => atualizar().catch(() => {}), d.fim - Date.now() + 300); });
+}
 function empurrarCobrancas(lista) {
   const ini = lista.find(l => l.dados && l.dados.tipo === "penaltis" && l.dados.n < 99999), cob0 = lista.find(l => l.dados && l.dados.tipo === "cobranca");
   const passo = ini && cob0 ? (new Date(cob0.bate_em || cob0.libera_em) - new Date(ini.libera_em)) / 4 : 30000; // a primeira sai 4 passos depois do aviso
@@ -841,7 +855,7 @@ async function atualizar() {
   const lances = baixados.filter(noAr); if (res && !noAr(res)) res = null;
   sonsDosLances(m, lances, agora);
   avisosDaRodada(agora);
-  const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio");
+  const tudo = lances.map(l => l.dados), pre = tudo.find(l => l.tipo === "inicio"), narracao = tudo.filter(l => l.tipo !== "inicio" && l.tipo !== "jogada"); acompanharJogadas(lances, narracao);
   if (!intervaloMostrado && m.texto.includes("intervalo")) { intervaloMostrado = true; setTimeout(() => cartaoDeIntervalo(narracao), 600); }
   narracao.forEach(l => lembrarJogadores([l.finalizador, l.quem, l.time])); if (res) res.relatorio.jogadores.forEach(j => lembrarJogadores([j.id, j.nome, j.time]));
   if (res) {
@@ -882,10 +896,10 @@ async function atualizar() {
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
   topo(gols, m, narracao, pre);
-  const notas = notasDosGols(lances), comNota = l => htmlLance(l, [clubes[partida.casa].nome, clubes[partida.fora].nome]) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
+  const notas = notasDosGols(lances), comNota = l => htmlLance(l, [clubes[partida.casa].nome, clubes[partida.fora].nome], true) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
-    : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
+    : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}<div id="jogadas">${htmlJogadas()}</div>${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
        ${(duas => `<div class="lat-d ${duas ? "lat-" + latAba : ""}">${duas ? `<div class="lat-abas">${[["esc", "👕 Escalações"], ["rodada", "🏆 Rodada ao vivo"]].map(([k, n]) => `<button class="sec ${latAba === k ? "ativa" : ""}" data-lat="${k}">${n}</button>`).join("")}</div>` : ""}${htmlEscalacoes(pre)}${htmlRodada(gols)}</div>`)(!!(pre && pre.escalacoes && rodada))}</div>`;
   ligarGraficos($("corpo")); aplicarAba();
@@ -914,7 +928,7 @@ async function iniciar() {
     atualizar().catch(() => {}); };
   relogio = setInterval(buscar, 10000);
   document.addEventListener("visibilitychange", () => { buscar().catch(() => {}); });
-  tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; if (!disputaDemo && !encerrada) desenharDisputa(baixados); }, 1000);
+  tique = setInterval(() => { if (!encerrada && $("crono")) $("crono").textContent = momento().texto; if (!encerrada) desenharJogadas(); if (!disputaDemo && !encerrada) desenharDisputa(baixados); }, 1000);
 }
 window.__teste = { SONS, desenharDisputa, htmlDisputa, empurrarCobrancas, sonsDosLances, avisosDaRodada, outros: () => outros, placa, dadosDaPlaca, notasDosGols: () => notasDosGols(baixados), htmlRodada, htmlDiretoria, rodada: () => rodada, analiseDoIntervalo, primeiroTempo, veredito }; // para conferir pelo console
 // ?demo: botões que disparam as animações (gol, substituição, acréscimo) com jogadores desta partida, para ver sem esperar o lance

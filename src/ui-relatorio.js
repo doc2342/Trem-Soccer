@@ -6,6 +6,7 @@ import { rotulo, campoDeZonas, destacar, ALTURA_DA_FAIXA } from "./ui-trem.js";
 import { svgCamisa } from "./camisa.js";
 import { svgEscudo } from "./escudo.js";
 import { ehGrade, ZONA_EM, CORREDORES } from "./grade.js";
+import { desdobrarFases } from "./rodada.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 const COR = ["casa", "fora"];
@@ -76,12 +77,15 @@ function calorDosJogadores(r, nomes) {
     <label for="${id}t" class="g5-lt">Tudo</label><label for="${id}a" class="g5-la">Time atacando</label><label for="${id}d" class="g5-ld">Time defendendo</label></div>${js.map(bloco).join("")}</div>`;
 }
 
-export function htmlLance(l, nomes = null) {
+// emFases: no ao vivo, o lance em fases fica frase por frase, com o desfecho separado (l.frases: as frases da jogada que ainda está no ar)
+export function htmlLance(l, nomes = null, emFases = false) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   // cobrança da disputa de pênaltis: o desfecho vem em "pen", não em "resultado", para não contar como finalização nem gol do jogo
   const finalizacao = l.resultado !== undefined, cobranca = l.tipo === "cobranca", chave = finalizacao ? l.resultado : cobranca ? l.pen : l.tipo;
-  const classe = finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo;
-  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="txt">${nomes && (l.time === 0 || l.time === 1) && l.tipo !== "acrescimo" && l.tipo !== "prorrogacao" ? `<b class="atq ${COR[timeAtacando(l)]}">${esc(nomes[timeAtacando(l)])}</b>` : ""}${/\{[01?]:/.test(l.texto) ? textoColorido(l.texto) : `<span class="${COR[l.time]}">${esc(l.texto)}</span>`}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  const classe = (finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo) + (emFases && l.fases ? " perigo" : "");
+  const colorido = t => /\{[01?]:/.test(t) ? textoColorido(t) : `<span class="${COR[l.time]}">${esc(t)}</span>`, dd = emFases && l.fases && desdobrarFases(l.fases);
+  const frases = l.frases ? l.frases.map(f => `<div>${colorido(f)}</div>`).join("") : dd ? dd.antes.map(f => `<div>${colorido(f)}</div>`).join("") + `<div class="desfecho">${colorido(dd.desfecho)}</div>` : null;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="txt">${nomes && (l.time === 0 || l.time === 1) && l.tipo !== "acrescimo" && l.tipo !== "prorrogacao" ? `<b class="atq ${COR[timeAtacando(l)]}">${esc(nomes[timeAtacando(l)])}</b>` : ""}${frases || colorido(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🚑", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 

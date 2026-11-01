@@ -46,5 +46,6 @@ export const limparGravado = v => typeof v === "string" ? semHtml(v) : Array.isA
 // só o que o replay e o relatório usam
 export function partidaParaGravar(p) {
   const { placar, xg, estat, lances, eventos, narracao, jogadores, ordens, acrescimos, duracao, penaltis } = p;
-  return { placar, xg, estat, lances, eventos, narracao, jogadores, ordens, acrescimos, duracao, penaltis };
+  const semFases = l => { const { fases, ...resto } = l; return resto; }; // as fases só servem à transmissão, e repetem o texto
+  return { placar, xg, estat, lances: lances.map(semFases), eventos: eventos.map(semFases), narracao: narracao.map(semFases), jogadores, ordens, acrescimos, duracao, penaltis };
 }
