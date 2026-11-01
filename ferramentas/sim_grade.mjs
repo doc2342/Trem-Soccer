@@ -36,7 +36,7 @@ export function jogar(N, jogo = null, semente = 7) {
     golsTipo: {}, chJF5: 0, chJF5C: 0, ataques: 0, ataquesChute: 0, posses10: 0, passosNoGol: [], estatPassos: [0, 0],
     tipo: {}, meio: { diagonal: 0, subir: 0 }, ladoF: { diagonal: 0, subir: 0 }, movs: 0, voltas: 0, pularF: [[0, 0], [0, 0], [0, 0]], longas: 0, passes: 0,
     tabelas: 0, terceiros: 0, cutbacks: 0, cruz: [0, 0], toques: 0, aereos: [0, 0], segundas: [0, 0], lancadorFica: [0, 0], sobras: [0, 0],
-    porPos: { volante: [0, 0], zagueiro: [0, 0], ponta: [0, 0] }, dribles: [0, 0], enfiadas: [0, 0],
+    porPos: { volante: [0, 0], zagueiro: [0, 0], ponta: [0, 0] }, dribles: [0, 0], enfiadas: [0, 0], espaco: [0, 0], entre: [0, 0],
     ppda: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, roubadas: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, perdasAtras: 0, perdasAtrasChute: 0, contraCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 },
     golsContraN: 0, xgZona: ZONAS_GRADE.map(() => [0, 0]), entradas: 0, entradasPosse: [0, 0], progressivos: [0, 0], fundos: 0, sca: 0, gca: 0,
     territorio: [], faltas: 0, amarelos: 0, escanteios: 0, rodadas: [] };
@@ -54,7 +54,7 @@ export function jogar(N, jogo = null, semente = 7) {
       const gol = l.resultado === "gol"; t.lances++;
       if (gol) { t.gols++; t.golsTipo[l.tipo] = (t.golsTipo[l.tipo] || 0) + 1; t.golsMin[Math.min(6, Math.floor((l.min - 1) / 15))]++; if (l.contra) { t.golsContra += OPTA[l.contra]; t.golsContraN++; } }
       if (gol || l.resultado === "defesa") t.noGol++;
-      if (l.tipo === "profundidade") { t.enfiadas[0]++; if (gol || l.resultado === "defesa") t.enfiadas[1]++; }
+      if (l.tipo === "profundidade") { t.enfiadas[0]++; t.enfiadas[1]++; } // a enfiada da faixa 5 chega (vira chute)
       const acoes = (l.rota || []).filter(r => r.length >= 6).length; t.sca += Math.min(2, acoes); if (gol) t.gca += Math.min(2, acoes);
       if (l.tipo === "penalti") continue;
       if (l.contra) { t.xgC += l.xg; t.chC++; } else if (!PARADA.has(l.tipo)) { t.xgJ += l.xg; t.chJ++; if (l.zona && faixaDe(l.zona) === 5) { t.chJF5++; if (l.zona[1] === "C") t.chJF5C++; } }
@@ -75,9 +75,11 @@ export function jogar(N, jogo = null, semente = 7) {
     for (const r of registro) {
       const [i] = r;
       if (r[1] === "fim") { t.ataquesChute += r[3] > 0; for (const k of zonas) { t.xgZona[k][0]++; t.xgZona[k][1] += r[2]; } zonas = new Set(); continue; }
-      const [, de, para, tp, quem, , venceu, conduziu] = r, tipo = tp === "longa" ? "pular" : tp, fd = faixaDe(de), fp = faixaDe(para), cd = colunaDe(de), cp = colunaDe(para);
+      const [, de, para, tp, quem, , venceu, conduziu, espaco] = r, tipo = tp === "longa" ? "pular" : tp, fd = faixaDe(de), fp = faixaDe(para), cd = colunaDe(de), cp = colunaDe(para);
       zonas.add(ZONAS_GRADE.indexOf(de)); if (venceu) zonas.add(ZONAS_GRADE.indexOf(para));
       passos[i]++; if (fp <= 2) fundo[i]++;
+      if (espaco === "entre") { t.entre[0]++; if (venceu) t.entre[1]++; }
+      if (espaco === "espaco") { t.espaco[0]++; if (venceu) t.espaco[1]++; if (fp >= 4) { t.enfiadas[0]++; if (venceu) t.enfiadas[1]++; } }
       if (conduziu) { if (ATAQUE.has(pos(quem))) { t.dribles[0]++; if (venceu) t.dribles[1]++; } }
       else {
         const k = t.tipo[tipo] = t.tipo[tipo] || [0, 0]; k[0]++; if (venceu) k[1]++;
@@ -183,7 +185,9 @@ function finalizacao(t, forte) {
   meta("esforco", G, "cut-backs certos por jogo", "0,5–1", f2(t.cutbacks / j), entre(t.cutbacks / j, 0.5, 1));
   meta("esforco", G, "toques na área por time", "14–22", f1(t.toques / j / 2), entre(t.toques / j / 2, 14, 22));
   meta("esforco", G, "cruzamentos por time (Brasileirão ~19); acerto 19–30%", "~19; 24%", `${f1(t.cruz[0] / j / 2)}; ${pc(r(t.cruz[1], t.cruz[0]))}`, entre(t.cruz[0] / j / 2, 15, 23) && entre(r(t.cruz[1], t.cruz[0]), 0.19, 0.30));
-  meta("esforco", G, "enfiadas por time (no alvo)", "2–6 (~30%)", `${f2(t.enfiadas[0] / j / 2)} (${pc(r(t.enfiadas[1], t.enfiadas[0]))})`, entre(t.enfiadas[0] / j / 2, 2, 6));
+  meta("esforco", G, "enfiadas por time (profundidade + espaço nas faixas 4–5; certas)", "2–6 (~30%)", `${f2(t.enfiadas[0] / j / 2)} (${pc(r(t.enfiadas[1], t.enfiadas[0]))})`, entre(t.enfiadas[0] / j / 2, 2, 6));
+  meta("info", G, "passes entrelinhas para zona vazia por time (certos)", "—", `${f2(t.entre[0] / j / 2)} (${pc(r(t.entre[1], t.entre[0]))})`, null);
+  meta("info", G, "passes no espaço por time (certos)", "—", `${f2(t.espaco[0] / j / 2)} (${pc(r(t.espaco[1], t.espaco[0]))})`, null);
   meta("esforco", G, "chutes no alvo", "37–54%", pc(r(t.noGol, t.lances)), entre(r(t.noGol, t.lances), 0.37, 0.54));
   const xgc = r(t.xgJ + t.xgC, t.chJ + t.chC);
   meta("esforco", G, "xG por chute (sem bola parada)", "0,11–0,12", f2(xgc), entre(xgc, 0.10, 0.13));
@@ -283,7 +287,7 @@ function imprimir() {
   return fora.length;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const N = +process.argv[2] || 3000, grupo = process.argv[3] || null, todos = !grupo;
   const G = ["geral", "passe", "combinacoes", "finalizacao", "transicao", "aerea", "formacoes"];
   if (grupo && !G.includes(grupo)) { console.error(`grupo desconhecido: ${grupo} (${G.join(", ")})`); process.exit(2); }

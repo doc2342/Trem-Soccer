@@ -1045,6 +1045,14 @@ const __motor = (() => {
       longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
       segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4,
       contra: { centro: 0.15 }, reciclar: 0.8, pressionarMeio: 1.2, impedimento: { base: 0.6, pressao: 0.2 },
+      // passe no espaço (Tarefa 9b, dono 31/10): a bola na frente, em zona sem ninguém nosso, para quem chega da faixa de baixo (mesmo corredor ou vizinho).
+      // peso: o ataque do duelo = habilidade de quem chega no destino × Velocidade/25 × peso; dificuldade: logit; corrida: × (Velocidade dele − a de quem
+      // marca ali)/25; impedimento: parte da conta da profundidade nas faixas 4–5
+      espaco: { peso: 0.6, dificuldade: -0.3, corrida: 0.5, impedimento: 0.5 },
+      // passe entrelinhas (dono, 31/10): na faixa 4 por dentro (4e, zona 14, 4d) sem ninguém nosso, alguém aparece entre o meio e a defesa deles: o 9 que
+      // recua da faixa 5 (recebe de costas) ou quem chega da 3 ou do lado; a bola no pé, sem corrida nem impedimento. Quem aparece: peso × Domínio;
+      // peso: o ataque do duelo = habilidade dele ali × peso; dificuldade: logit
+      entrelinhas: { peso: 0.6, dificuldade: -0.2 },
     },
     contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
     // t1, pacote tático/transição (30/10, ferramentas/sim_transicao.mjs, 6.000 jogos entre formações e instruções sorteadas): contra-ataque menos
@@ -1604,7 +1612,7 @@ const __motor = (() => {
     // na grade: passos [tentados, certos] por tipo, conduções, ataques com 10 passos certos ou mais, passos certos de cada ataque e dos que terminaram em gol
     // toquesArea: passos certos na faixa 5; cutbacks: [tentados, no gol]; cruzamentos: [tentados, certos]
     ...(CONFIG.grade ? { grade: { passos: {}, conducoes: [0, 0], posses10: 0, passosPorAtaque: [], passosNoGol: [], toquesArea: 0, cutbacks: [0, 0], cruzamentos: [0, 0],
-      aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0],
+      aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0], espaco: [0, 0], entrelinhas: [0, 0],
       perdasAtras: 0, perdasAtrasChute: 0, reciclagens: 0, contraInicio: {}, contraPorCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 } } } : {}),
   });
 
@@ -1848,10 +1856,10 @@ const __motor = (() => {
     // no contra-ataque, a defesa pega fora do lugar (transição), a não ser que o adversário recomponha
     const naTransicao = (i, contra) => contra && !(CONFIG.regrasT1 && times[1 - i].instr.aoPerder === "recompor");
     // Duelo de zona: força de ataque de um time contra a força de defesa do outro na zona espelhada.
-    // g (só na grade): { dz: a defesa que o passo enfrenta, quem: o jogador que conduz a bola, se for condução }
+    // g (só na grade): { dz: a defesa que o passo enfrenta, quem: o jogador que conduz a bola ou que chega no passe no espaço, az: o ataque dele ali }
     function duelo(i, zona, logit = 0, contra = false, g = null) {
       const atk = times[i], def = times[1 - i], e = estat[i], L = linhaDaZona(zona);
-      const a = atk.atk[zona] + CONFIG.zonaVazia, d = (g ? g.dz : (naTransicao(i, contra) ? defesas[i].T : defesas[i][zona[1]])[zona]) + CONFIG.zonaVazia;
+      const a = (g && g.az != null ? g.az : atk.atk[zona]) + CONFIG.zonaVazia, d = (g ? g.dz : (naTransicao(i, contra) ? defesas[i].T : defesas[i][zona[1]])[zona]) + CONFIG.zonaVazia;
       const tat = tatico(i, zona, contra);
       // quem disputa a jogada, um de cada lado, e o confronto de pés entre os dois (regra do FMP): mesmo pé dominante favorece quem ataca,
       // e o ambidestro leva vantagem maior sobre quem só tem um pé; pés opostos, ou dois ambidestros, não mudam nada.
@@ -1900,13 +1908,19 @@ const __motor = (() => {
       return { resultado, xg, chanceDeGol, noAlvo: pGol / ((1 - S.bloqueado) * alvo), falha: xg > 0 ? pGol / xg : 1 };
     }
 
+    // a bola nas costas pega o impedimento: a armadilha (passe longo, comunicação da defesa, líbero; menos no contra-ataque) ou o acaso sem linha
+    function chanceDeImpedimento(atk, def, contra) {
+      const K = CONFIG.impedimento;
+      return def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (contra ? K.noContraAtaque : 1), 0.05, 0.65) : K.semLinha;
+    }
+
     function finalizar(i, c) {
       const atk = times[i], def = times[1 - i], e = estat[i];
       if (c.tipo === "profundidade") {
         const K = CONFIG.impedimento;
         // na grade, a armadilha rende menos (e a bola nas costas mais) quando o time não pressiona quem passa (spec 9.3)
         const GI = CONFIG.grade && def.instr.impedimento ? CONFIG.gradeValores.impedimento : null, fp = GI ? GI.base + GI.pressao * def.instr.pressao : 1;
-        const p = def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (c.contra ? K.noContraAtaque : 1), 0.05, 0.65) * fp : K.semLinha;
+        const p = chanceDeImpedimento(atk, def, c.contra) * fp;
         if (rng.chance(p)) { e.impedimentos++; recebe(c.criador); evento(i, "impedimento", comTrilha(`${nm(c.criador)} lança e ${nm(c.finalizador)} é pego em impedimento.`)); return; }
         if (def.instr.impedimento) c.xg = limitar(c.xg * (c.contra ? K.furouNoContraAtaque : K.furou) * def.linhaAlta / fp, 0.01, 0.6);
         // saída do goleiro (G2, regras da T1): corta o lançamento pela leitura contra a Velocidade de quem corre; se não chega, o gol fica quase vazio
@@ -2036,7 +2050,7 @@ const __motor = (() => {
       // de destino com a dificuldade do tipo. Termina em chance (passo ganho na faixa 5), perda, falta, lesão ou no LIMITE_DE_PASSOS.
       function atacarNaGrade() {
         const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao, eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
-        // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu] e o fim do ataque [time, "fim", xG, chutes]
+        // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false] e o fim do ataque [time, "fim", xG, chutes]
         const reg = opcoes.registro, xg0 = e.xg, fin0 = e.finalizacoes;
         // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)
         const PESO = new Float64Array(25), AT = new Float64Array(25), OPC = {}; // OPC: as opções de cada zona neste ataque
@@ -2089,10 +2103,27 @@ const __motor = (() => {
         // fim na faixa 4 (Tarefa 7): o cruzamento antecipado do lado (melhor no contra-ataque e contra linha alta) e o chute de longe da zona 14
         const AN = CONFIG.gradeValores.chance.antecipado, fimCruzar = AN.valor * (contra ? AN.contra : 1) * (def.instr.impedimento || def.instr.mentalidade > 0 ? AN.linhaAlta : 1);
         const fimChutar = CONFIG.gradeValores.chance.chutar * ((CONFIG.finalizar[atk.instr.finalizar] || {}).longe || 1);
+        // passe no espaço (Tarefa 9b): quem pode chegar ao destino k (faixa de baixo, mesmo corredor ou vizinho), a chegada esperada (sem quem passa)
+        // e a Velocidade média de quem marca ali
+        const ES = G.espaco, CHEGA = [], VDEF = [];
+        const quemChega = k => CHEGA[k] ?? (CHEGA[k] = (() => { const f = (k / 5) | 0, c = k % 5, l = []; if (f < 1) return l;
+          for (let x = Math.max(0, c - 1); x <= Math.min(4, c + 1); x++) for (const o of atk.zonas[ZONAS_GRADE[5 * f - 5 + x]]) l.push(o); return l; })());
+        const velDef = k => VDEF[k] ?? (VDEF[k] = (l => { let s = 0, w = 0; for (const x of l) { s += x.w * x.jog.at[A.vel]; w += x.w; } return w ? s / w : 25; })(def.zonasDef[espelho(ZONAS_GRADE[k])]));
+        const chegadaDe = (jog, k) => ES.peso * habilidadeAtaque(jog.at, ZONAS_GRADE[k]) * jog.at[A.vel] / 25;
+        const corrida = (vel, k) => ES.dificuldade + ES.corrida * (vel - velDef(k)) / 25;
+        // entrelinhas: quem pode aparecer na zona k da faixa 4 (faixas 3 a 5, mesmo corredor ou vizinho, menos a própria zona) e a chegada esperada
+        const EL = G.entrelinhas, APARECE = [], ENTRE = new Set([16, 17, 18]); // 4e, 4C, 4d
+        const quemAparece = k => APARECE[k] ?? (APARECE[k] = (() => { const c = k % 5, l = [];
+          for (const f of [2, 3, 4]) for (let x = Math.max(0, c - 1); x <= Math.min(4, c + 1); x++) { const z = 5 * f + x; if (z !== k) for (const o of atk.zonas[ZONAS_GRADE[z]]) l.push({ ...o, z }); } return l; })());
+        const apareceEsperado = k => { let a = 0, w = 0; for (const x of quemAparece(k)) if (x.jog !== portador) { const p = x.w * x.jog.at[A.dom]; a += p * EL.peso * habilidadeAtaque(x.jog.at, ZONAS_GRADE[k]); w += p; } return w ? a / w : 0; };
+        const chegadaEsperada = k => { let a = 0, v = 0, w = 0; for (const x of quemChega(k)) if (x.jog !== portador) { const p = x.w * x.jog.at[A.vel]; a += p * chegadaDe(x.jog, k); v += p * x.jog.at[A.vel]; w += p; } return w ? { az: a / w, vel: v / w } : null; };
         const valorDe = o => {
           if (o.fim) return o.tipo === "cruzar" ? fimCruzar * portador.at[A.cru] / 25 * Math.max(Math.min(1, PESO[21] + PESO[22] + PESO[23]), CONFIG.gradeValores.chance.cruzamento.cego * cegueira(portador.at))
             : fimChutar * portador.at[A.lon] / 25;
-          const k = o.i, p = 1 / (1 + Math.exp(-(BASE[(k / 5) | 0] + logitDe(o) + taticoEm(k) + CONFIG.inclinacaoDuelo * Math.log(AT[k] / (defesaNo(k) + Zv)))));
+          const k = o.i, ch = o.espaco ? chegadaEsperada(k) : null, ap = o.entre ? apareceEsperado(k) : 0;
+          if ((o.espaco && !ch) || (o.entre && !ap)) return 0;
+          const ext = ch ? corrida(ch.vel, k) : o.entre ? EL.dificuldade : 0, az = ch ? ch.az + Zv : o.entre ? ap + Zv : AT[k];
+          const p = 1 / (1 + Math.exp(-(BASE[(k / 5) | 0] + logitDe(o) + taticoEm(k) + ext + CONFIG.inclinacaoDuelo * Math.log(az / (defesaNo(k) + Zv)))));
           return (p * XT[k] - (1 - p) * G.risco * XT[24 - k]) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
             * (imp.prende && k - k % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel, o.tipo, !!o.conduzir);
         };
@@ -2108,12 +2139,12 @@ const __motor = (() => {
           if (m) superados.set(m, facil ? CONFIG.recuperacao.facil : CONFIG.recuperacao.normal);
           const supera = !m ? null : facil ? `deixa ${nm(m)} para trás${deNovo} com facilidade` : `passa por ${nm(m)}${deNovo}`;
           const cobra = aposFalta ? (leva ? "cobra a falta rápido e " : "cobra a falta e ") : "";
-          const t = !de ? `${R} recebe ${naZona(Z)}` : leva ? `${P} ${cobra}${o.conduzir ? "conduz" : "segue com a bola"} ${naZona(Z, "pel")}`
+          const t = !de ? `${R} recebe ${naZona(Z)}` : o.entre ? (o.recuou ? `${R} recua entre as linhas e recebe de ${P} ${naZona(Z)}` : `${P} ${cobra}acha ${R} entre as linhas ${naZona(Z)}`) : o.espaco ? `${P} ${cobra}lança ${R} no espaço, ${naZona(Z)}` : leva ? `${P} ${cobra}${o.conduzir ? "conduz" : "segue com a bola"} ${naZona(Z, "pel")}`
             : `${P} ${cobra}` + ({ voltar: `recua para ${R}`, lado: `toca de lado para ${R}`, virada: `vira o jogo para ${R}, ${naZona(Z)}`, pular: `lança por cima da linha para ${R}, ${naZona(Z)}`, inversao: `inverte para ${R}, ${naZona(Z)}` }[o.tipo] || `acha ${R} ${naZona(Z)}`);
           // quebrou linha: o lançamento, a virada e a inversão; a subida e a diagonal ganhas com folga
-          const quebra = ["pular", "virada", "inversao"].includes(o.tipo) || ((o.tipo === "subir" || o.tipo === "diagonal") && facil) || dentro; // o papel também se conta
+          const quebra = ["pular", "virada", "inversao"].includes(o.tipo) || ((o.tipo === "subir" || o.tipo === "diagonal") && facil) || dentro || !!o.espaco || !!o.entre; // o papel também se conta
           // quem leva a bola: o drible é outra oração ("conduz…, passa por M e toca para…"); no passe, quem recebe ("acha R…, que passa por M")
-          trilha.push(Object.assign(!supera ? [t] : leva || dentro ? [t, supera] : [`${t}, que ${supera}`], { passo: { tipo: o.tipo, quebra } }));
+          trilha.push(Object.assign(!supera ? [t] : leva || dentro || o.recuou ? [t, supera] : [`${t}, que ${supera}`], { passo: { tipo: o.tipo, quebra } })); // quem recuou é o sujeito: outra oração
           rota.push(r); portador = p; aposFalta = false;
         }
         // Segunda bola (spec 7.7) na zona de queda: presença dos dois times ali e nas vizinhas; quem ganhou o 1º toque (cab: true nosso, false deles)
@@ -2173,19 +2204,34 @@ const __motor = (() => {
             // o passe precisa de alguém nosso no destino; a condução (só com quem leva a bola) pode ir para o espaço vazio
             lanc = portador ? G.lancamento * (portador.at[A.lon] - 25) / 25 : 0;
             if (portador) conduz = G.conduzir.base + G.conduzir.peso * (media(portador.at[A.dri], portador.at[A.vel], portador.at[A.dom]) - 25) / 25;
-            const chave = atual + !!portador, lista = OPC[chave] || (OPC[chave] = opcoesDoPasso(atual).filter(x => x.conduzir ? !!portador : PESO[x.i] > 0)
+            // a zona sem ninguém nosso, para a frente (Tarefa 9b): na faixa 4 por dentro, passe entrelinhas para quem aparece ali (no pé); no resto, passe
+            // no espaço para quem chega correndo
+            const chave = atual + !!portador, lista = OPC[chave] || (OPC[chave] = opcoesDoPasso(atual).flatMap(x => x.conduzir ? (portador ? [x] : []) : PESO[x.i] > 0 ? [x]
+              : !portador || x.i - x.i % 5 <= ka - ka % 5 ? [] : ENTRE.has(x.i) ? (quemAparece(x.i).length ? [{ ...x, entre: true }] : []) : quemChega(x.i).length ? [{ ...x, espaco: true }] : [])
               .concat(portador && (atual === "4E" || atual === "4D") && PESO[21] + PESO[22] + PESO[23] > 0 ? [{ tipo: "cruzar", fim: true, i: ka }] : portador && atual === "4C" ? [{ tipo: "chutar", fim: true, i: ka }] : []));
-            const o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, portador ? decisao(portador.at) : 25, G, sortearPeso);
+            let o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, portador ? decisao(portador.at) : 25, G, sortearPeso);
             // rede de segurança (ou opção nenhuma): não acha espaço, perde a bola ou roda, como nas 9 zonas
             if (!o) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
             if (o.fim) { e.corredor[ladoDaZona(atual)]++; const z = fimDaChance(criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka) })); if (!z) return; seguir(z); continue; }
             // o lançamento para o 9 ou o meio-espaço da faixa 5 vai pelo alto: com o passe longo sempre; senão, pelo Passe longo de quem lança
-            if (o.tipo === "pular" && o.i >= 21 && o.i <= 23 && portador && (atk.instr.passe === "longo" || rng.chance(G.longa.alto * portador.at[A.lon] / 25))) {
+            if (o.tipo === "pular" && !o.espaco && o.i >= 21 && o.i <= 23 && portador && (atk.instr.passe === "longo" || rng.chance(G.longa.alto * portador.at[A.lon] / 25))) {
               const z = bolaLonga(o); if (!z) return; seguir(z); continue;
             }
             const para = o.para, lado = ladoDaZona(para), naFaixa5 = faixaDe(para) === 5;
             if (naFaixa5) e.corredor[lado]++;
-            const d = duelo(i, para, logitDe(o, true), contra, { dz: defesaNo(o.i), quem: o.conduzir ? portador : null });
+            // passe no espaço: quem chega (peso × Velocidade, sem quem passa); nas faixas 4–5, o impedimento
+            const corre = o.espaco ? (sortearPeso(rng, quemChega(o.i).filter(x => x.jog !== portador), x => x.w * x.jog.at[A.vel]) || {}).jog : null;
+            if (o.espaco && !corre) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
+            if (corre && faixaDe(para) >= 4 && rng.chance(chanceDeImpedimento(atk, def, contra) * G.espaco.impedimento)) {
+              eg.espaco[0]++; e.impedimentos++; recebe(portador); evento(i, "impedimento", comTrilha(`${nm(portador)} lança ${nm(corre)} no espaço, mas ele está impedido.`)); return;
+            }
+            // entrelinhas: quem aparece (peso × Domínio, sem quem passa); o 9 que recuou da faixa 5 recebe de costas
+            const aparece = o.entre ? sortearPeso(rng, quemAparece(o.i).filter(x => x.jog !== portador), x => x.w * x.jog.at[A.dom]) : null;
+            if (o.entre && !aparece) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
+            if (aparece) o = { ...o, recuou: aparece.z >= 20 };
+            const quemVai = o.conduzir ? portador : corre || (aparece && aparece.jog);
+            const d = duelo(i, para, logitDe(o, true) + (corre ? corrida(corre.at[A.vel], o.i) : aparece ? EL.dificuldade : 0), contra,
+              { dz: defesaNo(o.i), quem: quemVai, ...(corre ? { az: chegadaDe(corre, o.i) } : aparece ? { az: EL.peso * habilidadeAtaque(aparece.jog.at, para) } : {}) });
             const passador = portador, subiu = faixaDe(para) > faixaDe(atual), era2 = th === 2 && subiu;
             livre = false;
             fraca = null; kFraca = -1;
@@ -2200,7 +2246,9 @@ const __motor = (() => {
             if (!d.falta) {
               const k = o.conduzir ? eg.conducoes : (eg.passos[o.tipo] = eg.passos[o.tipo] || [0, 0]);
               k[0]++; if (d.venceu) { k[1]++; certos++; }
-              if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir]);
+              if (o.espaco) { eg.espaco[0]++; if (d.venceu) eg.espaco[1]++; }
+              if (o.entre) { eg.entrelinhas[0]++; if (d.venceu) eg.entrelinhas[1]++; }
+              if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir, o.espaco ? "espaco" : o.entre ? "entre" : false]);
               // depois da volta ganha: tabela se a volta foi para quem tinha passado; terceiro homem se chega às faixas 4–5
               if (era2) { if (passador === parA) { eg.tabelas[0]++; if (d.venceu) eg.tabelas[1]++; } if (faixaDe(para) >= 4) { eg.terceiros[0]++; if (d.venceu) eg.terceiros[1]++; } }
             }
@@ -2221,7 +2269,8 @@ const __motor = (() => {
             // o que o passo ganho deixa para o seguinte: impulso (embalo, de frente, atrair a pressão) e o arrasto do cobridor
             const fz = faixaDe(para) + 1, cz = colunaDe(para);
             imp = proximoImpulso({ folga: d.folga, tipo: o.tipo, de: atual, temVizinho: fz <= 5 && [cz - 1, cz + 1].some(c => c >= 0 && c <= 4 && PESO[5 * fz - 5 + c] >= G.presenca), pressaoAdv: P, mentalidadeAdv: def.instr.mentalidade, V: G });
-            if (era2) imp = { ...imp, logit: Math.max(imp.logit, G.impulso.deFrente), prende: false, deFrente: true }; // o terceiro homem recebe de frente
+            if (era2 || o.espaco) imp = { ...imp, logit: Math.max(imp.logit, G.impulso.deFrente), prende: false, deFrente: true }; // o terceiro homem e quem chega no espaço recebem de frente
+            else if (o.recuou && d.folga < G.impulso.giro) imp = { ...imp, logit: 0, prende: true, deFrente: false }; // o 9 que recuou recebe de costas (gira só com folga)
             th = th === 1 && o.tipo === "voltar" ? 2 : subiu && d.folga < T3.apertado ? 1 : 0;
             if (th === 1) parA = passador;
             if (th === 2) thBonus = fatorTerceiro * (colunaDe(para) !== colunaDe(atual) ? T3.diagonal : 1);
