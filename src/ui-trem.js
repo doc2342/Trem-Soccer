@@ -1,6 +1,7 @@
 // Peças do visual novo (docs/superpowers/specs/2026-10-24-redesign-identidade-design.md): cada uma devolve HTML em texto,
 // como as telas já montam. O estilo está no trem.css. Todo texto recebido é escapado; só `lado` (faixa) entra como HTML.
 import { ATRIBUTOS } from "./modelo.js";
+import { emNoveZonas } from "./grade.js";
 
 export const esc = s => s == null ? "" : String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -70,6 +71,7 @@ const NOMES_DAS_ZONAS = { AE: "ataque pela esquerda", AC: "ataque pelo centro", 
 const ESPELHO_DA_DEFESA = { DD: "AE", DC: "AC", DE: "AD" };
 export function campoDeZonas(nossas, deles, destaques = []) {
   if (!nossas) return "";
+  nossas = emNoveZonas(nossas); deles = emNoveZonas(deles); // jogo da grade: as 25 somadas nas 9
   const taxa = z => { if (ESPELHO_DA_DEFESA[z]) { const [g, p] = (deles || {})[ESPELHO_DA_DEFESA[z]] || [0, 0]; return g + p >= 6 ? p / (g + p) : null; }
     const [g, p] = nossas[z] || [0, 0]; return g + p >= 6 ? g / (g + p) : null; };
   return `<div class="t-campo" role="img" aria-label="Duelos vencidos por zona">${["AE", "AC", "AD", "ME", "MC", "MD", "DE", "DC", "DD"].map(z => {

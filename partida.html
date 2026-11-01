@@ -34,7 +34,7 @@
 <body>
 <main>
   <h1>Partida simulada</h1>
-  <div class="mut">Motor completo: 9 zonas, chances com xG, instruções, energia, substituições, cartões, lesões e bola parada.</div>
+  <div class="mut">Motor completo: 9 zonas (a T1 joga na grade 5×5; o mapa soma as 25 nas 9), chances com xG, instruções, energia, substituições, cartões, lesões e bola parada.</div>
 
   <div class="duas">
     <div class="card" id="cfg0"></div>
@@ -64,6 +64,7 @@ import { notaNaPosicao, IDX } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { FORMACOES, escalar } from "./src/escalacao.js";
 import { prepararTime, simularPartida, ZONAS, CONFIG } from "./src/motor.js";
+import { emNoveZonas } from "./src/grade.js";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -119,7 +120,7 @@ function jogar() {
   $("estat").innerHTML = `<table>${linha("Posse", e => e.posse + "%")}${linha("Ataques", e => e.ataques)}${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}
     ${linha("Chances", e => e.chances)}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}${linha("Gols", e => e.gols)}
     ${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}${linha("Cartões amarelos · vermelhos", e => `${e.amarelos} · ${e.vermelhos}`)}${linha("Impedimentos", e => e.impedimentos)}${linha("Contra-ataques", e => e.contraAtaques)}${linha("Substituições", e => e.substituicoes)}</table>`;
-  $("zonas").innerHTML = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${NOMES_TIME[i]} <span class="mut">(ataca para cima)</span></div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const [g, pd] = p.estat[i].zonas[l + s]; return `<div>${g}/${g + pd}</div>`; }).join("")).join("")}</div></div>`).join("");
+  $("zonas").innerHTML = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${NOMES_TIME[i]} <span class="mut">(ataca para cima)</span></div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const [g, pd] = emNoveZonas(p.estat[i].zonas)[l + s].map(Math.round); return `<div>${g}/${g + pd}</div>`; }).join("")).join("")}</div></div>`).join("");
   const js = Object.values(p.jogadores);
   $("jogadores").innerHTML = `<table><tr><th>Pos</th><th class="esq">Jogador</th><th>Gols</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos</th><th>Duelos perdidos</th><th>Faltas</th><th>Cartões</th><th>Minutos</th><th>Energia no fim</th></tr>${js.map(j => `<tr><td><span class="pp">${j.pos}</span></td><td class="esq ${COR[j.time]}">${esc(j.nome)}</td><td>${j.gols || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.duelosGanhos}</td><td>${j.duelosPerdidos}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${(j.saiu === null ? 90 : j.saiu) - j.entrou}</td><td>${j.energia}</td></tr>`).join("")}</table>`;
   return p;

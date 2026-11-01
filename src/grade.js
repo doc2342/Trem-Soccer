@@ -63,6 +63,9 @@ export function paraNoveZonas(mapa25) {
   return r;
 }
 
+// estat.zonas de qualquer jogo em 9 zonas: o da grade somado (paraNoveZonas), o de 9 zonas como veio. Para as telas que leem 9.
+export function emNoveZonas(z) { return z && Object.keys(z).length && ehGrade(Object.keys(z)[0]) ? paraNoveZonas(z) : z; }
+
 // Quem decide o passo: Criatividade e Trabalho em equipe.
 export function decisao(at) { return (at[IDX.cri] + at[IDX.equ]) / 2; }
 

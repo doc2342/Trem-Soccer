@@ -5,6 +5,7 @@ import { htmlGraficos } from "./ui-graficos.js";
 import { rotulo, campoDeZonas, destacar, ALTURA_DA_FAIXA } from "./ui-trem.js";
 import { svgCamisa } from "./camisa.js";
 import { svgEscudo } from "./escudo.js";
+import { ehGrade, ZONA_EM, CORREDORES } from "./grade.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const f2 = v => v.toFixed(2).replace(".", ","), f1 = v => v.toFixed(1).replace(".", ","), pc = v => Math.round(v * 100) + "%";
 const COR = ["casa", "fora"];
@@ -32,6 +33,49 @@ export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // (quem desarma, intercepta, recupera ou corta), mas a jogada narrada é do outro; falta e lesão já vêm com o time de quem sofreu.
 export const timeAtacando = l => (l.tipo === "posse" && /desarma|intercepta|recupera a bola|fica com a bola/.test(l.texto || "")) || (l.tipo === "canto" && /cede o escanteio/.test(l.texto || "")) ? 1 - l.time : l.time;
 // nomes: [mandante, visitante]; com eles, cada lance de um time ganha o nome de quem ataca em cima (cartão: de quem levou)
+// ---------- Grade 5×5 (jogos da T1) ----------
+// Campo de 25 zonas, ataque para cima (faixa 5 em cima, corredor esquerdo à esquerda), larguras reais dos corredores (14 · 11 · 18 · 11 · 14 m)
+const CSS_GRADE = `<style>.g5-campo{display:grid;grid-template-columns:14fr 11fr 18fr 11fr 14fr;gap:2px;width:100%;max-width:220px;aspect-ratio:68/105;background:#2f6b3a;padding:4px;border-radius:6px;box-sizing:border-box}
+.g5-campo>div{display:flex;align-items:center;justify-content:center;font:600 11px system-ui;color:#1d1d1b;border-radius:2px;background:rgba(255,214,64,var(--v,0))}
+.g5-mapa{display:grid;grid-template-columns:minmax(0,220px) auto;gap:2px 8px;align-items:start}.g5-fx{display:grid;grid-template-rows:repeat(5,1fr);height:100%;padding:4px 0;box-sizing:border-box;font-size:11px}
+.g5-fx span,.g5-cr span{display:flex;align-items:center;gap:4px}.g5-cr{display:grid;grid-template-columns:14fr 11fr 18fr 11fr 14fr;font-size:11px;text-align:center;padding:0 4px}.g5-cr span{justify-content:center}
+.g5-ok{color:#2e7d32}.g5-mal{color:#b3261e}.g5-calor>input{position:absolute;opacity:0;pointer-events:none}.g5-bar{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;font-size:13px}
+.g5-bar label{cursor:pointer;opacity:.65}.g5-rt:checked~.g5-bar .g5-lt,.g5-ra:checked~.g5-bar .g5-la,.g5-rd:checked~.g5-bar .g5-ld{opacity:1;font-weight:700;text-decoration:underline}
+.g5-pl .g5-campo>div{background:rgba(255,214,64,var(--t))}.g5-ra:checked~.g5-pl .g5-campo>div{background:rgba(255,214,64,var(--a))}.g5-rd:checked~.g5-pl .g5-campo>div{background:rgba(255,214,64,var(--d))}
+.g5-rt:checked~.g5-pl .g5-mc,.g5-rt:checked~.g5-pl .g5-ms,.g5-ra:checked~.g5-pl .g5-mc,.g5-rd:checked~.g5-pl .g5-ms{box-shadow:inset 0 0 0 2px #fff}
+.g5-pl small{display:block;margin-top:6px;opacity:.75}</style>`;
+const FAIXAS_DA_GRADE = ["saída", "volantes", "meio", "meia of.", "área"];
+const ehDaGrade = zonas => !!zonas && ehGrade(Object.keys(zonas)[0] || "");
+const taxaDe = (g, t) => t < 6 ? "<span>—</span>" : `<span class="${g / t >= 0.55 ? "g5-ok" : g / t <= 0.45 ? "g5-mal" : ""}"><b>${pc(g / t)}</b></span>`;
+// Opção A da maquete: cor = volume de duelos com a bola por zona (onde o time jogou; raiz quadrada: a saída de bola tem muito mais e apagava o resto); a taxa de vencidos só por faixa (direita) e por corredor (embaixo).
+// zonas: r.zonas[i] ({ "1E": { ganhos, total }, … })
+function mapaDaGrade(zonas) {
+  const max = Math.max(1, ...Object.values(zonas).map(z => z.total)), soma = zs => zs.reduce((s, z) => [s[0] + zonas[z].ganhos, s[1] + zonas[z].total], [0, 0]);
+  const celulas = [5, 4, 3, 2, 1].flatMap(f => ZONA_EM[f]).map(z => `<div style="--v:${(0.08 + 0.8 * Math.sqrt(zonas[z].total / max)).toFixed(2)}" title="${zonas[z].ganhos} de ${zonas[z].total} duelos vencidos">${zonas[z].total || ""}</div>`).join("");
+  return `<div class="g5-mapa"><div class="g5-campo">${celulas}</div><div class="g5-fx">${[5, 4, 3, 2, 1].map(f => `<span>${FAIXAS_DA_GRADE[f - 1]} ${taxaDe(...soma(ZONA_EM[f]))}</span>`).join("")}</div>
+    <div class="g5-cr">${CORREDORES.map((c, k) => taxaDe(...soma([1, 2, 3, 4, 5].map(f => ZONA_EM[f][k])))).join("")}</div></div>`;
+}
+// Mapa de cada jogador (participação: com a bola onde ele passou, recebeu e conduziu; sem a bola os duelos como marcador), com o contorno
+// da mancha do papel por cima e o quanto o lado dele foi atacado. Um mapa só: escolhe o jogador e Tudo · Time atacando · Time defendendo.
+let serieCalor = 0;
+function calorDosJogadores(r, nomes) {
+  const js = (r.jogadores || []).filter(j => j.mapa);
+  if (!js.length) return "";
+  const id = "g5c" + (++serieCalor), n = o => Object.values(o).reduce((a, b) => a + b, 0);
+  const bloco = (j, k) => {
+    const { com, sem } = j.mapa, mc = Math.max(1, ...Object.values(com)), md = Math.max(1, ...Object.values(sem)), mt = Math.max(1, ...ZONA_EM.slice(1).flat().map(z => (com[z] || 0) + (sem[z] || 0)));
+    const m = j.mancha || { com: {}, sem: {} }, v = x => x.toFixed(2);
+    const celulas = [5, 4, 3, 2, 1].flatMap(f => ZONA_EM[f]).map(z => { const a = com[z] || 0, d = sem[z] || 0;
+      return `<div class="${(m.com[z] || 0) >= 0.1 ? "g5-mc " : ""}${(m.sem[z] || 0) >= 0.1 ? "g5-ms" : ""}" style="--a:${v(a ? 0.15 + 0.75 * a / mc : 0)};--d:${v(d ? 0.15 + 0.75 * d / md : 0)};--t:${v(a + d ? 0.15 + 0.75 * (a + d) / mt : 0)}" title="com a bola ${a} · sem a bola ${d}"></div>`; }).join("");
+    return `<div class="g5-pl" data-calor="${esc(j.id)}"${k ? " hidden" : ""}><div class="g5-campo">${celulas}</div>
+      <small>${n(com)} ações com a bola · ${n(sem)} duelos sem a bola${j.mapa.lado != null ? ` · o lado dele foi atacado em ${j.mapa.lado} passos do adversário` : ""}. Contorno: a mancha do papel.</small></div>`;
+  };
+  const opcoes = [0, 1].map(i => `<optgroup label="${esc(nomes[i])}">${js.filter(j => j.time === i).map(j => `<option value="${esc(j.id)}">${esc(j.nome)} (${esc(sg(j.pos))})</option>`).join("")}</optgroup>`).join("");
+  return `<div class="g5-calor"><input type="radio" name="${id}" id="${id}t" class="g5-rt" checked><input type="radio" name="${id}" id="${id}a" class="g5-ra"><input type="radio" name="${id}" id="${id}d" class="g5-rd">
+    <div class="g5-bar"><select onchange="this.closest('.g5-calor').querySelectorAll('.g5-pl').forEach(d => { d.hidden = d.dataset.calor !== this.value; })">${opcoes}</select>
+    <label for="${id}t" class="g5-lt">Tudo</label><label for="${id}a" class="g5-la">Time atacando</label><label for="${id}d" class="g5-ld">Time defendendo</label></div>${js.map(bloco).join("")}</div>`;
+}
+
 export function htmlLance(l, nomes = null) {
   if (l.tipo === "inicio") return ""; // abertura da transmissão: desenhada à parte
   // cobrança da disputa de pênaltis: o desfecho vem em "pen", não em "resultado", para não contar como finalização nem gol do jogo
@@ -101,7 +145,9 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}
     ${linha("Cartões amarelos · vermelhos", e => `${e.amarelos} · ${e.vermelhos}`)}${linha("Impedimentos", e => e.impedimentos)}${linha("Contra-ataques", e => e.contraAtaques)}</table>`;
   const cor = z => z.total < 4 ? "transparent" : `rgba(63,178,127,${0.08 + 0.5 * z.ganhos / z.total})`;
-  const zonas = [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = r.zonas[i][l + s]; return `<div style="background:${cor(z)}">${z.total ? pc(z.ganhos / z.total) : "—"}<br><span class="mut">${z.ganhos}/${z.total}</span></div>`; }).join("")).join("")}</div></div>`).join("");
+  const grade = ehDaGrade(r.zonas && r.zonas[0]);
+  const calor = grade ? calorDosJogadores(r, n) : "";
+  const zonas = grade ? CSS_GRADE + [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div>${mapaDaGrade(r.zonas[i])}</div>`).join("") : [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = r.zonas[i][l + s]; return `<div style="background:${cor(z)}">${z.total ? pc(z.ganhos / z.total) : "—"}<br><span class="mut">${z.ganhos}/${z.total}</span></div>`; }).join("")).join("")}</div></div>`).join("");
   // jogadores: cada time separado, titulares na ordem das posições e, depois, quem entrou
   const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🚑" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? "🔻" : ""}`;
   const corNota = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
@@ -124,7 +170,8 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   return `${resultado}${clubes ? htmlGraficos(r.narracao, clubes) : ""}${analise}${aposAnalise}
     <div class="duas"><div class="card" data-aba="lances"><h2>Reprise</h2>${lances}</div>
     <div><div class="card" data-aba="estat"><h2>Estatísticas</h2>${estat}</div>${lateral}
-    <div class="card" data-aba="estat"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(duelos com a bola vencidos; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div>${jogadoresAoLado ? jogadores : ""}</div></div>
+    <div class="card" data-aba="estat"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(${grade ? "cor: duelos com a bola em cada zona; % vencidos por faixa e por corredor" : "duelos com a bola vencidos"}; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div>
+    ${calor ? `<div class="card" data-aba="estat"><h2>Mapa do jogador <span class="mut" style="font-weight:400">(onde ele participou; ataque para cima)</span></h2>${calor}</div>` : ""}${jogadoresAoLado ? jogadores : ""}</div></div>
     ${jogadoresAoLado ? "" : jogadores}`;
 }
 
@@ -175,7 +222,8 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   // relatórios gravados antes da correção em src/relatorio.js dizem "pela nossa centro da defesa"
   const analista = i => { const [lead, ...resto] = (r.analise[i] || []).map(f => f.replace("pela nossa centro da defesa", "pelo centro da nossa defesa"));
     return `<article class="t-rel-analista"><div class="t-rel-an-cab">${C[i].escudo || C[i].sigla ? svgEscudo(C[i].escudo, C[i].sigla, 22) : ""}<b>${n[i]}</b><span>o analista</span></div>
-      <div class="t-rel-an-corpo">${r.estat[i] && r.estat[i].zonas ? `<div class="t-rel-an-campo">${campoDeZonas(r.estat[i].zonas, r.estat[1 - i].zonas)}<small>duelos vencidos por zona · ataque em cima</small></div>` : ""}
+      <div class="t-rel-an-corpo">${ehDaGrade(r.zonas && r.zonas[i]) ? `<div class="t-rel-an-campo">${mapaDaGrade(r.zonas[i])}<small>duelos com a bola por zona · % vencidos por faixa e corredor · ataque em cima</small></div>`
+        : r.estat[i] && r.estat[i].zonas ? `<div class="t-rel-an-campo">${campoDeZonas(r.estat[i].zonas, r.estat[1 - i].zonas)}<small>duelos vencidos por zona · ataque em cima</small></div>` : ""}
       <div>${lead ? `<p class="t-rel-lead">${destacar(lead)}</p>` : ""}<ul class="t-rel-frases">${resto.map(f => `<li>${destacar(f)}</li>`).join("")}</ul>${ordens && ordens[i] ? ordensNovas(ordens[i]) : ""}${(diretoria && diretoria[i]) || ""}</div></div></article>`; };
   // como cada um saiu: o campinho com a camisa do jogo e a nota; quem entrou embaixo
   const cor = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
@@ -188,8 +236,8 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const linhaJ = j => `<tr><td>${esc(sg(j.pos))}</td><td class="t-esq">${linkJogador(j.nome, j.nome, j.time)}</td><td><b class="${cor(j.nota)}">${f1(j.nota)}</b></td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + "–" + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${[j.amarelos ? "amarelo" : "", j.vermelho ? "vermelho" : "", j.lesionado ? "lesão" : ""].filter(Boolean).join(", ")}</td><td>${j.energia}%</td></tr>`;
   const tabela = `<details class="t-rel-mais"><summary>Todos os números dos jogadores</summary><div class="t-rel-rola"><table class="t-tabela t-rel-tab">${ordem.map(i => { const { tit, res } = timeDoRelatorio(r, i);
     return `<tr class="t-rel-tab-time"><td colspan="13" class="t-esq">${n[i]}</td></tr>${cab}${[...tit, ...res].map(linhaJ).join("")}`; }).join("")}</table></div></details>`;
-  const vestiario = `<section class="t-secao t-rel-vest" data-aba="resumo">${penaltis}${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div></section>`;
-  const saiu = `<section class="t-secao t-rel-saiu" data-aba="jog">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}</section>`;
+  const vestiario = `<section class="t-secao t-rel-vest" data-aba="resumo">${ehDaGrade(r.zonas && r.zonas[0]) ? CSS_GRADE : ""}${penaltis}${rotulo("Vestiário")}<div class="t-rel-analistas">${ordem.filter(i => analistas.includes(i)).map(analista).join("")}</div></section>`;
+  const saiu = `<section class="t-secao t-rel-saiu" data-aba="jog">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}${(c => c ? `<div class="t-rel-calor">${rotulo("Mapa do jogador")}${c}</div>` : "")(calorDosJogadores(r, n))}</section>`;
   // abas (data-ir; a tela troca a classe .fora-aba): o placar fica sempre em cima, um capítulo por vez embaixo
   const abas = [["resumo", "Resumo"], ["lances", "Lances"], ["graf", "Números"], ["jog", "Jogadores"], rodada && ["rodada", "Rodada"]].filter(Boolean);
   return faixa + `<nav class="subabas t-rel-abas">${abas.map(([k, t]) => `<button type="button" class="sub" data-ir="${k}">${t}</button>`).join("")}</nav>` + vestiario + lances + jogo + saiu + rodada;

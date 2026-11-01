@@ -2,6 +2,7 @@
 // docs/superpowers/specs/2026-10-24-redesign-identidade-design.md). Puro e determinístico: o mesmo dado dá sempre a mesma frase.
 // Uma leitura tem o formato que leitura() de src/ui-trem.js recebe: { tipo, titulo, frase, acao?: { texto, abaIr, tipo? }, zona? } (zona: a do nosso campo que ela cita).
 import { classificacao } from "./rodada.js";
+import { emNoveZonas } from "./grade.js";
 
 const pc = v => Math.round(v * 100) + "%";
 const pontos = d => d + (d === 1 ? " ponto" : " pontos");
@@ -16,7 +17,7 @@ const MINIMO_DE_DUELOS = 6, CANSADO = 60, MAXIMO = 4;
 
 // a zona de ataque com a maior taxa de duelos ganhos (com pelo menos MINIMO_DE_DUELOS), ou null
 function melhorZona(estat) {
-  const z = estat && estat.zonas;
+  const z = estat && emNoveZonas(estat.zonas); // jogo da grade: as 25 somadas nas 9
   if (!z) return null;
   return ["AE", "AC", "AD"].map(k => { const [g, p] = z[k] || [0, 0]; return g + p >= MINIMO_DE_DUELOS ? { zona: k, taxa: g / (g + p) } : null; })
     .filter(Boolean).sort((a, b) => b.taxa - a.taxa)[0] || null;

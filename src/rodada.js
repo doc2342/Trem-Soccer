@@ -215,9 +215,10 @@ export function calcularPartida({ partida, casa, fora, minutosTransmissao = 105,
     if (sem[i] && !sem[1 - i]) t = { ...t, escalacao: t.escalacao.map(e => ({ ...e, j: rendeMenos(e.j) })), banco: (t.banco || []).map(rendeMenos) };
     return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
   });
-  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE });
+  const registro = []; // os passos da grade (só a T1 preenche), para o mapa de cada jogador no relatório; não muda o jogo
+  const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE, registro });
   // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
-  const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
+  const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3), registro);
   const acr = p.acrescimos || [0, 0];
   const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, (l.s === undefined ? l.min : l.min - 1 + l.s / 60) + (l.ac || 0), minutosTransmissao, acr, l.min).toISOString(), dados: l }));
   // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)

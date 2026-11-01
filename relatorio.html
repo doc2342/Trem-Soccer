@@ -48,8 +48,9 @@ function jogar() {
   const previa = elencos.map(e => taticaBot(e));
   const taticas = elencos.map((e, i) => taticaBot(e, { mandante: i === 0, forcaAdversario: previa[1 - i].forca }));
   const times = taticas.map((t, i) => prepararTime({ nome: NOMES_TIME[i], escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 }));
-  const partida = simularPartida(criarRng(+$("semente").value), times[0], times[1]);
-  const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel]);
+  // ?t0 na URL joga com as regras da temporada 0 (9 zonas); sem ele, a T1 (grade 5×5, com o mapa de cada jogador)
+  const registro = [], partida = simularPartida(criarRng(+$("semente").value), times[0], times[1], { regrasT1: !new URLSearchParams(location.search).has("t0"), registro });
+  const nivel = +$("analista").value, r = montarRelatorio(partida, [nivel, nivel], registro);
   const nomeDe = id => { for (const e of elencos) { const j = e.find(x => x.id === id); if (j) return j.nome; } return "—"; };
 
   taticas.forEach((t, i) => {

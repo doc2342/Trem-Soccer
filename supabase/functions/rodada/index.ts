@@ -299,6 +299,9 @@ const __grade = (() => {
     return r;
   }
 
+  // estat.zonas de qualquer jogo em 9 zonas: o da grade somado (paraNoveZonas), o de 9 zonas como veio. Para as telas que leem 9.
+  function emNoveZonas(z) { return z && Object.keys(z).length && ehGrade(Object.keys(z)[0]) ? paraNoveZonas(z) : z; }
+
   // Quem decide o passo: Criatividade e Trabalho em equipe.
   function decisao(at) { return (at[IDX.cri] + at[IDX.equ]) / 2; }
 
@@ -522,7 +525,7 @@ const __grade = (() => {
     const a = V.segundaBola.acaso;
     return rng.chance((1 - a) * (nossa + deles > 0 ? nossa / (nossa + deles) : 0.5) + a * 0.5);
   }
-  return { CORREDORES, ZONAS_GRADE, ZONA_EM, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto, tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, LIMITE_DE_PASSOS, preferenciaDoPasso, segundaBola };
+  return { CORREDORES, ZONAS_GRADE, ZONA_EM, ehGrade, faixaDe, corredorDe, colunaDe, espelhoGrade, linhaDaZona, ladoDaZona, vizinhas, nomeDaZona, paraNoveZonas, emNoveZonas, decisao, MANCHAS, espelharGrade, manchasDoTime, defesaVista, defesaComAtraso, rapidezBasculacao, arrasto, tipoDoPasso, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, LIMITE_DE_PASSOS, preferenciaDoPasso, segundaBola };
 })();
 
 const __papeis = (() => {
@@ -1238,6 +1241,7 @@ const __motor = (() => {
         const pdD = grade ? G.passagemPorDentro : CONFIG.papeis.passagemPorDentro, pd = P.lado === "D" ? pdD : (grade ? espelharGrade : espelharLado)(pdD);
         com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
       }
+      if (grade) jog.mancha = { com, sem }; // o relatório desenha o contorno do papel no mapa do jogador (Tarefa 11)
       const fundo = (grade ? "1" : "D") + P.lado; // fundo do lado: zona D de 9 ou faixa 1 da grade
       if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem[fundo] || 0 });
       for (const z in com) {
@@ -1780,7 +1784,7 @@ const __motor = (() => {
     function sair(i, jog) {
       const t = times[i];
       t.emCampo = t.emCampo.filter(x => x !== jog);
-      const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia);
+      const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia); if (jog.mancha) s.mancha = jog.mancha;
       sujo = true;
     }
     // papel: o de quem saiu (novoJog o descarta se não valer na posição de quem entra)
@@ -2050,7 +2054,7 @@ const __motor = (() => {
       // de destino com a dificuldade do tipo. Termina em chance (passo ganho na faixa 5), perda, falta, lesão ou no LIMITE_DE_PASSOS.
       function atacarNaGrade() {
         const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao, eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
-        // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false] e o fim do ataque [time, "fim", xG, chutes]
+        // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false, marcador] e o fim do ataque [time, "fim", xG, chutes]
         const reg = opcoes.registro, xg0 = e.xg, fin0 = e.finalizacoes;
         // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)
         const PESO = new Float64Array(25), AT = new Float64Array(25), OPC = {}; // OPC: as opções de cada zona neste ataque
@@ -2248,7 +2252,7 @@ const __motor = (() => {
               k[0]++; if (d.venceu) { k[1]++; certos++; }
               if (o.espaco) { eg.espaco[0]++; if (d.venceu) eg.espaco[1]++; }
               if (o.entre) { eg.entrelinhas[0]++; if (d.venceu) eg.entrelinhas[1]++; }
-              if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir, o.espaco ? "espaco" : o.entre ? "entre" : false]);
+              if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir, o.espaco ? "espaco" : o.entre ? "entre" : false, d.marcador ? d.marcador.j.id : null]);
               // depois da volta ganha: tabela se a volta foi para quem tinha passado; terceiro homem se chega às faixas 4–5
               if (era2) { if (passador === parA) { eg.tabelas[0]++; if (d.venceu) eg.tabelas[1]++; } if (faixaDe(para) >= 4) { eg.terceiros[0]++; if (d.venceu) eg.terceiros[1]++; } }
             }
@@ -2435,7 +2439,7 @@ const __motor = (() => {
       while (placar[0] === placar[1]) { bater(0); bater(1); }
       penaltis = { placar, cobrancas };
     }
-    times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
+    times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); if (jog.mancha) jogadores[jog.j.id].mancha = jog.mancha; }));
     estat[0].posse = Math.round(somaPosse / jogados * 100); estat[1].posse = 100 - estat[0].posse;
     soltarCartoes();
     const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);
@@ -2572,8 +2576,8 @@ const __bot = (() => {
 
 const __relatorio = (() => {
   // Relatório da partida: resultado esperado pelo xG, notas dos jogadores, mapa de zonas e comentário do analista.
-  const { ZONAS } = __motor;
-  const { ehGrade, paraNoveZonas } = __grade;
+  const { ehGrade, nomeDaZona, espelhoGrade, faixaDe, corredorDe, CORREDORES } = __grade;
+  const { POSICOES } = __modelo;
   // Distribuição do número de gols a partir do xG de cada finalização (cada uma entra ou não, de forma independente).
   function distribuicaoGols(xgs) {
     let d = [1];
@@ -2623,6 +2627,47 @@ const __relatorio = (() => {
   const pc = v => Math.round(v * 100) + "%";
   const f2 = v => v.toFixed(2).replace(".", ",");
 
+  // Analista num jogo da grade: o melhor caminho e por onde o adversário passou, pela zona das faixas 4–5 com duelos suficientes
+  // (ou, sem nenhuma, pelo corredor nas faixas 3–5); o meio-campo pelas faixas 2–3.
+  const por = n => n.replace(/^a /, "pela ").replace(/^o /, "pelo ");
+  const NOME_CORREDOR = { E: "pelo lado esquerdo", e: "pelo meio-espaço esquerdo", C: "pelo centro", d: "pelo meio-espaço direito", D: "pelo lado direito" };
+  const NOSSO_LADO = { E: " (o nosso lado esquerdo)", e: " (o nosso meio-espaço esquerdo)", d: " (o nosso meio-espaço direito)", D: " (o nosso lado direito)", C: "" };
+  function melhorCaminho(zonas) {
+    const soma = zs => zs.reduce((s, z) => [s[0] + zonas[z][0], s[1] + zonas[z][1]], [0, 0]);
+    const taxa = ([g, p]) => g + p >= 6 ? g / (g + p) : null, melhor = l => l.filter(x => x[1] !== null).sort((a, b) => b[1] - a[1])[0];
+    const zona = melhor(Object.keys(zonas).filter(z => faixaDe(z) >= 4).map(z => [z, taxa(zonas[z])]));
+    if (zona) return { nome: por(nomeDaZona(zona[0])), corredor: corredorDe(zona[0]), taxa: zona[1] };
+    const c = melhor(CORREDORES.map(c => [c, taxa(soma([3, 4, 5].map(f => f + c)))]));
+    return c ? { nome: NOME_CORREDOR[c[0]], corredor: c[0], taxa: c[1] } : null;
+  }
+  function zonasDaGrade(eu, ele) {
+    const frases = [], nosso = melhorCaminho(eu.zonas), deles = melhorCaminho(ele.zonas);
+    if (nosso) frases.push(`Nosso melhor caminho foi ${nosso.nome}: ${pc(nosso.taxa)} dos duelos vencidos.`);
+    // o lado deles é o oposto do nosso (o lado esquerdo do ataque deles chega na nossa direita)
+    if (deles && deles.taxa > 0.5) frases.push(`O adversário passou mais ${deles.nome}${NOSSO_LADO[CORREDORES[4 - CORREDORES.indexOf(deles.corredor)]]}: venceu ${pc(deles.taxa)} dos duelos ali.`);
+    const meio = Object.keys(eu.zonas).filter(z => faixaDe(z) === 2 || faixaDe(z) === 3).reduce((s, z) => [s[0] + eu.zonas[z][0], s[1] + eu.zonas[z][1]], [0, 0]);
+    if (meio[0] + meio[1] >= 10) frases.push(`No meio-campo vencemos ${pc(meio[0] / (meio[0] + meio[1]))} dos duelos com a bola e tivemos ${eu.posse}% de posse.`);
+    return frases;
+  }
+
+  // Mapa do jogador num jogo da grade (participação, não posição: no motor ele fica na mancha do papel), pelos passos do registro
+  // do motor ([time, de, para, tipo, passador, receptor, venceu, conduziu, espaço, marcador]): com = o time atacando (onde ele passou,
+  // pela zona de saída, e recebeu ou conduziu, pela de chegada); sem = o time defendendo (duelos como marcador, na zona dele, o espelho);
+  // lado = passos do adversário nos dois corredores do lado dele (null para quem joga por dentro). Tudo nas coordenadas do time dele.
+  function mapaDoJogador(passos, id, time, pos) {
+    const com = {}, sem = {}, mais = (m, z) => { m[z] = (m[z] || 0) + 1; }, ld = POSICOES[pos] && POSICOES[pos].lado;
+    const doLado = ld === "E" ? "Ee" : ld === "D" ? "Dd" : null;
+    let lado = doLado ? 0 : null;
+    for (const x of passos) {
+      if (x[1] === "fim") continue;
+      if (x[0] === time) { if (x[4] === id) mais(com, x[1]); if (x[5] === id) mais(com, x[2]); continue; }
+      const z = espelhoGrade(x[2]);
+      if (x[9] === id) mais(sem, z);
+      if (doLado && doLado.includes(z[1])) lado++;
+    }
+    return { com, sem, lado };
+  }
+
   // Comentário do analista para o time i. nivel 1 a 3: quanto melhor o analista, mais ele enxerga.
   function analise(partida, esperado, jogadores, i, nivel) {
     const eu = partida.estat[i], ele = partida.estat[1 - i], frases = [];
@@ -2640,14 +2685,17 @@ const __relatorio = (() => {
     else if (eu.gols - eu.xg >= 1) frases.push(`Aproveitamento acima do normal: ${eu.gols} gols com ${f2(eu.xg)} de xG.`);
     if (nivel < 2) return frases;
     // 3. zonas: onde atacamos melhor e onde o adversário passou
-    const taxa = (e, z) => { const [g, p] = e.zonas[z]; return g + p >= 6 ? g / (g + p) : null; };
-    const ataque = ["AE", "AC", "AD"].map(z => [z, taxa(eu, z)]).filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
-    if (ataque.length) frases.push(`Nosso melhor caminho foi o ${NOME_ZONA[ataque[0][0]]}: ${pc(ataque[0][1])} dos duelos vencidos.`);
-    const espelho = { AE: "DD", AC: "DC", AD: "DE" };
-    const sofrido = ["AE", "AC", "AD"].map(z => [espelho[z], taxa(ele, z)]).filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
-    if (sofrido.length && sofrido[0][1] > 0.5) frases.push(`O adversário passou mais ${sofrido[0][0] === "DC" ? "pelo centro da nossa defesa" : "pela nossa " + NOME_ZONA[sofrido[0][0]]}: venceu ${pc(sofrido[0][1])} dos duelos ali.`);
-    const meio = ["ME", "MC", "MD"].reduce((s, z) => { s[0] += eu.zonas[z][0]; s[1] += eu.zonas[z][1]; return s; }, [0, 0]);
-    if (meio[0] + meio[1] >= 10) frases.push(`No meio-campo vencemos ${pc(meio[0] / (meio[0] + meio[1]))} dos duelos com a bola e tivemos ${eu.posse}% de posse.`);
+    if (ehGrade(Object.keys(eu.zonas)[0])) frases.push(...zonasDaGrade(eu, ele));
+    else {
+      const taxa = (e, z) => { const [g, p] = e.zonas[z]; return g + p >= 6 ? g / (g + p) : null; };
+      const ataque = ["AE", "AC", "AD"].map(z => [z, taxa(eu, z)]).filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
+      if (ataque.length) frases.push(`Nosso melhor caminho foi o ${NOME_ZONA[ataque[0][0]]}: ${pc(ataque[0][1])} dos duelos vencidos.`);
+      const espelho = { AE: "DD", AC: "DC", AD: "DE" };
+      const sofrido = ["AE", "AC", "AD"].map(z => [espelho[z], taxa(ele, z)]).filter(x => x[1] !== null).sort((a, b) => b[1] - a[1]);
+      if (sofrido.length && sofrido[0][1] > 0.5) frases.push(`O adversário passou mais ${sofrido[0][0] === "DC" ? "pelo centro da nossa defesa" : "pela nossa " + NOME_ZONA[sofrido[0][0]]}: venceu ${pc(sofrido[0][1])} dos duelos ali.`);
+      const meio = ["ME", "MC", "MD"].reduce((s, z) => { s[0] += eu.zonas[z][0]; s[1] += eu.zonas[z][1]; return s; }, [0, 0]);
+      if (meio[0] + meio[1] >= 10) frases.push(`No meio-campo vencemos ${pc(meio[0] / (meio[0] + meio[1]))} dos duelos com a bola e tivemos ${eu.posse}% de posse.`);
+    }
     if (nivel < 3) return frases;
     // 4. jogadores e energia
     const meus = jogadores.filter(j => j.time === i && j.minutos >= 30);
@@ -2663,24 +2711,21 @@ const __relatorio = (() => {
     return frases;
   }
 
-  // Jogo da grade 5×5 (T1): os duelos das 25 zonas somados nas 9 de sempre (arredondados), para o analista e as telas que leem o relatório.
-  // ponytail: a Tarefa 11 do plano da grade passa a gravar as 25 e ensina as telas a ler
-  const nasNoveZonas = e => e.zonas && ehGrade(Object.keys(e.zonas)[0]) ? { ...e, zonas: Object.fromEntries(Object.entries(paraNoveZonas(e.zonas)).map(([z, v]) => [z, v.map(Math.round)])) } : e;
-
-  // nivelAnalista: [nível do analista do mandante, do visitante], de 1 a 3
-  function montarRelatorio(partida, nivelAnalista = [3, 3]) {
-    partida = { ...partida, estat: partida.estat.map(nasNoveZonas) };
+  // nivelAnalista: [nível do analista do mandante, do visitante], de 1 a 3. passos: o opcoes.registro do motor (só a grade o preenche):
+  // com ele, cada jogador ganha o mapa (mapaDoJogador). Zonas: as que o jogo tiver (25 na grade, 9 nas 9 zonas); quem lê 9 usa paraNoveZonas.
+  function montarRelatorio(partida, nivelAnalista = [3, 3], passos = null) {
     const esperado = resultadoEsperado(partida.lances), jogadores = notas(partida);
+    if (passos && passos.length) for (const j of jogadores) if (j.pos !== "GK") j.mapa = mapaDoJogador(passos, j.id, j.time, j.pos);
     return {
       placar: partida.placar, xg: partida.xg, esperado,
       jogadores,
       melhor: jogadores.filter(j => j.minutos >= 30).sort((a, b) => b.nota - a.nota)[0] || null,
-      zonas: partida.estat.map(e => Object.fromEntries(ZONAS.map(z => { const [g, p] = e.zonas[z]; return [z, { ganhos: g, total: g + p }]; }))),
+      zonas: partida.estat.map(e => Object.fromEntries(Object.keys(e.zonas).map(z => { const [g, p] = e.zonas[z]; return [z, { ganhos: g, total: g + p }]; }))),
       analise: [0, 1].map(i => analise(partida, esperado, jogadores, i, nivelAnalista[i])),
       estat: partida.estat, narracao: partida.narracao,
     };
   }
-  return { resultadoEsperado, montarRelatorio };
+  return { resultadoEsperado, mapaDoJogador, montarRelatorio };
 })();
 
 const __rodada = (() => {
@@ -2900,9 +2945,10 @@ const __rodada = (() => {
       if (sem[i] && !sem[1 - i]) t = { ...t, escalacao: t.escalacao.map(e => ({ ...e, j: rendeMenos(e.j) })), banco: (t.banco || []).map(rendeMenos) };
       return prepararTime({ nome: l.clube.nome, escalacao: t.escalacao, banco: t.banco, instrucoes: t.instrucoes, mandante: i === 0 && !copa, prevencao: l.saude ? l.saude.prevencao : 0 });
     });
-    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE });
+    const registro = []; // os passos da grade (só a T1 preenche), para o mapa de cada jogador no relatório; não muda o jogo
+    const p = simularPartida(criarRng(semente), times[0], times[1], { prorrogacao: copa, chuva: clima.chuva, calor: clima.calor, jogoGrande: jogoGrande(partida), regrasT1: temporada >= PAPEIS_DESDE, registro });
     // o comentário de cada time vem do analista dele; sem os dados da comissão (amistoso, teste), vale o nível máximo
-    const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3));
+    const r = montarRelatorio(p, [casa, fora].map(l => l.saude ? l.saude.analista || 1 : 3), registro);
     const acr = p.acrescimos || [0, 0];
     const lances = p.narracao.map((l, ordem) => ({ partida_id: partida.id, ordem, min: l.min, libera_em: horaDoMinuto(partida.inicio, (l.s === undefined ? l.min : l.min - 1 + l.s / 60) + (l.ac || 0), minutosTransmissao, acr, l.min).toISOString(), dados: l }));
     // abertura da transmissão, liberada no apito inicial: escalações, clima e cara ou coroa (a moeda não mexe no jogo)

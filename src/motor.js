@@ -456,6 +456,7 @@ function recalcular(t, saldo) {
       const pdD = grade ? G.passagemPorDentro : CONFIG.papeis.passagemPorDentro, pd = P.lado === "D" ? pdD : (grade ? espelharGrade : espelharLado)(pdD);
       com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
     }
+    if (grade) jog.mancha = { com, sem }; // o relatório desenha o contorno do papel no mapa do jogador (Tarefa 11)
     const fundo = (grade ? "1" : "D") + P.lado; // fundo do lado: zona D de 9 ou faixa 1 da grade
     if (m && P.linha === "ala" && (papelValido(jog.pos, jog.papel) ? jog.papel : PAPEL_PADRAO[jog.pos]) !== "apoiador") alas.push({ jog, lado: P.lado, w: sem[fundo] || 0 });
     for (const z in com) {
@@ -998,7 +999,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
   function sair(i, jog) {
     const t = times[i];
     t.emCampo = t.emCampo.filter(x => x !== jog);
-    const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia);
+    const s = jogadores[jog.j.id]; s.saiu = min; s.energia = Math.round(jog.energia); if (jog.mancha) s.mancha = jog.mancha;
     sujo = true;
   }
   // papel: o de quem saiu (novoJog o descarta se não valer na posição de quem entra)
@@ -1268,7 +1269,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
     // de destino com a dificuldade do tipo. Termina em chance (passo ganho na faixa 5), perda, falta, lesão ou no LIMITE_DE_PASSOS.
     function atacarNaGrade() {
       const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao, eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
-      // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false] e o fim do ataque [time, "fim", xG, chutes]
+      // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false, marcador] e o fim do ataque [time, "fim", xG, chutes]
       const reg = opcoes.registro, xg0 = e.xg, fin0 = e.finalizacoes;
       // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)
       const PESO = new Float64Array(25), AT = new Float64Array(25), OPC = {}; // OPC: as opções de cada zona neste ataque
@@ -1466,7 +1467,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
             k[0]++; if (d.venceu) { k[1]++; certos++; }
             if (o.espaco) { eg.espaco[0]++; if (d.venceu) eg.espaco[1]++; }
             if (o.entre) { eg.entrelinhas[0]++; if (d.venceu) eg.entrelinhas[1]++; }
-            if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir, o.espaco ? "espaco" : o.entre ? "entre" : false]);
+            if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir, o.espaco ? "espaco" : o.entre ? "entre" : false, d.marcador ? d.marcador.j.id : null]);
             // depois da volta ganha: tabela se a volta foi para quem tinha passado; terceiro homem se chega às faixas 4–5
             if (era2) { if (passador === parA) { eg.tabelas[0]++; if (d.venceu) eg.tabelas[1]++; } if (faixaDe(para) >= 4) { eg.terceiros[0]++; if (d.venceu) eg.terceiros[1]++; } }
           }
@@ -1653,7 +1654,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
     while (placar[0] === placar[1]) { bater(0); bater(1); }
     penaltis = { placar, cobrancas };
   }
-  times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); }));
+  times.forEach(t => t.emCampo.forEach(jog => { jogadores[jog.j.id].energia = Math.round(jog.energia); if (jog.mancha) jogadores[jog.j.id].mancha = jog.mancha; }));
   estat[0].posse = Math.round(somaPosse / jogados * 100); estat[1].posse = 100 - estat[0].posse;
   soltarCartoes();
   const narracao = [...lances, ...eventos].sort((a, b) => a.n - b.n);

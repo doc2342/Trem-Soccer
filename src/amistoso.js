@@ -28,10 +28,11 @@ export const elencoDoBot = (estilo, nivel, nomes) =>
 
 export function jogarAmistoso({ casa, fora, semente }) {
   const time = (t, mandante) => prepararTime({ nome: t.nome, escalacao: t.tatica.escalacao, banco: t.tatica.banco, instrucoes: t.tatica.instrucoes, mandante });
-  const partida = simularPartida(criarRng(semente), time(casa, true), time(fora, false), { regrasT1: true });
+  const registro = []; // os passos da grade, para o mapa de cada jogador no relatório (não muda o jogo)
+  const partida = simularPartida(criarRng(semente), time(casa, true), time(fora, false), { regrasT1: true, registro });
   const e = partida.estat;
   return {
-    partida, relatorio: montarRelatorio(partida, [3, 3]), placar: partida.placar,
+    partida, relatorio: montarRelatorio(partida, [3, 3], registro), placar: partida.placar,
     resumo: { xg: partida.xg, posse: [e[0].posse, e[1].posse], chutes: [e[0].finalizacoes, e[1].finalizacoes] },
   };
 }
