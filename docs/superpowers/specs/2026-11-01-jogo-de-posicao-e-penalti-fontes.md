@@ -31,4 +31,4 @@ Lidos o resumo, as conclusões e os números dos resultados; método e referênc
 - Estudo citado na tese: treino perceptivo levou o acerto de 63% para 77%. A posição do pé de apoio tem cerca de 80% de confiabilidade.
 - O goleiro lê melhor por experiência; o batedor pode reduzir a rotação ou usar fintas.
 
-Consequência possível, não aprovada: no pênalti, a Excentricidade de quem bate esconde o lado (paradinha, finta) e a experiência do goleiro lê melhor. O efeito é pequeno e a régua do pênalti já existe. Não muda a Tarefa 12.
+Consequência possível, não aprovada: no pênalti, a Excentricidade de quem bate esconde o lado (a mudança de ritmo e o pulinho na corrida, como Neymar e Jorginho; a paradinha é proibida hoje) e a experiência do goleiro lê melhor. O efeito é pequeno e a régua do pênalti já existe. Não muda a Tarefa 12.
