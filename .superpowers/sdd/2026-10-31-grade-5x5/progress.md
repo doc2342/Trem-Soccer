@@ -97,3 +97,32 @@ Ruling: analista na grade = melhor zona das faixas 4–5 (≥ 6 duelos), senão 
 Ruling: mapa 5×5 do time com a cor pela raiz do volume (a faixa 1 tem 3–5× mais duelos e apagava o resto). Mapa do jogador: <select> com onchange inline + rádios em CSS (Tudo · Time atacando · Time defendendo); contorno = zonas da mancha com peso ≥ 0,1. No htmlRelatorioNovo: mapa da grade no lugar do campo do analista e o mapa do jogador no fim de "Como cada um saiu" (não fotografado: precisa de jogo da T1 no ar).
 Medido: Construtor 36% das ações com a bola nos meios-espaços (faixas 1–3), Fixo 31% (30 jogos, 4-2-3-1 x 4-4-2) — pouca diferença, olhar na Tarefa 12 (mancha do Construtor).
 Task 11: complete (inline, 72/72)
+Pós-Tarefa 11 (dono, 31/10): Tarefa 9c tiro de meta APROVADA, antes da 11b e da 12 — desenho na memória tiro-de-meta.md. Só depois de chute "fora" pela linha de fundo (bloqueado já vai 45% a escanteio, o resto segue em jogo); defesa segura = o goleiro repõe. Medido (200 jogos): saída F1 95% de acerto, ~75 passes de lado por time na faixa 1, 19 pular, 0,4 subir para a faixa 2 (irreal; calibragem da Tarefa 12).
+Task 9c: inline (Opus). gradeValores.reposicao; reposicao()/repor no motor; reposicaoDoGoleiro em atacarNaGrade; teste_tiro_de_meta.mjs.
+Ruling: a base curto/longo = 0 (~50%), Opta PL: 46,6% (2023/24) e 47,0% (2024/25) dos passes do goleiro longos (≥ 32 m). Não é o número do tiro de meta nem do Brasileirão (não achei) — custo: o Brasileirão deve ser mais longo; um valor na calibragem.
+Ruling: o goleiro usa o Passe, não o lon: lon do GK é ~6 (o `lon` é "Chute de longe" e o gerador dá 6 ao GK); referência 12 (média do Passe do GK no gerador) — custo: exceção de uma linha na bolaLonga; some se o atributo Passe longo for criado (pergunta do dono, ver abaixo).
+Ruling: longo = bolaLonga para e/C/d das faixas 4–5, com a queda uma faixa abaixo (a memória dizia duelo nas faixas 3/4; a faixa 5 vale porque o 9 é o alvo natural e a zona 14 pode estar vazia) — custo: nenhum para os lançamentos de linha (5→4 igual).
+Ruling: a posse da reposição é forçada (proximo), fora da cadeia de posse: quem está com o goleiro tem a bola — custo: gols 2,74 → 2,64 (1.000 jogos, mesmas sementes); ver na Tarefa 12.
+Ruling: também reposição com a mão: cruzamento que o goleiro segura e lançamento que ele corta (mesma situação da defesa que ele segura).
+Ruling: laço do passo começa em n = 1 depois da reposição (a reposição é o 1º passo; sem isso, 13 passos, teste "passos ≤ limite").
+Ruling: teste_passe_espaco 60 → 400 jogos: o "mais veloz ganha mais" era ruído da amostra (0,533 x 0,558 com ~150 passes); com 1.111 passes, 48,2% x 55,3%.
+Medido (1.000 jogos, régua): tiros de meta 3,7 por time (meta 5,8: faltam chutes para fora), 50,7% curtos, curtos roubados 5,6%; reposições com a mão 3,0 por time, 69% curtas; gols 2,74 → 2,64; obrigatórias fora 4/7 → 5/7: pênalti 7,1% → 5,9% dos gols (saiu da faixa 7–11), conversão 34,0% → 33,5% (já fora); aéreos 6,4 por time; lançador fica 45,6%. PPDA pressão 2 / 0: 15,1/12,5 → 13,3/11,8 (segue invertido).
+Task 9c: complete (inline, 73/73)
+DONO (31/10, durante a 9c): "você vê necessidade do atributo passe longo?". Medido: `lon` faz de passe longo e é Chute de longe: zagueiro 17,9, volante 17,9, lateral 18, MR/ML 18 contra MC 28,8, AMC 28,4, AMR/AML 29; correlação com Passe ~0 (0,00–0,14); GK 6,1. Recomendei criar; decisão do dono pendente (Tarefa 12, Passo 1b, antes da virada).
+DONO (31/10): a maioria dos tiros de meta é curta hoje; salvou 14 textos em prototipos (lidos inteiros; docs/superpowers/specs/2026-10-31-grade-5x5-fontes-tiro-de-meta.md). Ruling: base da reposição 0 → −0,25 (56,7% curtos, 600 jogos), Opta PL 2024/25: 50,7% na própria área, ~45% para fora do terço defensivo — custo: um valor; 2025/26 pode estar voltando ao longo (amostra de 3 rodadas).
+DONO (31/10): aprovou o lote Passe longo + Movimentação + Decisões ("ok então"); plano à parte, antes da Tarefa 12. Mandou referências de rebote, gol contra e olímpico (16 textos, lidos inteiros; docs/superpowers/specs/2026-11-01-grade-5x5-fontes-rebote-gol-contra.md).
+Task 9d: inline (Opus). Ruling: a remessa das referências contou como pedido para implementar os três (T1 só, local, reversível) — custo: reverter um commit.
+Ruling: rebote só de defesa e trave (definição do The Athletic), um chute só; o bloqueio segue em jogo; quem chega não disputa com a zaga (a Movimentação entra aí) — custo: a taxa já é de chutes, medida.
+Ruling: gol contra no cruzamento errado cortado e no escanteio afastado; a fonte fala em bola rasteira, o cutback fica fora — custo: 3,5% dos gols no teto; revisar com o volume de cruzamentos da Tarefa 12 (hoje 1,4 por time, real ~19: com 13× o volume a chance por cruzamento tem que cair).
+Ruling: olímpico sem olhar o pé (marca ponytail no motor).
+Ruling: teste do terceiro homem 150 → 600 jogos (0,13 x 0,03 no limite por ruído); passou com a amostra maior, sem mexer na margem.
+Medido (1.000 jogos): rebotes 0,34 por jogo, 1,7% dos chutes, 28% gols, 3,6% dos gols sem pênalti; gols contra 3,5%; olímpicos 2 por 1.000 jogos; gols 2,59 → 2,80; obrigatórias fora 5/7 (conversão 34,3%, contra 9,5%, cruzamento 1,7%, pênalti 5,3%, escanteio 6,3%).
+Task 9d: complete (inline, 74/74)
+Tarefa 12, passo inicial: inline (Opus 5.5). Relatório em docs/superpowers/specs/2026-11-01-grade-5x5-calibragem.md.
+Ruling: escolherPasso por nota 0–1 dentro da lista (valor negativo não vira 1e-9; null = impossível); multiplicadores em multDe, sobre a nota.
+Ruling: custo posse por faixa de quem tem a bola; sem ele a bola longa ia a 52–65%.
+Ruling: faixa 5 fica no xT. Acima dele a régua melhora, mas Passe na defesa e no volante vai a −0,04 e o contra sai pelos lados. O valor dos atributos manda sobre a régua neste passo.
+Ruling: atrair conduzindo não entra (medido); posse longa e goleiro ficam com o dono.
+Ruling: teste_passe_espaco compara passes ganhos, não taxa: o mais veloz tenta bolas piores. teste_grade_motor: fases ≤ passosChance + 4 (as frases de ligação cresceram com as voltas).
+Ruling: o Apoiador não chega à linha de fundo (0 em 596 cruzamentos): frase nova "sobe pela lateral e cruza cedo"; recuperar a linha de fundo no grupo de cruzamento.
+Medido: 80/80; gols 2,41; 1 de 7 obrigatórias dentro (cruzamento 13,5%), gols a 0,07 do piso; PPDA 5,8/9,0, não mais invertido.

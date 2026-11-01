@@ -1,19 +1,21 @@
 // Valor de Passe longo, Movimentação e Decisões: a linha inteira +6 num atributo, o mesmo onze contra ele mesmo, mando alternado, regras da T1 com a grade.
 // Molde de sim_valor_posicao.mjs: mesma semente com e sem o reforço, saldo de xG a mais por jogo. +6 em Passe é a régua de comparação.
 // Critério (plano dos atributos, Tarefa 7): Decisões rende na defesa e no volante; nenhum dos 3 dá zero em todas as linhas nem vale mais que +6 em Passe na mesma linha.
-// Uso: node ferramentas/sim_atributos_novos.mjs [jogos por célula] [formação]
+// Uso: [GV='{...}'] [ATR=dec,exc] node ferramentas/sim_atributos_novos.mjs [jogos por célula] [formação]
 import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { IDX } from "../src/modelo.js";
-import { prepararTime, simularPartida } from "../src/motor.js";
+import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 
+const junta = (alvo, de) => { for (const k in de) alvo[k] = de[k] && typeof de[k] === "object" && alvo[k] && typeof alvo[k] === "object" ? { ...alvo[k], ...de[k] } : de[k]; };
+junta(CONFIG.gradeValores, JSON.parse(process.env.GV || "{}"));
 const N = +process.argv[2] || 1500, formacao = process.argv[3] || "4-2-3-1", B = 6;
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const vagas = FORMACOES[formacao];
 const LINHAS = [["goleiro", ["GK"]], ["defesa", ["DC", "SW", "DR", "DL", "WBR", "WBL"]], ["volante", ["DMC"]], ["meio", ["MC", "MR", "ML", "AMC", "AMR", "AML"]], ["ataque", ["RW", "LW", "FC", "SC"]]].filter(([, ps]) => vagas.some(p => ps.includes(p)));
-const ATR = ["plo", "mov", "dec", "pas"];
+const ATR = (process.env.ATR || "plo,mov,dec,pas").split(",");
 const onzes = Array.from({ length: 40 }, (_, s) => ["a", "b"].map(p => gerarOnze(criarRng(5000 + s), vagas, { nivel: 30, nomes, prefixoId: p + s + "_", novos: true })));
 const jogo = (n, a, b) => {
   const ta = prepararTime({ nome: "A", escalacao: a }), tb = prepararTime({ nome: "B", escalacao: b }), casa = n % 2 === 0;
@@ -38,4 +40,4 @@ for (const [nome, ps] of LINHAS) {
   console.log(nome.padEnd(10) + l.map(([s, p, c]) => `${s.toFixed(3)} (${p.toFixed(3)}/${c.toFixed(3)})`.padEnd(24)).join(""));
 }
 const col = i => Object.values(tabela).map(l => l[i][0]);
-for (const i of [0, 1, 2]) console.log(`${ATR[i]}: ${col(i).every(v => Math.abs(v) < 0.005) ? "ZERO em todas as linhas" : "faz efeito"}; ${col(i).some((v, x) => v > Math.max(col(3)[x], 0) + 0.01) ? "vale mais que Passe em alguma linha" : "não passa do Passe"}`);
+if (!process.env.ATR) for (const i of [0, 1, 2]) console.log(`${ATR[i]}: ${col(i).every(v => Math.abs(v) < 0.005) ? "ZERO em todas as linhas" : "faz efeito"}; ${col(i).some((v, x) => v > Math.max(col(3)[x], 0) + 0.01) ? "vale mais que Passe em alguma linha" : "não passa do Passe"}`);

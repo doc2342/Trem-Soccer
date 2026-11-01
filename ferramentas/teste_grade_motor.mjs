@@ -78,7 +78,7 @@ assert.strictEqual(CONFIG.grade, false);
   const passos = p.lances.filter(l => l.rota).flatMap(l => l.rota);
   assert.ok(passos.length && passos.every(r => (r.length === 6 || r.length === 7) && ehGrade(r[0]) && ehGrade(r[1]) && typeof r[5] === "boolean"));
   const comFases = p.lances.filter(l => l.fases);
-  assert.ok(comFases.length && comFases.every(l => l.texto.endsWith(l.fases[l.fases.length - 1]) && l.fases.length <= CONFIG.gradeValores.narrar.passosChance + 2));
+  assert.ok(comFases.length && comFases.every(l => l.texto.endsWith(l.fases[l.fases.length - 1]) && l.fases.length <= CONFIG.gradeValores.narrar.passosChance + 4)); // os passos narrados mais as frases de ligação ("a bola volta para")
   assert.ok(p.narracao.every(l => !/meia-lua|undefined|NaN/.test(l.texto)));
 
   // custo e A1, nos mesmos jogos: 4-2-3-1 x 4-4-2 contra pressão 2, metade com a armadilha do lado desligada (constante de antes da grade: 4,1 ms por jogo).

@@ -133,7 +133,7 @@ function geral(t) {
   meta("obrigatoria", "finalizacao", "gols de escanteio", "~11,8% (10–14)", pc(esc), entre(esc, 0.10, 0.14));
   meta("obrigatoria", "passe", "acerto geral de passe (estat.grade.passos)", "82–84%", pc(acerto), entre(acerto, 0.82, 0.84));
   const posses = t.ataques / j, chute = r(t.ataquesChute, t.ataques);
-  meta("esforco", G, "posses por jogo (os dois times)", "~100 (conferência, decisão 1a)", f1(posses), entre(posses, 85, 115));
+  meta("esforco", G, "posses por jogo (os dois times)", "71–91 (Premier 2024/25, The Athletic)", f1(posses), entre(posses, 71, 91));
   meta("esforco", G, "posses que acabam em chute", "~10%", pc(chute), entre(chute, 0.07, 0.13));
   const fim = t.golsMin[5] + t.golsMin[6], media15 = t.gols / 6;
   meta("esforco", G, "gols depois dos 75' (÷ média de 15 min)", "pico (> 1)", f2(r(fim, media15)), fim > media15);

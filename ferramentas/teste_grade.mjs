@@ -163,8 +163,15 @@ assert.deepStrictEqual(["5E", "5e", "5C", "5d", "5D"].map(z => valorDaZona(z, V)
   const sortear = (rng, lista, peso) => { let t = 0; const p = lista.map(x => { const w = Math.max(0, peso(x)); t += w; return w; }); let r = rng.n() * t; for (let i = 0; i < lista.length; i++) { r -= p[i]; if (r <= 0) return lista[i]; } return lista[lista.length - 1]; };
   const ops = [{ para: "3C", v: 0.03 }, { para: "3d", v: 0.02 }, { para: "2C", v: 0.012 }, { para: "4C", v: 0.05 }];
   const melhor = dec => { const rng = criarRng(7); let n = 0; for (let k = 0; k < 10000; k++) if (escolherPasso(rng, ops, o => o.v, dec, V, sortear).para === "4C") n++; return n; };
-  assert.ok(melhor(45) > melhor(25) + 500 && melhor(25) > melhor(10) + 500);
+  assert.ok(melhor(45) > melhor(25) + 100 && melhor(25) > melhor(10) + 100);
   assert.ok(escolherPasso(criarRng(1), ops, () => -1, 20, V, sortear)); // valor nenhum positivo: ainda escolhe alguma
+  // valores negativos (perto do próprio gol) não viram iguais: a menos ruim ganha, e o bom decisor a acha mais
+  const melhorNeg = dec => { const rng = criarRng(7); let n = 0; for (let k = 0; k < 10000; k++) if (escolherPasso(rng, ops, o => o.v - 1, dec, V, sortear).para === "4C") n++; return n; };
+  assert.ok(melhorNeg(25) === melhor(25) && melhorNeg(45) > melhorNeg(10));
+  // null: opção impossível; multDe multiplica a nota
+  for (let s = 0; s < 50; s++) assert.notStrictEqual(escolherPasso(criarRng(s), ops, o => o.para === "4C" ? null : o.v, 25, V, sortear).para, "4C");
+  const vezes = m => { const rng = criarRng(3); let n = 0; for (let k = 0; k < 10000; k++) if (escolherPasso(rng, ops, o => o.v, 25, V, sortear, o => o.para === "3C" ? m : 1).para === "3C") n++; return n; };
+  assert.ok(vezes(1.5) > vezes(1) + 300);
 }
 // impulso: nunca passa do teto; de frente pela diagonal do meio-espaço só com companheiro no corredor vizinho; o maior vale, nunca a soma
 {

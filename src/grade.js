@@ -260,11 +260,17 @@ export function valorDaZona(z, V) {
   return f < 5 ? V.valorZona.faixas[f - 1] : V.valorZona.f5[LARGURA[z[1]]];
 }
 
-// Quem tem a bola escolhe: peso v^γ, com γ pela Decisão (o bom decisor fica perto da melhor opção, o mau perto da média).
-// sortear: o sortearPeso do motor, por parâmetro para não duplicar. Valor nenhum positivo: as opções ficam iguais.
-export function escolherPasso(rng, opcoes, valorDe, dec, V, sortear) {
-  const g = Math.max(0, V.decisao.base + V.decisao.inclinacao * (dec - 25) / 25);
-  return sortear(rng, opcoes, o => Math.pow(Math.max(1e-9, valorDe(o)), g));
+// Quem tem a bola compara as opções da lista: a nota vai de 0 (a pior) a 1 (a melhor), então o valor pode ser negativo (perto do próprio gol quase
+// todos são) sem as opções virarem iguais. Peso = ((piso + nota) × multDe)^γ, com γ pela Decisão: o bom decisor fica perto da melhor, o mau perto
+// da média. valorDe devolve null para a opção impossível. sortear: o sortearPeso do motor, por parâmetro para não duplicar.
+export function escolherPasso(rng, opcoes, valorDe, dec, V, sortear, multDe = null) {
+  const g = Math.max(0, V.decisao.base + V.decisao.inclinacao * (dec - 25) / 25), vals = opcoes.map(valorDe);
+  let min = Infinity, max = -Infinity;
+  for (const v of vals) if (v !== null) { if (v < min) min = v; if (v > max) max = v; }
+  const faixa = max - min || 1, ids = [];
+  for (let n = 0; n < vals.length; n++) if (vals[n] !== null) ids.push(n);
+  const n = sortear(rng, ids, n => Math.pow((V.decisao.piso + (vals[n] - min) / faixa) * (multDe ? multDe(opcoes[n]) : 1), g));
+  return n === null ? null : opcoes[n];
 }
 
 // O que o passo ganho deixa para o seguinte, num valor só (spec 12b: embalo, "a folga decide o próximo passo" e quem recebe de frente não somam):

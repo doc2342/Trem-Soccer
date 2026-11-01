@@ -45,3 +45,28 @@ Chelsea (fala do jogador), The i Paper (Bosnich e Richard Lee), Goal.com, The At
 Proposta, não aprovada: o pênalti como duelo de estilos. Quem bate espera o goleiro (Excentricidade e Decisões) ou escolhe o canto antes; o goleiro pula cedo ou espera (Decisões). Esperar contra quem pula cedo dá gol fácil; contra quem espera, sobe o risco de defesa e de trave. A média fica perto da taxa de hoje e só o especialista sobe, até uns 85%. Narração própria: rola no contrapé, o goleiro espera até o fim. É um lance isolado, então pode vir depois da calibragem do fluxo, antes da virada.
 
 Consequência da tese, também não aprovada: no pênalti, a Excentricidade de quem bate esconde o lado (a mudança de ritmo e o pulinho na corrida, como Neymar e Jorginho; a paradinha é proibida hoje) e a experiência do goleiro lê melhor. O efeito é pequeno e a régua do pênalti já existe. Não muda a Tarefa 12.
+
+## O passe para trás (Training Ground Guru, Simon Austin, 02/03/2021, lido inteiro)
+
+- CIES: Manchester City, o que mais passa para trás na Europa em 2020/21: 293 por jogo, 41,6% dos passes, em 25 jogos. Os cinco que menos passam para trás na Premier e na Championship (Wycombe, Barnsley, Rotherham, Middlesbrough, Birmingham) são diretos. É o teto de um time de posse, não a média.
+- Padrão "sobe, volta e passa" (David Adams): voltar puxa o adversário para fora da forma e cria o dilema: subir a linha e deixar espaço atrás, recuar e ceder espaço, ou pressionar na frente com a linha baixa e abrir espaço entre as linhas.
+- O goleiro é saída: City e Arsenal voltam até o goleiro e os zagueiros; o Arsenal contra pressão alta recuava até a linha do gol, e em três passes quebrou a pressão do Liverpool (Community Shield 2020). De vez em quando o zagueiro é pego com a bola, e Guardiola aceita o custo.
+- Hóquei: volta e vira para o outro lado, para fazer a pressão correr.
+
+Confirma: atrair a pressão com a volta (A2), a virada depois da volta e o goleiro como opção de recomeço.
+
+### A imagem do CIES (o dono apontou)
+Maiores % de passes para trás, 31 ligas europeias, 2020/21 até 24/02/2021: Manchester City 41,6; Shakhtar 40,6; Lokomotiv Moscou 40,1; Chelsea 39,4; Arsenal 39,3; Ferencváros 39,2; Sassuolo 38,7; Barcelona 38,5; PSG 38,4; Real Madrid 38,3. O City é o extremo, mas o grupo é apertado: um time de posse vive perto dos 40%. O número é por direção do passe, qualquer distância; a `voltar` da grade só conta o passe que desce uma faixa (o toque curto para trás na mesma faixa conta como `lado`). Não dá para comparar direto com a meta de 12–22% da matriz do Karun, que é por zona.
+
+## Passe negativo e ritmo: 9 textos do dono (lidos inteiros)
+
+- **TFA e Hockey Training (Kostanjšak, mesmo texto):** voltar para ir à frente. Três ganhos: puxa o bloco para fora (1 volta, 2 passes para a frente), muda o ângulo de ataque e controla o ritmo. Na pressão alta, o goleiro dá superioridade (4×3) e cria dúvida em quem pressiona (México × Alemanha). A volta é gatilho de pressão, então é aposta. Horizontal é neutro.
+- **Analytics FC (Hobbs):** modelos como o xT dão valor negativo à volta, mas ela faz a jogada. Métrica "passe antes da progressão": a volta e o passe de lado recebem o valor do passe progressivo seguinte. Lidera Jorginho; volantes em geral, mais um 9 de costas (Plea). Nos gols analisados, os passes não progressivos foram de primeira.
+- **The Athletic (tempo):** posses por 90 minutos na Premier 2024/25: de 71,5 (City) a 91,4 (Bournemouth). Ritmo = duração ÷ passes em sequências de 5+ passes e 10+ s. Volantes e meias jogam mais rápido; goleiros e pontas seguram para atrair. Sequências de ritmo rápido: Chelsea 23% → 18% com Maresca.
+- **The Football Analyst (Tempo Metrics):** passes até a entrada no terço final, índice de objetividade (frente ÷ lado e trás), tempo por fase. Bons times variam: provocam devagar e aceleram; ritmo baixo protege a vantagem.
+- **Isuza (Medium):** ritmo é relacional, quem define é quem defende: sem pressão não há por que acelerar. Forçar ritmo sem pressão gera passe apressado.
+- **SIA Academy:** a pressão emocional altera a leitura do jogo; quem mantém a calma segue lendo. Apoia a calma na Decisão.
+- **LinkedIn (Rizvi):** jogo defensivo busca vencer; jogo negativo só não quer perder, e quase todos o usam no fim com a vantagem. Sem número.
+- **Eyes Up (Tempo Offense):** é futebol americano. Nada a aproveitar.
+
+Para a régua: a meta de "~100 posses por jogo" está alta; a Premier fica em 71,5–91,4, e o motor em ~80 está dentro. Para depois da calibragem: "passe antes da progressão" na nota (junto do valor por passo, já estacionado) e a instrução de ritmo (já estacionada).
