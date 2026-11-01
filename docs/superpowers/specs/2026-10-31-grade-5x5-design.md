@@ -24,7 +24,7 @@ O critério de desempate de todas as decisões, definido pelo dono, é **"o mais
 
 **Não objetivos (desta etapa)**
 - Papéis novos de atacantes, pontas, meias e zagueiros: vêm na etapa seguinte, já na grade.
-- Atributos novos: Decisões, Movimentação, Antecipação, Equilíbrio e Altura continuam na caixinha (memória `atributos-caixinha`).
+- Atributos novos: Antecipação, Equilíbrio e Altura continuam na caixinha (memória `atributos-caixinha`). Passe longo, Movimentação e Decisões foram criados (`docs/superpowers/plans/2026-11-01-atributos-novos.md`).
 - Revisão das notas dos jogadores, xP e xGP no relatório e linha da pressão por minuto: ficam como ideias (seção 13).
 - Instrução nova de ritmo; instrução "forçar para fora/dentro" (item 3 do pacote tático, marcada para depois da grade).
 
@@ -121,7 +121,7 @@ Cada ataque é uma sequência de **passos**. Em cada passo, quem tem a bola esco
 
 ### 7.5 Quem decide o passo: Decisão
 - **Quem decide é o jogador com a bola.** O sorteio pesa as opções (força no destino contra a marcação, lado fraco esvaziado, espaço nas costas, instruções). O bom decisor fica perto da **melhor** opção; o mau decisor fica perto da **média** (é a régua média contra máximo do xT contra o Bellman).
-- **Decisão = Criatividade + Trabalho em equipe, numa função só** (se um dia o atributo Decisões for criado, muda uma linha). Aprovado pelo dono: "mantém assim por enquanto".
+- **Decisão = o atributo Decisões** (criado em 01/11; antes, Criatividade + Trabalho em equipe). Cai sob pressão: `decisaoSobPressao`, a Compostura sem atributo próprio.
 - "Olhe o mais longe possível; se o passe está aberto, dê; senão, circule": o bom decisor escolhe o passo mais adiantado que está aberto.
 - **A vontade de pular faixa cresce com a pressão e a linha alta do adversário** ("jogar onde está o espaço"; "se o lateral deles sobe, bola nas costas").
 - **A folga do duelo decide o próximo passo:** ganhar apertado → tende a devolver ou tocar para o lado; ganhar com folga → gira e avança. Depois de um passe vertical pelo centro, quem recebe fica de costas e tende a devolver.
