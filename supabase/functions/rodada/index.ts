@@ -2034,6 +2034,8 @@ const __motor = (() => {
       // de destino com a dificuldade do tipo. Termina em chance (passo ganho na faixa 5), perda, falta, lesão ou no LIMITE_DE_PASSOS.
       function atacarNaGrade() {
         const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao, eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
+        // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu] e o fim do ataque [time, "fim", xG, chutes]
+        const reg = opcoes.registro, xg0 = e.xg, fin0 = e.finalizacoes;
         // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)
         const PESO = new Float64Array(25), AT = new Float64Array(25), OPC = {}; // OPC: as opções de cada zona neste ataque
         ZONAS_GRADE.forEach((z, k) => { AT[k] = atk.atk[z] + Zv; for (const o of atk.zonas[z]) PESO[k] += o.w; });
@@ -2156,6 +2158,7 @@ const __motor = (() => {
           const queda = ZONA_EM[4][colunaDe(zl)], quem = ganhou ? nosso : deles;
           const p = sobra(queda, ganhou, 1 + AE.direcao * quem.at[A.cab] / 25, eg.segundas);
           const k = eg.passos.pular = eg.passos.pular || [0, 0]; k[0]++;
+          if (reg) reg.push([i, atual, queda, "longa", lanca.j.id, p ? p.j.id : null, !!p, false]);
           if (p) { k[1]++; certos++; eg.longas[1]++; frase.push(`a segunda bola fica com ${nm(p)}`); return { zona: queda, jog: p, cabeceou: ganhou }; }
           portador = null;
           if (perdaDePosse(i, queda, { pivo: null, marcador: null })) perdeu(queda);
@@ -2195,6 +2198,7 @@ const __motor = (() => {
             if (!d.falta) {
               const k = o.conduzir ? eg.conducoes : (eg.passos[o.tipo] = eg.passos[o.tipo] || [0, 0]);
               k[0]++; if (d.venceu) { k[1]++; certos++; }
+              if (reg) reg.push([i, atual, para, o.tipo, passador ? passador.j.id : null, d.pivo ? d.pivo.j.id : null, d.venceu, !!o.conduzir]);
               // depois da volta ganha: tabela se a volta foi para quem tinha passado; terceiro homem se chega às faixas 4–5
               if (era2) { if (passador === parA) { eg.tabelas[0]++; if (d.venceu) eg.tabelas[1]++; } if (faixaDe(para) >= 4) { eg.terceiros[0]++; if (d.venceu) eg.terceiros[1]++; } }
             }
@@ -2229,6 +2233,7 @@ const __motor = (() => {
           eg.passosPorAtaque.push(certos);
           if (certos >= 10) eg.posses10++;
           if (e.gols > gols0) eg.passosNoGol.push(certos);
+          if (reg) reg.push([i, "fim", e.xg - xg0, e.finalizacoes - fin0]);
         }
       }
       soltarCartoes();
