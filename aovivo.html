@@ -702,6 +702,7 @@ function notasDosGols(lances) {
       if (a === b) return; const za = zonaDaPosicao(a, n), zb = zonaDaPosicao(b, n);
       if (k === 0) frases.push(`Com o gol, ${nomeDoTime(lado)} vai a ${b + 1}º${zb && zb !== za ? (zb === "lider" ? " e assume a liderança" : ` e entra n${NOME_DA_ZONA[zb]}`) : za === "cai" && !zb ? " e sai da zona de descenso" : ""}.`);
       else if (zb !== za) frases.push(zb === "cai" ? `${nomeDoTime(lado)} cai para a zona de descenso.` : za ? `${nomeDoTime(lado)} perde ${NOME_DA_ZONA[za]}.` : `${nomeDoTime(lado)} cai para ${b + 1}º.`); });
+    if (d.tipo === "golcontra") { if (frases.length) notas[d.n] = frases.join(" "); continue; } // gol contra não entra na artilharia
     // artilharia: gols na série antes desta partida (só quem está entre os 20 primeiros) mais os de hoje
     noJogo[d.finalizador] = (noJogo[d.finalizador] || 0) + 1;
     const previa = rodada.art.find(x => x.id === d.finalizador), total = (previa ? previa.gols : 0) + noJogo[d.finalizador];

@@ -39,7 +39,7 @@ export function jogar(N, jogo = null, semente = 7) {
     porPos: { volante: [0, 0], zagueiro: [0, 0], ponta: [0, 0] }, dribles: [0, 0], enfiadas: [0, 0], espaco: [0, 0], entre: [0, 0],
     ppda: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, roubadas: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, perdasAtras: 0, perdasAtrasChute: 0, contraCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 },
     golsContraN: 0, xgZona: ZONAS_GRADE.map(() => [0, 0]), entradas: 0, entradasPosse: [0, 0], progressivos: [0, 0], fundos: 0, sca: 0, gca: 0,
-    territorio: [], faltas: 0, amarelos: 0, escanteios: 0, tiros: [0, 0, 0], maos: [0, 0], rodadas: [] };
+    territorio: [], faltas: 0, amarelos: 0, escanteios: 0, tiros: [0, 0, 0], maos: [0, 0], rebotes: [0, 0], autogols: 0, olimpicos: 0, rodadas: [] };
   for (let n = 0; n < N; n++) {
     const p0 = jogo ? jogo(n, rng) : null;
     const fa = p0 ? p0.fa : pega(rng, FORMACOES_BOT), fb = p0 ? p0.fb : pega(rng, FORMACOES_BOT);
@@ -53,7 +53,7 @@ export function jogar(N, jogo = null, semente = 7) {
     for (const l of p.lances) {
       const gol = l.resultado === "gol"; t.lances++;
       if (gol) { t.gols++; t.golsTipo[l.tipo] = (t.golsTipo[l.tipo] || 0) + 1; t.golsMin[Math.min(6, Math.floor((l.min - 1) / 15))]++; if (l.contra) { t.golsContra += OPTA[l.contra]; t.golsContraN++; } }
-      if (gol || l.resultado === "defesa") t.noGol++;
+      if ((gol && l.tipo !== "golcontra") || l.resultado === "defesa") t.noGol++;
       if (l.tipo === "profundidade") { t.enfiadas[0]++; t.enfiadas[1]++; } // a enfiada da faixa 5 chega (vira chute)
       const acoes = (l.rota || []).filter(r => r.length >= 6).length; t.sca += Math.min(2, acoes); if (gol) t.gca += Math.min(2, acoes);
       if (l.tipo === "penalti") continue;
@@ -66,6 +66,7 @@ export function jogar(N, jogo = null, semente = 7) {
       t.posses10 += g.posses10; t.passosNoGol.push(...g.passosNoGol); t.tabelas += g.tabelas[1]; t.terceiros += g.terceiros[1]; t.cutbacks += g.cutbacks[1];
       t.cruz[0] += g.cruzamentos[0]; t.cruz[1] += g.cruzamentos[1]; t.toques += g.toquesArea; t.aereos[0] += g.aereos[0]; t.aereos[1] += g.aereos[1];
       t.segundas[0] += g.segundas[0]; t.segundas[1] += g.segundas[1]; t.lancadorFica[0] += g.longas[0]; t.lancadorFica[1] += g.longas[1]; t.sobras[0] += g.sobras[0]; t.sobras[1] += g.sobras[1];
+      t.rebotes[0] += g.rebotes[0]; t.rebotes[1] += g.rebotes[1]; t.autogols += g.golsContra; t.olimpicos += g.olimpicos;
       g.tiros.forEach((v, k) => { t.tiros[k] += v; }); t.maos[0] += g.maos[0]; t.maos[1] += g.maos[1];
       t.perdasAtras += g.perdasAtras; t.perdasAtrasChute += g.perdasAtrasChute; for (const c in g.contraPorCorredor) t.contraCorredor[c] += g.contraPorCorredor[c];
     });
@@ -192,6 +193,10 @@ function finalizacao(t, forte) {
   meta("esforco", G, "chutes no alvo", "37–54%", pc(r(t.noGol, t.lances)), entre(r(t.noGol, t.lances), 0.37, 0.54));
   const xgc = r(t.xgJ + t.xgC, t.chJ + t.chC);
   meta("esforco", G, "xG por chute (sem bola parada)", "0,11–0,12", f2(xgc), entre(xgc, 0.10, 0.13));
+  meta("esforco", G, "rebotes por jogo; % dos chutes; viram gol", "0,35–0,5; ~1,4%; ~25%", `${f2(t.rebotes[0] / j)}; ${pc(r(t.rebotes[0], t.lances))}; ${pc(r(t.rebotes[1], t.rebotes[0]))}`, entre(t.rebotes[0] / j, 0.3, 0.55) && entre(r(t.rebotes[1], t.rebotes[0]), 0.18, 0.32));
+  meta("esforco", G, "gols de rebote (% dos gols sem pênalti)", "~3,6%", pc(r(t.rebotes[1], t.gols - (t.golsTipo.penalti || 0))), entre(r(t.rebotes[1], t.gols - (t.golsTipo.penalti || 0)), 0.025, 0.05));
+  meta("esforco", G, "gols contra (% dos gols)", "2–3%", pc(r(t.autogols, t.gols)), entre(r(t.autogols, t.gols), 0.015, 0.035));
+  meta("info", G, "gols olímpicos por 1.000 jogos (Premier League: 1,7 a 3,2)", "—", f1(1000 * t.olimpicos / j), null);
   meta("info", G, "SCA / GCA por time", "—", `${f1(t.sca / j / 2)} / ${f2(t.gca / j / 2)}`, null);
   meta("info", G, "deep completions (passo certo na faixa 5) por time", "—", f1(t.fundos / j / 2), null);
   if (forte) {

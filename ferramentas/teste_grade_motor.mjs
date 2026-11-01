@@ -185,7 +185,7 @@ assert.strictEqual(CONFIG.grade, false);
 {
   const jogo = (a, b, s, ib) => simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }));
   const a = onze("4-2-3-1", 1), b = onze("4-4-2", 2), T = CONFIG.gradeValores.terceiro, b0 = T.bonus;
-  const acerto = (ib, bonus) => { T.bonus = bonus; const t = [0, 0]; for (let s = 1; s <= 150; s++) { const g = jogo(a, b, s, ib).estat[0].grade.terceiros; t[0] += g[0]; t[1] += g[1]; } return t[1] / t[0]; };
+  const acerto = (ib, bonus) => { T.bonus = bonus; const t = [0, 0]; for (let s = 1; s <= 600; s++) { const g = jogo(a, b, s, ib).estat[0].grade.terceiros; t[0] += g[0]; t[1] += g[1]; } return t[1] / t[0]; };
   try {
     const ganho = ib => acerto(ib, 2) - acerto(ib, 0), pressao = ganho({ pressao: 2 }), retranca = ganho({ mentalidade: -2 });
     assert.ok(pressao > retranca + 0.1, `terceiro homem: ganho contra a pressão ${pressao.toFixed(2)}, contra a retranca ${retranca.toFixed(2)}`);

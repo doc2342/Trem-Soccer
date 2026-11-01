@@ -832,7 +832,7 @@ const __motor = (() => {
     // no gol, o que sobra da chance de gol decide entre gol e defesa (aí só contam a chance e o goleiro). Fora: `trave` é a parte que bate na trave.
     semGol: {
       area: { bloqueado: 0.16, alvo: 0.46 }, longe: { bloqueado: 0.18, alvo: 0.4 }, corte: { bloqueado: 0.16, alvo: 0.4 }, cruzamento: { bloqueado: 0.12, alvo: 0.4 },
-      escanteio: { bloqueado: 0.14, alvo: 0.4 }, falta: { bloqueado: 0.16, alvo: 0.38 }, profundidade: { bloqueado: 0.1, alvo: 0.55 }, cutback: { bloqueado: 0.14, alvo: 0.48 }, penalti: { bloqueado: 0, alvo: 0.88 }, trave: 0.08,
+      escanteio: { bloqueado: 0.14, alvo: 0.4 }, falta: { bloqueado: 0.16, alvo: 0.38 }, profundidade: { bloqueado: 0.1, alvo: 0.55 }, cutback: { bloqueado: 0.14, alvo: 0.48 }, rebote: { bloqueado: 0.12, alvo: 0.62 }, penalti: { bloqueado: 0, alvo: 0.88 }, trave: 0.08,
       alvoPorGol: 0.6, // quanto a chance de ir no gol sobe com a chance de gol: chance boa vai mais no gol e o goleiro defende mais (os gols não mudam)
     },
 
@@ -1061,6 +1061,12 @@ const __motor = (() => {
       // tem Passe longo (Chute de longe ~6 no gerador): vale o Passe, que o gerador dá em torno de referencia. Base −0,25 (~56% curtos): Opta, Premier League
       // 2024/25, 50,7% dos tiros de meta ficam na própria área e cerca de 45% saem do terço defensivo (fontes-tiro-de-meta). roubo: logit do tiro de meta curto por ponto de pressão (a saída sofrida; na reposição com a mão, o
       // adversário está voltando). Longo: duelo aéreo nas faixas 4–5, segunda bola uma faixa abaixo
+      // rebote (Tarefa 9d): a defesa que não vira escanteio solta a bola com chance defesa × referencia / Encaixe, e o chute de longe × longe (quase sempre
+      // segurado); a trave devolve com chance trave. proprio: parte em que o próprio chutador pega. xg: chance do chute do rebote. The Athletic: 1,4% dos
+      // chutes, 1 em 4 vira gol, 1 em 4 gols é de quem chutou, 3,6% dos gols sem pênalti, nasce de chute de perto. golContra: chance no cruzamento errado que a
+      // zaga corta e no escanteio afastado, × referencia / Posicionamento de quem corta (Copas 2,0% dos gols, Premier League ~3%; meta a rever com o volume de
+      // cruzamentos da Tarefa 12). olimpico: chance por escanteio × (Cruzamento / 25)²: Premier League, 21 em 33 anos, 12 desde dezembro de 2015
+      rebote: { defesa: 0.06, trave: 0.3, longe: 0.3, referencia: 30, proprio: 0.25, xg: 0.3 }, golContra: { cruzamento: 0.035, escanteio: 0.015, referencia: 28 }, olimpico: 0.0004,
       reposicao: { base: -0.25, instr: { curto: -1.2, misto: 0, longo: 1.2 }, pressao: 0.5, goleiro: 1.5, referencia: 12, maos: -1, roubo: 0.6 },
     },
     contraChance: null, linhaAlta: null, saidaGoleiro: null, escanteioContra: null,
@@ -1597,6 +1603,7 @@ const __motor = (() => {
       escanteio: um([`${cr} cobra o escanteio e ${f} cabeceia`, `${cr} cobra o escanteio na área e ${f} cabeceia`, `${f} cabeceia o escanteio cobrado por ${cr}`]),
       falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} cabeceia`,
       penalti: `${f} cobra o pênalti`,
+      rebote: c.deTrave ? `A bola volta da trave e ${f} pega o rebote` : c.criador === c.finalizador ? `${goleiro ? nm(goleiro) : "A defesa"} solta e o próprio ${f} pega o rebote` : `${goleiro ? nm(goleiro) : "A defesa"} solta a bola e ${f} chega no rebote`,
     }[c.tipo] + peRuimNarrado(c);
     const N = CONFIG.narracaoDefesa, gk = goleiro && nm(goleiro);
     const fim = {
@@ -1622,7 +1629,7 @@ const __motor = (() => {
     // na grade: passos [tentados, certos] por tipo, conduções, ataques com 10 passos certos ou mais, passos certos de cada ataque e dos que terminaram em gol
     // toquesArea: passos certos na faixa 5; cutbacks: [tentados, no gol]; cruzamentos: [tentados, certos]
     ...(CONFIG.grade ? { grade: { passos: {}, conducoes: [0, 0], posses10: 0, passosPorAtaque: [], passosNoGol: [], toquesArea: 0, cutbacks: [0, 0], cruzamentos: [0, 0],
-      aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0], espaco: [0, 0], entrelinhas: [0, 0], tiros: [0, 0, 0], maos: [0, 0],
+      aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0], espaco: [0, 0], entrelinhas: [0, 0], tiros: [0, 0, 0], maos: [0, 0], rebotes: [0, 0], golsContra: 0, olimpicos: 0,
       perdasAtras: 0, perdasAtrasChute: 0, reciclagens: 0, contraInicio: {}, contraPorCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 } } } : {}),
   });
 
@@ -1926,6 +1933,23 @@ const __motor = (() => {
       return def.instr.impedimento ? limitar((K.porPasse[atk.instr.passe] + (def.comDefesa - 25) * K.porComunicacao + (def.temLibero ? K.libero : 0)) * (contra ? K.noContraAtaque : 1), 0.05, 0.65) : K.semLinha;
     }
 
+    // gol sem chute (grade): o gol contra (quem: o defensor, não entra na artilharia) e o olímpico (quem: o cobrador)
+    function golSemChute(i, quem, tipo, texto) {
+      const e = estat[i], s = jogadores[quem.j.id], gc = tipo === "golcontra", gk = times[1 - i].goleiro;
+      e.gols++; sujo = true; saida = 1 - i;
+      if (gc) { s.golsContra = (s.golsContra || 0) + 1; e.grade.golsContra++; } else { s.gols++; s.finalizacoes++; e.finalizacoes++; e.chances++; e.noGol++; e.grade.olimpicos++; }
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo, lado: "C", xg: 0, resultado: "gol", finalizador: quem.j.id, criador: quem.j.id, quem: quem.j.nome + (gc ? " (contra)" : ""), assist: null, goleiro: gk ? gk.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(texto, true), ...(fases ? { fases } : {}), p: parcial() });
+    }
+    // o goleiro solta ou a trave devolve (grade): um chute só de perto, com a defesa desarrumada; quem chutou ou quem está na área
+    function rebote(i, c, deTrave) {
+      const atk = times[i], gk = times[1 - i].goleiro, R = CONFIG.gradeValores.rebote, ali = naArea(atk).filter(x => atk.emCampo.includes(x.jog) && x.jog !== c.finalizador);
+      const volta = atk.emCampo.includes(c.finalizador) && (!ali.length || rng.chance(R.proprio)), quem = volta ? c.finalizador : (sortearPeso(rng, ali, x => x.w) || {}).jog;
+      if (!quem) return false;
+      estat[i].grade.rebotes[0]++;
+      finalizar(i, { tipo: "rebote", rebote: true, deTrave, lado: "C", zona: "5C", criador: c.finalizador, finalizador: quem, zagueiro: null, xg: R.xg, contra: c.contra, chute: media(quem.at[A.fin], quem.at[A.dom]), defesa: gk ? media(gk.at[A.ref], gk.at[A.pos]) : 5 });
+      return true;
+    }
+
     function finalizar(i, c) {
       const atk = times[i], def = times[1 - i], e = estat[i];
       if (c.tipo === "profundidade") {
@@ -1952,14 +1976,19 @@ const __motor = (() => {
         if (c.contra && c.zona) e.grade.contraPorCorredor[c.zona[1]]++;
       }
       if (resultado === "gol" || resultado === "defesa") e.noGol++;
-      if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; }
+      if (resultado === "gol") { e.gols++; sujo = true; saida = 1 - i; if (c.rebote) e.grade.rebotes[1]++; }
       const sf = jogadores[c.finalizador.j.id];
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "cutback" && e.grade) { e.grade.cutbacks[0]++; if (resultado === "gol" || resultado === "defesa") e.grade.cutbacks[1]++; }
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
       empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, ...(c.zona ? { zona: c.zona } : {}), xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq), true), ...(fases ? { fases } : {}), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio[resultado])) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
-      else if (CONFIG.grade && def.goleiro && (resultado === "fora" || resultado === "defesa")) reposicao(1 - i, resultado === "fora" ? "meta" : "maos"); // o bloqueado e a trave seguem em jogo
+      else if (CONFIG.grade) {
+        const RB = CONFIG.gradeValores.rebote, gk = def.goleiro; // o rebote de um rebote fica de fora: a chance do rebote é de um lance só
+        const solta = !c.rebote && (resultado === "trave" ? RB.trave : resultado === "defesa" && gk && !c.goleiroSaiu ? RB.defesa * RB.referencia / Math.max(5, gk.at[A.enc]) * (c.tipo === "longe" ? RB.longe : 1) : 0);
+        if (solta && rng.chance(solta) && rebote(i, c, resultado === "trave")) return;
+        if (gk && (resultado === "fora" || resultado === "defesa")) reposicao(1 - i, resultado === "fora" ? "meta" : "maos"); // o bloqueado e a trave seguem em jogo
+      }
     }
 
     function cobrador(t, tipo, nota) {
@@ -1973,6 +2002,10 @@ const __motor = (() => {
       // contra-ataque do escanteio (R5, regras da T1): quem joga no contra-ataque deixa o mais adiantado lá na frente
       const R5 = CONFIG.escanteioContra, frente = R5 && tipo === "escanteio" && def.instr.contraAtaque && def.naFrente && def.emCampo.includes(def.naFrente) ? def.naFrente : null;
       if (!rng.chance(CONFIG.cabecadaEscanteio)) {
+        if (CONFIG.grade && tipo === "escanteio") { // a zaga desvia para o próprio gol (bola no meio de todo mundo)
+          const GC = CONFIG.gradeValores.golContra, zg = sortearPeso(rng, def.emCampo.filter(x => x.pos !== "GK"), x => x.at[A.cab] + x.at[A.mar]);
+          if (zg && rng.chance(GC.escanteio * GC.referencia / Math.max(5, zg.at[A.pos]))) return golSemChute(i, zg, "golcontra", `${nm(quem)} cobra o escanteio e ${nm(zg)} desvia contra o próprio gol: GOL contra!`);
+        }
         portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`));
         if (frente && rng.chance(R5.chance)) sairNoContra(1 - i, { origem: "E", razao: R5.razao }, `A bola sobra para ${nm(frente)}, que tinha ficado lá na frente, e o ${tm(1 - i)} sai em contra-ataque.`);
         return;
@@ -1991,6 +2024,8 @@ const __motor = (() => {
       if (tipo === "escanteio") {
         estat[i].escanteios++;
         const quem = cobrador(atk, "escanteio", at => at[A.cru]);
+        // ponytail: o olímpico não olha o pé de quem cobra; o que entra é a bola fechada, de pé trocado, se a calibragem pedir
+        if (CONFIG.grade && quem && rng.chance(CONFIG.gradeValores.olimpico * (quem.at[A.cru] / 25) ** 2)) return golSemChute(i, quem, "olimpico", `${nm(quem)} cobra o escanteio direto, a bola faz a curva e entra: GOL olímpico!`);
         if (quem) bolaAlcada(i, "escanteio", quem);
       } else if (penal) {
         const quem = cobrador(atk, "penalti", at => at[A.fin]);
@@ -2180,6 +2215,8 @@ const __motor = (() => {
           if (!c.errado) return finalizar(i, c);
           const cr = nm(c.criador), ld = NOME_LADO[c.lado], zg = c.zagueiro ? nm(c.zagueiro) : "a zaga", gk = def.goleiro;
           if (!c.vazia && rng.chance(CONFIG.gradeValores.chance.cruzamento.escanteio)) { recebe(c.criador); evento(1 - i, "canto", comTrilha(`${cr} cruza da ${ld}, ${zg} corta e cede o escanteio.`)); return bolaParada(i, "escanteio", c.lado); }
+          const GC = G.golContra;
+          if (!c.vazia && c.zagueiro && rng.chance(GC.cruzamento * GC.referencia / Math.max(5, c.zagueiro.at[A.pos]))) { recebe(c.criador); return golSemChute(i, c.zagueiro, "golcontra", `${cr} cruza da ${ld}, ${zg} tenta cortar e manda contra o próprio gol: GOL contra!`); }
           const n = c.vazia ? 0 : rng.int(0, 2), afasta = c.vazia || n === 0 || (n === 1 && !gk);
           const fim = c.vazia ? "mas não tem ninguém na área e a zaga afasta" : [`e ${zg} afasta`, gk ? `e ${nm(gk)} sai para ficar com a bola` : `e ${zg} afasta`, "e a bola passa por todo mundo"][n];
           const texto = `${cr} ${c.antecipado ? "cruza cedo" : (temPapel(c.criador, "apoiador") ? "chega ao fundo e " : "") + "cruza"} da ${ld}, ${fim}`;
@@ -2648,7 +2685,7 @@ const __relatorio = (() => {
       const x = de(id), minutos = (j.saiu === null ? partida.duracao || 90 : j.saiu) - j.entrou;
       let nota = 6;
       if (j.pos === "GK") nota += 0.3 * x.defesas - 0.4 * x.sofridos + 0.6 * (x.xgContra - x.sofridos);
-      else nota += limitar(0.4 * (j.duelosGanhos - j.duelosEsperados), -2, 2) + 1.1 * j.gols + 0.6 * x.assistencias + 0.5 * (j.xg - j.gols * 0.5) - 0.08 * j.faltas;
+      else nota += limitar(0.4 * (j.duelosGanhos - j.duelosEsperados), -2, 2) + 1.1 * j.gols - 0.8 * (j.golsContra || 0) + 0.6 * x.assistencias + 0.5 * (j.xg - j.gols * 0.5) - 0.08 * j.faltas;
       nota -= 0.3 * Math.min(1, j.amarelos) + (j.vermelho ? 1.5 : 0);
       return { id, ...j, ...x, minutos, nota: limitar(Math.round(nota * 10) / 10, 1, 10) };
     });
