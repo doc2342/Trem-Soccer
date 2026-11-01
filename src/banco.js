@@ -106,6 +106,15 @@ export async function marcarInicioDaTemporada(ligaId, notaDe) {
   }
   return n;
 }
+// Os 3 atributos da T1 (172_atributos_novos.sql), para TODOS os jogadores: livres, guardados e juvenis entram. entrega: entregaDosAtributos de virada.js.
+// Quem já tem 25 fica de fora, então repetir depois de uma falha só entrega a quem falta. Devolve quantos receberam; erro vira exceção.
+export async function darAtributosNovos(entrega) {
+  const todos = []; let n = 0;
+  for (let de = 0; ; de += 1000) { const l = ok(await sb.from("jogadores").select("id, pos, at, idade").order("id").range(de, de + 999)); todos.push(...l); if (l.length < 1000) break; }
+  const lista = entrega(todos);
+  for (let i = 0; i < lista.length; i += 500) n += ok(await sb.rpc("aplicar_atributos_novos", { p_lista: lista.slice(i, i + 500) })) || 0;
+  return n;
+}
 export const limparTreinadores = ligaId => sb.rpc("limpar_treinadores", { p_liga: ligaId }).then(({ error }) => !error);
 // T1: focos de treino (supabase/27_treino.sql). lista: [{ id, p, c }]; p nulo volta ao foco automático.
 // Posição nova e safra (59_posicao_nova_e_safra.sql). pos nula: para de aprender.

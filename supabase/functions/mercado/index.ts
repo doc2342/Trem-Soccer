@@ -545,7 +545,7 @@ const __base = (() => {
   // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
   const { limitar } = __rng;
   const { gerarJogador, TALENTO_COMUM } = __gerador;
-  const { talentoMinimo } = __modelo;
+  const { talentoMinimo, ATRIBUTOS_DESDE } = __modelo;
   const { salarioDeMercado } = __economia;
   const CONFIG_BASE = {
     promocao: [[1, 1], [1, 2], [2, 2], [2, 3], [3, 3], [3, 4]], // por nível da base (0 a 5): mínimo e máximo de jovens na virada
@@ -581,7 +581,7 @@ const __base = (() => {
     };
     for (let k = 0; k < n; k++) {
       const j = gerarJogador(rng, { id: null, pos: sortearPosicao(), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
-        idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
+        idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados, novos: temporada >= ATRIBUTOS_DESDE });
       if (j.tal <= TALENTO_COMUM) j.tal = Math.max(talentoMinimo(j), limitar(j.tal + TALENTO_DA_BASE, 1, TALENTO_COMUM));
       const mercado = salarioDeMercado(j);
       lista.push({ nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
@@ -595,10 +595,10 @@ const __base = (() => {
   // que não assina contrato e sai da liga aos 21, e com 2 juvenis comuns de talento de Série A (60 a 75: teto 35 a 38), para o time da base
   // não ser só de garotos anônimos enquanto a base de nível 0 revela um por temporada. Chegam com a nota da base de nível 0.
   const JUVENIS_DO_REINICIO = { escolinha: ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMR", "AML", "FC"], talentoDaEscolinha: 10, talentosos: 2, talento: [60, 75] };
-  function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos }) {
+  function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos, temporada = 0 }) {
     const R = JUVENIS_DO_REINICIO, C = CONFIG_BASE;
     const jovem = (pos, tal, daEscolinha) => {
-      const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados });
+      const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados, novos: temporada >= ATRIBUTOS_DESDE });
       return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: 16, pos, fam: j.fam, at: j.at, tal: Math.max(talentoMinimo(j), tal),
         salario: null, salario_mercado: salarioDeMercado(j), contrato_ate: null, protegido_ate: C.idadeDeJuvenil - 16, juvenil: true, escolinha: daEscolinha };
     };
@@ -608,7 +608,7 @@ const __base = (() => {
   return { CONFIG_BASE, TALENTO_DA_BASE, LIMITE_DE_CONTRATADOS, LIMITE_DE_JUVENIS, faixaDeJovens, jovensDaBase, JUVENIS_DO_REINICIO, juvenisDoReinicio };
 })();
 // <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta, paisDoGrupo, ATRIBUTOS_DESDE } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -664,7 +664,7 @@ Deno.serve(async (req) => {
       const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
       const rng = criarRng(Math.floor(Math.random() * 2147483647));
-      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes,
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes, novos: (liga ? liga.temporada : 0) >= ATRIBUTOS_DESDE,
         usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", clube.id)).data || []).map(x => semAcento(x.nome))) }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
       const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
       reposicao = { nome: novo.nome, nome_completo: novo.nome_completo, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,

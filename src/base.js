@@ -3,7 +3,7 @@
 // Módulo puro: usado pela virada (página do administrador) e pela função "mercado" do servidor (peneira).
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM } from "./gerador.js";
-import { talentoMinimo } from "./modelo.js";
+import { talentoMinimo, ATRIBUTOS_DESDE } from "./modelo.js";
 import { salarioDeMercado } from "./economia.js";
 
 export const CONFIG_BASE = {
@@ -40,7 +40,7 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
   };
   for (let k = 0; k < n; k++) {
     const j = gerarJogador(rng, { id: null, pos: sortearPosicao(), alvo: limitar(C.nota[0] + C.nota[1] * (nivel || 0) + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]),
-      idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados });
+      idade: rng.int(C.idade[0], C.idade[1]), perfil, nomes, usados, novos: temporada >= ATRIBUTOS_DESDE });
     if (j.tal <= TALENTO_COMUM) j.tal = Math.max(talentoMinimo(j), limitar(j.tal + TALENTO_DA_BASE, 1, TALENTO_COMUM));
     const mercado = salarioDeMercado(j);
     lista.push({ nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, tal: j.tal,
@@ -54,10 +54,10 @@ export function jovensDaBase(rng, { nivel = 0, momento = "promocao", perfil = "e
 // que não assina contrato e sai da liga aos 21, e com 2 juvenis comuns de talento de Série A (60 a 75: teto 35 a 38), para o time da base
 // não ser só de garotos anônimos enquanto a base de nível 0 revela um por temporada. Chegam com a nota da base de nível 0.
 export const JUVENIS_DO_REINICIO = { escolinha: ["GK", "DR", "DC", "DC", "DL", "DMC", "MC", "MC", "AMR", "AML", "FC"], talentoDaEscolinha: 10, talentosos: 2, talento: [60, 75] };
-export function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos }) {
+export function juvenisDoReinicio(rng, { nomes, usados, escolinha = true, talentosos = JUVENIS_DO_REINICIO.talentosos, temporada = 0 }) {
   const R = JUVENIS_DO_REINICIO, C = CONFIG_BASE;
   const jovem = (pos, tal, daEscolinha) => {
-    const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados });
+    const j = gerarJogador(rng, { id: null, pos, alvo: limitar(C.nota[0] + rng.normal(0, C.nota[2]), C.nota[3], C.nota[4]), idade: 16, nomes, usados, novos: temporada >= ATRIBUTOS_DESDE });
     return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: 16, pos, fam: j.fam, at: j.at, tal: Math.max(talentoMinimo(j), tal),
       salario: null, salario_mercado: salarioDeMercado(j), contrato_ate: null, protegido_ate: C.idadeDeJuvenil - 16, juvenil: true, escolinha: daEscolinha };
   };

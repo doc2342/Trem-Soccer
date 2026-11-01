@@ -33,6 +33,9 @@ const med = v => { const s = [...v].sort((a, b) => a - b); return s.length ? (s[
 const media = v => v.reduce((s, x) => s + x, 0) / (v.length || 1);
 const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
 for (const j of jog) { j.nota = notaBruta(j.at, j.pos); j.teto = notaDeTeto(j); }
+{ const n22 = jog.filter(j => j.at.length === 22).length; // os 3 atributos da T1 (172_atributos_novos.sql): depois da virada T0→T1, ninguém com 22
+  console.log(`== ATRIBUTOS · ${n22} com 22, ${jog.length - n22} com 25`);
+  if (T >= 1 && n22) console.log(`AVISO: ${n22} jogadores sem os atributos novos. Use "Entregar atributos novos" no admin.`); }
 const porClube = {};
 for (const j of jog) if (j.clube_id && !j.juvenil) (porClube[j.clube_id] ||= []).push(j);
 // melhor onze: melhor goleiro + 10 melhores de linha, pela nota na posição principal

@@ -485,7 +485,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // >>> módulos embutidos
 """
 RODAPE_MERCADO = r"""// <<< módulos embutidos
-const { criarRng } = __rng, { notaBruta, paisDoGrupo } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
+const { criarRng } = __rng, { notaBruta, paisDoGrupo, ATRIBUTOS_DESDE } = __modelo, { gerarJogador, semAcento } = __gerador, { contratoInicial, salarioDeMercado } = __economia, { jovensDaBase } = __base;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -541,7 +541,7 @@ Deno.serve(async (req) => {
       const { data: liga } = await sb.from("ligas").select("temporada").eq("id", clube.liga_id).maybeSingle();
       if (!nomes) nomes = await (await fetch(NOMES)).json();
       const rng = criarRng(Math.floor(Math.random() * 2147483647));
-      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes,
+      const novo = gerarJogador(rng, { id: null, pos: j.pos, alvo: notaBruta(j.at, j.pos), idade: rng.int(20, 28), pais: paisDoGrupo(clube.grupo), perfil: clube.perfil, nomes, novos: (liga ? liga.temporada : 0) >= ATRIBUTOS_DESDE,
         usados: new Set(((await sb.from("jogadores").select("nome").eq("clube_id", clube.id)).data || []).map(x => semAcento(x.nome))) }); // da nacionalidade do clube: não ocupa vaga de estrangeiro
       const c = contratoInicial(rng, novo, liga ? liga.temporada : 0);
       reposicao = { nome: novo.nome, nome_completo: novo.nome_completo, pais: novo.pais, idade: novo.idade, pos: novo.pos, fam: novo.fam, at: novo.at, tal: novo.tal,

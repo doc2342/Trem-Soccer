@@ -5,6 +5,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarOnze, gerarJogador, gerarElenco } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
+import { jovensDaBase, juvenisDoReinicio } from "../src/base.js";
+import { planejarVirada, entregaDosAtributos } from "../src/virada.js";
 import { ATRIBUTOS, ATRIBUTOS_DA_T0, N_DA_T0, ATRIBUTOS_DESDE, IDX, PESOS, PESOS_T1, AJUSTE_INICIAL, LISTA_POSICOES, POSICOES, notaBruta, temNovos, pesosDe, atributosDe, atributosNovos, comNovos } from "../src/modelo.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
@@ -97,5 +99,32 @@ if (existsSync(new URL("../dados.json", import.meta.url))) {
   assert.ok(media < 0.2, "média " + media);
   assert.ok(acima <= 0.04, "acima de 0,3: " + acima);
 }
+
+// a entrega da virada: só quem tem 22, id numérico, mesma chave "j123" do motor (o amistoso da T0 antecipa o que ele recebe)
+assert.deepStrictEqual(entregaDosAtributos([]), []);
+const cru = { id: 123, pos: "DC", idade: 28, at: at22 }, doElenco = { ...cru, id: "j123" };
+const lote = entregaDosAtributos([cru, { ...cru, id: 124, at: [...at22, 1, 2, 3] }]);
+assert.deepStrictEqual(lote, [{ id: 123, novos: atributosNovos(doElenco) }]);
+assert.deepStrictEqual(entregaDosAtributos([doElenco]), lote);
+assert.deepStrictEqual([...at22, ...lote[0].novos], comNovos(doElenco));
+
+// quem gera: pela temporada
+const base = temporada => jovensDaBase(criarRng(3), { nivel: 2, nomes, usados: new Set(), temporada })[0].at.length;
+assert.strictEqual(base(0), 22);
+assert.strictEqual(base(1), 25);
+assert.ok(juvenisDoReinicio(criarRng(3), { nomes, usados: new Set() }).every(j => j.at.length === 22));
+assert.ok(juvenisDoReinicio(criarRng(3), { nomes, usados: new Set(), temporada: 1 }).every(j => j.at.length === 25));
+
+// jovem da virada: T0→T1 nasce com 25, o elenco que passa pela virada continua com 22 até a entrega
+const virada = temporada => {
+  const rng = criarRng(5), el = gerarElenco(rng, { nivel: 30, nomes }).slice(0, 18).map((x, i) => ({ ...x, id: "j" + (i + 1), idade: i ? 25 : 38, salario: 500, mercado: 500, contratoAte: 9, aposentaEm: i ? null : temporada }));
+  const clube = { id: 1, grupo: "A", divisao: 1, dono: null, ultimo_acesso: null, nome: "Trem", perfil: "equilibrado" };
+  return planejarVirada({ rng, liga: { temporada }, clubes: [clube], elencos: { 1: el }, talentos: {}, partidas: [], resultados: [], nomes, comLivres: true, juvenis: true, semMovimentos: true }).plano;
+};
+const p1 = virada(0), p0 = virada(-1);
+assert.ok(p1.novos.length > 0, "a virada gerou jovens");
+assert.ok(p1.novos.every(n => n.at.length === 25), "jovem da T1 com 25");
+assert.ok(p0.novos.every(n => n.at.length === 22), "antes da T1, 22");
+assert.ok(p1.jogadores.filter(x => x.at).every(x => x.at.length === 22), "elenco antigo com 22 até a entrega");
 
 console.log("ok");

@@ -20,17 +20,17 @@
 import { criarRng } from "./src/rng.js";
 import { sb } from "./src/banco.js";
 import { SEDES, FINAIS } from "./src/estadio.js";
-import { notaBruta, paisDoGrupo, talentoMinimo } from "./src/modelo.js";
+import { notaBruta, paisDoGrupo, talentoMinimo, ATRIBUTOS_DESDE } from "./src/modelo.js";
 import { gerarElenco, PERFIS } from "./src/gerador.js";
 import { juvenisDoReinicio } from "./src/base.js";
 import { gerarTabela, calcularPartida, aplicarSituacao, classificacao, meritoDaSerieC, tecnicosDoAno, tecnicoGeral } from "./src/rodada.js";
 import { simularMetas, campanhaNaCopa, variacaoDaConfianca, posicaoPelosEsperados, metaPelaForca, forcaDoElenco, CONFIG_DIRETORIA } from "./src/diretoria.js";
 import { pagarPatrocinio, campeoesContinentais, metasDaTemporada, definirMetas, aplicarConfianca, zerarConfianca, caixasDaLiga, pedidosExtraPendentes, aprovarPedidoExtra, recusarPedidoExtra, batismosPendentes, decidirBatismo } from "./src/banco.js";
 import { contratoInicial, dinheiro, impostoDoLucro } from "./src/economia.js";
-import { planejarVirada, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo, gruposDoReinicio } from "./src/virada.js";
+import { planejarVirada, entregaDosAtributos, proximaFaseDosPlayoffs, REGUA_DE_FORA, vagasContinentais, GUARDADO, divisaoDoGrupo, gruposDoReinicio } from "./src/virada.js";
 import { sg, pp } from "./src/siglas.js";
 import { FASES_DA_COPA, ehCopa, finalistasDaCopa, sair, ehAdmin, ligaAtual, clubesDaLiga, criarLiga, criarClubeComElenco, apagarLiga, atualizarLiga, partidasDaLiga, criarPartidas, apagarPartidas,
-  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, mudarHorario, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, nomeBaseDoGrupo, reiniciarLiga, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
+  partidasPendentes, taticasDe, clubesPorIds, elencoDoClube, gravarPartida, anteciparRodada, ajustarPrazos, emailsDosDirigentes, calcularNoServidor, limparTreinadores, efeitosPendentes, ajustarJanelaFinal, marcarInicioDaTemporada, darAtributosNovos, executarPreAcordos, campanhasDaTemporada, guardarEstatisticas, atualizarTorcidas, premiarTemporada, fatorDaCopa, safrasRecentes, registrarSafra, gerarLigaDeBase, premiarLigaDeBase, selecaoDaTemporada, premiarTecnicos, pedidosPendentes, decidirPedido, definirContratos, gravarSituacao, lancarRodada, pausarLiga, mudarHorario, liberarClube, refazerPartida, definirPlacar, fazerBackupNoServidor, copiaCompleta, resultadosDe, nomeDoGrupo, nomeBaseDoGrupo, reiniciarLiga, divisoesDosClubes, talentosDaLiga, virarTemporada, lucrosDaTemporada, distribuirTaxas, livresDaLiga, liberarJogadores, transferenciasDaLiga, anularTransferencia, economiaDaTemporada, economiasGuardadas, PAISES, ordenarGrupos, tetoDoClube } from "./src/banco.js";
 import { montarLogin } from "./src/ui-login.js";
 // troca da sede de uma final (132_estadio_real.sql)
 document.addEventListener("change", async e => { const x = e.target.closest("[data-sede]"); if (!x) return;
@@ -134,7 +134,7 @@ async function pedidos(aviso = "") {
 }
 
 // Elenco novo com salários e contratos; clube assumido no meio do caminho: ninguém vence na temporada atual.
-const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais, nomes }).map(j => {
+const elencoNovo = (rng, nivel, pais, temporada) => gerarElenco(rng, { nivel, perfil: rng.pick(Object.keys(PERFIS)), pais, nomes, novos: temporada >= ATRIBUTOS_DESDE }).map(j => {
   const { mercado, ...contrato } = contratoInicial(rng, j, temporada);
   contrato.contrato_ate = temporada + rng.int(1, 2);
   return { nome: j.nome, nome_completo: j.nome_completo, pais: j.pais, idade: j.idade, pos: j.pos, fam: j.fam, at: j.at, pe: j.pe, principal: !!j.titular, tal: j.tal, salario_mercado: mercado, ...contrato };
@@ -155,7 +155,7 @@ async function aprovarPedido(id, escolha) {
   const sorteio = bots.filter(x => grupo ? x.grupo === grupo : div(x) === topo), c = escolha && !grupo ? bots.find(x => x.id === +escolha) : sorteio.length ? rng.pick(sorteio) : null;
   if (!c) throw new Error(grupo ? `Não há mais clube sem dono na ${nomeBaseDoGrupo(grupo)}.` : escolha ? "Esse clube não está mais livre." : "Não há vagas na liga no momento.");
   // 11 da escolinha e 2 juvenis comuns, como no reinício (160)
-  return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada).concat(juvenisDoReinicio(rng, { nomes, usados: new Set() })));
+  return decidirPedido(id, true, null, c.id, elencoNovo(rng, NIVEL_DO_NOVATO[div(c)], "Brasil", liga.temporada).concat(juvenisDoReinicio(rng, { nomes, usados: new Set(), temporada: liga.temporada })));
 }
 
 // Clube extra: elenco novo na média do país (nota média dos 16 melhores de cada clube sem dono de lá), com salários e contratos.
@@ -318,6 +318,7 @@ async function tela(aviso = "") {
       : `O sorteio desta temporada sai quando a primeira final for marcada.`;
     const manutencao = item("Backup", "Uma cópia no servidor ou neste computador.", `<button type="button" class="t-botao" id="backupServidor">Backup no servidor</button><button type="button" class="t-botao" id="baixarCopia">Baixar uma cópia</button>`)
       + item("Contratos", "Salários e contratos iniciais para quem ainda não tem.", `<button type="button" class="t-botao" id="contratos">Definir</button>`)
+      + (liga.temporada >= ATRIBUTOS_DESDE ? item("Atributos novos", "Passe longo, Movimentação e Decisões para quem ainda não tem; refaz a foto do início da temporada.", `<button type="button" class="t-botao" id="entregarAtributos">Entregar atributos novos</button>`) : "")
       + item("Outros países", Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length}`).join(" · "), `<button type="button" class="t-botao" id="criarPaises" ${paises ? "disabled" : ""}>Criar os que faltam</button>`)
       + `<div class="t-adm-item t-adm-item-largo"><b>Sedes das finais</b><span>${sedes}</span></div>`
       + item("Reinício", `Reiniciar a liga apaga calendário, resultados, extratos, obras e todo o histórico, sorteia os grupos (os donos na Série B, 6 por grupo), gera elencos novos e volta à temporada 0. Identidade dos clubes e dirigentes ficam.`,
@@ -370,7 +371,7 @@ async function tela(aviso = "") {
       <div class="row"><button id="criarPaises" ${clubes.filter(c => PAISES[c.grupo]).length >= Object.keys(PAISES).length * POR_GRUPO ? "disabled" : ""}>Criar os países que faltam</button></div></div>` : ""}
     ${liga ? `<div class="card"><h2>Reinício</h2>
       <div class="mut" style="margin-bottom:10px">Reiniciar a liga apaga calendário, resultados, extratos, obras e todo o histórico, sorteia os grupos (os donos na Série B, 6 por grupo), gera elencos novos e volta à temporada 0. Identidade dos clubes e dirigentes ficam. Depois é preciso gerar o calendário.</div>
-      <div class="row"><button id="reiniciar">Reiniciar a liga (temporada 0)</button></div>
+      <div class="row">${liga.temporada >= ATRIBUTOS_DESDE ? `<button id="entregarAtributos">Entregar atributos novos</button>` : ""}<button id="reiniciar">Reiniciar a liga (temporada 0)</button></div>
       <div id="avisoTeste" class="mut" style="margin-top:8px"></div></div>` : ""}
     ${[...gruposDe(clubes), GUARDADO].map(g => { const l = clubes.filter(c => c.grupo === g); return l.length ? `<div class="card"><h2>${nomeDoGrupo(g)}</h2>${l.map(c => `<div class="lance" style="align-items:center">${svgEscudo(c.escudo, c.sigla, 28)}<span>${esc(c.nome)}</span><span class="xg">${c.dono ? "dirigente" : "bot"} · ${esc(PERFIS[c.perfil] ? PERFIS[c.perfil].nome : c.perfil)}</span></div>`).join("")}</div>` : ""; }).join("")}`;
   dirigentes().catch(() => {}); pedidos().catch(() => {}); partidasAdmin().catch(() => {});
@@ -477,7 +478,7 @@ async function tela(aviso = "") {
         if (ids.length >= POR_GRUPO) continue;
         for (let k = ids.length; k < POR_GRUPO; k++) {
           const { nome, sigla } = nomeDeClube(rng, usados, pais), perfil = rng.pick(perfis), v = visualAleatorio(rng);
-          ids.push(await criarClubeComElenco(liga.id, { grupo, nome, sigla, perfil, escudo: v.escudo, uniforme: v.uniforme }, gerarElenco(rng, { nivel: NIVEL_DE_FORA(k), perfil, pais, nomes })));
+          ids.push(await criarClubeComElenco(liga.id, { grupo, nome, sigla, perfil, escudo: v.escudo, uniforme: v.uniforme }, gerarElenco(rng, { nivel: NIVEL_DE_FORA(k), perfil, pais, nomes, novos: liga.temporada >= ATRIBUTOS_DESDE })));
           $("progresso").textContent = `Criando clubes: ${++n}…`;
         }
         for (const j of gerarTabela(rng.embaralhar(ids))) if (datas[j.rodada]) linhas.push({ liga_id: liga.id, grupo, rodada: j.rodada, fase: "liga", copa_fase: null, casa: j.casa, fora: j.fora, inicio: datas[j.rodada].inicio, fim: datas[j.rodada].fim });
@@ -744,16 +745,27 @@ async function tela(aviso = "") {
           if (plano.safra && plano.safra.length) await registrarSafra(liga.id, plano.safra); // talentos raros: mural da liga e peso do próximo sorteio
           await atualizarTorcidas(liga.id); // prestígio de cada clube, pela campanha que acabou de ir para o histórico
           await ajustarJanelaFinal(liga.id); // compras feitas depois da última rodada passam a contar na temporada nova
+          let atributos = ""; // T0→T1: os 3 atributos antes da foto, senão a soma da foto daria "+60 pontos" na ficha. Falha aqui não para a virada
+          if (liga.temporada + 1 === ATRIBUTOS_DESDE) { try { atributos = ` Atributos novos entregues a ${await darAtributosNovos(entregaDosAtributos)} jogadores.`; } catch (e) { atributos = " Atributos novos não entregues: " + e.message + " (o 172 já foi executado?). Depois use o botão."; } }
           await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos)); // foto das notas, para medir o treino da temporada que começa
           let livres = ""; // contratos vencidos: os jogadores saem dos clubes e entram em leilão
           if (comLivres) { try { livres = ` ${await liberarJogadores(liga.id, plano.livres)} jogadores ficaram livres.`; } catch (e) { livres = " Não consegui liberar os jogadores de contrato vencido: " + e.message; } }
           const pre = await executarPreAcordos(liga.id); if (pre) livres += " " + pre; // pré-acordos e pré-contratos fechados antes da virada
-          await tela(feito + confianca + patrocinio + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
+          await tela(feito + atributos + confianca + patrocinio + (premiosDoFundo ? " " + premiosDoFundo : "") + (taxas ? ` Taxas de venda para o fundo da liga: ${dinheiro(taxas)}.` : "") + livres + " Agora gere o calendário.");
         }
         catch (e) { $("confirmarVirada").disabled = false; alert("Não deu: " + e.message + " (o 16_virada_de_temporada.sql já foi executado?)"); }
       };
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)}</span>`; }
     finally { if ($("prepararVirada")) $("prepararVirada").disabled = false; }
+  });
+  em("entregarAtributos", async () => { // virada que falhou na entrega (172_atributos_novos.sql): repetir entrega só a quem falta
+    $("entregarAtributos").disabled = true;
+    try {
+      const n = await darAtributosNovos(entregaDosAtributos);
+      await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos));
+      alert(`Atributos novos entregues a ${n} jogadores. Foto do início refeita.`);
+    } catch (e) { alert("Não deu: " + e.message + " (o 172_atributos_novos.sql já foi executado?)"); }
+    $("entregarAtributos").disabled = false;
   });
   em("reiniciar", async () => {
     if (!confirm("Reiniciar a LIGA na temporada 0? Apaga calendário, resultados, extratos, obras e TODO o histórico (T1 à T14), sorteia os grupos e gera elencos novos. Não dá para desfazer: faça o backup antes.")) return;
@@ -870,7 +882,7 @@ async function criar() {
     let n = 0;
     for (const grupo of GRUPOS) for (let k = 0; k < POR_GRUPO; k++) {
       const { nome, sigla } = nomeDeClube(rng, usados), perfil = rng.pick(perfis), v = visualAleatorio(rng);
-      await criarClubeComElenco(liga.id, { grupo, nome, sigla, perfil, escudo: v.escudo, uniforme: v.uniforme }, gerarElenco(rng, { nivel: NIVEL, perfil, nomes }));
+      await criarClubeComElenco(liga.id, { grupo, nome, sigla, perfil, escudo: v.escudo, uniforme: v.uniforme }, gerarElenco(rng, { nivel: NIVEL, perfil, nomes, novos: liga.temporada >= ATRIBUTOS_DESDE }));
       $("progresso").textContent = `Criando clubes: ${++n} de ${GRUPOS.length * POR_GRUPO}…`;
     }
     await tela("Liga criada.");

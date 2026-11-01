@@ -1,6 +1,6 @@
 // Virada de temporada: monta o plano (classificação final, prêmios, envelhecimento, aposentadorias, jovens, renovações).
 // Não depende do navegador nem do banco: recebe os dados e devolve o que deve ser gravado. Valores em milhares.
-import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, PAISES, paisDoGrupo } from "./modelo.js";
+import { ATRIBUTOS, ATR_MIN, ATR_MAX, notaNaPosicao, notaBruta, talentoMinimo, PAISES, paisDoGrupo, ATRIBUTOS_DESDE, temNovos, atributosNovos } from "./modelo.js";
 import { jovensDaBase, CONFIG_BASE, LIMITE_DE_JUVENIS } from "./base.js";
 import { limitar } from "./rng.js";
 import { gerarJogador, TALENTO_COMUM, semAcento } from "./gerador.js";
@@ -134,6 +134,8 @@ export const CONFIG_SAFRA = {
   pesoDoBot: 0.5, meioPesoPor: 3, idadeNoBot: 19,
 };
 export const ELENCO_MINIMO = 16, DIAS_DE_INATIVIDADE = 21;
+// A entrega dos 3 atributos (172_atributos_novos.sql): só quem ainda tem 22. A chave é "j123", a mesma de quando o motor completa um jogador de 22.
+export const entregaDosAtributos = jogadores => jogadores.filter(j => !temNovos(j.at)).map(j => { const id = +String(j.id).replace(/\D/g, ""); return { id, novos: atributosNovos(j, "j" + id) }; });
 export const ELENCO_MINIMO_DO_BOT = 18;
 // safras: { clubeId: última temporada em que o clube recebeu um talento raro }
 export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas, resultados, nomes, comLivres = false, agora = Date.now(), tetos = TETO_DE_FOLHA, safras = {}, juvenis = false, taticas = {}, semMovimentos = false }) {
@@ -171,7 +173,7 @@ export function planejarVirada({ rng, liga, clubes, elencos, talentos, partidas,
     const g = grupoNovo[c.id], div = g ? divisaoDoGrupo(g) : c.divisao, fora = !!PAISES[c.grupo]; // pela divisão em que o clube vai jogar
     const piso = fora ? REGUA_DE_FORA.nota : NOTA_DO_JOVEM_POR_DIVISAO[div] || NOTA_DO_JOVEM;
     const alvo = Math.max(piso, notaDeQuemSai - REPOSICAO.abaixoDoAposentado), pronto = alvo > piso; // reposição mais forte chega um pouco mais velha
-    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados: usadosDe(c.id) });
+    const jovem = gerarJogador(rng, { id: null, pos, alvo: limitar(alvo + rng.normal(0, 1.5), alvo - 4, alvo + 4), idade: pronto ? rng.int(19, 22) : rng.int(17, 19), pais: paisDoGrupo(c.grupo), perfil: c.perfil, nomes, usados: usadosDe(c.id), novos: nova >= ATRIBUTOS_DESDE });
     jovem.tal = limitar(jovem.tal + (fora ? REGUA_DE_FORA.talento : TALENTO_DO_JOVEM_POR_DIVISAO[div] || 0), 1, TALENTO_COMUM);
     // o teto nunca fica abaixo da nota com que ele chega: a reposição de um craque nascia com nota 43 e teto 31 (106_teto_acima_da_nota.sql)
     jovem.tal = Math.max(jovem.tal, talentoMinimo(jovem)); // depois do deslocamento da divisão, que pode baixar o talento de novo
