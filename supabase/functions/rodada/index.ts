@@ -1671,7 +1671,8 @@ const __motor = (() => {
   // na grade, a forma do cara a cara pelos atributos de quem finaliza; vale para qualquer desfecho, para a frase não entregar o gol (null: a frase de sempre)
   function formaNoCaraACara(c, nm, goleiro, v) {
     const at = c.finalizador.at, f = nm(c.finalizador), cr = nm(c.criador), gk = goleiro ? nm(goleiro) : "o goleiro";
-    if (at[A.exc] >= CONFIG.gradeValores.narrar.alto + 2) return `${cr} lança em profundidade, ${f} sai na cara do gol e tenta ${v % 2 ? `a cavadinha sobre ${gk}` : "de letra"}`;
+    // Excentricidade alta: um lance em dois, para não tirar o drible no goleiro de quem também o sabe fazer
+    if (at[A.exc] >= CONFIG.gradeValores.narrar.alto + 2 && v % 2) return `${cr} lança em profundidade, ${f} sai na cara do gol e tenta ${v % 4 === 1 ? `a cavadinha sobre ${gk}` : "de letra"}`;
     if (c.goleiroSaiu && at[A.lon] >= at[A.fin]) return `${cr} lança em profundidade, ${gk} sai da área e ${f} tenta encobrir`;
     if (at[A.dri] <= at[A.fin]) return null;
     return v % 2 && at[A.dom] >= at[A.fin] ? `${cr} lança em profundidade, ${f} sai na cara do gol e finge o chute` : `${cr} lança em profundidade, ${f} sai na cara do gol e tenta cortar ${gk}`;
