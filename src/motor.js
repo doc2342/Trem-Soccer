@@ -239,7 +239,7 @@ export const CONFIG = {
   //   bonus × (1 + pressao × pressão do adversário) × agressivo (agressividade > 0) × retranca (mentalidade ≤ −1) × entrosamento do setor × diagonal
   //   (a volta para o corredor vizinho); a volta é disputada (disputa × (pressão + (Desarme e Agressividade de quem marca − 25) / 25)) e, perdida,
   //   o contra-ataque sai com chance × contra. longa: o lançamento para e/C/d da faixa 5 vai pelo alto sempre com o passe longo e, fora dele, com
-  //   chance alto × Passe longo / 25; ladoZagueiro: logit do 1º toque quando sai do zagueiro pelo lado. aereo (1º toque, pacote aéreo): logit = base
+  //   chance alto × (2 − Passe longo / 25), a bola limpa é de quem lança bem; ladoZagueiro: logit do 1º toque quando sai do zagueiro pelo lado. aereo (1º toque, pacote aéreo): logit = base
   //   + lancador × (Passe longo − 25) / 25 + inclinacao × ln((Posicionamento + Força nosso + vazio) / (o deles + vazio)); direcao: quem ganha
   //   multiplica a presença do time dele na segunda bola por 1 + direcao × Cabeceio / 25. segundaBola: acaso, vizinhas (peso das zonas vizinhas da
   //   queda). viradaInstrucao: × no valor da virada e da inversão (passe longo, lados, curto); lancamento: logit do lançamento, da virada e da inversão por
@@ -1590,8 +1590,8 @@ function jogarPartida(rng, casa, fora, opcoes) {
           if (!o) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
           if (o.fim) { e.corredor[ladoDaZona(atual)]++; const ch = criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka) }); if (ch && ch.tipo === "area" && (ka === 21 || ka === 23)) ch.xg *= G.chance.xgMeio; // da área, mas de lado para o gol
             if (o.tipo === "finalizar" && entrada && ch && ch.xg) ch.xg = limitar(ch.xg * (1 + CONFIG.embalo.chance * embalo(entrada) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo); entrada = null; const z = fimDaChance(ch); if (!z) return; seguir(z); continue; }
-          // o lançamento para o 9 ou o meio-espaço da faixa 5 vai pelo alto: com o passe longo sempre; senão, pelo Passe longo de quem lança
-          if (o.tipo === "pular" && !o.espaco && o.i >= 21 && o.i <= 23 && portador && (atk.instr.passe === "longo" || rng.chance(G.longa.alto * portador.at[A.plo] / 25))) {
+          // o lançamento para o 9 ou o meio-espaço da faixa 5 vai pelo alto: com o passe longo sempre; senão, quem lança bem põe a bola limpa no pé e quem lança mal manda para a disputa
+          if (o.tipo === "pular" && !o.espaco && o.i >= 21 && o.i <= 23 && portador && (atk.instr.passe === "longo" || rng.chance(G.longa.alto * (2 - portador.at[A.plo] / 25)))) {
             const z = bolaLonga(o); if (!z) return; seguir(z); continue;
           }
           const para = o.para, lado = ladoDaZona(para), naFaixa5 = faixaDe(para) === 5;

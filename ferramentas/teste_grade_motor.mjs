@@ -10,6 +10,7 @@ import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { avaliarZonas, defesaNaTransicao, defesaVistaNaGrade, prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 import { ZONAS_GRADE, ehGrade, corredorDe, LIMITE_DE_PASSOS } from "../src/grade.js";
+import { IDX } from "../src/modelo.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const onze = (f, s, papeis = {}) => gerarOnze(criarRng(s), FORMACOES[f], { nivel: 30, nomes, prefixoId: "p" + s + "_" }).map(x => papeis[x.pos] ? { ...x, papel: papeis[x.pos] } : x);
@@ -209,6 +210,14 @@ assert.strictEqual(CONFIG.grade, false);
     const [com, recicladas] = contras(r0), [sem, zero] = contras(0);
     assert.ok(recicladas > 0 && zero === 0 && com < sem, `contras com reciclagem ${com} (${recicladas} recicladas), sem ${sem}`);
   } finally { G.reciclar = r0; }
+}
+
+// Passo 1 da revisão de mecânicas: quem lança bem põe a bola limpa, quem lança mal manda para a disputa aérea (quem lança bem também tenta mais, por isso a parcela)
+{
+  const lancadores = v => gerarOnze(criarRng(1), FORMACOES["4-2-3-1"], { nivel: 30, nomes, prefixoId: "p1_", novos: true }).map(x => x.pos === "GK" ? x : { ...x, j: { ...x.j, at: x.j.at.map((n, k) => k === IDX.plo ? v : n) } }); // o goleiro fica de fora: a reposição longa dele também é bola longa
+  const parcela = v => { const t = [0, 0], a = lancadores(v), b = onze("4-4-2", 2); for (let s = 1; s <= 150; s++) { const g = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a, instrucoes: { passe: "misto" } }), prepararTime({ nome: "B", escalacao: b })).estat[0].grade; t[0] += g.longas[0]; t[1] += g.passos.pular ? g.passos.pular[0] : 0; } return t[0] / t[1]; };
+  const ruim = parcela(10), bom = parcela(45);
+  assert.ok(ruim > bom + 0.05, `lançamentos pelo alto: lançador ruim ${ruim.toFixed(2)}, bom ${bom.toFixed(2)}`);
 }
 
 console.log("teste_grade_motor: ok");
