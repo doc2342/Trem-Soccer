@@ -95,8 +95,8 @@ export const MANCHAS = {
   RW: { sem: { "4D": 0.45, "3D": 0.25, "5D": 0.2, "4d": 0.1 }, com: { "5D": 0.45, "4D": 0.3, "5d": 0.15, "4d": 0.1 } },
   FC1: { sem: { "5C": 0.45, "4C": 0.35, "5e": 0.05, "5d": 0.05, "3C": 0.1 }, com: { "5C": 0.6, "4C": 0.2, "5e": 0.1, "5d": 0.1 } },
   SC1: { sem: { "5C": 0.7, "4C": 0.25, "3C": 0.05 }, com: { "5C": 0.85, "5e": 0.05, "5d": 0.05, "4C": 0.05 } },
-  FC2d: { sem: { "5d": 0.35, "4d": 0.35, "4C": 0.15, "3d": 0.15 }, com: { "5d": 0.45, "5C": 0.2, "4d": 0.25, "5D": 0.1 } },
-  SC2d: { sem: { "5d": 0.55, "5C": 0.25, "4d": 0.2 }, com: { "5d": 0.6, "5C": 0.3, "5D": 0.1 } },
+  FC2d: { sem: { "5d": 0.35, "4d": 0.35, "4C": 0.15, "3d": 0.15 }, com: { "5d": 0.25, "5C": 0.4, "4d": 0.25, "5D": 0.1 } },
+  SC2d: { sem: { "5d": 0.55, "5C": 0.25, "4d": 0.2 }, com: { "5d": 0.35, "5C": 0.55, "5D": 0.1 } },
   FC3d: { sem: { "5d": 0.35, "5D": 0.2, "4d": 0.3, "4D": 0.15 }, com: { "5d": 0.45, "5D": 0.25, "4d": 0.2, "5C": 0.1 } },
 };
 
@@ -285,8 +285,8 @@ export function proximoImpulso({ folga, tipo, de, temVizinho, pressaoAdv = 0, me
   return { logit: Math.max(Math.min(I.teto, Math.max(0, I.parte * folga)), deFrente ? I.deFrente : 0, atrair), deFrente, prende };
 }
 
-// Rede de segurança do laço da jogada (spec 7.4): quase nunca atingida
-export const LIMITE_DE_PASSOS = 12;
+// Rede de segurança do laço da jogada (spec 7.4): quase nunca atingida. Com 12, cortava 12% dos ataques e tirava a bola justamente de quem a guardava bem
+export const LIMITE_DE_PASSOS = 30;
 
 // Preferência de passo por papel (aprovada pelo dono em 31/10): multiplica o valor de cada opção. Neutra nesta entrega; a etapa dos papéis preenche
 // (Distribuidor/Construtor: virada e pular; Técnico/Condutor: condução; Organizador: lado e volta; Criador/Articulador: diagonal e enfiada; …)

@@ -193,7 +193,7 @@ assert.deepStrictEqual(["5E", "5e", "5C", "5d", "5D"].map(z => valorDaZona(z, V)
   const emb = imp({ tipo: "voltar", folga: 0.3 }).logit;
   assert.ok(perto(imp({ tipo: "voltar", folga: 0.3, pressaoAdv: 2 }).logit, Math.max(emb, V.atrairPressao * 2)));
 }
-assert.strictEqual(LIMITE_DE_PASSOS, 12);
+assert.strictEqual(LIMITE_DE_PASSOS, 30);
 
 // Tarefa 8: segunda bola pela presença, com o acaso segurando: igual dá ~50%; 3× mais presença fica abaixo de 85%; sem ninguém, 50%
 {

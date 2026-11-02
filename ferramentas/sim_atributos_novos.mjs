@@ -14,7 +14,7 @@ junta(CONFIG.gradeValores, JSON.parse(process.env.GV || "{}"));
 const N = +process.argv[2] || 1500, formacao = process.argv[3] || "4-2-3-1", B = 6;
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const vagas = FORMACOES[formacao];
-const LINHAS = [["goleiro", ["GK"]], ["defesa", ["DC", "SW", "DR", "DL", "WBR", "WBL"]], ["volante", ["DMC"]], ["meio", ["MC", "MR", "ML", "AMC", "AMR", "AML"]], ["ataque", ["RW", "LW", "FC", "SC"]]].filter(([, ps]) => vagas.some(p => ps.includes(p)));
+const LINHAS = [["goleiro", ["GK"]], ["defesa", ["DC", "SW", "DR", "DL", "WBR", "WBL"]], ["volante", ["DMC"]], ["meio", ["MC", "MR", "ML", "AMC", "AMR", "AML"]], ["ataque", ["RW", "LW", "FC", "SC"]]].filter(([n, ps]) => vagas.some(p => ps.includes(p)) && (!process.env.LINHAS || process.env.LINHAS.split(",").includes(n)));
 const ATR = (process.env.ATR || "plo,mov,dec,pas").split(",");
 const onzes = Array.from({ length: 40 }, (_, s) => ["a", "b"].map(p => gerarOnze(criarRng(5000 + s), vagas, { nivel: 30, nomes, prefixoId: p + s + "_", novos: true })));
 const jogo = (n, a, b) => {

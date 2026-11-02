@@ -126,3 +126,4 @@ Ruling: atrair conduzindo não entra (medido); posse longa e goleiro ficam com o
 Ruling: teste_passe_espaco compara passes ganhos, não taxa: o mais veloz tenta bolas piores. teste_grade_motor: fases ≤ passosChance + 4 (as frases de ligação cresceram com as voltas).
 Ruling: o Apoiador não chega à linha de fundo (0 em 596 cruzamentos): frase nova "sobe pela lateral e cruza cedo"; recuperar a linha de fundo no grupo de cruzamento.
 Medido: 80/80; gols 2,41; 1 de 7 obrigatórias dentro (cruzamento 13,5%), gols a 0,07 do piso; PPDA 5,8/9,0, não mais invertido.
+Goleiro como opção de volta (aprovado pelo dono, 01/11): construído e tirado do motor, reprovou no valor dos atributos (Decisões −0,056, Passe −0,044 na defesa). Patch e teste em goleiro/. Próximo: ver se o limite de passos explica, depois refazer.

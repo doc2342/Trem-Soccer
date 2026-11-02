@@ -78,7 +78,7 @@ assert.strictEqual(CONFIG.grade, false);
   const passos = p.lances.filter(l => l.rota).flatMap(l => l.rota);
   assert.ok(passos.length && passos.every(r => (r.length === 6 || r.length === 7) && ehGrade(r[0]) && ehGrade(r[1]) && typeof r[5] === "boolean"));
   const comFases = p.lances.filter(l => l.fases);
-  assert.ok(comFases.length && comFases.every(l => l.texto.endsWith(l.fases[l.fases.length - 1]) && l.fases.length <= CONFIG.gradeValores.narrar.passosChance + 4)); // os passos narrados mais as frases de ligação ("a bola volta para")
+  assert.ok(comFases.length && comFases.every(l => l.texto.endsWith(l.fases[l.fases.length - 1]) && l.fases.length <= 2 * CONFIG.gradeValores.narrar.passosChance + 2)); // os passos narrados mais as frases de ligação ("a bola volta para"), que crescem com as posses longas
   assert.ok(p.narracao.every(l => !/meia-lua|undefined|NaN/.test(l.texto)));
 
   // custo e A1, nos mesmos jogos: 4-2-3-1 x 4-4-2 contra pressão 2, metade com a armadilha do lado desligada (constante de antes da grade: 4,1 ms por jogo).
@@ -98,7 +98,8 @@ assert.strictEqual(CONFIG.grade, false);
   for (let s = 1; s <= 300; s++) simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b, instrucoes: { pressao: 2 } }), { regrasT1: false });
   const ms9 = (performance.now() - t9) / 300;
   if (process.env.MEDIR) console.log("custo", ms.toFixed(1), "T0", ms9.toFixed(1));
-  assert.ok(ms < 3 * 4.1 / 2.5 * ms9 * 1.5, `custo da grade: ${ms.toFixed(1)} ms por jogo (T0 ${ms9.toFixed(1)} ms)`);
+  // o custo acompanha os passos: com o limite de 12 para 30, os ataques vão até o fim (135 → 163 passos por time) e o custo por passo não piorou
+  assert.ok(ms < 10 * ms9, `custo da grade: ${ms.toFixed(1)} ms por jogo (T0 ${ms9.toFixed(1)} ms)`);
   // A1: a pressão encurrala no lado: com a armadilha, a bola se perde mais nos corredores de lado
   assert.ok(perdaNoLado[1][0] / perdaNoLado[1][1] > perdaNoLado[0][0] / perdaNoLado[0][1], `A1: ${JSON.stringify(perdaNoLado)}`);
   // A4: no mesmo destino (3D), a virada vinda do 3E pega a defesa ainda arrumada do outro lado; o passe de uma coluna, vindo do 3d, já a encontra no lugar

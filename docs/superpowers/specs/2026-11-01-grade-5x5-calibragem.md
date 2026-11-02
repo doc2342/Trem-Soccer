@@ -71,6 +71,37 @@ O efeito do capitão é pequeno, como decidido. O do Trabalho em equipe fica den
 - **Goleiro como recomeço:** a grade não oferece. O goleiro fica fora das zonas, e a faixa 1 não tem passo para trás. Ele só toca na reposição: 3,7 tiros de meta e 2,9 reposições com a mão por time, ~6,6 toques, contra 17,4 passes certos por jogo no Brasileirão. TFA, Training Ground Guru e Hockey Training apoiam: dá superioridade de 4×3 contra a pressão.
   - **Aprovado pelo dono em 01/11, construído e fora do motor por enquanto.** Volta da faixa 1 para o goleiro pelo passo `voltar`, depois ele sai jogando. O jogo melhora: 4,5 voltas ao goleiro por jogo, 97% de acerto, volta 11,1%, posses de 10+ passes 8,2, bola longa 33%. Mas o valor quebra (+6 na linha, 1.000 jogos): com dificuldade 1,2, Decisões −0,056 e Passe −0,044 na defesa; com 0,6, tudo perto de zero; com peso 1,15 na nota, Decisões negativa em todas as linhas. Suspeita, não confirmada: a volta tem acerto alto e ganho falso na escolha, e cada ida ao goleiro gasta passos do limite por ataque, sem gastar relógio. Código guardado em `.superpowers/sdd/2026-10-31-grade-5x5/goleiro/` (o script do motor e o teste).
 
+## Goleiro, limite de passos e Passo 0 (01/11/2026, sessão seguinte)
+
+Em andamento: o valor dos atributos com o conjunto final não foi medido (as simulações não terminaram por falta de memória da máquina).
+
+### Por que o goleiro quebrava o valor
+Causa: `LIMITE_DE_PASSOS = 12`. Não era rede de segurança: cortava 12% dos ataques (4,7 por time e jogo) e tirava a bola de quem a guardava bem. Quanto melhor a Decisão, mais ataques batiam nele (4,73 → 5,10), e a volta ao goleiro gastava passos.
+
+Decisões +6 na defesa, 6.000 jogos por célula, teste A/A entre −0,002 e +0,006:
+
+| Motor | Decisões | Passe |
+|---|---|---|
+| Sem goleiro, limite 12 | −0,010 | não comparável |
+| Goleiro, limite 12 | **−0,033** | não comparável |
+| Sem goleiro, sem limite | +0,010 | +0,013 |
+| Goleiro, sem limite | **+0,005** | **+0,038** |
+| Sem goleiro, ao bater no limite o time guarda a bola | +0,007 | +0,015 |
+| Goleiro, guarda a bola | −0,007 | +0,011 |
+
+Correção no motor: limite 30, voltando a ser rede de segurança. Sem limite, o xG por time sobe de 0,86 para 0,98; com 30 ainda não foi medido.
+
+**Correção deste relatório:** o Decisões +0,025 da tabela do passo inicial era ruído de 1.000 jogos; com 6.000 jogos deu −0,010 na defesa. Medir atributos com 6.000 jogos por célula, ou comparar com A/A.
+
+### Passo 0
+Sem a bola, todos os papéis ocupam a mancha (acordo 0,90–0,99). Com a bola, as faixas batem; o erro é de corredor: o lateral fixo faz 30% das ações por dentro (esperado 4%). Quase tudo fora da mancha é condução para o lado (4,7 por jogo). `conduzir.fora` 0,8 não resolveu: ainda 54% das conduções dele saem da mancha. Falta ajustar. Ferramenta: `ferramentas/sim_mapas_papeis.mjs`.
+
+### Passo 1b, no motor e sem medição final
+- `atrair`: conduzir para cima da marcação puxa o marcador da zona vizinha.
+- `pivo`: quem recebe de costas nas faixas 4–5 segura com Força e Domínio e escora; quem chega é escolhido pela Movimentação. Raro: 0,07 por jogo em time médio, com Força e Domínio altos ~0,12.
+- Frases novas: `dá de calcanhar para X`, `faz o corta-luz e a bola chega a X`, `segura de costas e escora para a passagem de X`, `tenta de bicicleta` (só cruzamento, escanteio e falta levantada; o corte ruim da zaga para o alto ainda não entra).
+- `teste_grade_motor` ainda falha, causa não vista.
+
 ### Para os próximos passos
 - Linha de fundo: quase todo cruzamento vem cedo, da faixa 4 (533 de 596 no teste dos papéis) e nenhum do Apoiador chega ao fundo. A frase dele mudou para "sobe pela lateral e cruza cedo". Peso de 1,3 na ida ao fundo não mudou nada.
 - Sem instruções, o jogo dá 1,79 gols; a régua dá 2,41 com instruções sorteadas. Conferir antes de calibrar gols.
