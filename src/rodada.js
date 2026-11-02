@@ -16,7 +16,7 @@ export const DIAS_PARA_BOT = 21; // dirigente sem acessar por tantos dias: o clu
 // Time sem técnico na temporada 0: bot, ou dono que não entrou desde a virada. Contra o time de um dono ativo, os jogadores dele rendem `fator`
 // (perder para quem nem joga é chato, 30/10/2026); bot contra bot fica igual, e a liga de base não muda.
 // ponytail: data da virada fixa, só vale para a T0; para repetir em toda virada, gravar a hora da virada na liga
-export const SEM_TECNICO = { temporada: 0, desde: "2026-10-27T00:00:00Z", fator: 0.9 };
+export const SEM_TECNICO = { temporada: 0, desde: "2026-10-27T00:00:00Z", fator: 0.8 };
 export const semTecnico = (clube, temporada) => temporada === SEM_TECNICO.temporada && !clube.extra
   && (!clube.dono || !clube.ultimo_acesso || new Date(clube.ultimo_acesso) < new Date(SEM_TECNICO.desde));
 const rendeMenos = j => ({ ...j, at: j.at.map(a => a * SEM_TECNICO.fator) });
