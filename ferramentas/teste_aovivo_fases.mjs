@@ -98,7 +98,8 @@ for (let s = 1; s <= 300; s++) {
     if (l.resultado === undefined) morre++;
     if (l.fases.length >= 6) longos++;
     if (/tenta cortar|tenta encobrir|finge o chute/.test(t)) formas[l.resultado === "gol" ? "gol" : "outro"]++;
-    l.fases.forEach((f, i) => { const m = f.match(PASSA), x = l.fases[i + 1]; if (m && x && m[1] !== m[2] && x.startsWith(m[1] + " ") && !f.endsWith("toca para " + m[1]) && !/recebe|segue/.test(x)) pulos++; });
+    // o impedido é sujeito da frase, mas a bola é de quem passou
+    l.fases.forEach((f, i) => { const m = f.match(PASSA), x = l.fases[i + 1]; if (m && x && m[1] !== m[2] && x.startsWith(m[1] + " ") && !f.endsWith("toca para " + m[1]) && !/recebe|segue|impedido/.test(x)) pulos++; });
   }
 }
 assert.ok(tabela > 0, "tabela sem frase própria");

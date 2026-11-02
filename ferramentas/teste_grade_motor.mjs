@@ -220,4 +220,11 @@ assert.strictEqual(CONFIG.grade, false);
   assert.ok(ruim > bom + 0.05, `lançamentos pelo alto: lançador ruim ${ruim.toFixed(2)}, bom ${bom.toFixed(2)}`);
 }
 
+// Passo 1 da revisão: a Agressividade do marcador ganha o duelo apertado (mesmas sementes, com e sem a regra)
+{
+  const a = onze("4-2-3-1", 1), b = onze("4-4-2", 2).map(x => x.pos === "GK" ? x : { ...x, j: { ...x.j, at: x.j.at.map((n, k) => k === IDX.agr ? 45 : n) } }), AP = CONFIG.gradeValores.aperto, p0 = AP.peso;
+  const acerto = peso => { AP.peso = peso; let n = 0, g = 0; for (let s = 1; s <= 100; s++) for (const [c, v] of Object.entries(simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b })).estat[0].grade.passos)) { n += v[0]; g += v[1]; } return g / n; };
+  try { const com = acerto(p0), sem = acerto(0); assert.ok(com < sem, `acerto contra marcadores agressivos: com a regra ${com.toFixed(3)}, sem ${sem.toFixed(3)}`); } finally { AP.peso = p0; }
+}
+
 console.log("teste_grade_motor: ok");

@@ -1124,7 +1124,7 @@ const __motor = (() => {
       terceiro: { apertado: 0.3, bonus: 0.35, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
       longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
       segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
-      contra: { centro: 0.15 }, reciclar: 0.8, pressionarMeio: 1.2, impedimento: { base: 0.6, pressao: 0.2 },
+      aperto: { peso: 0.4, folga: 1 }, contra: { centro: 0.15 }, reciclar: 0.8, pressionarMeio: 1.2, impedimento: { base: 0.6, pressao: 0.2 },
       // passe no espaço (Tarefa 9b, dono 31/10): a bola na frente, em zona sem ninguém nosso, para quem chega da faixa de baixo (mesmo corredor ou vizinho).
       // peso: o ataque do duelo = habilidade de quem chega no destino × chegada/25 × peso; dificuldade: logit; corrida: × (chegada dele − Velocidade de quem
       // marca ali)/25; impedimento: parte da conta da profundidade nas faixas 4–5
@@ -2004,7 +2004,9 @@ const __motor = (() => {
       const fraco = pf == null ? 0 : (PF.media - fraquezaDoPe(pf)) * (L === "A" ? PF.tempo * (marcador ? marcador.at[A.mar] / 25 : 1) : PF.pressao * def.instr.pressao);
       // folga: a vantagem de quem ataca acima do normal da zona (negativa quando a vantagem é da defesa); o embalo que veio do duelo anterior não conta
       const folga = tat + fraco + CONFIG.inclinacaoDuelo * Math.log(a * (1 + pes) / d);
-      const p = 1 / (1 + Math.exp(-((g ? CONFIG.gradeValores.baseDuelo : CONFIG.baseDuelo)[L] + logit + folga)));
+      // na grade, o duelo apertado é de quem briga mais (Agressividade dos dois): pesa inteiro com a folga em zero e some em aperto.folga; o custo é a falta
+      const AP = g && CONFIG.gradeValores.aperto, briga = AP && pivo && marcador ? AP.peso * Math.max(0, 1 - Math.abs(folga) / AP.folga) * (pivo.at[A.agr] - marcador.at[A.agr]) / 25 : 0;
+      const p = 1 / (1 + Math.exp(-((g ? CONFIG.gradeValores.baseDuelo : CONFIG.baseDuelo)[L] + logit + folga + briga)));
       const contato = g ? CONFIG.gradeValores.contato : 1; // na grade há mais passos que duelos nas 9 zonas
       let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false;
       if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
