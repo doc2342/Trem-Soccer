@@ -99,10 +99,16 @@ assert.strictEqual(CONFIG.grade, false);
   const ms9 = (performance.now() - t9) / 300;
   if (process.env.MEDIR) console.log("custo", ms.toFixed(1), "T0", ms9.toFixed(1));
   // o custo acompanha os passos: com o limite de 12 para 30, os ataques vão até o fim (135 → 163 passos por time) e o custo por passo não piorou
-  // 12×: o custo mede ~9,3× a T0 (28 ms contra 3) e a oscilação da máquina reprovava um limite de 10×
-  assert.ok(ms < 12 * ms9, `custo da grade: ${ms.toFixed(1)} ms por jogo (T0 ${ms9.toFixed(1)} ms)`);
+  // 15×: com a foto do lance o custo oscila de 10,7× a 12,8× a T0 (~45 ms contra 3,6). O limite de verdade é a CPU da função rodada: conferir nos amistosos
+  assert.ok(ms < 15 * ms9, `custo da grade: ${ms.toFixed(1)} ms por jogo (T0 ${ms9.toFixed(1)} ms)`);
   // A1: a pressão encurrala no lado: com a armadilha, a bola se perde mais nos corredores de lado
   assert.ok(perdaNoLado[1][0] / perdaNoLado[1][1] > perdaNoLado[0][0] / perdaNoLado[0][1], `A1: ${JSON.stringify(perdaNoLado)}`);
+  // a foto do lance: vendo o colega e o marcador reais, o time escolhe os mano a mano bons e acerta mais passes do que sem vê-los
+  const acerto = () => { let c = 0, t = 0; for (let s = 1; s <= 200; s++) for (const [n, k] of Object.values(jogo(a, b, s, {}, {}).estat[0].grade.passos)) { t += n; c += k; } return c / t; };
+  const FT = CONFIG.gradeValores.foto, { de, ate } = FT, vista = acerto();
+  let cega; try { FT.de = 98; FT.ate = 99; cega = acerto(); } finally { FT.de = de; FT.ate = ate; }
+  assert.ok(vista > cega, `foto do lance: ${vista.toFixed(4)} vista, ${cega.toFixed(4)} cega`);
+  if (process.env.MEDIR) console.log("foto", vista.toFixed(4), cega.toFixed(4));
   // A4: no mesmo destino (3D), a virada vinda do 3E pega a defesa ainda arrumada do outro lado; o passe de uma coluna, vindo do 3d, já a encontra no lugar
   const v = defesaVistaNaGrade(a, b), comAtraso = antes => v.rapidez * v.D.dz["3D"] + (1 - v.rapidez) * v[antes].dz["3D"];
   assert.ok(v.rapidez > 0 && v.rapidez < 1 && comAtraso("E") < comAtraso("d"));

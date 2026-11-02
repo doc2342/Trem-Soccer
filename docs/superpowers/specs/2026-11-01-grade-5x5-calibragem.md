@@ -118,3 +118,13 @@ Excentricidade e Influência seguem com peso 0 em `PESOS_T1`. Recomendação: co
 - Velocidade alta: `deixa X na corrida`, `arranca e deixa X para trás`.
 - Cara a cara, Excentricidade alta: `sai na cara do gol e tenta a cavadinha sobre G`, `sai na cara do gol e tenta de letra`.
 - Apoiador: `sobe pela lateral e cruza cedo`.
+
+## Bola longa e informação real dos decisores (02/11)
+
+Erro de medida: com 6000 jogos por célula, o saldo de xG tem erro de ±0,02. +6 num atributo não separa efeitos pequenos: o Passe longo na defesa deu +0,019, -0,015, +0,010 e -0,015 em quatro configurações sem ordem nenhuma. Medir com `B=18`.
+
+Bola longa: dificuldade de pular, virada e inversão em -1,7, -2,6 e -0,6, e o Passe longo também vale no pular. Longa 34,5% → 17,4%, posses de 10+ 7,1 → 12,3. Passe longo +18 na defesa: 0,054 → 0,010, coerente com metade dos lançamentos. Rever no ajuste fino.
+
+Foto do lance (`foto`): antes de escolher, cada zona tem quem recebe e quem marca; o mano a mano acima ou abaixo da média da zona pesa no duelo, e só quem decide bem o vê (`ve`, de Decisões 10 a 40, cai sob pressão). Decisões +18, peso 3, cega → vista: volante 0,033 → 0,088, meio 0,045 → 0,088 (soma +0,098, erro ~0,03). Com peso 1 o ganho não passava do erro. Passe +18: 0,127 e 0,141, continua acima de Decisões. Gols 2,19, longa 18,2%, posses de 10+ 12,2.
+
+Custo: ~45 ms por jogo (10,7× a 12,8× a T0). Rodada com até 6 jogos por série: conferir a CPU da função `rodada` antes de publicar nos amistosos.
