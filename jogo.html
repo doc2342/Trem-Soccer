@@ -269,6 +269,7 @@ const golsDasPartidas = daLiga("golsDasPartidas", B.golsDasPartidas);
 const temporadasComEstatisticas = daLiga("temporadasComEstatisticas", B.temporadasComEstatisticas);
 const premiosDaLiga = daLiga("premiosDaLiga", B.premiosDaLiga);
 const premiosIndividuais = daLiga("premiosIndividuais", B.premiosIndividuais);
+const { selecaoDaRodada } = B;
 const trofeusDaLiga = daLiga("trofeusDaLiga", B.trofeusDaLiga);
 const partidasDaCopa = daLiga("partidasDaCopa", B.partidasDaCopa);
 const resultadosDaCopa = daLiga("resultadosDaCopa", B.resultadosDaCopa);
@@ -1375,14 +1376,16 @@ async function telaClube(liga, clube) {
     const UNIDADE = { artilheiro: "gols", garcom: "assist.", melhor: "nota", revelacao: "nota", craque: "nota", goleiro: "sem sofrer", tecnico: "posições" };
     const extra = p => p.numero == null ? "" : p.premio === "tecnico" && p.comp === "TODOS" ? `${+p.numero}<small>pts</small>` : `${p.premio === "tecnico" ? (+p.numero > 0 ? `+${+p.numero}` : "=") : String(+p.numero).replace(".", ",")}<small>${UNIDADE[p.premio] || ""}</small>`;
     const linhaP = p => `<div class="t-st-p${p.clube_id === clube.id ? " t-eu" : ""}">${escudo(p.clube_id)}<span class="t-st-pn"><small>${esc(p.premio === "melhor" && p.comp === "A" ? "Bola de Ouro" : NOME[p.premio] || p.premio)}${varias ? ` · ${esc(serie(p.comp))}` : ""}</small>${esc(p.jogador || "")}</span><b title="${p.premio === "tecnico" ? (p.comp === "TODOS" ? "pontos da temporada: liga, playoff, copa e continentais" : "posições acima do esperado pelo elenco") : ""}">${extra(p)}</b></div>`;
-    // no campo, uma linha por faixa de posição (o ataque em cima), cada uma da esquerda para a direita; a linha do meio antes da defesa
-    const FAIXAS = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM"], ["DC", "SW", "DL", "DR", "WBL", "WBR"], ["GK"]];
-    const lado = p => /^(DL|WBL|ML|AML|LW)$/.test(p.pos) ? 0 : /^(DR|WBR|MR|AMR|RW)$/.test(p.pos) ? 2 : 1;
-    const faixaDe = p => (i => i < 0 ? 2 : i)(FAIXAS.findIndex(f => f.includes(p.pos)));
-    const naCamisa = p => `<div class="t-st-s${p.clube_id === clube.id ? " t-eu" : ""}"><span class="t-st-cam">${svgCamisa((cPor[p.clube_id] || {}).uniforme || {}, 46)}${p.numero == null ? "" : `<em title="Nota média">${String((+p.numero).toFixed(1)).replace(".", ",")}</em>`}</span><b>${esc(p.jogador || "")}</b><small>${pp(p.pos || "")} ${esc((cPor[p.clube_id] || {}).nome || "")}</small></div>`;
-    const campo = l => `<div class="t-st-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i>${FAIXAS.map((f, k) => (ps => !ps.length ? "" : `${k === 4 ? `<i class="t-st-meio"></i>` : ""}<div class="t-st-linha">${ps.sort((a, b) => lado(a) - lado(b)).map(naCamisa).join("")}</div>`)(l.filter(p => faixaDe(p) === k))).join("")}</div>`;
     $("stPremios").innerHTML = daqui.length ? `<div class="t-st-bloco">${rotulo(`Prêmios da temporada ${deQual}`)}${daqui.map(linhaP).join("")}</div>` : "";
-    $("stSelecao").innerHTML = selecao.length ? `<section class="t-secao">${rotulo(`Seleção da temporada ${deQual} · os onze de melhor nota média`)}<div class="t-st-campos">${[...new Set(selecao.map(p => p.comp))].map(c => `<div>${varias ? `<div class="t-cal-dia">${esc(serie(c))}</div>` : ""}${campo(selecao.filter(p => p.comp === c).sort((a, b) => a.premio.localeCompare(b.premio)))}</div>`).join("")}</div></section>` : "";
+    $("stSelecao").innerHTML = selecao.length ? `<section class="t-secao">${rotulo(`Seleção da temporada ${deQual} · os onze de melhor nota média`)}<div class="t-st-campos">${[...new Set(selecao.map(p => p.comp))].map(c => `<div>${varias ? `<div class="t-cal-dia">${esc(serie(c))}</div>` : ""}${campoDaSelecao(selecao.filter(p => p.comp === c).sort((a, b) => a.premio.localeCompare(b.premio)))}</div>`).join("")}</div></section>` : "";
+  }
+  // seleção no campo (temporada e rodada): uma linha por faixa de posição (o ataque em cima), cada uma da esquerda para a direita; a linha do meio antes da defesa
+  function campoDaSelecao(l) {
+    const FAIXAS_DA_SELECAO = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM"], ["DC", "SW", "DL", "DR", "WBL", "WBR"], ["GK"]];
+    const lado = p => /^(DL|WBL|ML|AML|LW)$/.test(p.pos) ? 0 : /^(DR|WBR|MR|AMR|RW)$/.test(p.pos) ? 2 : 1;
+    const faixaDe = p => (i => i < 0 ? 2 : i)(FAIXAS_DA_SELECAO.findIndex(f => f.includes(p.pos)));
+    const naCamisa = p => `<div class="t-st-s${p.clube_id === clube.id ? " t-eu" : ""}"><span class="t-st-cam">${svgCamisa((cPor[p.clube_id] || {}).uniforme || {}, 46)}${p.numero == null ? "" : `<em title="Nota">${String((+p.numero).toFixed(1)).replace(".", ",")}</em>`}</span><b>${esc(p.jogador || "")}</b><small>${pp(p.pos || "")} ${esc((cPor[p.clube_id] || {}).nome || "")}</small></div>`;
+    return `<div class="t-st-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i>${FAIXAS_DA_SELECAO.map((f, k) => (ps => !ps.length ? "" : `${k === 4 ? `<i class="t-st-meio"></i>` : ""}<div class="t-st-linha">${ps.sort((a, b) => lado(a) - lado(b)).map(naCamisa).join("")}</div>`)(l.filter(p => faixaDe(p) === k))).join("")}</div>`;
   }
   // Federação: o fundo da liga (saldo, de onde veio e para onde foi) e os valores que a liga paga e cobra
   async function telaDaFederacao() {
@@ -4725,7 +4728,7 @@ ${historicoDaBase()}`}
         <td><b>${t.pts}</b></td><td>${t.j}</td><td class="t-lt-x">${t.v}</td><td class="t-lt-x">${t.e}</td><td class="t-lt-x">${t.d}</td><td class="t-lt-x">${t.gp}</td><td class="t-lt-x">${t.gc}</td><td>${sg(t)}</td><td class="t-lt-x t-lt-pe">${f1(t.esp)}</td><td class="t-lt-x"><span class="t-forma">${forma(t.clube.id)}</span></td></tr>`).join("")}</table>
       ${legendaDoRecorte(faixas).replace(/<\/div>$/, "") || `<div class="t-recorte-legenda">`}<span class="t-lt-humleg">clube com dirigente</span></div>`;
     const po = playoffDoGrupo(partidas, res);
-    el.innerHTML = `<div class="t-liga">${topo}${campeonatos}<div class="t-liga-grade"><section>${rotulo("Classificação")}${tabela}</section><section>${rotulo("Jogos")}<div id="ligaJogos"></div>${po ? `<div class="t-liga-po">${po}</div>` : ""}</section></div><section class="t-secao" id="ligaHist" hidden></section></div>`;
+    el.innerHTML = `<div class="t-liga">${topo}${campeonatos}<div class="t-liga-grade"><section>${rotulo("Classificação")}${tabela}</section><section>${rotulo("Jogos")}<div id="ligaJogos"></div>${po ? `<div class="t-liga-po">${po}</div>` : ""}</section></div><section class="t-secao" id="ligaSel" hidden></section><section class="t-secao" id="ligaHist" hidden></section></div>`;
     // jogos: a rodada escolhida (com as setas) e a anterior
     const rotuloR = r => (p => !daLiga(p) ? nomeDoPlayoff(p).replace(" · ", ": ") : "Rodada " + r)(partidas.find(p => p.rodada === r));
     const linhaJ = p => { const r = res[p.id], vivo = !r && new Date(p.inicio).getTime() <= agora, c = cPor[p.casa], v = cPor[p.fora];
@@ -4740,7 +4743,16 @@ ${historicoDaBase()}`}
       box.innerHTML = `<div class="t-liga-nav"><button type="button" data-lrod="-1" ${i ? "" : "disabled"} aria-label="Rodada anterior">‹</button><b>${esc(rotuloR(r))}</b><span>${doDia(r)}</span>
           ${r !== atual ? `<button type="button" class="t-liga-atual" data-lrod="0">ir à atual</button>` : ""}<button type="button" data-lrod="1" ${i < rodadas.length - 1 ? "" : "disabled"} aria-label="Próxima rodada">›</button></div>
         ${partidas.filter(p => p.rodada === r).map(linhaJ).join("")}
-        ${i ? `<div class="t-cal-dia">${esc(rotuloR(rodadas[i - 1]))} · ${doDia(rodadas[i - 1])}</div>${partidas.filter(p => p.rodada === rodadas[i - 1]).map(linhaJ).join("")}` : ""}`; };
+        ${i ? `<div class="t-cal-dia">${esc(rotuloR(rodadas[i - 1]))} · ${doDia(rodadas[i - 1])}</div>${partidas.filter(p => p.rodada === rodadas[i - 1]).map(linhaJ).join("")}` : ""}`;
+      desenharSelecao(i); };
+    // seleção da rodada: a escolhida, ou a anterior enquanto ela não termina (a mesma que aparece na lista); guardada por rodada
+    const selRodada = {};
+    const desenharSelecao = i => { const box = $("ligaSel"); if (!box) return;
+      const fechada = r => { const ps = partidas.filter(p => p.rodada === r); return ps.length && ps.every(p => daLiga(p) && res[p.id]); }, r = [rodadas[i], rodadas[i - 1]].find(x => x != null && fechada(x));
+      if (r == null) { box.hidden = true; return; }
+      (selRodada[r] = selRodada[r] || selecaoDaRodada(liga.id, g, r)).then(l => { if ($("ligaSel") !== box || rodadas[Math.max(0, rodadas.indexOf(ligaRodada))] !== rodadas[i]) return;
+        box.hidden = !l.length;
+        box.innerHTML = !l.length ? "" : `${rotulo(`Seleção da rodada ${r} · os onze de melhor nota`)}<div class="t-st-campos">${campoDaSelecao(l.map(x => ({ pos: x.vaga, jogador: x.nome, clube_id: x.clube, numero: x.nota })))}</div>`; }); };
     desenharJogos();
     // temporadas anteriores deste campeonato, guardadas na virada (só com a aba aberta)
     let hist = [];
