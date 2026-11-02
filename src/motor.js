@@ -259,7 +259,7 @@ export const CONFIG = {
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
     baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
-    conduzir: { base: -0.3, peso: 0.6, fora: 0.6 }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, area: 0, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
+    conduzir: { base: -0.3, peso: 0.6, fora: 0.6 }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     chance: { areaMeio: 0.8, xgMeio: 0.75, xgCutback: 0.16, cutback: 0.5, corteMeio: 0.35, enfiada: 1, peInvertido: 0.15, blocoBaixo: 0.15,
       antecipado: { valor: 0.12, xg: 0.8, contra: 1.4, linhaAlta: 1.25 }, chutar: 0.05,
       // acerto do cruzamento (meta 20–25% certos): logit = base + cruzador × (Cruzamento − 25) / 25 + inclinacao × ln((nossos + vazio) / (deles + vazio)),
@@ -1442,8 +1442,8 @@ function jogarPartida(rng, casa, fora, opcoes) {
         if ((o.espaco && !ch) || (o.entre && !ap)) return null;
         const ext = ch ? corrida(ch.vel, k) : o.entre ? EL.dificuldade : 0, az = ch ? ch.az + Zv : o.entre ? ap + Zv : AT[k];
         const p = 1 / (1 + Math.exp(-(BASE[(k / 5) | 0] + logitDe(o) + taticoEm(k) + ext + CONFIG.inclinacaoDuelo * Math.log(az / (defesaNo(k) + Zv)))));
-        const v = o.conduzir ? vizinhoLivre(k) : -1, ganhoV = ka < 20 ? AC.ganho : AC.ganho * AC.area; // na área vale menos: com peso cheio, a dupla de ataque conduzia em vez de chutar
-        return p * (XT[k] + (v >= 0 ? ganhoV * atracao(k) * XT[v] : 0)) - (1 - p) * (G.risco * XT[24 - k] + G.posse[(ka / 5) | 0]);
+        const v = o.conduzir ? vizinhoLivre(k) : -1;
+        return p * (XT[k] + (v >= 0 ? AC.ganho * atracao(k) * XT[v] : 0)) - (1 - p) * (G.risco * XT[24 - k] + G.posse[(ka / 5) | 0]);
       };
       // o que multiplica a nota da opção (a nota já é positiva; no valor, que pode ser negativo, o multiplicador trocaria de sentido)
       const OU = G.ousadia, dificil = o => o.conduzir ? o.tipo !== "lado" : o.espaco || o.entre || o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao";
