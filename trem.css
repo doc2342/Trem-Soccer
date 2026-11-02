@@ -1660,7 +1660,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-st-baixo::after { top:auto; bottom:0; border-top:2px solid rgba(255,255,255,.38); border-bottom:0; }
 .t-st-cam { position:relative; display:inline-block; }
 .t-st-cam em { position:absolute; right:-16px; top:2px; font:900 12px/1 var(--t-letra); font-style:normal; background:var(--t-marca); color:#fff; padding:3px 4px; }
-.t-st-campo > i.t-st-meio { position:relative; left:auto; right:auto; top:auto; margin:24px -10px; flex:none; } /* entre o meio e a defesa: o círculo não pisa em ninguém */
+.t-st-campo > i.t-st-meio { position:relative; left:auto; right:auto; top:auto; margin:24px -10px; flex:none; } /* antes do volante, ou da defesa: o círculo não pisa em ninguém */
 .t-st-meio::before { width:96px; height:96px; }
 .t-st-b span svg { margin:0 6px 0 2px; }
 /* Estatísticas, rodada 4: a nota da seleção em branco (vermelho parecia nota ruim); na lista, as colunas de números com folga, centradas */
