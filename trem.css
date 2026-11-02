@@ -2064,6 +2064,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-besc-subs { grid-template-columns:minmax(0, 1fr); } .t-besc-subs .linhaSub select { max-width:100%; } /* as do dirigente e, embaixo, as sugeridas pelo rodízio */
 .t-esc-posicoes { margin:0 0 12px; } .t-esc-posicoes small { opacity:.7; font-weight:500; margin-left:3px; } .t-esc-posicoes > :disabled { cursor:default; opacity:1; } /* a vaga escolhida muda de posição na própria linha (FC e SC, DC e SW) */
 #ligaSel .t-st-campos { max-width:640px; }
+.t-st-campos .t-st-campo.t-rel-campo { height:800px; } /* a etiqueta da posição e o clube ocupam ~95px: em 680, o volante encosta na defesa */
 .t-st-s.t-craque .t-st-cam::before { content:"★"; position:absolute; left:-24px; top:-4px; font:400 24px/1 Arial, sans-serif; color:#ffd34d; text-shadow:0 1px 3px rgba(0,0,0,.5); }
 .t-st-s.t-craque svg { filter:drop-shadow(2px 0 0 #ffd34d) drop-shadow(-2px 0 0 #ffd34d) drop-shadow(0 2px 0 #ffd34d) drop-shadow(0 -2px 0 #ffd34d); } /* o contorno segue o desenho da camisa */
 .t-st-s.t-craque b { color:#ffd34d; }
