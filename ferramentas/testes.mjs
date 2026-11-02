@@ -14,7 +14,7 @@ const fila = testes.filter(f => !SOZINHOS.has(f)), feitos = [];
 await Promise.all(Array.from({ length: maximo }, async () => { while (fila.length) feitos.push(await rodar(fila.shift())); }));
 for (const f of testes) if (SOZINHOS.has(f)) feitos.push(await rodar(f));
 const falhas = feitos.filter(r => !r.ok).sort((a, b) => a.f.localeCompare(b.f));
-for (const r of falhas) console.log(`FALHOU ${r.f}\n${r.texto.trim().split("\n").slice(-8).join("\n")}\n`);
+for (const r of falhas) console.log(`FALHOU ${r.f}\n${r.texto.trim().split("\n").slice(0, 8).join("\n")}\n`);
 console.log("mais lentos:", [...feitos].sort((a, b) => b.ms - a.ms).slice(0, 5).map(r => `${r.f.replace(/^teste_|\.mjs$/g, "")} ${(r.ms / 1000).toFixed(0)} s`).join(", "));
 console.log(`${testes.length - falhas.length}/${testes.length} ok`);
 process.exit(falhas.length ? 1 : 0);
