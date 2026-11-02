@@ -1379,13 +1379,13 @@ async function telaClube(liga, clube) {
     $("stPremios").innerHTML = daqui.length ? `<div class="t-st-bloco">${rotulo(`Prêmios da temporada ${deQual}`)}${daqui.map(linhaP).join("")}</div>` : "";
     $("stSelecao").innerHTML = selecao.length ? `<section class="t-secao">${rotulo(`Seleção da temporada ${deQual} · os onze de melhor nota média`)}<div class="t-st-campos">${[...new Set(selecao.map(p => p.comp))].map(c => `<div>${varias ? `<div class="t-cal-dia">${esc(serie(c))}</div>` : ""}${campoDaSelecao(selecao.filter(p => p.comp === c).sort((a, b) => a.premio.localeCompare(b.premio)))}</div>`).join("")}</div></section>` : "";
   }
-  // seleção no campo (temporada e rodada): uma linha por faixa de posição (o ataque em cima), cada uma da esquerda para a direita; a linha do meio antes do volante (sem volante, antes da defesa)
-  function campoDaSelecao(l) {
-    const FAIXAS_DA_SELECAO = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM"], ["DC", "SW", "DL", "DR", "WBL", "WBR"], ["GK"]];
+  // seleção no campo (temporada e rodada): uma linha por faixa de posição (o ataque em cima), cada uma da esquerda para a direita, na altura que a Tática usa (ALTURA_DA_FAIXA); craque: destaca a maior nota
+  function campoDaSelecao(l, craque = false) {
+    const FAIXAS_DA_SELECAO = [["SC", "FC", "LW", "RW"], ["AMC", "AML", "AMR"], ["MC", "ML", "MR"], ["DMC", "DM", "WBL", "WBR"], ["DC", "SW", "DL", "DR"], ["GK"]];
     const lado = p => /^(DL|WBL|ML|AML|LW)$/.test(p.pos) ? 0 : /^(DR|WBR|MR|AMR|RW)$/.test(p.pos) ? 2 : 1;
-    const faixaDe = p => (i => i < 0 ? 2 : i)(FAIXAS_DA_SELECAO.findIndex(f => f.includes(p.pos))), meio = l.some(p => faixaDe(p) === 3) ? 3 : 4;
-    const naCamisa = p => `<div class="t-st-s${p.clube_id === clube.id ? " t-eu" : ""}"><span class="t-st-cam">${svgCamisa((cPor[p.clube_id] || {}).uniforme || {}, 46)}${p.numero == null ? "" : `<em title="Nota">${String((+p.numero).toFixed(1)).replace(".", ",")}</em>`}</span><b>${esc(p.jogador || "")}</b><small>${pp(p.pos || "")} ${esc((cPor[p.clube_id] || {}).nome || "")}</small></div>`;
-    return `<div class="t-st-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i>${FAIXAS_DA_SELECAO.map((f, k) => (ps => !ps.length ? "" : `${k === meio ? `<i class="t-st-meio"></i>` : ""}<div class="t-st-linha">${ps.sort((a, b) => lado(a) - lado(b)).map(naCamisa).join("")}</div>`)(l.filter(p => faixaDe(p) === k))).join("")}</div>`;
+    const faixaDe = p => (i => i < 0 ? 2 : i)(FAIXAS_DA_SELECAO.findIndex(f => f.includes(p.pos)));
+    const melhor = craque && l.reduce((m, p) => +p.numero > +m.numero ? p : m), naCamisa = p => `<div class="t-st-s${p.clube_id === clube.id ? " t-eu" : ""}${p === melhor ? " t-craque" : ""}"><span class="t-st-cam">${svgCamisa((cPor[p.clube_id] || {}).uniforme || {}, 46)}${p.numero == null ? "" : `<em title="Nota">${String((+p.numero).toFixed(1)).replace(".", ",")}</em>`}</span><b>${esc(p.jogador || "")}</b><small>${pp(p.pos || "")} ${esc((cPor[p.clube_id] || {}).nome || "")}</small></div>`;
+    return `<div class="t-st-campo t-rel-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i><i class="t-st-meio"></i>${ALTURA_DA_FAIXA.map((alt, k) => (ps => !ps.length ? "" : `<div class="t-st-linha" style="top:calc(${alt}% - ${alt / 2}px)">${ps.sort((a, b) => lado(a) - lado(b)).map(naCamisa).join("")}</div>`)(l.filter(p => faixaDe(p) === k))).join("")}</div>`;
   }
   // Federação: o fundo da liga (saldo, de onde veio e para onde foi) e os valores que a liga paga e cobra
   async function telaDaFederacao() {
@@ -4752,7 +4752,7 @@ ${historicoDaBase()}`}
       if (r == null) { box.hidden = true; return; }
       (selRodada[r] = selRodada[r] || selecaoDaRodada(liga.id, g, r)).then(l => { if ($("ligaSel") !== box || rodadas[Math.max(0, rodadas.indexOf(ligaRodada))] !== rodadas[i]) return;
         box.hidden = !l.length;
-        box.innerHTML = !l.length ? "" : `${rotulo(`Seleção da rodada ${r} · os onze de melhor nota`)}<div class="t-st-campos">${campoDaSelecao(l.map(x => ({ pos: x.vaga, jogador: x.nome, clube_id: x.clube, numero: x.nota })))}</div>`; }); };
+        box.innerHTML = !l.length ? "" : `${rotulo(`Seleção da rodada ${r} · os onze de melhor nota`)}<div class="t-st-campos">${campoDaSelecao(l.map(x => ({ pos: x.vaga, jogador: x.nome, clube_id: x.clube, numero: x.nota })), true)}</div>`; }); };
     desenharJogos();
     // temporadas anteriores deste campeonato, guardadas na virada (só com a aba aberta)
     let hist = [];
