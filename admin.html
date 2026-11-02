@@ -170,7 +170,11 @@ async function aprovarExtra(p, clubeId) {
   return aprovarPedidoExtra(p.user_id, elencoNovo(rng, nivel, p.pais, liga.temporada), clubeId);
 }
 
-// Clubes com dirigente, do mais recente para o mais antigo. Atualiza sozinho e põe o número no título da aba.
+// Clubes com dirigente, por ordem de entrada ou de último acesso. Atualiza sozinho e põe o número no título da aba.
+// Online: acesso nos últimos 6 minutos (o jogo aberto renova a cada 4; jogo.html)
+let ordemDirigentes = "entrada";
+const acessoDe = c => c.ultimo_acesso ? new Date(c.ultimo_acesso).getTime() : 0, online = c => Date.now() - acessoDe(c) < 6 * 60000;
+const quandoAcessou = c => c.ultimo_acesso ? (online(c) ? `<b class="ok">online</b>` : dataHora(c.ultimo_acesso)) : "—";
 async function dirigentes() {
   const el = $("dirigentes"); if (!el) return;
   const liga = await ligaAtual(); if (!liga) return;
@@ -178,18 +182,21 @@ async function dirigentes() {
   const ePor = Object.fromEntries(emails.map(e => [e.clube_id, e.email]));
   // clube extra (96_seletor_de_clubes.sql) vem logo abaixo do principal do mesmo dirigente; a ordem é a do principal
   const comDono = clubes.filter(c => c.dono), maisNovo = (a, b) => new Date(b.assumido_em) - new Date(a.assumido_em);
-  const principais = comDono.filter(c => !c.extra || !comDono.some(x => x.dono === c.dono && !x.extra)).sort(maisNovo);
+  const porOrdem = ordemDirigentes === "acesso" ? (a, b) => acessoDe(b) - acessoDe(a) : maisNovo;
+  const principais = comDono.filter(c => !c.extra || !comDono.some(x => x.dono === c.dono && !x.extra)).sort(porOrdem);
   const l = principais.flatMap(c => [c, ...comDono.filter(x => x.dono === c.dono && x !== c && x.extra).sort(maisNovo).map(x => ({ ...x, de: c }))]);
   const novo = c => Date.now() - new Date(c.assumido_em) < 24 * 3600000;
   nDirigentes = new Set(comDono.map(c => c.dono)).size; titulo();
-  if (NOVO) el.innerHTML = `${rotulo(`Dirigentes · ${nDirigentes}, com ${l.length} de ${clubes.length} clubes`)}
+  const nOnline = new Set(comDono.filter(online).map(c => c.dono)).size, trocar = `<button type="button" class="${NOVO ? "t-adm-mini" : "sec"}" data-ordem="1">Ordenar por ${ordemDirigentes === "acesso" ? "entrada" : "último acesso"}</button>`;
+  if (NOVO) el.innerHTML = `${rotulo(`Dirigentes · ${nDirigentes}, ${nOnline} online, com ${l.length} de ${clubes.length} clubes`)}<p>${trocar}</p>
     ${l.length ? `<table class="t-tabela t-adm-dir"><tr><th></th><th class="t-esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="t-esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
-      ${l.map((c, i) => `<tr${c.de ? ` class="t-adm-extra"` : ""}${extra(i)}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="t-esq">${c.de ? `↳ ` : ""}<b>${esc(c.nome)}</b>${novo(c) ? ` <span class="t-giro-tipo t-adm-novo">novo</span>` : ""}${c.de ? ` <small>clube extra de ${esc(c.de.nome)}</small>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="t-esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button type="button" class="t-adm-mini t-adm-perigo" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table>${verMais(l.length, `Ver os ${l.length}`)}`
+      ${l.map((c, i) => `<tr${c.de ? ` class="t-adm-extra"` : ""}${extra(i)}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="t-esq">${c.de ? `↳ ` : ""}<b>${esc(c.nome)}</b>${novo(c) ? ` <span class="t-giro-tipo t-adm-novo">novo</span>` : ""}${c.de ? ` <small>clube extra de ${esc(c.de.nome)}</small>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="t-esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${quandoAcessou(c)}</td><td><button type="button" class="t-adm-mini t-adm-perigo" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table>${verMais(l.length, `Ver os ${l.length}`)}`
       : `<p class="t-fajuda">Nenhum clube com dirigente ainda.</p>`}`;
-  else el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada hora · o número também aparece no título da aba</span></h2>
+  else el.innerHTML = `<h2>Dirigentes: ${nDirigentes}, ${nOnline} online, com ${l.length} de ${clubes.length} clubes <span class="tag">atualiza sozinho a cada hora · o número também aparece no título da aba</span></h2><p>${trocar}</p>
     ${l.length ? `<div class="rolagem"><table><tr><th></th><th class="esq">Clube</th><th>Grupo</th>${emails.length ? `<th class="esq">E-mail</th>` : ""}<th>Entrou em</th><th>Último acesso</th><th></th></tr>
-      ${l.map(c => `<tr${c.de ? ` style="font-size:.94em"` : ""}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${c.de ? `<span class="mut">↳</span> ` : ""}${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}${c.de ? ` <span class="mut">· clube extra de ${esc(c.de.nome)}</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${c.ultimo_acesso ? dataHora(c.ultimo_acesso) : "—"}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
+      ${l.map(c => `<tr${c.de ? ` style="font-size:.94em"` : ""}><td>${svgEscudo(c.escudo, c.sigla, 24)}</td><td class="esq">${c.de ? `<span class="mut">↳</span> ` : ""}${esc(c.nome)} ${novo(c) ? `<span class="ok">novo</span>` : ""}${c.de ? ` <span class="mut">· clube extra de ${esc(c.de.nome)}</span>` : ""}</td><td>${esc(c.grupo)}</td>${emails.length ? `<td class="esq">${esc(ePor[c.id] || "")}</td>` : ""}<td>${dataHora(c.assumido_em)}</td><td>${quandoAcessou(c)}</td><td><button class="sec" data-libera="${c.id}" data-nome="${esc(c.nome)}">Liberar</button></td></tr>`).join("")}</table></div>` : `<div class="mut">Nenhum clube com dirigente ainda.</div>`}`;
   el.onclick = async e => {
+    if (e.target.dataset.ordem) { ordemDirigentes = ordemDirigentes === "acesso" ? "entrada" : "acesso"; return dirigentes(); }
     const id = e.target.dataset.libera; if (!id) return;
     if (!confirm(`Liberar o clube "${e.target.dataset.nome}"? O dirigente perde o clube, que volta para o bot, e a tática dele é apagada. Não dá para desfazer.`)) return;
     e.target.disabled = true;
