@@ -11,7 +11,7 @@ import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 
 const junta = (alvo, de) => { for (const k in de) alvo[k] = de[k] && typeof de[k] === "object" && alvo[k] && typeof alvo[k] === "object" ? { ...alvo[k], ...de[k] } : de[k]; };
 junta(CONFIG.gradeValores, JSON.parse(process.env.GV || "{}"));
-const N = +process.argv[2] || 1500, formacao = process.argv[3] || "4-2-3-1", B = 6;
+const N = +process.argv[2] || 1500, formacao = process.argv[3] || "4-2-3-1", B = +process.env.B || 6; // erro de ±0,02 com 6000 jogos: +6 não separa efeitos pequenos; B=18 dá sinal maior
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const vagas = FORMACOES[formacao];
 const LINHAS = [["goleiro", ["GK"]], ["defesa", ["DC", "SW", "DR", "DL", "WBR", "WBL"]], ["volante", ["DMC"]], ["meio", ["MC", "MR", "ML", "AMC", "AMR", "AML"]], ["ataque", ["RW", "LW", "FC", "SC"]]].filter(([n, ps]) => vagas.some(p => ps.includes(p)) && (!process.env.LINHAS || process.env.LINHAS.split(",").includes(n)));

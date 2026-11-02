@@ -242,7 +242,7 @@ export const CONFIG = {
   //   chance alto × Passe longo / 25; ladoZagueiro: logit do 1º toque quando sai do zagueiro pelo lado. aereo (1º toque, pacote aéreo): logit = base
   //   + lancador × (Passe longo − 25) / 25 + inclinacao × ln((Posicionamento + Força nosso + vazio) / (o deles + vazio)); direcao: quem ganha
   //   multiplica a presença do time dele na segunda bola por 1 + direcao × Cabeceio / 25. segundaBola: acaso, vizinhas (peso das zonas vizinhas da
-  //   queda). viradaInstrucao: × no valor da virada e da inversão (passe longo, lados, curto); lancamento: logit da virada e da inversão por
+  //   queda). viradaInstrucao: × no valor da virada e da inversão (passe longo, lados, curto); lancamento: logit do lançamento, da virada e da inversão por
   //   (Passe longo − 25) / 25 de quem passa
   //   Tarefa 9 (spec 10, transição): contra.centro: logit do contra-ataque que nasce de roubada no centro ou de interceptação; reciclar: quem
   //   roubou não sai no contra se a melhor chance de ganhar um passo para a frente (contra a defesa pega na transição) fica abaixo disto (o
@@ -254,7 +254,7 @@ export const CONFIG = {
     passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
     vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
     basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
-    dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -0.9, virada: -1.0, inversao: -0.25,
+    dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -1.7, virada: -2.6, inversao: -0.6,
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
@@ -1382,7 +1382,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       const T3 = G.terceiro, ent = entrosamento(atk.emCampo), mDes = [];
       const fatorTerceiro = T3.bonus * (1 + T3.pressao * P) * (def.instr.agressividade > 0 ? T3.agressivo : 1) * (def.instr.mentalidade <= -1 ? T3.retranca : 1);
       const PV = G.pivo, AC = G.atrair;
-      let th = 0, parA = null, thBonus = 0, lanc = 0, seg = 0, entrada = null; // lanc: o Passe longo de quem tem a bola na virada e na inversão
+      let th = 0, parA = null, thBonus = 0, lanc = 0, seg = 0, entrada = null; // lanc: o Passe longo de quem tem a bola no lançamento, na virada e na inversão
       // Desarme e Agressividade médios de quem marca na zona (a volta do terceiro homem é disputada)
       const marcaEm = k => mDes[k] ?? (mDes[k] = (l => { let s = 0, w = 0; for (const x of l) { s += x.w * (x.jog.at[A.des] + x.jog.at[A.agr]); w += x.w; } return w ? s / (2 * w) : 25; })(def.zonasDef[espelho(ZONAS_GRADE[k])]));
       // a virada e a inversão: pelo Passe longo de quem passa e pelas instruções (passe longo e lados a pedem, o curto a evita)
@@ -1399,7 +1399,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
         if (o.conduzir) l += conduz;
         if (livre && (c === 1 || c === 3)) l += G.impulso.deFrente; // contra a linha alta, o 1º passo do contra para o meio-espaço sai livre
         if (th) l += terceiro(o, k, c);
-        if (o.tipo === "virada" || o.tipo === "inversao") l += lanc;
+        if (o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao") l += lanc;
         return l;
       };
       // terceiro homem: a volta disputada (th 1) e o bônus do próximo passo para a frente (th 2, vale o maior com o impulso), fora do logitDe (custo)
