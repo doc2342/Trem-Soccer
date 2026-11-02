@@ -1660,7 +1660,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-st-baixo::after { top:auto; bottom:0; border-top:2px solid rgba(255,255,255,.38); border-bottom:0; }
 .t-st-cam { position:relative; display:inline-block; }
 .t-st-cam em { position:absolute; right:-16px; top:2px; font:900 12px/1 var(--t-letra); font-style:normal; background:var(--t-marca); color:#fff; padding:3px 4px; }
-.t-st-campo > i.t-st-meio { position:relative; left:auto; right:auto; top:auto; margin:24px -10px; flex:none; } /* antes do volante, ou da defesa: o círculo não pisa em ninguém */
+.t-st-campo > i.t-st-meio { position:relative; left:auto; right:auto; top:auto; margin:24px -10px; flex:none; } /* o t-rel-campo a põe no meio de verdade */
 .t-st-meio::before { width:96px; height:96px; }
 .t-st-b span svg { margin:0 6px 0 2px; }
 /* Estatísticas, rodada 4: a nota da seleção em branco (vermelho parecia nota ruim); na lista, as colunas de números com folga, centradas */
@@ -2064,3 +2064,7 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-besc-subs { grid-template-columns:minmax(0, 1fr); } .t-besc-subs .linhaSub select { max-width:100%; } /* as do dirigente e, embaixo, as sugeridas pelo rodízio */
 .t-esc-posicoes { margin:0 0 12px; } .t-esc-posicoes small { opacity:.7; font-weight:500; margin-left:3px; } .t-esc-posicoes > :disabled { cursor:default; opacity:1; } /* a vaga escolhida muda de posição na própria linha (FC e SC, DC e SW) */
 #ligaSel .t-st-campos { max-width:640px; }
+.t-st-s.t-craque .t-st-cam::before { content:"★"; position:absolute; left:-24px; top:-4px; font:400 24px/1 Arial, sans-serif; color:#ffd34d; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+.t-st-s.t-craque svg { filter:drop-shadow(2px 0 0 #ffd34d) drop-shadow(-2px 0 0 #ffd34d) drop-shadow(0 2px 0 #ffd34d) drop-shadow(0 -2px 0 #ffd34d); } /* o contorno segue o desenho da camisa */
+.t-st-s.t-craque b { color:#ffd34d; }
+.t-rel-campo .t-st-s.t-craque .t-st-cam em { background:#ffd34d; color:#1b1b1b; }
