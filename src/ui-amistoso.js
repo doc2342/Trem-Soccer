@@ -98,6 +98,7 @@ export async function montarAbaAmistoso(raiz, { sessao }) {
             ${p ? `<b>${p[0]} × ${p[1]}</b>${a.tem_relatorio ? ` <button type="button" class="sec" data-ver="${a.id}">ver</button>` : ""}` : `<span class="mut">não terminou</span>`}</div>`; }).join("")}</details>`;
     }).join("");
     $("amPainel").innerHTML = `<h2 style="margin-top:0">Amistoso <span class="tag">não vale nada · sai na hora · com papéis e regras da T1</span></h2>
+      <div class="aviso" style="margin-bottom:8px"><b>Versão de teste:</b> os amistosos já usam o motor novo, a grade 5×5, ainda em ajuste. Placares, ritmo e estatísticas podem mudar. A liga e as copas seguem no motor atual.</div>
       ${aviso ? `<div style="margin-bottom:8px">${aviso}</div>` : ""}
       <div class="row" style="align-items:center;gap:14px">
         <label><input type="checkbox" id="amAceita" ${aceita ? "checked" : ""} ${semSql || !salva ? "disabled" : ""}> Aceitar amistosos</label>${semSql || salva ? "" : `<span class="aviso">Salve a tática de amistoso (abaixo) para poder aceitar.</span>`}
