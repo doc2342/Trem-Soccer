@@ -128,3 +128,5 @@ Bola longa: dificuldade de pular, virada e inversão em -1,7, -2,6 e -0,6, e o P
 Foto do lance (`foto`): antes de escolher, cada zona tem quem recebe e quem marca; o mano a mano acima ou abaixo da média da zona pesa no duelo, e só quem decide bem o vê (`ve`, de Decisões 10 a 40, cai sob pressão). Decisões +18, peso 3, cega → vista: volante 0,033 → 0,088, meio 0,045 → 0,088 (soma +0,098, erro ~0,03). Com peso 1 o ganho não passava do erro. Passe +18: 0,127 e 0,141, continua acima de Decisões. Gols 2,19, longa 18,2%, posses de 10+ 12,2.
 
 Custo: ~45 ms por jogo (10,7× a 12,8× a T0). Rodada com até 6 jogos por série: conferir a CPU da função `rodada` antes de publicar nos amistosos.
+
+Decisões sem a bola (`foto.marca` 0,3 e `foto.cobre` 0,5): o marcador de boa Decisões tira do duelo do atacante, e a cobertura emprestada soma Decisões ao Posicionamento. Decisões +18, sem → com: defesa 0,053 → 0,130 (a parte de defender 0,018 → 0,098), volante 0,088 → 0,147, um pouco acima do Passe +18 (0,127), dentro do erro. Gols 2,24. Alvo do ajuste fino: Decisões perto de Passe em todas as linhas; o ataque ainda não foi medido com B=18.

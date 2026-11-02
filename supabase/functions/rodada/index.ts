@@ -1123,7 +1123,7 @@ const __motor = (() => {
           pressao: 0.6, peRuim: 0.5, ladoFraco: 0.6, linhaAlta: 0.85, virada: 0.85 } },
       terceiro: { apertado: 0.3, bonus: 0.35, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
       longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
-      segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40 },
+      segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
       contra: { centro: 0.15 }, reciclar: 0.8, pressionarMeio: 1.2, impedimento: { base: 0.6, pressao: 0.2 },
       // passe no espaço (Tarefa 9b, dono 31/10): a bola na frente, em zona sem ninguém nosso, para quem chega da faixa de baixo (mesmo corredor ou vizinho).
       // peso: o ataque do duelo = habilidade de quem chega no destino × chegada/25 × peso; dificuldade: logit; corrida: × (chegada dele − Velocidade de quem
@@ -1490,7 +1490,7 @@ const __motor = (() => {
     if (CONFIG.grade) {
       const posicionamento = Object.fromEntries(ZONAS_GRADE.map(z => {
         const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0);
-        return [z, w ? q.reduce((s, o) => s + o.w * o.jog.at[A.pos], 0) / w : 0];
+        return [z, w ? q.reduce((s, o) => s + o.w * (o.jog.at[A.pos] + CONFIG.gradeValores.foto.cobre * (decisao(o.jog.at) - 25)), 0) / w : 0]; // a cobertura é Posicionamento e a hora de sair (Decisões)
       }));
       const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores });
       const r = Object.fromEntries(CORREDORES.map(c => [c, vista(def.defLado[CORREDORES[4 - colunaDe("1" + c)]], c)]));
@@ -2303,7 +2303,7 @@ const __motor = (() => {
         };
         const manoDe = o => { if (o.goleiro) return 0;
           const F = fotoDe(o.i), a = o.espaco || o.entre ? 0 : o.conduzir ? habEm(HAB_A, portador, o.i, habilidadeAtaque, ZONAS_GRADE[o.i]) - F.ma : F.da;
-          return G.foto.peso * (a - F.dd) / 25; };
+          return (G.foto.peso * (a - F.dd) - (F.marcador ? G.foto.marca * (decisao(F.marcador.at) - 25) : 0)) / 25; }; // Decisões sem a bola: quem marca acerta a hora do bote
         const valorDe = o => {
           if (o.fim && o.tipo === "finalizar") { // vale mais quanto melhor quem tem a bola para aquilo e quanto menos gente em cima dele
             const q = (ka % 5 === 0 || ka % 5 === 4 ? portador.at[A.cru] : portador.at[A.fin]) / 25, livre = AT[ka] / (AT[ka] + defesaNo(ka) + Zv);
