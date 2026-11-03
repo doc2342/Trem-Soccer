@@ -319,6 +319,8 @@ export const PREFERENCIA = {
   organizador: { lado: 1.2, voltar: 1.15, pular: 0.7, virada: 0.85, diagonal: 0.95 },
   criador: { diagonal: 1.2, subir: 1.1, pular: 1.1, lado: 0.9, chutar: 1.15 },
   infiltrador: { subir: 1.2, conduzir: 1.1, finalizar: 1.2, lado: 0.85, voltar: 0.85 },
+  // goleiro: o Armador lança direto quando dá
+  goleiroarmador: { pular: 1.2, lado: 1.1 },
 };
 export function preferenciaDoPasso(papel, tipo, conduzir) {
   const p = papel && PREFERENCIA[papel];

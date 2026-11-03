@@ -610,6 +610,8 @@ const __grade = (() => {
     organizador: { lado: 1.2, voltar: 1.15, pular: 0.7, virada: 0.85, diagonal: 0.95 },
     criador: { diagonal: 1.2, subir: 1.1, pular: 1.1, lado: 0.9, chutar: 1.15 },
     infiltrador: { subir: 1.2, conduzir: 1.1, finalizar: 1.2, lado: 0.85, voltar: 0.85 },
+    // goleiro: o Armador lança direto quando dá
+    goleiroarmador: { pular: 1.2, lado: 1.1 },
   };
   function preferenciaDoPasso(papel, tipo, conduzir) {
     const p = papel && PREFERENCIA[papel];
@@ -825,6 +827,19 @@ const __papeis = (() => {
       pesos: { fin: 18, vel: 12, pos: 11, dom: 10, res: 8, dri: 7, cab: 7, cri: 7, pas: 5, lon: 5, for: 4, des: 3, equ: 3 },
       desloca: { AMC: { com: { faixas: [[3, 4, 0.6], [4, 5, 0.35]] }, sem: { faixas: [[3, 4, 0.4]] } } }, gasto: { AMC: 1.05 },
     },
+    // Goleiros (passo 3; fichas de 29/10): o goleiro não tem mancha; o papel muda lances (ver motor.js, papelGoleiro)
+    paredao: {
+      nome: "Paredão", faz: "Fica na linha, pega os chutes de dentro da área e é o que mais sai e segura no cruzamento alto.", custa: "Não cobre a bola em profundidade e não participa da saída de bola.",
+      pesos: { ref: 22, enc: 18, um: 16, pos: 16, com: 12, vel: 4, for: 4, inf: 4, equ: 4 }, gasto: { GK: 1 },
+    },
+    goleirolibero: {
+      nome: "Goleiro-líbero", faz: "Joga adiantado com a zaga e corta a bola em profundidade antes do atacante.", custa: "Mais gol de longe, sai menos no cruzamento e só rende com a linha alta.",
+      pesos: { um: 20, vel: 16, pos: 16, ref: 14, com: 8, pas: 8, dom: 6, enc: 6, agr: 4, equ: 2 }, gasto: { GK: 1 },
+    },
+    goleiroarmador: {
+      nome: "Goleiro-armador", faz: "Entra na saída de bola como um a mais na zaga e lança direto quando a pressão deixa espaço.", custa: "A perda na saída acontece perto do gol: a bola roubada vira chance clara.",
+      pesos: { pas: 20, dom: 16, ref: 14, pos: 12, cri: 8, um: 8, enc: 8, com: 8, equ: 4, vel: 2 }, gasto: { GK: 1 },
+    },
   };
 
   // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -861,11 +876,11 @@ const __papeis = (() => {
     return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
   }
 
-  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
+  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", GK: "paredao", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
   const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
     SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
     DC: ["xerife", "tecnico", "combativo", "libero"], DMC: ["primeirovolante", "distribuidor", "boxtobox", "ladrao"],
-    MC: ["organizador", "criador", "boxtobox", "ladrao"], AMC: ["criador", "infiltrador", "organizador"],
+    GK: ["paredao", "goleirolibero", "goleiroarmador"], MC: ["organizador", "criador", "boxtobox", "ladrao"], AMC: ["criador", "infiltrador", "organizador"],
     RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
   // posição do lado direito que serve de base para a do esquerdo
   const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };
@@ -1314,7 +1329,7 @@ const __motor = (() => {
         paraDentro: -0.2, pertoDoGol: -0.3 },
       valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
       impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-      baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+      baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
       // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
       conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
       // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -1338,7 +1353,10 @@ const __motor = (() => {
       // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10. papelDefesa: libero, o quanto o Líbero (papel) tira do fator
       // da bola em profundidade por (média de Posicionamento e Velocidade − 25) / 25, entre liberoMin e liberoMax; combativo, × (1 + isto × Combativos) no xG da
       // bola em profundidade do rival; combativoCorrida, logit da corrida no espaço da faixa 5 do rival por Combativo (ele sobe para o bote e deixa as costas);
-      // falta, × na chance de falta do Ladrão de bola e do Combativo
+      // falta, × na chance de falta do Ladrão de bola e do Combativo. papelGoleiro (fichas de 29/10): armador, o peso do Goleiro-armador no 1C com a bola × (média de
+      // Passe e Domínio / 25, entre 0,5 e 1,5); recuo, × na vontade de recuar para ele; libero, o fator do Goleiro-líbero na bola em profundidade com a linha alta,
+      // menos liberoAtr × (média de Um contra um e Velocidade − 25) / 25 (vale o menor com o Líbero da zaga); longe, × no xG do chute de longe contra ele;
+      // liberoFica, a parte das saídas no cruzamento alto em que ele fica no gol
       terceiro: { apertado: 0.3, bonus: 0.35, mov: 0.5, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
       longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
       segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
@@ -1541,7 +1559,9 @@ const __motor = (() => {
       jog.at = (grade ? jog.cheio ??= comNovos(jog.j) : jog.j.at).map(v => v * f);
       const pe = ajusteDoPe(jog.j.pe, jog.pos, jog.j.pf); // pé dominante: pesa no cruzamento, no passe e na finalização de quem joga pelos lados
       if (pe) for (const k in pe) jog.at[k] *= pe[k];
-      if (jog.pos === "GK") { t.goleiro = jog; continue; }
+      if (jog.pos === "GK") { t.goleiro = jog;
+        if (grade && temPapel(jog, "goleiroarmador")) { const w = G.papelGoleiro.armador * limitar(media(jog.at[A.pas], jog.at[A.dom]) / 25, 0.5, 1.5); t.zonas["1C"].push({ jog, w, p: w }); t.atk["1C"] += w * habilidadeAtaque(jog.at, "1C"); }
+        continue; }
       if (jog.pos === "SW") t.temLibero = true;
       // o Líbero como papel: corta mais a bola em profundidade quanto melhores o Posicionamento e a Velocidade dele (ficha de 29/10); o melhor dos que houver
       if (grade && temPapel(jog, "combativo")) t.costas = (t.costas || 0) + 1;
@@ -1751,6 +1771,13 @@ const __motor = (() => {
   const naZaga = t => CONFIG.grade ? juntar(["1e", "1C", "1d"].flatMap(z => t.zonasDef[z])) : t.zonasDef.DC;
   // o quanto quem leva a bola cruza ou rola para a área vazia: o mau decisor (Decisão 15) todo, o bom (35) nada
   const cegueira = at => limitar((35 - decisao(at)) / 20, 0, 1);
+  // Goleiro-líbero (ficha de 29/10): só com a zaga adiantada (linha de impedimento ou mentalidade ofensiva), pelo Um contra um e pela Velocidade; 1 sem ele
+  function gkLibero(def) {
+    const gk = def.goleiro;
+    if (!CONFIG.grade || !gk || !temPapel(gk, "goleirolibero") || !(def.instr.impedimento || def.instr.mentalidade > 0)) return 1;
+    const GL = CONFIG.gradeValores.papelGoleiro;
+    return limitar(GL.libero - GL.liberoAtr * (media(gk.at[A.um], gk.at[A.vel]) - 25) / 25, 0.5, 0.95);
+  }
 
   // Monta a chance depois de vencido o duelo na zona de ataque.
   // Com a grade (zona = onde a jogada termina, buracos = o que a cobertura emprestada abriu), a mistura vem do corredor (spec 8): 5C área, profundidade
@@ -1852,7 +1879,7 @@ const __motor = (() => {
     } else if (tipo === "profundidade") {
       c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.vel] + o.jog.at[A.dom])).jog;
       const f = c.finalizador.at;
-      c.xg = x.profundidade * Math.pow(mod(media(pivo.at[A.cri], pivo.at[A.pas]), 28, k), 0.5) * mod(media(f[A.vel], f[A.dom]), zag ? media(zag[A.pos], zag[A.vel]) : semZaga, k) * (def.temLibero ? def.fatorLibero ?? CONFIG.fatorLibero : 1) * b.profundidade * (1 + CONFIG.gradeValores.papelDefesa.combativo * (def.costas || 0)); // o zagueiro que saiu para cobrir abre as costas
+      c.xg = x.profundidade * Math.pow(mod(media(pivo.at[A.cri], pivo.at[A.pas]), 28, k), 0.5) * mod(media(f[A.vel], f[A.dom]), zag ? media(zag[A.pos], zag[A.vel]) : semZaga, k) * Math.min(def.temLibero ? def.fatorLibero ?? CONFIG.fatorLibero : 1, gkLibero(def)) * b.profundidade * (1 + CONFIG.gradeValores.papelDefesa.combativo * (def.costas || 0)); // o zagueiro que saiu para cobrir abre as costas
       c.chute = Math.max(f[A.fin], f[A.dri]) * 0.7 + f[A.dom] * 0.3; c.defesa = gk ? gk[A.um] : semGoleiro;
     } else if (tipo === "area") {
       c.finalizador = (sortearPeso(rng, area, o => o.w * o.jog.at[A.fin] * ehAlvo(o)) || { jog: pivo }).jog;
@@ -1861,7 +1888,7 @@ const __motor = (() => {
       c.xg = x.area * c.marcacao;
       c.chute = f[A.fin]; c.defesa = gk ? gk[A.ref] : semGoleiro;
     } else {
-      c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (forcado ? CONFIG.fatorChuteForcado : 1);
+      c.xg = x.longe * mod(pivo.at[A.lon], 25, k) * (CONFIG.grade && temPapel(def.goleiro, "goleirolibero") ? CONFIG.gradeValores.papelGoleiro.longe : 1) * (forcado ? CONFIG.fatorChuteForcado : 1);
       c.chute = pivo.at[A.lon]; c.defesa = gk ? media(gk[A.ref], gk[A.pos]) : semGoleiro;
     }
     // chute da área e do cruzamento rasteiro: parte sai com o pé ruim; a divisão devolve a média, então só quem tem o pé pior que a liga perde
@@ -2564,7 +2591,7 @@ const __motor = (() => {
         };
         // o que multiplica a nota da opção (a nota já é positiva; no valor, que pode ser negativo, o multiplicador trocaria de sentido)
         const OU = G.ousadia, dificil = o => o.conduzir ? o.tipo !== "lado" : o.espaco || o.entre || o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao";
-        const multDe = o => o.fim ? preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, false) : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
+        const multDe = o => o.fim ? preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, false) : (o.goleiro ? (G.goleiro.vontade + G.goleiro.pressao * P) * (temPapel(atk.goleiro, "goleiroarmador") ? G.papelGoleiro.recuo : 1) : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
           * (portador && dificil(o) ? 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25 : 1)
           * (o.conduzir && portador && portador.mancha && !portador.mancha.com[o.para] && (portador.papel || PAPEL_PADRAO[portador.pos]) === "fixo" ? G.conduzir.fora : 1) * (seg && o.tipo === "voltar" ? 1 + PV.vontade * seg : 1)
           * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, !!o.conduzir);
@@ -2614,7 +2641,7 @@ const __motor = (() => {
           if (!c.vazia && c.zagueiro && rng.chance(GC.cruzamento * GC.referencia / Math.max(5, c.zagueiro.at[A.pos]))) { recebe(c.criador); return golSemChute(i, c.zagueiro, "golcontra", `${cr} cruza da ${ld}, ${zg} tenta cortar e manda contra o próprio gol: GOL contra!`); }
           const n = c.vazia ? 0 : rng.int(0, 2);
           // o goleiro sai na bola alta: disputa no corpo com o atacante mais forte da área. Segura, soca para a segunda bola ou solta para o rebote
-          const SA = G.saidaAlto, sai = n === 1 && gk && c.rasteiro === false, forte = sai ? naArea(atk).reduce((m, o) => Math.max(m, o.jog.at[A.for]), 0) : 0;
+          const SA = G.saidaAlto, sai = n === 1 && gk && c.rasteiro === false && !(temPapel(gk, "goleirolibero") && rng.chance(G.papelGoleiro.liberoFica)), forte = sai ? naArea(atk).reduce((m, o) => Math.max(m, o.jog.at[A.for]), 0) : 0;
           const seguro = !sai || rng.chance(1 / (1 + Math.exp(-(SA.base + SA.forca * (gk.at[A.for] - forte) / 25)))), solta = !seguro && rng.chance(SA.solta * gk.at[A.exc] / 25);
           if (sai) eg.saidasAlto[seguro ? 0 : solta ? 2 : 1]++;
           const afasta = c.vazia || n === 0 || (n === 1 && !gk) || (sai && !seguro);

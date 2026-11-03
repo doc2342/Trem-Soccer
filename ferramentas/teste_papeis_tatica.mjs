@@ -9,14 +9,14 @@ import { IDX } from "../src/modelo.js";
 import { taticaDoDirigente, calcularPartida } from "../src/rodada.js";
 import { taticaBot, papeisDoBot } from "../src/bot.js";
 import { FORMACOES, escalar } from "../src/escalacao.js";
-import { PAPEIS_DESDE } from "../src/papeis.js";
+import { papeisDaPosicao, PAPEIS_DESDE } from "../src/papeis.js";
 import { papeisVisiveis } from "../src/amistoso.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const e1 = gerarElenco(criarRng(9), { nivel: 30, nomes, prefixoId: "a" }), e2 = gerarElenco(criarRng(19), { nivel: 30, nomes, prefixoId: "b" });
 const vagas = FORMACOES["4-2-3-1"], onze = escalar(e1, vagas);
 const dados = papeis => ({ vagas: onze.map(x => x.pos), jog: onze.map(x => x.j.id), ...(papeis ? { papeis } : {}) });
-const iDR = onze.findIndex(x => x.pos === "DR"), iMC = onze.findIndex(x => x.pos === "GK"); // posição sem papéis
+const iDR = onze.findIndex(x => x.pos === "DR"), iMC = onze.findIndex(x => x.pos === "DMC");
 const com = (i, p) => { const l = Array(11).fill(null); l[i] = p; return l; };
 
 // tática antiga, sem papéis: tudo nulo
@@ -40,7 +40,7 @@ assert.ok(jogar(0, apoiadores).lances[0].dados.escalacoes[0].titulares.every(t =
 const pj = jogar(1, apoiadores).papeis, idDR = onze[iDR].j.id;
 assert.ok(pj.some(x => x.id === idDR && x.papel === "apoiador"));
 assert.ok(jogar(1, dados()).papeis.some(x => x.id === idDR && x.papel === "padrao"), "o padrão também é gravado");
-assert.ok(!pj.some(x => x.id === onze[iMC].j.id), "posição sem papéis não grava");
+assert.ok(pj.every(x => { const o = onze.find(y => y.j.id === x.id); return !o || papeisDaPosicao(o.pos).length; }), "só grava posição com papéis"); // o rival também está na lista
 assert.deepStrictEqual(jogar(0, apoiadores).papeis, []);
 
 // bot: lateral que passa e cria muito e marca pouco vira Construtor ou Invertido

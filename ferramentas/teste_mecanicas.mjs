@@ -292,4 +292,20 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(c10 - c45 > s10 - s45, "a Comunicação do meio organiza a pressão");
 }
 
+// 17. Papéis do goleiro (fichas de 29/10): o Paredão é o padrão (nada muda); o Goleiro-líbero corta a bola em profundidade só com a linha alta e toma
+// mais gol de longe; o Goleiro-armador entra na saída de bola (mais passos com ele)
+{
+  const P4 = onze("4-2-3-1", 1), idg = P4.find(x => x.pos === "GK").j.id;
+  const mede = (papel, ia = {}) => { const a = P4.map(x => x.pos === "GK" ? { ...x, papel } : x), t = { prof: [0, 0], longe: [0, 0], passos: 0 };
+    for (let s = 1; s <= JOGOS; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a, instrucoes: ia }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+      for (const l of p.lances) if (l.time === 1) { const k = l.tipo === "profundidade" ? t.prof : l.tipo === "longe" ? t.longe : null; if (k) { k[0]++; k[1] += l.xg; } }
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && (r[4] === idg || r[5] === idg)) t.passos++; }
+    return { prof: t.prof[1] / t.prof[0], longe: t.longe[1] / t.longe[0], passos: t.passos }; };
+  const linha = { impedimento: true }, [pad, par, libL, padL, lib, arm] = [mede(null), mede("paredao"), mede("goleirolibero", linha), mede(null, linha), mede("goleirolibero"), mede("goleiroarmador")];
+  console.log(`17 goleiro: xG da bola em profundidade com a linha alta, padrão × Goleiro-líbero ${padL.prof.toFixed(3)} ${libL.prof.toFixed(3)}, sem a linha ${pad.prof.toFixed(3)} ${lib.prof.toFixed(3)}; xG de longe ${pad.longe.toFixed(3)} ${lib.longe.toFixed(3)}; passos com o goleiro, padrão × Armador ${pad.passos} ${arm.passos}`);
+  assert.deepStrictEqual(par, pad, "o Paredão é o goleiro de hoje");
+  assert.ok(libL.prof < padL.prof && lib.longe > pad.longe, "o Goleiro-líbero corta a profundidade com a linha alta e toma mais de longe");
+  assert.ok(arm.passos > pad.passos * 1.2, "o Goleiro-armador entra na saída de bola");
+}
+
 console.log("ok: mecânicas");

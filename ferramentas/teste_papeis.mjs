@@ -15,7 +15,7 @@ for (const [k, p] of Object.entries(PAPEIS)) {
   for (const [pos, m] of Object.entries(p.mapas || {})) { perto(soma(m.com), 1, `${k}@${pos} com`); perto(soma(m.sem), 1, `${k}@${pos} sem`); }
   assert.ok(p.nome && p.faz && p.custa, `textos de ${k}`);
 }
-assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
+assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", GK: "paredao", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
 assert.deepStrictEqual(papeisDaPosicao("DR"), ["fixo", "apoiador", "construtor", "invertido"]);
 assert.deepStrictEqual(papeisDaPosicao("DMC"), ["primeirovolante", "distribuidor", "boxtobox", "ladrao"]);
 assert.deepStrictEqual(papeisDaPosicao("DC"), ["xerife", "tecnico", "combativo", "libero"]);
@@ -150,3 +150,9 @@ for (const [pos, ks] of [["MC", ["MC1", "MC2d"]], ["AMC", ["AMC", "AMC2d"]]]) fo
 assert.ok(naFaixa(manchaDoPapel("AMC", "infiltrador", MANCHAS.AMC).com, "5") > naFaixa(MANCHAS.AMC.com, "5"), "o Infiltrador chega à área");
 assert.ok(naFaixa(manchaDoPapel("MC", "criador", MANCHAS.MC1).com, "4") > naFaixa(MANCHAS.MC1.com, "4"), "o Criador do MC sobe");
 console.log("teste_papeis: ok (com os meias)");
+
+// goleiros (passo 3): sem mancha; o padrão é o Paredão
+assert.deepStrictEqual(papeisDaPosicao("GK"), ["paredao", "goleirolibero", "goleiroarmador"]);
+assert.strictEqual(mapasDoPapel("GK", "goleiroarmador", true, true), null);
+assert.strictEqual(manchaDoPapel("GK", "goleiroarmador", MANCHAS.DC1), null);
+console.log("teste_papeis: ok (com os goleiros)");
