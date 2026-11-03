@@ -611,6 +611,7 @@ const __grade = (() => {
     organizador: { lado: 1.2, voltar: 1.15, pular: 0.7, virada: 0.85, diagonal: 0.95 },
     criador: { diagonal: 1.2, subir: 1.1, pular: 1.1, lado: 0.9, chutar: 1.15 },
     infiltrador: { subir: 1.2, conduzir: 1.1, finalizar: 1.2, lado: 0.85, voltar: 0.85 },
+    mezzala: { subir: 1.15, conduzir: 1.1, diagonal: 1.1, finalizar: 1.05, lado: 0.9, voltar: 0.85 },
     // goleiro: o Armador lança direto quando dá
     goleiroarmador: { pular: 1.2, lado: 1.1 },
   };
@@ -811,8 +812,14 @@ const __papeis = (() => {
       pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 },
       desloca: { DMC: { sem: { faixas: [[1, 2, 0.4], [2, 3, 0.2]] } }, MC: { sem: { faixas: [[3, 4, 0.25]] } } }, gasto: { DMC: 1.1, MC: 1.1 },
     },
-    // Meias (passo 3; fichas de 29/10). MC: Organizador (padrão), Criador, Box-to-box, Ladrão; AMC: Criador (padrão), Infiltrador, Organizador.
-    // O Mezzala (aprovado em 31/10) ainda não tem ficha: fica para o dono
+    // Meias (passo 3; fichas de 29/10). MC: Organizador (padrão), Criador, Box-to-box, Ladrão, Mezzala; AMC: Criador (padrão), Infiltrador, Organizador.
+    // Mezzala (aprovado em 31/10, ficha de 03/11): o meio-campista de fora que sobe pelo meio-espaço até a faixa 4. Separa-se do Box-to-box (central, de
+    // área a área e pressiona) e do Criador (passe entre as linhas)
+    mezzala: {
+      nome: "Mezzala", faz: "Sobe pelo meio-espaço até a faixa 4, ao lado do ponta, e chega à área por ali; conduz e tabela com o ponta.", custa: "Deixa o meio com um a menos na posse e, se o ponta não abrir, os dois se atrapalham no mesmo corredor.",
+      pesos: { dri: 14, pas: 13, vel: 12, dom: 11, fin: 10, cri: 10, res: 9, des: 7, pos: 6, lon: 5, equ: 3 },
+      desloca: { MC: { com: { faixas: [[3, 4, 0.6], [4, 5, 0.15]], meioEspaco: 0.5 } } }, gasto: { MC: 1.05 },
+    },
     organizador: {
       nome: "Organizador", faz: "Fica no centro do meio e a bola gira curta por ele; no AMC, recua para armar.", custa: "Perde bola contra pressão alta e quase não faz gol.",
       pesos: { pas: 18, cri: 13, pos: 12, dom: 11, des: 11, equ: 10, res: 8, lon: 6, dri: 4, vel: 4, com: 3 },
@@ -865,6 +872,11 @@ const __papeis = (() => {
       }
     }
     for (const [de, para, parte] of d.faixas || []) for (const z of Object.keys(r)) if (+z[0] === de) { const w = r[z] * parte; r[z] -= w; soma(para + z[1], w); }
+    // meioEspaco (Mezzala): nas faixas 3–4, a parte do centro que vai para o meio-espaço do lado dele (o lado vem da mancha; no centro sozinho, nada)
+    if (d.meioEspaco) {
+      const lado = (r["3d"] || 0) + (r["4d"] || 0) + (r["3D"] || 0) - (r["3e"] || 0) - (r["4e"] || 0) - (r["3E"] || 0);
+      if (Math.abs(lado) > 1e-9) for (const f of ["3", "4"]) if (r[f + "C"]) { const w = r[f + "C"] * d.meioEspaco; r[f + "C"] -= w; soma(f + (lado > 0 ? "d" : "e"), w); }
+    }
     for (const z in r) if (r[z] <= 1e-9) delete r[z];
     return r;
   }
@@ -881,7 +893,7 @@ const __papeis = (() => {
   const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
     SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
     DC: ["xerife", "tecnico", "combativo", "libero"], DMC: ["primeirovolante", "distribuidor", "boxtobox", "ladrao"],
-    GK: ["paredao", "goleirolibero", "goleiroarmador"], MC: ["organizador", "criador", "boxtobox", "ladrao"], AMC: ["criador", "infiltrador", "organizador"],
+    GK: ["paredao", "goleirolibero", "goleiroarmador"], MC: ["organizador", "criador", "boxtobox", "ladrao", "mezzala"], AMC: ["criador", "infiltrador", "organizador"],
     RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
   // posição do lado direito que serve de base para a do esquerdo
   const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };

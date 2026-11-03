@@ -140,15 +140,20 @@ assert.ok(naFaixa(manchaDoPapel("DMC", "ladrao", MANCHAS.DMC1).sem, "3") > naFai
 console.log("teste_papeis: ok (com os volantes)");
 
 // meias (passo 3): MC e AMC; os padrões ficam com a mancha de hoje
-assert.deepStrictEqual(papeisDaPosicao("MC"), ["organizador", "criador", "boxtobox", "ladrao"]);
+assert.deepStrictEqual(papeisDaPosicao("MC"), ["organizador", "criador", "boxtobox", "ladrao", "mezzala"]);
 assert.deepStrictEqual(papeisDaPosicao("AMC"), ["criador", "infiltrador", "organizador"]);
-for (const [pos, ks] of [["MC", ["MC1", "MC2d"]], ["AMC", ["AMC", "AMC2d"]]]) for (const k of ks) for (const p of papeisDaPosicao(pos)) {
+for (const [pos, ks] of [["MC", ["MC1", "MC2d", "MC3d"]], ["AMC", ["AMC", "AMC2d"]]]) for (const k of ks) for (const p of papeisDaPosicao(pos)) {
   const m = manchaDoPapel(pos, p, MANCHAS[k]);
   if (p === PAPEL_PADRAO[pos]) { assert.strictEqual(m, null); continue; }
   for (const f of ["com", "sem"]) perto(soma(m[f]), 1, `${p}@${pos} ${k} ${f}`);
 }
 assert.ok(naFaixa(manchaDoPapel("AMC", "infiltrador", MANCHAS.AMC).com, "5") > naFaixa(MANCHAS.AMC.com, "5"), "o Infiltrador chega à área");
 assert.ok(naFaixa(manchaDoPapel("MC", "criador", MANCHAS.MC1).com, "4") > naFaixa(MANCHAS.MC1.com, "4"), "o Criador do MC sobe");
+// o Mezzala sobe pelo meio-espaço do lado dele (no da direita e no espelho), não pelo centro; sem a bola, como o Organizador
+{ const mz = manchaDoPapel("MC", "mezzala", MANCHAS.MC2d).com, esq = manchaDoPapel("MC", "mezzala", { com: espelharGrade(MANCHAS.MC2d.com), sem: espelharGrade(MANCHAS.MC2d.sem) }).com;
+  assert.ok(mz["4d"] > MANCHAS.MC2d.com["4d"] && (mz["3C"] || 0) < MANCHAS.MC2d.com["3C"], "o Mezzala sobe pelo meio-espaço");
+  perto(esq["4e"], mz["4d"], "o Mezzala da esquerda é o espelho");
+  assert.deepStrictEqual(manchaDoPapel("MC", "mezzala", MANCHAS.MC2d).sem, MANCHAS.MC2d.sem); }
 console.log("teste_papeis: ok (com os meias)");
 
 // goleiros (passo 3): sem mancha; o padrão é o Paredão

@@ -263,23 +263,26 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
 }
 
 // 15. Papéis do meia (fichas de 29/10): no AMC, o Criador é o padrão; o Infiltrador chega à área e chuta mais; o Organizador recua para armar. No MC, o
-// Organizador é o padrão; o Criador sobe para receber entre as linhas; o Ladrão faz mais falta
+// Organizador é o padrão; o Criador sobe para receber entre as linhas; o Ladrão faz mais falta; o Mezzala sobe pelo meio-espaço até a faixa 4 e chega mais
+// à área que o Box-to-box, que sobe pelo corredor dele
 {
   const P4 = onze("4-2-3-1", 1), P3 = onze("4-3-3 com pontas", 1);
-  const mede = (l, pos, papel) => { const a = l.map(x => x.pos === pos ? { ...x, papel } : x), ids = new Set(a.filter(x => x.pos === pos).map(x => x.j.id)), t = { chutes: 0, f4: 0, f3: 0, faltas: 0 };
+  const mede = (l, pos, papel) => { const a = l.map(x => x.pos === pos ? { ...x, papel } : x), ids = new Set(a.filter(x => x.pos === pos).map(x => x.j.id)), t = { chutes: 0, f4: 0, f3: 0, faltas: 0, me4: 0, c4: 0 };
     for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
       for (const id of ids) { t.chutes += p.jogadores[id].finalizacoes || 0; t.faltas += p.jogadores[id].faltas || 0; }
-      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[6] && ids.has(r[5])) { if (r[2][0] === "4") t.f4++; if (r[2][0] === "3") t.f3++; } }
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[6] && ids.has(r[5])) { if (r[2][0] === "4") { t.f4++; if (!r[7] && "ed".includes(r[2][1])) t.me4++; else if (!r[7] && r[2][1] === "C") t.c4++; } if (r[2][0] === "3") t.f3++; } }
     return t; };
   const [amc, cri, inf, org] = [null, "criador", "infiltrador", "organizador"].map(p => mede(P4, "AMC", p));
-  const [mc, org2, cri2, lad] = [null, "organizador", "criador", "ladrao"].map(p => mede(P3, "MC", p));
-  console.log(`15 meia no AMC (padrão/Infiltrador/Organizador): chutes ${amc.chutes} ${inf.chutes} ${org.chutes}; recebe na faixa 3 ${amc.f3} ${org.f3}; no MC (padrão/Criador/Ladrão): recebe na faixa 4 ${mc.f4} ${cri2.f4}; faltas ${mc.faltas} ${lad.faltas}`);
+  const [mc, org2, cri2, lad, box, mez] = [null, "organizador", "criador", "ladrao", "boxtobox", "mezzala"].map(p => mede(P3, "MC", p));
+  console.log(`15 meia no AMC (padrão/Infiltrador/Organizador): chutes ${amc.chutes} ${inf.chutes} ${org.chutes}; recebe na faixa 3 ${amc.f3} ${org.f3}; no MC (padrão/Criador/Ladrão): recebe na faixa 4 ${mc.f4} ${cri2.f4}; faltas ${mc.faltas} ${lad.faltas}; (padrão/Box/Mezzala) passes recebidos no meio-espaço da faixa 4 ${mc.me4} ${box.me4} ${mez.me4}, no 4C ${mc.c4} ${box.c4} ${mez.c4}; chutes ${mc.chutes} ${box.chutes} ${mez.chutes}`);
   assert.deepStrictEqual(cri, amc, "o Criador é o meia de hoje");
   assert.deepStrictEqual(org2, mc, "o Organizador é o meio-campista de hoje");
   assert.ok(inf.chutes > amc.chutes, "o Infiltrador chega à área e chuta");
   assert.ok(org.f3 > amc.f3 && org.chutes < amc.chutes, "o Organizador recua para armar");
   assert.ok(cri2.f4 > mc.f4, "o Criador do MC sobe para receber entre as linhas");
   assert.ok(lad.faltas > mc.faltas, "o Ladrão faz mais falta");
+  assert.ok(mez.me4 > box.me4 && box.me4 > mc.me4 && mez.me4 / mez.f4 > box.me4 / box.f4, "o Mezzala sobe pelo meio-espaço; o Box-to-box, pelo corredor dele");
+  assert.ok(mez.chutes > mc.chutes, "o Mezzala chega à área");
 }
 
 // 16. Regras do meio (aprovadas em 29/10, valem para todos na T1): o MC de fora no meio de três ganha o lado; a Comunicação de quem marca no meio organiza
