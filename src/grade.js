@@ -146,7 +146,7 @@ const DOADORES = Object.fromEntries(ZONAS_GRADE.map(z => { const f = faixaDe(z),
 // as contas rodam em vetores pela posição da zona em ZONAS_GRADE (5 × (faixa − 1) + coluna; o espelho é 24 − posição): o motor refaz as 6 arrumações
 // a cada recálculo, e a chave de texto custava caro
 const DOADORES_I = ZONAS_GRADE.map(z => DOADORES[z].map(y => ZONAS_GRADE.indexOf(y)));
-export function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
+export function defesaVista({ atk, def, posicionamento, corredorDaBola, V, comLinha = 25 }) {
   const dz = new Float64Array(25), pos = new Float64Array(25), at = new Float64Array(25), Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
   ZONAS_GRADE.forEach((z, i) => { const e = ZONAS_GRADE[24 - i]; dz[i] = def[e] || 0; pos[i] = (posicionamento && posicionamento[e]) || 0; at[i] = atk[z] || 0; });
   const ameaca = i => Math.min(1, (at[i] + Z) / (dz[i] + Z));
@@ -184,9 +184,11 @@ export function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
         const v = Math.min(falta, V.emprestimo * (dz[y] - at[y]) * limitar(pos[y] / 25, 0.6, 1.3));
         if (v <= 0) continue;
         dz[y] -= v; dz[i] += v; emprestou[y] = 1; pegou[i] = 1;
-        // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
-        if (y === 22) buracos.profundidade = 1 + V.buracoZaga;
-        if (y >= 15 && (y % 5 === 0 || y % 5 === 4)) buracos.cruzamento = 1 + V.buracoLateral;
+        // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento.
+        // A linha que se fala (Comunicação de quem fica na faixa 1) fecha parte do buraco
+        const fecha = limitar(1 - V.comunica.buraco * (comLinha - 25) / 25, 0, 2);
+        if (y === 22) buracos.profundidade = 1 + V.buracoZaga * fecha;
+        if (y >= 15 && (y % 5 === 0 || y % 5 === 4)) buracos.cruzamento = 1 + V.buracoLateral * fecha;
       }
     }
   }
@@ -199,8 +201,8 @@ export function defesaComAtraso(arrumacoes, corredorAntes, corredorAgora, rapide
   const a = arrumacoes[corredorAntes].dz, b = arrumacoes[corredorAgora].dz;
   return Object.fromEntries(Object.keys(b).map(z => [z, rapidez * b[z] + (1 - rapidez) * a[z]]));
 }
-// pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende
-export function rapidezBasculacao(pos, equ, V) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2) / 25, 0.2, 1); }
+// pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende; com: a Comunicação de quem está perto (na média, 25, não muda nada)
+export function rapidezBasculacao(pos, equ, V, com = 25) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2 + V.comunica.basculacao * (com - 25)) / 25, 0.2, 1); }
 
 // Ganhar com folga arrasta o cobridor (spec 9.1): girar na zona 14 tira o zagueiro (bola em profundidade); bater o lateral no lado das faixas 4–5
 // puxa o zagueiro para fora e enfraquece o meio-espaço vizinho na faixa seguinte (na faixa 5, na mesma)

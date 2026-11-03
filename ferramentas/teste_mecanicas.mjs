@@ -6,8 +6,9 @@ import { readFileSync } from "node:fs";
 import { criarRng } from "../src/rng.js";
 import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
-import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
+import { defesaVistaNaGrade, prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 import { IDX } from "../src/modelo.js";
+import { colunaDe } from "../src/grade.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const G = CONFIG.gradeValores, JOGOS = 200;
@@ -66,6 +67,34 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   const [ruim, bom] = [10, 45].map(v => { const t = conta("4-2-3-1", "4-4-2", ["mov"], v); return t.g / t.n; });
   console.log(`4 entrelinhas certas com Movimentação 10/45: ${ruim.toFixed(3)} ${bom.toFixed(3)}`);
   assert.ok(bom > ruim, "quem se movimenta melhor se solta do marcador");
+}
+
+// 5. Comunicação: organiza quem está perto (basculação por faixa e cobertura na zona), sem blindar a defesa
+{
+  const CM = G.comunica, DEF = ["DC", "DR", "DL", "DMC", "MC"], soDe = (l, ps, v) => l.map(x => ps.includes(x.pos) ? comAtr([x], ["com"], v)[0] : x);
+  const atrasV = onze("4-4-2", 2), v = (l, f) => defesaVistaNaGrade(A, l).rapidezF[f];
+  const c10 = comAtr(atrasV, ["com"], 10), c45 = comAtr(atrasV, ["com"], 45);
+  // alcance: a zaga muda a rapidez da faixa 5 de quem ataca, não a da faixa 1; o atacante, o contrário
+  const zaga = soDe(atrasV, ["DC"], 45), frente = soDe(atrasV, ["SC"], 45);
+  console.log(`5 rapidez na faixa 5 com 10/45: ${v(c10, 4).toFixed(3)} ${v(c45, 4).toFixed(3)}; só a zaga 45: faixas 5 e 1 ${v(zaga, 4).toFixed(3)} ${v(zaga, 0).toFixed(3)}; só o ataque 45: ${v(frente, 4).toFixed(3)} ${v(frente, 0).toFixed(3)} (base ${v(atrasV, 4).toFixed(3)} ${v(atrasV, 0).toFixed(3)})`);
+  assert.ok(v(c45, 4) > v(c10, 4) && v(c45, 4) <= 1 && v(c10, 4) >= 0.2);
+  assert.ok(v(zaga, 4) > v(atrasV, 4) && v(zaga, 0) === v(atrasV, 0), "a zaga organiza a zaga");
+  assert.ok(v(frente, 4) === v(atrasV, 4) && v(frente, 0) > v(atrasV, 0), "o atacante não organiza a zaga");
+  const volume = {}, furos = {}, passos = (b, filtro, ib = {}) => { let n = 0, g = 0; for (let s = 1; s <= 150; s++) { const reg = []; simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: A }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }), { registro: reg }); for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && filtro(r)) { n++; g += r[6] ? 1 : 0; } } assert.ok(n > 100, `poucos passos: ${n}`); volume[b === c10 ? 10 : 45] = n; furos[b === c10 ? 10 : 45] = g; return g / n; };
+  const trocou = r => Math.abs(colunaDe(r[1]) - colunaDe(r[2])) >= 2, naFrente = r => "45".includes(r[2][0]) && trocou(r), virou = r => ["virada", "inversao"].includes(r[3]);
+  // A e B: a linha sob pressão, no passe que troca de corredor perto da área; D: a bola muda de corredor
+  const [ab10, ab45] = semFoto(() => [c10, c45].map(l => passos(l, naFrente, { pressao: 2 }))); const furou = { ...furos };
+  const [d10, d45] = semFoto(() => [c10, c45].map(l => passos(l, virou))), vol = { ...volume };
+  // C: o defensor sai para cobrir e abre um buraco; a linha que se fala fecha parte dele. Mede o buraco nas arrumações e o xG da bola nas costas e do cruzamento
+  const P3 = onze("4-3-3 com pontas", 1), buraco = l => { const d = defesaVistaNaGrade(P3, l); return Math.max(...["E", "e", "C", "d", "D"].flatMap(c => [d[c].buracos.profundidade, d[c].buracos.cruzamento])); };
+  const cruzados = l => { let n = 0; for (let s = 1; s <= 150; s++) n += simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: P3 }), prepararTime({ nome: "B", escalacao: l })).estat[0].grade.cruzamentos[0]; assert.ok(n > 50, "poucos cruzamentos"); return n; };
+  const [b10, b45, x10, x45] = [buraco(c10), buraco(c45), cruzados(c10), cruzados(c45)];
+  console.log(`5 acerto do rival: linha sob pressão com 10/45 ${ab10.toFixed(3)} ${ab45.toFixed(3)}, passes que furam ${furou[10]} ${furou[45]}; virada e inversão ${d10.toFixed(3)} ${d45.toFixed(3)} (${vol[10]} e ${vol[45]} tentadas); buraco com 10/45 ${b10.toFixed(3)} ${b45.toFixed(3)}, cruzamentos ${x10} ${x45}`);
+  assert.ok(furou[45] < furou[10], "a linha sob pressão se organiza: menos passes a furam");
+  assert.ok(d45 < d10 && vol[45] < vol[10], "a linha se reorganiza na troca de corredor: o rival acerta menos e tenta menos");
+  assert.ok(b45 < b10 && b45 > 1, "a linha que se fala fecha parte do buraco, não todo");
+  assert.ok(x45 <= x10, "o buraco menor rende menos cruzamento");
+  assert.ok(ab45 > 0.5, "sem bloco perfeito");
 }
 
 console.log("ok: mecânicas");

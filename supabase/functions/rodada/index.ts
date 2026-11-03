@@ -437,7 +437,7 @@ const __grade = (() => {
   // as contas rodam em vetores pela posição da zona em ZONAS_GRADE (5 × (faixa − 1) + coluna; o espelho é 24 − posição): o motor refaz as 6 arrumações
   // a cada recálculo, e a chave de texto custava caro
   const DOADORES_I = ZONAS_GRADE.map(z => DOADORES[z].map(y => ZONAS_GRADE.indexOf(y)));
-  function defesaVista({ atk, def, posicionamento, corredorDaBola, V }) {
+  function defesaVista({ atk, def, posicionamento, corredorDaBola, V, comLinha = 25 }) {
     const dz = new Float64Array(25), pos = new Float64Array(25), at = new Float64Array(25), Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
     ZONAS_GRADE.forEach((z, i) => { const e = ZONAS_GRADE[24 - i]; dz[i] = def[e] || 0; pos[i] = (posicionamento && posicionamento[e]) || 0; at[i] = atk[z] || 0; });
     const ameaca = i => Math.min(1, (at[i] + Z) / (dz[i] + Z));
@@ -475,9 +475,11 @@ const __grade = (() => {
           const v = Math.min(falta, V.emprestimo * (dz[y] - at[y]) * limitar(pos[y] / 25, 0.6, 1.3));
           if (v <= 0) continue;
           dz[y] -= v; dz[i] += v; emprestou[y] = 1; pegou[i] = 1;
-          // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento
-          if (y === 22) buracos.profundidade = 1 + V.buracoZaga;
-          if (y >= 15 && (y % 5 === 0 || y % 5 === 4)) buracos.cruzamento = 1 + V.buracoLateral;
+          // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento.
+          // A linha que se fala (Comunicação de quem fica na faixa 1) fecha parte do buraco
+          const fecha = limitar(1 - V.comunica.buraco * (comLinha - 25) / 25, 0, 2);
+          if (y === 22) buracos.profundidade = 1 + V.buracoZaga * fecha;
+          if (y >= 15 && (y % 5 === 0 || y % 5 === 4)) buracos.cruzamento = 1 + V.buracoLateral * fecha;
         }
       }
     }
@@ -490,8 +492,8 @@ const __grade = (() => {
     const a = arrumacoes[corredorAntes].dz, b = arrumacoes[corredorAgora].dz;
     return Object.fromEntries(Object.keys(b).map(z => [z, rapidez * b[z] + (1 - rapidez) * a[z]]));
   }
-  // pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende
-  function rapidezBasculacao(pos, equ, V) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2) / 25, 0.2, 1); }
+  // pos, equ: Posicionamento e Trabalho em equipe médios da linha de quem defende; com: a Comunicação de quem está perto (na média, 25, não muda nada)
+  function rapidezBasculacao(pos, equ, V, com = 25) { return limitar(V.basculacaoRapidez * ((pos + equ) / 2 + V.comunica.basculacao * (com - 25)) / 25, 0.2, 1); }
 
   // Ganhar com folga arrasta o cobridor (spec 9.1): girar na zona 14 tira o zagueiro (bola em profundidade); bater o lateral no lado das faixas 4–5
   // puxa o zagueiro para fora e enfraquece o meio-espaço vizinho na faixa seguinte (na faixa 5, na mesma)
@@ -1102,7 +1104,7 @@ const __motor = (() => {
       lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
       passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
       vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
-      basculacaoRapidez: 0.5, arrasto: { folga: 0.85, lado: 0.2 },
+      basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5 }, arrasto: { folga: 0.85, lado: 0.2 },
       dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -1.7, virada: -2.6, inversao: -0.6,
         paraDentro: -0.2, pertoDoGol: -0.3 },
       valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
@@ -1492,14 +1494,17 @@ const __motor = (() => {
         const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0);
         return [z, w ? q.reduce((s, o) => s + o.w * (o.jog.at[A.pos] + CONFIG.gradeValores.foto.cobre * (decisao(o.jog.at) - 25)), 0) / w : 0]; // a cobertura é Posicionamento e a hora de sair (Decisões)
       }));
-      const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores });
+      const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores, comLinha: def.comDefesa });
       const r = Object.fromEntries(CORREDORES.map(c => [c, vista(def.defLado[CORREDORES[4 - colunaDe("1" + c)]], c)]));
       // a da transição só no contra-ataque, montada na primeira vez; as defesas também em vetores pela posição da zona (a jogada avalia ~25 opções por passo)
       let T = null;
       Object.defineProperty(r, "T", { get: () => T || (T = vista(def.defTransicao, "C")), enumerable: true });
       r.vetor = { col: CORREDORES.map(c => r[c].vetor), get T() { return r.T.vetor; } };
       const linha = def.emCampo.filter(x => x.pos !== "GK"), n = linha.length || 1;
-      r.rapidez = rapidezBasculacao(linha.reduce((s, x) => s + x.at[A.pos], 0) / n, linha.reduce((s, x) => s + x.at[A.equ], 0) / n, CONFIG.gradeValores);
+      const mPos = linha.reduce((s, x) => s + x.at[A.pos], 0) / n, mEqu = linha.reduce((s, x) => s + x.at[A.equ], 0) / n;
+      r.rapidez = rapidezBasculacao(mPos, mEqu, CONFIG.gradeValores);
+      // por faixa de quem ataca: a Comunicação só de quem defende naquela faixa e nas vizinhas (o atacante não organiza a zaga)
+      r.rapidezF = [0, 1, 2, 3, 4].map(b => { let c = 0, w = 0; for (const z of ZONAS_GRADE) if (Math.abs(faixaDe(z) - (5 - b)) <= 1) for (const o of def.zonasDef[z]) { c += o.w * o.jog.at[A.com]; w += o.w; } return rapidezBasculacao(mPos, mEqu, CONFIG.gradeValores, w ? c / w : 25); });
       return r;
     }
     const C = montarDefesa(atk, def), por = l => def.defLado && def.defLado[ESPELHO_LADO[l]] !== def.def ? montarDefesa(atk, def, def.defLado[ESPELHO_LADO[l]]) : C;
@@ -2218,10 +2223,10 @@ const __motor = (() => {
         // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)
         const PESO = new Float64Array(25), AT = new Float64Array(25), OPC = {}; // OPC: as opções de cada zona neste ataque
         ZONAS_GRADE.forEach((z, k) => { AT[k] = atk.atk[z] + Zv; for (const o of atk.zonas[z]) PESO[k] += o.w; });
-        const BASE = [G.baseDuelo.D, G.baseDuelo.M, G.baseDuelo.M, G.baseDuelo.A, G.baseDuelo.A], trans = naTransicao(i, contra), V = D.vetor, rap = D.rapidez;
+        const BASE = [G.baseDuelo.D, G.baseDuelo.M, G.baseDuelo.M, G.baseDuelo.A, G.baseDuelo.A], trans = naTransicao(i, contra), V = D.vetor, RAP = D.rapidezF;
         // a defesa bascula com um passo de atraso (A4): a arrumação do corredor onde a bola está misturada com a do destino; o arrasto (A5) só no passo seguinte
         let atual = inicio, ka = 0, fraca = null, kFraca = -1, imp = { logit: 0, prende: false }, certos = 0, conduz = 0, livre = !!(contra && contra.livre);
-        const defesaNo = k => (trans ? V.T[k] : rap * V.col[k % 5][k] + (1 - rap) * V.col[ka % 5][k]) * (k === kFraca ? fraca.fator : 1);
+        const defesaNo = k => { const rap = RAP[(k / 5) | 0]; return (trans ? V.T[k] : rap * V.col[k % 5][k] + (1 - rap) * V.col[ka % 5][k]) * (k === kFraca ? fraca.fator : 1); };
         // começo: a zona do recomeço, ou a linha antiga (D faixa 1; M, o meio e o contra-ataque, faixa 2; A, a roubada no ataque, faixa 4) no corredor mais forte
         if (!ehGrade(atual)) {
           const f = { D: 1, M: 2, A: 4 }[inicio], pref = atk.instr.lado;
@@ -2249,6 +2254,8 @@ const __motor = (() => {
           if (o.tipo === "voltar") l -= G.pressaoNaVolta * P * (c > 0 && c < 4 && PESO[k - 1] >= G.dividir && PESO[k + 1] >= G.dividir ? 0.5 : 1);
           if (armadilha && (c === 0 || c === 4)) l -= G.armadilhaLado * P;
           for (let x = ka - ka % 5 + 5 + c; x < k; x += 5) l -= G.atravessa * Math.log(1 + defesaNo(x) / Zv); // as faixas atravessadas, no corredor do destino
+          // o passe que muda de corredor pega a defesa se reorganizando: a linha rápida (basculação, Comunicação de quem está ali) chega a tempo, a lenta cede o passe
+          const dc = Math.abs(c - ka % 5); if (dc >= 2 && !trans) l += G.comunica.troca * dc / 4 * (G.comunica.neutro - RAP[(k / 5) | 0]);
           if (o.conduzir) l += conduz;
           if (livre && (c === 1 || c === 3)) l += G.impulso.deFrente; // contra a linha alta, o 1º passo do contra para o meio-espaço sai livre
           if (th) l += terceiro(o, k, c);
