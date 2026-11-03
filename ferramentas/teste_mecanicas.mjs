@@ -28,6 +28,12 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   const [r, m, b] = [10, 25, 45].map(parcela);
   console.log(`1 lançamento: parcela pelo alto com Passe longo 10/25/45: ${r.toFixed(3)} ${m.toFixed(3)} ${b.toFixed(3)}`);
   assert.ok(r > m && m > b, "lançador bom vai menos para a disputa");
+  // o alvo da bola alta nunca é quem lança; quem disputa, pela Força e pelo Posicionamento (a bola no chão pode seguir com ele, "segue com a bola")
+  let alvos = 0; partidas(A, B, { passe: "longo" }, {}, p => { for (const l of p.lances) for (const x of l.rota || []) if (x[2] === "pular" && "5".includes(x[1][0]) && "eCd".includes(x[1][1])) { alvos++; assert.notStrictEqual(x[3], x[4], "lançou para si mesmo"); } });
+  assert.ok(alvos > 0, "nenhuma bola alta");
+  const aereo = v => { const a = comAtr(A, ["for", "pos"], v); let n = 0, g = 0; partidas(a, B, { passe: "longo" }, {}, p => { const e = p.estat[0].grade; n += e.aereos[0]; g += e.aereos[1]; }); return g / n; }, [a10, a45] = [aereo(10), aereo(45)];
+  console.log(`1 duelo aéreo ganho com Força e Posicionamento 10/45: ${a10.toFixed(3)} ${a45.toFixed(3)}`);
+  assert.ok(a45 > a10, "quem disputa bem ganha pelo alto");
 }
 
 // 2. Agressividade: no duelo apertado, ganha quem briga mais. O ganho é medido contra a regra desligada (a Agressividade também pesa na falta e na marcação)
@@ -36,6 +42,9 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   const [r, m, b] = [10, 25, 45].map(efeito);
   console.log(`2 agressividade: acerto do rival pela regra com 10/25/45: ${r.toFixed(4)} ${m.toFixed(4)} ${b.toFixed(4)}`);
   assert.ok(r > m && m > b && r > 0 && b < 0, "marcador agressivo ganha o duelo apertado");
+  const faltas = v => { const b = comAtr(B, ["agr"], v); let n = 0; partidas(A, b, {}, {}, p => { n += p.estat[1].faltas; }); return n / JOGOS; }, [f10, f45] = [faltas(10), faltas(45)];
+  console.log(`2 faltas cometidas por jogo com 10/45: ${f10.toFixed(1)} ${f45.toFixed(1)}`);
+  assert.ok(f45 > f10, "a intensidade custa falta");
 }
 
 // 3. Pressão: rende pelos atributos de quem pressiona; a instrução segue valendo e, sem pressão, a regra não muda nada
