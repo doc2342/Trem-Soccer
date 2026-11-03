@@ -248,12 +248,15 @@ export const CONFIG = {
   //   roubou não sai no contra se a melhor chance de ganhar um passo para a frente (contra a defesa pega na transição) fica abaixo disto (o
   //   mau decisor às vezes sai mesmo assim); pressionarMeio: peso da vizinha de meio-espaço ocupada na retomada de quem pressiona ao perder
   //   (a zona da perda 1, cada vizinha metade); impedimento: a armadilha × (base + pressao × pressão de quem defende), e o furou ÷ isso
+  //   saidaAlto (Força do goleiro, dono 29/10): o goleiro que sai na bola alta disputa no corpo com o atacante mais forte da área: segura com logit base + forca ×
+  //   (Força dele − a do atacante) / 25; senão soca (segunda bola na zona 14) ou, com chance solta × Excentricidade / 25, solta (rebote). contato: Força na disputa
+  //   do cruzamento alto; escanteio: − na chance do cabeceio por (Força − referencia) / 25. referencia: a Força média dos goleiros
   grade: false,
   gradeValores: {
     lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
     passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
     vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
-    basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5 }, arrasto: { folga: 0.85, lado: 0.2 },
+    saidaAlto: { base: 1, forca: 1.5, solta: 0.1, contato: 0.3, escanteio: 0.2, referencia: 19 }, basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5 }, arrasto: { folga: 0.85, lado: 0.2 },
     dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -1.7, virada: -2.6, inversao: -0.6,
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
@@ -731,7 +734,7 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
       const alta = def.instr.impedimento || def.instr.mentalidade > 0;
       const nos = area.reduce((s, o) => s + o.w * (o.jog.at[A.mov] + (c.rasteiro ? o.jog.at[A.vel] : o.jog.at[A.for])), 0) / 2; // quem ataca a bola: a Movimentação; quem defende: o Posicionamento
       const eles = ((naZaga(def).reduce((s, o) => s + o.w * ganha(o.jog), 0) + CZ.ladoFraco * fraco.reduce((s, o) => s + o.w * ganha(o.jog), 0)) / 2
-        * (alta ? CZ.linhaAlta : 1) * (!f5 && (contra || alta) ? CZ.virada : 1) + (gk ? CZ.goleiro * media(gk[A.enc], gk[A.um]) : 0));
+        * (alta ? CZ.linhaAlta : 1) * (!f5 && (contra || alta) ? CZ.virada : 1) + (gk ? CZ.goleiro * (media(gk[A.enc], gk[A.um]) + (c.rasteiro ? 0 : CONFIG.gradeValores.saidaAlto.contato * (gk[A.for] - CONFIG.gradeValores.saidaAlto.referencia))) : 0));
       c.vazia = !area.length;
       const pf = pivo.j.pf, trocado = f5 && pf != null && (pivo.j.pe === "E" || pivo.j.pe === "D") && pivo.j.pe !== lado; // da linha de fundo, sem tempo de ajeitar
       const l = CZ.base + CZ.cruzador * (pivo.at[A.cru] - 25) / 25 + CZ.inclinacao * Math.log((nos + CZ.vazio) / (eles + CZ.vazio)) - (forcado ? CZ.afobado : 0)
@@ -883,7 +886,7 @@ const novaEstatistica = () => ({
   // na grade: passos [tentados, certos] por tipo, conduções, ataques com 10 passos certos ou mais, passos certos de cada ataque e dos que terminaram em gol
   // toquesArea: passos certos na faixa 5; cutbacks: [tentados, no gol]; cruzamentos: [tentados, certos]
   ...(CONFIG.grade ? { grade: { passos: {}, conducoes: [0, 0], posses10: 0, passosPorAtaque: [], passosNoGol: [], toquesArea: 0, cutbacks: [0, 0], cruzamentos: [0, 0],
-    aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0], espaco: [0, 0], entrelinhas: [0, 0], tiros: [0, 0, 0], maos: [0, 0], rebotes: [0, 0], golsContra: 0, olimpicos: 0,
+    aereos: [0, 0], segundas: [0, 0], longas: [0, 0], sobras: [0, 0], tabelas: [0, 0], terceiros: [0, 0], espaco: [0, 0], entrelinhas: [0, 0], tiros: [0, 0, 0], maos: [0, 0], rebotes: [0, 0], saidasAlto: [0, 0, 0], golsContra: 0, olimpicos: 0,
     perdasAtras: 0, perdasAtrasChute: 0, reciclagens: 0, contraInicio: {}, contraPorCorredor: { E: 0, e: 0, C: 0, d: 0, D: 0 } } } : {}),
 });
 
@@ -1270,7 +1273,8 @@ function jogarPartida(rng, casa, fora, opcoes) {
     const atk = times[i], def = times[1 - i], k = CONFIG.inclinacaoXg;
     // contra-ataque do escanteio (R5, regras da T1): quem joga no contra-ataque deixa o mais adiantado lá na frente
     const R5 = CONFIG.escanteioContra, frente = R5 && tipo === "escanteio" && def.instr.contraAtaque && def.naFrente && def.emCampo.includes(def.naFrente) ? def.naFrente : null;
-    if (!rng.chance(CONFIG.cabecadaEscanteio)) {
+    const SA = CONFIG.gradeValores.saidaAlto, cabeca = CONFIG.grade && def.goleiro ? limitar(1 - SA.escanteio * (def.goleiro.at[A.for] - SA.referencia) / 25, 0.7, 1.3) : 1; // o goleiro forte manda na pequena área
+    if (!rng.chance(CONFIG.cabecadaEscanteio * cabeca)) {
       if (CONFIG.grade && tipo === "escanteio") { // a zaga desvia para o próprio gol (bola no meio de todo mundo)
         const GC = CONFIG.gradeValores.golContra, zg = sortearPeso(rng, def.emCampo.filter(x => x.pos !== "GK"), x => x.at[A.cab] + x.at[A.mar]);
         if (zg && rng.chance(GC.escanteio * GC.referencia / Math.max(5, zg.at[A.pos]))) return golSemChute(i, zg, "golcontra", `${nm(quem)} cobra o escanteio e ${nm(zg)} desvia contra o próprio gol: GOL contra!`);
@@ -1527,13 +1531,20 @@ function jogarPartida(rng, casa, fora, opcoes) {
         if (!c.vazia && rng.chance(CONFIG.gradeValores.chance.cruzamento.escanteio)) { recebe(c.criador); evento(1 - i, "canto", comTrilha(`${cr} cruza da ${ld}, ${zg} corta e cede o escanteio.`)); return bolaParada(i, "escanteio", c.lado); }
         const GC = G.golContra;
         if (!c.vazia && c.zagueiro && rng.chance(GC.cruzamento * GC.referencia / Math.max(5, c.zagueiro.at[A.pos]))) { recebe(c.criador); return golSemChute(i, c.zagueiro, "golcontra", `${cr} cruza da ${ld}, ${zg} tenta cortar e manda contra o próprio gol: GOL contra!`); }
-        const n = c.vazia ? 0 : rng.int(0, 2), afasta = c.vazia || n === 0 || (n === 1 && !gk);
-        const fim = c.vazia ? "mas não tem ninguém na área e a zaga afasta" : [`e ${zg} afasta`, gk ? `e ${nm(gk)} sai para ficar com a bola` : `e ${zg} afasta`, "e a bola passa por todo mundo"][n];
+        const n = c.vazia ? 0 : rng.int(0, 2);
+        // o goleiro sai na bola alta: disputa no corpo com o atacante mais forte da área. Segura, soca para a segunda bola ou solta para o rebote
+        const SA = G.saidaAlto, sai = n === 1 && gk && c.rasteiro === false, forte = sai ? naArea(atk).reduce((m, o) => Math.max(m, o.jog.at[A.for]), 0) : 0;
+        const seguro = !sai || rng.chance(1 / (1 + Math.exp(-(SA.base + SA.forca * (gk.at[A.for] - forte) / 25)))), solta = !seguro && rng.chance(SA.solta * gk.at[A.exc] / 25);
+        if (sai) eg.saidasAlto[seguro ? 0 : solta ? 2 : 1]++;
+        const afasta = c.vazia || n === 0 || (n === 1 && !gk) || (sai && !seguro);
+        const fim = c.vazia ? "mas não tem ninguém na área e a zaga afasta" : solta ? `e ${nm(gk)} sai, leva o tranco na disputa e solta a bola` : sai && !seguro ? `e ${nm(gk)} sai no meio da disputa e soca para longe`
+          : [`e ${zg} afasta`, gk ? `e ${nm(gk)} sai para ficar com a bola` : `e ${zg} afasta`, "e a bola passa por todo mundo"][n];
         const texto = `${cr} ${temPapel(c.criador, "apoiador") ? (c.antecipado ? "sobe pela lateral e " : "chega ao fundo e ") : ""}${c.antecipado ? "cruza cedo" : "cruza"} da ${ld}, ${fim}`;
+        if (solta) { trilha.push([texto]); if (rebote(i, c, false)) return; }
         const p = afasta ? sobra("4C", c.zagueiro ? false : null, c.zagueiro ? 1 + G.aereo.direcao * c.zagueiro.at[A.cab] / 25 : 1, eg.sobras) : null;
         if (p) { trilha.push(Object.assign([texto, `a sobra fica com ${nm(p)} ${naZona("4C")}`], { de: cr })); return { zona: "4C", jog: p }; }
         recebe(c.criador); evento(1 - i, "posse", comTrilha(`${texto}.`));
-        if (n === 1 && gk) reposicao(1 - i, "maos");
+        if (n === 1 && gk && seguro) reposicao(1 - i, "maos");
       }
       // Bola longa (spec 7.7): 1º toque, duelo aéreo pelo pacote aéreo (Posicionamento + Força; o Passe longo de quem lança ajuda o nosso); 2º toque,
       // a segunda bola na faixa 4 do mesmo corredor (a ajeitada ou o rebote, na frente da área). Devolve { zona, jog, cabeceou } se a jogada segue

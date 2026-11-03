@@ -97,4 +97,20 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(ab45 > 0.5, "sem bloco perfeito");
 }
 
+// 6. Força do goleiro: vale só no contato (bola alta, escanteio), não no chute. Só o goleiro muda
+{
+  const goleiro = (l, v) => l.map(x => x.pos === "GK" ? { ...x, j: { ...x.j, at: x.j.at.map((n, k) => k === IDX.for ? v : n) } } : x);
+  const P3 = onze("4-3-3 com pontas", 1);
+  const mede = v => { const b = goleiro(B, v), t = { saidas: [0, 0, 0], cab: 0, escanteios: 0, chutes: 0, gols: 0 };
+    partidas(P3, b, { cruzamento: "alto", lado: "lados" }, {}, p => { const e = p.estat[0]; e.grade.saidasAlto.forEach((n, k) => { t.saidas[k] += n; }); t.escanteios += e.escanteios;
+      for (const l of p.lances) if (l.time === 0) { if (l.tipo === "escanteio") t.cab++; if (l.tipo === "longe" || l.tipo === "area") { t.chutes++; if (l.resultado === "gol") t.gols++; } } });
+    const n = t.saidas[0] + t.saidas[1] + t.saidas[2]; assert.ok(n > 30, `poucas saídas: ${n}`); assert.ok(t.escanteios > 50, "poucos escanteios"); return { ...t, n, segura: t.saidas[0] / n, cabeceio: t.cab / t.escanteios, gol: t.gols / t.chutes }; };
+  const [r, m, b] = [10, 25, 45].map(mede);
+  console.log(`6 goleiro com Força 10/25/45: saídas ${r.n} ${m.n} ${b.n}; segura ${r.segura.toFixed(3)} ${m.segura.toFixed(3)} ${b.segura.toFixed(3)}; socos ${r.saidas[1]} ${m.saidas[1]} ${b.saidas[1]}; solta ${r.saidas[2]} ${m.saidas[2]} ${b.saidas[2]}; cabeceio por escanteio ${r.cabeceio.toFixed(3)} ${m.cabeceio.toFixed(3)} ${b.cabeceio.toFixed(3)}; gol por chute ${r.gol.toFixed(3)} ${m.gol.toFixed(3)} ${b.gol.toFixed(3)}`);
+  assert.ok(r.segura < m.segura && m.segura < b.segura, "o goleiro forte segura mais no contato");
+  assert.ok(r.cabeceio > b.cabeceio, "o goleiro forte manda na pequena área");
+  assert.ok(r.saidas[2] > 0, "o goleiro fraco às vezes solta");
+  assert.ok(Math.abs(r.gol - b.gol) < 0.03, "a Força não defende chute");
+}
+
 console.log("ok: mecânicas");
