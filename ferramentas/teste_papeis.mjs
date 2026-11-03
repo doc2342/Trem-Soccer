@@ -15,7 +15,7 @@ for (const [k, p] of Object.entries(PAPEIS)) {
   for (const [pos, m] of Object.entries(p.mapas || {})) { perto(soma(m.com), 1, `${k}@${pos} com`); perto(soma(m.sem), 1, `${k}@${pos} sem`); }
   assert.ok(p.nome && p.faz && p.custa, `textos de ${k}`);
 }
-assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
+assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
 assert.deepStrictEqual(papeisDaPosicao("DR"), ["fixo", "apoiador", "construtor", "invertido"]);
 assert.deepStrictEqual(papeisDaPosicao("DMC"), ["primeirovolante", "distribuidor", "boxtobox", "ladrao"]);
 assert.deepStrictEqual(papeisDaPosicao("DC"), ["xerife", "tecnico", "combativo", "libero"]);
@@ -138,3 +138,15 @@ assert.ok(naFaixa(manchaDoPapel("DMC", "distribuidor", MANCHAS.DMC1).com, "1") >
 assert.ok(naFaixa(manchaDoPapel("DMC", "boxtobox", MANCHAS.DMC1).com, "3") > naFaixa(MANCHAS.DMC1.com, "3"), "o Box-to-box chega na frente");
 assert.ok(naFaixa(manchaDoPapel("DMC", "ladrao", MANCHAS.DMC1).sem, "3") > naFaixa(MANCHAS.DMC1.sem, "3"), "o Ladrão sobe para o bote");
 console.log("teste_papeis: ok (com os volantes)");
+
+// meias (passo 3): MC e AMC; os padrões ficam com a mancha de hoje
+assert.deepStrictEqual(papeisDaPosicao("MC"), ["organizador", "criador", "boxtobox", "ladrao"]);
+assert.deepStrictEqual(papeisDaPosicao("AMC"), ["criador", "infiltrador", "organizador"]);
+for (const [pos, ks] of [["MC", ["MC1", "MC2d"]], ["AMC", ["AMC", "AMC2d"]]]) for (const k of ks) for (const p of papeisDaPosicao(pos)) {
+  const m = manchaDoPapel(pos, p, MANCHAS[k]);
+  if (p === PAPEL_PADRAO[pos]) { assert.strictEqual(m, null); continue; }
+  for (const f of ["com", "sem"]) perto(soma(m[f]), 1, `${p}@${pos} ${k} ${f}`);
+}
+assert.ok(naFaixa(manchaDoPapel("AMC", "infiltrador", MANCHAS.AMC).com, "5") > naFaixa(MANCHAS.AMC.com, "5"), "o Infiltrador chega à área");
+assert.ok(naFaixa(manchaDoPapel("MC", "criador", MANCHAS.MC1).com, "4") > naFaixa(MANCHAS.MC1.com, "4"), "o Criador do MC sobe");
+console.log("teste_papeis: ok (com os meias)");

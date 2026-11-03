@@ -180,6 +180,23 @@ export const PAPEIS = {
     pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 },
     desloca: { DMC: { sem: { faixas: [[1, 2, 0.4], [2, 3, 0.2]] } }, MC: { sem: { faixas: [[3, 4, 0.25]] } } }, gasto: { DMC: 1.1, MC: 1.1 },
   },
+  // Meias (passo 3; fichas de 29/10). MC: Organizador (padrão), Criador, Box-to-box, Ladrão; AMC: Criador (padrão), Infiltrador, Organizador.
+  // O Mezzala (aprovado em 31/10) ainda não tem ficha: fica para o dono
+  organizador: {
+    nome: "Organizador", faz: "Fica no centro do meio e a bola gira curta por ele; no AMC, recua para armar.", custa: "Perde bola contra pressão alta e quase não faz gol.",
+    pesos: { pas: 18, cri: 13, pos: 12, dom: 11, des: 11, equ: 10, res: 8, lon: 6, dri: 4, vel: 4, com: 3 },
+    desloca: { AMC: { com: { faixas: [[4, 3, 0.45], [5, 4, 1]] } } }, gasto: { MC: 1, AMC: 1 },
+  },
+  criador: {
+    nome: "Criador", faz: "Fica entre o meio e a área e dá o passe que quebra linhas; no MC, sobe para receber entre as linhas.", custa: "O passe arriscado erra mais, marca pouco e precisa de quem ataque o espaço à frente.",
+    pesos: { cri: 17, pas: 15, dom: 14, lon: 12, dri: 11, fin: 8, pos: 7, equ: 6, vel: 5, des: 3, res: 2 },
+    desloca: { MC: { com: { faixas: [[3, 4, 0.35]] } } }, gasto: { MC: 1, AMC: 1 },
+  },
+  infiltrador: {
+    nome: "Infiltrador", faz: "Pouca bola, muita chegada: entra na área para finalizar e, sem a bola, pressiona o volante rival.", custa: "Some da construção: o meio fica com um a menos na posse.",
+    pesos: { fin: 18, vel: 12, pos: 11, dom: 10, res: 8, dri: 7, cab: 7, cri: 7, pas: 5, lon: 5, for: 4, des: 3, equ: 3 },
+    desloca: { AMC: { com: { faixas: [[3, 4, 0.6], [4, 5, 0.35]] }, sem: { faixas: [[3, 4, 0.4]] } } }, gasto: { AMC: 1.05 },
+  },
 };
 
 // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -216,10 +233,11 @@ export function manchaDoPapel(pos, papel, base) {
   return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
 }
 
-export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
+export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", MC: "organizador", AMC: "criador", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
 const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
   SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
   DC: ["xerife", "tecnico", "combativo", "libero"], DMC: ["primeirovolante", "distribuidor", "boxtobox", "ladrao"],
+  MC: ["organizador", "criador", "boxtobox", "ladrao"], AMC: ["criador", "infiltrador", "organizador"],
   RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
 // posição do lado direito que serve de base para a do esquerdo
 const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };

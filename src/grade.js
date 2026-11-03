@@ -313,6 +313,10 @@ export const PREFERENCIA = {
   distribuidor: { virada: 1.4, inversao: 1.4, pular: 1.1 },
   boxtobox: { subir: 1.15, conduzir: 1.2 },
   ladrao: { lado: 1.1, voltar: 1.1, pular: 0.8, conduzir: 0.9 },
+  // meias: pelo Organizador a bola gira curta; o Criador procura o passe que quebra linhas e o chute; o Infiltrador ataca a área
+  organizador: { lado: 1.2, voltar: 1.15, pular: 0.7, virada: 0.85, diagonal: 0.95 },
+  criador: { diagonal: 1.2, subir: 1.1, pular: 1.1, lado: 0.9, chutar: 1.15 },
+  infiltrador: { subir: 1.2, conduzir: 1.1, finalizar: 1.2, lado: 0.85, voltar: 0.85 },
 };
 export function preferenciaDoPasso(papel, tipo, conduzir) {
   const p = papel && PREFERENCIA[papel];
