@@ -267,13 +267,14 @@ export function valorDaZona(z, V) {
 // Quem tem a bola compara as opções da lista: a nota vai de 0 (a pior) a 1 (a melhor), então o valor pode ser negativo (perto do próprio gol quase
 // todos são) sem as opções virarem iguais. Peso = ((piso + nota) × multDe)^γ, com γ pela Decisão: o bom decisor fica perto da melhor, o mau perto
 // da média. valorDe devolve null para a opção impossível. sortear: o sortearPeso do motor, por parâmetro para não duplicar.
-export function escolherPasso(rng, opcoes, valorDe, dec, V, sortear, multDe = null) {
+// foraDe: multiplica o peso depois da potência da Decisão (a ousadia: o mesmo fator para quem decide bem e mal; quem decide bem já zerou a opção ruim)
+export function escolherPasso(rng, opcoes, valorDe, dec, V, sortear, multDe = null, foraDe = null) {
   const g = Math.max(0, V.decisao.base + V.decisao.inclinacao * (dec - 25) / 25), vals = opcoes.map(valorDe);
   let min = Infinity, max = -Infinity;
   for (const v of vals) if (v !== null) { if (v < min) min = v; if (v > max) max = v; }
   const faixa = max - min || 1, ids = [];
   for (let n = 0; n < vals.length; n++) if (vals[n] !== null) ids.push(n);
-  const n = sortear(rng, ids, n => Math.pow((V.decisao.piso + (vals[n] - min) / faixa) * (multDe ? multDe(opcoes[n]) : 1), g));
+  const n = sortear(rng, ids, n => Math.pow((V.decisao.piso + (vals[n] - min) / faixa) * (multDe ? multDe(opcoes[n]) : 1), g) * (foraDe ? foraDe(opcoes[n]) : 1));
   return n === null ? null : opcoes[n];
 }
 

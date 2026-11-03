@@ -263,7 +263,9 @@ export const CONFIG = {
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+    // ousadia (passo 3 da revisão): o fator da Excentricidade no peso do passo difícil fica fora da potência da Decisão; perda, embalo a mais da defesa no passo difícil
+    // perdido por quem é excêntrico; hora, logit no duelo do passo difícil por (Excentricidade − 25)/25 × (Decisões − 25)/25: a Decisões escolhe a hora de arriscar
+    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.6, folga: 0.5, perda: 0.5, hora: 2, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
     // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
     conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -1524,9 +1526,12 @@ function jogarPartida(rng, casa, fora, opcoes) {
         return p * (XT[k] + (v >= 0 ? AC.ganho * atracao(k) * XT[v] : 0)) - (1 - p) * (G.risco * XT[24 - k] + G.posse[(ka / 5) | 0]);
       };
       // o que multiplica a nota da opção (a nota já é positiva; no valor, que pode ser negativo, o multiplicador trocaria de sentido)
+      // a ousadia (Excentricidade) fica fora da potência da Decisão (revisão do passo 3): dentro dela, o bom decisor multiplicava o fator por ele mesmo ~8 vezes
+      const ousaDe = o => !o.fim && portador && dificil(o) ? Math.max(0.2, 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25) : 1;
+      // a hora da ousadia: no passo difícil, quem é excêntrico e decide bem acerta o momento, quem decide mal tenta na hora errada (só no duelo; quem escolhe não se vê)
+      const horaDaOusadia = o => portador && dificil(o) ? OU.hora * Math.max(0, portador.at[A.exc] - 25) / 25 * (decisao(portador.at) - 25) / 25 : 0;
       const OU = G.ousadia, dificil = o => o.conduzir ? o.tipo !== "lado" : o.espaco || o.entre || o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao";
       const multDe = o => o.fim ? preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, false) : (o.goleiro ? (G.goleiro.vontade + G.goleiro.pressao * P) * (temPapel(atk.goleiro, "goleiroarmador") ? G.papelGoleiro.recuo : 1) : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
-        * (portador && dificil(o) ? 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25 : 1)
         * (o.conduzir && portador && portador.mancha && !portador.mancha.com[o.para] && (portador.papel || PAPEL_PADRAO[portador.pos]) === "fixo" ? G.conduzir.fora : 1) * (seg && o.tipo === "voltar" ? 1 + PV.vontade * seg : 1)
         * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, !!o.conduzir);
       // narra o passo ganho (a frase leva o tipo para o texto enxuto) e o guarda na rota: [de, para, tipo, passador, receptor, venceu, marcador?]
@@ -1646,7 +1651,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
             .concat(portador && (atual === "4E" || atual === "4D" || atual === "4e" || atual === "4d") && PESO[21] + PESO[22] + PESO[23] > 0 ? [{ tipo: "cruzar", fim: true, i: ka }] : portador && atual === "4C" ? [{ tipo: "chutar", fim: true, i: ka }] : portador && ka >= 20 ? [{ tipo: "finalizar", fim: true, i: ka }] : portador && atk.goleiro && !ehGk && ka < 5 ? [{ tipo: "voltar", goleiro: true, para: "1C", i: 2, k: -1 }] : []));
           const dec = decisaoSobPressao(portador ? decisao(portador.at) : 25, P * (1 - G.calma.pressao * atk.calma), G);
           FOTO = []; ve = limitar((dec - G.foto.de) / (G.foto.ate - G.foto.de), 0, 1);
-          let o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, dec, G, sortearPeso, multDe);
+          let o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, dec, G, sortearPeso, multDe, ousaDe);
           // rede de segurança (ou opção nenhuma): não acha espaço, perde a bola ou roda, como nas 9 zonas
           if (!o) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
           if (o.fim) { e.corredor[ladoDaZona(atual)]++; const ch = criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka) }); if (ch && ch.tipo === "area" && (ka === 21 || ka === 23)) ch.xg *= G.chance.xgMeio; // da área, mas de lado para o gol
@@ -1671,7 +1676,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           // o passe para a área: quem chega é quem se movimenta melhor, e ela o solta do marcador (dono, 01/11)
           const F = o.goleiro ? {} : fotoDe(o.i), naArea5 = naFaixa5 && !o.conduzir && !corre && !aparece ? F.quem : null;
           const quemVai = o.goleiro ? atk.goleiro : o.conduzir ? portador : corre || (aparece && aparece.jog) || chega || naArea5 || F.quem;
-          const d = duelo(i, para, logitDe(o, true) + manoDe(o) + (naArea5 ? G.area.mov * (naArea5.at[A.mov] - 25) / 25 : 0) + (th === 2 && quemVai && !o.conduzir && faixaDe(para) > faixaDe(atual) ? T3.mov * (quemVai.at[A.mov] - 25) / 25 : 0) + (corre ? corrida(chegada(corre.at), o.i) : aparece ? EL.dificuldade + EL.mov * (aparece.jog.at[A.mov] - 25) / 25 + (temPapel(aparece.jog, "flutuante") ? PP.flutuanteLivre : 0) : 0), contra,
+          const d = duelo(i, para, logitDe(o, true) + manoDe(o) + (naArea5 ? G.area.mov * (naArea5.at[A.mov] - 25) / 25 : 0) + (th === 2 && quemVai && !o.conduzir && faixaDe(para) > faixaDe(atual) ? T3.mov * (quemVai.at[A.mov] - 25) / 25 : 0) + horaDaOusadia(o) + (corre ? corrida(chegada(corre.at), o.i) : aparece ? EL.dificuldade + EL.mov * (aparece.jog.at[A.mov] - 25) / 25 + (temPapel(aparece.jog, "flutuante") ? PP.flutuanteLivre : 0) : 0), contra,
             { dz: defesaNo(o.i), quem: quemVai, marcador: F.marcador, ...(corre ? { az: chegadaDe(corre, o.i) } : aparece ? { az: EL.peso * habilidadeAtaque(aparece.jog.at, para) } : {}) });
           const passador = portador, subiu = faixaDe(para) > faixaDe(atual), era2 = th === 2 && subiu;
           livre = false;
@@ -1695,7 +1700,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           }
           if (!d.venceu && th === 1 && o.tipo === "voltar") expor = T3.contra; // a volta roubada: contra-ataque contra a defesa desarrumada
           // a perda na volta conta na zona de origem
-          const perda = z => { roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, z, d.pivo ? { ...d, passador: portador } : { ...d, pivo: portador })) perdeu(z); };
+          const perda = z => { roubada = Math.min(1, embaloDaDefesa(d) + (passador && dificil(o) ? OU.perda * Math.max(0, passador.at[A.exc] - 25) / 25 : 0)); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, z, d.pivo ? { ...d, passador: portador } : { ...d, pivo: portador })) perdeu(z); };
           if (!d.venceu && !naFaixa5) return perda(o.tipo === "voltar" ? atual : para);
           if (d.venceu && passador && dificil(o)) d.folga += OU.folga * Math.max(0, passador.at[A.exc] - 25) / 25; // deu certo: mais folga
           if (d.venceu) { passoGrade(o, d); if (naFaixa5) eg.toquesArea++; }

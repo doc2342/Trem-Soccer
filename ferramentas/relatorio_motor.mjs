@@ -39,6 +39,7 @@ const MATRIZ = [
   ["Papéis do meia", "mancha da grade entre faixas, preferência do passo", "mecanicas 15; papeis"],
   ["Regras do meio", "manchas do trio, pressão, Comunicação", "mecanicas 16"],
   ["Papéis do goleiro", "profundidade, chute de longe, saída no alto, saída de bola", "mecanicas 17; papeis"],
+  ["Excentricidade como risco", "escolha do passo, duelo do passo difícil, Decisões", "mecanicas 18"],
 ];
 const REGISTROS = [
   "Pressão 2 reduz as faltas do time que pressiona (17,2 para 13,3 por jogo): contraintuitivo, sem defeito comprovado; olhar no ajuste fino.",
