@@ -265,7 +265,7 @@ export const CONFIG = {
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
     // ousadia (passo 3 da revisão): o fator da Excentricidade no peso do passo difícil fica fora da potência da Decisão; perda, embalo a mais da defesa no passo difícil
     // perdido por quem é excêntrico; hora, logit no duelo do passo difícil por (Excentricidade − 25)/25 × (Decisões − 25)/25: a Decisões escolhe a hora de arriscar
-    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.6, folga: 0.5, perda: 0.5, hora: 2, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.6, folga: 0.5, perda: 0.5, hora: 2, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, saiDaLinha: { costas: 0.1, guarda: 1.5, livre: 0.15, bloqueio: 1, cruza: 1 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
     // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
     conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -289,7 +289,10 @@ export const CONFIG = {
     // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10. papelDefesa: libero, o quanto o Líbero (papel) tira do fator
     // da bola em profundidade por (média de Posicionamento e Velocidade − 25) / 25, entre liberoMin e liberoMax; combativo, × (1 + isto × Combativos) no xG da
     // bola em profundidade do rival; combativoCorrida, logit da corrida no espaço da faixa 5 do rival por Combativo (ele sobe para o bote e deixa as costas);
-    // falta, × na chance de falta do Ladrão de bola e do Combativo. papelGoleiro (fichas de 29/10): armador, o peso do Goleiro-armador no 1C com a bola × (média de
+    // falta, × na chance de falta do Ladrão de bola e do Combativo. saiDaLinha (dono, 03/11): o zagueiro batido no bote até a faixa 4 (ou que subiu com a
+    // bola e viu o time perder, no contra do rival) não volta à área até o fim do ataque: costas, × (1 + isto) na bola em profundidade; guarda, o peso em 1e/1C/1d
+    // de dois zagueiros; abaixo dele, livre (peso da opção sem marcador por falta) e bloqueio (expoente no bloqueio da área, cruzamento e cutback);
+    // cruza, parte do cruzamento que só conta quem não foi batido. papelGoleiro (fichas de 29/10): armador, o peso do Goleiro-armador no 1C com a bola × (média de
     // Passe e Domínio / 25, entre 0,5 e 1,5); recuo, × na vontade de recuar para ele; libero, o fator do Goleiro-líbero na bola em profundidade com a linha alta,
     // menos liberoAtr × (média de Um contra um e Velocidade − 25) / 25 (vale o menor com o Líbero da zaga); longe, × no xG do chute de longe contra ele;
     // liberoFica, a parte das saídas no cruzamento alto em que ele fica no gol
@@ -719,7 +722,7 @@ function gkLibero(def) {
 // Com a grade (zona = onde a jogada termina, buracos = o que a cobertura emprestada abriu), a mistura vem do corredor (spec 8): 5C área, profundidade
 // e longe; meio-espaço da faixa 5 cutback, enfiada e o corte (raro); lado da faixa 5 cruzamento da linha de fundo e cutback; 4E/4D o cruzamento
 // antecipado; 4C (zona 14) o chute de longe. Sem zona, o de sempre.
-function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = false, superados = null, zona = null, buracos = null, marcacao = 0 } = {}) {
+function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = false, superados = null, zona = null, buracos = null, marcacao = 0, fora = null } = {}) {
   const area = naArea(atk), x = CONFIG.xgBase, k = CONFIG.inclinacaoXg, I = atk.instr;
   const alvoAereo = area.reduce((s, o) => s + o.w * media(o.jog.at[A.cab], o.jog.at[A.for]), 0) / 30;
   const alvoVeloz = area.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.dom]), 0) / 30;
@@ -749,11 +752,14 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   const tipo = tipo0 === "cutback" && !area.length && !chegamAntes ? "corte" : tipo0; // rolar para trás sem ninguém chegando: ele mesmo chuta
   // chute forçado: quem chuta mal rola para quem chuta melhor (ele mesmo ou um atacante da área)
   if (forcado && D && tipo === "longe") { const quem = sortearPeso(rng, [{ jog: pivo }, ...area.filter(o => o.jog !== pivo)], o => Math.pow(pe(o.jog.at[A.lon]), 2)); if (quem) pivo = quem.jog; }
-  const volta = o => superados && superados.has(o.jog) ? superados.get(o.jog) : 1;
-  const zagueiro = (sortearPeso(rng, naZaga(def), o => o.w * volta(o)) || {}).jog;
+  const volta = o => fora && fora.has(o.jog) ? 0 : superados && superados.has(o.jog) ? superados.get(o.jog) : 1; // quem saiu da linha não volta à área
+  // guarda da área (dono, 03/11): o peso de quem está em 1e/1C/1d, menos o zagueiro que saiu da linha neste ataque (fora); abaixo de
+  // saiDaLinha.guarda (dois zagueiros), o atacante pode ficar sem marcador (a opção vazia) e o chute é menos bloqueado (chutar)
+  const SL = CONFIG.gradeValores.saiDaLinha, zaga = naZaga(def), guarda = zaga.reduce((s, o) => s + (fora && fora.has(o.jog) ? 0 : o.w), 0);
+  const zagueiro = (sortearPeso(rng, zona ? zaga.concat([{ jog: null, w: SL.livre * Math.max(0, SL.guarda - guarda) }]) : zaga, o => o.jog ? o.w * volta(o) : o.w) || {}).jog;
   const zag = zagueiro ? zagueiro.at : null, gk = def.goleiro ? def.goleiro.at : null;
   const semZaga = 12, semGoleiro = 5; // valores usados quando não há zagueiro na zona ou goleiro em campo
-  const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro, contra, recuperou: !!(zagueiro && superados && superados.has(zagueiro)), ...(zona ? { zona } : {}) };
+  const c = { tipo, lado, criador: pivo, finalizador: pivo, zagueiro, contra, recuperou: !!(zagueiro && superados && superados.has(zagueiro)), ...(zona ? { zona, guarda: Math.min(1, guarda / SL.guarda) } : {}) };
   // quem recebe o passe ou o cruzamento não é quem o fez, a não ser que esteja sozinho na área
   const outros = area.filter(o => o.jog !== pivo), alvos = outros.length ? outros : area;
   const ehAlvo = o => o.jog.j.id === I.alvo ? CONFIG.pesoAlvo : 1;
@@ -774,7 +780,7 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
       const fraco = def.zonasDef[lado === "E" ? "1E" : "1D"] || []; // o lado oposto da faixa 1 de quem defende (o espelho troca os lados)
       const alta = def.instr.impedimento || def.instr.mentalidade > 0;
       const nos = (c.rasteiro ? area : area.concat(poste2)).reduce((s, o) => s + o.w * (o.jog.at[A.mov] + (c.rasteiro ? o.jog.at[A.vel] : o.jog.at[A.for])), 0) / 2; // quem ataca a bola: a Movimentação; quem defende: o Posicionamento
-      const eles = ((naZaga(def).reduce((s, o) => s + o.w * ganha(o.jog), 0) + CZ.ladoFraco * fraco.reduce((s, o) => s + o.w * ganha(o.jog), 0)) / 2
+      const eles = ((zaga.reduce((s, o) => s + o.w * (1 - SL.cruza + SL.cruza * volta(o)) * ganha(o.jog), 0) + CZ.ladoFraco * fraco.reduce((s, o) => s + o.w * ganha(o.jog), 0)) / 2
         * (alta ? CZ.linhaAlta : 1) * (!f5 && (contra || alta) ? CZ.virada : 1) + (gk ? CZ.goleiro * (media(gk[A.enc], gk[A.um]) + (c.rasteiro ? 0 : CONFIG.gradeValores.saidaAlto.contato * (gk[A.for] - CONFIG.gradeValores.saidaAlto.referencia))) : 0));
       c.vazia = !area.length;
       const pf = pivo.j.pf, trocado = f5 && pf != null && (pivo.j.pe === "E" || pivo.j.pe === "D") && pivo.j.pe !== lado; // da linha de fundo, sem tempo de ajeitar
@@ -977,6 +983,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
   // jogador ao outro com o passe ("... e toca para Fulano") em vez de a bola mudar de pé sem explicação.
   let atacante = null, ultimoNarrado = null, aposFalta = false, impedido = false; // aposFalta: a jogada recomeça com a cobrança de uma falta // time do ataque em andamento e do último ataque que foi narrado
   const superados = new Map(); // marcadores vencidos neste ataque → peso para voltar ao lance (CONFIG.recuperacao)
+  let zagNoMeio = null; // na grade, o zagueiro que subiu com a bola até a faixa 3 no ataque em andamento: { time, jog } (dono, 03/11)
   let trilha = [], rota = [], portador = null, ultimoAtaque = null, saida = null, cadeia = null, bola = null, proximo = null, rodou = false, emContra = false, cobranca = null, ultimaPerda = { causa: null, marcador: null }, perdaAtras = null, aposPerda = null, repor = null; // repor (grade): o goleiro recomeça o próximo ataque do time, { time, tipo: "meta" ou "maos" }; bola: quem a recuperou e em que linha do seu ataque; proximo: ataque seguinte já decidido
   const RODA = [
     (j, t, onde) => `${j} não acha espaço ${onde}, recua e o ${t} roda a bola.`,
@@ -1233,13 +1240,15 @@ function jogarPartida(rng, casa, fora, opcoes) {
     const ruido = goleiro ? rng.normal(0, goleiro.j.at[A.exc] * CONFIG.excentricidade) : 0;
     const F = CONFIG.finalizacao, R = CONFIG.goleiroReferencia, m = c.tipo === "penalti" ? F.penalti : 1, S = CONFIG.semGol[c.tipo] || CONFIG.semGol.area;
     const pe = mod(c.chute + CONFIG.vantagemFinalizador, R, F.chute * m); // quem chuta: decide se vai no gol
-    const chanceDeGol = defesa => limitar(c.xg * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
+    // com menos gente guardando a área (o zagueiro saiu da linha), menos chutes bloqueados: a parte que passa entra na chance de gol
+    const B = c.guarda != null && (c.tipo === "area" || c.tipo === "cruzamento" || c.tipo === "cutback") ? S.bloqueado * Math.pow(Math.max(c.guarda, 0.3), CONFIG.gradeValores.saiDaLinha.bloqueio) : S.bloqueado, passa = (1 - B) / (1 - S.bloqueado);
+    const chanceDeGol = defesa => limitar(c.xg * passa * (CONFIG.ajusteGol[c.tipo] || 1) * pe * mod(R, defesa, F.goleiro * m), 0.005, 0.92);
     const xg = chanceDeGol(c.defesa), pGol = chanceDeGol(c.defesa + ruido); // xG publicado = a chance já com o duelo de quem chuta contra o goleiro (sem a sorte da excentricidade)
-    const alvo = Math.max(limitar(S.alvo * pe + CONFIG.semGol.alvoPorGol * pGol, 0.1, 0.95), pGol / (1 - S.bloqueado)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
-    const resultado = rng.chance(S.bloqueado) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
-      : rng.chance(pGol / ((1 - S.bloqueado) * alvo)) ? "gol" : "defesa";
+    const alvo = Math.max(limitar(S.alvo * pe + CONFIG.semGol.alvoPorGol * pGol, 0.1, 0.95), pGol / (1 - B)); // gol = (1 - bloqueado) x alvo x (gol no alvo), igual a pGol
+    const resultado = rng.chance(B) ? "bloqueado" : !rng.chance(alvo) ? (rng.chance(CONFIG.semGol.trave) ? "trave" : "fora")
+      : rng.chance(pGol / ((1 - B) * alvo)) ? "gol" : "defesa";
     // para a narração: a chance de gol do chute que foi no gol (difícil ou fácil para o goleiro) e quanto a Excentricidade o piorou no lance
-    return { resultado, xg, chanceDeGol, noAlvo: pGol / ((1 - S.bloqueado) * alvo), falha: xg > 0 ? pGol / xg : 1 };
+    return { resultado, xg, chanceDeGol, noAlvo: pGol / ((1 - B) * alvo), falha: xg > 0 ? pGol / xg : 1 };
   }
 
   // a bola nas costas pega o impedimento: a armadilha (passe longo, comunicação da defesa, líbero; menos no contra-ataque) ou o acaso sem linha
@@ -1400,7 +1409,8 @@ function jogarPartida(rng, casa, fora, opcoes) {
         // Na grade: faixas 2–4 do lado dele (lado ou meio-espaço), onde o Apoiador ataca e o Invertido fecha por dentro
         const ladoPerda = ehGrade(zona) ? (faixaDe(zona) >= 2 && faixaDe(zona) <= 4 ? { E: "E", e: "E", d: "D", D: "D" }[zona[1]] : null) : linhaDaZona(zona) === "M" && ladoDaZona(zona) !== "C" ? ladoDaZona(zona) : null;
         const lateral = ladoPerda ? atk.emCampo.find(x => POSICOES[x.pos].lado === ladoPerda && ["defesa", "ala"].includes(POSICOES[x.pos].linha) && temPapel(x, "apoiador", "invertido")) : null;
-        const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : "";
+        const zagSubiu = !lateral && grade && zagNoMeio && zagNoMeio.time === i ? zagNoMeio.jog : null; // o zagueiro que subiu com a bola (dono, 03/11)
+        const costas = lateral ? ` pelas costas de ${nm(lateral)}, que tinha subido` : zagSubiu ? ` pelas costas de ${nm(zagSubiu)}, que tinha saído com a bola` : "";
         // roubada no centro ou interceptação: contra melhor; contra a linha alta, quem recebe no meio-espaço sai livre (entre o zagueiro e o lateral)
         const naGrade = grade ? { zona: zc, logit: zona[1] === "C" || ultimaPerda.causa === "corte" ? G.contra.centro : 0, livre: !!atk.instr.impedimento } : {};
         sairNoContra(1 - i, { origem: linhaDaZona(zona), razao, ...naGrade }, impedido ? `${tm(1 - i)} cobra a falta rápido e sai em contra-ataque.` : roubadaFacil ? `${tm(1 - i)} toma a bola com facilidade e dispara no contra-ataque${costas}.` : `${tm(1 - i)} recupera a bola e sai em contra-ataque${costas}.`); }
@@ -1442,6 +1452,10 @@ function jogarPartida(rng, casa, fora, opcoes) {
       // a virada e a inversão: pelo Passe longo de quem passa e pelas instruções (passe longo e lados a pedem, o curto a evita)
       const VI = G.viradaInstrucao, vir = (atk.instr.passe === "longo" ? VI.longo : atk.instr.passe === "curto" ? VI.curto : 1) * (atk.instr.lado === "lados" ? VI.lados : 1);
       const buracos = { ...D[corredorDe(atual)].buracos }; // o que a cobertura emprestada e o arrasto abriram: a chance lê
+      const foraDaLinha = new Set(); // zagueiros que saíram da linha neste ataque e foram batidos (dono, 03/11)
+      // o zagueiro que subiu com a bola e viu o time perdê-la: no contra-ataque do rival ele está fora da linha, como o que foi batido no bote
+      if (zagNoMeio && zagNoMeio.time !== i && contra && def.emCampo.includes(zagNoMeio.jog)) { foraDaLinha.add(zagNoMeio.jog); buracos.profundidade = (buracos.profundidade ?? 1) * (1 + G.saiDaLinha.costas); }
+      zagNoMeio = null;
       // logit do passo além do duelo: contra-ataque, impulso, dificuldade, pressão na volta (pela metade dividindo o marcador), armadilha do lado (A1:
       // só no duelo; quem passa não a vê, senão não seria armadilha), marcação das faixas atravessadas e a condução de quem leva a bola
       const logitDe = (o, armadilha = false) => {
@@ -1544,6 +1558,10 @@ function jogarPartida(rng, casa, fora, opcoes) {
         const facil = comFolga(d), deNovo = d.recuperou ? " de novo" : "", P = de && nm(de), dentro = p !== de && "eCd".includes(Z[1]) && temPapel(p, "invertido");
         const R = nm(p) + (dentro ? ", que sai da lateral e fecha por dentro" : ""), leva = o.conduzir || p === de;
         if (m) superados.set(m, facil ? CONFIG.recuperacao.facil : CONFIG.recuperacao.normal);
+        if (p.pos === "DC" && +Z[0] >= 3) zagNoMeio = { time: i, jog: p }; // o zagueiro com a bola no meio (o Líbero conduz, o Técnico pisa)
+        // o zagueiro que saiu da linha para o bote fora da área e foi batido não volta à área neste ataque (nos passos, volta como qualquer batido) e abre
+        // a bola nas costas
+        if (m && m.pos === "DC" && +Z[0] <= 4) { if (!foraDaLinha.has(m)) { foraDaLinha.add(m); buracos.profundidade = (buracos.profundidade ?? 1) * (1 + G.saiDaLinha.costas); } }
         const supera = !m ? null : leva && facil && dribleNarrado(p.at, nm(m), seq) || (facil ? `deixa ${nm(m)} para trás${deNovo} com facilidade` : `passa por ${nm(m)}${deNovo}`);
         const cobra = aposFalta ? (leva ? "cobra a falta rápido e " : "cobra a falta e ") : "";
         const escora = th === 1 && o.tipo === "voltar" && p !== de; // a volta de primeira depois do passe apertado: tabela, ou o terceiro homem
@@ -1654,7 +1672,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           let o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, dec, G, sortearPeso, multDe, ousaDe);
           // rede de segurança (ou opção nenhuma): não acha espaço, perde a bola ou roda, como nas 9 zonas
           if (!o) { if (perdaDePosse(i, atual, { pivo: portador, marcador: null })) perdeu(atual); return; }
-          if (o.fim) { e.corredor[ladoDaZona(atual)]++; const ch = criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka) }); if (ch && ch.tipo === "area" && (ka === 21 || ka === 23)) ch.xg *= G.chance.xgMeio; // da área, mas de lado para o gol
+          if (o.fim) { e.corredor[ladoDaZona(atual)]++; const ch = criarChance(rng, atk, def, ladoDaZona(atual), portador, { contra, superados, zona: atual, buracos, marcacao: defesaNo(ka), fora: foraDaLinha }); if (ch && ch.tipo === "area" && (ka === 21 || ka === 23)) ch.xg *= G.chance.xgMeio; // da área, mas de lado para o gol
             if (o.tipo === "finalizar" && entrada && ch && ch.xg) ch.xg = limitar(ch.xg * (1 + CONFIG.embalo.chance * embalo(entrada) / CONFIG.embalo.teto), 0.01, CONFIG.xgMaximo); entrada = null; const z = fimDaChance(ch); if (!z) return; seguir(z); continue; }
           // o lançamento para o 9 ou o meio-espaço da faixa 5 vai pelo alto: com o passe longo sempre; senão, quem lança bem põe a bola limpa no pé e quem lança mal manda para a disputa
           if (o.tipo === "pular" && !o.espaco && o.i >= 21 && o.i <= 23 && portador && (atk.instr.passe === "longo" || rng.chance(G.longa.alto * (2 - portador.at[A.plo] / 25)))) {
@@ -1713,7 +1731,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           if (naFaixa5 && !d.venceu) {
             if (lado !== "C" && rng.chance(CONFIG.escanteioDuelo)) { recebe(d.pivo); evento(1 - i, "canto", comTrilha(`${d.marcador ? nm(d.marcador) : tm(1 - i)} corta ${nm(d.pivo)} e cede o escanteio.`)); return bolaParada(i, "escanteio", lado); }
             if (!rng.chance(CONFIG.chuteForcado * ((CONFIG.finalizar[atk.instr.finalizar] || {}).forcado || 1))) return perda(para);
-            const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado: true, contra, superados, zona: para, buracos, marcacao: defesaNo(o.i) });
+            const chance = criarChance(rng, atk, def, lado, d.pivo, { forcado: true, contra, superados, zona: para, buracos, marcacao: defesaNo(o.i), fora: foraDaLinha });
             const z = fimDaChance(chance); if (!z) return; seguir(z); continue;
           }
           // o que o passo ganho deixa para o seguinte: impulso (embalo, de frente, atrair a pressão) e o arrasto do cobridor

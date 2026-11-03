@@ -97,14 +97,14 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   const [d10, d45] = semFoto(() => [c10, c45].map(l => passos(l, virou))), vol = { ...volume };
   // C: o defensor sai para cobrir e abre um buraco; a linha que se fala fecha parte dele. Mede o buraco nas arrumações e o xG da bola nas costas e do cruzamento
   const P3 = onze("4-3-3 com pontas", 1), buraco = l => { const d = defesaVistaNaGrade(P3, l); return Math.max(...["E", "e", "C", "d", "D"].flatMap(c => [d[c].buracos.profundidade, d[c].buracos.cruzamento])); };
-  const cruzados = l => { let n = 0; for (let s = 1; s <= 150; s++) n += simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: P3 }), prepararTime({ nome: "B", escalacao: l })).estat[0].grade.cruzamentos[0]; assert.ok(n > 50, "poucos cruzamentos"); return n; };
+  const cruzados = l => { let n = 0; for (let s = 1; s <= 400; s++) n += simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: P3 }), prepararTime({ nome: "B", escalacao: l })).estat[0].grade.cruzamentos[0]; assert.ok(n > 50, "poucos cruzamentos"); return n; };
   const [b10, b45, x10, x45] = [buraco(c10), buraco(c45), cruzados(c10), cruzados(c45)];
   console.log(`5 acerto do rival: linha sob pressão com 10/45 ${ab10.toFixed(3)} ${ab45.toFixed(3)}, passes que furam ${furou[10]} ${furou[45]}; virada e inversão ${d10.toFixed(3)} ${d45.toFixed(3)} (${vol[10]} e ${vol[45]} tentadas); buraco com 10/45 ${b10.toFixed(3)} ${b45.toFixed(3)}, cruzamentos ${x10} ${x45}`);
   assert.ok(furou[45] < furou[10], "a linha sob pressão se organiza: menos passes a furam");
   assert.ok(d45 < d10 && vol[45] < vol[10], "a linha se reorganiza na troca de corredor: o rival acerta menos e tenta menos");
   assert.ok(b45 < b10 && b45 > 1, "a linha que se fala fecha parte do buraco, não todo");
-  // o efeito no volume é pequeno (378 × 374 em 02/11; 765 × 780 depois do passo 3, com os sorteios mudados): dentro do ruído de 150 jogos, então só não pode crescer
-  // além de 3%; o efeito que importa é o buraco, exato acima (saúde do motor, pontos em aberto)
+  // o efeito no volume é pequeno (378 × 374 em 02/11; 765 × 780 depois do passo 3, com os sorteios mudados; 758 × 795 no bloco 2 do pós-passo 3): o ruído
+  // de 150 jogos passava dos 3%, por isso 400 jogos (2061 × 2008 em 03/11); só não pode crescer além de 3%; o efeito que importa é o buraco, exato acima (saúde do motor, pontos em aberto)
   assert.ok(x45 <= x10 * 1.03, "o buraco menor não rende mais cruzamento");
   assert.ok(ab45 > 0.5, "sem bloco perfeito");
 }
@@ -325,6 +325,19 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   const genio = mede(45, 40) - mede(10, 40), firula = mede(45, 12) - mede(10, 12);
   console.log(`18 Excentricidade 45 × 10 nos meias, saldo de xG: com Decisões 40 ${genio.toFixed(3)}, com Decisões 12 ${firula.toFixed(3)}`);
   assert.ok(genio > 0 && genio - firula > 0.05, "o gênio ganha com a ousadia, o firuleiro não");
+}
+
+// 19. Zagueiro que sai da linha (dono, 03/11): batido no bote fora da área (até a faixa 4), não volta à área neste ataque e abre as costas; a guarda da
+// área (quem está em 1e/1C/1d) cai: o atacante pode ficar sem marcador, o cruzamento acha gente e o chute é menos bloqueado. Medido contra a regra desligada
+{
+  const Q4 = onze("4-4-2", 3), comZag = papel => Q4.map(x => x.pos === "DC" ? { ...x, papel } : x), AREA = ["area", "cruzamento", "cutback", "profundidade"];
+  const mede = l => { let xg = 0, n = 0, bl = 0; for (let s = 1; s <= 150; s++) for (const c of simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B })).lances)
+    if (c.time === 1 && AREA.includes(c.tipo)) { xg += c.xg; n++; if (c.resultado === "bloqueado") bl++; } return { xg, n, bl: bl / n }; };
+  const SL = G.saiDaLinha, sem = f => com(SL, "costas", 0, () => com(SL, "livre", 0, () => com(SL, "bloqueio", 0, () => com(SL, "cruza", 0, f))));
+  const [xer, cmb] = [mede(comZag(null)), mede(comZag("combativo"))], [xer0, cmb0] = sem(() => [mede(comZag(null)), mede(comZag("combativo"))]);
+  console.log(`19 zagueiro fora da linha: xG da área do rival (com × sem a regra) Xerife ${xer.xg.toFixed(1)} × ${xer0.xg.toFixed(1)}, Combativo ${cmb.xg.toFixed(1)} × ${cmb0.xg.toFixed(1)}; bloqueados ${xer.bl.toFixed(3)} × ${xer0.bl.toFixed(3)}`);
+  assert.ok(xer.xg > xer0.xg && cmb.xg > cmb0.xg, "quem sai da linha e é batido abre a área");
+  assert.ok(xer.bl < xer0.bl, "com a área desguarnecida, menos chutes bloqueados");
 }
 
 console.log("ok: mecânicas");
