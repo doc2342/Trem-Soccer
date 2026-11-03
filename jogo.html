@@ -245,7 +245,7 @@ import { FORMACOES, TAMANHO_DO_BANCO } from "./src/escalacao.js";
 import { AREA_DO_ATRIBUTO } from "./src/treino.js";
 import { FOCOS, CONFIG_TREINO, AREAS, focoAutomatico, focoDoJogador, pontosDaSessao, fatorDaTemporada, partilha, treinavel, qualidadeDoTreino, multDoAtributo, CONFIG_POSICAO, posicaoEmEstudo, distanciaDaPosicao, prazoDaPosicao, degrauRecente } from "./src/treino.js";
 import { PREMIOS as PREMIOS_DA_LIGA, vagasContinentais, GUARDADO, divisaoDoGrupo } from "./src/virada.js";
-import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, noTetoDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, multaDaDispensa, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, nomeBaseDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, vitrineDaLiga, darLanceVitrine, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obrasAtivas, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTrocaDeEscudo, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
+import { minhaTaticaDaBase, salvarTaticaDaBase, meusLances, transferenciasDoClube, sair, ligaAtual, reveladosDoClube, nomeDoPlayoff, profissionalizar, definirPosicaoNova, tornarPrincipal, RESERVA_DO_FUNDO, COPA_BASE, resumoDoFundo, cotacaoDoAgente, periodoDePreAcordo, meusPreContratos, proporPreContrato, venderPeloAgente, relatorioDoElenco, noTetoDoElenco, meusRelatorios, comprarRelatorio, dispensarJogador, multaDaDispensa, fazerPeneira, definirTreino, treinadoresDoClube, candidatosATreinador, procurarCandidatos, BUSCA_DE_CANDIDATOS, contratarTreinador, dispensarTreinador, designarTreinador, clubesDaLiga, meuClube, pedirClube, meuPedido, registrarAcesso, elencoDoClube, minhaTatica, ehAdmin, ajustarContrato, nomeDoGrupo, nomeBaseDoGrupo, PAISES, paisDoGrupo, ordenarGrupos, valoresDaDivisao, venderAoBanco, anteciparPremio, janelaDoMercado, jogadoresDoMercado, transferenciasDaLiga, protegerJogador, comprarPelaMulta, definirDirigente, clubePorId, jogadoresDoClube, minhasPropostas, listarJogador, taxaDaVenda, fazerProposta, responderProposta, decidirContraproposta, pedirEmprestimo, emprestarABot, emprestadosDoClube, resolverLeiloes, livresDaLiga, lancesDosLivres, ofertasDaLiga, darLanceLivre, vitrineDaLiga, darLanceVitrine, oferecerALiga, comprarOfertaDaLiga, extratoDoClube, caixaDoClube, obrasAtivas, iniciarObra, editarVisual, enviarEscudo, tirarEscudoEnviado, pedirTroca, renomearClube, podeRenomearClube, ITENS_DA_TROCA, FASES_DA_COPA, PREMIOS_DA_COPA, PREMIOS_DA_LIB, PREMIOS_DA_SUL, PREMIO_DA_RECOPA, CONTINENTAIS, ehCopa, nomeDaCopa } from "./src/banco.js";
 import * as B from "./src/banco.js";
 import { desenharEstadio, plantaEstadio, configDoClube, MODELOS, PADROES_DO_ESTADIO, COBERTURAS, CIDADES, cidadeDoEstadio, SEDES, sedeDoJogo } from "./src/estadio.js";
 import { MARCAS, selo as seloMarca, PROPOSTAS, jogoPatrocinado } from "./src/patrocinio.js";
@@ -2802,7 +2802,10 @@ async function telaClube(liga, clube) {
     if (patro && !patro.escolha) l.push(item("🤝", "Seu clube ainda não fechou patrocínio. Escolha a marca e o contrato até a 1ª rodada.", "aviso", "clube:patrocinio"));
     for (const j of repatriar) l.push(item("🏠", `${esc(j.nome)} (${sg(j.pos)}), formado na sua base, voltou ao mercado como livre. Até ${new Date(j.repatriar_ate).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} só você pode dar lance.`, "aviso", "mercado"));
     if (!tatica) l.push(item("⚠️", "Você ainda não salvou uma tática: seu time está sendo escalado como se fosse um bot.", "aviso", "tatica"));
-    if (clube.escudo_troca) l.push(item("🛡️", `O administrador pediu a troca do escudo enviado: a imagem saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
+    const trocas = clube.troca_pedida || (clube.escudo_troca ? ["escudo"] : []);
+    if (trocas.includes("escudo")) l.push(item("🛡️", `O administrador pediu a troca do escudo: se era uma imagem, ela saiu e voltou o desenho. Envie outra ou ajuste o desenho em <a class="lk" data-aba-ir="config:escudo">Ajustes, Escudo</a>.`, "aviso", "config:escudo"));
+    if (trocas.includes("nome")) l.push(item("🪪", `O administrador pediu a troca do nome do clube. Escolha outro nome e sigla em <a class="lk" data-aba-ir="config:geral">Ajustes, Geral</a>.`, "aviso", "config:geral"));
+    for (const [k, o] of [["estadio", "o nome do estádio"], ["mosaico", "o mosaico"]]) if (trocas.includes(k)) l.push(item("🏟️", `O administrador pediu a troca d${o}: o texto saiu. Escreva outro na página do Estádio.`, "aviso", "clube:estadio"));
     if (caixa != null && caixa < 0) l.push(item("🔴", `Caixa negativo (${dinheiro(caixa)}): aumentos, renovações e obras bloqueados. Veja Clube, Finanças.`, "bad", "financas"));
     const recebidas = (propostas || []).filter(p => p.vendedor === clube.id && p.estado === "pendente");
     if (recebidas.length) l.push(item("💬", `${recebidas.length} ${recebidas.length === 1 ? "proposta esperando" : "propostas esperando"} a sua resposta, na aba Mercado.`, "aviso", "mercado"));
@@ -3442,6 +3445,7 @@ ${historicoDaBase()}`}
           <div class="mut" style="margin-top:8px;font-size:12.5px">Passando o mouse sobre a sigla, aparece o nome completo da posição.</div></div>
         <div><b>Dirigente</b>
           <div style="margin:4px 0 8px">${clube.dirigente === undefined ? `<span class="mut">O nome do dirigente aparece aqui quando o administrador ligar essa opção.</span>` : `${clube.dirigente ? esc(clube.dirigente) : `<span class="aviso">sem nome</span>`} <button class="sec" id="cfgDirigente">Mudar o nome</button>`}</div>
+          <div id="cfgRenomearCx" style="margin:0 0 8px" hidden>${(clube.troca_pedida || []).includes("nome") ? `<span class="aviso">O administrador pediu a troca do nome do clube.</span>` : `<span class="mut">Até a 1ª rodada da liga, dá para trocar o nome do clube.</span>`} <button class="sec" id="cfgRenomear">Trocar nome e sigla</button></div>
           <div class="mut" style="font-size:12.5px">Conta: ${esc(usuario.email || "")}</div>
           <div style="margin-top:12px"><b>Visual novo</b> <span class="tag">em teste</span>
             <div class="row" style="margin-top:6px"><button class="${visualNovo ? "" : "sec"}" id="cfgVisualNovo">Ligado</button><button class="${visualNovo ? "sec" : ""}" id="cfgVisualVelho">Desligado</button></div></div>
@@ -4051,7 +4055,7 @@ ${historicoDaBase()}`}
             return `<div class="t-transf" data-tipo="${esc(t.repatriado ? "repatriado" : t.tipo || "")}"><span class="t-giro-tipo">${esc(nomeT(t))}</span><div class="t-transf-jog">${pp(t.pos || "")}${t.jogador_id ? lj(t.jogador_id, t.jogador || "") : esc(t.jogador || "")}</div>
               <div class="t-transf-rota">${entrou ? (t.de_clube ? `chegou do ${lkE(t.de_clube)}` : "chegou livre") : t.para_clube ? `saiu para o ${lkE(t.para_clube)}` : "dispensado"}</div>
               <div class="t-transf-valor ${entrou ? "bad" : "ok"}">${entrou ? "−" : "+"}${dinheiro(t.valor)}</div><div class="t-transf-quando">Temp. ${t.temporada}</div></div>`; }).join("") : `<p class="t-fajuda">Nenhuma compra ou venda com valor ainda.</p>`}</section>`;
-          const admin_ = admin && c.escudo && c.escudo.img ? `<p class="t-fajuda t-cv-admin">Administração: este clube usa uma imagem como escudo. <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca do escudo</button></p>` : "";
+          const admin_ = admin && c.dono ? `<p class="t-fajuda t-cv-admin">Administração: pedir a troca de ${Object.entries(ITENS_DA_TROCA).map(([k, n]) => `<label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" data-troca="${k}"${(c.troca_pedida || []).includes(k) ? " checked disabled" : ""}> ${n}</label>`).join("")} <button type="button" class="t-botao" id="cvTrocaEscudo">Pedir a troca</button></p>` : "";
           return `<div class="t-cv"><div class="t-cv-volta"><button type="button" class="t-botao" id="cvVoltar">← Voltar</button></div>${topo}${admin_}
 
             <div class="t-cv-vitrine">${estadio}${estruturas}</div><section class="t-secao">${rotulo("Sala de troféus")}${estanteDe(id)}</section>${elenco}
@@ -4062,7 +4066,7 @@ ${historicoDaBase()}`}
               <div class="mut">${c.pais ? bandeira(c.pais) + " " + esc(c.pais) + " · " : ""}${esc(nomeDoGrupo(c.grupo))} · ${l.length} jogadores</div></div>
             <div class="patro-topo">${patroMaster(marcas[id])}</div>
             <button class="sec" id="cvVoltar" style="margin-left:auto">← Voltar</button></div>`}
-          ${admin && c.escudo && c.escudo.img ? `<div class="card row" style="align-items:center"><span class="mut">Administração: este clube usa uma imagem como escudo.</span><button class="sec" id="cvTrocaEscudo">Pedir a troca do escudo</button></div>` : ""}
+          ${admin && c.dono ? `<div class="card row" style="align-items:center"><span class="mut">Administração: pedir a troca de</span>${Object.entries(ITENS_DA_TROCA).map(([k, n]) => `<label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" data-troca="${k}"${(c.troca_pedida || []).includes(k) ? " checked disabled" : ""}> ${n}</label>`).join("")}<button class="sec" id="cvTrocaEscudo">Pedir a troca</button></div>` : ""}
           <div class="kpis" style="margin-bottom:12px">${kpi("Posição", eu && eu.j ? `${pos + 1}º<small> de ${tab.length}</small>` : "—", esc(nomeDoGrupo(c.grupo)))}
             ${kpi("Campanha", eu && eu.j ? `${eu.pts}<small> pts</small>` : "—", eu && eu.j ? `${eu.j} jogos · ${eu.v}V ${eu.e}E ${eu.d}D` : "ninguém jogou ainda")}
             ${kpi("Últimos jogos", feitos.length ? bolas(feitos.slice(-5), id) : "—", "liga e copas, do mais antigo ao mais recente")}
@@ -4099,7 +4103,10 @@ ${historicoDaBase()}`}
           </div></div>`;
         if (c.estadio_nivel != null) montarEstadio("cvEstadio", configDoClube(c, null));
         $("cvVoltar").onclick = () => { if (empurrei) history.back(); else abrir(abaAnterior); };
-        if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { if (!confirm(`Tirar a imagem do escudo do ${c.nome} e avisar o dirigente para trocar?`)) return; try { await pedirTrocaDeEscudo(c.id); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
+        if ($("cvTrocaEscudo")) $("cvTrocaEscudo").onclick = async () => { const itens = [...document.querySelectorAll("[data-troca]:checked:not(:disabled)")].map(x => x.dataset.troca);
+          if (!itens.length) return alert("Marque o que o dirigente deve trocar.");
+          if (!confirm(`Pedir ao ${c.nome} a troca de: ${itens.map(k => ITENS_DA_TROCA[k].toLowerCase()).join(", ")}? Imagem do escudo, nome do estádio e mosaico saem na hora (volta o padrão); o nome do clube fica até o dirigente trocar.`)) return;
+          try { await pedirTroca(c.id, itens); paginaDoClube(c.id); } catch (err) { alert(err.message); } };
         const filtrar = f => { if ($("cvCampo")) { $("cvCampo").style.display = f === "campo" ? "" : "none"; if ($("cvContra")) $("cvContra").style.display = f === "campo" ? "" : "none"; $("cvTabela").style.display = f === "campo" ? "none" : ""; } $("cvLista").querySelectorAll(".t-setor").forEach(s => { const linhas = [...s.querySelectorAll("[data-cvjog]")];
           linhas.forEach(x => x.style.display = f === "venda" && !("venda" in x.dataset) ? "none" : "");
           s.style.display = f === "todos" || f === s.dataset.cvsetor || (f === "venda" && linhas.some(x => !x.style.display)) ? "" : "none"; }); };
@@ -4391,6 +4398,12 @@ ${historicoDaBase()}`}
     $("cfgEntregar").disabled = true;
     try { await entregarClubeExtra(clube.id); try { localStorage.setItem("ts_clube_ativo", "entregue:" + Date.now()); } catch (x) {} location.reload(); }
     catch (e) { $("cfgEntregar").disabled = false; alert("Não deu para entregar: " + e.message); }
+  };
+  podeRenomearClube().then(sim => { if ($("cfgRenomearCx")) $("cfgRenomearCx").hidden = !sim; });
+  if ($("cfgRenomear")) $("cfgRenomear").onclick = async () => {
+    const nome = prompt("Novo nome do clube (de 3 a 30 caracteres):", clube.nome); if (nome == null) return;
+    const sigla = prompt("Sigla (3 letras ou números):", clube.sigla); if (sigla == null) return;
+    try { await renomearClube(nome, sigla); await carregar({ user: usuario }); } catch (err) { alert(err.message); }
   };
   if ($("cfgDirigente")) $("cfgDirigente").onclick = async () => {
     const nome = prompt("Seu nome de dirigente (de 2 a 24 caracteres):", clube.dirigente || ""); if (nome == null) return;

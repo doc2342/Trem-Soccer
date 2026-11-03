@@ -65,6 +65,11 @@ export async function tirarEscudoEnviado() {
   if (antes) await sb.storage.from("escudos").remove([antes]).catch(() => {});
 }
 export const pedirTrocaDeEscudo = clubeId => sb.rpc("pedir_troca_de_escudo", { p_clube: clubeId }).then(ok);
+// 174_pedido_de_troca.sql: o administrador pede a troca de escudo, nome, estádio e/ou mosaico; o nome só muda com esse pedido
+export const ITENS_DA_TROCA = { escudo: "Escudo", nome: "Nome do clube", estadio: "Nome do estádio", mosaico: "Mosaico" };
+export const pedirTroca = (clubeId, itens) => sb.rpc("pedir_troca", { p_clube: clubeId, p_itens: itens }).then(ok);
+export const podeRenomearClube = () => sb.rpc("pode_renomear_clube").then(({ data, error }) => !error && !!data);
+export const renomearClube = (nome, sigla) => sb.rpc("renomear_clube", { p_nome: nome, p_sigla: sigla }).then(ok);
 export const marcarNaoRenovar = (id, marcar) => sb.rpc("marcar_nao_renovar", { p_jogador: numero(id), p_marcar: marcar }).then(ok); // 99_renovacao_automatica.sql
 export const registrarAcesso = () => sb.rpc("registrar_acesso").then(ok);
 
