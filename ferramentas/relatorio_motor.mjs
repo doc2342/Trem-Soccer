@@ -28,6 +28,7 @@ const MATRIZ = [
   ["Lançamento", "duelo aéreo, segunda bola, reposição", "mecanicas 1; cruzada"], ["Agressividade", "duelo, falta, cartão, pressão, terceiro homem", "mecanicas 2; cruzada"],
   ["Pressão", "foto do lance, escolha do passo, Decisões", "mecanicas 3; cruzada"], ["Entrelinhas", "passe no espaço, escolha do passo, Movimentação", "mecanicas 4; cruzada"],
   ["Comunicação", "basculação, virada, buraco, chance", "mecanicas 5; teste_grade; cruzada"], ["Força do goleiro", "cruzamento, segunda bola, rebote, escanteio", "mecanicas 6; rebote_gol_contra; cruzada"],
+  ["Volume de cruzamentos", "escolha do passo, condução, Drible, Cruzamento", "mecanicas 7"],
 ];
 const REGISTROS = [
   "Pressão 2 reduz as faltas do time que pressiona (17,2 para 13,3 por jogo): contraintuitivo, sem defeito comprovado; olhar no ajuste fino.",

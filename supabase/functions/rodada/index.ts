@@ -1113,9 +1113,11 @@ const __motor = (() => {
       valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
       impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
       baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
-      conduzir: { base: -0.3, peso: 0.6, fora: 0.6 }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
+      // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
+      conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
       chance: { areaMeio: 0.8, xgMeio: 0.75, xgCutback: 0.16, cutback: 0.5, corteMeio: 0.35, enfiada: 1, peInvertido: 0.15, blocoBaixo: 0.15,
-        antecipado: { valor: 0.12, xg: 0.8, contra: 1.4, linhaAlta: 1.25 }, chutar: 0.05,
+        antecipado: { valor: 0.12, meio: 1, xg: 0.8, contra: 1.4, linhaAlta: 1.25 }, chutar: 0.05,
+        // antecipado: o cruzamento da faixa 4, do lado e do meio-espaço (meio: × no valor de cruzar do 4e e do 4d; o do meio-espaço é o que mais falha a defesa, fontes de cruzamento)
         // acerto do cruzamento (meta 20–25% certos): logit = base + cruzador × (Cruzamento − 25) / 25 + inclinacao × ln((nossos + vazio) / (deles + vazio)),
         // quem ganha a bola = Posicionamento + Força no alto, Posicionamento + Velocidade no chão (pacote aéreo de 29/10), o goleiro sai (goleiro ×
         // Encaixe/Um contra um); menos afobado (o forçado); errado vira perda de bola, escanteio às vezes; cego: peso com que o mau decisor cruza mesmo
@@ -2260,7 +2262,7 @@ const __motor = (() => {
           for (let x = ka - ka % 5 + 5 + c; x < k; x += 5) l -= G.atravessa * Math.log(1 + defesaNo(x) / Zv); // as faixas atravessadas, no corredor do destino
           // o passe que muda de corredor pega a defesa se reorganizando: a linha rápida (basculação, Comunicação de quem está ali) chega a tempo, a lenta cede o passe
           const dc = Math.abs(c - ka % 5); if (dc >= 2 && !trans) l += G.comunica.troca * dc / 4 * (G.comunica.neutro - RAP[(k / 5) | 0]);
-          if (o.conduzir) l += conduz;
+          if (o.conduzir) l += conduz + G.conduzir.faixas[(k / 5) | 0]; // perto da última linha, levar a bola é driblar: sem o toque de lado de graça
           if (livre && (c === 1 || c === 3)) l += G.impulso.deFrente; // contra a linha alta, o 1º passo do contra para o meio-espaço sai livre
           if (th) l += terceiro(o, k, c);
           if (o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao") l += lanc;
@@ -2323,7 +2325,7 @@ const __motor = (() => {
             const q = (ka % 5 === 0 || ka % 5 === 4 ? portador.at[A.cru] : portador.at[A.fin]) / 25, livre = AT[ka] / (AT[ka] + defesaNo(ka) + Zv);
             return G.area.chute * XT[ka] * q * (G.area.piso + (1 - G.area.piso) * 2 * livre);
           }
-          if (o.fim) return o.tipo === "cruzar" ? fimCruzar * portador.at[A.cru] / 25 * Math.max(Math.min(1, PESO[21] + PESO[22] + PESO[23]), CONFIG.gradeValores.chance.cruzamento.cego * cegueira(portador.at))
+          if (o.fim) return o.tipo === "cruzar" ? fimCruzar * (ka % 5 === 1 || ka % 5 === 3 ? AN.meio : 1) * portador.at[A.cru] / 25 * Math.max(Math.min(1, PESO[21] + PESO[22] + PESO[23]), CONFIG.gradeValores.chance.cruzamento.cego * cegueira(portador.at))
             : fimChutar * portador.at[A.lon] / 25;
           const k = o.i, ch = o.espaco ? chegadaEsperada(k) : null, ap = o.entre ? apareceEsperado(k) : 0;
           if ((o.espaco && !ch) || (o.entre && !ap)) return null;
@@ -2452,7 +2454,7 @@ const __motor = (() => {
             // no espaço para quem chega correndo
             const ehGk = portador === atk.goleiro, chave = atual + !!portador + ehGk, lista = OPC[chave] || (OPC[chave] = opcoesDoPasso(atual).flatMap(x => x.conduzir ? (portador && !ehGk ? [x] : []) : PESO[x.i] > 0 ? (portador && ENTRE.has(x.i) && PESO[x.i] < EL.lotado && x.i - x.i % 5 > ka - ka % 5 && quemAparece(x.i).length ? [x, { ...x, entre: true }] : [x])
               : !portador || x.i - x.i % 5 <= ka - ka % 5 ? [] : ENTRE.has(x.i) ? (quemAparece(x.i).length ? [{ ...x, entre: true }] : []) : quemChega(x.i).length ? [{ ...x, espaco: true }] : [])
-              .concat(portador && (atual === "4E" || atual === "4D") && PESO[21] + PESO[22] + PESO[23] > 0 ? [{ tipo: "cruzar", fim: true, i: ka }] : portador && atual === "4C" ? [{ tipo: "chutar", fim: true, i: ka }] : portador && ka >= 20 ? [{ tipo: "finalizar", fim: true, i: ka }] : portador && atk.goleiro && !ehGk && ka < 5 ? [{ tipo: "voltar", goleiro: true, para: "1C", i: 2, k: -1 }] : []));
+              .concat(portador && (atual === "4E" || atual === "4D" || atual === "4e" || atual === "4d") && PESO[21] + PESO[22] + PESO[23] > 0 ? [{ tipo: "cruzar", fim: true, i: ka }] : portador && atual === "4C" ? [{ tipo: "chutar", fim: true, i: ka }] : portador && ka >= 20 ? [{ tipo: "finalizar", fim: true, i: ka }] : portador && atk.goleiro && !ehGk && ka < 5 ? [{ tipo: "voltar", goleiro: true, para: "1C", i: 2, k: -1 }] : []));
             const dec = decisaoSobPressao(portador ? decisao(portador.at) : 25, P * (1 - G.calma.pressao * atk.calma), G);
             FOTO = []; ve = limitar((dec - G.foto.de) / (G.foto.ate - G.foto.de), 0, 1);
             let o = n < LIMITE_DE_PASSOS && escolherPasso(rng, lista, valorDe, dec, G, sortearPeso, multDe);

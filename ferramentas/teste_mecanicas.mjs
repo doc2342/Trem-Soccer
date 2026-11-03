@@ -122,4 +122,21 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(Math.abs(r.gol - b.gol) < 0.03, "a Força não defende chute");
 }
 
+// 7. Cruzamento: sai do lado e do meio-espaço, rende pelo Cruzamento de quem cruza; perto da última linha, levar a bola é driblar
+{
+  const P3 = onze("4-3-3 com pontas", 1), AC = G.chance.antecipado;
+  const mede = (a, b = B) => { const t = { n: 0, c: 0, meio: 0, f5: [0, 0], lado: 0 }; for (let s = 1; s <= JOGOS; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b }), { registro: reg }), e = p.estat[0].grade; t.n += e.cruzamentos[0]; t.c += e.cruzamentos[1];
+    for (const l of p.lances) if (l.time === 0 && l.tipo === "cruzamento" && l.zona && "ed".includes(l.zona[1])) t.meio++;
+    for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[7] && r[2][0] === "5") { t.f5[0]++; t.f5[1] += r[6] ? 1 : 0; if (r[1][0] === "5") t.lado++; } } return t; };
+  const [ruim, bom] = [10, 45].map(v => { const t = mede(comAtr(P3, ["cru"], v)); return t.c / t.n; }), base = mede(P3), semMeio = com(AC, "meio", 0, () => mede(P3));
+  console.log(`7 cruzamentos por time: ${(base.n / JOGOS).toFixed(2)} (sem o meio-espaço ${(semMeio.n / JOGOS).toFixed(2)}), certos do meio-espaço ${base.meio}; acerto com Cruzamento 10/45: ${ruim.toFixed(3)} ${bom.toFixed(3)}`);
+  assert.ok(base.meio > 2 * semMeio.meio && base.meio > 0, "o cruzamento certo do meio-espaço depende da regra (com peso 0 a opção ainda sai, pelo piso da nota)");
+  assert.ok(base.n > semMeio.n, "o meio-espaço soma cruzamentos");
+  assert.ok(bom > ruim, "quem cruza bem acerta mais");
+  const livre = com(G.conduzir, "faixas", [0, 0, 0, 0, 0], () => mede(P3)), [dr, db] = [10, 45].map(v => { const t = mede(comAtr(P3, ["dri"], v)); return t.f5[1] / t.f5[0]; });
+  console.log(`7 conduções para a faixa 5 por time: ${(base.f5[0] / JOGOS).toFixed(1)}, de lado na área ${(base.lado / JOGOS).toFixed(1)} (sem a regra ${(livre.f5[0] / JOGOS).toFixed(1)}, ${(livre.lado / JOGOS).toFixed(1)}); acerto ${(base.f5[1] / base.f5[0]).toFixed(3)} (sem a regra ${(livre.f5[1] / livre.f5[0]).toFixed(3)}); com Drible 10/45: ${dr.toFixed(3)} ${db.toFixed(3)}`);
+  assert.ok(base.lado < livre.lado && base.f5[1] / base.f5[0] < livre.f5[1] / livre.f5[0], "levar a bola na área deixa de ser de graça");
+  assert.ok(db > dr, "quem dribla bem leva melhor");
+}
+
 console.log("ok: mecânicas");

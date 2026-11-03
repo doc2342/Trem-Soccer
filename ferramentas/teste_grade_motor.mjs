@@ -166,7 +166,9 @@ assert.strictEqual(CONFIG.grade, false);
   // cruzamento antecipado só da faixa 4 de lado; da faixa 4 só sai cruzamento (lado) ou longe (zona 14)
   for (const z of ["4E", "4D"]) assert.ok(Object.keys(porZona[z] || {}).every(t => t === "cruzamento" || t === "corte" || t === "longe"), z);
   assert.ok((porZona["4E"] || {}).cruzamento > 0 || (porZona["4D"] || {}).cruzamento > 0, "cruzamento antecipado");
-  assert.ok(Object.keys(porZona).filter(z => z[0] === "4").every(z => ["4E", "4D", "4C"].includes(z)), "faixa 4 só de lado e zona 14");
+  assert.ok(Object.keys(porZona).filter(z => z[0] === "4").every(z => ["4E", "4e", "4C", "4d", "4D"].includes(z)), "faixa 4");
+  // do meio-espaço da faixa 4 (dono, 02/11), só o cruzamento
+  for (const z of ["4e", "4d"]) assert.ok(Object.keys(porZona[z] || {}).every(t => t === "cruzamento"), z);
   assert.ok(toques > 0);
   // Tarefa 8: aparecem tabelas, terceiros homens, duelos aéreos, segundas bolas (da bola longa e do cruzamento afastado), cada uma ganha às vezes
   for (const [k, [n, g]] of Object.entries(T8)) assert.ok(n > 0 && g > 0 && g < n, `${k}: ${n}/${g}`);
