@@ -240,4 +240,21 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(lb.xg < lr.xg && lb.xg < pad.xg, "o Líbero corta a bola em profundidade, pelo Posicionamento e pela Velocidade");
 }
 
+// 14. Papéis do volante (fichas de 28 e 29/10): o Primeiro volante é o padrão (nada muda); o Distribuidor desce para receber e inverte; o Box-to-box chega
+// na frente e cansa mais; o Ladrão de bola sobe para o bote, faz mais falta e cansa mais
+{
+  const P4 = onze("4-2-3-1", 1), ids = new Set(P4.filter(x => x.pos === "DMC").map(x => x.j.id));
+  const mede = papel => { const a = P4.map(x => x.pos === "DMC" ? { ...x, papel } : x), t = { atras: 0, frente: 0, viradas: 0, faltas: 0, energia: 0 };
+    for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+      for (const id of ids) { t.energia += p.jogadores[id].energia ?? 0; t.faltas += p.jogadores[id].faltas || 0; }
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[6]) { if (ids.has(r[5]) && r[2][0] === "1") t.atras++; if (ids.has(r[5]) && "34".includes(r[2][0])) t.frente++; if (ids.has(r[4]) && (r[3] === "virada" || r[3] === "inversao")) t.viradas++; } }
+    return t; };
+  const [pad, pv, dis, box, lad] = [null, "primeirovolante", "distribuidor", "boxtobox", "ladrao"].map(mede);
+  console.log(`14 volante (padrão/Distribuidor/Box/Ladrão): recebe na faixa 1 ${pad.atras} ${dis.atras}; viradas e inversões dele ${pad.viradas} ${dis.viradas}; recebe nas faixas 3–4 ${pad.frente} ${box.frente}; faltas ${pad.faltas} ${lad.faltas}; energia ${(pad.energia / 300).toFixed(1)} ${(box.energia / 300).toFixed(1)} ${(lad.energia / 300).toFixed(1)}`);
+  assert.deepStrictEqual(pv, pad, "o Primeiro volante é o volante de hoje");
+  assert.ok(dis.atras > pad.atras && dis.viradas > pad.viradas, "o Distribuidor desce e inverte");
+  assert.ok(box.frente > pad.frente && box.energia < pad.energia, "o Box-to-box chega na frente e cansa");
+  assert.ok(lad.faltas > pad.faltas && lad.energia < pad.energia, "o Ladrão faz mais falta e cansa");
+}
+
 console.log("ok: mecânicas");

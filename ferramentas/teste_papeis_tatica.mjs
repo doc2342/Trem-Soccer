@@ -16,7 +16,7 @@ const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta
 const e1 = gerarElenco(criarRng(9), { nivel: 30, nomes, prefixoId: "a" }), e2 = gerarElenco(criarRng(19), { nivel: 30, nomes, prefixoId: "b" });
 const vagas = FORMACOES["4-2-3-1"], onze = escalar(e1, vagas);
 const dados = papeis => ({ vagas: onze.map(x => x.pos), jog: onze.map(x => x.j.id), ...(papeis ? { papeis } : {}) });
-const iDR = onze.findIndex(x => x.pos === "DR"), iMC = onze.findIndex(x => x.pos === "DMC");
+const iDR = onze.findIndex(x => x.pos === "DR"), iMC = onze.findIndex(x => x.pos === "GK"); // posição sem papéis
 const com = (i, p) => { const l = Array(11).fill(null); l[i] = p; return l; };
 
 // tática antiga, sem papéis: tudo nulo

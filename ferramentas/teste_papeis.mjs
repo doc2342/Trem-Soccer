@@ -15,9 +15,9 @@ for (const [k, p] of Object.entries(PAPEIS)) {
   for (const [pos, m] of Object.entries(p.mapas || {})) { perto(soma(m.com), 1, `${k}@${pos} com`); perto(soma(m.sem), 1, `${k}@${pos} sem`); }
   assert.ok(p.nome && p.faz && p.custa, `textos de ${k}`);
 }
-assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
+assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
 assert.deepStrictEqual(papeisDaPosicao("DR"), ["fixo", "apoiador", "construtor", "invertido"]);
-assert.deepStrictEqual(papeisDaPosicao("MC"), []);
+assert.deepStrictEqual(papeisDaPosicao("DMC"), ["primeirovolante", "distribuidor", "boxtobox", "ladrao"]);
 assert.deepStrictEqual(papeisDaPosicao("DC"), ["xerife", "tecnico", "combativo", "libero"]);
 
 // o padrão segue pelo caminho de hoje (COBERTURA da posição)
@@ -126,3 +126,15 @@ assert.ok(cmb.sem["2C"] > MANCHAS.DC1.sem["2C"], "o Combativo sobe para o bote")
 assert.ok(lib.sem["1e"] > MANCHAS.DC1.sem["1e"] && lib.sem["1C"] < MANCHAS.DC1.sem["1C"], "o Líbero cobre os lados");
 assert.ok(preferenciaDoPasso("tecnico", "pular", false) < 1 && preferenciaDoPasso("tecnico", "lado", true) > 1);
 console.log("teste_papeis: ok (com os zagueiros)");
+
+// volantes (passo 3): a mancha do volante deslocada entre faixas; o Primeiro volante é o padrão
+for (const k of ["DMC1", "DMC2d"]) for (const p of papeisDaPosicao("DMC")) {
+  const m = manchaDoPapel("DMC", p, MANCHAS[k]);
+  if (p === "primeirovolante") { assert.strictEqual(m, null); continue; }
+  for (const f of ["com", "sem"]) perto(soma(m[f]), 1, `${p}@${k} ${f}`);
+}
+const naFaixa = (m, f) => Object.entries(m).filter(([z]) => z[0] === f).reduce((a, [, w]) => a + w, 0);
+assert.ok(naFaixa(manchaDoPapel("DMC", "distribuidor", MANCHAS.DMC1).com, "1") > naFaixa(MANCHAS.DMC1.com, "1"), "o Distribuidor desce com a bola");
+assert.ok(naFaixa(manchaDoPapel("DMC", "boxtobox", MANCHAS.DMC1).com, "3") > naFaixa(MANCHAS.DMC1.com, "3"), "o Box-to-box chega na frente");
+assert.ok(naFaixa(manchaDoPapel("DMC", "ladrao", MANCHAS.DMC1).sem, "3") > naFaixa(MANCHAS.DMC1.sem, "3"), "o Ladrão sobe para o bote");
+console.log("teste_papeis: ok (com os volantes)");

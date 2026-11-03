@@ -158,6 +158,28 @@ export const PAPEIS = {
     pesos: { pos: 19, pas: 14, des: 13, vel: 12, mar: 10, com: 9, dom: 7, cab: 5, equ: 5, cri: 3, dri: 3 },
     desloca: { DC: { com: { avanca: 0.25 }, sem: { espalha: 0.3 } } }, gasto: { DC: 1 },
   },
+  // Volantes (passo 3 da revisão; fichas de 28 e 29/10). A mancha do volante (um ou dupla) deslocada entre faixas (faixas: [de, para, parte], no mesmo
+  // corredor, em ordem)
+  primeirovolante: {
+    nome: "Primeiro volante", faz: "Fica na frente da zaga: centro da saída de bola e o primeiro a reagir na perda.", custa: "Quase não chega ao ataque: rende com um Distribuidor ou um Box-to-box ao lado.",
+    pesos: { pos: 17, pas: 15, des: 15, dom: 11, mar: 8, equ: 7, com: 6, for: 6, res: 6, agr: 4, cri: 3, cab: 2 }, gasto: { DMC: 1 },
+  },
+  distribuidor: {
+    nome: "Distribuidor", faz: "Desce entre os zagueiros para receber e inverte o jogo para o lado vazio.", custa: "Sem a bola, protege menos a zaga; a inversão longa perde mais bolas.",
+    pesos: { pas: 23, pos: 17, dom: 13, des: 12, cri: 11, equ: 6, lon: 5, mar: 4, res: 4, com: 3, for: 2 },
+    desloca: { DMC: { com: { faixas: [[2, 1, 0.3]] }, sem: { faixas: [[1, 2, 0.4]] } } }, gasto: { DMC: 1 },
+  },
+  boxtobox: {
+    nome: "Box-to-box", faz: "Vai de área a área: chega na frente com a bola, volta e pressiona sem ela, e conduz do meio para a frente.", custa: "Gasta mais energia; dois sem um Primeiro volante atrás deixam a zaga sem proteção.",
+    pesos: { res: 13, pas: 12, pos: 12, des: 12, dom: 9, equ: 9, vel: 7, fin: 7, cri: 6, dri: 5, lon: 5, com: 2, mar: 1 },
+    desloca: { DMC: { com: { faixas: [[1, 2, 0.8], [2, 3, 0.45]] }, sem: { faixas: [[1, 2, 0.4], [2, 3, 0.15]] } }, MC: { com: { faixas: [[3, 4, 0.3]] }, sem: { faixas: [[3, 2, 0.25]] } } },
+    gasto: { DMC: 1.1, MC: 1.1 },
+  },
+  ladrao: {
+    nome: "Ladrão de bola", faz: "Sobe para o bote no meio e rouba mais longe do gol; com a bola, joga simples.", custa: "Faz mais falta, cansa mais e deixa espaço na frente da zaga quando o bote falha.",
+    pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 },
+    desloca: { DMC: { sem: { faixas: [[1, 2, 0.4], [2, 3, 0.2]] } }, MC: { sem: { faixas: [[3, 4, 0.25]] } } }, gasto: { DMC: 1.1, MC: 1.1 },
+  },
 };
 
 // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -181,6 +203,7 @@ function deslocar(mapa, d) {
       for (const x of viz) soma("1" + COL[x], es / viz.length);
     }
   }
+  for (const [de, para, parte] of d.faixas || []) for (const z of Object.keys(r)) if (+z[0] === de) { const w = r[z] * parte; r[z] -= w; soma(para + z[1], w); }
   for (const z in r) if (r[z] <= 1e-9) delete r[z];
   return r;
 }
@@ -193,10 +216,10 @@ export function manchaDoPapel(pos, papel, base) {
   return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
 }
 
-export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
+export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
 const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
   SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
-  DC: ["xerife", "tecnico", "combativo", "libero"],
+  DC: ["xerife", "tecnico", "combativo", "libero"], DMC: ["primeirovolante", "distribuidor", "boxtobox", "ladrao"],
   RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
 // posição do lado direito que serve de base para a do esquerdo
 const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };

@@ -600,6 +600,10 @@ const __grade = (() => {
     tecnico: { lado: 1.05, conduzir: 1, pular: 0.6, virada: 0.7, inversao: 0.7 },
     combativo: { subir: 1.1, conduzir: 1.2 },
     libero: { conduzir: 1.25 },
+    // volantes: o Distribuidor inverte; o Box-to-box leva a bola para a frente; o Ladrão joga simples
+    distribuidor: { virada: 1.4, inversao: 1.4, pular: 1.1 },
+    boxtobox: { subir: 1.15, conduzir: 1.2 },
+    ladrao: { lado: 1.1, voltar: 1.1, pular: 0.8, conduzir: 0.9 },
   };
   function preferenciaDoPasso(papel, tipo, conduzir) {
     const p = papel && PREFERENCIA[papel];
@@ -776,6 +780,28 @@ const __papeis = (() => {
       pesos: { pos: 19, pas: 14, des: 13, vel: 12, mar: 10, com: 9, dom: 7, cab: 5, equ: 5, cri: 3, dri: 3 },
       desloca: { DC: { com: { avanca: 0.25 }, sem: { espalha: 0.3 } } }, gasto: { DC: 1 },
     },
+    // Volantes (passo 3 da revisão; fichas de 28 e 29/10). A mancha do volante (um ou dupla) deslocada entre faixas (faixas: [de, para, parte], no mesmo
+    // corredor, em ordem)
+    primeirovolante: {
+      nome: "Primeiro volante", faz: "Fica na frente da zaga: centro da saída de bola e o primeiro a reagir na perda.", custa: "Quase não chega ao ataque: rende com um Distribuidor ou um Box-to-box ao lado.",
+      pesos: { pos: 17, pas: 15, des: 15, dom: 11, mar: 8, equ: 7, com: 6, for: 6, res: 6, agr: 4, cri: 3, cab: 2 }, gasto: { DMC: 1 },
+    },
+    distribuidor: {
+      nome: "Distribuidor", faz: "Desce entre os zagueiros para receber e inverte o jogo para o lado vazio.", custa: "Sem a bola, protege menos a zaga; a inversão longa perde mais bolas.",
+      pesos: { pas: 23, pos: 17, dom: 13, des: 12, cri: 11, equ: 6, lon: 5, mar: 4, res: 4, com: 3, for: 2 },
+      desloca: { DMC: { com: { faixas: [[2, 1, 0.3]] }, sem: { faixas: [[1, 2, 0.4]] } } }, gasto: { DMC: 1 },
+    },
+    boxtobox: {
+      nome: "Box-to-box", faz: "Vai de área a área: chega na frente com a bola, volta e pressiona sem ela, e conduz do meio para a frente.", custa: "Gasta mais energia; dois sem um Primeiro volante atrás deixam a zaga sem proteção.",
+      pesos: { res: 13, pas: 12, pos: 12, des: 12, dom: 9, equ: 9, vel: 7, fin: 7, cri: 6, dri: 5, lon: 5, com: 2, mar: 1 },
+      desloca: { DMC: { com: { faixas: [[1, 2, 0.8], [2, 3, 0.45]] }, sem: { faixas: [[1, 2, 0.4], [2, 3, 0.15]] } }, MC: { com: { faixas: [[3, 4, 0.3]] }, sem: { faixas: [[3, 2, 0.25]] } } },
+      gasto: { DMC: 1.1, MC: 1.1 },
+    },
+    ladrao: {
+      nome: "Ladrão de bola", faz: "Sobe para o bote no meio e rouba mais longe do gol; com a bola, joga simples.", custa: "Faz mais falta, cansa mais e deixa espaço na frente da zaga quando o bote falha.",
+      pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 },
+      desloca: { DMC: { sem: { faixas: [[1, 2, 0.4], [2, 3, 0.2]] } }, MC: { sem: { faixas: [[3, 4, 0.25]] } } }, gasto: { DMC: 1.1, MC: 1.1 },
+    },
   };
 
   // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -799,6 +825,7 @@ const __papeis = (() => {
         for (const x of viz) soma("1" + COL[x], es / viz.length);
       }
     }
+    for (const [de, para, parte] of d.faixas || []) for (const z of Object.keys(r)) if (+z[0] === de) { const w = r[z] * parte; r[z] -= w; soma(para + z[1], w); }
     for (const z in r) if (r[z] <= 1e-9) delete r[z];
     return r;
   }
@@ -811,10 +838,10 @@ const __papeis = (() => {
     return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
   }
 
-  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
+  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", DMC: "primeirovolante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
   const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
     SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
-    DC: ["xerife", "tecnico", "combativo", "libero"],
+    DC: ["xerife", "tecnico", "combativo", "libero"], DMC: ["primeirovolante", "distribuidor", "boxtobox", "ladrao"],
     RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
   // posição do lado direito que serve de base para a do esquerdo
   const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };
@@ -1261,7 +1288,7 @@ const __motor = (() => {
         paraDentro: -0.2, pertoDoGol: -0.3 },
       valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
       impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-      baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+      baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
       // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
       conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
       // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -1284,7 +1311,8 @@ const __motor = (() => {
       // na área ou na zona 14; flutuanteLivre, logit do passe entrelinhas para o Flutuante (recebe livre); flutuanteBuraco, × no buraco das costas da zaga
       // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10. papelDefesa: libero, o quanto o Líbero (papel) tira do fator
       // da bola em profundidade por (média de Posicionamento e Velocidade − 25) / 25, entre liberoMin e liberoMax; combativo, × (1 + isto × Combativos) no xG da
-      // bola em profundidade do rival; combativoCorrida, logit da corrida no espaço da faixa 5 do rival por Combativo (ele sobe para o bote e deixa as costas)
+      // bola em profundidade do rival; combativoCorrida, logit da corrida no espaço da faixa 5 do rival por Combativo (ele sobe para o bote e deixa as costas);
+      // falta, × na chance de falta do Ladrão de bola e do Combativo
       terceiro: { apertado: 0.3, bonus: 0.35, mov: 0.5, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
       longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
       segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
@@ -2191,7 +2219,7 @@ const __motor = (() => {
       const p = 1 / (1 + Math.exp(-((g ? CONFIG.gradeValores.baseDuelo : CONFIG.baseDuelo)[L] + logit + folga + briga)));
       const contato = g ? CONFIG.gradeValores.contato : 1; // na grade há mais passos que duelos nas 9 zonas
       let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false;
-      if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
+      if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (CONFIG.grade && temPapel(marcador, "ladrao", "combativo") ? CONFIG.gradeValores.papelDefesa.falta : 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
         falta(1 - i, marcador, pivo); comFalta = true;
         // falta no ataque (na grade, na faixa 5 ou na zona 14) vira bola parada; atrás, quem ganhava segue, e quem perdia fica com a bola e recomeça do mesmo setor (sem faltaRecomeca, a falta dava o duelo)
         if (g ? faixaDe(zona) === 5 || zona === "4C" : L === "A") parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;

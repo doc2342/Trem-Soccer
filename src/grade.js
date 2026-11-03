@@ -309,6 +309,10 @@ export const PREFERENCIA = {
   tecnico: { lado: 1.05, conduzir: 1, pular: 0.6, virada: 0.7, inversao: 0.7 },
   combativo: { subir: 1.1, conduzir: 1.2 },
   libero: { conduzir: 1.25 },
+  // volantes: o Distribuidor inverte; o Box-to-box leva a bola para a frente; o Ladrão joga simples
+  distribuidor: { virada: 1.4, inversao: 1.4, pular: 1.1 },
+  boxtobox: { subir: 1.15, conduzir: 1.2 },
+  ladrao: { lado: 1.1, voltar: 1.1, pular: 0.8, conduzir: 0.9 },
 };
 export function preferenciaDoPasso(papel, tipo, conduzir) {
   const p = papel && PREFERENCIA[papel];
