@@ -9,6 +9,7 @@ import { FORMACOES } from "../src/escalacao.js";
 import { defesaVistaNaGrade, prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 import { IDX } from "../src/modelo.js";
 import { colunaDe } from "../src/grade.js";
+import { mapasDoPapel } from "../src/papeis.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const G = CONFIG.gradeValores, JOGOS = 200;
@@ -199,6 +200,26 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(piv.escora > pad.escora && piv.cruz > pad.cruz, "o Pivô escora e pede o cruzamento");
   assert.ok(flu.entre > pad.entre && flu.chutes < pad.chutes, "o Flutuante recebe entre as linhas e chuta menos");
   assert.ok(pre.alto[1] / pre.alto[0] < semRegra.alto[1] / semRegra.alto[0] && pre.energia < pad.energia, "o Pressionador aperta a saída do rival e cansa mais");
+}
+
+// 12. Papéis do ponta (fichas de 29/10): o Agudo é o padrão do RW (nada muda); o Invertido corta para dentro, chuta mais e cruza menos; o Garçom cruza
+// mais; o Condutor leva a bola; no MR, o Articulador gira por dentro (o time cruza menos) e o Operário volta para fechar o lado e cansa mais
+{
+  const P3 = onze("4-3-3 com pontas", 1), Q4 = onze("4-4-2", 3);
+  const mede = (l, pos, papel) => { const a = l.map(x => x.pos === pos ? { ...x, papel } : x), id = a.find(x => x.pos === pos).j.id, t = { chutes: 0, cruz: 0, conduz: 0, dentro: 0, energia: 0, sem: 0 };
+    for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+      t.cruz += p.estat[0].grade.cruzamentos[0]; t.chutes += p.jogadores[id].finalizacoes || 0; t.energia += p.jogadores[id].energia ?? 0;
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[6]) { if (r[7] && r[4] === id) t.conduz++; if (r[5] === id && "ed".includes(r[2][1])) t.dentro++; } }
+    const m = mapasDoPapel(pos, papel, true, true); t.sem = m ? (m.sem["2D"] || 0) + (m.sem["1D"] || 0) : 0; return t; };
+  const [pad, agu, inv, gar, con] = [null, "agudo", "pontainvertido", "garcom", "condutor"].map(p => mede(P3, "RW", p));
+  const [mr, art, ope] = [null, "articulador", "operario"].map(p => mede(Q4, "MR", p));
+  console.log(`12 ponta no RW (padrão/Invertido/Garçom/Condutor): chutes dele ${pad.chutes} ${inv.chutes}; cruzamentos ${pad.cruz} ${inv.cruz} ${gar.cruz}; conduções certas dele ${pad.conduz} ${con.conduz}; no MR (padrão/Articulador/Operário): recepções dele por dentro ${mr.dentro} ${art.dentro}; cruzamentos ${mr.cruz} ${art.cruz}; peso atrás sem a bola ${mr.sem.toFixed(2)} ${ope.sem.toFixed(2)}; energia ${(mr.energia / 150).toFixed(1)} ${(ope.energia / 150).toFixed(1)}`);
+  assert.deepStrictEqual(agu, pad, "o Agudo é o ponta de hoje");
+  assert.ok(inv.chutes > pad.chutes && inv.cruz < pad.cruz, "o Invertido corta para dentro e chuta");
+  assert.ok(gar.cruz > pad.cruz, "o Garçom cruza mais");
+  assert.ok(con.conduz > pad.conduz, "o Condutor leva a bola");
+  assert.ok(art.dentro > mr.dentro && art.cruz < mr.cruz, "o Articulador gira por dentro");
+  assert.ok(ope.sem > mr.sem && ope.energia < mr.energia, "o Operário volta e cansa mais");
 }
 
 console.log("ok: mecânicas");

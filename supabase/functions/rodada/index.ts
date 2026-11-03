@@ -589,6 +589,13 @@ const __grade = (() => {
     pivo: { voltar: 1.3, conduzir: 0.7 },
     flutuante: { lado: 1.2, voltar: 1.15, diagonal: 1.15, conduzir: 1.1 },
     pressionador: { subir: 1.15, diagonal: 1.1, conduzir: 1.1 },
+    // pontas; cruzar, chutar e finalizar são os fins da jogada (o cruzamento da faixa 4, o chute da zona 14, a finalização da faixa 5)
+    agudo: { subir: 1.2, conduzir: 1.2, cruzar: 1.1 },
+    pontainvertido: { diagonal: 1.25, conduzir: 1.15, lado: 0.9, cruzar: 0.75, finalizar: 1.2, chutar: 1.3 },
+    garcom: { cruzar: 1.4, voltar: 1.1, conduzir: 0.9 },
+    condutor: { conduzir: 1.3 },
+    articulador: { lado: 1.15, diagonal: 1.2, voltar: 1.1, conduzir: 0.9, cruzar: 0.9 },
+    operario: { voltar: 1.2, lado: 1.1, conduzir: 0.8, cruzar: 0.9 },
   };
   function preferenciaDoPasso(papel, tipo, conduzir) {
     const p = papel && PREFERENCIA[papel];
@@ -699,6 +706,51 @@ const __papeis = (() => {
       pesos: { res: 16, vel: 16, fin: 14, equ: 12, agr: 11, pos: 8, des: 8, dom: 8, for: 4, dri: 3 },
       desloca: { SC: { com: { baixa: 0.1, abre: 0.1 }, sem: { abre: 0.15, sobe: 0.3 } }, FC: { sem: { abre: 0.15, sobe: 0.3 } } }, gasto: { SC: 1.15, FC: 1.15 },
     },
+    // Pontas (etapa Atacantes; fichas de 29/10). Na grade, mapa próprio por posição (do lado direito; o esquerdo é o espelho); o padrão de cada posição
+    // (Agudo no RW, Condutor no AMR, Garçom no MR) é a mancha de hoje. A chave do ponta Invertido é pontainvertido: invertido é a do lateral
+    agudo: {
+      nome: "Agudo", faz: "Ataca a linha de fundo no um contra um e fica alto mesmo sem a bola.", custa: "Ajuda pouco atrás: precisa de um lateral Fixo ou Construtor no mesmo lado.",
+      pesos: { dri: 21, vel: 21, cru: 14, fin: 12, dom: 9, pos: 6, res: 6, cri: 5, pas: 4, lon: 2 },
+      grade: { RW: MANCHAS.RW }, gasto: { RW: 1 },
+    },
+    pontainvertido: {
+      nome: "Invertido", faz: "Corta para dentro para o pé bom e chuta ou tabela no meio-espaço.", custa: "Cruza pouco e deixa o corredor para o lateral: sem lateral que suba, o lado fica vazio.",
+      pesos: { fin: 19, dri: 14, lon: 12, vel: 12, dom: 11, cri: 10, pas: 8, pos: 7, equ: 4, res: 3 },
+      grade: {
+        RW: { com: { "5D": 0.2, "5d": 0.35, "4d": 0.3, "4D": 0.15 }, sem: MANCHAS.RW.sem },
+        AMR: { com: { "4D": 0.25, "4d": 0.4, "5d": 0.2, "3D": 0.15 }, sem: MANCHAS.AMR.sem },
+        MR: { com: { "3D": 0.25, "3d": 0.25, "4d": 0.3, "4D": 0.2 }, sem: MANCHAS.MR.sem },
+      },
+      gasto: { RW: 1, AMR: 1, MR: 1 },
+    },
+    garcom: {
+      nome: "Garçom", faz: "Abre o campo e cruza; sem a bola, volta para ajudar o lateral.", custa: "Finaliza pouco e precisa de alvo na área (Pivô, Matador, quem chega).",
+      pesos: { cru: 18, pas: 12, vel: 12, res: 10, dom: 9, des: 9, dri: 8, cri: 8, pos: 6, equ: 6, mar: 2 },
+      grade: {
+        RW: { com: { "4D": 0.45, "5D": 0.3, "3D": 0.15, "4d": 0.1 }, sem: { "3D": 0.4, "4D": 0.35, "2D": 0.15, "3d": 0.1 } },
+        AMR: { com: { "4D": 0.5, "5D": 0.2, "3D": 0.2, "4d": 0.1 }, sem: { "3D": 0.45, "4D": 0.35, "2D": 0.1, "4d": 0.1 } },
+        MR: MANCHAS.MR,
+      },
+      gasto: { RW: 1, AMR: 1, MR: 1 },
+    },
+    condutor: {
+      nome: "Condutor", faz: "Leva a bola pelo lado, no drible, e acha o passe ou o chute.", custa: "Segura a bola: com marcação dobrada, perde e o contra sai pelo lado dele.",
+      pesos: { dri: 20, vel: 15, dom: 14, pas: 10, fin: 8, cri: 7, for: 6, cru: 6, equ: 4, des: 3, res: 3, pos: 2, lon: 2 },
+      grade: { RW: { com: { "4D": 0.45, "5D": 0.2, "3D": 0.2, "4d": 0.15 }, sem: MANCHAS.RW.sem }, AMR: MANCHAS.AMR },
+      gasto: { RW: 1, AMR: 1 },
+    },
+    articulador: {
+      nome: "Articulador", faz: "Armador aberto: vem para o meio-espaço, gira a bola e dá o passe.", custa: "Não ataca o fundo: o lado precisa de um lateral que chegue.",
+      pesos: { pas: 16, cri: 14, dom: 13, dri: 11, vel: 9, equ: 8, pos: 7, cru: 6, lon: 5, res: 4, fin: 4, des: 3 },
+      grade: { AMR: { com: { "4d": 0.35, "4D": 0.3, "3d": 0.2, "3D": 0.15 }, sem: MANCHAS.AMR.sem }, MR: { com: { "3d": 0.3, "3D": 0.3, "4d": 0.2, "4D": 0.2 }, sem: MANCHAS.MR.sem } },
+      gasto: { AMR: 1, MR: 1 },
+    },
+    operario: {
+      nome: "Operário", faz: "Ponta que defende: fecha o lado e acompanha o lateral rival.", custa: "Chega pouco à frente: o ataque perde um homem.",
+      pesos: { des: 15, res: 13, vel: 11, cru: 11, mar: 10, pos: 10, equ: 9, pas: 9, dom: 8, agr: 4 },
+      grade: { MR: { com: { "3D": 0.45, "4D": 0.3, "2D": 0.1, "3d": 0.15 }, sem: { "2D": 0.35, "3D": 0.4, "1D": 0.1, "3d": 0.15 } } },
+      gasto: { MR: 1.1 },
+    },
   };
 
   // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -729,11 +781,12 @@ const __papeis = (() => {
     return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
   }
 
-  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante" };
+  const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
   const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
-    SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"] };
+    SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
+    RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
   // posição do lado direito que serve de base para a do esquerdo
-  const DIREITA = { DL: "DR", WBL: "WBR" };
+  const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };
   const base = pos => DIREITA[pos] || pos;
 
   // papéis de uma posição, o padrão primeiro
@@ -1433,7 +1486,7 @@ const __motor = (() => {
       }
       t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
       // transição: só quem tem papel fora do jeito de sempre da posição (na grade, os mapas de todos têm as duas fases; o Fixo padrão não entra)
-      if (grade ? mapasDoPapel(jog.pos, jog.papel, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) : m) for (const z of Z) {
+      if (grade ? mapasDoPapel(jog.pos, jog.papel, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) || (jog.papel && jog.papel !== PAPEL_PADRAO[jog.pos] && mapasDoPapel(jog.pos, jog.papel, false, true)) : m) for (const z of Z) {
         const dw = (com[z] || 0) - (sem[z] || 0);
         if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)]; naTransicao = true; }
       }
@@ -2420,7 +2473,7 @@ const __motor = (() => {
         };
         // o que multiplica a nota da opção (a nota já é positiva; no valor, que pode ser negativo, o multiplicador trocaria de sentido)
         const OU = G.ousadia, dificil = o => o.conduzir ? o.tipo !== "lado" : o.espaco || o.entre || o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao";
-        const multDe = o => o.fim ? 1 : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
+        const multDe = o => o.fim ? preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, false) : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
           * (portador && dificil(o) ? 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25 : 1)
           * (o.conduzir && portador && portador.mancha && !portador.mancha.com[o.para] && (portador.papel || PAPEL_PADRAO[portador.pos]) === "fixo" ? G.conduzir.fora : 1) * (seg && o.tipo === "voltar" ? 1 + PV.vontade * seg : 1)
           * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, !!o.conduzir);

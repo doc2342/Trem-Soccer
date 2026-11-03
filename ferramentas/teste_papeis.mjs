@@ -15,7 +15,7 @@ for (const [k, p] of Object.entries(PAPEIS)) {
   for (const [pos, m] of Object.entries(p.mapas || {})) { perto(soma(m.com), 1, `${k}@${pos} com`); perto(soma(m.sem), 1, `${k}@${pos} sem`); }
   assert.ok(p.nome && p.faz && p.custa, `textos de ${k}`);
 }
-assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante" });
+assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
 assert.deepStrictEqual(papeisDaPosicao("DR"), ["fixo", "apoiador", "construtor", "invertido"]);
 assert.deepStrictEqual(papeisDaPosicao("MC"), []);
 
@@ -61,7 +61,7 @@ assert.ok(ala.com.AD > lat.com.AD && naDefesa(ala.sem) < naDefesa(lat.sem));
 // o ala Fixo vai mais à frente com a bola que o lateral Fixo (COBERTURA do DR, sem AD)
 assert.ok(mapasDoPapel("WBR", "fixo").com.AD > (COBERTURA.DR.AD || 0));
 // mapas na grade 5×5: todo papel tem mapa de DR e WBR que soma 1; o esquerdo é o espelho
-for (const [k, p] of Object.entries(PAPEIS)) if (p.grade) for (const pos of ["DR", "WBR"]) for (const f of ["com", "sem"]) {
+for (const [k, p] of Object.entries(PAPEIS)) if (p.grade) for (const pos of Object.keys(p.grade)) for (const f of ["com", "sem"]) {
   perto(soma(p.grade[pos][f]), 1, k + " " + pos + " " + f);
   assert.ok(Object.keys(p.grade[pos][f]).every(z => ZONAS_GRADE.includes(z)), k + " " + pos);
 }
@@ -95,3 +95,20 @@ assert.strictEqual(preferenciaDoPasso(null, "voltar", false), 1);
 assert.strictEqual(preferenciaDoPasso("matador", "voltar", false), 1);
 assert.ok(preferenciaDoPasso("pivo", "voltar", false) > 1 && preferenciaDoPasso("pivo", "subir", true) < 1);
 console.log("teste_papeis: ok (com os centroavantes)");
+
+// pontas (etapa Atacantes): mapa de grade por posição, padrão = mancha de hoje, esquerdo espelhado; cada papel só nas posições dele
+assert.deepStrictEqual(papeisDaPosicao("LW"), ["agudo", "pontainvertido", "garcom", "condutor"]);
+assert.deepStrictEqual(papeisDaPosicao("ML"), ["garcom", "articulador", "pontainvertido", "operario"]);
+assert.strictEqual(papelValido("RW", "operario"), false);
+assert.strictEqual(papelValido("DR", "pontainvertido"), false, "o Invertido do ponta não é o do lateral");
+for (const pos of ["RW", "AMR", "MR"]) {
+  assert.deepStrictEqual(mapasDoPapel(pos, null, true, true), MANCHAS[pos], pos + " padrão = mancha de hoje");
+  for (const p of papeisDaPosicao(pos)) { const d = mapasDoPapel(pos, p, true, true), e = mapasDoPapel({ RW: "LW", AMR: "AML", MR: "ML" }[pos], p, true, true);
+    assert.deepStrictEqual(e.com, espelharGrade(d.com), pos + " " + p + " espelho"); }
+}
+const inv = mapasDoPapel("RW", "pontainvertido", true, true), gar = mapasDoPapel("RW", "garcom", true, true);
+assert.ok((inv.com["5d"] + inv.com["4d"]) > (MANCHAS.RW.com["5d"] + MANCHAS.RW.com["4d"]), "o Invertido corta para dentro");
+assert.ok((gar.sem["3D"] || 0) > (MANCHAS.RW.sem["3D"] || 0), "o Garçom volta");
+assert.ok(preferenciaDoPasso("garcom", "cruzar", false) > 1 && preferenciaDoPasso("pontainvertido", "cruzar", false) < 1);
+perto(gastoDoPapel("MR", "operario"), 1.1);
+console.log("teste_papeis: ok (com os pontas)");

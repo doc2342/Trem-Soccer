@@ -517,7 +517,7 @@ function recalcular(t, saldo) {
     }
     t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
     // transição: só quem tem papel fora do jeito de sempre da posição (na grade, os mapas de todos têm as duas fases; o Fixo padrão não entra)
-    if (grade ? mapasDoPapel(jog.pos, jog.papel, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) : m) for (const z of Z) {
+    if (grade ? mapasDoPapel(jog.pos, jog.papel, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) || (jog.papel && jog.papel !== PAPEL_PADRAO[jog.pos] && mapasDoPapel(jog.pos, jog.papel, false, true)) : m) for (const z of Z) {
       const dw = (com[z] || 0) - (sem[z] || 0);
       if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)]; naTransicao = true; }
     }
@@ -1504,7 +1504,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       };
       // o que multiplica a nota da opção (a nota já é positiva; no valor, que pode ser negativo, o multiplicador trocaria de sentido)
       const OU = G.ousadia, dificil = o => o.conduzir ? o.tipo !== "lado" : o.espaco || o.entre || o.tipo === "pular" || o.tipo === "virada" || o.tipo === "inversao";
-      const multDe = o => o.fim ? 1 : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
+      const multDe = o => o.fim ? preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, false) : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
         * (portador && dificil(o) ? 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25 : 1)
         * (o.conduzir && portador && portador.mancha && !portador.mancha.com[o.para] && (portador.papel || PAPEL_PADRAO[portador.pos]) === "fixo" ? G.conduzir.fora : 1) * (seg && o.tipo === "voltar" ? 1 + PV.vontade * seg : 1)
         * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, !!o.conduzir);

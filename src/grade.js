@@ -298,6 +298,13 @@ export const PREFERENCIA = {
   pivo: { voltar: 1.3, conduzir: 0.7 },
   flutuante: { lado: 1.2, voltar: 1.15, diagonal: 1.15, conduzir: 1.1 },
   pressionador: { subir: 1.15, diagonal: 1.1, conduzir: 1.1 },
+  // pontas; cruzar, chutar e finalizar são os fins da jogada (o cruzamento da faixa 4, o chute da zona 14, a finalização da faixa 5)
+  agudo: { subir: 1.2, conduzir: 1.2, cruzar: 1.1 },
+  pontainvertido: { diagonal: 1.25, conduzir: 1.15, lado: 0.9, cruzar: 0.75, finalizar: 1.2, chutar: 1.3 },
+  garcom: { cruzar: 1.4, voltar: 1.1, conduzir: 0.9 },
+  condutor: { conduzir: 1.3 },
+  articulador: { lado: 1.15, diagonal: 1.2, voltar: 1.1, conduzir: 0.9, cruzar: 0.9 },
+  operario: { voltar: 1.2, lado: 1.1, conduzir: 0.8, cruzar: 0.9 },
 };
 export function preferenciaDoPasso(papel, tipo, conduzir) {
   const p = papel && PREFERENCIA[papel];
