@@ -153,4 +153,17 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(base.esp[0] > vazia.esp[0], "a corrida também vale na zona pouco ocupada da faixa 5");
 }
 
+// 9. Zagueiro de lado no trio (aprovado 28/10; manchas DC3d da grade): os dois de fora cobrem o lado e marcam o ponta, o do meio guarda o centro
+{
+  const KS = ["des", "mar", "pos"], P3 = onze("4-3-3 com pontas", 1), T3 = onze("3-5-2 com alas", 2);
+  const fracos = quais => { let n = 0; return T3.map(x => x.pos !== "DC" ? x : quais.includes(++n) ? comAtr([x], KS, 10)[0] : x); };
+  const mede = b => { const t = { lado: [0, 0], meio: [0, 0] }; for (let s = 1; s <= JOGOS; s++) { const reg = []; simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: P3 }), prepararTime({ nome: "B", escalacao: b }), { registro: reg });
+    for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[2] >= "4") { const o = "ED".includes(r[2][1]) ? t.lado : r[2][1] === "C" ? t.meio : null; if (o) { o[0]++; o[1] += r[6] ? 1 : 0; } } }
+    return { lado: t.lado[1] / t.lado[0], meio: t.meio[1] / t.meio[0] }; };
+  const [fora, meio] = [mede(fracos([1, 3])), mede(fracos([2]))];
+  console.log(`9 trio, acerto do rival com os de fora fracos × o do meio fraco: pelo lado ${fora.lado.toFixed(3)} ${meio.lado.toFixed(3)}; pelo centro ${fora.meio.toFixed(3)} ${meio.meio.toFixed(3)}`);
+  assert.ok(fora.lado > meio.lado + 0.02, "pelo lado, quem marca o ponta são os de fora");
+  assert.ok(meio.meio > fora.meio, "o do meio guarda o centro");
+}
+
 console.log("ok: mecânicas");
