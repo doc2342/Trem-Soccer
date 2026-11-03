@@ -181,4 +181,24 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(base.n > 0 && m10.ch > m45.ch, "quem chega de trás é marcado pelo meio");
 }
 
+// 11. Papéis do centroavante (fichas de 29/10): o Matador é o padrão (nada muda); o Pivô escora e pede o cruzamento; o Flutuante recebe entre as linhas
+// e chuta menos; o Pressionador aperta a saída de bola do rival (o rival acerta menos contra ele do que com a regra desligada: contar roubadas, ou
+// comparar com o Matador, não serve, porque quem decide bem foge do marcador forte e ele marca zonas mais vazias) e cansa mais
+{
+  // o 9 com o fôlego e a pegada de quem pressiona (a pressão rende pelos atributos de quem pressiona, mecânica 3: com eles abaixo da média, pressionar piora)
+  const P4 = onze("4-2-3-1", 1).map(x => x.pos === "SC" ? comAtr([x], ["vel", "res", "agr", "equ"], 35)[0] : x), com9 = papel => P4.map(x => x.pos === "SC" ? { ...x, papel } : x), id9 = P4.find(x => x.pos === "SC").j.id;
+  const mede = papel => { const a = com9(papel), t = { escora: 0, cruz: 0, entre: 0, chutes: 0, alto: [0, 0], energia: 0, gols: 0 };
+    for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: B }), { registro: reg }), e = p.estat[0];
+      t.cruz += e.grade.cruzamentos[0]; t.gols += e.gols; t.chutes += p.jogadores[id9].finalizacoes || 0; t.energia += p.jogadores[id9].energia ?? 0;
+      for (const ev of p.narracao) if (ev.time === 0 && /escora/.test(JSON.stringify(ev))) t.escora++;
+      for (const r of reg) { if (r[0] === 0 && r[1] !== "fim" && r[2][0] === "4" && r[5] === id9 && r[6]) t.entre++; if (r[0] === 1 && r[1] !== "fim" && "12".includes(r[2][0]) && r[9] === id9) { t.alto[0]++; t.alto[1] += r[6] ? 1 : 0; } } }
+    return t; };
+  const [pad, mat, piv, flu, pre] = [null, "matador", "pivo", "flutuante", "pressionador"].map(mede), semRegra = com(G, "pressionador", 0, () => mede("pressionador"));
+  console.log(`11 centroavante (padrão/Pivô/Flutuante/Pressionador): escoras ${pad.escora} ${piv.escora}; cruzamentos ${pad.cruz} ${piv.cruz}; recepções dele na faixa 4 ${pad.entre} ${flu.entre}; chutes dele ${pad.chutes} ${flu.chutes}; acerto do rival na saída contra o Pressionador com e sem a regra ${(pre.alto[1] / pre.alto[0]).toFixed(3)} ${(semRegra.alto[1] / semRegra.alto[0]).toFixed(3)}; energia ${(pad.energia / 150).toFixed(1)} ${(pre.energia / 150).toFixed(1)}`);
+  assert.deepStrictEqual(mat, pad, "o Matador é o centroavante de hoje");
+  assert.ok(piv.escora > pad.escora && piv.cruz > pad.cruz, "o Pivô escora e pede o cruzamento");
+  assert.ok(flu.entre > pad.entre && flu.chutes < pad.chutes, "o Flutuante recebe entre as linhas e chuta menos");
+  assert.ok(pre.alto[1] / pre.alto[0] < semRegra.alto[1] / semRegra.alto[0] && pre.energia < pad.energia, "o Pressionador aperta a saída do rival e cansa mais");
+}
+
 console.log("ok: mecânicas");

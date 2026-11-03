@@ -6,7 +6,7 @@
 import { limitar } from "./rng.js";
 import { IDX, POSICOES, FAMILIARIDADE, familiaridade, notaNaPosicao, ajusteDoPe, fraquezaDoPe, comNovos } from "./modelo.js";
 import { fatorDeMomento, diaDoJogador } from "./saude.js";
-import { mapasDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } from "./papeis.js";
+import { mapasDoPapel, manchaDoPapel, gastoDoPapel, papelValido, espelharLado, PAPEL_PADRAO } from "./papeis.js";
 import { ZONAS_GRADE, ZONA_EM, CORREDORES, ehGrade, espelhoGrade, linhaDaZona, ladoDaZona, corredorDe, faixaDe, colunaDe, nomeDaZona, manchasDoTime, espelharGrade, defesaVista, rapidezBasculacao, arrasto, opcoesDoPasso, dificuldade, valorDaZona, escolherPasso, proximoImpulso, decisao, decisaoSobPressao, chegada, preferenciaDoPasso, segundaBola, vizinhas, LIMITE_DE_PASSOS } from "./grade.js";
 
 export const CONFIG = {
@@ -261,7 +261,7 @@ export const CONFIG = {
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
     // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
     conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -280,6 +280,9 @@ export const CONFIG = {
       cruzamento: { base: 0, cruzador: 1.0, inclinacao: 1, vazio: 3, goleiro: 0.3, afobado: 0.6, escanteio: 0.15, cego: 0.4,
         pressao: 0.6, peRuim: 0.5, ladoFraco: 0.6, linhaAlta: 0.85, virada: 0.85 } },
     // terceiro.mov: logit, no passe para a frente depois da volta ganha, por (Movimentação de quem recebe − 25) / 25: quem se movimenta bem se solta para o terceiro homem
+    // pressionador: a pressão que vale para o Pressionador, mesmo com a do time abaixo disto. papelAtaque: pivoCruza, × no valor de cruzar com um Pivô
+    // na área ou na zona 14; flutuanteLivre, logit do passe entrelinhas para o Flutuante (recebe livre); flutuanteBuraco, × no buraco das costas da zaga
+    // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10
     terceiro: { apertado: 0.3, bonus: 0.35, mov: 0.5, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
     longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
     segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
@@ -487,7 +490,7 @@ function recalcular(t, saldo) {
     const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
     // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
     // na grade: o mapa da grade do papel (laterais e alas) ou a mancha da posição pela contagem da família (src/grade.js)
-    const m = grade ? mapasDoPapel(jog.pos, jog.papel, true, true) || manchas[i] : mapasDoPapel(jog.pos, jog.papel, CONFIG.regrasT1);
+    const m = grade ? mapasDoPapel(jog.pos, jog.papel, true, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) || manchas[i] : mapasDoPapel(jog.pos, jog.papel, CONFIG.regrasT1);
     const sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos]; // na T1 o ala padrão também tem as duas fases
     let com = m ? m.com : COBERTURA[jog.pos];
     // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
@@ -514,7 +517,7 @@ function recalcular(t, saldo) {
     }
     t.saida += naA; if (naA > frente) { frente = naA; t.naFrente = jog; }
     // transição: só quem tem papel fora do jeito de sempre da posição (na grade, os mapas de todos têm as duas fases; o Fixo padrão não entra)
-    if (grade ? mapasDoPapel(jog.pos, jog.papel, true) : m) for (const z of Z) {
+    if (grade ? mapasDoPapel(jog.pos, jog.papel, true) || manchaDoPapel(jog.pos, jog.papel, manchas[i]) : m) for (const z of Z) {
       const dw = (com[z] || 0) - (sem[z] || 0);
       if (dw) { transicao[z] = (transicao[z] || 0) + CONFIG.papeis.transicao * dw * habilidadeDefesa(jog.at, z) * mDef[linhaDaZona(z)]; naTransicao = true; }
     }
@@ -1443,6 +1446,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       const pular = 1 + G.pularPressao * P + G.pularLinha * (def.instr.impedimento || def.instr.mentalidade > 0 ? 1 : 0);
       // fim na faixa 4 (Tarefa 7): o cruzamento antecipado do lado (melhor no contra-ataque e contra linha alta) e o chute de longe da zona 14
       const AN = CONFIG.gradeValores.chance.antecipado, fimCruzar = AN.valor * (contra ? AN.contra : 1) * (def.instr.impedimento || def.instr.mentalidade > 0 ? AN.linhaAlta : 1);
+      const PP = G.papelAtaque, temPivo = ["5e", "5C", "5d", "4C"].some(z => atk.zonas[z].some(x => temPapel(x.jog, "pivo"))); // o Pivô perto da área pede o cruzamento
       const fimChutar = CONFIG.gradeValores.chance.chutar * ((CONFIG.finalizar[atk.instr.finalizar] || {}).longe || 1);
       // passe no espaço (Tarefa 9b): quem pode chegar ao destino k (faixa de baixo, mesmo corredor ou vizinho), a chegada esperada (sem quem passa)
       // e a Velocidade média de quem marca ali
@@ -1479,7 +1483,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
         const quem = sq, ma = sm;
         tirar(def.zonasDef[ze], null, pDef, HAB_D, habilidadeDefesa, k, ze);
         return FOTO[k] = { quem, ma, da: quem ? habEm(HAB_A, quem, k, habilidadeAtaque, z) - ma : 0, marcador: sq, dd: sq ? habEm(HAB_D, sq, k, habilidadeDefesa, ze) - sm : 0,
-          aperta: sq ? G.foto.marca * (decisao(sq.at) - 25) + G.pressaoJogador * P * (media(sq.at[A.vel], sq.at[A.res], sq.at[A.agr], sq.at[A.equ]) - 25) : 0 };
+          aperta: sq ? G.foto.marca * (decisao(sq.at) - 25) + G.pressaoJogador * (temPapel(sq, "pressionador") ? Math.max(P, G.pressionador) : P) * (media(sq.at[A.vel], sq.at[A.res], sq.at[A.agr], sq.at[A.equ]) - 25) : 0 };
       };
       const manoDe = o => { if (o.goleiro) return 0;
         const F = fotoDe(o.i), a = o.espaco || o.entre ? 0 : o.conduzir ? habEm(HAB_A, portador, o.i, habilidadeAtaque, ZONAS_GRADE[o.i]) - F.ma : F.da;
@@ -1489,7 +1493,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           const q = (ka % 5 === 0 || ka % 5 === 4 ? portador.at[A.cru] : portador.at[A.fin]) / 25, livre = AT[ka] / (AT[ka] + defesaNo(ka) + Zv);
           return G.area.chute * XT[ka] * q * (G.area.piso + (1 - G.area.piso) * 2 * livre);
         }
-        if (o.fim) return o.tipo === "cruzar" ? fimCruzar * (ka % 5 === 1 || ka % 5 === 3 ? AN.meio : 1) * portador.at[A.cru] / 25 * Math.max(Math.min(1, PESO[21] + PESO[22] + PESO[23]), CONFIG.gradeValores.chance.cruzamento.cego * cegueira(portador.at))
+        if (o.fim) return o.tipo === "cruzar" ? fimCruzar * (ka % 5 === 1 || ka % 5 === 3 ? AN.meio : 1) * (temPivo ? PP.pivoCruza : 1) * portador.at[A.cru] / 25 * Math.max(Math.min(1, PESO[21] + PESO[22] + PESO[23]), CONFIG.gradeValores.chance.cruzamento.cego * cegueira(portador.at))
           : fimChutar * portador.at[A.lon] / 25;
         const k = o.i, ch = o.espaco ? chegadaEsperada(k) : null, ap = o.entre ? apareceEsperado(k) : 0;
         if ((o.espaco && !ch) || (o.entre && !ap)) return null;
@@ -1503,7 +1507,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       const multDe = o => o.fim ? 1 : (o.goleiro ? G.goleiro.vontade + G.goleiro.pressao * P : 1) * (o.espaco && !PESO[o.i] ? ES.vontade : 1) * (o.tipo === "pular" ? pular : o.tipo === "virada" || o.tipo === "inversao" ? vir : 1)
         * (portador && dificil(o) ? 1 + OU.peso * OU.faixas[(ka / 5) | 0] * (portador.at[A.exc] - 25) / 25 : 1)
         * (o.conduzir && portador && portador.mancha && !portador.mancha.com[o.para] && (portador.papel || PAPEL_PADRAO[portador.pos]) === "fixo" ? G.conduzir.fora : 1) * (seg && o.tipo === "voltar" ? 1 + PV.vontade * seg : 1)
-        * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel, o.tipo, !!o.conduzir);
+        * (imp.prende && o.i - o.i % 5 > ka - ka % 5 ? G.impulso.prende : 1) * preferenciaDoPasso(portador && portador.papel !== PAPEL_PADRAO[portador.pos] && portador.papel, o.tipo, !!o.conduzir);
       // narra o passo ganho (a frase leva o tipo para o texto enxuto) e o guarda na rota: [de, para, tipo, passador, receptor, venceu, marcador?]
       function passoGrade(o, d) {
         const p = d.pivo, m = d.marcador, de = portador, Z = o.para;
@@ -1646,7 +1650,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           // o passe para a área: quem chega é quem se movimenta melhor, e ela o solta do marcador (dono, 01/11)
           const F = o.goleiro ? {} : fotoDe(o.i), naArea5 = naFaixa5 && !o.conduzir && !corre && !aparece ? F.quem : null;
           const quemVai = o.goleiro ? atk.goleiro : o.conduzir ? portador : corre || (aparece && aparece.jog) || chega || naArea5 || F.quem;
-          const d = duelo(i, para, logitDe(o, true) + manoDe(o) + (naArea5 ? G.area.mov * (naArea5.at[A.mov] - 25) / 25 : 0) + (th === 2 && quemVai && !o.conduzir && faixaDe(para) > faixaDe(atual) ? T3.mov * (quemVai.at[A.mov] - 25) / 25 : 0) + (corre ? corrida(chegada(corre.at), o.i) : aparece ? EL.dificuldade + EL.mov * (aparece.jog.at[A.mov] - 25) / 25 : 0), contra,
+          const d = duelo(i, para, logitDe(o, true) + manoDe(o) + (naArea5 ? G.area.mov * (naArea5.at[A.mov] - 25) / 25 : 0) + (th === 2 && quemVai && !o.conduzir && faixaDe(para) > faixaDe(atual) ? T3.mov * (quemVai.at[A.mov] - 25) / 25 : 0) + (corre ? corrida(chegada(corre.at), o.i) : aparece ? EL.dificuldade + EL.mov * (aparece.jog.at[A.mov] - 25) / 25 + (temPapel(aparece.jog, "flutuante") ? PP.flutuanteLivre : 0) : 0), contra,
             { dz: defesaNo(o.i), quem: quemVai, marcador: F.marcador, ...(corre ? { az: chegadaDe(corre, o.i) } : aparece ? { az: EL.peso * habilidadeAtaque(aparece.jog.at, para) } : {}) });
           const passador = portador, subiu = faixaDe(para) > faixaDe(atual), era2 = th === 2 && subiu;
           livre = false;
@@ -1674,6 +1678,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
           if (!d.venceu && !naFaixa5) return perda(o.tipo === "voltar" ? atual : para);
           if (d.venceu && passador && dificil(o)) d.folga += OU.folga * Math.max(0, passador.at[A.exc] - 25) / 25; // deu certo: mais folga
           if (d.venceu) { passoGrade(o, d); if (naFaixa5) eg.toquesArea++; }
+          if (d.venceu && faixaDe(para) === 4 && temPapel(d.pivo, "flutuante")) buracos.profundidade *= PP.flutuanteBuraco; // o zagueiro sai atrás do Flutuante e abre as costas
           if (naFaixa5) {
             if (!d.pivo || !atk.emCampo.includes(d.pivo)) { if (trilha.length) evento(1 - i, "posse", comTrilha(`${tm(1 - i)} fica com a bola ${ondeDe(para)}.`)); return; }
             // ganhou: a jogada segue, e quem recebeu escolhe entre finalizar, tocar, conduzir, ir ao fundo ou voltar (ações da área, dono 01/11). Só o passo perdido vira chute forçado

@@ -292,7 +292,18 @@ export const LIMITE_DE_PASSOS = 30;
 
 // Preferência de passo por papel (aprovada pelo dono em 31/10): multiplica o valor de cada opção. Neutra nesta entrega; a etapa dos papéis preenche
 // (Distribuidor/Construtor: virada e pular; Técnico/Condutor: condução; Organizador: lado e volta; Criador/Articulador: diagonal e enfiada; …)
-export function preferenciaDoPasso(papel, tipo, conduzir) { return 1; }
+// o quanto o papel gosta de cada passo (só papel fora do padrão da posição; o motor manda null no padrão): o "conduzir" vale para toda condução.
+// Pivô escora (volta) e não leva; Flutuante gira a bola (lado, volta, diagonal) e leva um pouco; Pressionador ataca a frente
+export const PREFERENCIA = {
+  pivo: { voltar: 1.3, conduzir: 0.7 },
+  flutuante: { lado: 1.2, voltar: 1.15, diagonal: 1.15, conduzir: 1.1 },
+  pressionador: { subir: 1.15, diagonal: 1.1, conduzir: 1.1 },
+};
+export function preferenciaDoPasso(papel, tipo, conduzir) {
+  const p = papel && PREFERENCIA[papel];
+  if (!p) return 1;
+  return (conduzir ? p.conduzir || 1 : 1) * (p[tipo] || 1);
+}
 
 // Segunda bola (spec 7.7): pela presença de cada time na zona de queda e nas vizinhas, com V.segundaBola.acaso de sorteio puro, seja quem for que
 // ganhou o 1º toque (quem ganhou entra pela presença: o motor multiplica a do time dele pelo Cabeceio, a direção da bola)

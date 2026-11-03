@@ -32,6 +32,7 @@ const MATRIZ = [
   ["Movimentação", "passe no espaço, contra-ataque, terceiro homem", "mecanicas 8"],
   ["Zagueiro de lado no trio", "manchas da grade, duelo do lado", "mecanicas 9"],
   ["Cruzamento por poste", "cruzamento, cutback, marcação do lateral e do meio", "mecanicas 10"],
+  ["Papéis do centroavante", "mancha da grade, preferência do passo, pressão, cruzamento", "mecanicas 11; papeis"],
 ];
 const REGISTROS = [
   "Pressão 2 reduz as faltas do time que pressiona (17,2 para 13,3 por jogo): contraintuitivo, sem defeito comprovado; olhar no ajuste fino.",

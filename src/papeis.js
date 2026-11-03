@@ -1,7 +1,7 @@
 // Papéis dos jogadores (plano fase 2): dentro da posição, o técnico escolhe o jeito de jogar. Cada papel tem os pesos da ficha (a nota no papel),
 // um mapa de zonas com a bola e outro sem a bola (motor.js) e um ritmo de gasto de energia. Os mapas são do lado direito; o esquerdo é o espelho.
 // O papel padrão de cada posição usa as zonas de hoje (COBERTURA do motor) nas duas fases e o gasto de hoje: sem escolha, nada muda.
-// Primeira fatia: laterais e alas. Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
+// Primeira fatia: laterais e alas; depois os centroavantes (etapa Atacantes). Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
 import { IDX, FAMILIARIDADE, familiaridade } from "./modelo.js";
 import { MANCHAS, espelharGrade } from "./grade.js";
 
@@ -68,10 +68,63 @@ export const PAPEIS = {
     },
     gasto: { DR: 1.05, WBR: 1.05 },
   },
+  // Centroavantes (etapa Atacantes, pontas e zagueiros; fichas aprovadas em 29/10). Na grade, a mancha do centroavante muda com quantos são (sozinho,
+  // dupla, trio): o papel desloca a mancha da posição em vez de ter mapa próprio (desloca: em cada fase, da faixa 5: baixa, a parte que vai para a
+  // faixa 4 do mesmo corredor; abre, a que vai para os corredores vizinhos da faixa 5; fecha, a do meio-espaço que vai para o centro; da faixa 4:
+  // sobe, a parte que vai para a faixa 5). O padrão do SC é o Matador e o do FC o Flutuante: nos dois, a mancha de hoje.
+  matador: {
+    nome: "Matador", faz: "Vive na área: está no lugar certo antes da bola, corre nas costas da linha alta e finaliza de primeira.", custa: "Não ajuda a construir e some se ninguém o servir; sozinho na área, recebe os dois zagueiros.",
+    pesos: { fin: 24, pos: 17, vel: 14, dom: 12, cab: 12, for: 8, equ: 4, lon: 3, agr: 3, pas: 3 },
+    desloca: { FC: { com: { sobe: 0.5, fecha: 0.5 } } }, gasto: { SC: 1, FC: 1 },
+  },
+  pivo: {
+    nome: "Pivô", faz: "Joga de costas: ganha a bola alta e a longa, segura e escora para quem chega.", custa: "Finaliza menos ele mesmo, e a escora só rende se alguém chega perto.",
+    pesos: { cab: 24, for: 22, dom: 14, fin: 10, pas: 10, pos: 8, equ: 6, agr: 6 },
+    desloca: { SC: { com: { baixa: 0.25 } }, FC: { com: { fecha: 0.5 } } }, gasto: { SC: 1, FC: 1 },
+  },
+  flutuante: {
+    nome: "Flutuante", faz: "Sai da área para criar: tabela, faz a bola girar e dá o passe em profundidade.", custa: "A área fica vazia: menos alvo para o cruzamento, e precisa de quem ataque as costas da zaga.",
+    pesos: { fin: 18, dom: 16, cri: 14, pas: 13, dri: 12, pos: 10, vel: 9, equ: 6, lon: 2 },
+    desloca: { SC: { com: { baixa: 0.12, abre: 0.2 } } }, gasto: { SC: 1, FC: 1 },
+  },
+  pressionador: {
+    nome: "Pressionador", faz: "Sem a bola, pressiona a saída do adversário mesmo sem a pressão do time; com ela, corre nas costas e chuta muito.", custa: "Cansa mais, e o bote que falha deixa o adversário sair jogando.",
+    pesos: { res: 16, vel: 16, fin: 14, equ: 12, agr: 11, pos: 8, des: 8, dom: 8, for: 4, dri: 3 },
+    desloca: { SC: { com: { baixa: 0.1, abre: 0.1 }, sem: { abre: 0.15, sobe: 0.3 } }, FC: { sem: { abre: 0.15, sobe: 0.3 } } }, gasto: { SC: 1.15, FC: 1.15 },
+  },
 };
 
-export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador" };
-const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"] };
+// a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
+const COL = ["E", "e", "C", "d", "D"], DESLOCADAS = new Map();
+function deslocar(mapa, d) {
+  if (!d) return mapa;
+  const r = { ...mapa }, soma = (z, w) => { r[z] = (r[z] || 0) + w; };
+  for (const [z, w] of Object.entries(mapa)) {
+    const f = z[0], c = COL.indexOf(z[1]);
+    if (f === "5") {
+      const baixa = w * (d.baixa || 0), abre = w * (d.abre || 0), fecha = c === 1 || c === 3 ? w * (d.fecha || 0) : 0;
+      r[z] -= baixa + abre + fecha;
+      soma("4" + z[1], baixa);
+      const viz = [c - 1, c + 1].filter(x => x >= 0 && x <= 4);
+      for (const x of viz) soma("5" + COL[x], abre / viz.length);
+      if (fecha) soma("5C", fecha);
+    } else if (f === "4" && d.sobe) { r[z] -= w * d.sobe; soma("5" + z[1], w * d.sobe); }
+  }
+  for (const z in r) if (r[z] <= 1e-9) delete r[z];
+  return r;
+}
+export function manchaDoPapel(pos, papel, base) {
+  if (!base || !papelValido(pos, papel) || papel === PAPEL_PADRAO[pos]) return null;
+  const d = PAPEIS[papel].desloca && PAPEIS[papel].desloca[pos];
+  if (!d) return null;
+  let porPapel = DESLOCADAS.get(base);
+  if (!porPapel) DESLOCADAS.set(base, porPapel = {});
+  return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
+}
+
+export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante" };
+const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
+  SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"] };
 // posição do lado direito que serve de base para a do esquerdo
 const DIREITA = { DL: "DR", WBL: "WBR" };
 const base = pos => DIREITA[pos] || pos;
@@ -87,7 +140,8 @@ const ESPELHADOS = new Map();
 export function mapasDoPapel(pos, papel, comPadrao = false, grade = false) {
   if (grade) {
     if (!papelValido(pos, papel)) { if (!comPadrao || !PAPEL_PADRAO[pos]) return null; papel = PAPEL_PADRAO[pos]; }
-    const g = PAPEIS[papel].grade[base(pos)];
+    const g = PAPEIS[papel].grade && PAPEIS[papel].grade[base(pos)];
+    if (!g) return null;
     if (!DIREITA[pos]) return g;
     return ESPELHADOS.get(g) || ESPELHADOS.set(g, { com: espelharGrade(g.com), sem: espelharGrade(g.sem) }).get(g); // o espelho de cada mapa, feito uma vez só
   }
@@ -95,7 +149,7 @@ export function mapasDoPapel(pos, papel, comPadrao = false, grade = false) {
     if (!comPadrao || !PAPEL_PADRAO[pos]) return null;
     papel = PAPEL_PADRAO[pos];
   }
-  const m = PAPEIS[papel].mapas[base(pos)];
+  const m = PAPEIS[papel].mapas && PAPEIS[papel].mapas[base(pos)];
   if (!m) return null;
   return DIREITA[pos] ? { com: espelharLado(m.com), sem: espelharLado(m.sem) } : m;
 }
