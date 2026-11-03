@@ -432,16 +432,16 @@ const __grade = (() => {
 
   // Defesa que o atacante enfrenta (spec 9.1 e 9.2), tudo na visão de quem ataca: dz[z] = def[espelhoGrade(z)] mais os ajustes.
   // atk: ataque de quem ataca por zona (dele); def e posicionamento (Posicionamento médio de quem cobre cada zona): por zona de quem defende.
-  // Só muda a defesa de lugar: o total não muda.
+  // Só muda a defesa de lugar: o total não muda, menos na cobertura de lado da faixa 2, onde o físico de quem cobre conta (fisicoLado).
   const DENTRO = { E: ["e"], e: ["C"], C: ["e", "d"], d: ["C"], D: ["d"] }, FORA = { e: "E", d: "D" };
   // quem empresta a cada zona, na ordem: volante (mesmo corredor, uma faixa à frente de quem defende), zagueiro (vizinho do lado do centro), lateral (de fora)
   const DOADORES = Object.fromEntries(ZONAS_GRADE.map(z => { const f = faixaDe(z), c = z[1]; return [z, [...(f > 1 ? [(f - 1) + c] : []), ...DENTRO[c].map(k => f + k), ...(FORA[c] ? [f + FORA[c]] : [])]]; }));
   // as contas rodam em vetores pela posição da zona em ZONAS_GRADE (5 × (faixa − 1) + coluna; o espelho é 24 − posição): o motor refaz as 6 arrumações
   // a cada recálculo, e a chave de texto custava caro
   const DOADORES_I = ZONAS_GRADE.map(z => DOADORES[z].map(y => ZONAS_GRADE.indexOf(y)));
-  function defesaVista({ atk, def, posicionamento, corredorDaBola, V, comLinha = 25 }) {
-    const dz = new Float64Array(25), pos = new Float64Array(25), at = new Float64Array(25), Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
-    ZONAS_GRADE.forEach((z, i) => { const e = ZONAS_GRADE[24 - i]; dz[i] = def[e] || 0; pos[i] = (posicionamento && posicionamento[e]) || 0; at[i] = atk[z] || 0; });
+  function defesaVista({ atk, def, posicionamento, fisico = null, corredorDaBola, V, comLinha = 25 }) {
+    const dz = new Float64Array(25), pos = new Float64Array(25), fis = new Float64Array(25), at = new Float64Array(25), Z = V.vazio, buracos = { profundidade: 1, cruzamento: 1 };
+    ZONAS_GRADE.forEach((z, i) => { const e = ZONAS_GRADE[24 - i]; dz[i] = def[e] || 0; pos[i] = (posicionamento && posicionamento[e]) || 0; fis[i] = (fisico && fisico[e]) || 25; at[i] = atk[z] || 0; });
     const ameaca = i => Math.min(1, (at[i] + Z) / (dz[i] + Z));
     // 1. três corredores: o bloco fica na bola (centro → e C d; lado → lado, meio-espaço vizinho, centro; meio-espaço → ele, centro, lado vizinho).
     // Dos 2 livres sai a fração basculacao do que não marca ninguém ali, mais quanto mais longe da bola (o lado oposto é o lado fraco da virada);
@@ -474,9 +474,13 @@ const __grade = (() => {
           const falta = Math.max(at[i], piso) - dz[i];
           if (falta <= 0) break;
           if (pegou[y] || at[y] >= dz[y] || precisa(y)) continue;
+          // na faixa 2 de quem defende (a nossa 4), quem cobre de lado (o volante sozinho que fecha o meio-espaço, o zagueiro que abre) chega pelo físico:
+          // Velocidade e Resistência (fisicoLado; 25 não muda nada): o lento sai do centro e chega atrasado (fecha só parte do buraco), o rápido e inteiro
+          // fecha o buraco tirando menos do centro
+          const lado = b === 15 && y >= 15 && y < 20 ? limitar(1 + V.fisicoLado * (fis[y] - 25) / 25, 0.6, 1.4) : 1;
           const v = Math.min(falta, V.emprestimo * (dz[y] - at[y]) * limitar(pos[y] / 25, 0.6, 1.3));
           if (v <= 0) continue;
-          dz[y] -= v; dz[i] += v; emprestou[y] = 1; pegou[i] = 1;
+          dz[y] -= v / Math.max(1, lado); dz[i] += v * Math.min(1, lado); emprestou[y] = 1; pegou[i] = 1; // o físico (só de lado, na faixa 2) muda o total
           // 3. buracos: o zagueiro que sai (faixa 1 de quem defende, no centro: o nosso 5C) abre a profundidade; o lateral (lado das faixas 1–2) abre o cruzamento.
           // A linha que se fala (Comunicação de quem fica na faixa 1) fecha parte do buraco
           const fecha = limitar(1 - V.comunica.buraco * (comLinha - 25) / 25, 0, 2);
@@ -1283,7 +1287,8 @@ const __motor = (() => {
     //   passagemPorDentro: o mesmo de papeis.passagemPorDentro, na grade (o Apoiador com ponta aberto na frente passa pelo meio-espaço)
     //   defesa que o atacante enfrenta (defesaVista, spec 9.1–9.2): vazio, o zonaVazia de sempre; basculacao, o de sempre, dos 2 corredores livres
     //   para os 3 da bola; zonaCinza, parte que fica no meio-espaço oposto com a bola no meio-espaço; vazia (× a média da faixa) e ameaca (ataque ×
-    //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
+    //   a defesa): a zona pede ajuda; emprestimo: parte do que sobra a quem empresta; fisicoLado: na faixa 2 de quem defende, quanto a Velocidade e a
+    //   Resistência de quem cobre de lado mudam o que ele fecha do buraco (03/11; × 1 + isto × (média − 25) / 25); buracoZaga/buracoLateral: bônus da profundidade/do cruzamento
     //   quando o zagueiro/o lateral sai para cobrir; basculacaoRapidez: a defesa bascula com um passo de atraso (Posicionamento e Trabalho em equipe);
     //   arrasto: folga do duelo que arrasta o cobridor (a do narrar do embalo) e quanto o meio-espaço vizinho perde quando o ponta bate o lateral
     //   o passo (spec 7): dificuldade, logit de cada tipo (voltar > lado > subir > pular > virada, metas ~95/84/50/40% de acerto; ladoLonge por
@@ -1334,7 +1339,7 @@ const __motor = (() => {
     gradeValores: {
       lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
       passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
-      vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
+      vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, fisicoLado: 0.3, buracoZaga: 0.25, buracoLateral: 0.2,
       // comunica.pressao: × (1 + isto × (Comunicação média de quem marca nas faixas 2–3 por dentro − 25) / 25) na pressão do time, só com pressão 1 ou 2,
       // entre 0,5 e 1,5 (aprovado em 29/10)
       saidaAlto: { base: 1, forca: 1.5, solta: 0.1, contato: 0.3, escanteio: 0.2, referencia: 19 }, basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5, pressao: 0.3 }, arrasto: { folga: 0.85, lado: 0.2 },
@@ -1754,7 +1759,8 @@ const __motor = (() => {
         const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0);
         return [z, w ? q.reduce((s, o) => s + o.w * (o.jog.at[A.pos] + CONFIG.gradeValores.foto.cobre * (decisao(o.jog.at) - 25)), 0) / w : 0]; // a cobertura é Posicionamento e a hora de sair (Decisões)
       }));
-      const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, corredorDaBola, V: CONFIG.gradeValores, comLinha: def.comDefesa });
+      const fisico = Object.fromEntries(ZONAS_GRADE.map(z => { const q = def.zonasDef[z], w = q.reduce((s, o) => s + o.w, 0); return [z, w ? q.reduce((s, o) => s + o.w * media(o.jog.at[A.vel], o.jog.at[A.res]), 0) / w : 25]; }));
+      const vista = (defZ, corredorDaBola) => defesaVista({ atk: atk.atk, def: defZ, posicionamento, fisico, corredorDaBola, V: CONFIG.gradeValores, comLinha: def.comDefesa });
       const r = Object.fromEntries(CORREDORES.map(c => [c, vista(def.defLado[CORREDORES[4 - colunaDe("1" + c)]], c)]));
       // a da transição só no contra-ataque, montada na primeira vez; as defesas também em vetores pela posição da zona (a jogada avalia ~25 opções por passo)
       let T = null;

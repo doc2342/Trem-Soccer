@@ -340,4 +340,16 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(xer.bl < xer0.bl, "com a área desguarnecida, menos chutes bloqueados");
 }
 
+// 20. Volante sozinho pelo físico (31/10, revisto 03/11): quem cobre de lado na faixa 2 de quem defende (o volante do 4-1-4-1 que fecha o meio-espaço)
+// chega pela Velocidade e pela Resistência, sem tirar peso do meio: o lento fecha só parte do buraco. Mesmo volante com 45 e 10 nas duas, contra a regra
+// desligada. O acerto no meio-espaço esconde o efeito (quem decide foge da zona bem coberta): vale o xG do rival; o volume de passes ali é impresso
+{
+  const U = onze("4-1-4-1", 4), comVol = v => U.map(x => x.pos === "DMC" ? comAtr([x], ["vel", "res"], v)[0] : x);
+  const mede = l => { let n = 0, g = 0, xg = 0; for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+    xg += p.estat[1].xg; for (const r of reg) if (r[0] === 1 && (r[2] === "4e" || r[2] === "4d")) { n++; if (r[6]) g++; } } return { acerto: g / n, n, xg: xg / 150 }; };
+  const [lento, rapido] = [mede(comVol(10)), mede(comVol(45))], [lento0, rapido0] = com(G, "fisicoLado", 0, () => [mede(comVol(10)), mede(comVol(45))]);
+  console.log(`20 volante sozinho, 10 × 45: xG do rival ${lento.xg.toFixed(3)} × ${rapido.xg.toFixed(3)} (sem a regra ${lento0.xg.toFixed(3)} × ${rapido0.xg.toFixed(3)}); passes do rival ao meio-espaço da faixa 4 ${lento.n} × ${rapido.n} (sem ${lento0.n} × ${rapido0.n}), acerto ${lento.acerto.toFixed(3)} × ${rapido.acerto.toFixed(3)}`);
+  assert.ok(lento.xg - rapido.xg > lento0.xg - rapido0.xg + 0.03, "o volante rápido e inteiro fecha o lado");
+}
+
 console.log("ok: mecânicas");
