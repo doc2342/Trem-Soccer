@@ -47,4 +47,25 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.strictEqual(zero, 0, "sem pressão, a regra não muda nada");
 }
 
+// 4. Entrelinhas: acontece com a zona ocupada, não na lotada; só por quem pode chegar ali; quem se movimenta melhor ganha mais o passe
+{
+  const EL = G.entrelinhas, MEIO = new Set(["4e", "4C", "4d"]);
+  const conta = (fa, fb = "4-4-2", ks = [], v = 0) => { const a = comAtr(onze(fa, 1), ks, v), b = onze(fb, 2), t = { n: 0, g: 0, zona: {}, inteiro: {}, gk: 0 };
+    for (let s = 1; s <= 60; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: b }), { registro: reg });
+      const inteiro = !Object.values(p.jogadores).some(x => x.saiu != null); // quem sai (lesão sem banco, expulsão) esvazia a zona lotada
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && r[8] === "entre") { assert.ok(MEIO.has(r[2]), r[2]); t.n++; t.g += r[6] ? 1 : 0; t.zona[r[2]] = (t.zona[r[2]] || 0) + 1; if (inteiro) t.inteiro[r[2]] = (t.inteiro[r[2]] || 0) + 1; if (p.jogadores[r[5]] && p.jogadores[r[5]].pos === "GK") t.gk++; } }
+    return t; };
+  const ocupada = conta("4-2-3-1"), semRegra = com(EL, "lotado", 0, () => conta("4-2-3-1")), vazia = conta("4-4-2"), natal = conta("4-3-2-1 (árvore de Natal)"), sem9 = conta("4-1-4-1");
+  console.log(`4 entrelinhas por jogo: 4-2-3-1 ${(ocupada.n / 60).toFixed(1)} (sem a regra ${(semRegra.n / 60).toFixed(1)}); 4-4-2 ${(vazia.n / 60).toFixed(1)}; 4-1-4-1 ${(sem9.n / 60).toFixed(1)}; árvore ${JSON.stringify(natal.zona)}, com os 11 ${JSON.stringify(natal.inteiro)}`);
+  assert.ok(ocupada.n > 0 && ocupada.zona["4C"] > 0, "4-2-3-1 com a zona 14 ocupada");
+  assert.strictEqual(semRegra.n, 0, "sem a regra, a zona ocupada bloqueava");
+  assert.ok(vazia.n > 0 && vazia.zona["4C"] > 0, "4-4-2, zona 14 vazia");
+  assert.ok(sem9.n > 0, "formação sem quem ocupe a zona 14");
+  assert.ok(Object.keys(natal.inteiro).length && !natal.inteiro["4e"] && !natal.inteiro["4d"], "zona lotada não recebe mais um");
+  assert.ok(ocupada.gk + vazia.gk + natal.gk === 0, "o goleiro não aparece entre as linhas");
+  const [ruim, bom] = [10, 45].map(v => { const t = conta("4-2-3-1", "4-4-2", ["mov"], v); return t.g / t.n; });
+  console.log(`4 entrelinhas certas com Movimentação 10/45: ${ruim.toFixed(3)} ${bom.toFixed(3)}`);
+  assert.ok(bom > ruim, "quem se movimenta melhor se solta do marcador");
+}
+
 console.log("ok: mecânicas");

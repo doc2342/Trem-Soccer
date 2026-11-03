@@ -282,8 +282,8 @@ export const CONFIG = {
     espaco: { vontade: 2, peso: 0.6, dificuldade: -0.3, corrida: 0.5, impedimento: 0.5 },
     // passe entrelinhas (dono, 31/10): na faixa 4 por dentro (4e, zona 14, 4d) sem ninguém nosso, alguém aparece entre o meio e a defesa deles: o 9 que
     // recua da faixa 5 (recebe de costas) ou quem chega da 3 ou do lado; a bola no pé, sem corrida nem impedimento. Quem aparece: peso × Domínio;
-    // peso: o ataque do duelo = habilidade dele ali × peso; dificuldade: logit; mov: logit por (Movimentação − 25) / 25: quem se movimenta bem se solta do marcador
-    entrelinhas: { peso: 0.6, dificuldade: -0.2, mov: 0.5 },
+    // peso: o ataque do duelo = habilidade dele ali × peso; dificuldade: logit; mov: logit por (Movimentação − 25) / 25: quem se movimenta bem se solta do marcador; lotado: com este peso nosso na zona não há espaço para mais um (4-2-3-1 0,5 aparece; árvore de Natal 0,9 no 4e e 4d, não)
+    entrelinhas: { peso: 0.6, dificuldade: -0.2, mov: 0.5, lotado: 0.75 },
     // reposição do goleiro (Tarefa 9c, dono 31/10): tiro de meta depois do chute para fora, a bola nas mãos depois da defesa que ele segura. Vai longe com
     // logit = base + instr + pressao × (pressão do adversário − 1) + goleiro × (Passe longo dele − referencia) / 25, e maos na reposição com a mão.
     // referencia: o Passe longo médio dos goleiros (19). Base −0,25 (~56% curtos): Opta, Premier League
@@ -1581,9 +1581,9 @@ function jogarPartida(rng, casa, fora, opcoes) {
           // o passe precisa de alguém nosso no destino; a condução (só com quem leva a bola) pode ir para o espaço vazio
           lanc = portador ? G.lancamento * (portador.at[A.plo] - 25) / 25 : 0;
           if (portador) conduz = G.conduzir.base + G.conduzir.peso * (media(portador.at[A.dri], portador.at[A.vel], portador.at[A.dom]) - 25) / 25;
-          // a zona sem ninguém nosso, para a frente (Tarefa 9b): na faixa 4 por dentro, passe entrelinhas para quem aparece ali (no pé); no resto, passe
+          // a zona sem ninguém nosso, para a frente (Tarefa 9b): na faixa 4 por dentro, passe entrelinhas para quem aparece ali (no pé; com a zona ocupada também, outro aparece ao lado de quem já está lá, menos na zona lotada); no resto, passe
           // no espaço para quem chega correndo
-          const ehGk = portador === atk.goleiro, chave = atual + !!portador + ehGk, lista = OPC[chave] || (OPC[chave] = opcoesDoPasso(atual).flatMap(x => x.conduzir ? (portador && !ehGk ? [x] : []) : PESO[x.i] > 0 ? [x]
+          const ehGk = portador === atk.goleiro, chave = atual + !!portador + ehGk, lista = OPC[chave] || (OPC[chave] = opcoesDoPasso(atual).flatMap(x => x.conduzir ? (portador && !ehGk ? [x] : []) : PESO[x.i] > 0 ? (portador && ENTRE.has(x.i) && PESO[x.i] < EL.lotado && x.i - x.i % 5 > ka - ka % 5 && quemAparece(x.i).length ? [x, { ...x, entre: true }] : [x])
             : !portador || x.i - x.i % 5 <= ka - ka % 5 ? [] : ENTRE.has(x.i) ? (quemAparece(x.i).length ? [{ ...x, entre: true }] : []) : quemChega(x.i).length ? [{ ...x, espaco: true }] : [])
             .concat(portador && (atual === "4E" || atual === "4D") && PESO[21] + PESO[22] + PESO[23] > 0 ? [{ tipo: "cruzar", fim: true, i: ka }] : portador && atual === "4C" ? [{ tipo: "chutar", fim: true, i: ka }] : portador && ka >= 20 ? [{ tipo: "finalizar", fim: true, i: ka }] : portador && atk.goleiro && !ehGk && ka < 5 ? [{ tipo: "voltar", goleiro: true, para: "1C", i: 2, k: -1 }] : []));
           const dec = decisaoSobPressao(portador ? decisao(portador.at) : 25, P * (1 - G.calma.pressao * atk.calma), G);
