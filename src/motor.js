@@ -258,7 +258,7 @@ export const CONFIG = {
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
     conduzir: { base: -0.3, peso: 0.6, fora: 0.6 }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     chance: { areaMeio: 0.8, xgMeio: 0.75, xgCutback: 0.16, cutback: 0.5, corteMeio: 0.35, enfiada: 1, peInvertido: 0.15, blocoBaixo: 0.15,
       antecipado: { valor: 0.12, xg: 0.8, contra: 1.4, linhaAlta: 1.25 }, chutar: 0.05,
@@ -1452,11 +1452,12 @@ function jogarPartida(rng, casa, fora, opcoes) {
         tirar(atk.zonas[z], area ? portador : null, area ? pMov : pPos, HAB_A, habilidadeAtaque, k, z);
         const quem = sq, ma = sm;
         tirar(def.zonasDef[ze], null, pDef, HAB_D, habilidadeDefesa, k, ze);
-        return FOTO[k] = { quem, ma, da: quem ? habEm(HAB_A, quem, k, habilidadeAtaque, z) - ma : 0, marcador: sq, dd: sq ? habEm(HAB_D, sq, k, habilidadeDefesa, ze) - sm : 0 };
+        return FOTO[k] = { quem, ma, da: quem ? habEm(HAB_A, quem, k, habilidadeAtaque, z) - ma : 0, marcador: sq, dd: sq ? habEm(HAB_D, sq, k, habilidadeDefesa, ze) - sm : 0,
+          aperta: sq ? G.foto.marca * (decisao(sq.at) - 25) + G.pressaoJogador * P * (media(sq.at[A.vel], sq.at[A.res], sq.at[A.agr], sq.at[A.equ]) - 25) : 0 };
       };
       const manoDe = o => { if (o.goleiro) return 0;
         const F = fotoDe(o.i), a = o.espaco || o.entre ? 0 : o.conduzir ? habEm(HAB_A, portador, o.i, habilidadeAtaque, ZONAS_GRADE[o.i]) - F.ma : F.da;
-        return (G.foto.peso * (a - F.dd) - (F.marcador ? G.foto.marca * (decisao(F.marcador.at) - 25) : 0)) / 25; }; // Decisões sem a bola: quem marca acerta a hora do bote
+        return (G.foto.peso * (a - F.dd) - F.aperta) / 25; }; // Decisões sem a bola: quem marca acerta a hora do bote; a pressão rende pelo fôlego, pela pegada e pelo trabalho de quem pressiona
       const valorDe = o => {
         if (o.fim && o.tipo === "finalizar") { // vale mais quanto melhor quem tem a bola para aquilo e quanto menos gente em cima dele
           const q = (ka % 5 === 0 || ka % 5 === 4 ? portador.at[A.cru] : portador.at[A.fin]) / 25, livre = AT[ka] / (AT[ka] + defesaNo(ka) + Zv);

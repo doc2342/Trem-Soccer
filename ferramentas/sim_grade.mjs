@@ -20,7 +20,7 @@ junta(CONFIG, JSON.parse(process.env.CFG || "{}"));
 junta(CONFIG.gradeValores, JSON.parse(process.env.GV || "{}"));
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const pega = (rng, l) => l[Math.floor(rng.n() * l.length)];
-export const onze = (s, f, nivel = 30) => gerarOnze(criarRng(s), FORMACOES[f], { nivel, nomes, prefixoId: "p" + s + "_", novos: true }); // novos: os 25 atributos da T1, senão Passe longo, Movimentação e Decisões não variam
+export const onze = (s, f, nivel = 30) => gerarOnze(criarRng(s), FORMACOES[f], { nivel, nomes, prefixoId: "p" + s + "_" });
 const instrucoes = rng => ({
   mentalidade: pega(rng, [-1, 0, 0, 0, 1]), pressao: pega(rng, [0, 1, 1, 2]), passe: pega(rng, ["misto", "curto", "longo"]),
   contraAtaque: rng.chance(0.25), impedimento: rng.chance(0.25), aoPerder: pega(rng, ["misto", "misto", "misto", "pressionar", "recompor"]),
