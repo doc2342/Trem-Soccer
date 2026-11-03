@@ -139,4 +139,18 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(db > dr, "quem dribla bem leva melhor");
 }
 
+// 8. Movimentação: quem se movimenta melhor ganha a corrida no espaço e se solta para o terceiro homem; no contra-ataque, o atacante de dentro abre nas costas
+// do lateral; na faixa 5 a corrida também vale com pouca gente nossa na zona
+{
+  const ES = G.espaco, ab = { mentalidade: 1 };
+  const mede = a => { const t = { esp: [0, 0], ter: [0, 0], abre: 0 }; partidas(a, B, {}, ab, p => { const e = p.estat[0].grade; t.esp[0] += e.espaco[0]; t.esp[1] += e.espaco[1]; t.ter[0] += e.terceiros[0]; t.ter[1] += e.terceiros[1];
+    for (const ev of p.narracao) if (ev.time === 0 && /abre nas costas/.test(JSON.stringify(ev))) t.abre++; }); return t; };
+  const [r, b] = [10, 45].map(v => mede(comAtr(A, ["mov"], v))), base = mede(A), vazia = com(ES, "lotado", 0, () => mede(A));
+  console.log(`8 espaço por jogo com Movimentação 10/45: ${(r.esp[0] / JOGOS).toFixed(2)} ${(b.esp[0] / JOGOS).toFixed(2)}, acerto ${(r.esp[1] / r.esp[0]).toFixed(3)} ${(b.esp[1] / b.esp[0]).toFixed(3)}; terceiro homem certo ${(r.ter[1] / r.ter[0]).toFixed(3)} ${(b.ter[1] / b.ter[0]).toFixed(3)}; abre nas costas ${base.abre}; espaço só na zona vazia ${(vazia.esp[0] / JOGOS).toFixed(2)} × ${(base.esp[0] / JOGOS).toFixed(2)}`);
+  assert.ok(b.esp[1] / b.esp[0] > r.esp[1] / r.esp[0] && b.esp[0] > r.esp[0], "quem se movimenta melhor ganha a corrida, e o passe sai mais");
+  assert.ok(b.ter[1] / b.ter[0] > r.ter[1] / r.ter[0], "quem se movimenta melhor se solta para o terceiro homem");
+  assert.ok(base.abre > 0, "no contra-ataque, o atacante de dentro abre nas costas do lateral");
+  assert.ok(base.esp[0] > vazia.esp[0], "a corrida também vale na zona pouco ocupada da faixa 5");
+}
+
 console.log("ok: mecânicas");
