@@ -15,9 +15,10 @@ for (const [k, p] of Object.entries(PAPEIS)) {
   for (const [pos, m] of Object.entries(p.mapas || {})) { perto(soma(m.com), 1, `${k}@${pos} com`); perto(soma(m.sem), 1, `${k}@${pos} sem`); }
   assert.ok(p.nome && p.faz && p.custa, `textos de ${k}`);
 }
-assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
+assert.deepStrictEqual(PAPEL_PADRAO, { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" });
 assert.deepStrictEqual(papeisDaPosicao("DR"), ["fixo", "apoiador", "construtor", "invertido"]);
 assert.deepStrictEqual(papeisDaPosicao("MC"), []);
+assert.deepStrictEqual(papeisDaPosicao("DC"), ["xerife", "tecnico", "combativo", "libero"]);
 
 // o padrão segue pelo caminho de hoje (COBERTURA da posição)
 assert.strictEqual(mapasDoPapel("DR", "fixo"), null);
@@ -112,3 +113,16 @@ assert.ok((gar.sem["3D"] || 0) > (MANCHAS.RW.sem["3D"] || 0), "o Garçom volta")
 assert.ok(preferenciaDoPasso("garcom", "cruzar", false) > 1 && preferenciaDoPasso("pontainvertido", "cruzar", false) < 1);
 perto(gastoDoPapel("MR", "operario"), 1.1);
 console.log("teste_papeis: ok (com os pontas)");
+
+// zagueiros (etapa Atacantes): a mancha do zagueiro (um, dois ou trio) deslocada; o Xerife é o padrão
+for (const k of ["DC1", "DC2d", "DC3c", "DC3d"]) for (const p of papeisDaPosicao("DC")) {
+  const m = manchaDoPapel("DC", p, MANCHAS[k]);
+  if (p === "xerife") { assert.strictEqual(m, null); continue; }
+  for (const f of ["com", "sem"]) perto(soma(m[f]), 1, `${p}@${k} ${f}`);
+}
+const tec = manchaDoPapel("DC", "tecnico", MANCHAS.DC1), cmb = manchaDoPapel("DC", "combativo", MANCHAS.DC1), lib = manchaDoPapel("DC", "libero", MANCHAS.DC1);
+assert.ok(tec.com["2C"] > MANCHAS.DC1.com["2C"] && tec.sem === MANCHAS.DC1.sem, "o Técnico pisa no meio com a bola");
+assert.ok(cmb.sem["2C"] > MANCHAS.DC1.sem["2C"], "o Combativo sobe para o bote");
+assert.ok(lib.sem["1e"] > MANCHAS.DC1.sem["1e"] && lib.sem["1C"] < MANCHAS.DC1.sem["1C"], "o Líbero cobre os lados");
+assert.ok(preferenciaDoPasso("tecnico", "pular", false) < 1 && preferenciaDoPasso("tecnico", "lado", true) > 1);
+console.log("teste_papeis: ok (com os zagueiros)");

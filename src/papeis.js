@@ -137,6 +137,27 @@ export const PAPEIS = {
     grade: { MR: { com: { "3D": 0.45, "4D": 0.3, "2D": 0.1, "3d": 0.15 }, sem: { "2D": 0.35, "3D": 0.4, "1D": 0.1, "3d": 0.15 } } },
     gasto: { MR: 1.1 },
   },
+  // Zagueiros (etapa Atacantes; fichas de 28 e 29/10). Como o centroavante, a mancha do zagueiro muda com quantos são (um, dois, trio): o papel a
+  // desloca (avanca: da faixa 1, a parte que vai para a faixa 2 do mesmo corredor; espalha: a que vai para os corredores vizinhos da faixa 1)
+  xerife: {
+    nome: "Xerife", faz: "Fica no centro da defesa, ganha o cruzamento alto e bloqueia o chute.", custa: "Sai pouco jogando; se for lento, sofre com a bola em profundidade.",
+    pesos: { pos: 19, mar: 14, des: 13, pas: 12, cab: 12, for: 8, vel: 7, com: 7, dom: 5, agr: 3 }, gasto: { DC: 1 },
+  },
+  tecnico: {
+    nome: "Técnico", faz: "Sai jogando: pisa no meio com a bola, a bola gira curta e segura por ele, e conduz para soltar um colega.", custa: "Marca menos e ganha pouco pelo alto; contra pressão alta, o erro dele sai perto do gol.",
+    pesos: { pas: 19, pos: 18, des: 13, mar: 13, dom: 9, cri: 8, dri: 6, com: 5, cab: 4, vel: 3, for: 2 },
+    desloca: { DC: { com: { avanca: 0.2 } } }, gasto: { DC: 1 },
+  },
+  combativo: {
+    nome: "Combativo", faz: "Sobe para o bote no meio, rouba e conduz para a frente.", custa: "Deixa espaço atrás para a bola em profundidade; mais faltas e cartões.",
+    pesos: { des: 15, pos: 14, agr: 12, mar: 10, vel: 10, for: 10, pas: 8, dom: 7, res: 6, cab: 5, dri: 3 },
+    desloca: { DC: { com: { avanca: 0.3 }, sem: { avanca: 0.3 } } }, gasto: { DC: 1.05 },
+  },
+  libero: {
+    nome: "Líbero", faz: "Sobra atrás, cobre os lados e corta a bola em profundidade; com a bola, conduz para o meio.", custa: "Quebra a linha de impedimento e deixa menos gente no centro da área.",
+    pesos: { pos: 19, pas: 14, des: 13, vel: 12, mar: 10, com: 9, dom: 7, cab: 5, equ: 5, cri: 3, dri: 3 },
+    desloca: { DC: { com: { avanca: 0.25 }, sem: { espalha: 0.3 } } }, gasto: { DC: 1 },
+  },
 };
 
 // a mancha da posição deslocada pelo papel (centroavantes); null no padrão, sem papel ou papel sem deslocamento. Feita uma vez por mancha e papel
@@ -154,6 +175,11 @@ function deslocar(mapa, d) {
       for (const x of viz) soma("5" + COL[x], abre / viz.length);
       if (fecha) soma("5C", fecha);
     } else if (f === "4" && d.sobe) { r[z] -= w * d.sobe; soma("5" + z[1], w * d.sobe); }
+    else if (f === "1" && (d.avanca || d.espalha)) {
+      const av = w * (d.avanca || 0), es = w * (d.espalha || 0), viz = [c - 1, c + 1].filter(x => x >= 0 && x <= 4);
+      r[z] -= av + es; soma("2" + z[1], av);
+      for (const x of viz) soma("1" + COL[x], es / viz.length);
+    }
   }
   for (const z in r) if (r[z] <= 1e-9) delete r[z];
   return r;
@@ -167,9 +193,10 @@ export function manchaDoPapel(pos, papel, base) {
   return porPapel[papel] || (porPapel[papel] = { com: deslocar(base.com, d.com), sem: deslocar(base.sem, d.sem) });
 }
 
-export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
+export const PAPEL_PADRAO = { DR: "fixo", DL: "fixo", WBR: "apoiador", WBL: "apoiador", SC: "matador", FC: "flutuante", DC: "xerife", RW: "agudo", LW: "agudo", AMR: "condutor", AML: "condutor", MR: "garcom", ML: "garcom" };
 const PAPEIS_POR_POSICAO = { DR: ["fixo", "apoiador", "construtor", "invertido"], WBR: ["apoiador", "fixo", "construtor", "invertido"],
   SC: ["matador", "pivo", "flutuante", "pressionador"], FC: ["flutuante", "matador", "pivo", "pressionador"],
+  DC: ["xerife", "tecnico", "combativo", "libero"],
   RW: ["agudo", "pontainvertido", "garcom", "condutor"], AMR: ["condutor", "pontainvertido", "garcom", "articulador"], MR: ["garcom", "articulador", "pontainvertido", "operario"] };
 // posição do lado direito que serve de base para a do esquerdo
 const DIREITA = { DL: "DR", WBL: "WBR", LW: "RW", AML: "AMR", ML: "MR" };

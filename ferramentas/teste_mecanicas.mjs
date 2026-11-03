@@ -222,4 +222,22 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(ope.sem > mr.sem && ope.energia < mr.energia, "o Operário volta e cansa mais");
 }
 
+// 13. Papéis do zagueiro (fichas de 28 e 29/10): o Xerife é o padrão (nada muda); o Técnico joga curto e conduz; o Combativo deixa as costas para a bola em
+// profundidade do rival (medido contra a regra desligada); o Líbero corta a bola em profundidade, mais quanto melhores o Posicionamento e a Velocidade
+{
+  const Q4 = onze("4-4-2", 3), comZag = (papel, ks = [], v = 0) => Q4.map(x => x.pos === "DC" ? { ...(ks.length ? comAtr([x], ks, v)[0] : x), papel } : x), ids = new Set(Q4.filter(x => x.pos === "DC").map(x => x.j.id));
+  const mede = l => { const t = { pular: 0, passes: 0, conduz: 0, xgP: 0, nP: 0 };
+    for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+      for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && ids.has(r[4])) { if (r[7]) t.conduz++; else { t.passes++; if (r[3] === "pular" || r[3] === "longa") t.pular++; } }
+      for (const l2 of p.lances) if (l2.time === 1 && l2.tipo === "profundidade") { t.nP++; t.xgP += l2.xg; } }
+    return { ...t, xg: t.xgP / t.nP }; };
+  const [pad, xer, tec, cmb, lr, lb] = [mede(comZag(null)), mede(comZag("xerife")), mede(comZag("tecnico")), mede(comZag("combativo")), mede(comZag("libero", ["pos", "vel"], 10)), mede(comZag("libero", ["pos", "vel"], 45))];
+  const PD = G.papelDefesa, semCostas = com(PD, "combativo", 0, () => com(PD, "combativoCorrida", 0, () => mede(comZag("combativo"))));
+  console.log(`13 zagueiro: lançamentos dele por passe (padrão/Técnico) ${(pad.pular / pad.passes).toFixed(3)} ${(tec.pular / tec.passes).toFixed(3)}; conduções ${pad.conduz} ${tec.conduz}; xG da bola em profundidade do rival: Combativo com e sem a regra ${cmb.xg.toFixed(3)} ${semCostas.xg.toFixed(3)} (${cmb.nP} e ${semCostas.nP}); Líbero com Posicionamento e Velocidade 10/45 ${lr.xg.toFixed(3)} ${lb.xg.toFixed(3)}, Xerife ${pad.xg.toFixed(3)}`);
+  assert.deepStrictEqual(xer, pad, "o Xerife é o zagueiro de hoje");
+  assert.ok(tec.pular / tec.passes < pad.pular / pad.passes && tec.conduz > pad.conduz, "o Técnico joga curto e conduz");
+  assert.ok(cmb.xg > semCostas.xg && cmb.nP >= semCostas.nP, "o Combativo deixa as costas");
+  assert.ok(lb.xg < lr.xg && lb.xg < pad.xg, "o Líbero corta a bola em profundidade, pelo Posicionamento e pela Velocidade");
+}
+
 console.log("ok: mecânicas");

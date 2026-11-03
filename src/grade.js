@@ -305,6 +305,10 @@ export const PREFERENCIA = {
   condutor: { conduzir: 1.3 },
   articulador: { lado: 1.15, diagonal: 1.2, voltar: 1.1, conduzir: 0.9, cruzar: 0.9 },
   operario: { voltar: 1.2, lado: 1.1, conduzir: 0.8, cruzar: 0.9 },
+  // zagueiros: o Técnico joga curto e conduz (a bola gira segura, mesmo com o time em passe longo); o Combativo leva para a frente; o Líbero conduz
+  tecnico: { lado: 1.05, conduzir: 1, pular: 0.6, virada: 0.7, inversao: 0.7 },
+  combativo: { subir: 1.1, conduzir: 1.2 },
+  libero: { conduzir: 1.25 },
 };
 export function preferenciaDoPasso(papel, tipo, conduzir) {
   const p = papel && PREFERENCIA[papel];

@@ -261,7 +261,7 @@ export const CONFIG = {
       paraDentro: -0.2, pertoDoGol: -0.3 },
     valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
     impulso: { parte: 0.5, teto: 0.28, giro: 0.85, deFrente: 0.3, prende: 0.5 }, atrairPressao: 0.12,
-    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
+    baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.3, folga: 0.5, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
     // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
     conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
     // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
@@ -282,7 +282,9 @@ export const CONFIG = {
     // terceiro.mov: logit, no passe para a frente depois da volta ganha, por (Movimentação de quem recebe − 25) / 25: quem se movimenta bem se solta para o terceiro homem
     // pressionador: a pressão que vale para o Pressionador, mesmo com a do time abaixo disto. papelAtaque: pivoCruza, × no valor de cruzar com um Pivô
     // na área ou na zona 14; flutuanteLivre, logit do passe entrelinhas para o Flutuante (recebe livre); flutuanteBuraco, × no buraco das costas da zaga
-    // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10
+    // quando ele ganha na faixa 4 (o zagueiro sai atrás dele). Fichas aprovadas em 29/10. papelDefesa: libero, o quanto o Líbero (papel) tira do fator
+    // da bola em profundidade por (média de Posicionamento e Velocidade − 25) / 25, entre liberoMin e liberoMax; combativo, × (1 + isto × Combativos) no xG da
+    // bola em profundidade do rival; combativoCorrida, logit da corrida no espaço da faixa 5 do rival por Combativo (ele sobe para o bote e deixa as costas)
     terceiro: { apertado: 0.3, bonus: 0.35, mov: 0.5, pressao: 0.5, agressivo: 1.3, retranca: 0.2, diagonal: 1.3, contra: 1.5, disputa: 0.3 },
     longa: { alto: 0.5, ladoZagueiro: -0.3 }, aereo: { base: -0.3, lancador: 0.5, inclinacao: 1.5, vazio: 5, direcao: 0.5 },
     segundaBola: { acaso: 0.3, vizinhas: 0.5 }, viradaInstrucao: { longo: 1.5, lados: 1.5, curto: 0.6 }, lancamento: 0.4, foto: { peso: 3, de: 10, ate: 40, marca: 0.3, cobre: 0.5 },
@@ -470,7 +472,7 @@ function recalcular(t, saldo) {
   const agr = 1 + CONFIG.agressividadeDefesa * I.agressividade, pre = 1 + CONFIG.pressaoDefesa * I.pressao, abre = I.mentalidade > 0 ? 1 - CONFIG.mentalidadeDefesa * I.mentalidade : 1 - CONFIG.mentalidadeRetranca * I.mentalidade;
   const mDef = { D: agr * abre, M: agr * abre * pre, A: agr * pre };
   const ent = entrosamento(t.emCampo);
-  t.goleiro = null; t.temLibero = false;
+  t.goleiro = null; t.temLibero = false; t.fatorLibero = undefined; t.costas = 0;
   const grade = CONFIG.grade, Z = zonasDoMotor(), G = CONFIG.gradeValores, manchas = grade ? manchasDoTime(t.emCampo) : null;
   t.atk = {}; t.def = {}; t.zonas = {}; t.zonasDef = {}; // novos a cada conta: sem resto das zonas da outra notação
   t.atk = { ...ZERADAS[Z.length] }; t.def = { ...ZERADAS[Z.length] }; // cópia de um molde com as chaves prontas (mais rápido que pôr uma a uma)
@@ -487,6 +489,9 @@ function recalcular(t, saldo) {
     if (pe) for (const k in pe) jog.at[k] *= pe[k];
     if (jog.pos === "GK") { t.goleiro = jog; continue; }
     if (jog.pos === "SW") t.temLibero = true;
+    // o Líbero como papel: corta mais a bola em profundidade quanto melhores o Posicionamento e a Velocidade dele (ficha de 29/10); o melhor dos que houver
+    if (grade && temPapel(jog, "combativo")) t.costas = (t.costas || 0) + 1;
+    if (grade && temPapel(jog, "libero")) { t.temLibero = true; const L = G.papelDefesa, fl = limitar(CONFIG.fatorLibero - L.libero * (media(jog.at[A.pos], jog.at[A.vel]) - 25) / 25, L.liberoMin, L.liberoMax); t.fatorLibero = Math.min(t.fatorLibero ?? 1, fl); }
     const p = jog.j.id === I.armador ? CONFIG.pesoArmador : 1;
     // zonas: quem tem a bola (mapa com a bola do papel); zonasDef: quem marca (mapa sem a bola). Sem papel, as duas são a COBERTURA da posição
     // na grade: o mapa da grade do papel (laterais e alas) ou a mancha da posição pela contagem da família (src/grade.js)
@@ -792,7 +797,7 @@ function criarChance(rng, atk, def, lado, pivo, { forcado = false, contra = fals
   } else if (tipo === "profundidade") {
     c.finalizador = sortearPeso(rng, alvos, o => o.w * (o.jog.at[A.vel] + o.jog.at[A.dom])).jog;
     const f = c.finalizador.at;
-    c.xg = x.profundidade * Math.pow(mod(media(pivo.at[A.cri], pivo.at[A.pas]), 28, k), 0.5) * mod(media(f[A.vel], f[A.dom]), zag ? media(zag[A.pos], zag[A.vel]) : semZaga, k) * (def.temLibero ? CONFIG.fatorLibero : 1) * b.profundidade; // o zagueiro que saiu para cobrir abre as costas
+    c.xg = x.profundidade * Math.pow(mod(media(pivo.at[A.cri], pivo.at[A.pas]), 28, k), 0.5) * mod(media(f[A.vel], f[A.dom]), zag ? media(zag[A.pos], zag[A.vel]) : semZaga, k) * (def.temLibero ? def.fatorLibero ?? CONFIG.fatorLibero : 1) * b.profundidade * (1 + CONFIG.gradeValores.papelDefesa.combativo * (def.costas || 0)); // o zagueiro que saiu para cobrir abre as costas
     c.chute = Math.max(f[A.fin], f[A.dri]) * 0.7 + f[A.dom] * 0.3; c.defesa = gk ? gk[A.um] : semGoleiro;
   } else if (tipo === "area") {
     c.finalizador = (sortearPeso(rng, area, o => o.w * o.jog.at[A.fin] * ehAlvo(o)) || { jog: pivo }).jog;
@@ -1455,7 +1460,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
         for (let x = Math.max(0, c - r); x <= Math.min(4, c + r); x++) for (const o of atk.zonas[ZONAS_GRADE[5 * f - 5 + x]]) l.push(o); return l; })());
       const velDef = k => VDEF[k] ?? (VDEF[k] = (l => { let s = 0, w = 0; for (const x of l) { s += x.w * x.jog.at[A.vel]; w += x.w; } return w ? s / w : 25; })(def.zonasDef[espelho(ZONAS_GRADE[k])]));
       const chegadaDe = (jog, k) => ES.peso * habilidadeAtaque(jog.at, ZONAS_GRADE[k]) * chegada(jog.at) / 25;
-      const corrida = (vel, k) => ES.dificuldade + ES.corrida * (vel - velDef(k)) / 25;
+      const corrida = (vel, k) => ES.dificuldade + ES.corrida * (vel - velDef(k)) / 25 + (k >= 20 ? G.papelDefesa.combativoCorrida * (def.costas || 0) : 0); // o Combativo que sobe deixa as costas
       // entrelinhas: quem pode aparecer na zona k da faixa 4 (faixas 3 a 5, mesmo corredor ou vizinho, menos a própria zona) e a chegada esperada
       const EL = G.entrelinhas, APARECE = [], ENTRE = new Set([16, 17, 18]); // 4e, 4C, 4d
       const quemAparece = k => APARECE[k] ?? (APARECE[k] = (() => { const c = k % 5, l = [];
