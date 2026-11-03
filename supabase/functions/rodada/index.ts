@@ -378,6 +378,8 @@ const __grade = (() => {
     DMC2d: { sem: { "2d": 0.4, "2C": 0.25, "1d": 0.1, "1C": 0.1, "3d": 0.15 }, com: { "2d": 0.45, "2C": 0.15, "3d": 0.25, "3C": 0.1, "1d": 0.05 } },
     MC1: { sem: { "3C": 0.5, "3e": 0.1, "3d": 0.1, "2C": 0.15, "4C": 0.15 }, com: { "3C": 0.45, "3e": 0.1, "3d": 0.1, "2C": 0.1, "4C": 0.25 } },
     MC2d: { sem: { "3d": 0.45, "3C": 0.2, "3D": 0.05, "2d": 0.15, "4d": 0.15 }, com: { "3d": 0.4, "3C": 0.15, "2d": 0.1, "4d": 0.3, "3D": 0.05 } },
+    // o MC de fora no meio de três (aprovado em 29/10, plano dos papéis): 15 pontos do meio-espaço vão para o lado (10 na faixa 3, 5 na faixa 4)
+    MC3d: { sem: { "3d": 0.35, "3C": 0.2, "3D": 0.15, "2d": 0.15, "4d": 0.1, "4D": 0.05 }, com: { "3d": 0.3, "3C": 0.15, "2d": 0.1, "4d": 0.25, "3D": 0.15, "4D": 0.05 } },
     AMC: { sem: { "4C": 0.45, "3C": 0.35, "4e": 0.1, "4d": 0.1 }, com: { "4C": 0.45, "4e": 0.1, "4d": 0.1, "5C": 0.15, "3C": 0.2 } },
     // o AMC com o peso do 4C passado para o 4d e o do 4e dividido entre 4d e 4C (caixa do Pep, árvore de Natal)
     AMC2d: { sem: { "4d": 0.6, "4C": 0.05, "3C": 0.35 }, com: { "4d": 0.6, "4C": 0.05, "5C": 0.15, "3C": 0.2 } },
@@ -407,7 +409,7 @@ const __grade = (() => {
     AMC: ["AMC", "AMC2d", "AMC"], FC: ["FC1", "FC2d", "FC1"], SC: ["SC1", "SC2d", "SC1"],
   };
   // no trio, quem fica no meio-espaço usa a versão de lado do trio quando existe
-  const DE_LADO_DO_TRIO = { DC: "DC3d", SW: "DC3d", FC: "FC3d", SC: "FC3d" };
+  const DE_LADO_DO_TRIO = { DC: "DC3d", SW: "DC3d", FC: "FC3d", SC: "FC3d", MC: "MC3d" };
 
   // { com, sem } de cada jogador, na ordem da escalação (null no goleiro). Por família: 1 no centro; 2 um em cada meio-espaço
   // (o primeiro da escalação no direito, o segundo no esquerdo); 3 meio-espaço direito / centro / meio-espaço esquerdo.
@@ -1305,7 +1307,9 @@ const __motor = (() => {
       lotacao: { E: 1.6, e: 2.0, C: 2.2, resto: 0.6 }, compactacao: { razao: 0.9 }, pesoPosse: { C: 1.5, e: 1.25, E: 1 },
       passagemPorDentro: { "4D": -0.10, "5D": -0.10, "4d": 0.10, "5d": 0.10 },
       vazio: 6, basculacao: 0.6, zonaCinza: 0.15, vazia: 0.35, ameaca: 1.3, emprestimo: 0.65, buracoZaga: 0.25, buracoLateral: 0.2,
-      saidaAlto: { base: 1, forca: 1.5, solta: 0.1, contato: 0.3, escanteio: 0.2, referencia: 19 }, basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5 }, arrasto: { folga: 0.85, lado: 0.2 },
+      // comunica.pressao: × (1 + isto × (Comunicação média de quem marca nas faixas 2–3 por dentro − 25) / 25) na pressão do time, só com pressão 1 ou 2,
+      // entre 0,5 e 1,5 (aprovado em 29/10)
+      saidaAlto: { base: 1, forca: 1.5, solta: 0.1, contato: 0.3, escanteio: 0.2, referencia: 19 }, basculacaoRapidez: 0.5, comunica: { basculacao: 0.5, buraco: 0.5, troca: 1.5, neutro: 0.5, pressao: 0.3 }, arrasto: { folga: 0.85, lado: 0.2 },
       dificuldade: { voltar: 1.6, lado: 1.4, ladoLonge: -0.3, subir: 0, diagonal: 0.1, diagonalMeio: 0.35, pular: -1.7, virada: -2.6, inversao: -0.6,
         paraDentro: -0.2, pertoDoGol: -0.3 },
       valorZona: { faixas: [0.009, 0.017, 0.032, 0.075], f5: { E: 0.13, e: 0.15, C: 0.22 } }, decisao: { base: 5, inclinacao: 3, pressao: 5, piso: 0.02 },
@@ -1607,6 +1611,7 @@ const __motor = (() => {
     if (grade) { t.defLado.e = t.defLado.E; t.defLado.d = t.defLado.D; } // na grade, a bola no meio-espaço conta como a do lado vizinho
     const linha = grade ? ["1e", "1C", "1d"].flatMap(z => t.zonasDef[z]) : t.zonasDef.DC, peso = linha.reduce((s, o) => s + o.w, 0);
     t.comDefesa = peso ? linha.reduce((s, o) => s + o.w * o.jog.j.at[A.com], 0) / peso : 10;
+    if (grade) { const meioDef = ["2e", "2C", "2d", "3e", "3C", "3d"].flatMap(z => t.zonasDef[z]), pm = meioDef.reduce((s, o) => s + o.w, 0); t.comMeio = pm ? meioDef.reduce((s, o) => s + o.w * o.jog.at[A.com], 0) / pm : 25; }
     const defNoMeio = l => CONFIG.regrasT1 && l !== "C" ? Math.min(t.def["M" + l], CONFIG.compactacao.razao * t.def["D" + l]) : t.def["M" + l]; // compactação (regras da T1)
     // na grade, o controle do meio vem das faixas 2–3, com o peso de cada corredor
     const meio = grade ? ZONAS_GRADE.filter(z => faixaDe(z) === 2 || faixaDe(z) === 3).reduce((s, z) => s + (t.atk[z] + t.def[z]) * G.pesoPosse[largura(z)], 0)
@@ -2445,7 +2450,7 @@ const __motor = (() => {
       // A jogada na grade 5×5 (spec 7): de passo em passo, quem tem a bola escolhe o destino pela Decisão (escolherPasso), e o passo é um duelo na zona
       // de destino com a dificuldade do tipo. Termina em chance (quem tem a bola decide finalizar na faixa 5, ou o passo perdido ali), perda, falta, lesão ou no LIMITE_DE_PASSOS.
       function atacarNaGrade() {
-        const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao, eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
+        const G = CONFIG.gradeValores, D = defesas[i], P = def.instr.pressao * (def.instr.pressao ? limitar(1 + G.comunica.pressao * ((def.comMeio ?? 25) - 25) / 25, 0.5, 1.5) : 1), eg = e.grade, gols0 = e.gols, Zv = CONFIG.zonaVazia;
         // opcoes.registro (régua da calibragem, sim_grade): cada passo [time, de, para, tipo, passador, receptor, venceu, conduziu, "espaco"/"entre"/false, marcador] e o fim do ataque [time, "fim", xG, chutes, minuto]
         const reg = opcoes.registro, xg0 = e.xg, fin0 = e.finalizacoes;
         // as contas das opções vão por vetores na posição da zona em ZONAS_GRADE (k = 5 × (faixa − 1) + coluna; o espelho é 24 − k)

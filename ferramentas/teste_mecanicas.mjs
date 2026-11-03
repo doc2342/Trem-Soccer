@@ -8,7 +8,7 @@ import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { defesaVistaNaGrade, prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 import { IDX } from "../src/modelo.js";
-import { colunaDe } from "../src/grade.js";
+import { colunaDe, manchasDoTime, MANCHAS } from "../src/grade.js";
 import { mapasDoPapel } from "../src/papeis.js";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
@@ -275,6 +275,21 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
   assert.ok(org.f3 > amc.f3 && org.chutes < amc.chutes, "o Organizador recua para armar");
   assert.ok(cri2.f4 > mc.f4, "o Criador do MC sobe para receber entre as linhas");
   assert.ok(lad.faltas > mc.faltas, "o Ladrão faz mais falta");
+}
+
+// 16. Regras do meio (aprovadas em 29/10, valem para todos na T1): o MC de fora no meio de três ganha o lado; a Comunicação de quem marca no meio organiza
+// a pressão do time (medida contra a regra desligada). O volante sozinho que cobre os lados pelo físico (31/10) não entrou: como mapa fixo, tirava peso da
+// cobertura emprestada dele e o time sofria mais; fica para a cobertura emprestada
+{
+  const tres = manchasDoTime(onze("5-3-2", 4)).filter((m, k, l) => m === MANCHAS.MC3d || (m && m.com["3E"] === MANCHAS.MC3d.com["3D"] && m.com["4e"] === MANCHAS.MC3d.com["4d"])).length;
+  const Q4 = onze("4-4-2", 2), mede = (b, ib = {}, zonas = "ed") => { let n = 0, g = 0; for (let s = 1; s <= JOGOS; s++) { const reg = []; simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: Q4 }), prepararTime({ nome: "B", escalacao: b, instrucoes: ib }), { registro: reg });
+    for (const r of reg) if (r[0] === 0 && r[1] !== "fim" && (zonas === "todas" || r[2][0] === "4" && zonas.includes(r[2][1]))) { n++; g += r[6] ? 1 : 0; } } return g / n; };
+  const so = (l, ps, ks, v) => l.map(x => ps.includes(x.pos) ? comAtr([x], ks, v)[0] : x);
+  const M10 = so(onze("4-4-2", 3), ["MC"], ["com"], 10), M45 = so(onze("4-4-2", 3), ["MC"], ["com"], 45), p2 = { pressao: 2 };
+  const [c10, c45] = [mede(M10, p2, "todas"), mede(M45, p2, "todas")], [s10, s45] = com(G.comunica, "pressao", 0, () => [mede(M10, p2, "todas"), mede(M45, p2, "todas")]);
+  console.log(`16 meio de três: ${tres} MC de fora com o lado; pressão 2, Comunicação do meio 10/45: ${c10.toFixed(4)} ${c45.toFixed(4)} (sem a regra ${s10.toFixed(4)} ${s45.toFixed(4)})`);
+  assert.strictEqual(tres, 2, "os dois MC de fora do meio de três ganham o lado");
+  assert.ok(c10 - c45 > s10 - s45, "a Comunicação do meio organiza a pressão");
 }
 
 console.log("ok: mecânicas");
