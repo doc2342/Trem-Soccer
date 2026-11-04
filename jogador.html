@@ -13,6 +13,19 @@
   .cabeca { padding:16px 18px; border-top:4px solid var(--ac); }
   .t-jp-pecas { display:flex; align-items:center; gap:6px; } .t-jp-rosto svg { display:block; width:150px; } .t-jp-pecas .t-qa-camisa svg { width:110px !important; }
   @media (max-width:620px) { .t-jp-rosto svg { width:110px; } .t-jp-pecas .t-qa-camisa svg { width:80px !important; } }
+  /* card de números (arte do ge que o dono pediu, 03/11): o rosto sobre o escudo do clube, três números grandes na cor do clube */
+  .t-jp-card { width:min(460px, 100%); border:3px solid var(--c); border-radius:18px; background:#fff; color:#1b1b1b; overflow:hidden; margin:18px 0 6px; font-family:Barlow, sans-serif; }
+  .t-jp-card .palco { position:relative; height:250px; overflow:hidden; background:linear-gradient(160deg, #fafafa, #ececec); }
+  .t-jp-card .esc { position:absolute; left:50%; top:-6px; transform:translateX(-50%); opacity:.9; } .t-jp-card .esc svg, .t-jp-card .esc img { width:340px; height:340px; }
+  .t-jp-card .foto { position:absolute; left:50%; bottom:-4px; transform:translateX(-50%); width:180px; } .t-jp-card .foto svg { display:block; width:100%; }
+  .t-jp-card .palco::after { content:""; position:absolute; inset:auto 0 0 0; height:60px; background:linear-gradient(transparent, #fff); }
+  .t-jp-card .quem { display:flex; justify-content:space-between; align-items:flex-end; gap:10px; padding:2px 18px 12px; }
+  .t-jp-card .quem b { font:700 22px Barlow; display:block; } .t-jp-card .quem span, .t-jp-card .onde small { color:#666; } .t-jp-card .onde { text-align:right; } .t-jp-card .onde small { display:block; } .t-jp-card .onde b { font:600 17px Barlow; }
+  .t-jp-card .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; padding:0 10px 12px; }
+  .t-jp-card .tile { background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.12); text-align:center; padding:12px 6px 10px; }
+  .t-jp-card .tile .r { font:700 17px/1.05 "Barlow Condensed"; text-transform:uppercase; min-height:36px; display:flex; align-items:center; justify-content:center; }
+  .t-jp-card .tile .v { font:700 84px/1 "Barlow Condensed"; color:var(--c); margin:8px 0 6px; } .t-jp-card .tile .k { color:#777; font-size:13px; min-height:16px; }
+  @media (max-width:620px) { .t-jp-card .tile .v { font-size:60px; } .t-jp-card .tile .r { font-size:14px; } }
   .cabeca h2 { margin:0; font-size:34px !important; line-height:1; font-weight:700 !important; }
   .nota { margin-left:auto; text-align:center; } .nota b { display:block; font-family:var(--display); font-size:56px; font-weight:700; line-height:1; color:var(--ac); }
   .nota span { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
@@ -32,7 +45,7 @@
 </main>
 
 <script type="module">
-import { sb, nomeDoGrupo, PAISES } from "./src/banco.js";
+import { sb, nomeDoGrupo, PAISES, estatisticasDaLiga } from "./src/banco.js";
 import { atributosDe, pesosDe, POSICOES, NOME_FAMILIARIDADE, NOME_DO_PE, notaBruta, notaNaPosicao, textoDoPe } from "./src/modelo.js";
 import { dinheiro, multaDe } from "./src/economia.js";
 import { svgEscudo } from "./src/escudo.js";
@@ -74,6 +87,18 @@ function grafico(pts, L = 600, A = 150) {
 }
 
 // visual novo: faixa escura com quem é, a nota e a temporada dele, camisa e radar; números do contrato; atributos; a carreira numa linha por temporada
+// posição no ranking da liga: as listas de estatisticas_da_liga trazem os 20 primeiros (fora delas, sem posição)
+const naLista = (lista, j) => { const i = (lista || []).findIndex(x => String(x.id) === "j" + j.id); return i < 0 ? "" : `${i + 1}º na liga`; };
+function cardDeNumeros(j, clube, n, est, temporada) {
+  const u = (clube && clube.uniforme) || {}, c = /^#[0-9a-f]{6}$/i.test(u.cor1 || "") ? u.cor1 : "#8a1c35", virg = v => v == null ? "—" : String(v).replace(".", ",");
+  const g = (est.goleiros || []).find(x => String(x.id) === "j" + j.id);
+  const tiles = j.pos === "GK"
+    ? [["Jogos sem sofrer gol", g ? g.sem : 0, naLista(est.goleiros, j)], ["Defesas", g ? g.def : 0, ""], ["Nota média", virg(n.nota), naLista(est.notas, j)]]
+    : [["Gols", n.gols, naLista(est.artilheiros, j)], ["Assistências", n.ass, naLista(est.assistencias, j)], ["Nota média", virg(n.nota), naLista(est.notas, j)]];
+  return `<div class="t-jp-card" style="--c:${c}"><div class="palco">${clube ? `<div class="esc">${svgEscudo(clube.escudo, clube.sigla, 340)}</div>` : ""}<div class="foto">${rostoDoJogador(j, u)}</div></div>
+    <div class="quem"><div><b>${esc(j.nome)}</b><span>${esc(POSICOES[j.pos].nome)}</span></div><div class="onde"><small>Números na</small><b>Temporada ${temporada == null ? "atual" : "T" + temporada}</b></div></div>
+    <div class="tiles">${tiles.map(([r, v, k]) => `<div class="tile"><div class="r">${r}</div><div class="v">${v}</div><div class="k">${k}</div></div>`).join("")}</div></div>`;
+}
 function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, transf, premios, historico, pts, numerosP }) {
   const xp = Math.round(experienciaDe(j)), fim = j.contrato_ate != null && temporada != null && j.contrato_ate <= temporada, conta = pesosDe(j.at, POSICOES[j.pos].papel) || {};
   const outras = Object.keys(jog.fam).filter(p => p !== j.pos && jog.fam[p] !== "I" && POSICOES[p]).sort((a, b) => notaNaPosicao(jog, b) - notaNaPosicao(jog, a));
@@ -105,7 +130,9 @@ function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, tr
       <div class="t-jp-n">${n == null ? "—" : um(n)}</div><div class="t-jp-jga"${agora ? ' id="tempLinha"' : ""}>${agora ? "" : h ? `${h.jogos} J · ${h.gols} G · ${h.ass} A · média ${virg(h.nota)}` : ""}</div><div>${eventos(t)}</div></div>`; };
   const carreira = `<section class="t-jp-bloco">${rotulo("Carreira")}${pts.length >= 2 ? `<div class="t-jp-grafico">${grafico(pts, Math.max(360, Math.min(1100, innerWidth - 40)), 150)}</div>` : ""}
     <div class="t-jp-ano t-jp-ano-cab"><div>Temp.</div><div>Clube</div><div>Nota</div><div>Jogos</div><div>Na temporada</div></div>${anos.map(linha).join("")}</section>`;
-  document.getElementById("corpo").innerHTML = `<div class="t-jp">${topo}${numeros}${atributos}${carreira}</div>`;
+  document.getElementById("corpo").innerHTML = `<div class="t-jp">${topo}${numeros}<div id="cardNums"></div>${atributos}${carreira}</div>`;
+  const liga = clube ? clube.liga_id : j.livre_liga;
+  Promise.all([numerosP, liga ? estatisticasDaLiga(liga, "TODOS") : null]).then(([n, est]) => { if (n && n.jogos) document.getElementById("cardNums").innerHTML = cardDeNumeros(j, clube, n, est || {}, temporada); });
   numerosP.then(n => { if (!n) return; document.getElementById("temp").innerHTML = daTemporada(n);
     const l = document.getElementById("tempLinha"); if (l) l.textContent = `${n.jogos} J · ${n.gols} G · ${n.ass} A · média ${virg(n.nota)}`; });
 }

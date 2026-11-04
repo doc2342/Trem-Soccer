@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cards do jogo — protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+  body { margin:0; padding:16px; background:#f3f3f1; color:#1b1b1b; font:15px Barlow, system-ui, sans-serif; }
+  h2 { font:600 14px Barlow; color:#777; margin:22px 0 10px; text-transform:uppercase; letter-spacing:.06em; }
+  .linha { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  /* card de números do jogador */
+  .nums { width:min(460px, 100%); border:3px solid var(--c); border-radius:18px; background:#fff; overflow:hidden; }
+  .nums .palco { position:relative; height:250px; overflow:hidden; background:linear-gradient(160deg, #fafafa, #ececec); }
+  .nums .palco .esc { position:absolute; left:50%; top:-6px; transform:translateX(-50%); opacity:.9; }
+  .nums .palco .esc svg, .nums .palco .esc img { width:340px; height:340px; }
+  .nums .palco .foto { position:absolute; left:50%; bottom:-4px; transform:translateX(-50%); width:180px; }
+  .nums .palco .foto svg { display:block; width:100%; }
+  .nums .palco::after { content:""; position:absolute; inset:auto 0 0 0; height:60px; background:linear-gradient(transparent, #fff); }
+  .nums .quem { display:flex; justify-content:space-between; align-items:flex-end; padding:2px 18px 12px; }
+  .nums .quem b { font:700 22px Barlow; display:block; } .nums .quem span { color:#666; }
+  .nums .onde { text-align:right; } .nums .onde small { color:#666; display:block; } .nums .onde b { font:600 17px Barlow; display:inline; }
+  .nums .tiles { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; padding:0 10px 12px; }
+  .tile { background:#fff; border-radius:12px; box-shadow:0 1px 6px rgba(0,0,0,.12); text-align:center; padding:12px 6px 10px; }
+  .tile .r { font:700 17px/1.05 "Barlow Condensed"; text-transform:uppercase; min-height:36px; display:flex; align-items:center; justify-content:center; }
+  .tile .v { font:700 84px/1 "Barlow Condensed"; color:var(--c); margin:8px 0 6px; }
+  .tile .v small { font-size:.45em; }
+  .tile .k { color:#777; font-size:13px; }
+  /* faixa de momentos */
+  .momentos { display:flex; gap:10px; overflow-x:auto; padding:4px 2px 10px; }
+  .m { flex:0 0 118px; height:178px; border-radius:12px; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.12); display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:12px 0 12px; box-sizing:border-box; position:relative; overflow:hidden; }
+  .m .t { font:700 17px Barlow; } .m .pl { display:flex; gap:8px; align-items:center; font:700 18px Barlow; }
+  .m.gol { background:color-mix(in srgb, var(--c) 62%, #000); color:#fff; justify-content:flex-end; }
+  .m.gol .esc { position:absolute; top:0; left:50%; transform:translateX(-50%); opacity:.95; } .m.gol .esc svg, .m.gol .esc img { width:112px; height:112px; }
+  .m.gol .foto { position:absolute; top:34px; left:50%; transform:translateX(-50%); width:76px; } .m.gol .foto svg { display:block; width:100%; }
+  .m.gol .min { position:relative; font:700 19px Barlow; margin-top:auto; } .m.gol .ico { position:relative; margin-top:6px; }
+  .m.gol::after { content:""; position:absolute; left:0; right:0; top:72px; height:52px; background:linear-gradient(transparent, color-mix(in srgb, var(--c) 62%, #000)); }
+  .m.gol .min, .m.gol .ico { z-index:1; }
+  .m .cartao { width:16px; height:22px; border-radius:3px; background:#f4d24a; }
+  .m .rostoP { width:56px; height:56px; border-radius:50%; overflow:hidden; background:#e6e6e6; } .m .rostoP svg { width:100%; height:100%; display:block; }
+</style>
+</head>
+<body>
+<h2>Números do jogador</h2>
+<div class="linha" id="nums"></div>
+<h2>Momentos da partida</h2>
+<div class="momentos" id="momentos"></div>
+<p style="color:#888;font-size:13px">Protótipo: escudos, uniformes e jogadores reais da liga; os números dos cards são de exemplo.</p>
+<script type="module">
+import { sb } from "../src/banco.js";
+import { svgEscudo } from "../src/escudo.js";
+import { rostoDoJogador } from "../src/rosto.js";
+import { POSICOES } from "../src/modelo.js";
+
+const { data: jogs } = await sb.from("jogadores").select("id, nome, pais, idade, pos, clube_id").in("id", [3484, 4144, 4151]);
+const { data: clubes } = await sb.from("clubes").select("id, nome, sigla, escudo, uniforme").in("id", [...new Set(jogs.map(j => j.clube_id))]);
+const clube = id => clubes.find(c => c.id === id) || {};
+const cor = c => /^#[0-9a-f]{6}$/i.test((c.uniforme || {}).cor1 || "") ? c.uniforme.cor1 : "#8a1c35";
+const esc = (c, t) => svgEscudo(c.escudo, c.sigla, t);
+const EXEMPLO = [
+  [["Gols", "02", "3º no ranking"], ["Precisão de finalização", "60<small>%</small>", "6º no ranking"], ["Assistências", "01", "5º no ranking"]],
+  [["Gols", "0", "5º no ranking"], ["Desarmes por partida", "3,4", "2º no ranking"], ["Faltas cometidas", "4", "7º no ranking"]],
+  [["Gols", "01", "9º no ranking"], ["Dribles certos", "12", "1º no ranking"], ["Nota média", "6,9", "4º no ranking"]],
+];
+
+document.getElementById("nums").innerHTML = jogs.map((j, i) => { const c = clube(j.clube_id);
+  return `<div class="nums" style="--c:${cor(c)}"><div class="palco"><div class="esc">${esc(c, 250)}</div><div class="foto">${rostoDoJogador(j, c.uniforme)}</div></div>
+    <div class="quem"><div><b>${j.nome}</b><span>${POSICOES[j.pos]?.nome || j.pos}</span></div><div class="onde"><small>Números na</small><b>Série A · T0</b></div></div>
+    <div class="tiles">${EXEMPLO[i % 3].map(([r, v, k]) => `<div class="tile"><div class="r">${r}</div><div class="v">${v}</div><div class="k">${k}</div></div>`).join("")}</div></div>`; }).join("");
+
+const [a, b] = [clube(jogs[0].clube_id), clube(jogs[1].clube_id)];
+const placar = (t, x, y) => `<div class="m"><div class="t">${t}</div><div class="pl">${esc(a, 30)}${esc(b, 30)}</div><div class="pl">${x} - ${y}</div><div style="font-size:20px">⏱</div></div>`;
+const gol = (j, min) => { const c = clube(j.clube_id);
+  return `<div class="m gol" style="--c:${cor(c)}"><div class="esc">${esc(c, 110)}</div><div class="foto">${rostoDoJogador(j, c.uniforme)}</div><div class="min">${min}'</div><div class="ico">⚽</div></div>`; };
+const cartao = (j, min) => `<div class="m"><div class="t" style="color:#888">${min}'</div><div class="rostoP">${rostoDoJogador(j, clube(j.clube_id).uniforme, { lista: true })}</div><div class="cartao"></div></div>`;
+document.getElementById("momentos").innerHTML = placar("Final", 2, 1) + gol(jogs[0], 81) + gol(jogs[1], 52) + placar("Intervalo", 1, 0) + cartao(jogs[2], 44) + gol(jogs[0], 19);
+</script>
+</body>
+</html>

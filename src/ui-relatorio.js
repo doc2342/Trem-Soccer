@@ -5,6 +5,7 @@ import { htmlGraficos } from "./ui-graficos.js";
 import { rotulo, campoDeZonas, destacar, ALTURA_DA_FAIXA } from "./ui-trem.js";
 import { svgCamisa } from "./camisa.js";
 import { svgEscudo } from "./escudo.js";
+import { rostoDoJogador } from "./rosto.js";
 import { ehGrade, ZONA_EM, CORREDORES } from "./grade.js";
 import { desdobrarFases } from "./rodada.js";
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -190,8 +191,42 @@ const faixaNoCampo = p => FAIXA_DA_LINHA[(POSICOES[p] || {}).linha] ?? 2;
 const NUMEROS_DO_JOGO = [["Posse", e => e.posse + "%", e => e.posse], ["Finalizações", e => e.finalizacoes], ["No gol", e => e.noGol], ["xG", e => f2(e.xg), e => e.xg],
   ["Pela esquerda", e => e.corredor.E], ["Pelo centro", e => e.corredor.C], ["Pela direita", e => e.corredor.D],
   ["Escanteios", e => e.escanteios], ["Faltas", e => e.faltas], ["Amarelos", e => e.amarelos], ["Vermelhos", e => e.vermelhos], ["Impedimentos", e => e.impedimentos], ["Contra-ataques", e => e.contraAtaques]];
+// faixa de momentos (arte do ge que o dono pediu, 03/11): do fim para o começo, o placar final, os gols (quem marcou sobre o escudo do clube),
+// o placar do intervalo e os cartões vermelhos e amarelos (o rosto pequeno). Sem os rostos (rostos = null), o gol sai só com o escudo.
+// a bola e o apito desenhados (o emoji muda de cara em cada aparelho): gomo preto no meio, cinco gomos cortados na borda
+let serieBola = 0;
+const pto = (r, a, cx = 12, cy = 12) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+const pent = (r, a0, cx, cy) => "M" + [0, 1, 2, 3, 4].map(k => pto(r, a0 + k * 2 * Math.PI / 5, cx, cy).map(v => v.toFixed(2)).join(" ")).join(" L") + "Z";
+export function svgBola(t = 20) {
+  const id = "bola" + (++serieBola), up = -Math.PI / 2, meio = pent(4.1, up, 12, 12), ang = [0, 1, 2, 3, 4].map(k => up + k * 2 * Math.PI / 5);
+  const borda = ang.map(a => { const [x, y] = pto(10.3, a); return pent(3.5, a + Math.PI, x, y); }).join(" "); // o gomo da borda aponta para o do meio
+  const raios = ang.map(a => { const [x1, y1] = pto(4.1, a), [x2, y2] = pto(6.8, a); return `M${x1.toFixed(2)} ${y1.toFixed(2)} L${x2.toFixed(2)} ${y2.toFixed(2)}`; }).join(" ");
+  return `<svg viewBox="0 0 24 24" width="${t}" height="${t}" aria-label="gol"><defs><clipPath id="${id}"><circle cx="12" cy="12" r="10.4"/></clipPath></defs><circle cx="12" cy="12" r="10.4" fill="#fff"/>`
+    + `<g clip-path="url(#${id})" fill="#1d140f"><path d="${meio} ${borda}"/></g><path d="${raios}" stroke="#1d140f" stroke-width="1"/><circle cx="12" cy="12" r="10.4" fill="none" stroke="#1d140f" stroke-width="1.6"/></svg>`;
+}
+const svgApito = (t = 20) => `<svg viewBox="0 0 28 20" width="${t * 1.4}" height="${t}" aria-label="apito"><path d="M3 9.5 H14 V5 H25 V9 H19" fill="#d8dbe2" stroke="#1d140f" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="12" r="6.5" fill="#d8dbe2" stroke="#1d140f" stroke-width="1.6"/><circle cx="10" cy="12" r="2.2" fill="#1d140f"/><path d="M3.5 9.5 L1.5 6.5" stroke="#1d140f" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const minNum = m => { const [min, ac] = String(m).split("+"); return +min + (+ac || 0) / 100; }; // "45+2" fica entre o 45 e o 46
+function htmlMomentos(r, ev, C, U, rostos) {
+  const porNome = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
+  const rosto = (nome, i, extra) => { const j = porNome(nome, i), d = j && rostos && rostos[j.id]; return d ? rostoDoJogador(d, U[i], extra) : ""; };
+  const tinta = i => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : i ? "#5b6170" : "#8a1c35";
+  const placar = (t, a, b) => `<div class="t-mom"><b>${t}</b><div class="t-mom-esc">${svgEscudo(C[0].escudo, C[0].sigla, 28)}${svgEscudo(C[1].escudo, C[1].sigla, 28)}</div><div class="t-mom-pl">${a} - ${b}</div><span class="t-mom-ico">${svgApito()}</span></div>`;
+  const itens = [];
+  ev.forEach((l, i) => l.forEach(e => {
+    if (e.tipo === "gol") itens.push([minNum(e.min), `<div class="t-mom t-mom-gol" style="--c:${tinta(i)}" title="${esc(e.quem)}${e.extra === "pênalti" ? " (pênalti)" : ""}"><div class="t-mom-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 112)}</div><div class="t-mom-foto">${rosto(e.quem, i)}</div><b class="t-mom-min">${e.min}'</b><span class="t-mom-ico">${svgBola()}</span></div>`]);
+    else if (e.tipo === "amarelo" || e.tipo === "segundo" || e.tipo === "vermelho") itens.push([minNum(e.min), `<div class="t-mom" title="${esc(e.quem)}"><b class="t-mom-cinza">${e.min}'</b><div class="t-mom-redondo">${rosto(e.quem, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div><i class="t-mom-cartao${e.tipo === "amarelo" ? "" : " t-mom-verm"}"></i></div>`]);
+  }));
+  if (!itens.length) return "";
+  const golsAte = lim => ev.map(l => l.filter(e => e.tipo === "gol" && minNum(e.min) < lim).length);
+  const [a, b] = golsAte(46);
+  itens.push([45.99, placar("Intervalo", a, b)]);
+  itens.sort((x, y) => y[0] - x[0]);
+  return `<section class="t-secao t-mom-faixa">${placar("Final", r.placar[0], r.placar[1])}${itens.map(x => x[1]).join("")}</section>`;
+}
+// a faixa sozinha, para o relatório do visual de antes (clubes: [mandante, visitante] com escudo e sigla; uniformes: os do jogo)
+export const momentosDaPartida = (r, clubes, uniformes, rostos) => htmlMomentos(r, eventosDoResumo(r.narracao, Object.fromEntries(r.jogadores.map(j => [j.id, j.nome]))), clubes || [{}, {}], uniformes || [{}, {}], rostos);
 export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes = null, ids = null, uniformes = null, numeros = null, titulo = "", aviso = "", fim = "Fim de jogo", extras = "",
-  analistas = [0, 1], abertura = "", ordens = null, penaltis = "", diretoria = "", rodada = "", meu = null } = {}) {
+  analistas = [0, 1], abertura = "", ordens = null, penaltis = "", diretoria = "", rodada = "", meu = null, rostos = null } = {}) { // rostos: { "j<id>": jogador com pais e idade } para a faixa de momentos
   const E = r.esperado, n = nomes.map(esc), C = clubes || [{}, {}], U = uniformes || [{}, {}];
   const lk = (i, html) => ids ? `<a href="jogo.html#clube=${ids[i]}" target="_blank" rel="noopener" title="Abrir a página do clube">${html}</a>` : html;
   const tinta = (i, reserva) => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : reserva;
@@ -244,5 +279,5 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
   const saiu = `<section class="t-secao t-rel-saiu" data-aba="jog">${rotulo("Como cada um saiu")}<div class="t-st-campos">${ordem.map(campinho).join("")}</div>${tabela}${(c => c ? `<div class="t-rel-calor">${rotulo("Mapa do jogador")}${c}</div>` : "")(calorDosJogadores(r, n))}</section>`;
   // abas (data-ir; a tela troca a classe .fora-aba): o placar fica sempre em cima, um capítulo por vez embaixo
   const abas = [["resumo", "Resumo"], ["lances", "Lances"], ["graf", "Números"], ["jog", "Jogadores"], rodada && ["rodada", "Rodada"]].filter(Boolean);
-  return faixa + `<nav class="subabas t-rel-abas">${abas.map(([k, t]) => `<button type="button" class="sub" data-ir="${k}">${t}</button>`).join("")}</nav>` + vestiario + lances + jogo + saiu + rodada;
+  return faixa + htmlMomentos(r, ev, C, U, rostos) + `<nav class="subabas t-rel-abas">${abas.map(([k, t]) => `<button type="button" class="sub" data-ir="${k}">${t}</button>`).join("")}</nav>` + vestiario + lances + jogo + saiu + rodada;
 }

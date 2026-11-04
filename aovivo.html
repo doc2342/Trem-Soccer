@@ -227,7 +227,7 @@ import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
-import { htmlRelatorio, htmlRelatorioNovo, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
+import { htmlRelatorio, htmlRelatorioNovo, momentosDaPartida, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
 import { rotulo } from "./src/ui-trem.js";
 const NOVO = document.documentElement.dataset.visual === "novo"; // visual novo: por ora só o relatório (depois do apito); a transmissão segue a de antes
 import { svgEscudo, svgUniforme, svgCostas, numerosDaCamisa, uniformesDoJogo } from "./src/escudo.js";
@@ -870,6 +870,9 @@ async function atualizar() {
     // depois do apito: reprise de um lado; estatísticas, escalações, rodada, zonas e jogadores na coluna do lado; diretoria logo depois das ordens
     // a disputa de pênaltis inteira, com quem bateu de cada lado, no alto do resumo
     const cobsFim = baixados.filter(l => l.dados && l.dados.tipo === "cobranca");
+    // os rostos da faixa de momentos: país e idade de quem jogou (o rosto sai da semente, do país e da idade)
+    const idsJ = (res.relatorio.jogadores || []).map(j => String(j.id)).filter(x => /^j\d+$/.test(x)).map(x => +x.slice(1));
+    const rostos = idsJ.length ? Object.fromEntries(((await sb.from("jogadores").select("id, nome, pais, idade").in("id", idsJ)).data || []).map(x => ["j" + x.id, x])) : null;
     if (NOVO) { // relatório em capítulos, um por aba (também no PC): o placar vira a faixa (o #topo some) e fica sempre em cima
       $("topo").hidden = true; $("corpo").classList.add("abasPC"); if (!["resumo", "lances", "graf", "jog", "rodada"].includes(aba)) aba = "resumo";
       const c = [clubes[partida.casa], clubes[partida.fora]], uid = ((await sb.auth.getSession()).data.session || {}).user?.id;
@@ -885,12 +888,13 @@ async function atualizar() {
         numeros: pre && pre.escalacoes ? pre.escalacoes.map(e => (mp => nome => mp.get(nome))(numerosDaCamisa(e))) : null,
         titulo, aviso: jp ? `<div class="t-rel-patro">${selo(jp.marca, 16)} ${esc(jp.nome)}</div>` : "", fim: "Fim de jogo" + (pen ? ` · pênaltis ${pen[0]} x ${pen[1]}` : ""), extras,
         penaltis: cobs.length ? `<section class="t-secao t-rel-pen">${rotulo("Disputa de pênaltis")}<div class="dsp">${htmlDisputa(cobs, () => true, true)}</div></section>` : "",
-        abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), diretoria: await htmlDiretoria(), rodada: htmlRodadaNova([res.gols_casa, res.gols_fora]), meu });
+        abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), diretoria: await htmlDiretoria(), rodada: htmlRodadaNova([res.gols_casa, res.gols_fora]), meu, rostos });
       ligarGraficos($("corpo")); aplicarAba();
       return;
     }
     const disputaFim = cobsFim.length ? `<div class="card dsp" data-aba="resumo"><h2 style="align-self:flex-start;margin:0">Disputa de pênaltis</h2>${htmlDisputa(cobsFim, () => true, true)}</div>` : "";
-    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + disputaFim + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
+    const cF = [clubes[partida.casa], clubes[partida.fora]], momentos = momentosDaPartida({ ...res.relatorio, narracao }, cF, uniformesDoJogo(cF[0].uniforme || {}, cF[1].uniforme || {}), rostos);
+    $("corpo").innerHTML = numeros + barraDeAbas(["resumo", "graf", "lances", "estat", "esc", rodada && "rodada", "jog"], true) + disputaFim + (momentos ? `<div data-aba="resumo">${momentos}</div>` : "") + htmlRelatorio({ ...res.relatorio, narracao }, { clubes: [clubes[partida.casa], clubes[partida.fora]], semPlacar: true, nomes: [clubes[partida.casa].nome, clubes[partida.fora].nome], abertura: BOTAO_TODOS + htmlAbertura(pre, true), ordens: await ordensDaPartida(partida, clubes), lateral: htmlEscalacoes(pre) + htmlRodada([res.gols_casa, res.gols_fora]), jogadoresAoLado: true, aposAnalise: await htmlDiretoria() });
     ligarGraficos($("corpo")); aplicarAba();
     return;
   }
