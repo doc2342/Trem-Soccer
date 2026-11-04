@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caricaturas — protótipo</title>
+<style>
+  body { margin: 0; padding: 16px; background: #141414; color: #eee; font: 14px system-ui, sans-serif; }
+  h2 { font-size: 15px; margin: 18px 0 8px; color: #bbb; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .card { border-radius: 14px; overflow: hidden; padding: 8px 8px 0; }
+  .card svg { display: block; width: 100%; }
+  .card div { font-size: 12px; opacity: .85; }
+  .mini { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mini svg { width: 48px; height: 48px; background: #3a3a3a; border-radius: 50%; }
+  button { background: #333; color: #eee; border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<button id="mais">Outros 24</button>
+<h2>Jogadores sorteados (país, idade)</h2>
+<div class="grade" id="grade"></div>
+<h2>O mesmo jogador aos 18, 24, 30 e 36</h2>
+<div class="grade" id="idades"></div>
+<h2>Tamanho de lista (48 px)</h2>
+<div class="mini" id="mini"></div>
+<script type="module">
+import { rostoSVG } from "../src/rosto.js";
+const KITS = [
+  { fundo: "#d61f26", camisa: "#d61f26", camisa2: "#ffffff", padrao: "mangas", gola: "#ffffff" },
+  { fundo: "#a50f3c", camisa: "#a50f3c", camisa2: "#1d4fa0", padrao: "listras", gola: "#1d4fa0" },
+  { fundo: "#0d7a35", camisa: "#0d7a35", camisa2: "#ffffff", padrao: "listras", gola: "#0d7a35" },
+  { fundo: "#7fb4e0", camisa: "#7fb4e0", gola: "#7fb4e0" },
+  { fundo: "#1b2b52", camisa: "#1b2b52", gola: "#c8102e", decote: "v" },
+  { fundo: "#e8e6e1", camisa: "#f4f2ee", gola: "#f4f2ee" },
+  { fundo: "#f2c200", camisa: "#f2c200", camisa2: "#0b3f8c", padrao: "mangas", gola: "#0b3f8c" },
+  { fundo: "#202020", camisa: "#202020", camisa2: "#ffffff", padrao: "listras", gola: "#202020" },
+];
+const PAISES = ["Brasil", "Brasil", "Brasil", "Argentina", "Uruguai", "Colômbia", "Chile"];
+let lote = 0;
+const card = (j, k) => `<div class="card" style="background:${k.fundo}">${rostoSVG(j, k)}<div style="color:${k.fundo === "#e8e6e1" || k.fundo === "#f2c200" || k.fundo === "#7fb4e0" ? "#222" : "#fff"}">${j.pais}, ${j.idade}</div></div>`;
+function desenhar() {
+  const js = Array.from({ length: 24 }, (_, i) => ({ id: `p${lote * 24 + i}`, nome: `J${i}`, pais: PAISES[(lote * 24 + i) % PAISES.length], idade: 17 + ((lote * 24 + i) * 7) % 20 }));
+  const so = new URLSearchParams(location.search).get("so"); // ?so=16,17: só esses (para olhar de perto)
+  document.getElementById("grade").innerHTML = js.map((j, i) => so && !so.split(",").includes(String(i)) ? "" : card(j, KITS[i % KITS.length])).join("");
+  document.getElementById("idades").innerHTML = [18, 24, 30, 36].map(idade => card({ id: `p${lote * 24 + 3}`, pais: "Brasil", idade }, KITS[1])).join("");
+  document.getElementById("mini").innerHTML = js.map((j, i) => rostoSVG(j, { ...KITS[i % KITS.length], lista: true })).join("");
+  lote++;
+}
+document.getElementById("mais").onclick = desenhar;
+if (location.search.includes("grande")) document.querySelector(".grade").style.gridTemplateColumns = "repeat(3, 340px)";
+desenhar();
+</script>
+</body>
+</html>

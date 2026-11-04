@@ -11,6 +11,8 @@
 <style>
   .cabeca { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
   .cabeca { padding:16px 18px; border-top:4px solid var(--ac); }
+  .t-jp-pecas { display:flex; align-items:center; gap:6px; } .t-jp-rosto svg { display:block; width:150px; } .t-jp-pecas .t-qa-camisa svg { width:110px !important; }
+  @media (max-width:620px) { .t-jp-rosto svg { width:110px; } .t-jp-pecas .t-qa-camisa svg { width:80px !important; } }
   .cabeca h2 { margin:0; font-size:34px !important; line-height:1; font-weight:700 !important; }
   .nota { margin-left:auto; text-align:center; } .nota b { display:block; font-family:var(--display); font-size:56px; font-weight:700; line-height:1; color:var(--ac); }
   .nota span { font-size:11.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; }
@@ -39,6 +41,7 @@ import { sg, pp } from "./src/siglas.js";
 import { experienciaDe } from "./src/saude.js";
 import { rotulo, numero, poligonoDeAtributos, GRUPOS_DE_ATRIBUTOS } from "./src/ui-trem.js";
 import { bandeira } from "./src/bandeiras.js";
+import { rostoDoJogador } from "./src/rosto.js";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const id = +new URLSearchParams(location.search).get("id");
@@ -85,7 +88,7 @@ function paginaNova({ j, jog, nota, clube, nomeDe, temporada, teto, situacao, tr
       <h1 class="t-faixa-titulo t-jp-nome">${esc(j.nome)}</h1>${j.nome_completo && j.nome_completo !== j.nome ? `<div class="mut">${esc(j.nome_completo)}</div>` : ""}
       <div class="t-jp-sub">${clube ? `${svgEscudo(clube.escudo, clube.sigla, 22)}<b>${nomeDe(j.clube_id)}</b>` : "<b>Sem clube</b>"} · ${j.idade} anos${j.pe ? ` · ${pes(j.pe, j.pe_fraco)}` : ""} · ${bandeira(j.pais || "Brasil")}</div>
       <div class="t-jp-chave"><div class="t-jp-notas">${teto ? `<div><b class="t-jp-teto">${teto.minimo}–${teto.maximo}</b><span>teto · olheiro</span></div>` : ""}<div><b>${um(nota)}</b><span>nota · ${sg(j.pos)}</span></div></div></div></div>
-    <div class="t-jp-lado">${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 150, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}<div class="t-qa-radar">${poligonoDeAtributos(j)}</div><div class="t-jp-temp"><div class="t-jp-temp-rot">Temporada ${temporada == null ? "atual" : temporada}</div><div class="t-jp-temp-num" id="temp">${daTemporada(null)}</div></div></div></section>`;
+    <div class="t-jp-lado"><div class="t-jp-pecas"><div class="t-jp-rosto">${rostoDoJogador(j, clube && clube.uniforme)}</div>${clube && clube.uniforme ? `<div class="t-qa-camisa">${svgCamisa(clube.uniforme, 150, false, { nome: j.nome, numero: j.numero || "" })}</div>` : ""}</div><div class="t-qa-radar">${poligonoDeAtributos(j)}</div><div class="t-jp-temp"><div class="t-jp-temp-rot">Temporada ${temporada == null ? "atual" : temporada}</div><div class="t-jp-temp-num" id="temp">${daTemporada(null)}</div></div></div></section>`;
   const numeros = `<div class="t-qa-numeros">${j.juvenil || j.salario == null ? `<div class="t-qa-juvenil">${j.juvenil ? "Juvenil: sem contrato, não joga partida oficial." : "Sem contrato."}</div>`
       : num("Salário", dinheiro(j.salario), "por temporada") + num("Multa", j.protegido ? "—" : dinheiro(multaDe(jog)), j.protegido ? "protegido" : j.protegido_ate != null && temporada != null && j.protegido_ate >= temporada ? "vale na próxima temporada" : "")
       + num("Contrato", j.contrato_ate == null ? "—" : `T${j.contrato_ate}`, fim ? "acaba nesta temporada" : "", fim ? "t-atencao" : "")}
