@@ -1,5 +1,6 @@
-// Rosto do jogador em SVG (protótipo, 03/11): caricatura vetorial montada de uma biblioteca de partes,
-// no estilo das referências que o dono mandou (contorno escuro grosso, pele em dois tons, cabeça grande, camisa na cor do clube).
+// Rosto do jogador em SVG: caricatura vetorial montada de uma biblioteca de partes (03/11), com o acabamento moderno que o dono escolheu em 04/11:
+// luz da esquerda em planos (luz, meio-tom, sombra, sombra funda), contorno fino e na cor da pele por dentro do rosto, olhos com órbita,
+// nariz em planos, lábios com volume, cabeça um pouco menor, pescoço e ombros mais fortes. op.duo: o retrato em tons de cinza (teste, não usado).
 // O rosto sai de um sorteio próprio, semeado pelo id (ou nome completo): o mesmo jogador tem sempre o mesmo rosto.
 // Todos os números são sorteados sempre na mesma ordem; a idade só decide os cortes (barba, entradas, careca, grisalho),
 // para o jogador envelhecer sem trocar de cara. Spec: docs/superpowers/specs/2026-11-03-caricaturas-superprompt.md
@@ -8,7 +9,7 @@ import { DESENHOS } from "./camisa.js";
 
 const TRACO = "#1d140f", CX = 256;
 // pele: [base, sombra]
-const PELES = [
+export const PELES = [
   ["#f6d3b9", "#e2ab8c"], ["#efbe99", "#d49673"], ["#dda37b", "#bb7d56"], ["#c4875b", "#9f6541"],
   ["#9d633e", "#7b4629"], ["#70432a", "#532d1a"], ["#56311d", "#3e2213"],
 ];
@@ -17,8 +18,8 @@ const PESO_PELE = {
   Brasil: [6, 16, 22, 20, 16, 12, 8], Argentina: [18, 34, 28, 14, 4, 1, 1], Uruguai: [18, 34, 26, 14, 5, 2, 1],
   Chile: [8, 26, 34, 24, 6, 1, 1], "Colômbia": [4, 14, 26, 26, 14, 10, 6],
 };
-const CORES_CABELO = { preto: "#1f1711", castEsc: "#3a2518", castanho: "#5e3a22", castClaro: "#8a5a34", loiro: "#c9a061", ruivo: "#a5552a" };
-const GRISALHO = "#aaa59f";
+export const CORES_CABELO = { preto: "#1f1711", castEsc: "#3a2518", castanho: "#5e3a22", castClaro: "#8a5a34", loiro: "#c9a061", ruivo: "#a5552a" };
+export const GRISALHO = "#aaa59f";
 const IRIS = { escuro: "#3a2414", castanho: "#6b4425", mel: "#8a6a30", verde: "#5c7a4a", azul: "#4f7fa8" };
 
 // cortes por textura do fio
@@ -29,8 +30,8 @@ const CORTES = {
   crespa: { raspado: 4, crespoCurto: 5, black: 1.5, twists: 2 },
 };
 
-const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
-const mistura = (a, b, t) => "#" + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, "0")).join("");
+const hex = c => (c.length === 4 ? "#" + [...c.slice(1)].map(d => d + d).join("") : c).match(/[0-9a-f]{2}/gi).map(h => parseInt(h, 16)); // aceita #abc e #aabbcc
+export const mistura = (a, b, t) => "#" + hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * t).toString(16).padStart(2, "0")).join("");
 const n = v => +v.toFixed(1);
 const L = x => n(CX - x), R = x => n(CX + x);
 const hash = (s, sal) => [...String(s)].reduce((h, c) => Math.imul(h, 31) + c.charCodeAt(0) | 0, sal);
@@ -79,13 +80,17 @@ let serie = 0;
 // opcoes: camisa, camisa2, gola (cores) e padrao "liso" | "listras" | "mangas"; decote "redondo" | "v"
 export function rostoSVG(j, op = {}) {
   const g = tracos(j), rng = criarRng(g.detalhe), id = `ro${++serie}`;
-  const [pele, sombra] = PELES[g.pele];
-  const natural = g.grisalho ? mistura(CORES_CABELO[g.corCabelo], GRISALHO, g.grisalho) : CORES_CABELO[g.corCabelo];
-  const cab = g.platinado ? "#e8d9ad" : natural; // platinado: a sobrancelha continua na cor de verdade
-  const cabSombra = mistura(cab, "#000", 0.35), cabLuz = mistura(cab, "#fff", 0.22), sobr = mistura(natural, "#000", g.corCabelo === "loiro" ? 0.35 : 0.15);
+  const cinza = v => { const h = Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"); return "#" + h + h + h; };
+  const lum = c => { const [r, gg, b] = hex(c); return 0.299 * r + 0.587 * gg + 0.114 * b; };
+  const [pele, sombra] = op.duo ? [cinza(238 - g.pele * 25), cinza(156 - g.pele * 19)] : PELES[g.pele];
+  let natural = g.grisalho ? mistura(CORES_CABELO[g.corCabelo], GRISALHO, g.grisalho) : CORES_CABELO[g.corCabelo];
+  if (op.duo) natural = cinza(18 + Math.max(0, lum(natural) - 40) * 0.9);
+  const cab = op.duo ? (g.platinado ? cinza(225) : natural) : g.platinado ? "#e8d9ad" : natural; // platinado: a sobrancelha continua na cor de verdade
+  const funda = mistura(sombra, "#000", 0.34), luz = mistura(pele, "#ffffff", 0.3), linha = mistura(sombra, "#000", 0.5), labio = op.duo ? mistura(sombra, "#000", 0.1) : mistura(sombra, "#8a3b2e", 0.25);
+  const cabSombra = mistura(cab, "#000", 0.35), cabLuz = mistura(cab, "#fff", 0.34), sobr = mistura(natural, "#000", g.corCabelo === "loiro" ? 0.35 : 0.15);
   const camisa = op.camisa || "#d2232a", camisa2 = op.camisa2 || "#ffffff", gola = op.gola || camisa2, padrao = op.padrao || "liso";
-  const { hw, top, queixoY: qy, queixoL: ql } = g, jw = hw * g.mand, nw = hw * g.pescoco, my = Math.min(g.bocaY, qy - 34), mw = g.bocaL, ny = Math.min(g.narizY, my - 30), nl = g.narizL; // rosto curto: a boca sobe para não colar no queixo
-  const k = op.lista ? 1.8 : 1, tr = (w = 3) => `stroke="${TRACO}" stroke-width="${n(w * k)}" stroke-linejoin="round" stroke-linecap="round"`;
+  const { hw, top, queixoY: qy, queixoL: ql } = g, jw = hw * g.mand, nw = hw * g.pescoco * 1.14, my = Math.min(g.bocaY, qy - 34), mw = g.bocaL, ny = Math.min(g.narizY, my - 30), nl = g.narizL; // rosto curto: a boca sobe para não colar no queixo
+  const k = op.lista ? 1.8 : 1, tI = (w = 2) => `stroke="${linha}" stroke-width="${n(w * k)}" stroke-linejoin="round" stroke-linecap="round"`, tr = (w = 3) => `stroke="${TRACO}" stroke-width="${n(w * k)}" stroke-linejoin="round" stroke-linecap="round"`;
   const out = [];
 
   const cabeca = `M${CX},${n(top)} C${R(hw * g.testaL)},${n(top)} ${R(hw)},${n(top + 45)} ${R(hw)},235 C${R(hw * g.bochecha)},272 ${R(jw)},292 ${R(jw * 0.92)},318 `
@@ -174,6 +179,8 @@ export function rostoSVG(j, op = {}) {
       if (d) frente += `<path d="${d}" fill="${cab}" stroke="${TRACO}" stroke-width="2" stroke-linejoin="round"/>`;
     }
     frente += fios(curly ? 22 : 9, curly) + (curly ? "" : fios(6, false, cabLuz) + brilho(v));
+    frente += `<path d="M${R(hw * 0.2)},${n(top - v + 6)} C${R(hw * 0.6)},${n(top - v + 4)} ${R(hw)},${n(top + 10)} ${R(hw + 2)},${n(yT - 30)} L${R(hw * 0.7)},${n(yH - 6)} C${R(hw * 0.6)},${n(top + 20)} ${R(hw * 0.4)},${n(top)} ${R(hw * 0.2)},${n(top - v + 6)} Z" fill="${cabSombra}" opacity="0.85"/>`
+      + `<path d="M${L(hw * 0.75)},${n(top + 14)} C${L(hw * 0.55)},${n(top - v + 6)} ${L(hw * 0.15)},${n(top - v + 2)} ${R(hw * 0.05)},${n(top - v + 8)}" fill="none" stroke="${cabLuz}" stroke-width="7" stroke-linecap="round" opacity="0.8"/>`;
   }
   if (g.faixa && ["longo", "black", "twists", "cachosAltos"].includes(corte)) frente += `<path d="M${L(hw + 3)},${yH + 6} Q${CX},${yH - 16} ${R(hw + 3)},${yH + 6} L${R(hw + 3)},${yH + 20} Q${CX},${yH - 2} ${L(hw + 3)},${yH + 20} Z" fill="${op.gola || "#f2f2f2"}" ${tr(2.6)}/>`;
   // degradê e costeleta: cabelo bem rente dos lados, cor do cabelo transparente (só onde há cabelo)
@@ -201,34 +208,39 @@ export function rostoSVG(j, op = {}) {
   for (const s of [-1, 1]) {
     const ex = CX + s * g.olhoD, ey = g.olhoY, ew = g.olhoL / 2, eh = Math.max(10, g.olhoA * (g.palpebra ? 0.8 : 1)), ir = Math.max(eh, g.olhoA) * 0.66, io = g.inclOlho, P = (dx, dy) => `${n(ex + s * dx)},${n(ey + dy)}`;
     const olho = `M${P(-ew, 1)} C${P(-ew / 2, -eh)} ${P(ew / 2, -eh - io / 2)} ${P(ew, -1 - io)} C${P(ew / 2, eh * 0.7 - io / 2)} ${P(-ew / 2, eh * 0.7)} ${P(-ew, 1)} Z`;
-    rosto += `<clipPath id="${id}o${s}"><path d="${olho}"/></clipPath><path d="${olho}" fill="#fff"/>`
-      + `<g clip-path="url(#${id}o${s})"><circle cx="${n(ex)}" cy="${n(ey + 1)}" r="${n(ir)}" fill="${IRIS[g.iris]}"/><circle cx="${n(ex)}" cy="${n(ey + 1)}" r="${n(eh * 0.3)}" fill="#111"/></g>`
+    rosto += `<clipPath id="${id}o${s}"><path d="${olho}"/></clipPath><path d="${olho}" fill="${op.duo ? "#f4f4f4" : "#efe8df"}"/>`
+      + `<g clip-path="url(#${id}o${s})"><circle cx="${n(ex)}" cy="${n(ey + 1)}" r="${n(ir)}" fill="${op.duo ? "#3a3a3a" : IRIS[g.iris]}" stroke="${op.duo ? "#111111" : mistura(IRIS[g.iris], "#000", 0.45)}" stroke-width="1.6"/><circle cx="${n(ex)}" cy="${n(ey + 1)}" r="${n(eh * 0.3)}" fill="#111"/><path d="M${n(ex - ew - 4)},${n(ey - eh - 2)} L${n(ex + ew + 4)},${n(ey - eh - 2)} L${n(ex + ew + 4)},${n(ey - eh * 0.25)} L${n(ex - ew - 4)},${n(ey - eh * 0.25)} Z" fill="${funda}" opacity="0.3"/></g>`
       + `<circle cx="${n(ex - 2)}" cy="${n(ey - 2)}" r="1.8" fill="#fff"/>`
       + `<path d="M${P(-ew - 1, 1)} C${P(-ew / 2, -eh - 1)} ${P(ew / 2, -eh - 1 - io / 2)} ${P(ew + 3, -2 - io)}" fill="none" ${tr(g.palpebra ? 4.6 : 3.6)}/>`
-      + `<path d="M${P(-ew / 2, eh * 0.62)} Q${P(ew / 4, eh * 0.8)} ${P(ew - 1, 1)}" fill="none" ${tr(1.6)}/>`
-      + `<path d="M${P(-ew / 2, -eh - 6)} Q${P(ew / 3, -eh - 9)} ${P(ew, -eh - 3)}" fill="none" stroke="${sombra}" stroke-width="2.2" stroke-linecap="round"/>`
+      + `<path d="M${P(-ew / 2, eh * 0.62)} Q${P(ew / 4, eh * 0.8)} ${P(ew - 1, 1)}" fill="none" ${tI(1.4)}/>`
+      + `<path d="M${P(-ew / 2, -eh - 6)} Q${P(ew / 3, -eh - 9)} ${P(ew, -eh - 3)}" fill="none" stroke="${linha}" stroke-width="1.6" stroke-linecap="round"/>`
       + `<path d="M${P(-ew / 3, eh + 6)} Q${P(ew / 4, eh + 9)} ${P(ew * 0.8, eh + 3)}" fill="none" stroke="${sombra}" stroke-width="1.8" opacity="0.7" stroke-linecap="round"/>`
       + (g.idade >= 31 ? `<path d="M${P(ew + 7, -3)} l${n(s * 7)},-3 M${P(ew + 7, 2)} l${n(s * 7)},2" fill="none" stroke="${sombra}" stroke-width="2" stroke-linecap="round"/>` : "");
+    rosto = `<ellipse cx="${n(ex + s * 2)}" cy="${n(ey - eh * 0.6)}" rx="${n(ew + 8)}" ry="${n(eh + 5)}" fill="${s > 0 ? funda : sombra}" opacity="${s > 0 ? 0.45 : 0.35}"/>` + rosto;
     // sobrancelha: grossa por dentro, afina para fora
     const by = ey - eh - 13 - g.sobrA, t = g.sobrE, inc = g.sobrInc;
     rosto += `<path d="M${n(ex - s * (ew + 3))},${n(by + inc)} Q${n(ex)},${n(by - 6 - t * 0.3)} ${n(ex + s * (ew + 6))},${n(by - 1 - inc * 0.4)} Q${n(ex)},${n(by + t * 0.5 - 3)} ${n(ex - s * (ew + 2))},${n(by + inc + t)} Z" fill="${sobr}" stroke="${mistura(sobr, "#000", 0.3)}" stroke-width="1.4" stroke-linejoin="round"/>`;
   }
   // nariz: as asas e a linha de um lado (luz da esquerda)
-  rosto += `<ellipse cx="${CX}" cy="${n(ny + 9)}" rx="${n(nl * 0.75)}" ry="5" fill="${sombra}"/>`
-    + `<path d="M${R(6)},${n(g.olhoY + 4)} C${R(12)},${n(ny - 30)} ${R(nl * 0.75)},${n(ny - 20)} ${R(nl * 0.8)},${n(ny - 8)}" fill="none" stroke="${sombra}" stroke-width="3" stroke-linecap="round"/>`
-    + `<path d="M${L(nl)},${n(ny - 6)} C${L(nl + 4)},${n(ny + 4)} ${L(nl * 0.5)},${n(ny + 8)} ${L(6)},${n(ny + 4)} C${L(3)},${n(ny + 8)} ${R(3)},${n(ny + 8)} ${R(6)},${n(ny + 4)} C${R(nl * 0.5)},${n(ny + 8)} ${R(nl + 4)},${n(ny + 4)} ${R(nl)},${n(ny - 6)}" fill="none" ${tr(2.6)}/>`;
+  rosto += `<path d="M${R(3)},${n(g.olhoY + 2)} C${R(9)},${n(ny - 34)} ${R(nl * 0.9)},${n(ny - 18)} ${R(nl + 2)},${n(ny - 2)} L${R(nl * 0.35)},${n(ny + 4)} C${R(6)},${n(ny - 16)} ${R(4)},${n(ny - 40)} ${R(1)},${n(g.olhoY + 2)} Z" fill="${funda}" opacity="0.4"/>`
+    + `<ellipse cx="${CX}" cy="${n(ny + 10)}" rx="${n(nl * 0.9)}" ry="5.5" fill="${funda}" opacity="0.45"/>`
+    + `<path d="M${L(3)},${n(g.olhoY + 10)} C${L(5)},${n(ny - 30)} ${L(6)},${n(ny - 16)} ${L(4)},${n(ny - 4)}" fill="none" stroke="${luz}" stroke-width="3.4" stroke-linecap="round"/><ellipse cx="${L(2)}" cy="${n(ny - 1)}" rx="5" ry="3.2" fill="${luz}"/>`
+    + `<path d="M${L(nl)},${n(ny - 6)} C${L(nl + 4)},${n(ny + 4)} ${L(nl * 0.5)},${n(ny + 8)} ${L(6)},${n(ny + 4)} C${L(3)},${n(ny + 8)} ${R(3)},${n(ny + 8)} ${R(6)},${n(ny + 4)} C${R(nl * 0.5)},${n(ny + 8)} ${R(nl + 4)},${n(ny + 4)} ${R(nl)},${n(ny - 6)}" fill="none" ${tI(2)}/>`
+    + `<ellipse cx="${L(nl * 0.42)}" cy="${n(ny + 4)}" rx="3.6" ry="2.2" fill="${linha}"/><ellipse cx="${R(nl * 0.42)}" cy="${n(ny + 4)}" rx="3.6" ry="2.2" fill="${linha}"/>`;
   // dobra do sorriso (e da idade)
   if (g.sorriso === "dentes" || g.idade >= 30)
-    rosto += `<path d="M${L(nl + 7)},${n(ny + 2)} Q${L(mw + 12)},${n(my - 12)} ${L(mw + 6)},${n(my)} M${R(nl + 7)},${n(ny + 2)} Q${R(mw + 12)},${n(my - 12)} ${R(mw + 6)},${n(my)}" fill="none" stroke="${sombra}" stroke-width="2.6" stroke-linecap="round"/>`;
+    rosto += `<path d="M${L(nl + 7)},${n(ny + 2)} Q${L(mw + 12)},${n(my - 12)} ${L(mw + 6)},${n(my)} M${R(nl + 7)},${n(ny + 2)} Q${R(mw + 12)},${n(my - 12)} ${R(mw + 6)},${n(my)}" fill="none" stroke="${funda}" stroke-width="2.2" stroke-linecap="round"/>`;
   if (g.sorriso === "dentes") {
-    rosto += `<path d="M${L(mw * 0.95)},${n(my - 4)} Q${CX},${n(my)} ${R(mw * 0.95)},${n(my - 4)} Q${R(mw * 0.5)},${n(my + 14)} ${CX},${n(my + 15)} Q${L(mw * 0.5)},${n(my + 14)} ${L(mw * 0.95)},${n(my - 4)} Z" fill="#fff" ${tr(2.6)}/>`
+    rosto += `<path d="M${L(mw * 0.95)},${n(my - 4)} Q${CX},${n(my)} ${R(mw * 0.95)},${n(my - 4)} Q${R(mw * 0.5)},${n(my + 14)} ${CX},${n(my + 15)} Q${L(mw * 0.5)},${n(my + 14)} ${L(mw * 0.95)},${n(my - 4)} Z" fill="#f4efe8" ${tI(2.2)}/>`
+      + `<path d="M${L(mw * 0.95)},${n(my - 4)} Q${CX},${n(my - 9)} ${R(mw * 0.95)},${n(my - 4)} Q${CX},${n(my)} ${L(mw * 0.95)},${n(my - 4)} Z" fill="${labio}"/><path d="M${L(mw * 0.6)},${n(my + 15)} Q${CX},${n(my + 21)} ${R(mw * 0.6)},${n(my + 15)} Q${CX},${n(my + 13)} ${L(mw * 0.6)},${n(my + 15)} Z" fill="${labio}" opacity="0.7"/>`
       + `<path d="M${L(mw * 0.85)},${n(my + 1)} Q${CX},${n(my + 6)} ${R(mw * 0.85)},${n(my + 1)}" fill="none" stroke="#d8d2cc" stroke-width="1.6"/>`
       + `<ellipse cx="${CX}" cy="${n(my + 22)}" rx="${n(mw * 0.45)}" ry="4" fill="${sombra}"/>`;
   } else {
     const c = g.sorriso === "leve" ? -5 : 1;
-    rosto += `<path d="M${L(mw * 0.72)},${n(my - 1)} Q${CX},${n(my - 5 - g.labio * 8)} ${R(mw * 0.72)},${n(my - 1)} Z" fill="${sombra}" opacity="0.8"/>`
-      + `<path d="M${L(mw)},${n(my + c)} Q${CX},${n(my + 4)} ${R(mw)},${n(my + c)}" fill="none" ${tr(3)}/>`
-      + `<ellipse cx="${CX}" cy="${n(my + 11 + g.labio * 4)}" rx="${n(mw * 0.5)}" ry="${n(3.5 + g.labio * 3)}" fill="${sombra}"/>`;
+    rosto += `<path d="M${L(mw * 0.72)},${n(my - 1)} Q${CX},${n(my - 5 - g.labio * 8)} ${R(mw * 0.72)},${n(my - 1)} Z" fill="${labio}"/>`
+      + `<path d="M${L(mw * 0.62)},${n(my + 1)} Q${CX},${n(my + 9 + g.labio * 7)} ${R(mw * 0.62)},${n(my + 1)} Z" fill="${mistura(labio, pele, 0.45)}"/><path d="M${L(mw * 0.25)},${n(my + 5 + g.labio * 3)} Q${CX},${n(my + 7 + g.labio * 4)} ${R(mw * 0.15)},${n(my + 5 + g.labio * 3)}" fill="none" stroke="${luz}" stroke-width="2" stroke-linecap="round"/>`
+      + `<path d="M${L(mw)},${n(my + c)} Q${CX},${n(my + 4)} ${R(mw)},${n(my + c)}" fill="none" ${tI(2.4)}/>`
+      + `<ellipse cx="${CX}" cy="${n(my + 15 + g.labio * 5)}" rx="${n(mw * 0.42)}" ry="${n(3 + g.labio * 2)}" fill="${funda}" opacity="0.55"/>`;
   }
   if (g.sardas) { let d = ""; for (let i = 0; i < 14; i++) { const s = i % 2 ? 1 : -1, x = CX + s * (g.olhoD * (0.5 + rng.n() * 0.8)), y = g.olhoY + 22 + rng.n() * 18; d += `<circle cx="${n(x)}" cy="${n(y)}" r="${n(1.3 + rng.n())}"/>`; } rosto += `<g fill="${mistura(sombra, "#7a3a1c", 0.35)}">${d}</g>`; }
   if (g.cicatriz) { const x = CX + g.lado * (g.olhoD + g.olhoL * 0.3), y = g.olhoY - g.olhoA - 16; rosto += `<path d="M${n(x - 3)},${n(y - 8)} L${n(x + 3)},${n(y + 6)}" stroke="${pele}" stroke-width="3.4" stroke-linecap="round"/>`; }
@@ -251,21 +263,21 @@ export function rostoSVG(j, op = {}) {
   // --- montagem, na ordem dos grupos da spec
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${op.lista ? "86 14 340 340" : "0 0 512 512"}" role="img" aria-label="${(j.nome || "Jogador").replace(/"/g, "")}">`,
     `<defs><clipPath id="${id}c"><path d="${cabeca}"/></clipPath><clipPath id="${id}p"><path d="${tronco}"/></clipPath><clipPath id="${id}n"><path id="${id}np" d="M${L(nw)},300 L${L(nw + 4)},400 Q${CX},430 ${R(nw + 4)},400 L${R(nw)},300 Z"/></clipPath></defs>`,
-    `<g transform="translate(256 440) scale(1.1) translate(-256 -440)">`, `<g class="cabelo-atras">${atras}</g>`,
+    `<g transform="translate(256 440) scale(1.1) translate(-256 -440)">`, `<g class="cabelo-atras" transform="translate(256 318) scale(0.92) translate(-256 -318)">${atras}</g>`,
     `<g class="pescoco"><path d="M${L(nw)},300 L${L(nw + 4)},400 Q${CX},430 ${R(nw + 4)},400 L${R(nw)},300 Z" fill="${pele}" ${tr(3.5)}/>`
-    + `<g clip-path="url(#${id}n)"><path d="${cabeca}" transform="translate(0 18)" fill="${sombra}"/></g>`
+    + `<g clip-path="url(#${id}n)"><path d="M${R(nw * 0.2)},300 L${R(nw + 10)},300 L${R(nw + 10)},430 L${R(nw * 0.35)},430 Z" fill="${sombra}"/><path d="${cabeca}" transform="translate(0 14) translate(256 318) scale(0.92) translate(-256 -318)" fill="${funda}" opacity="0.6"/></g>`
     + `<path d="M${L(nw * 0.6)},372 Q${L(nw * 0.35)},392 ${L(nw * 0.15)},408 M${R(nw * 0.6)},372 Q${R(nw * 0.35)},392 ${R(nw * 0.15)},408" fill="none" stroke="${sombra}" stroke-width="2.6" stroke-linecap="round"/></g>`,
     `<g class="uniforme"><path d="${tronco}" style="fill:${camisa}"/><g clip-path="url(#${id}p)">${desenho}`
-    + `<path d="M${L(nw + 20)},400 Q${CX},470 ${R(nw + 20)},400 L${R(nw + 24)},408 Q${CX},476 ${L(nw + 24)},408 Z" fill="#000" opacity="0.1"/></g>`
-    + `<path d="${tronco}" fill="none" ${tr(4.5)}/>${decote}`
+    + `<path d="M${R(nw * 0.4)},400 L${R(260)},400 L${R(260)},540 L${R(40)},540 Z" fill="#000" opacity="0.14"/><path d="M${L(120)},430 L${L(70)},520 L${L(150)},520 Z" fill="#fff" opacity="0.08"/><path d="M${R(150)},440 L${R(110)},520 L${R(185)},520 Z" fill="#000" opacity="0.1"/><path d="M${L(nw + 20)},400 Q${CX},470 ${R(nw + 20)},400 L${R(nw + 24)},408 Q${CX},476 ${L(nw + 24)},408 Z" fill="#000" opacity="0.12"/></g>`
+    + `<path d="${tronco}" fill="none" ${tr(3.4)}/>${decote}`
     + `<path d="M${L(150)},450 q10,20 8,50 M${R(150)},450 q-10,20 -8,50" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="3" stroke-linecap="round"/></g>`,
-    `<g class="orelhas">${[-1, 1].map(s => { const X = d => n(CX + s * (hw + d)); return `<path d="M${X(-8)},212 C${X(14)},198 ${X(25)},226 ${X(21)},252 C${X(18)},275 ${X(6)},290 ${X(-8)},284 Z" fill="${pele}" ${tr(3.5)}/><path d="M${X(1)},224 C${X(13)},224 ${X(15)},246 ${X(8)},262 C${X(4)},270 ${X(1)},266 ${X(3)},258" fill="none" stroke="${sombra}" stroke-width="3" stroke-linecap="round"/>${g.brinco === 2 || (g.brinco === 1 && s === g.lado) ? `<circle cx="${X(4)}" cy="287" r="4.5" fill="#e4e4e4" ${tr(1.8)}/>` : ""}`; }).join("")}</g>`,
+    `<g transform="translate(256 318) scale(0.92) translate(-256 -318)">`, `<g class="orelhas">${[-1, 1].map(s => { const X = d => n(CX + s * (hw + d)); return `<path d="M${X(-8)},212 C${X(14)},198 ${X(25)},226 ${X(21)},252 C${X(18)},275 ${X(6)},290 ${X(-8)},284 Z" fill="${pele}" ${tr(3.5)}/><path d="M${X(1)},224 C${X(13)},224 ${X(15)},246 ${X(8)},262 C${X(4)},270 ${X(1)},266 ${X(3)},258" fill="none" stroke="${sombra}" stroke-width="3" stroke-linecap="round"/>${g.brinco === 2 || (g.brinco === 1 && s === g.lado) ? `<circle cx="${X(4)}" cy="287" r="4.5" fill="#e4e4e4" ${tr(1.8)}/>` : ""}`; }).join("")}</g>`,
     barbaFora,
-    `<g class="rosto"><path d="${cabeca}" fill="${sombra}"/><g clip-path="url(#${id}c)"><path d="${cabeca}" transform="translate(${CX - 7} 236) scale(0.86 0.9) translate(${-CX} -236)" fill="${pele}"/>${lados}${risca}${barba}`
-    + (frente && corte !== "careca" ? `<path d="${frente.match(/d="([^"]+)"/)[1]}" transform="translate(0 4)" fill="${sombra}" opacity="0.7"/>` : "") + `</g><path d="${cabeca}" fill="none" ${tr(4.5)}/></g>`,
+    `<g class="rosto"><path d="${cabeca}" fill="${pele}"/><g clip-path="url(#${id}c)"><path d="M${R(hw * 0.05)},${n(top - 20)} C${R(hw * 0.32)},180 ${R(hw * 0.3)},230 ${R(hw * 0.46)},262 L${R(hw * 0.3)},300 C${R(jw * 0.45)},${n(qy - 28)} ${R(ql * 0.4)},${n(qy - 6)} ${R(4)},${n(qy + 4)} L${R(hw + 20)},${n(qy + 20)} L${R(hw + 20)},${n(top - 20)} Z" fill="${sombra}"/><path d="M${R(hw * 0.78)},${n(top + 30)} C${R(hw * 0.8)},200 ${R(hw * 0.7)},250 ${R(hw * 0.78)},270 L${R(hw * 0.6)},296 L${R(jw * 0.72)},${n(qy - 16)} L${R(hw + 20)},${n(qy)} L${R(hw + 20)},${n(top + 20)} Z" fill="${funda}" opacity="0.95"/><path d="M${R(hw * 0.58)},262 L${R(hw * 0.86)},266 L${R(hw * 0.5)},300 Z" fill="${funda}" opacity="0.6"/><path d="M${L(hw * 0.86)},264 L${L(hw * 0.52)},282 L${L(hw * 0.8)},300 Z" fill="${sombra}" opacity="0.55"/><path d="M${L(hw * 0.8)},${n(top + 34)} L${R(hw * 0.02)},${n(top + 30)} L${L(hw * 0.12)},206 L${L(hw * 0.8)},212 Z" fill="${luz}" opacity="0.85"/><path d="M${L(hw - 6)},170 C${L(hw - 4)},230 ${L(hw * 0.96)},272 ${L(jw * 0.86)},318" fill="none" stroke="${luz}" stroke-width="6" stroke-linecap="round" opacity="0.9"/><path d="M${L(hw * 0.86)},244 L${L(hw * 0.36)},248 L${L(hw * 0.66)},276 Z" fill="${luz}"/><path d="M${L(ql + 18)},${n(qy - 2)} Q${CX},${n(qy + 12)} ${R(ql + 18)},${n(qy - 2)} L${R(ql + 30)},${n(qy + 20)} L${L(ql + 30)},${n(qy + 20)} Z" fill="${funda}" opacity="0.45"/><ellipse cx="${L(8)}" cy="${n(qy - 16)}" rx="12" ry="6" fill="${luz}" opacity="0.6"/>${lados}${risca}${barba}`
+    + (frente && corte !== "careca" ? `<path d="${frente.match(/d="([^"]+)"/)[1]}" transform="translate(0 4)" fill="${sombra}" opacity="0.7"/>` : "") + `</g><path d="${cabeca}" fill="none" ${tr(3.2)}/></g>`,
     `<g class="feicoes">${rosto}</g>`,
     `<g class="cabelo-frente">${frente}</g>`,
-    `</g></svg>`);
+    `</g></g></svg>`);
   return out.join("");
 }
 

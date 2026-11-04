@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rostos — onde cada um</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
+<style>
+  :root { --fio:#e3e3de; --placa:#f4f4f1; --tinta:#111418; --tinta2:#5d636b; --noite:#121a24; --noite-fio:#2c3846; --noite-mut:#8e9aa8; --marca:#d7261e; }
+  body { margin:0; background:#fff; color:var(--tinta); font:15px/1.4 Archivo, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:0 16px 48px; }
+  svg { display:block; }
+  .rotulo { display:flex; align-items:center; gap:10px; font:700 11.5px/1.2 Archivo; letter-spacing:.18em; text-transform:uppercase; color:var(--tinta2); margin:36px 0 12px; }
+  .rotulo::before { content:""; width:18px; height:4px; background:var(--marca); } .rotulo em { font-style:normal; color:var(--marca); }
+  /* faixa de perfil (destaque: cinza) */
+  .faixa { position:relative; overflow:hidden; background:radial-gradient(120% 140% at 100% 0, rgba(215,38,30,.32) 0, transparent 55%), var(--noite); color:#eef2f6; display:grid; grid-template-columns:1fr 330px; align-items:end; padding:32px 32px 0; margin:0 -16px; }
+  .faixa .esc { position:absolute; right:40px; top:-30px; opacity:.16; } .faixa .esc svg, .faixa .esc img { width:380px; height:380px; }
+  .faixa .foto { position:relative; } .faixa .rotulo { color:var(--noite-mut); margin-top:0; }
+  .faixa h1 { font:900 96px/.88 Archivo; font-stretch:62%; text-transform:uppercase; margin:4px 0 10px; } .faixa .sub { color:var(--noite-mut); padding-bottom:30px; } .faixa .sub b { color:#eef2f6; }
+  .faixa .nota { font:900 64px/1 Archivo; font-stretch:62%; color:var(--marca); }
+  /* card de números (destaque: cinza) */
+  .linha2 { display:grid; grid-template-columns:minmax(0, 420px) minmax(0, 1fr); gap:24px; align-items:start; }
+  .num { border:1px solid var(--fio); border-top:4px solid var(--c); }
+  .num .palco { position:relative; height:220px; overflow:hidden; background:var(--noite); }
+  .num .palco .esc { position:absolute; left:50%; top:-20px; transform:translateX(-50%); opacity:.22; } .num .palco .esc svg, .num .palco .esc img { width:280px; height:280px; }
+  .num .palco .foto { position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:220px; }
+  .num .quem { display:flex; justify-content:space-between; align-items:baseline; padding:12px 14px 2px; } .num .quem b { font:900 28px/1 Archivo; font-stretch:62%; text-transform:uppercase; } .num .quem span { color:var(--tinta2); font-size:12.5px; }
+  .num .tiles { display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--fio); margin-top:10px; }
+  .num .tile { padding:10px 12px 12px; border-left:1px solid var(--fio); } .num .tile:first-child { border-left:0; }
+  .num .r { font:700 10.5px Archivo; letter-spacing:.16em; text-transform:uppercase; color:var(--tinta2); } .num .v { font:900 52px/1 Archivo; font-stretch:62%; color:var(--c); margin-top:6px; } .num .k { font-size:12px; color:var(--tinta2); min-height:16px; }
+  /* momentos (destaque: cinza) */
+  .momentos { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; }
+  .m { flex:0 0 112px; height:168px; border:1px solid var(--fio); display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:12px 0; box-sizing:border-box; position:relative; overflow:hidden; background:#fff; }
+  .m b { font:900 22px/1 Archivo; font-stretch:62%; text-transform:uppercase; } .m .pl { font:900 30px/1 Archivo; font-stretch:62%; }
+  .m.gol { background:var(--noite); color:#fff; border-color:var(--noite); justify-content:flex-end; }
+  .m.gol .esc { position:absolute; top:-6px; left:50%; transform:translateX(-50%); opacity:.3; } .m.gol .esc svg, .m.gol .esc img { width:120px; height:120px; }
+  .m.gol .foto { position:absolute; top:22px; left:50%; transform:translateX(-50%); width:96px; } .m.gol .min { position:relative; font:900 26px/1 Archivo; font-stretch:62%; } .m.gol .tag { position:relative; font:700 9.5px Archivo; letter-spacing:.16em; color:var(--marca); margin-top:4px; }
+  .m.gol::after { content:""; position:absolute; left:0; right:0; top:84px; height:40px; background:linear-gradient(transparent, var(--noite)); } .m.gol .min, .m.gol .tag { z-index:1; }
+  .m .redondo { width:54px; height:54px; border-radius:50%; overflow:hidden; background:var(--placa); } .m .redondo svg { width:100%; height:100%; }
+  .m .cartao { width:14px; height:20px; background:#f4d24a; } .m .esc2 { display:flex; gap:6px; }
+  /* elenco e escalação (listas: colorido) */
+  .elenco .lin { display:grid; grid-template-columns:44px 40px 1fr 70px 50px; align-items:center; gap:12px; padding:5px 0; border-bottom:1px solid var(--fio); }
+  .elenco .lin:first-child { border-top:1px solid var(--fio); } .av { width:44px; height:44px; background:var(--placa); overflow:hidden; } .av svg { width:100%; height:100%; }
+  .elenco .p { font:700 11px Archivo; letter-spacing:.12em; color:var(--tinta2); } .elenco .n { font:900 24px/1 Archivo; font-stretch:62%; text-align:right; } .elenco .i { color:var(--tinta2); font-size:13px; }
+  .campo { background:#1f5f3a; padding:16px 10px; display:grid; gap:14px; }
+  .fila { display:flex; justify-content:space-around; } .chip { text-align:center; color:#fff; font:700 11.5px Archivo; width:70px; }
+  .chip .av { width:46px; height:46px; margin:0 auto 4px; border-radius:50%; background:rgba(255,255,255,.16); }
+  @media (max-width:760px) { .faixa { grid-template-columns:1fr 170px; } .faixa h1 { font-size:56px; } .linha2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main id="tela"><p style="padding:20px">Carregando…</p></main>
+<script type="module">
+import { sb } from "../src/banco.js";
+import { svgEscudo } from "../src/escudo.js";
+import { POSICOES } from "../src/modelo.js";
+import { rostoDoJogador as colorido } from "../src/rosto.js";
+import { rostoDoJogador as moderno } from "../src/rosto.js";
+
+const CLUBE = 2;
+const { data: c } = await sb.from("clubes").select("id, nome, sigla, escudo, uniforme").eq("id", CLUBE).single();
+const { data: js } = await sb.from("jogadores").select("id, nome, pais, idade, pos").eq("clube_id", CLUBE).limit(30);
+const u = c.uniforme || {}, cor = /^#[0-9a-f]{6}$/i.test(u.cor1 || "") ? u.cor1 : "#c8102e";
+const cinza = (j, x = {}) => moderno(j, u, x), cor_ = (j, x = {}) => moderno(j, u, x); // o dono preferiu o moderno colorido em tudo (04/11)
+const esc = t => svgEscudo(c.escudo, c.sigla, t), nome = p => (POSICOES[p] || {}).nome || p;
+const ordem = ["GK", "LD", "DC", "LE", "VOL", "MC", "MEI", "PD", "PE", "FC"], porPos = [...js].sort((a, b) => ordem.indexOf(a.pos) - ordem.indexOf(b.pos));
+const astro = js.find(j => j.pos === "FC") || js[0], z = js.find(j => j.id === 3484) || js[1];
+const { data: n } = await sb.rpc("estatisticas_do_jogador", { p_jogador: z.id });
+const nn = n || { jogos: 0, gols: 0, ass: 0, nota: null }, virg = v => v == null ? "—" : String(v).replace(".", ",");
+const pega = p => js.filter(j => j.pos === p);
+const xi = [pega("FC").slice(0, 2), [...pega("PE"), ...pega("MC"), ...pega("VOL"), ...pega("PD")].slice(0, 4), [...pega("LE"), ...pega("DC"), ...pega("LD")].slice(0, 4), pega("GK").slice(0, 1)];
+
+document.getElementById("tela").innerHTML = `
+  <section class="faixa"><div class="esc">${esc(380)}</div><div style="position:relative"><div class="rotulo">${astro.pos} · ${nome(astro.pos)} · <em>moderno</em></div><h1>${astro.nome}</h1>
+    <div class="sub">${c.nome} · <b>${astro.idade} anos</b> · ${astro.pais}</div></div><div class="foto">${cinza(astro)}</div></section>
+
+  <div class="rotulo">Card de números · <em>moderno</em></div>
+  <div class="linha2"><div class="num" style="--c:${cor}"><div class="palco"><div class="esc">${esc(280)}</div><div class="foto">${cinza(z)}</div></div>
+    <div class="quem"><b>${z.nome}</b><span>${nome(z.pos)} · temporada T0</span></div>
+    <div class="tiles">${[["Jogos", nn.jogos], ["Gols", nn.gols], ["Nota", virg(nn.nota)]].map(([r, v]) => `<div class="tile"><div class="r">${r}</div><div class="v">${v}</div><div class="k">&nbsp;</div></div>`).join("")}</div></div>
+    <div><div class="rotulo" style="margin-top:0">Momentos da partida · <em>moderno</em></div><div class="momentos">
+      <div class="m"><b>Final</b><div class="esc2">${esc(28)}${esc(28)}</div><div class="pl">2 – 1</div><span style="font:700 10px Archivo;letter-spacing:.14em;color:#5d636b">FIM</span></div>
+      <div class="m gol"><div class="esc">${esc(120)}</div><div class="foto">${cinza(astro)}</div><div class="min">81'</div><div class="tag">GOL</div></div>
+      <div class="m"><b style="color:#5d636b">63'</b><div class="redondo">${cor_(z, { lista: true })}</div><i class="cartao"></i></div>
+      <div class="m gol"><div class="esc">${esc(120)}</div><div class="foto">${cinza(js[3] || z)}</div><div class="min">19'</div><div class="tag">GOL</div></div>
+    </div><p style="color:#5d636b;font-size:12.5px">Nos cards de gol, o rosto sobre o escudo apagado e o fundo escuro da identidade; no cartão, o rosto pequeno.</p></div></div>
+
+  <div class="rotulo">Elenco · <em>moderno</em></div>
+  <div class="elenco">${porPos.slice(0, 10).map(j => `<div class="lin"><div class="av">${cor_(j, { lista: true })}</div><span class="p">${j.pos}</span><b>${j.nome}</b><span class="i">${j.idade} anos</span><span class="n">${j.pais === "Brasil" ? "BR" : j.pais.slice(0, 3).toUpperCase()}</span></div>`).join("")}</div>
+
+  <div class="rotulo">Escalação · <em>moderno</em></div>
+  <div class="campo">${xi.filter(f => f.length).map(f => `<div class="fila">${f.map(j => `<div class="chip"><div class="av">${cor_(j, { lista: true })}</div>${j.nome}</div>`).join("")}</div>`).join("")}</div>
+  <p style="color:#5d636b;font-size:12.5px">Escudo, uniforme e jogadores reais do ${c.nome}; o placar e os minutos dos momentos são de exemplo.</p>`;
+</script>
+</body>
+</html>

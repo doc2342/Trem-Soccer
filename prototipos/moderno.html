@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rosto moderno — teste</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
+<style>
+  body { margin:0; padding:16px; background:#f4f4f1; color:#111418; font:14px Archivo, sans-serif; }
+  .rotulo { display:flex; align-items:center; gap:10px; font:700 11.5px Archivo; letter-spacing:.18em; text-transform:uppercase; color:#5d636b; margin:24px 0 12px; }
+  .rotulo::before { content:""; width:18px; height:4px; background:#d7261e; }
+  .grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(330px, 1fr)); gap:12px; }
+  .par { display:grid; grid-template-columns:1fr 1fr; border:1px solid #e3e3de; background:#fff; }
+  .par > div { background:var(--f); } .par svg { display:block; width:100%; }
+  .par small { display:block; font:700 10px Archivo; letter-spacing:.14em; text-transform:uppercase; color:#5d636b; padding:6px 8px; background:#fff; border-top:1px solid #e3e3de; }
+  .mini { display:flex; gap:6px; flex-wrap:wrap; } .mini svg { width:48px; height:48px; background:#dcdcd6; border-radius:50%; }
+  .heroi { display:grid; grid-template-columns:1fr 300px; align-items:end; background:radial-gradient(120% 140% at 100% 0, rgba(215,38,30,.35) 0, transparent 55%), #121a24; color:#eef2f6; padding:24px 28px 0; margin-bottom:12px; }
+  .heroi b { font:900 72px/.9 Archivo; font-stretch:62%; text-transform:uppercase; display:block; } .heroi span { color:#8e9aa8; display:block; padding:8px 0 24px; } .heroi svg { display:block; width:100%; }
+  .grade4 { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px; } .grade4 > div { position:relative; } .grade4 svg { display:block; width:100%; } .grade4 small { position:absolute; left:8px; bottom:6px; font:700 10px Archivo; letter-spacing:.12em; text-transform:uppercase; color:#fff; }
+  button { font:700 12px Archivo; letter-spacing:.1em; text-transform:uppercase; background:#111418; color:#fff; border:0; padding:10px 16px; cursor:pointer; }
+</style>
+</head>
+<body>
+<button id="mais">Outros 12</button>
+<div class="rotulo">Retrato em cinza (caminho 2): fundo da identidade e fundo do clube</div><div class="heroi" id="heroi"></div><div class="grade4" id="duo"></div>
+<div class="rotulo">Atual × moderno (o mesmo jogador)</div><div class="grade" id="grade"></div>
+<div class="rotulo">Lista, 48 px: atual em cima, moderno embaixo</div><div class="mini" id="m1"></div><div class="mini" id="m2" style="margin-top:6px"></div>
+<script type="module">
+import { rostoSVG as atual } from "../src/rosto.js";
+import { rostoSVG as moderno } from "../src/rosto.js";
+const KITS = [{ camisa: "#c8102e", camisa2: "#fff", padrao: "mangas", f: "#c8102e" }, { camisa: "#a50f3c", camisa2: "#1d4fa0", padrao: "listras", f: "#a50f3c" }, { camisa: "#1b2b52", gola: "#c8102e", decote: "v", f: "#1b2b52" }, { camisa: "#f2c200", camisa2: "#0b3f8c", padrao: "mangas", f: "#f2c200" }, { camisa: "#0d7a35", camisa2: "#fff", padrao: "listras", f: "#0d7a35" }, { camisa: "#e8e6e1", f: "#cfd2d6" }];
+const PAISES = ["Brasil", "Brasil", "Brasil", "Argentina", "Uruguai", "Colômbia", "Chile"];
+let lote = 0;
+function desenhar() {
+  const js = Array.from({ length: 12 }, (_, i) => { const k = lote * 12 + i; return { id: `p${k}`, pais: PAISES[k % 7], idade: 17 + (k * 7) % 20 }; });
+  document.getElementById("grade").innerHTML = js.map((j, i) => { const k = KITS[i % KITS.length];
+    return `<div class="par" style="--f:${k.f}"><div>${atual(j, k)}<small>Atual · ${j.pais}, ${j.idade}</small></div><div>${moderno(j, k)}<small>Moderno</small></div></div>`; }).join("");
+  document.getElementById("heroi").innerHTML = `<div><div class="rotulo" style="color:#8e9aa8;margin-top:0">FC · Atacante</div><b>Jogador ${js[2].id}</b><span>${js[2].pais} · ${js[2].idade} anos</span></div>${moderno(js[2], { ...KITS[0], duo: true })}`;
+  document.getElementById("duo").innerHTML = js.map((j, i) => { const k = KITS[i % KITS.length], fundo = i % 2 ? k.f : "#121a24"; return `<div style="background:${fundo}">${moderno(j, { ...k, duo: true })}<small>${j.pais}, ${j.idade}</small></div>`; }).join("");
+  document.getElementById("m1").innerHTML = js.map((j, i) => atual(j, { ...KITS[i % KITS.length], lista: true })).join("");
+  document.getElementById("m2").innerHTML = js.map((j, i) => moderno(j, { ...KITS[i % KITS.length], lista: true })).join("");
+  lote++;
+}
+document.getElementById("mais").onclick = desenhar; desenhar();
+</script>
+</body>
+</html>
