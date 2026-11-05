@@ -1178,7 +1178,7 @@ const __motor = (() => {
     // e o chuveirinho (cruzamento alto, por instrução) acha os lados livres (xG do cruzamento). A resposta à retranca é resolver rápido ou cruzar.
     curtoXretranca: 0.15, altoXretranca: 0.1,
     // Contra-ataque: vence time que joga para a frente; contra time cauteloso quase não acontece, e quem o usa constrói pior.
-    contraAtaque: { com: 0.16, sem: 0.04, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.85, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
+    contraAtaque: { com: 0.23, sem: 0.058, logit: 0.3, logitPorMentalidade: 0.15, posse: 0.92, porMentalidade: 0.85, semInstrucao: 0.25, porRetranca: 0.3, construcao: -0.15, linhaAlta: 1.5, porPostura: 0.25, posturaOfensiva: 0.3 },
     // Linha de impedimento: pega a bola longa, sofre com o passe curto e com o contra-ataque.
     impedimento: { semLinha: 0.07, porPasse: { curto: 0.2, misto: 0.28, longo: 0.58 }, porComunicacao: 0.01, libero: -0.15, noContraAtaque: 0.3, furou: 1.35, furouNoContraAtaque: 1.6,
       naPerda: { base: 0.2, linha: 1.6, longo: 1.4, curto: 0.7 } }, // bola perdida no ataque que vira impedimento (só muda a narração e a falta; o futebol real tem ~4 por jogo)
@@ -1225,11 +1225,21 @@ const __motor = (() => {
     // real (volante, zagueiro e meio-campo na frente; ponta e meia de lado atrás). Ajustado com ferramentas/sim_cartoes.mjs.
     faltaPorPosicao: { DC: 1.6, SW: 1.6, DMC: 1.3, MC: 1.2, DR: 0.83, DL: 0.83, WBR: 0.8, WBL: 0.8, MR: 0.53, ML: 0.53, AMC: 0.77, AMR: 0.71, AML: 0.71, RW: 0.71, LW: 0.71, FC: 0.83, SC: 1.3 },
     // T14 com 0,47 e 0,003: 4,9 amarelos e 0,23 vermelho por jogo; meta agora de 4 amarelos e 0,2 vermelho (ferramentas/sim_jogo.mjs, 26/10/2026)
-    amarelo: 0.37, amareloPorAgressividade: 0.1, vermelhoDireto: 0.004,
+    amarelo: 0.33, amareloPorAgressividade: 0.1, vermelhoDireto: 0.004,
     cuidadoComAmarelo: 0.16, // era 0,12 antes do faltaComAmarelo (31/10/2026: 2º amarelo 0,11 → 0,09 por jogo, vermelho direto 0,08); o juiz alivia o segundo: multiplicador da chance de amarelo na falta de quem já tem um
     faltaComAmarelo: 0.6, // e quem já tem amarelo se segura: faz menos faltas (multiplicador da chance de falta no duelo)
     amareloPrimeiraFalta: 0.35, amareloPorFaltaAntes: 0.5, // o juiz pune a repetição: a chance cresce com as faltas que o jogador já fez (0,35 na 1ª, 0,85 na 2ª, 1,35 na 3ª…)
     segundoAmareloPrimeiroTempo: 0.5, // e segura a expulsão cedo
+    // Faltas de quem tem a posse (dono, 05/11/2026): só o defensor do duelo fazia falta, e o time de 60% de posse fazia 6,6 contra 14,7 do rival.
+    // Nas 4 ligas reais (prototipos/, TeamRankings 2026) a posse quase não muda as faltas do time (inclinação -0,05 a +0,05 falta por ponto).
+    //   faltaAtaque: no duelo perdido (não na corrida para o espaço da grade), quem tem a bola faz a falta (empurra para segurar a bola, braço na disputa pelo alto); a bola vai para quem defende,
+    //     sem contra-ataque. base × Agressividade (instrução e atributo, como a do defensor) × porPosicao (o centroavante de referência na frente).
+    //   faltaNaPerda: logo depois de perder a bola. pressao: quem estava perto chega atrasado na contrapressão; tatica: o contra-ataque sorteado
+    //     é parado com falta (mais com Decisões e Agressividade, menos de quem tem amarelo); amarelo: chance do cartão na falta tática (Regra 12:
+    //     interromper um ataque promissor é advertência). ferramentas/sim_faltas_posse.mjs
+    faltaAtaque: { base: 0.1, porPosicao: { SC: 1.6, FC: 1.3, AMC: 1, AMR: 0.9, AML: 0.9, RW: 0.9, LW: 0.9, MC: 0.9, DMC: 0.8, MR: 0.8, ML: 0.8, DC: 0.8, SW: 0.8, DR: 0.6, DL: 0.6, WBR: 0.6, WBL: 0.6 } },
+    faltaNaPerda: { pressao: 0.11, tatica: 0.4, amarelo: 0.8 },
+    faltaLonge: 0.46, // × na falta do defensor fora da zona de bola parada (a de perto da área fica: os gols de falta e de pênalti não mudam)
     lesao: 0.0026, // era 0,0023 com 0,85 ataque por minuto; por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
     maxSubstituicoes: 5,
     acrescimoPorFalta: 0.1, acrescimoPorSubstituicao: 0.5, acrescimoPorGol: 0.5, acrescimoPorLesao: 0.5, // minutos de acréscimo em cada tempo (arredondados para cima, mínimo 1)
@@ -1413,7 +1423,9 @@ const __motor = (() => {
     //   (meta 5–7%; recorde da Premier League 7,1%), o chute de contra-ataque valer 1,37 vez o de jogo corrido (real ~1,4) e o time montado para o
     //   contra-ataque fazer 17,8% dos gols assim (meta 15–20%). Ritmo 0,69 → 0,79 para a liga voltar a 2,32 gols por jogo; conversão no alvo 28,5% (T0 27,1%).
     //   Saída do goleiro: 1,06 por jogo somando os dois (real 0,5 a 1 por goleiro), corta 79%. Posicionamento com a 4A: +7 a 12% de valor, atrás da Velocidade
-    t1: { contraAtaque: { com: 0.17, sem: 0.053, logit: 0.9 }, ataquesPorMinuto: 0.79, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 },
+    // as faltas de quem tem a posse (05/11/2026) só na T0 por enquanto: na T1 entram com a calibragem da grade (Tarefa 12); desligadas, a T1 sorteia igual
+    t1: { faltaAtaque: { base: 0 }, faltaNaPerda: { pressao: 0, tatica: 0 }, faltaLonge: 1, amarelo: 0.37,
+      contraAtaque: { com: 0.17, sem: 0.053, logit: 0.9 }, ataquesPorMinuto: 0.79, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 },
       pressaoLeitura: 0.5,
       contraChance: { qualidade: 1.17, expoente: 1, min: 0.6, max: 2 },
       linhaAlta: { referencia: 28, expoente: 1.5, goleiro: 0.5, min: 0.6, max: 1.8 },
@@ -2015,7 +2027,7 @@ const __motor = (() => {
 
   const novaEstatistica = () => ({
     posse: 0, ataques: 0, contraAtaques: 0, corredor: { E: 0, C: 0, D: 0 }, chances: 0, finalizacoes: 0, noGol: 0, xg: 0, gols: 0,
-    faltas: 0, amarelos: 0, vermelhos: 0, escanteios: 0, impedimentos: 0, substituicoes: 0,
+    faltas: 0, faltasTipo: { duelo: 0, ataque: 0, pressao: 0, tatica: 0 }, amarelos: 0, vermelhos: 0, escanteios: 0, impedimentos: 0, substituicoes: 0,
     zonas: Object.fromEntries(zonasDoMotor().map(z => [z, [0, 0]])), // duelos de ataque vencidos e perdidos por zona
     // na grade: passos [tentados, certos] por tipo, conduções, ataques com 10 passos certos ou mais, passos certos de cada ataque e dos que terminaram em gol
     // toquesArea: passos certos na faixa 5; cutbacks: [tentados, no gol]; cruzamentos: [tentados, certos]
@@ -2082,6 +2094,13 @@ const __motor = (() => {
       (p, a) => `${a} se adianta antes do passe de ${p} e fica impedido.`,
       (p, a) => `${p} procura ${a} nas costas da zaga, mas ele estava à frente da linha: impedimento.`,
     ];
+    // faltas de quem tinha a bola (05/11/2026; o dono ajusta as frases depois): a de ataque (a, o atacante; d, o defensor), a da contrapressão
+    // e a tática (f, quem faz a falta; v, quem a sofre; t, o time de quem a sofre)
+    const FALTA_ATAQUE = [(a, d, onde) => `Falta de ataque: ${a} empurra ${d} na disputa ${onde}.`, (a, d, onde) => `${a} sobe com o braço em ${d} e o juiz marca falta de ataque ${onde}.`,
+      (a, d, onde) => `${a} tenta segurar a bola ${onde}, faz a carga em ${d} e o juiz marca falta.`];
+    const FALTA_PRESSAO = [(f, v, onde) => `${f} chega atrasado na pressão e derruba ${v} ${onde}.`, (f, v, onde) => `${f} tenta recuperar na hora e acerta o pé de ${v} ${onde}: falta.`];
+    const FALTA_TATICA = [(f, v, t) => `${f} puxa ${v} pela camisa e para o contra-ataque do ${t}.`, (f, v) => `Falta tática de ${f}: ${v} ia sair em velocidade.`,
+      (f, v, t) => `${f} segura ${v} e não deixa o ${t} sair no contra-ataque.`];
     // quando o mesmo time ataca duas vezes seguidas é porque retomou a bola logo depois de perdê-la
     const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
     const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
@@ -2156,6 +2175,13 @@ const __motor = (() => {
       if (zona[0] === "D") trilha.push(times[i].instr.passe === "longo" ? [`${nome} domina no campo de defesa ${PELO[lado]}`, "prepara o lançamento"] : [`${nome} sai jogando ${PELO[lado]}`, ...(m ? [facil ? `passa fácil por ${nm(m)}${deNovo}` : `passa por ${nm(m)}${deNovo}`] : facil ? ["sem ser incomodado"] : [])]);
       else trilha.push([`${mesmo ? (depoisDeFalta ? nome + " cobra a falta rápido e segue" : trilha.length ? "Segue" : nome + " segue") : lado === "C" && temPapel(p, "invertido") ? nome + " sai da lateral e fecha por dentro," : nome + " carrega"} ${lado === "C" ? "pelo centro do meio-campo" : `pela ${NOME_LADO[lado]} do meio-campo`}`, ...(m ? [facil ? `deixa ${nm(m)} para trás${deNovo} com facilidade` : `supera ${nm(m)}${deNovo}`] : facil ? ["com todo o espaço do mundo"] : [])]);
     }
+    // falta de quem tinha a bola (i), na zona do seu ataque: o juiz para o jogo e quem a sofreu (vitima, do outro time) cobra dali
+    function faltaNaBola(i, zona, vitima, texto) {
+      evento(1 - i, "falta", comTrilha(texto));
+      const L = linhaDaZona(zona);
+      proximo = { time: 1 - i, zona: ehGrade(zona) ? espelhoGrade(zona) : L === "D" ? "A" : L === "M" ? "M" : "D" };
+      cobranca = vitima ? { time: 1 - i, jog: vitima } : null; bola = null;
+    }
     function perdaDePosse(i, zona, d) {
       impedido = false;
       // quem ganha a bola começa o ataque seguinte dali: roubada na saída de bola do adversário, já no ataque; no meio, no meio
@@ -2164,6 +2190,8 @@ const __motor = (() => {
       bola = { time: 1 - i, zona: linha === "D" ? "A" : linha === "M" ? "M" : "D" };
       ultimaPerda = { causa: null, marcador: d.marcador || null };
       const onde = ondeDe(zona);
+      // falta de quem atacava (faltaAtaque): o juiz para o jogo, quem defendia cobra dali; sem rodar a bola e sem contra-ataque
+      if (d.faltaAtaque) { faltaNaBola(i, zona, d.marcador, FALTA_ATAQUE[seq % FALTA_ATAQUE.length](nm(d.pivo), nm(d.marcador), onde)); return false; }
       // Do meio para a frente, o time de mais posse nem sempre perde a bola quando não acha espaço: recua, roda o jogo e tenta de novo
       // pelo meio-campo. A chance é a mesma com que ele retomaria a bola na cadeia de posse, então a fatia de ataques de cada time não muda.
       if (!emContra && linha !== "D" && d.pivo) {
@@ -2255,12 +2283,12 @@ const __motor = (() => {
       entrar(i, entra, jog.pos, jog.papel);
       evento(i, "substituicao", `Entra {${i}:${entra.nome}} no lugar de ${nm(jog)}.`);
     }
-    function falta(i, marcador, vitima) { // i: time que cometeu
-      const t = times[i], s = jogadores[marcador.j.id], em = vitima ? ` em ${nm(vitima)}` : "";
-      estat[i].faltas++; s.faltas++;
-      if (rng.chance(CONFIG.vermelhoDireto)) return expulsar(i, marcador, `Cartão vermelho direto para ${nm(marcador)} pela entrada violenta${em}!`);
+    function falta(i, marcador, vitima, tipo = "duelo") { // i: time que cometeu; tipo: duelo (o defensor), ataque, pressao ou tatica (faltaNaPerda)
+      const t = times[i], s = jogadores[marcador.j.id], em = vitima ? ` em ${nm(vitima)}` : "", ft = estat[i].faltasTipo;
+      estat[i].faltas++; s.faltas++; ft[tipo]++;
+      if (tipo !== "tatica" && rng.chance(CONFIG.vermelhoDireto)) return expulsar(i, marcador, `Cartão vermelho direto para ${nm(marcador)} pela entrada violenta${em}!`);
       const repeticao = CONFIG.amareloPrimeiraFalta + CONFIG.amareloPorFaltaAntes * (s.faltas - 1), segura = marcador.amarelos ? CONFIG.cuidadoComAmarelo * (min <= 45 ? CONFIG.segundoAmareloPrimeiroTempo : 1) : 1;
-      if (!rng.chance(CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * repeticao * segura)) return;
+      if (!rng.chance(tipo === "tatica" ? CONFIG.faltaNaPerda.amarelo : CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * repeticao * segura)) return;
       marcador.amarelos++; s.amarelos++; estat[i].amarelos++;
       if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)}: está expulso!`);
       cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)}.`);
@@ -2300,24 +2328,27 @@ const __motor = (() => {
       const AP = g && CONFIG.gradeValores.aperto, briga = AP && pivo && marcador ? AP.peso * Math.max(0, 1 - Math.abs(folga) / AP.folga) * (pivo.at[A.agr] - marcador.at[A.agr]) / 25 : 0;
       const p = 1 / (1 + Math.exp(-((g ? CONFIG.gradeValores.baseDuelo : CONFIG.baseDuelo)[L] + logit + folga + briga)));
       const contato = g ? CONFIG.gradeValores.contato : 1; // na grade há mais passos que duelos nas 9 zonas
-      let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false;
-      if (marcador && rng.chance(CONFIG.falta * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (CONFIG.grade && temPapel(marcador, "ladrao", "combativo") ? CONFIG.gradeValores.papelDefesa.falta : 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
+      let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false, faltaAtaque = false;
+      const perigosa = g ? faixaDe(zona) === 5 || zona === "4C" : L === "A"; // a falta ali vira bola parada (falta direta, cruzamento, pênalti)
+      if (marcador && rng.chance(CONFIG.falta * (perigosa ? 1 : CONFIG.faltaLonge) * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (CONFIG.grade && temPapel(marcador, "ladrao", "combativo") ? CONFIG.gradeValores.papelDefesa.falta : 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
         falta(1 - i, marcador, pivo); comFalta = true;
         // falta no ataque (na grade, na faixa 5 ou na zona 14) vira bola parada; atrás, quem ganhava segue, e quem perdia fica com a bola e recomeça do mesmo setor (sem faltaRecomeca, a falta dava o duelo)
-        if (g ? faixaDe(zona) === 5 || zona === "4C" : L === "A") parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;
+        if (perigosa) parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;
+      } else if (CONFIG.faltaAtaque.base && !venceu && pivo && marcador && !(g && g.az != null) && rng.chance(CONFIG.faltaAtaque.base * (1 + CONFIG.faltaPorAgressividade * atk.instr.agressividade) * Math.sqrt(pivo.j.at[A.agr] / 25) * (CONFIG.faltaAtaque.porPosicao[pivo.pos] || 1) * (pivo.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
+        falta(i, pivo, marcador, "ataque"); comFalta = faltaAtaque = true; venceu = false; // a bola vai para quem defende (perdaDePosse narra e não deixa sair no contra)
       } else {
         e.zonas[zona][venceu ? 0 : 1]++;
         if (pivo) registrar(pivo, venceu, p);
         if (marcador) registrar(marcador, !venceu, 1 - p);
       }
-      if (pivo && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade) * (1 - (times[i].prevencao || 0)) * contato)) {
+      if (pivo && !faltaAtaque && rng.chance(CONFIG.lesao * (1 + 0.2 * def.instr.agressividade) * (1 - (times[i].prevencao || 0)) * contato)) {
         const r = rng.n(), dias = r < 0.5 ? rng.int(1, 3) : r < 0.8 ? rng.int(4, 10) : rng.int(11, 30);
         jogadores[pivo.j.id].lesionado = true; lesoes.push({ id: pivo.j.id, time: i, dias });
         sair(i, pivo); recebe(pivo); evento(i, "lesao", comTrilha(comFalta ? `Falta de ${nm(marcador)} em ${nm(pivo)}, que se machuca e não continua.` : `${nm(pivo)} se machuca e não continua.`)); reporLesionado(i, pivo);
         // o time de quem se machucou fica com a bola: bola parada se foi falta no ataque; senão recomeça dali (falta, ou bola ao chão para quem a tinha, Regra 8)
         return { venceu: false, pivo: null, marcador, parada, falta: comFalta, recomeca: !parada };
       }
-      return { venceu, pivo, marcador, parada, falta: comFalta, folga, recomeca, recuperou };
+      return { venceu, pivo, marcador, parada, falta: comFalta, faltaAtaque, folga, recomeca, recuperou };
     }
 
     // desfecho do chute contra o goleiro: bloqueado, fora, trave, defesa ou gol; xg é o publicado e chanceDeGol(defesa) a chance contra outro goleiro
@@ -2474,6 +2505,14 @@ const __motor = (() => {
             proximo = { time: i, zona: ehGrade(zona) ? zona : zona[0] }; bola = null; return;
           }
         }
+        // falta na perda (05/11/2026): quem estava perto da bola perdida (com amarelo, quase nunca) contra quem a roubou
+        const FP = CONFIG.faltaNaPerda, vitima = ultimaPerda.marcador && def.emCampo.includes(ultimaPerda.marcador) ? ultimaPerda.marcador : null;
+        const perto = () => (sortearPeso(rng, (atk.zonasDef[zona] || []).filter(o => atk.emCampo.includes(o.jog)), o => o.w * (o.jog.amarelos ? 0.2 : 1)) || {}).jog;
+        const brava = jog => (1 + CONFIG.faltaPorAgressividade * atk.instr.agressividade) * Math.sqrt(jog.j.at[A.agr] / 25) * (jog.amarelos ? CONFIG.faltaComAmarelo : 1);
+        if (FP.pressao && vitima && !impedido) { // contrapressão: chega atrasado
+          const f = perto();
+          if (f && rng.chance(FP.pressao * brava(f))) { falta(i, f, vitima, "pressao"); return faltaNaBola(i, zona, vitima, FALTA_PRESSAO[seq % FALTA_PRESSAO.length](nm(f), nm(vitima), ondeDe(zona))); }
+        }
         const K = CONFIG.contraAtaque, m = atk.instr.mentalidade;
         // quem perde a bola jogando para a frente ou com a linha alta fica mais exposto; time montado para o contra-ataque aproveita mais
         const fator = def.instr.contraAtaque ? (m > 0 ? 1 + K.porMentalidade * m : Math.max(0.3, 1 + K.porRetranca * m)) : 1 + K.semInstrucao * Math.max(0, m);
@@ -2489,6 +2528,11 @@ const __motor = (() => {
           if (grade && espacoNoContra(1 - i, zc) < G.reciclar && rng.chance(limitar((ladrao ? decisao(ladrao.at) : 25) / 35, 0.3, 1))) {
             estat[1 - i].grade.reciclagens++; proximo = { time: 1 - i, zona: zc }; bola = null;
             evento(1 - i, "posse", RECICLA[seq % RECICLA.length](ladrao ? nm(ladrao) : null, tm(1 - i))); return;
+          }
+          // falta tática: quem lê o jogo (Decisões; na T0, sem ela, o Posicionamento) para o contra-ataque antes que ele saia; quem tem amarelo quase nunca arrisca
+          if (FP.tatica && vitima && !impedido) {
+            const f = perto();
+            if (f && rng.chance(FP.tatica * brava(f) * Math.sqrt((f.at[A.dec] ?? f.at[A.pos]) / 25) * (f.amarelos ? 0.25 : 1))) { falta(i, f, vitima, "tatica"); return faltaNaBola(i, zona, vitima, FALTA_TATICA[seq % FALTA_TATICA.length](nm(f), nm(vitima), tm(1 - i))); }
           }
           // bola perdida pelo lado do meio com o lateral que tinha subido (Apoiador ou Invertido): o contra-ataque vai pelas costas dele.
           // Na grade: faixas 2–4 do lado dele (lado ou meio-espaço), onde o Apoiador ataca e o Invertido fecha por dentro
@@ -2732,7 +2776,7 @@ const __motor = (() => {
           const z = sortearPeso(rng, perto, pesoDe), k = ZONAS_GRADE.indexOf(z), quem = sortearPeso(rng, atk.zonas[z], x => x.p).jog;
           const d = duelo(i, z, pes - (meta ? R.roubo * P : 0), false, { dz: defesaNo(k), quem });
           if (d.recomeca) return recomecar(z, d);
-          if (!d.falta) { const q = eg.passos.repor = eg.passos.repor || [0, 0]; q[0]++; if (d.venceu) { q[1]++; certos++; } if (reg) reg.push([i, atual, z, "repor", gk.j.id, d.pivo ? d.pivo.j.id : null, d.venceu, false, false, d.marcador ? d.marcador.j.id : null]); }
+          if (!d.falta || d.faltaAtaque) { const q = eg.passos.repor = eg.passos.repor || [0, 0]; q[0]++; if (d.venceu) { q[1]++; certos++; } if (reg) reg.push([i, atual, z, "repor", gk.j.id, d.pivo ? d.pivo.j.id : null, d.venceu, false, false, d.marcador ? d.marcador.j.id : null]); }
           if (!d.venceu) { if (meta) eg.tiros[2]++; roubada = embaloDaDefesa(d); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, z, { ...d, passador: gk })) perdeu(z); return; }
           passoGrade({ para: z, tipo: "repor", frase: meta ? "cobra o tiro de meta curto para" : "repõe com a mão para" }, d);
           return { zona: z, jog: quem };
@@ -2792,7 +2836,7 @@ const __motor = (() => {
               return bolaParada(i, "falta", lado, penal);
             }
             if (!d.venceu && d.recomeca) return recomecar(para, d);
-            if (!d.falta) {
+            if (!d.falta || d.faltaAtaque) { // a falta de ataque é passe perdido; a do defensor não conta
               const k = o.conduzir ? eg.conducoes : (eg.passos[o.tipo] = eg.passos[o.tipo] || [0, 0]);
               k[0]++; if (d.venceu) { k[1]++; certos++; }
               if (o.espaco) { eg.espaco[0]++; if (d.venceu) eg.espaco[1]++; }
@@ -2804,6 +2848,7 @@ const __motor = (() => {
             if (!d.venceu && th === 1 && o.tipo === "voltar") expor = T3.contra; // a volta roubada: contra-ataque contra a defesa desarrumada
             // a perda na volta conta na zona de origem
             const perda = z => { roubada = Math.min(1, embaloDaDefesa(d) + (passador && dificil(o) ? OU.perda * Math.max(0, passador.at[A.exc] - 25) / 25 : 0)); roubadaFacil = -d.folga >= CONFIG.embalo.narrar; if (perdaDePosse(i, z, d.pivo ? { ...d, passador: portador } : { ...d, pivo: portador })) perdeu(z); };
+            if (d.faltaAtaque) return perda(para);
             if (!d.venceu && !naFaixa5) return perda(o.tipo === "voltar" ? atual : para);
             if (d.venceu && passador && dificil(o)) d.folga += OU.folga * Math.max(0, passador.at[A.exc] - 25) / 25; // deu certo: mais folga
             if (d.venceu) { passoGrade(o, d); if (naFaixa5) eg.toquesArea++; }
@@ -2868,6 +2913,7 @@ const __motor = (() => {
       e.corredor[lado]++;
       const d = duelo(i, "A" + lado, bonus + levado, contra);
       if (d.recomeca && !d.pivo) return recomecar("A" + lado, d); // lesão no duelo do ataque: o time recomeça dali
+      if (d.faltaAtaque) return perdaDePosse(i, "A" + lado, d);
       if (d.parada) {
         const penal = lado === "C" && rng.chance(CONFIG.penalti); // decidido aqui (era dentro de bolaParada), para o texto da falta já dizer se foi pênalti
         if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.` : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}.`)); }

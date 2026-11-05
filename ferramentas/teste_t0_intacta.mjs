@@ -9,8 +9,9 @@ import { gerarOnze } from "../src/gerador.js";
 import { FORMACOES } from "../src/escalacao.js";
 import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 
-const HASH_T0 = "8656c6a9ccacde9e8e61d6d2a4737927fdce87e43e5d9e2640c5323420015bad";
-const HASH_T1_SEM_GRADE = "a66675555ce37914003fd230df9b65619c5959f3d391805c1fb373e488e5e060";
+// 05/11/2026: faltas de quem tem a posse na T0 (a T0 muda de propósito); na T1 só entrou estat.faltasTipo (sem ele, o hash da T1 é o de antes, a66675…)
+const HASH_T0 = "15fc26fd77e096386e32ef311db127a2a564eb4f2aaac4f7e1a6bfd7addf1289";
+const HASH_T1_SEM_GRADE = "813498256ba1427b812e143393978c1222981e7ac66dc2e14487ed78da8f145b";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const formacoes = Object.keys(FORMACOES);
