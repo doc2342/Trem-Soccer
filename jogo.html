@@ -351,6 +351,7 @@ import { montarRelatorio } from "./src/relatorio.js";
 import { htmlRelatorio } from "./src/ui-relatorio.js";
 import { ligarGraficos } from "./src/ui-graficos.js";
 import { montarLogin } from "./src/ui-login.js";
+import { evolucaoDaTemporada } from "./src/evolucao.js";
 import { sg, pp, corDoSetor, filasDoCampo, TIRAS, formatoDasSiglas, definirSiglas, SIGLAS_PT } from "./src/siglas.js";
 import { svgEscudo, svgUniforme, visualAleatorio, NA_CAMISA, URL_DOS_ESCUDOS } from "./src/escudo.js";
 import { camisinha, svgCamisa, numerosDaCamisa } from "./src/camisa.js";
@@ -898,7 +899,10 @@ async function telaClube(liga, clube) {
       d.campanha && numero({ rotulo: "Melhor campanha", valor: `${d.campanha.pontos}`, sufixo: "pontos", legenda: `${d.campanha.posicao}º do ${nomeDoGrupo(d.campanha.grupo)} · T${d.campanha.temporada}` }),
       d.ataque && numero({ rotulo: "Melhor ataque", valor: String(d.ataque.gols_pro), sufixo: "gols", legenda: `numa temporada · T${d.ataque.temporada}` })].filter(Boolean);
     const lista = (t, l, f) => l.length ? `<div><div class="t-tr-lista-cab">${t}</div>${l.map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${x.nome ? lj(x.id, x.nome) : `<i>jogador aposentado</i>`}${daLiga && cPor[x.clube] ? ` <small>${esc(cPor[x.clube].nome)}</small>` : ""}</span><b>${f(x)}</b></div>`).join("")}</div>` : "";
-    const listas = lista("Maiores artilheiros", d.gols || [], x => `${x.gols} gols`) + lista("Quem mais jogou", d.jogos || [], x => `${x.jogos} jogos`);
+    const v2 = x => (+x.v).toFixed(2).replace(".", ",");
+    const listas = lista("Maiores artilheiros", d.gols || [], x => `${x.gols} gols`) + lista("Garçons", d.assistencias || [], x => `${x.v} assist.`)
+      + lista("Quem mais jogou", d.jogos || [], x => `${x.jogos} jogos`) + lista("Mais defesas", d.defesas || [], x => `${x.v} defesas`)
+      + lista("Jogos sem sofrer gol", d.sem_sofrer || [], x => `${x.v} jogos`) + lista("Maior nota média · mín. 10 jogos", d.media || [], x => `${v2(x)} <small>em ${x.jogos}</small>`);
     return nums.length || listas ? `${nums.length ? `<div class="t-tr-recordes">${nums.join("")}</div>` : ""}${listas ? `<div class="t-tr-listas">${listas}</div>` : ""}<p class="t-fajuda">Somam as temporadas guardadas na virada mais a atual, liga e copas.</p>` : `<p class="t-fajuda">Nenhum recorde ainda.</p>`; };
   // a copa do meu clube: o jogo mais recente e se ele ainda está vivo nela (jogo marcado, esperando o sorteio ou entrando direto na fase de 32)
   const minhaCopa = copaJogos.filter(p => p.casa === clube.id || p.fora === clube.id).sort((a, b) => a.copa_fase - b.copa_fase), ultCopa = minhaCopa[minhaCopa.length - 1];
@@ -1497,7 +1501,9 @@ async function telaClube(liga, clube) {
       d.nota ? `<div><b>Melhor atuação:</b> ${esc(d.nota.nome)} (${lk(d.nota.clube)}), nota ${String(d.nota.nota).replace(".", ",")}${quando(d.nota)}</div>` : "",
       d.campanha ? `<div><b>Melhor campanha:</b> ${d.campanha.posicao}º do ${esc(nomeDoGrupo(d.campanha.grupo))}, ${d.campanha.pontos} pontos <span class="mut">(T${d.campanha.temporada})</span></div>` : "",
       d.ataque ? `<div><b>Melhor ataque:</b> ${d.ataque.gols_pro} gols numa temporada <span class="mut">(T${d.ataque.temporada})</span></div>` : ""].join("");
-    const corpo = linhas + lista("Maiores artilheiros", d.gols || [], x => `<b>${x.gols}</b> gols`) + lista("Quem mais jogou", d.jogos || [], x => `<b>${x.jogos}</b> jogos`);
+    const corpo = linhas + lista("Maiores artilheiros", d.gols || [], x => `<b>${x.gols}</b> gols`) + lista("Garçons", d.assistencias || [], x => `<b>${x.v}</b> assist.`)
+      + lista("Quem mais jogou", d.jogos || [], x => `<b>${x.jogos}</b> jogos`) + lista("Mais defesas", d.defesas || [], x => `<b>${x.v}</b> defesas`)
+      + lista("Jogos sem sofrer gol", d.sem_sofrer || [], x => `<b>${x.v}</b> jogos`) + lista("Maior nota média (mín. 10 jogos)", d.media || [], x => `<b>${(+x.v).toFixed(2).replace(".", ",")}</b> em ${x.jogos}`);
     return corpo ? corpo + `<div class="mut" style="margin-top:6px;font-size:12px">Somam as temporadas guardadas na virada mais a atual, liga e copas. Os números por jogador começam na primeira virada depois do SQL 84.</div>`
       : `<div class="mut">Nenhum recorde ainda.</div>`;
   };
@@ -1675,7 +1681,14 @@ async function telaClube(liga, clube) {
     return `<div class="t-trn"><div class="t-trn-topo"><div>${rotulo("Treino · uma sessão por rodada de liga")}<p class="t-trn-resumo" id="tResumo"></p></div>
       <div class="t-trn-acoes"><span id="tAviso" class="mut"></span><button type="button" class="t-botao" id="tSugerir">Sugerir focos para todos</button><button type="button" class="t-botao t-botao-principal" id="tSalvar" disabled>Salvar o treino</button></div></div>
       ${juv ? `<div class="t-transf-filtro" id="tGrupo"><button type="button" data-tgrupo="prof" class="ligado">Profissionais <small>${elenco.length - juv}</small></button><button type="button" data-tgrupo="juv">Juvenis <small>${juv}</small></button></div>` : ""}
-      <div id="treinoCorpo"></div>${comoFunciona(explicaTreino())}${comissaoDoTreino}</div>`; };
+      <div id="treinoCorpo"></div>${evolucaoNova()}${comoFunciona(explicaTreino())}${comissaoDoTreino}</div>`; };
+  // Evolução da temporada: atributos, XP e nota ganhos desde a foto do início (src/evolucao.js); o elenco inteiro, 5 linhas até "ver todos"
+  const evolucaoNova = () => { const ev = evolucaoDaTemporada(elenco, liga.temporada); if (!ev.length) return "";
+    const sinal = (v, k) => (v > 0 ? "+" : "") + (k === "atributos" ? String(v) : v.toFixed(1).replace(".", ","));
+    const lista = (t, k) => { const l = [...ev].sort((a, b) => b[k] - a[k] || a.j.nome.localeCompare(b.j.nome)), maior = Math.max(...l.map(x => Math.abs(x[k])), 0.1);
+      return `<div><div class="t-tr-lista-cab">${t}</div>${l.map((x, i) => `<div class="t-tr-lista t-evo"${i >= 5 ? " hidden" : ""}><span>${i + 1}</span><span>${pp(x.j.pos)} ${lj(x.j.id, x.j.nome)}<i style="width:${Math.round(Math.abs(x[k]) / maior * 100)}%"${x[k] < 0 ? ' class="t-evo-neg"' : ""}></i></span><b class="${x[k] < 0 ? "bad" : ""}">${sinal(x[k], k)}</b></div>`).join("")}</div>`; };
+    return `<section class="t-secao" id="tEvolucao">${rotulo(`Evolução · T${liga.temporada} início → agora`)}<div class="t-tr-listas">${lista("Atributos ganhos", "atributos")}${lista("XP ganho", "xp")}${lista("Nota ganha", "nota")}</div>
+      ${ev.length > 5 ? `<p class="t-fajuda"><a class="lk" onclick="this.closest('section').querySelectorAll('.t-evo[hidden]').forEach(x => x.hidden = false); this.parentNode.remove()">ver todos os ${ev.length}</a></p>` : ""}</section>`; };
   // Mata-mata da base (Copinha e Libertadores Juvenil): a mesma chave, com fases numeradas como as da Copa
   const cartaoDeMataMata = (jogos, titulo, vazio, diretos, regrasProprias) => {
     if (jogos == null) return "";
@@ -3666,7 +3679,7 @@ ${historicoDaBase()}`}
     <div data-parte="clube:estruturas"><div id="obraAviso"></div>${resumoDasEstruturas()}
       ${visualNovo ? "" : `<div class="colunas">${["ct", "medico", "fisio"].map(k => `<div id="estr-${k}">${estrutura(k)}</div>`).join("")}</div>`}</div>
     <div data-parte="clube:estadio">${paginaDoEstadio()}</div>
-    <div data-parte="clube:trofeus">${visualNovo ? trofeusNovo(trofeusDoId) : `${salaDeTrofeus(clube.id)}<details class="card" id="recClube"><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details>`}</div>
+    <div data-parte="clube:trofeus">${visualNovo ? trofeusNovo(trofeusDoId) : `${salaDeTrofeus(clube.id)}<details class="card" id="recClube" open><summary style="cursor:pointer"><b>Recordes do clube</b></summary><div class="mut">Carregando…</div></details>`}</div>
     <div data-parte="clube:calendario">${calendarioDoClube()}</div>
     <div data-parte="clube:financas">
     ${caixa == null ? `<div class="card mut">As finanças aparecem aqui quando o caixa da liga for ligado pelo administrador.</div>` : financas()}
@@ -4301,7 +4314,7 @@ ${historicoDaBase()}`}
     }; }
   document.querySelectorAll("[data-grupo]").forEach(el => { el.onclick = e => { const b = e.target.closest("[data-sub]"); if (b) { const [g, k] = b.dataset.sub.split(":"); abrirSubAba(g, k); voltarAoTopo(b); } }; });
   if ($("recNovo")) recordesDaLiga(liga.id, trofeusDoId).then(d => { $("recNovo").innerHTML = recordesNovos(d); });
-  if ($("recClube")) $("recClube").addEventListener("toggle", e => { if (e.target.open && !e.target.dataset.ok) { e.target.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.target.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } });
+  if ($("recClube")) { const e = $("recClube"); e.dataset.ok = 1; recordesDaLiga(liga.id, clube.id).then(d => { e.lastElementChild.outerHTML = `<div>${htmlDosRecordes(d)}</div>`; }); } // aberto: carrega logo
   noticiasDaLiga().then(n => { const m = $("muralLiga"), b = muralDaLiga(); if (m) m.innerHTML = desenharMural({ ...b, jogos: n.jogos, liga: [...n.liga, ...b.liga.filter(h => n.rodada <= RODADAS_DA_SAFRA || !h.includes("revelou"))] }); }).catch(() => {});
   $("abas").onclick = e => { const b = e.target.closest("[data-aba]"); if (b) abrir(b.dataset.aba); };
   $("subTatica").onclick = e => { const b = e.target.closest("[data-tatica]"); if (b) abrir(b.dataset.tatica); };
@@ -4766,7 +4779,15 @@ ${historicoDaBase()}`}
       if (r == null) { box.hidden = true; return; }
       (selRodada[r] = selRodada[r] || selecaoDaRodada(liga.id, g, r)).then(l => { if ($("ligaSel") !== box || rodadas[Math.max(0, rodadas.indexOf(ligaRodada))] !== rodadas[i]) return;
         box.hidden = !l.length;
-        box.innerHTML = !l.length ? "" : `${rotulo(`Seleção da rodada ${r} · os onze de melhor nota`)}<div class="t-st-campos">${campoDaSelecao(l.map(x => ({ pos: x.vaga, jogador: x.nome, clube_id: x.clube, numero: x.nota })), true)}</div>`; }); };
+        box.innerHTML = !l.length ? "" : `<div class="t-liga-selgrade"><div>${rotulo(`Seleção da rodada ${r} · os onze de melhor nota`)}<div class="t-st-campos">${campoDaSelecao(l.map(x => ({ pos: x.vaga, jogador: x.nome, clube_id: x.clube, numero: x.nota })), true)}</div></div><div id="ligaArt"></div></div>`;
+        if (l.length) desenharArtilheiros(); }); };
+    // artilheiros e garçons da série, ao lado da seleção (54_estatisticas_da_liga.sql); uma leitura por série
+    const statsSerie = {};
+    const desenharArtilheiros = () => (statsSerie[g] = statsSerie[g] || estatisticasDaLiga(liga.id, g).catch(() => null)).then(d => { const box = $("ligaArt"); if (!box || !d || !d.jogos) return;
+      const lista = (t, l, v, k) => l.length ? `<div><div class="t-tr-lista-cab">${t}</div>${l.slice(0, 5).map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${(c => c ? svgEscudo(c.escudo, c.sigla, 16) + " " : "")(cPor[x.clube])}${lj(x.id, x.nome)}</span><b>${x[v]}</b></div>`).join("")}
+        <p class="t-fajuda"><a class="lk" data-sub-ir="comp:stats" data-st-lista="${k}">ver todos</a></p></div>` : "";
+      box.innerHTML = lista("Artilheiros", d.artilheiros || [], "gols", "artilheiros") + lista("Garçons", d.assistencias || [], "ass", "assistencias");
+      box.onclick = e => { const a = e.target.closest("[data-st-lista]"); if (a) { $("stComp").value = g; $("stLista").value = a.dataset.stLista; $("stTemp").value = ""; } }; });
     desenharJogos();
     // temporadas anteriores deste campeonato, guardadas na virada (só com a aba aberta)
     let hist = [];

@@ -326,6 +326,7 @@ async function tela(aviso = "") {
     const manutencao = item("Backup", "Uma cópia no servidor ou neste computador.", `<button type="button" class="t-botao" id="backupServidor">Backup no servidor</button><button type="button" class="t-botao" id="baixarCopia">Baixar uma cópia</button>`)
       + item("Contratos", "Salários e contratos iniciais para quem ainda não tem.", `<button type="button" class="t-botao" id="contratos">Definir</button>`)
       + (liga.temporada >= ATRIBUTOS_DESDE ? item("Atributos novos", "Passe longo, Movimentação e Decisões para quem ainda não tem; refaz a foto do início da temporada.", `<button type="button" class="t-botao" id="entregarAtributos">Entregar atributos novos</button>`) : "")
+      + item("Foto do início", "Atributos, nota e experiência de cada jogador, para a evolução da temporada (aba Treino). A virada tira sozinha; use se a temporada ficou sem (a T0). Refazer apaga a anterior.", `<button type="button" class="t-botao" id="fotoInicio">Tirar a foto</button>`)
       + item("Outros países", Object.entries(PAISES).map(([g, p]) => `${p}: ${clubes.filter(c => c.grupo === g).length}`).join(" · "), `<button type="button" class="t-botao" id="criarPaises" ${paises ? "disabled" : ""}>Criar os que faltam</button>`)
       + `<div class="t-adm-item t-adm-item-largo"><b>Sedes das finais</b><span>${sedes}</span></div>`
       + item("Reinício", `Reiniciar a liga apaga calendário, resultados, extratos, obras e todo o histórico, sorteia os grupos (os donos na Série B, 6 por grupo), gera elencos novos e volta à temporada 0. Identidade dos clubes e dirigentes ficam.`,
@@ -764,6 +765,13 @@ async function tela(aviso = "") {
       };
     } catch (e) { $("previaVirada").innerHTML = `<span class="bad">Não deu: ${esc(e.message)}</span>`; }
     finally { if ($("prepararVirada")) $("prepararVirada").disabled = false; }
+  });
+  em("fotoInicio", async () => { // 175_recordes_e_evolucao.sql: a foto guarda também experiência e idade
+    if (!confirm(`Tirar a foto do início da T${liga.temporada} agora? A evolução da temporada passa a contar daqui.`)) return;
+    $("fotoInicio").disabled = true;
+    const n = await marcarInicioDaTemporada(liga.id, j => notaBruta(j.at, j.pos));
+    alert(n == null ? "Não deu (o 40_foto_do_inicio_da_temporada.sql já foi executado?)" : `Foto do início tirada: ${n} jogadores.`);
+    $("fotoInicio").disabled = false;
   });
   em("entregarAtributos", async () => { // virada que falhou na entrega (172_atributos_novos.sql): repetir entrega só a quem falta
     $("entregarAtributos").disabled = true;
