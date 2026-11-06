@@ -1070,7 +1070,8 @@ button.t-olheiro-op:hover { background:var(--t-marca); border-color:var(--t-marc
 .t-transf-filtro button small { font-weight:500; color:var(--t-tinta2); }
 .t-transf-filtro button .t-giro-tipo { padding:3px 6px; }
 .t-transf-filtro button.ligado { border-color:var(--t-marca); background:var(--t-placa); }
-.t-transf-filtro button:hover:not(.ligado) { border-color:var(--t-tinta2); }
+.t-transf-filtro button:hover:not(.ligado):not(:disabled) { border-color:var(--t-tinta2); }
+.t-transf-filtro button:disabled { opacity:.4; cursor:not-allowed; }
 .t-transf[hidden] { display:none; }
 
 /* Clube › Finanças: faixa com o caixa, barras de receita (verde) e despesa (vermelho) com o valor na ponta, números por rodada, estádio lotado, curva do caixa */
