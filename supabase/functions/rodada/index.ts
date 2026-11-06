@@ -2222,7 +2222,10 @@ const __motor = (() => {
       const s = p.join("").replace(/(\{[0-9?]:[^{}]+\})( para trás)? de novo/g, (x, m, tras, i, s) => s.slice(0, i).includes(m) ? x : m + (tras || "")), ult = s.lastIndexOf(" com facilidade");
       return s.replace(/ com facilidade/g, (x, i) => i === ult ? x : "").split("\u0001");
     };
-    const comTrilha = (texto, chance = false) => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const partes = semRepetir([...(CONFIG.grade ? enxuta(trilha, chance) : trilha).map(frase), texto]), fr = partes.slice(0, -1); texto = partes[partes.length - 1]; fases = CONFIG.grade ? partes : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
+    // abre: o que vem antes da primeira frase ("Quase o empate! ", "No contra-ataque, "; depois da vírgula a frase segue em minúscula)
+    const comTrilha = (texto, chance = false, abre = "") => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const partes = semRepetir([...(CONFIG.grade ? enxuta(trilha, chance) : trilha).map(frase), texto]);
+      if (abre) partes[0] = abre + (abre.endsWith(", ") && partes[0][0] !== "{" ? partes[0][0].toLowerCase() + partes[0].slice(1) : partes[0]);
+      const fr = partes.slice(0, -1); texto = partes[partes.length - 1]; fases = CONFIG.grade ? partes : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
     // rota do lance para a animação: [zona, quem leva a bola, marcador vencido] por passo; vai junto da finalização
     const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
     // a bola chega a "jog": se estava com outro, o passe entra na frase anterior; devolve true se o jogador já era o portador
@@ -2456,7 +2459,28 @@ const __motor = (() => {
       const e = estat[i], s = jogadores[quem.j.id], gc = tipo === "golcontra", gk = times[1 - i].goleiro;
       e.gols++; sujo = true; saida = 1 - i;
       if (gc) { s.golsContra = (s.golsContra || 0) + 1; e.grade.golsContra++; } else { s.gols++; s.finalizacoes++; e.finalizacoes++; e.chances++; e.noGol++; e.grade.olimpicos++; }
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo, lado: "C", xg: 0, resultado: "gol", finalizador: quem.j.id, criador: quem.j.id, quem: quem.j.nome + (gc ? " (contra)" : ""), assist: null, goleiro: gk ? gk.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(texto, true), ...(fases ? { fases } : {}), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo, lado: "C", xg: 0, resultado: "gol", finalizador: quem.j.id, criador: quem.j.id, quem: quem.j.nome + (gc ? " (contra)" : ""), assist: null, goleiro: gk ? gk.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(texto + placarDoGol(i), true), ...(fases ? { fases } : {}), p: parcial() });
+    }
+    // O lance pelo placar e como o gol aconteceu, como no ge (06/11, itens 3 e 6; só na grade e só texto). Contam com o placar já com o gol.
+    // o time já esteve atrás no jogo (para "a virada")
+    const esteveAtras = i => { const g = [0, 0]; for (const l of lances) if (l.resultado === "gol") { g[l.time]++; if (g[i] < g[1 - i]) return true; } return false; };
+    // o fim do gol: "GOL! O T abre o placar!", "GOL! É o empate!", "GOL! É a virada!"
+    function placarDoGol(i) {
+      if (!CONFIG.grade) return "";
+      const g = estat[i].gols, o = estat[1 - i].gols;
+      return g === 1 && o === 0 ? ` O ${tm(i)} abre o placar!` : g === o ? " É o empate!" : g === o + 1 && esteveAtras(i) ? " É a virada!" : "";
+    }
+    // a chance clara que não entrou abre pelo que valeria: "Quase o empate!", "Quase a virada!", "Quase o desempate!", "Quase o primeiro gol!"
+    function quaseNoPlacar(i) {
+      if (!CONFIG.grade) return "";
+      const g = estat[i].gols, o = estat[1 - i].gols;
+      return g === o - 1 ? "Quase o empate! " : g !== o ? "" : o === 0 ? "Quase o primeiro gol! " : esteveAtras(i) ? "Quase a virada! " : "Quase o desempate! ";
+    }
+    // de onde veio o gol, quando o texto do lance não diz: a roubada no campo do adversário e o contra-ataque (bola parada e rebote já se contam)
+    // a pressão só quando o gol sai logo depois da roubada (até 3 passos; com a bola rodando atrás, o ge não diria que a pressão deu certo)
+    function origemDoGol(i, c, pressao) {
+      if (!CONFIG.grade || ["rebote", "escanteio", "falta", "penalti"].includes(c.tipo)) return "";
+      return pressao && rota.length <= 3 ?`A pressão do ${tm(i)} dá certo. ` : c.contra ? "No contra-ataque, " : "";
     }
     // o goleiro solta ou a trave devolve (grade): um chute só de perto, com a defesa desarrumada; quem chutou ou quem está na área
     function rebote(i, c, deTrave) {
@@ -2488,6 +2512,7 @@ const __motor = (() => {
         }
       }
       const { resultado, xg, chanceDeGol, noAlvo, falha } = chutar(c, def.goleiro);
+      const pressao = aposPerda === i, quase = resultado === "trave" || (resultado === "defesa" && noAlvo >= CONFIG.narracaoDefesa.boa) || (resultado !== "gol" && xg >= 0.3);
       e.chances++; e.xg += xg; e.finalizacoes++;
       if (e.grade) { // transição (spec 10): o chute que nasce de perda do adversário nas faixas 1–2; o corredor do chute de contra-ataque
         if (aposPerda === i) { estat[1 - i].grade.perdasAtrasChute++; aposPerda = null; }
@@ -2499,7 +2524,8 @@ const __motor = (() => {
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "cutback" && e.grade) { e.grade.cutbacks[0]++; if (resultado === "gol" || resultado === "defesa") e.grade.cutbacks[1]++; }
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, ...(c.zona ? { zona: c.zona } : {}), xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq), true), ...(fases ? { fases } : {}), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, ...(c.zona ? { zona: c.zona } : {}), xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq) + (resultado === "gol" ? placarDoGol(i) : ""), true,
+        resultado === "gol" ? origemDoGol(i, c, pressao) : quase ? quaseNoPlacar(i) : ""), ...(fases ? { fases } : {}), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio[resultado])) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
       else if (CONFIG.grade) {
         const RB = CONFIG.gradeValores.rebote, gk = def.goleiro; // o rebote de um rebote fica de fora: a chance do rebote é de um lance só
