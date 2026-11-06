@@ -328,10 +328,22 @@ const __grade = (() => {
   const NOME_LADO = ["a saída de bola pela", "o lado $ na faixa dos volantes", "o meio-campo pela", "o lado $ na faixa do meia ofensivo", "o fundo pela"];
   const NOME_CENTRO = ["a saída de bola pelo meio", "o meio, na frente dos volantes", "o meio-campo pelo centro", "a zona 14", "a entrada da área"];
 
-  // Nome para a narração e o analista, visto por quem ataca. deQuem = "defesa": z está nas coordenadas de quem defende.
-  function nomeDaZona(z, deQuem = "ataque") {
+  // Nome curto, só para a narração (dono, 06/11: "a bíblia do gol"): o ge diz "na direita", "no campo de ataque", nunca "o meio-espaço esquerdo na faixa
+  // do meia ofensivo". O meio-espaço só aparece perto da área, como a meia-esquerda/meia-direita do futebol brasileiro.
+  const CURTO_FAIXA = ["a $ da defesa", "a $ do campo de defesa", "a $ do meio-campo", "a $ do ataque", "o fundo, pela $"];
+  const CURTO_CENTRO = ["a saída de bola", "o campo de defesa", "o meio-campo", "a frente da área", "a entrada da área"]; // "zona 14" e "meio-espaço" são do analista, não da narração (dono, 06/11)
+  function nomeCurto(f, c) {
+    if (c === "C") return CURTO_CENTRO[f];
+    const lado = c === "E" || c === "e" ? "esquerda" : "direita";
+    if (c !== "E" && c !== "D" && f >= 3) return f === 3 ? "a meia-" + lado : "a entrada da área, pela " + lado;
+    return CURTO_FAIXA[f].replace("$", lado);
+  }
+
+  // Nome para a narração e o analista, visto por quem ataca. deQuem = "defesa": z está nas coordenadas de quem defende. curto: o da narração
+  function nomeDaZona(z, deQuem = "ataque", curto = false) {
     if (deQuem === "defesa") z = espelhoGrade(z);
     const f = faixaDe(z) - 1, c = corredorDe(z);
+    if (curto) return nomeCurto(f, c);
     if (c === "C") return NOME_CENTRO[f];
     if (c === "e" || c === "d") return "o meio-espaço " + (c === "e" ? "esquerdo " : "direito ") + NOME_FAIXA[f];
     const lado = c === "E" ? "esquerda" : "direita", n = NOME_LADO[f];
@@ -1361,7 +1373,7 @@ const __motor = (() => {
       // perdido por quem é excêntrico; hora, logit no duelo do passo difícil por (Excentricidade − 25)/25 × (Decisões − 25)/25: a Decisões escolhe a hora de arriscar
       baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.6, folga: 0.5, perda: 0.5, hora: 2, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, saiDaLinha: { costas: 0.1, guarda: 1.5, livre: 0.15, bloqueio: 1, cruza: 1 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
       // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
-      conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 8, alto: 30 },
+      conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 5, alto: 30 },
       // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
       poste: { segundo: 0.5, chega: 0.5 },
       chance: { areaMeio: 0.8, xgMeio: 0.75, xgCutback: 0.16, cutback: 0.5, corteMeio: 0.35, enfiada: 1, peInvertido: 0.15, blocoBaixo: 0.15,
@@ -1996,8 +2008,8 @@ const __motor = (() => {
     const f = nm(c.finalizador), cr = nm(c.criador), lado = NOME_LADO[c.lado], q = c.tipo === "area" ? porQueDaChance(c, nm) : { antes: "", depois: "" };
     const cara = CONFIG.grade && c.tipo === "profundidade" ? formaNoCaraACara(c, nm, goleiro, v) : null;
     const inicio = {
-      cruzamento: c.antecipado ? `${cr} ${temPapel(c.criador, "apoiador") ? "sobe pela lateral e " : ""}cruza cedo${c.rasteiro ? `, rasteiro, da ${lado}, e ${f} bate de primeira` : ` da ${lado} e ${f} ${alto}${c.poste === 2 ? " no segundo poste" : ""}`}`
-        : `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} ${alto}${c.poste === 2 ? " no segundo poste" : ""}`}`,
+      cruzamento: c.antecipado ? `${cr} ${temPapel(c.criador, "apoiador") ? "sobe pela lateral e " : ""}cruza cedo${c.rasteiro ? `, rasteiro, da ${lado}, e ${f} bate de primeira` : ` da ${lado} e ${f} ${alto}${c.poste === 2 ? " na segunda trave" : ""}`}`
+        : `${cr} ${temPapel(c.criador, "apoiador") ? "chega ao fundo e " : ""}${c.rasteiro ? `cruza rasteiro da ${lado} e ${f} bate de primeira` : `cruza da ${lado} e ${f} ${alto}${c.poste === 2 ? " na segunda trave" : ""}`}`,
       cutback: c.zona && "ED".includes(c.zona[1]) ? `${cr} vai ao fundo pela ${lado} e rola para trás para ${f}, que ${c.chegou ? "chega de trás e " : ""}finaliza` : `${cr} invade a área pela ${lado} e rola para trás para ${f}, que ${c.chegou ? "chega de trás e " : ""}finaliza`,
       corte: `${f} vem da ${lado} em diagonal e chuta`,
       profundidade: cara || (c.goleiroSaiu ? `${cr} lança em profundidade, ${nm(goleiro)} sai da área e não chega, e ${f} fica com o gol quase vazio` : `${cr} lança em profundidade e ${f} sai na cara do gol`),
@@ -2016,7 +2028,11 @@ const __motor = (() => {
         : noAlvo >= N.boa ? um([`${gk} faz grande defesa!`, `${gk} se estica todo e espalma! Grande defesa!`, `que defesa de ${gk}!`])
         : noAlvo < N.facil ? um([`${gk} defende sem dificuldade.`, `${gk} encaixa sem problemas.`, `fraco, nas mãos de ${gk}.`, `${gk} fica com a bola tranquilo.`])
         : um([`${gk} defende.`, `${gk} segura firme.`, `${gk} faz a defesa.`, `${gk} espalma.`]),
-      fora: "a bola sai pela linha de fundo.",
+      // o chute para fora com as formas do ge (Chape x Mirassol, Barcelona x Aston Villa); a cabeçada e o chute de longe têm as suas
+      fora: ["cruzamento", "escanteio", "falta"].includes(c.tipo) && c.criador !== c.finalizador
+        ? um(["a bola sai pela linha de fundo.", "não pega em cheio e a bola vai para fora.", "por cima do gol!", "passa perto da trave e sai."])
+        : c.tipo === "longe" ? um(["manda longe do gol.", "a bola sai por cima do gol.", "passa à direita do gol.", "passa à esquerda do gol.", "a bola sai pela linha de fundo."])
+        : um(["a bola sai pela linha de fundo.", "pega mal e manda para fora.", "por cima do gol!", "passa perto, mas vai pela linha de fundo.", "a bola sai à direita do gol.", "a bola sai à esquerda do gol."]),
       trave: "na trave!",
       bloqueado: c.zagueiro && !q.antes ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.", // quem se livrou do zagueiro não é bloqueado por ele
     }[resultado];
@@ -2063,6 +2079,9 @@ const __motor = (() => {
     // parcial para a transmissão ao vivo: [posse do mandante em %, faltas do mandante, do visitante, escanteios do mandante, do visitante]
     const parcial = () => [jogados ? Math.round(somaPosse / jogados * 100) : 50, estat[0].faltas, estat[1].faltas, estat[0].escanteios, estat[1].escanteios];
     const nm = jog => `{${jogadores[jog.j.id] ? jogadores[jog.j.id].time : "?"}:${jog.j.nome}}`, tm = i => `{${i}:${times[i].nome}}`;
+    // quem afasta a bola na área, só para o texto (o ge sempre diz o nome): um dos três melhores no jogo aéreo, pelo número do lance, sem sorteio
+    const quemAfasta = (t, v) => { const l = t.emCampo.filter(x => x.pos !== "GK").sort((a, b) => b.at[A.cab] + b.at[A.mar] - a.at[A.cab] - a.at[A.mar]).slice(0, 3);
+      return l.length ? nm(l[v % l.length]) : null; };
     // os cartões esperam o lance da falta ser narrado e saem logo depois dele, já dizendo o motivo
     const pendentes = [];
     const soltarCartoes = () => { while (pendentes.length) { const c = pendentes.shift(); eventos.push({ n: seq++, min, ...(ac ? { ac } : {}), time: c.i, tipo: c.tipo, texto: c.texto, p: parcial() }); } };
@@ -2073,7 +2092,7 @@ const __motor = (() => {
     // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
     const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `pela ${NOME_LADO[l]} do meio-campo`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
     // zona da grade com a preposição: "n" (na zona 14, no meio-espaço…), "pel" (pela/pelo) ou "para " (para a/para o)
-    const naZona = (z, prep = "n") => NA_ZONA[prep + z] || (NA_ZONA[prep + z] = nomeDaZona(z).replace(/^(o|a) /, (_, a) => prep + a + " "));
+    const naZona = (z, prep = "n") => NA_ZONA[prep + z] || (NA_ZONA[prep + z] = nomeDaZona(z, "ataque", true).replace(/^(o|a) /, (_, a) => prep + a + " "));
     const ondeDe = z => ehGrade(z) ? naZona(z) : ONDE[z[0]](z[1]);
     // Todo ataque é narrado passo a passo: os duelos vencidos (saída de bola, meio-campo) ficam na trilha e entram no texto do desfecho.
     // A trilha é uma lista de frases, cada uma com suas orações; "portador" é quem está com a bola, para a narração ligar um
@@ -2118,16 +2137,19 @@ const __motor = (() => {
       const N = CONFIG.gradeValores.narrar, ultimo = ps[ps.length - 1];
       const fica = new Set([...ps.filter(f => f !== ultimo && (f.passo.quebra || (chance && !atras(f)))).slice(1 - (chance ? N.passosChance : N.passos)), ultimo]);
       let roda = ps.filter(f => !fica.has(f) && atras(f)).length >= 3, comBola = null;
-      const viu = new Set();
+      const viu = new Set(), conduz = f => f && f.passo && f.passo.de && f.passo.de === f.passo.para;
+      // conduções seguidas do mesmo jogador: só a última fica no texto ("X conduz… X conduz… X conduz…" era o mesmo lance contado três vezes)
       return t.flatMap(f => {
         // a frase sem passo que diz de quem é a bola (o cruzamento afastado): o passo que devolveu a ele pode ter sido cortado
         if (!f.passo) { const l = f.de && comBola && comBola !== f.de ? [[`A bola ${viu.has(f.de) ? "volta para" : "chega a"} ${f.de}`]] : []; if (f.de) comBola = null; return [...l, f]; }
         if (!fica.has(f)) { if (!roda || !atras(f)) return []; roda = false; comBola = null; return [[RODA_ATRAS[seq % RODA_ATRAS.length](tm(atacante))]]; }
-        const { de, para } = f.passo, liga = comBola && de && comBola !== de ? [[`A bola ${viu.has(de) ? "volta para" : "chega a"} ${de}`]] : [];
+        const { de, para } = f.passo, liga = comBola && de && comBola !== de ? `A bola ${viu.has(de) ? "volta para" : "chega a"} ${de}` : null;
         if (de) viu.add(de); if (para) viu.add(para);
         comBola = para || null;
-        return [...liga, f];
-      });
+        // "A bola chega a X. X acha Y" fica numa frase só: "A bola chega a X, que acha Y"
+        if (liga && f[0].startsWith(de + " ") && !f[0].includes(", que ")) return [Object.assign([`${liga}, que ${f[0].slice(de.length + 1)}`, ...f.slice(1)], { passo: f.passo })];
+        return [...(liga ? [[liga]] : []), f];
+      }).filter((f, k, r) => !(conduz(f) && conduz(r[k + 1]) && r[k + 1].passo.de === f.passo.de));
     }
     // na grade, por partida (os valores não mudam no meio do jogo): o xT de cada zona e a dificuldade de cada opção de cada zona
     const XT = CONFIG.grade ? ZONAS_GRADE.map(z => valorDaZona(z, CONFIG.gradeValores)) : null, DIFICULDADES = {};
@@ -2148,7 +2170,24 @@ const __motor = (() => {
     // na grade, a bola é do goleiro: o próximo ataque é do time dele e começa por ele (tiro de meta ou a bola nas mãos)
     const reposicao = (time, tipo) => { proximo = { time, zona: "D" }; repor = { time, tipo }; };
     let fases = null; // na grade, as frases do último texto narrado, na ordem, com o desfecho por último (o ao vivo solta uma por vez)
-    const comTrilha = (texto, chance = false) => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const fr = (CONFIG.grade ? enxuta(trilha, chance || perigo) : trilha).map(frase); fases = CONFIG.grade ? [...fr, texto] : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
+    // quem acabou de receber e é o sujeito da frase seguinte vira "O atacante", como no ge ("rola para Bolasie. O atacante finaliza"): o nome não se repete
+    const DESCRICAO = { GK: "goleiro", DC: "zagueiro", SW: "líbero", LAT: "lateral", ALA: "ala", DMC: "volante", MC: "meio-campista", AMC: "meia", MLAT: "meia", AMLAT: "meia", PONTA: "ponta", FC: "atacante", SC: "centroavante" };
+    const descricao = n => { for (const t of times) { const x = t.emCampo.find(j => nm(j) === n); if (x) return "O " + DESCRICAO[POSICOES[x.pos].papel]; } return n; };
+    // vale quando ele recebeu no fim da frase anterior ou era o sujeito dela; duas frases seguidas com a mesma descrição (dois meias) voltam ao nome
+    const semRepetir = partes => {
+      const p = partes.join("\u0001").split(/(\. |\u0001)(?![^{]*\})/); // frases e separadores alternados; o ". " de dentro de um nome não separa
+      let antes = null;
+      for (let k = 0; k < p.length; k += 2) {
+        const ts = p[k].match(/\{[0-9?]:[^{}]+\}/g) || [], n = ts[0], sujeito = !!n && p[k].startsWith(n + " ");
+        let usou = null;
+        if (antes && sujeito && (n === antes.ultimo || (n === antes.primeiro && antes.sujeito))) {
+          const d = descricao(n); if (d !== n && d !== antes.usou) { p[k] = d + p[k].slice(n.length); usou = d; }
+        }
+        antes = { primeiro: n, ultimo: ts[ts.length - 1], sujeito, usou };
+      }
+      return p.join("").split("\u0001");
+    };
+    const comTrilha = (texto, chance = false) => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const partes = semRepetir([...(CONFIG.grade ? enxuta(trilha, chance || perigo) : trilha).map(frase), texto]), fr = partes.slice(0, -1); texto = partes[partes.length - 1]; fases = CONFIG.grade ? partes : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
     // rota do lance para a animação: [zona, quem leva a bola, marcador vencido] por passo; vai junto da finalização
     const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
     // a bola chega a "jog": se estava com outro, o passe entra na frase anterior; devolve true se o jogador já era o portador
@@ -2157,7 +2196,9 @@ const __motor = (() => {
       if (jog && portador && !mesmo && aposFalta) trilha.push([`${nm(portador)} cobra a falta e aciona ${nm(jog)}`]);
       else if (jog && portador && !mesmo && trilha.length) {
         const ultima = trilha[trilha.length - 1];
-        if (ultima.fechada) trilha.push([`${nm(portador)} toca para ${nm(jog)}`]); else ultima.push(`toca para ${nm(jog)}`);
+        // a frase do passe tem quem passou como sujeito: "e toca para" daria o toque a ele ("X toca para Y e toca para Z"), então vira outra frase
+        const outro = ultima.passo && ultima.passo.para && ultima.passo.para !== ultima.passo.de;
+        if (ultima.fechada || outro) trilha.push([`${nm(portador)} toca para ${nm(jog)}`]); else ultima.push(`toca para ${nm(jog)}`);
       }
       portador = jog || null; aposFalta = false;
       return mesmo;
@@ -2290,8 +2331,10 @@ const __motor = (() => {
       const repeticao = CONFIG.amareloPrimeiraFalta + CONFIG.amareloPorFaltaAntes * (s.faltas - 1), segura = marcador.amarelos ? CONFIG.cuidadoComAmarelo * (min <= 45 ? CONFIG.segundoAmareloPrimeiroTempo : 1) : 1;
       if (!rng.chance(tipo === "tatica" ? CONFIG.faltaNaPerda.amarelo : CONFIG.amarelo * (1 + CONFIG.amareloPorAgressividade * t.instr.agressividade) * repeticao * segura)) return;
       marcador.amarelos++; s.amarelos++; estat[i].amarelos++;
-      if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)}: está expulso!`);
-      cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)}.`);
+      // o cartão diz a falta, como o ge ("Cartão amarelo para X por falta em Y"); a falta tática diz o que parou
+      const motivo = !vitima ? "" : tipo === "tatica" ? `, que para o contra-ataque com falta em ${nm(vitima)}` : ` por falta em ${nm(vitima)}`;
+      if (marcador.amarelos >= 2) return expulsar(i, marcador, `Segundo amarelo para ${nm(marcador)}${motivo && !motivo.startsWith(",") ? "," + motivo : motivo}: está expulso!`);
+      cartao(i, "amarelo", `Cartão amarelo para ${nm(marcador)}${motivo}.`);
     }
     function expulsar(i, jog, texto) {
       estat[i].vermelhos++; jogadores[jog.j.id].vermelho = true;
@@ -2447,7 +2490,8 @@ const __motor = (() => {
           const GC = CONFIG.gradeValores.golContra, zg = sortearPeso(rng, def.emCampo.filter(x => x.pos !== "GK"), x => x.at[A.cab] + x.at[A.mar]);
           if (zg && rng.chance(GC.escanteio * GC.referencia / Math.max(5, zg.at[A.pos]))) return golSemChute(i, zg, "golcontra", `${nm(quem)} cobra o escanteio e ${nm(zg)} desvia contra o próprio gol: GOL contra!`);
         }
-        portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e a zaga afasta.`));
+        const af = quemAfasta(def, seq);
+        portador = null; evento(i, "posse", comTrilha(`${nm(quem)} ${tipo === "escanteio" ? "cobra o escanteio" : "levanta a falta na área"} e ${!af ? "a zaga afasta" : seq % 2 ? `${af} afasta de cabeça` : `${af} é quem afasta`}.`));
         if (frente && rng.chance(R5.chance)) sairNoContra(1 - i, { origem: "E", razao: R5.razao }, `A bola sobra para ${nm(frente)}, que tinha ficado lá na frente, e o ${tm(1 - i)} sai em contra-ataque.`);
         return;
       }
@@ -2691,12 +2735,13 @@ const __motor = (() => {
           // o zagueiro que saiu da linha para o bote fora da área e foi batido não volta à área neste ataque (nos passos, volta como qualquer batido) e abre
           // a bola nas costas
           if (m && m.pos === "DC" && +Z[0] <= 4) { if (!foraDaLinha.has(m)) { foraDaLinha.add(m); buracos.profundidade = (buracos.profundidade ?? 1) * (1 + G.saiDaLinha.costas); } }
-          const supera = !m ? null : leva && facil && dribleNarrado(p.at, nm(m), seq) || (facil ? `deixa ${nm(m)} para trás${deNovo} com facilidade` : `passa por ${nm(m)}${deNovo}`);
+          // o marcador vencido só entra no texto quando conta (com folga, ou na entrada da área, a faixa 5): o ge não narra cada duelo ganho (dono, 02/11 e 06/11)
+          const supera = !m || !(facil || faixaDe(Z) >= 5) ? null : leva && facil && dribleNarrado(p.at, nm(m), seq) || (facil ? `deixa ${nm(m)} para trás${deNovo} com facilidade` : `passa por ${nm(m)}${deNovo}`);
           const cobra = aposFalta ? (leva ? "cobra a falta rápido e " : "cobra a falta e ") : "";
           const escora = th === 1 && o.tipo === "voltar" && p !== de; // a volta de primeira depois do passe apertado: tabela, ou o terceiro homem
           const N = G.narrar, efeito = escora && de.at[A.exc] >= N.alto && de.at[A.dom] >= N.alto - 3 && seq % 2 ? `dá de calcanhar para ${R}` : escora && p !== parA && seq % 3 === 0 ? `faz o corta-luz e a bola chega a ${R}` : null;
-          const t = !de ? `${R} recebe ${naZona(Z)}` : o.frase ? `${P} ${o.frase} ${R}` : o.entre ? (o.recuou ? `${R} recua entre as linhas e recebe de ${P} ${naZona(Z)}` : `${P} ${cobra}acha ${R} entre as linhas ${naZona(Z)}`) : o.espaco ? (contra && "ED".includes(Z[1]) && POSICOES[p.pos].lado === "C" ? `${P} ${cobra}lança ${R}, que abre nas costas do lateral, ${naZona(Z)}` : `${P} ${cobra}lança ${R} no espaço, ${naZona(Z)}`) : leva ? `${P} ${cobra}${o.conduzir ? "conduz" : "segue com a bola"} ${naZona(Z, "pel")}`
-            : `${P} ${cobra}` + ({ voltar: !escora ? `recua para ${R}` : seg ? `segura de costas e escora para a passagem de ${R}` : efeito || (p === parA ? `tabela com ${R}` : `deixa de primeira para ${R}`), lado: `toca de lado para ${R}`, virada: `vira o jogo para ${R}, ${naZona(Z)}`, pular: `lança por cima da linha para ${R}, ${naZona(Z)}`, inversao: `inverte para ${R}, ${naZona(Z)}` }[o.tipo] || `acha ${R} ${naZona(Z)}`);
+          const t = !de ? `${R} recebe ${naZona(Z)}` : o.frase ? `${P} ${o.frase} ${R}` : o.entre ? (o.recuou ? `${R} volta para buscar e recebe de ${P} ${naZona(Z)}` : `${P} ${cobra}acha ${R} nas costas dos volantes, ${naZona(Z)}`) : o.espaco ? (contra && "ED".includes(Z[1]) && POSICOES[p.pos].lado === "C" ? `${P} ${cobra}lança ${R}, que abre nas costas do lateral, ${naZona(Z)}` : `${P} ${cobra}lança ${R} no espaço, ${naZona(Z)}`) : leva ? `${P} ${cobra}${o.conduzir ? "conduz" : "segue com a bola"} ${naZona(Z, "pel")}`
+            : `${P} ${cobra}` + ({ voltar: !escora ? `recua para ${R}` : seg ? `segura de costas e escora para a passagem de ${R}` : efeito || (p === parA ? `tabela com ${R}` : `deixa de primeira para ${R}`), lado: `toca de lado para ${R}`, virada: `vira o jogo para ${R}, ${naZona(Z)}`, pular: `lança para ${R}, ${naZona(Z)}`, inversao: `inverte para ${R}, ${naZona(Z)}` }[o.tipo] || `acha ${R} ${naZona(Z)}`);
           // quebrou linha: o lançamento, a virada e a inversão; a subida e a diagonal ganhas com folga
           const quebra = ["pular", "virada", "inversao"].includes(o.tipo) || ((o.tipo === "subir" || o.tipo === "diagonal") && facil) || dentro || escora || !!o.espaco || !!o.entre || !!o.frase; // o papel também se conta
           // quem leva a bola: o drible é outra oração ("conduz…, passa por M e toca para…"); no passe, quem recebe ("acha R…, que passa por M")
@@ -2721,7 +2766,7 @@ const __motor = (() => {
         function fimDaChance(c) {
           if (c.tipo === "cruzamento") { eg.cruzamentos[0]++; if (!c.errado) eg.cruzamentos[1]++; }
           if (!c.errado) return finalizar(i, c);
-          const cr = nm(c.criador), ld = NOME_LADO[c.lado], zg = c.zagueiro ? nm(c.zagueiro) : "a zaga", gk = def.goleiro;
+          const cr = nm(c.criador), ld = NOME_LADO[c.lado], zg = c.zagueiro ? nm(c.zagueiro) : quemAfasta(def, seq) || "a zaga", gk = def.goleiro;
           if (!c.vazia && rng.chance(CONFIG.gradeValores.chance.cruzamento.escanteio)) { recebe(c.criador); evento(1 - i, "canto", comTrilha(`${cr} cruza da ${ld}, ${zg} corta e cede o escanteio.`)); return bolaParada(i, "escanteio", c.lado); }
           const GC = G.golContra;
           if (!c.vazia && c.zagueiro && rng.chance(GC.cruzamento * GC.referencia / Math.max(5, c.zagueiro.at[A.pos]))) { recebe(c.criador); return golSemChute(i, c.zagueiro, "golcontra", `${cr} cruza da ${ld}, ${zg} tenta cortar e manda contra o próprio gol: GOL contra!`); }
@@ -2731,7 +2776,7 @@ const __motor = (() => {
           const seguro = !sai || rng.chance(1 / (1 + Math.exp(-(SA.base + SA.forca * (gk.at[A.for] - forte) / 25)))), solta = !seguro && rng.chance(SA.solta * gk.at[A.exc] / 25);
           if (sai) eg.saidasAlto[seguro ? 0 : solta ? 2 : 1]++;
           const afasta = c.vazia || n === 0 || (n === 1 && !gk) || (sai && !seguro);
-          const fim = c.vazia ? "mas não tem ninguém na área e a zaga afasta" : solta ? `e ${nm(gk)} sai, leva o tranco na disputa e solta a bola` : sai && !seguro ? `e ${nm(gk)} sai no meio da disputa e soca para longe`
+          const fim = c.vazia ? `mas não tem ninguém na área e ${zg} afasta` : solta ? `e ${nm(gk)} sai, leva o tranco na disputa e solta a bola` : sai && !seguro ? `e ${nm(gk)} sai no meio da disputa e soca para longe`
             : [`e ${zg} afasta`, gk ? `e ${nm(gk)} sai para ficar com a bola` : `e ${zg} afasta`, "e a bola passa por todo mundo"][n];
           const texto = `${cr} ${temPapel(c.criador, "apoiador") ? (c.antecipado ? "sobe pela lateral e " : "chega ao fundo e ") : ""}${c.antecipado ? "cruza cedo" : "cruza"} da ${ld}, ${fim}`;
           if (solta) { trilha.push([texto]); if (rebote(i, c, false)) return; }

@@ -37,9 +37,9 @@ console.log(`teste_passe_espaco: ok (${base.r[0]} passes, ${(100 * taxa(base.r))
   for (let s = 0; s < 20; s++) {
     const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: onze(300 + s, "4-4-2") }), prepararTime({ nome: "B", escalacao: onze(400 + s, "4-2-3-1") }), { registro: reg });
     for (const x of reg) if (x[1] !== "fim" && x[8] === "entre") { n++; assert.ok(["4e", "4C", "4d"].includes(x[2]), `entrelinhas só na faixa 4 por dentro: ${x[2]}`); assert.notEqual(x[4], x[5]); }
-    recuou ||= p.narracao.some(l => /recua entre as linhas e recebe de/.test(l.texto));
+    recuou ||= p.narracao.some(l => /volta para buscar e recebe de/.test(l.texto));
   }
   assert.ok(n >= 10, `o 4-4-2 joga entrelinhas: ${n} em 20 jogos`); // ~1 por jogo hoje (20 a 27), o teste só prova que existe; o volume vai à revisão das mecânicas
-  assert.ok(recuou, "a narração conta o 9 que recua entre as linhas");
+  assert.ok(recuou, "a narração conta o 9 que volta para buscar (recua entre as linhas)");
   console.log(`teste_passe_espaco: entrelinhas ok (${n} em 20 jogos do 4-4-2)`);
 }

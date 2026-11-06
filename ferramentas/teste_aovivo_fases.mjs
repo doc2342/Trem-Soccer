@@ -85,7 +85,7 @@ const gol = (n, min, s) => linha(n, min, s, { resultado: "gol", quem: "B", texto
 // no motor (só na grade)
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const time = (f, s, m) => prepararTime({ nome: "T" + s, escalacao: gerarOnze(criarRng(s), FORMACOES[f], { nivel: 30, nomes, prefixoId: "p" + s + "_" }).map(x => ({ j: x, pos: x.pos, ...x })), banco: [], instrucoes: {}, mandante: m, prevencao: 0 });
-const NOME = "\\{[01]:[^}]+\\}", PASSA = new RegExp(`^(${NOME}) (?:inverte para|acha|vira o jogo para|lança por cima da linha para) (${NOME})`);
+const NOME = "\\{[01]:[^}]+\\}", PASSA = new RegExp(`^(${NOME}) (?:inverte para|acha|vira o jogo para|lança para) (${NOME})`);
 let tabela = 0, escora = 0, morre = 0, pulos = 0, formas = { gol: 0, outro: 0 }, longos = 0;
 for (let s = 1; s <= 300; s++) {
   const p = simularPartida(criarRng(s), time("4-2-3-1", s * 2, true), time("4-4-2", s * 2 + 1, false), { regrasT1: true });

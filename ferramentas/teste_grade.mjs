@@ -28,6 +28,11 @@ assert.strictEqual(nomeDaZona("5C"), "a entrada da área");
 assert.strictEqual(nomeDaZona("1D"), "a saída de bola pela direita");
 assert.strictEqual(nomeDaZona("2C", "defesa"), "a zona 14"); // a faixa 2 de quem defende é a 4 de quem ataca
 for (const z of ZONAS_GRADE) assert.ok(nomeDaZona(z) && !nomeDaZona(z).includes("meia-lua"), z);
+// o nome curto da narração (06/11): o meio-espaço só perto da área; sempre com artigo, que o motor troca por "no/na/pelo/pela"
+assert.strictEqual(nomeDaZona("4d", "ataque", true), "a meia-direita");
+assert.strictEqual(nomeDaZona("2e", "ataque", true), "a esquerda do campo de defesa");
+assert.strictEqual(nomeDaZona("5E", "ataque", true), "o fundo, pela esquerda");
+for (const z of ZONAS_GRADE) assert.ok(/^(o|a) /.test(nomeDaZona(z, "ataque", true)), z);
 
 const nove = paraNoveZonas(Object.fromEntries(ZONAS_GRADE.map(z => [z, 1])));
 assert.deepStrictEqual(Object.keys(nove).sort(), ZONAS.slice().sort());

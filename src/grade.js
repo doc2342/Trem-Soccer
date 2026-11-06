@@ -37,10 +37,22 @@ const NOME_FAIXA = ["na saída de bola", "na faixa dos volantes", "no meio-campo
 const NOME_LADO = ["a saída de bola pela", "o lado $ na faixa dos volantes", "o meio-campo pela", "o lado $ na faixa do meia ofensivo", "o fundo pela"];
 const NOME_CENTRO = ["a saída de bola pelo meio", "o meio, na frente dos volantes", "o meio-campo pelo centro", "a zona 14", "a entrada da área"];
 
-// Nome para a narração e o analista, visto por quem ataca. deQuem = "defesa": z está nas coordenadas de quem defende.
-export function nomeDaZona(z, deQuem = "ataque") {
+// Nome curto, só para a narração (dono, 06/11: "a bíblia do gol"): o ge diz "na direita", "no campo de ataque", nunca "o meio-espaço esquerdo na faixa
+// do meia ofensivo". O meio-espaço só aparece perto da área, como a meia-esquerda/meia-direita do futebol brasileiro.
+const CURTO_FAIXA = ["a $ da defesa", "a $ do campo de defesa", "a $ do meio-campo", "a $ do ataque", "o fundo, pela $"];
+const CURTO_CENTRO = ["a saída de bola", "o campo de defesa", "o meio-campo", "a frente da área", "a entrada da área"]; // "zona 14" e "meio-espaço" são do analista, não da narração (dono, 06/11)
+function nomeCurto(f, c) {
+  if (c === "C") return CURTO_CENTRO[f];
+  const lado = c === "E" || c === "e" ? "esquerda" : "direita";
+  if (c !== "E" && c !== "D" && f >= 3) return f === 3 ? "a meia-" + lado : "a entrada da área, pela " + lado;
+  return CURTO_FAIXA[f].replace("$", lado);
+}
+
+// Nome para a narração e o analista, visto por quem ataca. deQuem = "defesa": z está nas coordenadas de quem defende. curto: o da narração
+export function nomeDaZona(z, deQuem = "ataque", curto = false) {
   if (deQuem === "defesa") z = espelhoGrade(z);
   const f = faixaDe(z) - 1, c = corredorDe(z);
+  if (curto) return nomeCurto(f, c);
   if (c === "C") return NOME_CENTRO[f];
   if (c === "e" || c === "d") return "o meio-espaço " + (c === "e" ? "esquerdo " : "direito ") + NOME_FAIXA[f];
   const lado = c === "E" ? "esquerda" : "direita", n = NOME_LADO[f];
