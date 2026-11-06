@@ -2017,8 +2017,32 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 /* a régua do Mercado (.t-regua:not(.t-regua-grande): 1fr auto) pegava também a régua do jogo do Vestiário da Central */
 .t-vest-regua .t-regua { grid-template-columns:repeat(auto-fit, minmax(min(100%, 220px), 1fr)); text-align:left; align-items:stretch; }
 .t-rel-abas { display:flex; flex-wrap:wrap; gap:0 28px; }
-.t-rel-reprise .lance { border-bottom:1px solid var(--t-fio); padding:8px 0; margin:0; font-size:14px; }
-.t-rel-reprise .lance.gol { background:var(--t-placa); font-weight:700; padding-left:8px; padding-right:8px; box-shadow:inset 3px 0 var(--t-marca); }
+/* lances em balão (ideia do ge, 06/11): cada lance num card arredondado; gol, cartão e substituição com rosto (ui-relatorio.js, cardDoLance) */
+.t-rel-reprise { display:flex; flex-direction:column; gap:8px; }
+.t-rel-reprise .lance { background:var(--t-celula); border:1px solid var(--t-fio); border-radius:12px; padding:10px 14px; margin:0; font-size:14px; }
+.t-rel-reprise .lance.posse, .t-rel-reprise .lance.roda, .t-rel-reprise .lance.falta, .t-rel-reprise .lance.canto { padding:6px 14px; background:transparent; }
+.t-bal { display:block; position:relative; overflow:hidden; }
+.t-bal p { margin:6px 0 0; line-height:1.4; }
+.t-bal-min { display:block; font:800 13px/1 var(--t-letra); color:var(--t-tinta2); } .t-bal-min small { margin-left:4px; font-size:11px; font-weight:600; }
+.t-bal-quem b { display:block; font:800 15px/1.15 var(--t-letra); } .t-bal-quem b span { margin-right:6px; opacity:.6; } .t-bal-quem small { color:var(--t-tinta2); font-size:12.5px; }
+.t-bal-linha { display:flex; align-items:center; gap:10px; margin-top:8px; }
+.t-bal-linha .t-mom-redondo { width:48px; height:48px; flex:none; } .t-bal-linha .t-bal-quem { flex:1; min-width:0; }
+.t-bal-esc { margin-left:-22px; align-self:flex-end; } .t-bal-cartao .t-mom-cartao { flex:none; border-radius:2px; transform:rotate(8deg); }
+.t-bal-sub { width:46px; font:900 11px/1 var(--t-letra); text-transform:uppercase; letter-spacing:.04em; }
+.t-bal-entra .t-bal-sub { color:var(--t-ok); } .t-bal-sai .t-bal-sub { color:var(--t-marca); } .t-bal-sai .t-mom-redondo, .t-bal-sai .t-bal-quem { opacity:.5; filter:grayscale(1); }
+.t-rel-reprise .lance.t-bal-gol { background:var(--c); color:#fff; border:0; padding:16px 18px 18px; min-height:150px; font-weight:400; }
+.t-bal-gol .t-bal-fundo { position:absolute; right:-24px; top:50%; transform:translateY(-50%); opacity:.16; pointer-events:none; }
+.t-bal-gol .t-bal-corpo { position:relative; max-width:calc(100% - 120px); }
+.t-bal-gol .t-bal-min, .t-bal-gol .t-bal-quem small { color:rgba(255,255,255,.75); }
+.t-bal-tit { display:block; margin-top:8px; font:900 24px/1.05 var(--t-letra); font-stretch:75%; text-transform:uppercase; }
+.t-bal-gol .nm, .t-bal-gol .nm a { color:#fff !important; font-weight:700; } .t-bal-gol .t-bal-quem { margin-top:10px; } .t-bal-gol .t-bal-quem a { color:#fff; }
+.t-bal-foto { position:absolute; right:10px; bottom:0; width:120px; } .t-bal-foto svg { display:block; width:100%; height:auto; }
+@media (max-width:560px) and (pointer:coarse) { .t-bal-gol .t-bal-corpo { max-width:calc(100% - 84px); } .t-bal-foto { width:88px; } .t-bal-tit { font-size:20px; } }
+/* a escalação: quem saiu fica apagado com a seta vermelha; quem entrou, a seta verde e o gol / cartão que fez */
+.t-rel-saiu .t-st-cam svg, .t-rel-saiu > b { opacity:.55; }
+.t-rel-campo .t-st-cam i.t-rel-s-sai { left:auto; right:-16px; bottom:-2px; color:var(--t-marca); font:900 11px/1 var(--t-letra); }
+.t-rel-s-entra { color:var(--t-ok); font-style:normal; font-size:11px; } .t-rel-e-gol { display:inline-flex; align-items:center; gap:2px; font:800 11px var(--t-letra); font-style:normal; vertical-align:-2px; }
+.t-rel-e-cartao { display:inline-block; width:8px; height:11px; vertical-align:-1px; }
 .t-rel-reprise [data-todos] { margin:0 0 12px !important; }
 /* o vestiário */
 .t-rel-analistas { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 480px), 1fr)); gap:32px 48px; }

@@ -262,11 +262,41 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
       <p class="t-rel-xg">xG <b>${f2(r.xg[0])} × ${f2(r.xg[1])}</b> · pontos esperados <b>${f2(E.pontos[0])} × ${f2(E.pontos[1])}</b></p>
       ${m ? `<div class="t-rel-melhor"><div><div class="t-numero-rotulo">Melhor em campo</div><b>${linkJogador(m.nome, m.nome, m.time)}</b><span>${esc(nomes[m.time])}</span></div><em>${f1(m.nota)}</em></div>` : ""}
       ${extras ? `<div class="t-faixa-numeros">${extras}</div>` : ""}</div></section>`;
+  // lances em balão (ideia do ge, dono 06/11): o gol num card grande na cor do clube, com o rosto sobre o escudo apagado; o cartão com o rosto,
+  // o nome e a posição; a substituição em par ENTRA / SAI. Os outros lances seguem no htmlLance (o CSS os põe em balão branco).
+  const doTime = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
+  const rostoDe = (j, i, extra) => j && rostos && rostos[j.id] ? rostoDoJogador(rostos[j.id], U[i], extra) : "";
+  const quemE = (nome, i) => { const j = doTime(nome, i), num = j && numeros && numeros[i] && numeros[i](nome);
+    return `<div class="t-bal-quem"><b>${num ? `<span>${esc(num)}</span>` : ""}${linkJogador(nome, nome, i)}</b>${j && POSICOES[j.pos] ? `<small>${esc(POSICOES[j.pos].nome)}</small>` : ""}</div>`; };
+  const tempo = l => `${minDoLance(l)}'<small>${l.min > 120 ? "" : l.min > 90 ? "Pr" : l.min > 45 ? "2T" : "1T"}</small>`;
+  const texto = t => /\{[01?]:/.test(t) ? textoColorido(t) : esc(t);
+  const cardDoLance = l => {
+    const i = l.time, nm = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
+    if (i !== 0 && i !== 1) return "";
+    if (l.resultado === "gol") {
+      const contra = /\(contra\)$/.test(l.quem || ""), nome = (l.quem || "").replace(/ \(contra\)$/, ""), k = contra ? 1 - i : i, j = doTime(nome, k);
+      return `<div class="lance gol t-bal t-bal-gol" style="--c:${tinta(i, i ? "#5b6170" : "#8a1c35")}"><div class="t-bal-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 180)}</div>
+        <div class="t-bal-corpo"><span class="t-bal-min">${tempo(l)}</span><b class="t-bal-tit">${esc(tituloDoLance(l, nomes))}</b><p>${texto(l.texto)}</p>${nome ? quemE(nome, k) : ""}</div>${rostoDe(j, k) ? `<div class="t-bal-foto">${rostoDe(j, k)}</div>` : ""}</div>`;
+    }
+    if ((l.tipo === "amarelo" || l.tipo === "vermelho") && nm) {
+      const j = doTime(nm[1], i), am = l.tipo === "amarelo" && !/^Segundo amarelo/.test(l.texto || "");
+      return `<div class="lance ${l.tipo} t-bal t-bal-cartao"><span class="t-bal-min">${tempo(l)}</span><div class="t-bal-linha"><div class="t-mom-redondo">${rostoDe(j, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>
+        <div class="t-bal-esc">${svgEscudo(C[i].escudo, C[i].sigla, 22)}</div>${quemE(nm[1], i)}<i class="t-mom-cartao${am ? "" : " t-mom-verm"}"></i></div><p>${texto(l.texto)}</p></div>`;
+    }
+    if (l.tipo === "substituicao") {
+      const m = /^Sai \{\d:([^{}]+)\}, entra \{\d:([^{}]+)\}/.exec(l.texto || ""), m2 = /^Entra \{\d:([^{}]+)\} no lugar de \{\d:([^{}]+)\}/.exec(l.texto || "");
+      const [entra, sai] = m ? [m[2], m[1]] : m2 ? [m2[1], m2[2]] : [];
+      if (!entra) return "";
+      const linha = (nome, cls, rot) => `<div class="t-bal-linha ${cls}"><b class="t-bal-sub">${rot}</b><div class="t-mom-redondo">${rostoDe(doTime(nome, i), i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quemE(nome, i)}</div>`;
+      return `<div class="lance substituicao t-bal t-bal-troca"><span class="t-bal-min">${tempo(l)} · ${esc(nomes[i])}</span>${linha(entra, "t-bal-entra", "Entra")}${linha(sai, "t-bal-sai", "Sai")}</div>`;
+    }
+    return "";
+  };
   // capítulo 2: o jogo contado — gráficos, a reprise e os números lado a lado
   const regua = `<div class="t-regua-cab"><span>${n[0]}</span><span>${n[1]}</span></div><div class="t-regua t-rel-regua">${NUMEROS_DO_JOGO.map(([nome, f, v = f]) => {
     const a = +v(r.estat[0]) || 0, b = +v(r.estat[1]) || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (x, maior) => maior ? `<b>${x}</b>` : `<span>${x}</span>`;
     return `<div class="t-regua-linha" style="--nos:${pct}%">${lado(f(r.estat[0]), a > b)}<span class="t-regua-nome">${nome}</span>${lado(f(r.estat[1]), b > a)}</div>`; }).join("")}</div>`;
-  const lances = `<section class="t-secao t-rel-reprise" data-aba="lances">${rotulo("Lance a lance")}${abertura}${r.narracao.map(l => htmlLance(l, nomes)).join("")}</section>`;
+  const lances = `<section class="t-secao t-rel-reprise" data-aba="lances">${rotulo("Lance a lance")}${abertura}${r.narracao.map(l => cardDoLance(l) || htmlLance(l, nomes)).join("")}</section>`;
   const jogo = `<section class="t-secao t-rel-jogo" data-aba="graf">${clubes ? htmlGraficos(r.narracao, clubes) : ""}<div class="t-rel-numeros">${rotulo("Números")}${regua}</div></section>`;
   // capítulo 3: o vestiário — o analista de cada lado (o do dirigente primeiro) com o campo dos duelos e as ordens; depois como cada um saiu
   const ordem = meu === 1 ? [1, 0] : [0, 1];
@@ -280,11 +310,11 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
       <div>${lead ? `<p class="t-rel-lead">${destacar(lead)}</p>` : ""}<ul class="t-rel-frases">${resto.map(f => `<li>${destacar(f)}</li>`).join("")}</ul>${ordens && ordens[i] ? ordensNovas(ordens[i]) : ""}${(diretoria && diretoria[i]) || ""}</div></div></article>`; };
   // como cada um saiu: o campinho com a camisa do jogo e a nota; quem entrou embaixo
   const cor = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
-  const sinais = j => `${j.gols ? `<i class="t-rel-s-gol">${j.gols > 1 ? j.gols : ""}</i>` : ""}${j.vermelho ? `<i class="t-rel-s-verm"></i>` : j.amarelos ? `<i class="t-rel-s-am"></i>` : ""}${j.lesionado ? `<i class="t-rel-s-les">+</i>` : ""}`;
-  const naCamisa = (j, i) => `<div class="t-st-s"><span class="t-st-cam">${svgCamisa(j.pos === "GK" ? {} : U[i], 42, false, { numero: (numeros && numeros[i] && numeros[i](j.nome)) || "" })}<em class="${cor(j.nota)}">${f1(j.nota)}</em>${sinais(j)}</span><b>${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0], j.time)}</b><small>${esc(sg(j.pos))}${j.saiu != null && !j.vermelho ? ` · saiu ${j.saiu}'` : ""}</small></div>`;
+  const sinais = j => `${j.gols ? `<i class="t-rel-s-gol">${j.gols > 1 ? j.gols : ""}</i>` : ""}${j.vermelho ? `<i class="t-rel-s-verm"></i>` : j.amarelos ? `<i class="t-rel-s-am"></i>` : ""}${j.lesionado ? `<i class="t-rel-s-les">+</i>` : ""}${j.saiu != null && !j.vermelho ? `<i class="t-rel-s-sai" title="Saiu aos ${j.saiu}'">▼</i>` : ""}`;
+  const naCamisa = (j, i) => `<div class="t-st-s${j.saiu != null && !j.vermelho ? " t-rel-saiu" : ""}"><span class="t-st-cam">${svgCamisa(j.pos === "GK" ? {} : U[i], 42, false, { numero: (numeros && numeros[i] && numeros[i](j.nome)) || "" })}<em class="${cor(j.nota)}">${f1(j.nota)}</em>${sinais(j)}</span><b>${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0], j.time)}</b><small>${esc(sg(j.pos))}${j.saiu != null && !j.vermelho ? ` · saiu ${j.saiu}'` : ""}</small></div>`;
   const campinho = i => { const { tit, res } = timeDoRelatorio(r, i);
     return `<div><div class="t-cal-dia">${n[i]}</div><div class="t-st-campo t-rel-campo"><i class="t-st-area"></i><i class="t-st-area t-st-baixo"></i><i class="t-st-meio"></i>${ALTURA_DA_FAIXA.map((alt, k) => (ps => !ps.length ? "" : `<div class="t-st-linha" style="top:calc(${alt}% - ${alt / 2}px)">${ps.sort((a, b) => ladoNoCampo(a.pos) - ladoNoCampo(b.pos)).map(j => naCamisa(j, i)).join("")}</div>`)(tit.filter(j => faixaNoCampo(j.pos) === k))).join("")}</div>
-      ${res.length ? `<div class="t-rel-entraram"><span class="t-numero-rotulo">Entraram</span>${res.map(j => `<span>${linkJogador(j.nome, j.nome, j.time)} <small>${esc(sg(j.pos))} · ${j.entrou}'</small> <b class="${cor(j.nota)}">${f1(j.nota)}</b></span>`).join("")}</div>` : ""}</div>`; };
+      ${res.length ? `<div class="t-rel-entraram"><span class="t-numero-rotulo">Entraram</span>${res.map(j => `<span><i class="t-rel-s-entra">▲</i> ${linkJogador(j.nome, j.nome, j.time)} <small>${esc(sg(j.pos))} · ${j.entrou}'</small> <b class="${cor(j.nota)}">${f1(j.nota)}</b>${j.gols ? ` <i class="t-rel-e-gol">${svgBola(13)}${j.gols > 1 ? j.gols : ""}</i>` : ""}${j.vermelho ? ` <i class="t-mom-cartao t-mom-verm t-rel-e-cartao"></i>` : j.amarelos ? ` <i class="t-mom-cartao t-rel-e-cartao"></i>` : ""}</span>`).join("")}</div>` : ""}</div>`; };
   const cab = `<tr><th>Pos</th><th class="t-esq">Jogador</th><th>Nota</th><th>Min</th><th>Gols</th><th>Assist.</th><th>Final.</th><th>xG</th><th>Duelos</th><th>Defesas</th><th>Faltas</th><th>Cartões</th><th>Energia</th></tr>`;
   const linhaJ = j => `<tr><td>${esc(sg(j.pos))}</td><td class="t-esq">${linkJogador(j.nome, j.nome, j.time)}</td><td><b class="${cor(j.nota)}">${f1(j.nota)}</b></td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + "–" + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${[j.amarelos ? "amarelo" : "", j.vermelho ? "vermelho" : "", j.lesionado ? "lesão" : ""].filter(Boolean).join(", ")}</td><td>${j.energia}%</td></tr>`;
   const tabela = `<details class="t-rel-mais"><summary>Todos os números dos jogadores</summary><div class="t-rel-rola"><table class="t-tabela t-rel-tab">${ordem.map(i => { const { tit, res } = timeDoRelatorio(r, i);
