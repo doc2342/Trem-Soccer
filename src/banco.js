@@ -102,6 +102,10 @@ export const efeitosPendentes = () => sb.from("resultados").select("partida_id",
 export const ajustarJanelaFinal = ligaId => sb.rpc("ajustar_janela_final", { p_liga: ligaId }).then(({ error }) => !error);
 // Foto do início da temporada (40_foto_do_inicio_da_temporada.sql): nota e soma dos atributos de cada jogador, gravadas pelo administrador
 // logo depois da virada (ou a qualquer momento, pelo botão do painel). Devolve quantos foram gravados, ou null sem o SQL 40.
+// ids dos jogadores que já têm a foto do início da temporada t (para completar a foto com um backup mais novo sem mexer no resto)
+export async function idsComFotoDoInicio(t) { const ids = new Set();
+  for (let de = 0; ; de += 1000) { const r = await sb.from("jogadores").select("id,inicio_temporada").not("clube_id", "is", null).order("id").range(de, de + 999); if (r.error) throw new Error(r.error.message);
+    r.data.forEach(j => { if (j.inicio_temporada && j.inicio_temporada.t === t) ids.add(j.id); }); if (r.data.length < 1000) return ids; } }
 // lista: os jogadores de um backup (o estado daquele dia); sem ela, o estado de agora.
 export async function marcarInicioDaTemporada(ligaId, notaDe, lista) {
   const todos = lista || await jogadoresDoMercado(); let n = 0;
