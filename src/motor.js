@@ -886,7 +886,7 @@ function porQueDaChance(c, nm) {
   // cada fator medido contra o próprio corte: conta o que passou mais do corte
   const pz = z / Math.log(z < 0 ? N.marcado : N.livraSe), pe = e / Math.log(e < 0 ? N.apertado : N.livre);
   if (Math.max(pz, pe) < 1) return nada;
-  if (pz >= pe) return z < 0 ? { antes: "", depois: c.recuperou ? ` com ${nm(c.zagueiro)} já de volta na marcação` : ` com ${nm(c.zagueiro)} em cima` } : { antes: `se livra${c.recuperou ? " de novo" : ""} de ${nm(c.zagueiro)}`, depois: "" };
+  if (pz >= pe) return z < 0 ? { antes: "", depois: c.recuperou ? ` com ${nm(c.zagueiro)} já de volta na marcação` : ` com ${nm(c.zagueiro)} em cima` } : { antes: `se livra de ${nm(c.zagueiro)}${c.recuperou ? " de novo" : ""}`, depois: "" };
   return { antes: "", depois: e < 0 ? " sem ângulo" : " livre" };
 }
 // o drible folgado pelos atributos de quem leva a bola (só texto; v, o número do lance, escolhe sem sorteio; null: a frase de sempre)
@@ -1361,7 +1361,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       if (G && gk && rng.chance(G.tentativa * (def.instr.impedimento ? G.linhaAlta : 1))) {
         estat[1 - i].saidasGoleiro = (estat[1 - i].saidasGoleiro || 0) + 1;
         if (rng.chance(1 / (1 + Math.exp(-(G.base + G.inclinacao * ((CONFIG.grade ? media(gk.at[A.um], gk.at[A.vel], gk.at[A.pos], gk.at[A.dec]) : media(gk.at[A.um], gk.at[A.vel], gk.at[A.pos])) - f.at[A.vel]) / 50))))) {
-          recebe(c.criador); evento(1 - i, "posse", comTrilha(`${nm(c.criador)} lança ${nm(f)} nas costas da zaga, mas ${nm(gk)} sai da área e corta.`), i); if (CONFIG.grade) reposicao(1 - i, "maos"); return;
+          recebe(c.criador); evento(1 - i, "posse", comTrilha(`${c.criador === f ? `${nm(f)} tenta escapar` : `${nm(c.criador)} lança ${nm(f)}`} nas costas da zaga, mas ${nm(gk)} sai da área e corta.`), i); if (CONFIG.grade) reposicao(1 - i, "maos"); return;
         }
         c.goleiroSaiu = true; c.defesa = G.vazio;
       }
@@ -1690,7 +1690,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
         const seguro = !sai || rng.chance(1 / (1 + Math.exp(-(SA.base + SA.forca * (gk.at[A.for] - forte) / 25)))), solta = !seguro && rng.chance(SA.solta * gk.at[A.exc] / 25);
         if (sai) eg.saidasAlto[seguro ? 0 : solta ? 2 : 1]++;
         const afasta = c.vazia || n === 0 || (n === 1 && !gk) || (sai && !seguro);
-        const fim = c.vazia ? `mas não tem ninguém na área e ${zg} afasta` : solta ? `e ${nm(gk)} sai, leva o tranco na disputa e solta a bola` : sai && !seguro ? `e ${nm(gk)} sai no meio da disputa e soca para longe`
+        const fim = c.vazia ? `mas não tem ninguém na área e ${zg} afasta` : solta ? `e ${nm(gk)} sai e leva o tranco na disputa` : sai && !seguro ? `e ${nm(gk)} sai no meio da disputa e soca para longe`
           : [`e ${zg} afasta`, gk ? `e ${nm(gk)} sai para ficar com a bola` : `e ${zg} afasta`, "e a bola passa por todo mundo"][n];
         const texto = `${cr} ${temPapel(c.criador, "apoiador") ? (c.antecipado ? "sobe pela lateral e " : "chega ao fundo e ") : ""}${c.antecipado ? "cruza cedo" : "cruza"} da ${ld}, ${fim}`;
         if (solta) { trilha.push([texto]); if (rebote(i, c, false)) return; }
