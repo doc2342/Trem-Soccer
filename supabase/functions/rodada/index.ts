@@ -2019,8 +2019,10 @@ const __motor = (() => {
       area: c.criador === c.finalizador ? `${f} recebe na área${q.antes ? ", " + q.antes : ""} e finaliza${q.depois}` : `${cr} acha ${f} na área, que ${q.antes ? q.antes + " e " : ""}finaliza${q.depois}`,
       longe: `${f} arrisca de fora da área`,
       escanteio: alto !== "cabeceia" ? `${cr} cobra o escanteio e ${f} ${alto}` : um([`${cr} cobra o escanteio e ${f} cabeceia`, `${cr} cobra o escanteio na área e ${f} cabeceia`, `${f} cabeceia o escanteio cobrado por ${cr}`]),
-      falta: c.criador === c.finalizador ? `${f} cobra a falta direto no gol` : `${cr} levanta a falta na área e ${f} ${alto}`,
-      penalti: `${f} cobra o pênalti`,
+      // c.memo (grade, item 8): "claro" é o cobrador da tática, "claroDeNovo" ele de novo depois de acertar, "deNovo" quem já errou uma no jogo
+      falta: c.criador !== c.finalizador ? `${cr} levanta a falta na área e ${f} ${alto}` : c.memo === "deNovo" || c.memo === "claroDeNovo" ? `${f} vai de novo para a bola e cobra direto no gol`
+        : c.memo ? `${f}, claro, vai para a bola e cobra direto no gol` : `${f} cobra a falta direto no gol`,
+      penalti: !CONFIG.grade ? `${f} cobra o pênalti` : `${c.memo === "deNovo" ? `${f} pega a bola de novo` : c.memo === "claroDeNovo" ? `${f}, claro, pega a bola de novo` : c.memo ? `${f}, claro, pega a bola` : `${f} ajeita a bola na marca da cal`} e bate${resultado === "gol" || resultado === "defesa" ? um([" no canto", " forte", " rasteiro", " no alto", ""]) : ""}`,
       rebote: c.deTrave ? `A bola volta da trave e ${f} pega o rebote` : c.criador === c.finalizador ? `${goleiro ? nm(goleiro) : "A defesa"} solta e o próprio ${f} pega o rebote` : `${goleiro ? nm(goleiro) : "A defesa"} solta a bola e ${f} chega no rebote`,
     }[c.tipo] + peRuimNarrado(c);
     const N = CONFIG.narracaoDefesa, gk = goleiro && nm(goleiro);
@@ -2032,11 +2034,12 @@ const __motor = (() => {
         : noAlvo < N.facil ? um([`${gk} defende sem dificuldade.`, `${gk} encaixa sem problemas.`, `fraco, nas mãos de ${gk}.`, `${gk} fica com a bola tranquilo.`])
         : um([`${gk} defende.`, `${gk} segura firme.`, `${gk} faz a defesa.`, `${gk} espalma.`]),
       // o chute para fora com as formas do ge (Chape x Mirassol, Barcelona x Aston Villa); a cabeçada e o chute de longe têm as suas
-      fora: ["cruzamento", "escanteio", "falta"].includes(c.tipo) && c.criador !== c.finalizador
+      fora: CONFIG.grade && c.tipo === "penalti" ? um(["manda por cima do gol! Que chance perdida, hein!", "a bola sai ao lado da trave! Que chance perdida!"])
+        : ["cruzamento", "escanteio", "falta"].includes(c.tipo) && c.criador !== c.finalizador
         ? um(["a bola sai pela linha de fundo.", "não pega em cheio e a bola vai para fora.", "por cima do gol!", "passa perto da trave e sai."])
         : c.tipo === "longe" ? um(["manda longe do gol.", "a bola sai por cima do gol.", "passa à direita do gol.", "passa à esquerda do gol.", "a bola sai pela linha de fundo."])
         : um(["a bola sai pela linha de fundo.", "pega mal e manda para fora.", "por cima do gol!", "passa perto, mas vai pela linha de fundo.", "a bola sai à direita do gol.", "a bola sai à esquerda do gol."]),
-      trave: "na trave!",
+      trave: CONFIG.grade && c.tipo === "penalti" ? "carimba a trave! Que chance perdida, hein!" : "na trave!",
       bloqueado: c.zagueiro && !q.antes ? `${nm(c.zagueiro)} bloqueia.` : "a zaga bloqueia.", // quem se livrou do zagueiro não é bloqueado por ele
     }[resultado];
     // o zagueiro já vencido neste ataque que volta e bloqueia
@@ -2093,6 +2096,9 @@ const __motor = (() => {
     // atq: quem atacava, quando o texto conta o ataque de um e o evento é do outro (o cruzamento afastado, o lançamento que o goleiro corta): o título do lance
     const evento = (i, tipo, texto, atq) => { const f = faseDoEvento; faseDoEvento = null; empurrar(eventos, { n: seq++, min, ...(ac ? { ac } : {}), time: i, ...(atq !== undefined ? { atq } : {}), tipo, texto, ...(f ? { fases: f } : {}), p: parcial() }); };
     const cartao = (i, tipo, texto) => pendentes.push({ i, tipo, texto });
+    // o pênalti em dois momentos (grade, item 9): o árbitro aponta a marca e o time que defende reclama; a cobrança vem no lance seguinte
+    const marcaPenalti = (i, d) => CONFIG.grade ? `Pênalti! O árbitro aponta a marca da cal: ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.${["", ` Os jogadores do ${tm(1 - i)} reclamam muito.`, ` Os jogadores do ${tm(1 - i)} cercam o árbitro.`][seq % 3]}`
+      : `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.`;
     // Ataque que termina sem finalização: desarme, passe interceptado, domínio errado ou passe errado, conforme os atributos dos dois.
     const ONDE = { D: () => "na saída de bola", M: l => l === "C" ? "no meio-campo" : `pela ${NOME_LADO[l]} do meio-campo`, A: l => l === "C" ? "na entrada da área" : `no ataque pela ${NOME_LADO[l]}` };
     // zona da grade com a preposição: "n" (na zona 14, no meio-espaço…), "pel" (pela/pelo) ou "para " (para a/para o)
@@ -2482,6 +2488,21 @@ const __motor = (() => {
       if (!CONFIG.grade || ["rebote", "escanteio", "falta", "penalti"].includes(c.tipo)) return "";
       return pressao && rota.length <= 3 ?`A pressão do ${tm(i)} dá certo. ` : c.contra ? "No contra-ataque, " : "";
     }
+    // A memória do cobrador (grade, item 8; só texto): o pênalti e a falta direta lembram quem é o cobrador e o que ele já fez no jogo, como no ge
+    // ("Reinaldo, claro, pega a redonda"; "Após errar a primeira cobrança, quando mandou a bola na trave, o lateral bate com força e balança a rede").
+    // Grava c.memo para narrar() e devolve o começo e o fim do texto: a redenção e o erro repetido.
+    const diretas = {}; // id do jogador → [{ tipo, resultado, gk }] das cobranças diretas dele no jogo
+    const COMO_ERROU = { trave: q => `mandar ${q} na trave`, fora: q => `mandar ${q} para fora`, defesa: (q, gk) => `ver ${gk || "o goleiro"} defender ${q}`, bloqueado: q => `mandar ${q} na barreira` };
+    function memoriaDoCobrador(i, c, resultado, goleiro) {
+      if (!CONFIG.grade || !(c.tipo === "penalti" || (c.tipo === "falta" && c.criador === c.finalizador))) return { abre: "", fecha: "" };
+      const id = c.finalizador.j.id, h = diretas[id] || (diretas[id] = []), errou = h.findLast(r => r.resultado !== "gol");
+      const daTatica = (times[i].instr.cobradores[c.tipo] || []).includes(id);
+      c.memo = errou ? "deNovo" : daTatica ? (h.length ? "claroDeNovo" : "claro") : h.length ? "deNovo" : null;
+      h.push({ tipo: c.tipo, resultado, gk: goleiro ? nm(goleiro) : null });
+      if (!errou) return { abre: "", fecha: "" };
+      const q = errou.tipo !== c.tipo ? (errou.tipo === "penalti" ? "o pênalti" : "a falta") : h.length > 2 ? "a cobrança anterior" : "a primeira cobrança";
+      return { abre: `Depois de ${COMO_ERROU[errou.resultado](q, errou.gk)}, `, fecha: resultado === "gol" ? " É a redenção!" : " Erra de novo!" };
+    }
     // o goleiro solta ou a trave devolve (grade): um chute só de perto, com a defesa desarrumada; quem chutou ou quem está na área
     function rebote(i, c, deTrave) {
       const atk = times[i], gk = times[1 - i].goleiro, R = CONFIG.gradeValores.rebote, ali = naArea(atk).filter(x => atk.emCampo.includes(x.jog) && x.jog !== c.finalizador);
@@ -2512,6 +2533,7 @@ const __motor = (() => {
         }
       }
       const { resultado, xg, chanceDeGol, noAlvo, falha } = chutar(c, def.goleiro);
+      const { abre: lembra, fecha } = memoriaDoCobrador(i, c, resultado, def.goleiro);
       const pressao = aposPerda === i, quase = resultado === "trave" || (resultado === "defesa" && noAlvo >= CONFIG.narracaoDefesa.boa) || (resultado !== "gol" && xg >= 0.3);
       e.chances++; e.xg += xg; e.finalizacoes++;
       if (e.grade) { // transição (spec 10): o chute que nasce de perda do adversário nas faixas 1–2; o corredor do chute de contra-ataque
@@ -2524,8 +2546,8 @@ const __motor = (() => {
       sf.finalizacoes++; sf.xg += xg; if (resultado === "gol") sf.gols++;
       if (c.tipo === "cutback" && e.grade) { e.grade.cutbacks[0]++; if (resultado === "gol" || resultado === "defesa") e.grade.cutbacks[1]++; }
       if (c.tipo === "escanteio" || c.tipo === "falta" || c.tipo === "penalti") portador = null; else recebe(c.criador);
-      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, ...(c.zona ? { zona: c.zona } : {}), xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq) + (resultado === "gol" ? placarDoGol(i) : ""), true,
-        resultado === "gol" ? origemDoGol(i, c, pressao) : quase ? quaseNoPlacar(i) : ""), ...(fases ? { fases } : {}), p: parcial() });
+      empurrar(lances, { n: seq++, min, ...(ac ? { ac } : {}), time: i, tipo: c.tipo, lado: c.lado, ...(c.zona ? { zona: c.zona } : {}), xg, xgGk: def.goleiro && (resultado === "gol" || resultado === "defesa") ? chanceDeGol(CONFIG.goleiroReferencia) : undefined, resultado, ...(c.contra ? { contra: c.contra.origem } : {}), finalizador: c.finalizador.j.id, criador: c.criador.j.id, quem: c.finalizador.j.nome, assist: c.criador !== c.finalizador ? c.criador.j.nome : null, goleiro: def.goleiro ? def.goleiro.j.id : null, rota: rota.length ? rota : undefined, texto: comTrilha(narrar(c, resultado, def.goleiro, nm, noAlvo, falha, seq) + (resultado === "gol" ? placarDoGol(i) : "") + fecha, true,
+        lembra || (resultado === "gol" ? origemDoGol(i, c, pressao) : quase ? quaseNoPlacar(i) : "")), ...(fases ? { fases } : {}), p: parcial() });
       if ((resultado === "defesa" || resultado === "bloqueado") && c.tipo !== "penalti" && rng.chance(CONFIG.escanteio[resultado])) { evento(i, "canto", `Escanteio para o ${tm(i)}.`); bolaParada(i, "escanteio", "C"); }
       else if (CONFIG.grade) {
         const RB = CONFIG.gradeValores.rebote, gk = def.goleiro; // o rebote de um rebote fica de fora: a chance do rebote é de um lance só
@@ -2937,7 +2959,7 @@ const __motor = (() => {
             if (d.recomeca && !d.pivo) return recomecar(para, d); // lesão: o time recomeça dali
             if (d.parada) {
               const penal = naFaixa5 && lado === "C" && rng.chance(CONFIG.penalti); // pênalti só dentro da área (faixa 5 por dentro)
-              if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.` : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ondeDe(para)}.`)); }
+              if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? marcaPenalti(i, d) : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ondeDe(para)}.`)); }
               else if (penal) evento(i, "falta", "A falta foi dentro da área: pênalti!");
               return bolaParada(i, "falta", lado, penal);
             }
@@ -3022,7 +3044,7 @@ const __motor = (() => {
       if (d.faltaAtaque) return perdaDePosse(i, "A" + lado, d);
       if (d.parada) {
         const penal = lado === "C" && rng.chance(CONFIG.penalti); // decidido aqui (era dentro de bolaParada), para o texto da falta já dizer se foi pênalti
-        if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? `Pênalti! ${nm(d.marcador)} derruba ${nm(d.pivo)} na área.` : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}.`)); }
+        if (d.pivo && d.marcador) { recebe(d.pivo); evento(i, "falta", comTrilha(penal ? marcaPenalti(i, d) : `Falta de ${nm(d.marcador)} em ${nm(d.pivo)} ${ONDE.A(lado)}.`)); }
         else if (penal) evento(i, "falta", "A falta foi dentro da área: pênalti!"); // quem sofreu se machucou (a falta já foi narrada na lesão)
         return bolaParada(i, "falta", lado, penal);
       }
@@ -3096,7 +3118,30 @@ const __motor = (() => {
         }
       }
       somaPosse += posseCasa; jogados++;
+      ambiente();
     };
+    // falas de ambiente (grade, item 11; só texto, como no ge: "Mirassol pressiona nos primeiros minutos", "Partida se encaminha para o fim"): a cada 10 minutos,
+    // pela posse e pelos chutes do trecho. Não usam o rng nem o seq (o seq escolhe frases e causas que mexem no jogo): n fica entre dois lances
+    const trecho = { posse: 0, jogados: 0, fin: [0, 0] };
+    let nAmbiente = 0;
+    const falou = new Set(); // cada fala uma vez por jogo (menos a do fim)
+    function ambiente() {
+      if (!CONFIG.grade || ac || min > 85 || (min % 10 && min !== 85)) return;
+      const p = (somaPosse - trecho.posse) / Math.max(1, jogados - trecho.jogados), f = [0, 1].map(k => estat[k].finalizacoes - trecho.fin[k]), g = gols();
+      Object.assign(trecho, { posse: somaPosse, jogados, fin: [estat[0].finalizacoes, estat[1].finalizacoes] });
+      const d = p >= 0.58 ? 0 : p <= 0.42 ? 1 : null, o = 1 - d, T = d !== null && tm(d);
+      let texto = null, time = d ?? 0;
+      if (min === 85) { const l = g[0] > g[1] ? 0 : g[1] > g[0] ? 1 : null; time = l ?? 0; texto = l === null ? "A partida se encaminha para o fim, com tudo igual." : `A partida se encaminha para o fim, e o ${tm(l)} vai vencendo.`; }
+      else if (d === null) texto = !f[0] && !f[1] ? "Jogo truncado, muito disputado no meio-campo." : f[0] + f[1] >= 5 ? "Jogo aberto, lá e cá!" : null;
+      else if (min >= 60 && g[d] > g[o]) texto = `O ${T} administra o resultado e toca a bola.`;
+      else if (min >= 70 && g[d] < g[o]) texto = `O ${T} se lança ao ataque atrás ${g[o] - g[d] === 1 ? "do empate" : "do prejuízo"}.`;
+      else if (min === 10 && f[d]) texto = `O ${T} pressiona nos primeiros minutos.`;
+      else if (f[d] >= 3 && !f[o]) texto = `O ${tm(o)} não consegue se aproximar da área e está totalmente envolvido.`;
+      else if (f[d] >= 2) texto = `O ${T} troca passes perto da área e busca espaços.`;
+      else texto = f[d] ? `O ${T} controla a posse.` : `O ${T} tem mais a bola, mas não consegue criar.`;
+      const chave = texto && texto.replace(/{[01]:[^{}]*}/g, "");
+      if (texto && (min === 85 || !falou.has(chave))) falou.add(chave), eventos.push({ n: seq - 0.5 + ++nAmbiente * 1e-6, min, time, tipo: "ambiente", texto, p: parcial() });
+    }
     const jogar = (de, ate) => { for (min = de; min <= ate; min++) minuto(); };
     // acréscimos: proporcionais às faltas do tempo e 30 s por substituição, gol e lesão; jogados com o relógio parado no 45 (ou 90)
     const acrescimos = [], antes = { faltas: 0, subs: 0, gols: 0, lesoes: 0, cera: 0 };
@@ -3106,7 +3151,7 @@ const __motor = (() => {
       const d = k => agora[k] - antes[k];
       const a = Math.max(1, Math.ceil(C.acrescimoPorFalta * d("faltas") + C.acrescimoPorSubstituicao * d("subs") + C.acrescimoPorGol * d("gols") + C.acrescimoPorLesao * d("lesoes") + C.cera.acrescimo * d("cera") - 1e-9));
       Object.assign(antes, agora); acrescimos.push(a);
-      soltarCartoes(); evento(0, "acrescimo", `A arbitragem dá ${a} ${a > 1 ? "minutos" : "minuto"} de acréscimo.`);
+      soltarCartoes(); evento(0, "acrescimo", `A arbitragem dá ${a} ${a > 1 ? "minutos" : "minuto"} de acréscimo.${CONFIG.grade ? ` Vamos até os ${fim + a}.` : ""}`);
       for (ac = 1; ac <= a; ac++) minuto();
       ac = 0;
     };
