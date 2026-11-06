@@ -175,7 +175,7 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
 {
   const P3 = onze("4-3-3 com pontas", 1), so = (l, ps, ks, v) => l.map(x => ps.includes(x.pos) ? comAtr([x], ks, v)[0] : x);
   const mede = b => { const t = { cruz: 0, p2: [0, 0], ch: [0, 0] }; partidas(P3, b, { cruzamento: "alto" }, {}, p => { for (const l of p.lances) if (l.time === 0) { const tx = JSON.stringify(l);
-    if (l.tipo === "cruzamento") { t.cruz++; if (tx.includes("segundo poste")) { t.p2[0]++; t.p2[1] += l.xg; } } if (l.tipo === "cutback" && tx.includes("chega de trás")) { t.ch[0]++; t.ch[1] += l.xg; } } });
+    if (l.tipo === "cruzamento") { t.cruz++; if (tx.includes("segunda trave")) { t.p2[0]++; t.p2[1] += l.xg; } } if (l.tipo === "cutback" && tx.includes("chega de trás")) { t.ch[0]++; t.ch[1] += l.xg; } } });
     return { parte: t.p2[0] / t.cruz, p2: t.p2[1] / t.p2[0], ch: t.ch[1] / t.ch[0], n: t.ch[0] }; };
   const L = ["DL", "DR"], M = ["MC", "DMC"], base = mede(B), [l10, l45] = [10, 45].map(v => mede(so(B, L, ["cab", "mar", "for"], v))), [m10, m45] = [10, 45].map(v => mede(so(B, M, ["mar", "pos"], v)));
   console.log(`10 segundo poste: ${(100 * base.parte).toFixed(1)}% dos cruzamentos; xG com os laterais rivais 10/45 ${l10.p2.toFixed(3)} ${l45.p2.toFixed(3)}, com o meio rival 10/45 ${m10.p2.toFixed(3)} ${m45.p2.toFixed(3)}; quem chega de trás (${base.n}): xG com o meio 10/45 ${m10.ch.toFixed(3)} ${m45.ch.toFixed(3)}`);

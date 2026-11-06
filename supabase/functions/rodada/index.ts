@@ -1373,7 +1373,7 @@ const __motor = (() => {
       // perdido por quem é excêntrico; hora, logit no duelo do passo difícil por (Excentricidade − 25)/25 × (Decisões − 25)/25: a Decisões escolhe a hora de arriscar
       baseDuelo: { D: 2.6, M: 1.7, A: 1.2 }, risco: 1.5, posse: [0.2, 0.2, 0.15, 0.06, 0.02], goleiro: { dificuldade: 1.2, vontade: 1, pressao: 0.1, superioridade: 0.12 }, ousadia: { peso: 0.6, folga: 0.5, perda: 0.5, hora: 2, faixas: [0.2, 0.4, 0.7, 1, 1] }, calma: { capitao: 0.7, equipe: 0.3, moral: 0.1, pressao: 0.5 }, pressaoNaVolta: 0.35, pressaoJogador: 0.15, pressionador: 1.5, papelAtaque: { pivoCruza: 1.3, flutuanteLivre: 0.4, flutuanteBuraco: 1.25 }, papelGoleiro: { armador: 0.08, recuo: 1.15, libero: 0.85, liberoAtr: 0.15, longe: 1.15, liberoFica: 0.5 }, papelDefesa: { libero: 0.15, liberoMin: 0.6, liberoMax: 0.9, combativo: 0.3, combativoCorrida: 0.4, falta: 1.3 }, saiDaLinha: { costas: 0.1, guarda: 1.5, livre: 0.15, bloqueio: 1, cruza: 1 }, dividir: 0.3, pularPressao: 0.25, pularLinha: 0.3, armadilhaLado: 0.15, atravessa: 0.15,
       // conduzir.faixas: logit por faixa do destino: perto da última linha, levar a bola é driblar, sem o toque de lado de graça
-      conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 3, passosChance: 5, alto: 30 },
+      conduzir: { base: -0.3, peso: 0.6, fora: 0.6, faixas: [0, 0, 0, -0.5, -1] }, area: { chute: 1, piso: 0.6, mov: 1 }, atrair: { ganho: 0.5, fator: 0.2, drible: 1, marcador: 20 }, pivo: { peso: 1, segura: 0.8, vontade: 1, mov: 1 }, presenca: 0.2, contato: 0.5, narrar: { passos: 2, passosChance: 5, alto: 30 },
       // poste: segundo, × no peso de quem ataca o segundo poste (lado oposto, faixas 4–5); chega, × no de quem chega de trás para a bola rolada (4e, 4C, 4d)
       poste: { segundo: 0.5, chega: 0.5 },
       chance: { areaMeio: 0.8, xgMeio: 0.75, xgCutback: 0.16, cutback: 0.5, corteMeio: 0.35, enfiada: 1, peInvertido: 0.15, blocoBaixo: 0.15,
@@ -2125,7 +2125,7 @@ const __motor = (() => {
     const RETOMA = [n => `${n} recupera a bola`, n => `${n} retoma a posse`, n => `A bola volta para o ${n}`, n => `${n} rouba a bola de novo`];
     const frase = o => o.length > 1 ? o.slice(0, -1).join(", ") + " e " + o[o.length - 1] : o[0];
     // Na grade, o texto conta no máximo narrar.passos passos (passosChance no ataque que termina em finalização): os que quebraram linha e o último;
-    // na finalização e na jogada perigosa, também os passos para a frente. As voltas e os toques de lado deixados de fora viram "roda a bola atrás" quando são 3 ou mais;
+    // na finalização, também os passos para a frente (a jogada perigosa sem chute fica com narrar.passos: dono, 06/11, "esse longo"). As voltas e os toques de lado deixados de fora viram "roda a bola atrás" quando são 3 ou mais;
     // se o passo deixado de fora levou a bola a outro, a narração conta para quem ela foi, para ninguém jogar sem ter recebido. Todos continuam na rota.
     const atras = f => f.passo.tipo === "voltar" || f.passo.tipo === "lado";
     // reciclar (grade): quem roubou não vê espaço para o contra-ataque (q: quem roubou, ou null; t: o time)
@@ -2139,8 +2139,9 @@ const __motor = (() => {
       const fica = new Set([...ps.filter(f => f !== ultimo && (f.passo.quebra || (chance && !atras(f)))).slice(1 - (chance ? N.passosChance : N.passos)), ultimo]);
       let roda = ps.filter(f => !fica.has(f) && atras(f)).length >= 3, comBola = null;
       const viu = new Set(), conduz = f => f && f.passo.de && f.passo.de === f.passo.para;
-      // conduções seguidas do mesmo jogador: só a última fica no texto ("X conduz… X conduz… X conduz…" era o mesmo lance contado três vezes)
-      { const k = ps.filter(f => fica.has(f)); k.forEach((f, i) => { if (conduz(f) && conduz(k[i + 1]) && k[i + 1].passo.de === f.passo.de) fica.delete(f); }); }
+      // conduções seguidas: só a última fica no texto ("X conduz… X conduz…" era o mesmo lance contado três vezes; dono, 06/11: "A bola chega a Misael, que
+      // conduz… A bola chega a Kerlon, que conduz…")
+      { const k = ps.filter(f => fica.has(f)); k.forEach((f, i) => { if (conduz(f) && conduz(k[i + 1])) fica.delete(f); }); }
       return t.flatMap(f => {
         // a frase sem passo que diz de quem é a bola (o cruzamento afastado): o passo que devolveu a ele pode ter sido cortado
         if (!f.passo) { const l = f.de && comBola && comBola !== f.de ? [[`A bola ${viu.has(f.de) ? "volta para" : "chega a"} ${f.de}`]] : []; if (f.de) comBola = null; return [...l, f]; }
@@ -2148,8 +2149,8 @@ const __motor = (() => {
         const { de, para } = f.passo, liga = comBola && de && comBola !== de ? `A bola ${viu.has(de) ? "volta para" : "chega a"} ${de}` : null;
         if (de) viu.add(de); if (para) viu.add(para);
         comBola = para || null;
-        // "A bola chega a X. X acha Y" fica numa frase só: "A bola chega a X, que acha Y"
-        if (liga && f[0].startsWith(de + " ") && !f[0].includes(", que ")) return [Object.assign([`${liga}, que ${f[0].slice(de.length + 1)}`, ...f.slice(1)], { passo: f.passo })];
+        // "A bola chega a X. X acha Y" fica numa frase só: "A bola chega a X, que acha Y"; na condução, "X recebe e conduz…" (dono, 06/11: "A bola chega a" repetido)
+        if (liga && f[0].startsWith(de + " ") && !f[0].includes(", que ")) return [Object.assign([/^(conduz|segue com a bola) /.test(f[0].slice(de.length + 1)) ? `${de} recebe${f.length > 1 ? "," : " e"} ${f[0].slice(de.length + 1)}` : `${liga}, que ${f[0].slice(de.length + 1)}`, ...f.slice(1)], { passo: f.passo })];
         return [...(liga ? [[liga]] : []), f];
       });
     }
@@ -2181,6 +2182,9 @@ const __motor = (() => {
       let antes = null;
       for (let k = 0; k < p.length; k += 2) {
         const ts = p[k].match(/\{[0-9?]:[^{}]+\}/g) || [], n = ts[0], sujeito = !!n && p[k].startsWith(n + " ");
+        // duas frases seguidas só do time ("A bola volta para o T1. O T1 toca de pé em pé."): a segunda não diz nada (dono, 06/11)
+        const soTime = f => { const x = f.match(/\{[0-9?]:[^{}]+\}/g) || []; return x.length > 0 && x.every(t => t === tm(0) || t === tm(1)); };
+        if (antes && soTime(p[k]) && soTime(p[antes.k]) && k + 1 < p.length) { p[k - 1] = ""; p[k] = ""; continue; }
         const resto = sujeito ? p[k].slice(n.length + 1) : "";
         if (antes && sujeito && n === antes.primeiro && antes.sujeito && !p[antes.k].includes(",") && !/ e |^recebe/.test(resto.replace(/\{[^{}]*\}/g, ""))) {
           const a = p[antes.k], e = a.lastIndexOf(" e ");
@@ -2193,10 +2197,12 @@ const __motor = (() => {
         if (ele) p[k] = "Ele" + p[k].slice(n.length);
         antes = { k, primeiro: n, ultimo: ts[ts.length - 1], sujeito, ele };
       }
-      // "passa por M de novo" só quando o primeiro duelo com M está no texto (o resumo pode ter cortado o passo)
-      return p.join("").replace(/(\{[0-9?]:[^{}]+\})( para trás)? de novo/g, (x, m, tras, i, s) => s.slice(0, i).includes(m) ? x : m + (tras || "")).split("\u0001");
+      // "passa por M de novo" só quando o primeiro duelo com M está no texto (o resumo pode ter cortado o passo); "com facilidade" só no último
+      // (dono, 06/11: três no mesmo lance)
+      const s = p.join("").replace(/(\{[0-9?]:[^{}]+\})( para trás)? de novo/g, (x, m, tras, i, s) => s.slice(0, i).includes(m) ? x : m + (tras || "")), ult = s.lastIndexOf(" com facilidade");
+      return s.replace(/ com facilidade/g, (x, i) => i === ult ? x : "").split("\u0001");
     };
-    const comTrilha = (texto, chance = false) => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const partes = semRepetir([...(CONFIG.grade ? enxuta(trilha, chance || perigo) : trilha).map(frase), texto]), fr = partes.slice(0, -1); texto = partes[partes.length - 1]; fases = CONFIG.grade ? partes : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
+    const comTrilha = (texto, chance = false) => { const fimDaRota = rota[rota.length - 1], perigo = !!CONFIG.grade && !chance && !!fimDaRota && typeof fimDaRota[1] === "string" && ehGrade(fimDaRota[1]) && faixaDe(fimDaRota[1]) === 5; const partes = semRepetir([...(CONFIG.grade ? enxuta(trilha, chance) : trilha).map(frase), texto]), fr = partes.slice(0, -1); texto = partes[partes.length - 1]; fases = CONFIG.grade ? partes : null; faseDoEvento = perigo && fr.length >= 2 ? fases : null; const t = fr.length ? fr.join(". ") + ". " + texto : texto; trilha = []; rota = []; portador = null; superados.clear(); ultimoNarrado = atacante; return t; };
     // rota do lance para a animação: [zona, quem leva a bola, marcador vencido] por passo; vai junto da finalização
     const PELO = { E: "pela esquerda", C: "pelo meio", D: "pela direita" };
     // a bola chega a "jog": se estava com outro, o passe entra na frase anterior; devolve true se o jogador já era o portador
@@ -2790,7 +2796,7 @@ const __motor = (() => {
           const texto = `${cr} ${temPapel(c.criador, "apoiador") ? (c.antecipado ? "sobe pela lateral e " : "chega ao fundo e ") : ""}${c.antecipado ? "cruza cedo" : "cruza"} da ${ld}, ${fim}`;
           if (solta) { trilha.push([texto]); if (rebote(i, c, false)) return; }
           const p = afasta ? sobra("4C", c.zagueiro ? false : null, c.zagueiro ? 1 + G.aereo.direcao * c.zagueiro.at[A.cab] / 25 : 1, eg.sobras) : null;
-          if (p) { trilha.push(Object.assign([texto, `a sobra fica com ${nm(p)} ${naZona("4C")}`], { de: cr })); return { zona: "4C", jog: p }; }
+          if (p) { trilha.push(Object.assign([`${texto}, mas a sobra fica com ${nm(p)} ${naZona("4C")}`], { de: cr })); return { zona: "4C", jog: p }; }
           recebe(c.criador); evento(1 - i, "posse", comTrilha(`${texto}.`), i);
           if (n === 1 && gk && seguro) reposicao(1 - i, "maos");
         }
