@@ -33,7 +33,10 @@ export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // Uma linha da narração. Cada tipo tem ícone e estilo próprios: gol em destaque, cartões e lesões marcados, perdas de posse discretas.
 // Time que está atacando no lance, para o cabeçalho. O motor marca a perda de posse e o escanteio cedido com o time que defende
 // (quem desarma, intercepta, recupera ou corta), mas a jogada narrada é do outro; falta e lesão já vêm com o time de quem sofreu.
-export const timeAtacando = l => (l.tipo === "posse" && /desarma|intercepta|recupera a bola|fica com a bola/.test(l.texto || "")) || (l.tipo === "canto" && /cede o escanteio/.test(l.texto || "")) ? 1 - l.time : l.time;
+// quem atacava no lance, para o título: o motor grava atq quando o evento é do outro time (06/11); nos jogos de antes, pela última frase (a que diz
+// o desfecho; "T0 recupera a bola. … perde a posse" é ataque do T0, não do outro)
+const ultimaFrase = t => (t || "").split(/\. (?![^{]*\})/).pop();
+export const timeAtacando = l => l.atq === 0 || l.atq === 1 ? l.atq : (l.tipo === "posse" && /desarma|intercepta|recupera a bola|fica com a bola/.test(ultimaFrase(l.texto))) || (l.tipo === "canto" && /cede o escanteio/.test(ultimaFrase(l.texto))) ? 1 - l.time : l.time;
 // nomes: [mandante, visitante]; com eles, cada lance de um time ganha o nome de quem ataca em cima (cartão: de quem levou)
 // ---------- Grade 5×5 (jogos da T1) ----------
 // Campo de 25 zonas, ataque para cima (faixa 5 em cima, corredor esquerdo à esquerda), larguras reais dos corredores (14 · 11 · 18 · 11 · 14 m)

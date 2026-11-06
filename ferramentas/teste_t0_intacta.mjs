@@ -10,9 +10,9 @@ import { FORMACOES } from "../src/escalacao.js";
 import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 
 // 05/11/2026: faltas de quem tem a posse na T0 (a T0 muda de propósito); na T1 só entrou estat.faltasTipo (sem ele, o hash da T1 é o de antes, a66675…)
-// 06/11/2026: só a narração mudou (cartão com a falta, quem afasta, chute para fora variado); sem p.narracao, o hash é o mesmo de antes (bf1409…, 4ba4ca…)
-const HASH_T0 = "c0e6f2fdc1e178641b7d573d996c32bbb8302a6c09e7b7524da5d420c29cd540";
-const HASH_T1_SEM_GRADE = "76ea3c066643046d60131949cd0a95ff92e2797b56a295466cbf82ce265921a2";
+// 06/11/2026: só a narração mudou (cartão com a falta, quem afasta, chute para fora variado, "Ele", atq no evento); sem p.narracao, o hash é o mesmo de antes (bf1409…, 4ba4ca…)
+const HASH_T0 = "d6af89fe184375b655f542dbea202e75bfe65bf908eecddb7c5e4289afd10bad";
+const HASH_T1_SEM_GRADE = "e721fee7722fbb7929e2328f1269b19d570f1ab7466ea736a73a7db697097420";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const formacoes = Object.keys(FORMACOES);
