@@ -37,6 +37,17 @@ export const minDoLance = l => l.ac ? `${l.min}+${l.ac}` : `${l.min}`;
 // o desfecho; "T0 recupera a bola. … perde a posse" é ataque do T0, não do outro)
 const ultimaFrase = t => (t || "").split(/\. (?![^{]*\})/).pop();
 export const timeAtacando = l => l.atq === 0 || l.atq === 1 ? l.atq : (l.tipo === "posse" && /desarma|intercepta|recupera a bola|fica com a bola/.test(ultimaFrase(l.texto))) || (l.tipo === "canto" && /cede o escanteio/.test(ultimaFrase(l.texto))) ? 1 - l.time : l.time;
+// o título curto do ge por lance ("NA TRAVE!", "Travado!", "DEFESAÇA!"; item 12, 06/11), pelo desfecho; a defesa comum e o chute fraco (xG < 0,12) ficam sem.
+// No gol, "GOL DO T! NOME!" entra no lugar do nome do time
+export const tituloDoLance = (l, nomes) => {
+  const r = l.resultado, fim = ultimaFrase(l.texto);
+  if (r === "gol") return nomes && nomes[l.time] ? `GOL DO ${nomes[l.time]}!${l.quem && !/\(contra\)$/.test(l.quem) ? ` ${l.quem}!` : ""}`.toUpperCase() : "GOL!";
+  if (r === "trave") return "NA TRAVE!";
+  if (r === "bloqueado") return l.xg >= 0.12 ? "Travado!" : "";
+  if (r === "defesa") return l.tipo === "penalti" ? "PEGOU!" : /[Mm]ilagre/.test(fim) ? "DEFESAÇA!" : /[Gg]rande defesa|que defesa/.test(fim) ? "Que defesa!" : "";
+  if (r === "fora") return l.tipo === "penalti" || l.xg >= 0.3 ? "Perdeu!" : l.xg >= 0.12 ? "Pra fora!" : "";
+  return "";
+};
 // nomes: [mandante, visitante]; com eles, cada lance de um time ganha o nome de quem ataca em cima (cartão: de quem levou)
 // ---------- Grade 5×5 (jogos da T1) ----------
 // Campo de 25 zonas, ataque para cima (faixa 5 em cima, corredor esquerdo à esquerda), larguras reais dos corredores (14 · 11 · 18 · 11 · 14 m)
@@ -89,7 +100,7 @@ export function htmlLance(l, nomes = null, emFases = false) {
   const classe = (finalizacao ? (l.resultado === "gol" ? "gol" : "fin") : l.tipo) + (emFases && l.fases ? " perigo" : "");
   const colorido = t => /\{[01?]:/.test(t) ? textoColorido(t) : `<span class="${COR[l.time]}">${esc(t)}</span>`, dd = emFases && l.fases && desdobrarFases(l.fases);
   const frases = l.frases ? l.frases.map(f => `<div>${colorido(f)}</div>`).join("") : dd ? dd.antes.map(f => `<div>${colorido(f)}</div>`).join("") + `<div class="desfecho">${colorido(dd.desfecho)}</div>` : null;
-  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="txt">${nomes && (l.time === 0 || l.time === 1) && l.tipo !== "acrescimo" && l.tipo !== "prorrogacao" && l.tipo !== "ambiente" ? `<b class="atq ${COR[timeAtacando(l)]}">${esc(nomes[timeAtacando(l)])}</b>` : ""}${frases || colorido(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
+  return `<div class="lance ${classe}"><span class="min">${l.s === undefined || l.ac ? minDoLance(l) + "'" : String(l.min - 1).padStart(2, "0") + ":" + String(l.s).padStart(2, "0")}</span><span class="ico" title="${cobranca ? "Pênalti da disputa" : ROTULO[chave] || ""}">${(finalizacao || cobranca ? ICONE_RESULTADO : ICONE_EVENTO)[chave] || ""}</span><span class="txt">${nomes && (l.time === 0 || l.time === 1) && l.tipo !== "acrescimo" && l.tipo !== "prorrogacao" && l.tipo !== "ambiente" ? `<b class="atq ${COR[timeAtacando(l)]}">${(t => l.resultado === "gol" ? `<span class="tit">${esc(t)}</span>` : esc(nomes[timeAtacando(l)]) + (t ? ` <span class="tit">${esc(t)}</span>` : ""))(tituloDoLance(l, nomes))}</b>` : ""}${frases || colorido(l.texto)}</span>${l.xg ? `<span class="xg">xG ${f2(l.xg)}</span>` : ""}</div>`;
 }
 export const LEGENDA_LANCES = `<div class="legenda lances">${[["⚽", "gol"], ["🧤", "defesa"], ["👟", "fora ou bloqueada"], ["🥅", "trave"], ["🟨🟥", "cartões"], ["🔁", "substituição"], ["🚑", "lesão"], ["🚩", "impedimento"], ["⚡", "contra-ataque"], ["📋", "mudança tática"], ["✋", "falta"], ["⛳", "escanteio"], ["·", "perda de posse"], ["↺", "roda a bola"]].map(([i, t]) => `<span>${i} ${t}</span>`).join("")}</div>`;
 

@@ -2305,6 +2305,17 @@ const __motor = (() => {
       const causa = ultimaPerda.causa = rng.chance(CONFIG.narrarPerda[linha]) ? sortearPeso(rng, causas, c => c[1])[0] : causas[seq % causas.length][0];
       const volta = d.recuperou ? " volta a tempo e" : ""; // o marcador já vencido neste ataque que volta ao lance
       recebe(causa === "passe" || causa === "corte" ? q : p);
+      // na grade (item 12, formas do ge; só texto, a variação pelo número do lance): o desarme na área, o passe cortado na área e a bola que sai pela lateral
+      if (CONFIG.grade && ehGrade(zona)) {
+        const area = faixaDe(zona) === 5, beira = "ED".includes(zona[1]), v = seq, um = l => l[v % l.length], P = nm(p), Q = nm(q), M = m && nm(m), T = tm(1 - i);
+        if (causa === "desarme") evento(1 - i, "posse", comTrilha(area ? volta ? `${M}${volta} desarma ${P} dentro da área.` : um([`${P} aparece com perigo dentro da área, mas é desarmado por ${M}.`, `${M} chega firme e tira a bola de ${P} dentro da área.`])
+          : volta ? `${M}${volta} desarma ${P} ${onde}.` : um([`${M} desarma ${P} ${onde}.`, `${M} chega firme e toma a bola de ${P} ${onde}.`, `${P} tenta passar por ${M} ${onde}, mas perde a dividida.`])), i);
+        else if (causa === "corte") evento(1 - i, "posse", comTrilha(area ? volta ? `${M}${volta} intercepta o passe de ${Q} na área.` : um([`${Q} tenta o passe para dentro da área, mas ${M} corta.`, `${M} lê a jogada e intercepta o passe de ${Q} na área.`])
+          : volta ? `${M}${volta} intercepta o passe de ${Q} ${onde}.` : um([`${M} intercepta o passe de ${Q} ${onde}.`, `${M} antecipa e corta o passe de ${Q} ${onde}.`, `${Q} tenta o passe ${onde}, mas ${M} chega antes.`])), i);
+        else if (causa === "dominio") evento(i, "posse", comTrilha(um([`${P} domina mal ${onde} e perde a posse.`, beira ? `${P} não consegue fazer o domínio ${onde}, e a bola sai pela lateral.` : `${P} não consegue fazer o domínio ${onde}, e a bola sobra para o ${T}.`])));
+        else evento(i, "posse", comTrilha(um([`${Q} erra o passe ${onde}.`, beira ? `${Q} erra o passe ${onde}, e a bola sai pela lateral.` : `${Q} erra o passe ${onde} e entrega a bola ao ${T}.`])));
+        return true;
+      }
       if (causa === "desarme") evento(1 - i, "posse", comTrilha(`${nm(m)}${volta} desarma ${nm(p)} ${onde}.`));
       else if (causa === "corte") evento(1 - i, "posse", comTrilha(`${nm(m)}${volta} intercepta o passe de ${nm(q)} ${onde}.`));
       else if (causa === "dominio") evento(i, "posse", comTrilha(`${nm(p)} domina mal ${onde} e perde a posse.`));
