@@ -6,4 +6,4 @@ if ! git diff --quiet -- supabase/functions; then
   echo "pre-commit: a função do servidor estava desatualizada e foi reempacotada. Confira, faça git add supabase/functions e commite de novo."
   exit 1
 fi
-node ferramentas/testes.mjs || { echo "pre-commit: teste falhando (acima)."; exit 1; }
+node ferramentas/testes.mjs --rapido || { echo "pre-commit: teste falhando (acima)."; exit 1; }

@@ -1,9 +1,13 @@
 // Roda todos os ferramentas/teste_*.mjs e diz quais falharam (sai com erro se algum falhar). Em paralelo, menos os que medem tempo, que rodam sozinhos no fim.
 // Uso: node ferramentas/testes.mjs   TESTES_PROCESSOS=n limita os processos (padrão: os núcleos menos 2)
+//      node ferramentas/testes.mjs --rapido   pula os testes lentos do motor (o pre-commit usa este; rode o completo ao mexer no motor)
 import fs from "node:fs";
 import os from "node:os";
 import { spawn, execSync } from "node:child_process";
-const pasta = new URL(".", import.meta.url), testes = fs.readdirSync(pasta).filter(f => /^teste_.*\.mjs$/.test(f)).sort();
+const LENTOS = new Set(["teste_mecanicas.mjs", "teste_grade_motor.mjs", "teste_regras_t1.mjs", "teste_penaltis_iguais.mjs", "teste_goleiro_saida.mjs"]);
+const rapido = process.argv.includes("--rapido");
+const pasta = new URL(".", import.meta.url), testes = fs.readdirSync(pasta).filter(f => /^teste_.*\.mjs$/.test(f) && !(rapido && LENTOS.has(f))).sort();
+if (rapido) console.log(`modo rápido: ${LENTOS.size} testes lentos do motor ficaram de fora (rode sem --rapido ao mexer no motor)`);
 const SOZINHOS = new Set(["teste_grade_motor.mjs"]), maximo = +process.env.TESTES_PROCESSOS || Math.max(2, os.availableParallelism() - 2);
 const rodar = f => new Promise(fim => {
   const t0 = Date.now(), p = spawn(process.execPath, [new URL(f, pasta).pathname.replace(/^\/(\w:)/, "$1")], { stdio: ["ignore", "pipe", "pipe"] });

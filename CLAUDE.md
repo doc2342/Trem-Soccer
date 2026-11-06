@@ -15,7 +15,7 @@ Trem Soccer: an online football-manager league for a group of friends. Static si
 - Engine simulations/tuning: `node ferramentas/sim_<nome>.mjs [jogos] [CONFIG.chave=valor ...]`; `calibragem.html` runs thousands of matches in the browser against target stats.
 - Before a commit that goes live: `python ferramentas/publicar.py` (bumps `versao.txt` and rewrites the `ARQUIVOS` list in `atualiza.js`).
 - After changing any `src/` module embedded in a server function: `python ferramentas/empacotar_funcao.py`.
-- Pre-commit hook `ferramentas/hooks/pre-commit` (enable once per clone: `git config core.hooksPath ferramentas/hooks`): re-bundles the functions and blocks the commit if `supabase/functions` changed (then `git add supabase/functions` and commit again), then runs `node ferramentas/testes.mjs`. It must keep LF line endings or `sh` breaks.
+- Pre-commit hook `ferramentas/hooks/pre-commit` (enable once per clone: `git config core.hooksPath ferramentas/hooks`): re-bundles the functions and blocks the commit if `supabase/functions` changed (then `git add supabase/functions` and commit again), then runs `node ferramentas/testes.mjs --rapido` (skips the 5 slow engine tests, ~16 min of `teste_mecanicas` alone; run the full suite by hand after touching the engine). It must keep LF line endings or `sh` breaks.
 
 ## Architecture
 
