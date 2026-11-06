@@ -1815,7 +1815,9 @@ function jogarPartida(rng, casa, fora, opcoes) {
         const vai = R.base + R.instr[atk.instr.passe] + R.pressao * (P - 1) + pes + (meta ? 0 : R.maos), pesoDe = z => PESO[ZONAS_GRADE.indexOf(z)];
         const longa = !perto.length || (longe.length > 0 && rng.chance(1 / (1 + Math.exp(-vai))));
         c[0]++; atual = "1C"; ka = 2; portador = gk;
-        if (longa) return bolaLonga({ para: sortearPeso(rng, longe, pesoDe), abre: meta ? "cobra o tiro de meta longo para" : "repõe longe para" });
+        // chutão (só texto): longe sem ser a instrução, com o rival pressionando forte ou sem ninguém perto para receber
+        const chutao = atk.instr.passe !== "longo" && (!perto.length || P >= 1.5);
+        if (longa) return bolaLonga({ para: sortearPeso(rng, longe, pesoDe), abre: chutao ? (perto.length ? "é pressionado e opta pelo chutão para" : "não tem com quem sair e dá o chutão para") : meta ? "cobra o tiro de meta longo para" : "repõe longe para" });
         c[1]++;
         const z = sortearPeso(rng, perto, pesoDe), k = ZONAS_GRADE.indexOf(z), quem = sortearPeso(rng, atk.zonas[z], x => x.p).jog;
         const d = duelo(i, z, pes - (meta ? R.roubo * P : 0), false, { dz: defesaNo(k), quem });
