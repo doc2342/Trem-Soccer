@@ -651,7 +651,7 @@ const __papeis = (() => {
   // um mapa de zonas com a bola e outro sem a bola (motor.js) e um ritmo de gasto de energia. Os mapas são do lado direito; o esquerdo é o espelho.
   // O papel padrão de cada posição usa as zonas de hoje (COBERTURA do motor) nas duas fases e o gasto de hoje: sem escolha, nada muda.
   // Primeira fatia: laterais e alas; depois os centroavantes (etapa Atacantes). Os números vêm da página do plano (seções 03 e 04, aprovados em 28 e 29/10).
-  const { IDX, FAMILIARIDADE, familiaridade } = __modelo;
+  const { IDX, FAMILIARIDADE, familiaridade, temNovos } = __modelo;
   const { MANCHAS, espelharGrade } = __grade;
   // temporada em que os papéis passam a valer nas partidas (rodada.js tira o papel das escalações antes dela)
   const PAPEIS_DESDE = 1;
@@ -664,7 +664,7 @@ const __papeis = (() => {
   const PAPEIS = {
     fixo: {
       nome: "Fixo", faz: "Guarda o lado da defesa e fecha o ponta adversário.", custa: "Quase não chega ao fundo: o ponta do time fica sozinho pelo lado.",
-      pesos: { des: 17, mar: 14, vel: 14, pos: 12, pas: 10, res: 7, cru: 6, cab: 5, dom: 5, com: 4, equ: 3, for: 3 },
+      pesos: { des: 17, mar: 14, vel: 14, pos: 12, pas: 10, res: 7, cru: 6, cab: 5, dom: 5, com: 4, equ: 3, for: 3 }, pesosT1: { des: 16, mar: 13, vel: 13, pos: 11, pas: 10, res: 7, cru: 6, cab: 5, dom: 5, com: 4, dec: 4, equ: 3, for: 3 },
       // no ala, um pouco mais à frente com a bola que o lateral (AD 0,15). No DR é o padrão e fica com a COBERTURA nas duas fases:
       // medido em 31/10, dividir o Fixo do lateral em com/sem a bola o deixava pego na transição e 0,1 pt/jogo abaixo dos outros papéis
       mapas: { WBR: { com: { AD: 0.15, MD: 0.40, DD: 0.45 }, sem: { MD: 0.35, DC: 0.10, DD: 0.55 } } },
@@ -674,7 +674,7 @@ const __papeis = (() => {
     },
     apoiador: {
       nome: "Apoiador", faz: "Chega ao fundo e cruza: soma ataque pelo lado.", custa: "As costas ficam abertas para o contra-ataque, e cansa mais.",
-      pesos: { vel: 17, cru: 14, dri: 11, res: 11, pas: 10, des: 10, pos: 7, cri: 5, dom: 5, equ: 5, mar: 5 },
+      pesos: { vel: 17, cru: 14, dri: 11, res: 11, pas: 10, des: 10, pos: 7, cri: 5, dom: 5, equ: 5, mar: 5 }, pesosT1: { vel: 15, cru: 13, dri: 10, res: 10, pas: 9, des: 9, pos: 6, mov: 6, cri: 5, dom: 5, equ: 5, mar: 4, dec: 3 },
       // WBR é o padrão, só com as regras da T1 (mapasDoPapel comPadrao); sem elas o ala usa a COBERTURA de sempre. Mais alto que o lateral Apoiador nas
       // duas fases (DR com AD 0,30 desde 31/10, era 0,35: o mesmo pt/jogo): o terceiro zagueiro cobre, e sem a bola ele fica na linha dos volantes
       // (só cai para a linha de 5 com o time recuado). Fontes do dono: goal.com, guidetofootball.com, footballiconic.com. Calibrado em 31/10
@@ -689,7 +689,7 @@ const __papeis = (() => {
     },
     construtor: {
       nome: "Construtor", faz: "Leva a bola da defesa ao meio pelo lado, com passe e criatividade.", custa: "Não chega ao fundo para cruzar e marca menos que o Fixo.",
-      pesos: { pas: 17, vel: 14, des: 13, pos: 11, dom: 10, mar: 10, cri: 9, res: 7, cru: 3, equ: 3, dri: 3 },
+      pesos: { pas: 17, vel: 14, des: 13, pos: 11, dom: 10, mar: 10, cri: 9, res: 7, cru: 3, equ: 3, dri: 3 }, pesosT1: { pas: 15, vel: 12, des: 11, pos: 10, dom: 9, mar: 9, cri: 8, res: 6, plo: 6, dec: 5, cru: 3, equ: 3, dri: 3 },
       mapas: {
         DR: { com: { AD: 0.05, MD: 0.40, DC: 0.10, DD: 0.45 }, sem: { MD: 0.30, DC: 0.15, DD: 0.55 } },
         WBR: { com: { AD: 0.10, MC: 0.10, MD: 0.50, DD: 0.30 }, sem: { MD: 0.45, DC: 0.10, DD: 0.45 } },
@@ -704,7 +704,7 @@ const __papeis = (() => {
     invertido: {
       nome: "Invertido", faz: "Com a bola, fecha por dentro e vira um volante a mais; sem ela, volta para o lado.", custa: "Na perda da bola, o corredor fica vazio até ele voltar, e cruza pouco.",
       // Velocidade 8→11 e Resistência 4→8 em 30/10 (fontes do dono: vai e volta entre o meio e o lado o jogo todo), tirados de Equilíbrio, Criatividade, Agressividade e Força
-      pesos: { pas: 17, des: 15, pos: 13, dom: 11, vel: 11, mar: 10, res: 8, equ: 7, cri: 6, agr: 2 },
+      pesos: { pas: 17, des: 15, pos: 13, dom: 11, vel: 11, mar: 10, res: 8, equ: 7, cri: 6, agr: 2 }, pesosT1: { pas: 16, des: 14, pos: 12, dom: 10, vel: 10, mar: 9, res: 7, equ: 6, dec: 6, cri: 5, plo: 3, agr: 2 },
       mapas: {
         DR: { com: { MC: 0.35, MD: 0.10, DC: 0.15, DD: 0.40 }, sem: { MC: 0.10, MD: 0.20, DC: 0.15, DD: 0.55 } },
         WBR: { com: { AC: 0.10, MC: 0.40, MD: 0.25, DD: 0.25 }, sem: { MC: 0.15, MD: 0.40, DD: 0.45 } },
@@ -722,34 +722,34 @@ const __papeis = (() => {
     // sobe, a parte que vai para a faixa 5). O padrão do SC é o Matador e o do FC o Flutuante: nos dois, a mancha de hoje.
     matador: {
       nome: "Matador", faz: "Vive na área: está no lugar certo antes da bola, corre nas costas da linha alta e finaliza de primeira.", custa: "Não ajuda a construir e some se ninguém o servir; sozinho na área, recebe os dois zagueiros.",
-      pesos: { fin: 24, pos: 17, vel: 14, dom: 12, cab: 12, for: 8, equ: 4, lon: 3, agr: 3, pas: 3 },
+      pesos: { fin: 24, pos: 17, vel: 14, dom: 12, cab: 12, for: 8, equ: 4, lon: 3, agr: 3, pas: 3 }, pesosT1: { fin: 20, pos: 14, vel: 12, mov: 12, dom: 10, cab: 10, for: 7, dec: 4, equ: 3, lon: 3, agr: 3, pas: 2 },
       desloca: { FC: { com: { sobe: 0.5, fecha: 0.5 } } }, gasto: { SC: 1, FC: 1 },
     },
     pivo: {
       nome: "Pivô", faz: "Joga de costas: ganha a bola alta e a longa, segura e escora para quem chega.", custa: "Finaliza menos ele mesmo, e a escora só rende se alguém chega perto.",
-      pesos: { cab: 24, for: 22, dom: 14, fin: 10, pas: 10, pos: 8, equ: 6, agr: 6 },
+      pesos: { cab: 24, for: 22, dom: 14, fin: 10, pas: 10, pos: 8, equ: 6, agr: 6 }, pesosT1: { cab: 22, for: 20, dom: 13, fin: 9, pas: 9, pos: 7, equ: 6, agr: 6, mov: 4, dec: 4 },
       desloca: { SC: { com: { baixa: 0.25 } }, FC: { com: { fecha: 0.5 } } }, gasto: { SC: 1, FC: 1 },
     },
     flutuante: {
       nome: "Flutuante", faz: "Sai da área para criar: tabela, faz a bola girar e dá o passe em profundidade.", custa: "A área fica vazia: menos alvo para o cruzamento, e precisa de quem ataque as costas da zaga.",
-      pesos: { fin: 18, dom: 16, cri: 14, pas: 13, dri: 12, pos: 10, vel: 9, equ: 6, lon: 2 },
+      pesos: { fin: 18, dom: 16, cri: 14, pas: 13, dri: 12, pos: 10, vel: 9, equ: 6, lon: 2 }, pesosT1: { fin: 15, dom: 13, cri: 12, pas: 11, dri: 10, mov: 10, pos: 8, vel: 8, dec: 6, equ: 5, lon: 2 },
       desloca: { SC: { com: { baixa: 0.12, abre: 0.2 } } }, gasto: { SC: 1, FC: 1 },
     },
     pressionador: {
       nome: "Pressionador", faz: "Sem a bola, pressiona a saída do adversário mesmo sem a pressão do time; com ela, corre nas costas e chuta muito.", custa: "Cansa mais, e o bote que falha deixa o adversário sair jogando.",
-      pesos: { res: 16, vel: 16, fin: 14, equ: 12, agr: 11, pos: 8, des: 8, dom: 8, for: 4, dri: 3 },
+      pesos: { res: 16, vel: 16, fin: 14, equ: 12, agr: 11, pos: 8, des: 8, dom: 8, for: 4, dri: 3 }, pesosT1: { res: 15, vel: 14, fin: 13, equ: 11, agr: 10, pos: 7, des: 7, dom: 7, mov: 6, for: 4, dri: 3, dec: 3 },
       desloca: { SC: { com: { baixa: 0.1, abre: 0.1 }, sem: { abre: 0.15, sobe: 0.3 } }, FC: { sem: { abre: 0.15, sobe: 0.3 } } }, gasto: { SC: 1.15, FC: 1.15 },
     },
     // Pontas (etapa Atacantes; fichas de 29/10). Na grade, mapa próprio por posição (do lado direito; o esquerdo é o espelho); o padrão de cada posição
     // (Agudo no RW, Condutor no AMR, Garçom no MR) é a mancha de hoje. A chave do ponta Invertido é pontainvertido: invertido é a do lateral
     agudo: {
       nome: "Agudo", faz: "Ataca a linha de fundo no um contra um e fica alto mesmo sem a bola.", custa: "Ajuda pouco atrás: precisa de um lateral Fixo ou Construtor no mesmo lado.",
-      pesos: { dri: 21, vel: 21, cru: 14, fin: 12, dom: 9, pos: 6, res: 6, cri: 5, pas: 4, lon: 2 },
+      pesos: { dri: 21, vel: 21, cru: 14, fin: 12, dom: 9, pos: 6, res: 6, cri: 5, pas: 4, lon: 2 }, pesosT1: { dri: 19, vel: 19, cru: 12, fin: 11, dom: 8, mov: 8, pos: 5, res: 5, cri: 4, pas: 4, dec: 3, lon: 2 },
       grade: { RW: MANCHAS.RW }, gasto: { RW: 1 },
     },
     pontainvertido: {
       nome: "Invertido", faz: "Corta para dentro para o pé bom e chuta ou tabela no meio-espaço.", custa: "Cruza pouco e deixa o corredor para o lateral: sem lateral que suba, o lado fica vazio.",
-      pesos: { fin: 19, dri: 14, lon: 12, vel: 12, dom: 11, cri: 10, pas: 8, pos: 7, equ: 4, res: 3 },
+      pesos: { fin: 19, dri: 14, lon: 12, vel: 12, dom: 11, cri: 10, pas: 8, pos: 7, equ: 4, res: 3 }, pesosT1: { fin: 17, dri: 12, lon: 11, vel: 10, dom: 10, cri: 9, mov: 8, pas: 7, pos: 6, dec: 4, equ: 3, res: 3 },
       grade: {
         RW: { com: { "5D": 0.2, "5d": 0.35, "4d": 0.3, "4D": 0.15 }, sem: MANCHAS.RW.sem },
         AMR: { com: { "4D": 0.25, "4d": 0.4, "5d": 0.2, "3D": 0.15 }, sem: MANCHAS.AMR.sem },
@@ -759,7 +759,7 @@ const __papeis = (() => {
     },
     garcom: {
       nome: "Garçom", faz: "Abre o campo e cruza; sem a bola, volta para ajudar o lateral.", custa: "Finaliza pouco e precisa de alvo na área (Pivô, Matador, quem chega).",
-      pesos: { cru: 18, pas: 12, vel: 12, res: 10, dom: 9, des: 9, dri: 8, cri: 8, pos: 6, equ: 6, mar: 2 },
+      pesos: { cru: 18, pas: 12, vel: 12, res: 10, dom: 9, des: 9, dri: 8, cri: 8, pos: 6, equ: 6, mar: 2 }, pesosT1: { cru: 16, pas: 11, vel: 10, res: 9, dom: 8, des: 8, dri: 7, cri: 7, pos: 5, equ: 5, dec: 5, mov: 4, plo: 3, mar: 2 },
       grade: {
         RW: { com: { "4D": 0.45, "5D": 0.3, "3D": 0.15, "4d": 0.1 }, sem: { "3D": 0.4, "4D": 0.35, "2D": 0.15, "3d": 0.1 } },
         AMR: { com: { "4D": 0.5, "5D": 0.2, "3D": 0.2, "4d": 0.1 }, sem: { "3D": 0.45, "4D": 0.35, "2D": 0.1, "4d": 0.1 } },
@@ -769,19 +769,19 @@ const __papeis = (() => {
     },
     condutor: {
       nome: "Condutor", faz: "Leva a bola pelo lado, no drible, e acha o passe ou o chute.", custa: "Segura a bola: com marcação dobrada, perde e o contra sai pelo lado dele.",
-      pesos: { dri: 20, vel: 15, dom: 14, pas: 10, fin: 8, cri: 7, for: 6, cru: 6, equ: 4, des: 3, res: 3, pos: 2, lon: 2 },
+      pesos: { dri: 20, vel: 15, dom: 14, pas: 10, fin: 8, cri: 7, for: 6, cru: 6, equ: 4, des: 3, res: 3, pos: 2, lon: 2 }, pesosT1: { dri: 19, vel: 14, dom: 13, pas: 9, fin: 7, cri: 6, for: 6, cru: 5, equ: 4, mov: 4, des: 3, res: 3, dec: 3, pos: 2, lon: 2 },
       grade: { RW: { com: { "4D": 0.45, "5D": 0.2, "3D": 0.2, "4d": 0.15 }, sem: MANCHAS.RW.sem }, AMR: MANCHAS.AMR },
       gasto: { RW: 1, AMR: 1 },
     },
     articulador: {
       nome: "Articulador", faz: "Armador aberto: vem para o meio-espaço, gira a bola e dá o passe.", custa: "Não ataca o fundo: o lado precisa de um lateral que chegue.",
-      pesos: { pas: 16, cri: 14, dom: 13, dri: 11, vel: 9, equ: 8, pos: 7, cru: 6, lon: 5, res: 4, fin: 4, des: 3 },
+      pesos: { pas: 16, cri: 14, dom: 13, dri: 11, vel: 9, equ: 8, pos: 7, cru: 6, lon: 5, res: 4, fin: 4, des: 3 }, pesosT1: { pas: 14, cri: 12, dom: 11, dri: 9, vel: 8, dec: 8, equ: 7, pos: 6, cru: 5, lon: 4, mov: 4, res: 3, fin: 3, des: 3, plo: 3 },
       grade: { AMR: { com: { "4d": 0.35, "4D": 0.3, "3d": 0.2, "3D": 0.15 }, sem: MANCHAS.AMR.sem }, MR: { com: { "3d": 0.3, "3D": 0.3, "4d": 0.2, "4D": 0.2 }, sem: MANCHAS.MR.sem } },
       gasto: { AMR: 1, MR: 1 },
     },
     operario: {
       nome: "Operário", faz: "Ponta que defende: fecha o lado e acompanha o lateral rival.", custa: "Chega pouco à frente: o ataque perde um homem.",
-      pesos: { des: 15, res: 13, vel: 11, cru: 11, mar: 10, pos: 10, equ: 9, pas: 9, dom: 8, agr: 4 },
+      pesos: { des: 15, res: 13, vel: 11, cru: 11, mar: 10, pos: 10, equ: 9, pas: 9, dom: 8, agr: 4 }, pesosT1: { des: 14, res: 12, vel: 10, cru: 10, mar: 9, pos: 9, equ: 8, pas: 8, dom: 7, dec: 5, agr: 4, mov: 4 },
       grade: { MR: { com: { "3D": 0.45, "4D": 0.3, "2D": 0.1, "3d": 0.15 }, sem: { "2D": 0.35, "3D": 0.4, "1D": 0.1, "3d": 0.15 } } },
       gasto: { MR: 1.1 },
     },
@@ -789,43 +789,43 @@ const __papeis = (() => {
     // desloca (avanca: da faixa 1, a parte que vai para a faixa 2 do mesmo corredor; espalha: a que vai para os corredores vizinhos da faixa 1)
     xerife: {
       nome: "Xerife", faz: "Fica no centro da defesa, ganha o cruzamento alto e bloqueia o chute.", custa: "Sai pouco jogando; se for lento, sofre com a bola em profundidade.",
-      pesos: { pos: 19, mar: 14, des: 13, pas: 12, cab: 12, for: 8, vel: 7, com: 7, dom: 5, agr: 3 }, gasto: { DC: 1 },
+      pesos: { pos: 19, mar: 14, des: 13, pas: 12, cab: 12, for: 8, vel: 7, com: 7, dom: 5, agr: 3 }, pesosT1: { pos: 18, mar: 13, des: 12, pas: 11, cab: 11, for: 7, vel: 6, com: 6, dom: 5, dec: 5, agr: 3, plo: 3 }, gasto: { DC: 1 },
     },
     tecnico: {
       nome: "Técnico", faz: "Sai jogando: pisa no meio com a bola, a bola gira curta e segura por ele, e conduz para soltar um colega.", custa: "Marca menos e ganha pouco pelo alto; contra pressão alta, o erro dele sai perto do gol.",
-      pesos: { pas: 19, pos: 18, des: 13, mar: 13, dom: 9, cri: 8, dri: 6, com: 5, cab: 4, vel: 3, for: 2 },
+      pesos: { pas: 19, pos: 18, des: 13, mar: 13, dom: 9, cri: 8, dri: 6, com: 5, cab: 4, vel: 3, for: 2 }, pesosT1: { pas: 16, pos: 16, des: 11, mar: 11, dom: 8, plo: 8, cri: 7, dec: 6, dri: 5, com: 4, cab: 3, vel: 3, for: 2 },
       desloca: { DC: { com: { avanca: 0.2 } } }, gasto: { DC: 1 },
     },
     combativo: {
       nome: "Combativo", faz: "Sobe para o bote no meio, rouba e conduz para a frente.", custa: "Deixa espaço atrás para a bola em profundidade; mais faltas e cartões.",
-      pesos: { des: 15, pos: 14, agr: 12, mar: 10, vel: 10, for: 10, pas: 8, dom: 7, res: 6, cab: 5, dri: 3 },
+      pesos: { des: 15, pos: 14, agr: 12, mar: 10, vel: 10, for: 10, pas: 8, dom: 7, res: 6, cab: 5, dri: 3 }, pesosT1: { des: 14, pos: 13, agr: 11, mar: 10, vel: 10, for: 10, pas: 8, dom: 7, res: 6, cab: 5, dri: 3, dec: 3 },
       desloca: { DC: { com: { avanca: 0.3 }, sem: { avanca: 0.3 } } }, gasto: { DC: 1.05 },
     },
     libero: {
       nome: "Líbero", faz: "Sobra atrás, cobre os lados e corta a bola em profundidade; com a bola, conduz para o meio.", custa: "Quebra a linha de impedimento e deixa menos gente no centro da área.",
-      pesos: { pos: 19, pas: 14, des: 13, vel: 12, mar: 10, com: 9, dom: 7, cab: 5, equ: 5, cri: 3, dri: 3 },
+      pesos: { pos: 19, pas: 14, des: 13, vel: 12, mar: 10, com: 9, dom: 7, cab: 5, equ: 5, cri: 3, dri: 3 }, pesosT1: { pos: 16, pas: 12, des: 11, vel: 10, mar: 9, com: 8, plo: 8, dom: 6, dec: 6, cab: 4, equ: 4, cri: 3, dri: 3 },
       desloca: { DC: { com: { avanca: 0.25 }, sem: { espalha: 0.3 } } }, gasto: { DC: 1 },
     },
     // Volantes (passo 3 da revisão; fichas de 28 e 29/10). A mancha do volante (um ou dupla) deslocada entre faixas (faixas: [de, para, parte], no mesmo
     // corredor, em ordem)
     primeirovolante: {
       nome: "Primeiro volante", faz: "Fica na frente da zaga: centro da saída de bola e o primeiro a reagir na perda.", custa: "Quase não chega ao ataque: rende com um Distribuidor ou um Box-to-box ao lado.",
-      pesos: { pos: 17, pas: 15, des: 15, dom: 11, mar: 8, equ: 7, com: 6, for: 6, res: 6, agr: 4, cri: 3, cab: 2 }, gasto: { DMC: 1 },
+      pesos: { pos: 17, pas: 15, des: 15, dom: 11, mar: 8, equ: 7, com: 6, for: 6, res: 6, agr: 4, cri: 3, cab: 2 }, pesosT1: { pos: 14, pas: 13, des: 13, dec: 12, dom: 9, mar: 7, equ: 6, com: 5, for: 5, res: 5, plo: 4, agr: 3, cri: 2, cab: 2 }, gasto: { DMC: 1 },
     },
     distribuidor: {
       nome: "Distribuidor", faz: "Desce entre os zagueiros para receber e inverte o jogo para o lado vazio.", custa: "Sem a bola, protege menos a zaga; a inversão longa perde mais bolas.",
-      pesos: { pas: 23, pos: 17, dom: 13, des: 12, cri: 11, equ: 6, lon: 5, mar: 4, res: 4, com: 3, for: 2 },
+      pesos: { pas: 23, pos: 17, dom: 13, des: 12, cri: 11, equ: 6, lon: 5, mar: 4, res: 4, com: 3, for: 2 }, pesosT1: { pas: 17, plo: 14, pos: 13, dom: 10, dec: 10, des: 9, cri: 8, equ: 5, lon: 4, mar: 3, res: 3, com: 2, for: 2 },
       desloca: { DMC: { com: { faixas: [[2, 1, 0.3]] }, sem: { faixas: [[1, 2, 0.4]] } } }, gasto: { DMC: 1 },
     },
     boxtobox: {
       nome: "Box-to-box", faz: "Vai de área a área: chega na frente com a bola, volta e pressiona sem ela, e conduz do meio para a frente.", custa: "Gasta mais energia; dois sem um Primeiro volante atrás deixam a zaga sem proteção.",
-      pesos: { res: 13, pas: 12, pos: 12, des: 12, dom: 9, equ: 9, vel: 7, fin: 7, cri: 6, dri: 5, lon: 5, com: 2, mar: 1 },
+      pesos: { res: 13, pas: 12, pos: 12, des: 12, dom: 9, equ: 9, vel: 7, fin: 7, cri: 6, dri: 5, lon: 5, com: 2, mar: 1 }, pesosT1: { res: 11, pas: 11, pos: 11, des: 11, dom: 8, equ: 8, vel: 6, fin: 6, mov: 6, dec: 6, cri: 5, dri: 4, lon: 4, com: 2, mar: 1 },
       desloca: { DMC: { com: { faixas: [[1, 2, 0.8], [2, 3, 0.45]] }, sem: { faixas: [[1, 2, 0.4], [2, 3, 0.15]] } }, MC: { com: { faixas: [[3, 4, 0.3]] }, sem: { faixas: [[3, 2, 0.25]] } } },
       gasto: { DMC: 1.1, MC: 1.1 },
     },
     ladrao: {
       nome: "Ladrão de bola", faz: "Sobe para o bote no meio e rouba mais longe do gol; com a bola, joga simples.", custa: "Faz mais falta, cansa mais e deixa espaço na frente da zaga quando o bote falha.",
-      pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 },
+      pesos: { des: 20, agr: 12, res: 12, pos: 12, mar: 10, vel: 9, for: 8, equ: 6, pas: 6, dom: 3, com: 2 }, pesosT1: { des: 19, agr: 11, res: 11, pos: 11, mar: 9, vel: 8, for: 8, equ: 6, pas: 6, dec: 6, dom: 3, com: 2 },
       desloca: { DMC: { sem: { faixas: [[1, 2, 0.4], [2, 3, 0.2]] } }, MC: { sem: { faixas: [[3, 4, 0.25]] } } }, gasto: { DMC: 1.1, MC: 1.1 },
     },
     // Meias (passo 3; fichas de 29/10). MC: Organizador (padrão), Criador, Box-to-box, Ladrão, Mezzala; AMC: Criador (padrão), Infiltrador, Organizador.
@@ -833,36 +833,36 @@ const __papeis = (() => {
     // área a área e pressiona) e do Criador (passe entre as linhas)
     mezzala: {
       nome: "Mezzala", faz: "Sobe pelo meio-espaço até a faixa 4, ao lado do ponta, e chega à área por ali; conduz e tabela com o ponta.", custa: "Deixa o meio com um a menos na posse e, se o ponta não abrir, os dois se atrapalham no mesmo corredor.",
-      pesos: { dri: 14, pas: 13, vel: 12, dom: 11, fin: 10, cri: 10, res: 9, des: 7, pos: 6, lon: 5, equ: 3 },
+      pesos: { dri: 14, pas: 13, vel: 12, dom: 11, fin: 10, cri: 10, res: 9, des: 7, pos: 6, lon: 5, equ: 3 }, pesosT1: { dri: 12, pas: 11, vel: 10, mov: 10, dom: 9, fin: 9, cri: 8, res: 8, des: 6, pos: 5, dec: 5, lon: 4, equ: 3 },
       desloca: { MC: { com: { faixas: [[3, 4, 0.6], [4, 5, 0.15]], meioEspaco: 0.5 } } }, gasto: { MC: 1.05 },
     },
     organizador: {
       nome: "Organizador", faz: "Fica no centro do meio e a bola gira curta por ele; no AMC, recua para armar.", custa: "Perde bola contra pressão alta e quase não faz gol.",
-      pesos: { pas: 18, cri: 13, pos: 12, dom: 11, des: 11, equ: 10, res: 8, lon: 6, dri: 4, vel: 4, com: 3 },
+      pesos: { pas: 18, cri: 13, pos: 12, dom: 11, des: 11, equ: 10, res: 8, lon: 6, dri: 4, vel: 4, com: 3 }, pesosT1: { pas: 15, dec: 12, cri: 11, pos: 10, dom: 9, des: 9, equ: 8, res: 7, plo: 6, lon: 5, dri: 3, vel: 3, com: 2 },
       desloca: { AMC: { com: { faixas: [[4, 3, 0.45], [5, 4, 1]] } } }, gasto: { MC: 1, AMC: 1 },
     },
     criador: {
       nome: "Criador", faz: "Fica entre o meio e a área e dá o passe que quebra linhas; no MC, sobe para receber entre as linhas.", custa: "O passe arriscado erra mais, marca pouco e precisa de quem ataque o espaço à frente.",
-      pesos: { cri: 17, pas: 15, dom: 14, lon: 12, dri: 11, fin: 8, pos: 7, equ: 6, vel: 5, des: 3, res: 2 },
+      pesos: { cri: 17, pas: 15, dom: 14, lon: 12, dri: 11, fin: 8, pos: 7, equ: 6, vel: 5, des: 3, res: 2 }, pesosT1: { cri: 14, pas: 12, dom: 11, lon: 10, dec: 10, dri: 9, fin: 7, pos: 6, equ: 5, vel: 4, plo: 4, mov: 4, des: 2, res: 2 },
       desloca: { MC: { com: { faixas: [[3, 4, 0.35]] } } }, gasto: { MC: 1, AMC: 1 },
     },
     infiltrador: {
       nome: "Infiltrador", faz: "Pouca bola, muita chegada: entra na área para finalizar e, sem a bola, pressiona o volante rival.", custa: "Some da construção: o meio fica com um a menos na posse.",
-      pesos: { fin: 18, vel: 12, pos: 11, dom: 10, res: 8, dri: 7, cab: 7, cri: 7, pas: 5, lon: 5, for: 4, des: 3, equ: 3 },
+      pesos: { fin: 18, vel: 12, pos: 11, dom: 10, res: 8, dri: 7, cab: 7, cri: 7, pas: 5, lon: 5, for: 4, des: 3, equ: 3 }, pesosT1: { fin: 15, mov: 12, vel: 10, pos: 9, dom: 8, res: 7, dri: 6, cab: 6, cri: 6, pas: 4, lon: 4, dec: 4, for: 3, des: 3, equ: 3 },
       desloca: { AMC: { com: { faixas: [[3, 4, 0.6], [4, 5, 0.35]] }, sem: { faixas: [[3, 4, 0.4]] } } }, gasto: { AMC: 1.05 },
     },
     // Goleiros (passo 3; fichas de 29/10): o goleiro não tem mancha; o papel muda lances (ver motor.js, papelGoleiro)
     paredao: {
       nome: "Paredão", faz: "Fica na linha, pega os chutes de dentro da área e é o que mais sai e segura no cruzamento alto.", custa: "Não cobre a bola em profundidade e não participa da saída de bola.",
-      pesos: { ref: 22, enc: 18, um: 16, pos: 16, com: 12, vel: 4, for: 4, inf: 4, equ: 4 }, gasto: { GK: 1 },
+      pesos: { ref: 22, enc: 18, um: 16, pos: 16, com: 12, vel: 4, for: 4, inf: 4, equ: 4 }, pesosT1: { ref: 21, enc: 17, um: 15, pos: 15, com: 12, vel: 4, for: 4, inf: 4, equ: 4, dec: 4 }, gasto: { GK: 1 },
     },
     goleirolibero: {
       nome: "Goleiro-líbero", faz: "Joga adiantado com a zaga e corta a bola em profundidade antes do atacante.", custa: "Mais gol de longe, sai menos no cruzamento e só rende com a linha alta.",
-      pesos: { um: 20, vel: 16, pos: 16, ref: 14, com: 8, pas: 8, dom: 6, enc: 6, agr: 4, equ: 2 }, gasto: { GK: 1 },
+      pesos: { um: 20, vel: 16, pos: 16, ref: 14, com: 8, pas: 8, dom: 6, enc: 6, agr: 4, equ: 2 }, pesosT1: { um: 18, vel: 15, pos: 14, ref: 13, com: 7, pas: 7, dec: 6, dom: 5, enc: 5, agr: 4, plo: 4, equ: 2 }, gasto: { GK: 1 },
     },
     goleiroarmador: {
       nome: "Goleiro-armador", faz: "Entra na saída de bola como um a mais na zaga e lança direto quando a pressão deixa espaço.", custa: "A perda na saída acontece perto do gol: a bola roubada vira chance clara.",
-      pesos: { pas: 20, dom: 16, ref: 14, pos: 12, cri: 8, um: 8, enc: 8, com: 8, equ: 4, vel: 2 }, gasto: { GK: 1 },
+      pesos: { pas: 20, dom: 16, ref: 14, pos: 12, cri: 8, um: 8, enc: 8, com: 8, equ: 4, vel: 2 }, pesosT1: { plo: 16, pas: 15, dom: 12, ref: 11, pos: 9, dec: 8, cri: 6, um: 6, enc: 6, com: 6, equ: 3, vel: 2 }, gasto: { GK: 1 },
     },
   };
 
@@ -940,9 +940,10 @@ const __papeis = (() => {
     return DIREITA[pos] ? { com: espelharLado(m.com), sem: espelharLado(m.sem) } : m;
   }
 
-  // nota do jogador no papel, na escala dos atributos, com a familiaridade da posição (como notaNaPosicao)
+  // nota do jogador no papel, na escala dos atributos, com a familiaridade da posição (como notaNaPosicao).
+  // Com Passe longo, Movimentação e Decisões (T1), os pesosT1 (06/11); na T0, os de antes (como pesosDe em modelo.js)
   function notaNoPapel(j, pos, papel) {
-    const pesos = PAPEIS[papel].pesos;
+    const pesos = temNovos(j.at) ? PAPEIS[papel].pesosT1 : PAPEIS[papel].pesos;
     let soma = 0;
     for (const k in pesos) soma += pesos[k] * j.at[IDX[k]];
     return soma / 100 * FAMILIARIDADE[familiaridade(j, pos)];
