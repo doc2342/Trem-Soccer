@@ -148,7 +148,43 @@ function htmlOrdens(o, nome, cor) {
 // jogadores de um time: titulares na ordem das posições e, depois, quem entrou
 const ordemDaPos = p => { const k = ORDEM_POS.indexOf(p); return k < 0 ? 99 : k; };
 const timeDoRelatorio = (r, i) => { const l = r.jogadores.filter(j => j.time === i); return { tit: l.filter(j => j.entrou === 0).sort((a, b) => ordemDaPos(a.pos) - ordemDaPos(b.pos)), res: l.filter(j => j.entrou > 0).sort((a, b) => a.entrou - b.entrou) }; };
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "", clubes = null } = {}) { // clubes: [mandante, visitante] com escudo e sigla, para os gráficos // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
+// lances em balão (ideia do ge, dono 06/11), nos dois relatórios: devolve l => HTML do gol, cartão ou substituição, ou "" (aí vale o htmlLance)
+function baloesDosLances(r, { nomes, clubes, uniformes, numeros, rostos }) {
+  // lances em balão (ideia do ge, dono 06/11): o gol num card grande na cor do clube, com o rosto sobre o escudo apagado; o cartão com o rosto,
+  // o nome e a posição; a substituição em par ENTRA / SAI. Os outros lances seguem no htmlLance (o CSS os põe em balão branco).
+  const C = clubes || [{}, {}], U = uniformes || [{}, {}];
+  const tinta = (i, reserva) => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : reserva;
+  const doTime = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
+  const rostoDe = (j, i, extra) => j && rostos && rostos[j.id] ? rostoDoJogador(rostos[j.id], U[i], extra) : "";
+  const quemE = (nome, i) => { const j = doTime(nome, i), num = j && numeros && numeros[i] && numeros[i](nome);
+    return `<div class="t-bal-quem"><b>${num ? `<span>${esc(num)}</span>` : ""}${linkJogador(nome, nome, i)}</b>${j && POSICOES[j.pos] ? `<small>${esc(POSICOES[j.pos].nome)}</small>` : ""}</div>`; };
+  const tempo = l => `${minDoLance(l)}'<small>${l.min > 120 ? "" : l.min > 90 ? "Pr" : l.min > 45 ? "2T" : "1T"}</small>`;
+  const texto = t => /\{[01?]:/.test(t) ? textoColorido(t) : esc(t);
+  return l => {
+    const i = l.time, nm = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
+    if (i !== 0 && i !== 1) return "";
+    if (l.resultado === "gol") {
+      const contra = /\(contra\)$/.test(l.quem || ""), nome = (l.quem || "").replace(/ \(contra\)$/, ""), k = contra ? 1 - i : i, j = doTime(nome, k);
+      return `<div class="lance gol t-bal t-bal-gol" style="--c:${tinta(i, i ? "#5b6170" : "#8a1c35")}"><div class="t-bal-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 180)}</div>
+        <div class="t-bal-corpo"><span class="t-bal-min">${tempo(l)}</span><b class="t-bal-tit">${esc(tituloDoLance(l, nomes))}</b><p>${texto(l.texto)}</p>${nome ? quemE(nome, k) : ""}</div>${rostoDe(j, k) ? `<div class="t-bal-foto">${rostoDe(j, k)}</div>` : ""}</div>`;
+    }
+    if ((l.tipo === "amarelo" || l.tipo === "vermelho") && nm) {
+      const j = doTime(nm[1], i), am = l.tipo === "amarelo" && !/^Segundo amarelo/.test(l.texto || "");
+      return `<div class="lance ${l.tipo} t-bal t-bal-cartao"><span class="t-bal-min">${tempo(l)}</span><div class="t-bal-linha"><div class="t-mom-redondo">${rostoDe(j, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>
+        <div class="t-bal-esc">${svgEscudo(C[i].escudo, C[i].sigla, 22)}</div>${quemE(nm[1], i)}<i class="t-mom-cartao${am ? "" : " t-mom-verm"}"></i></div><p>${texto(l.texto)}</p></div>`;
+    }
+    if (l.tipo === "substituicao") {
+      const m = /^Sai \{\d:([^{}]+)\}, entra \{\d:([^{}]+)\}/.exec(l.texto || ""), m2 = /^Entra \{\d:([^{}]+)\} no lugar de \{\d:([^{}]+)\}/.exec(l.texto || "");
+      const [entra, sai] = m ? [m[2], m[1]] : m2 ? [m2[1], m2[2]] : [];
+      if (!entra) return "";
+      const linha = (nome, cls, rot) => `<div class="t-bal-linha ${cls}"><b class="t-bal-sub">${rot}</b><div class="t-mom-redondo">${rostoDe(doTime(nome, i), i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quemE(nome, i)}</div>`;
+      return `<div class="lance substituicao t-bal t-bal-troca"><span class="t-bal-min">${tempo(l)} · ${esc(nomes[i])}</span>${linha(entra, "t-bal-entra", "Entra")}${linha(sai, "t-bal-sai", "Sai")}</div>`;
+    }
+    return "";
+  };
+}
+
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "", clubes = null, uniformes = null, numeros = null, rostos = null } = {}) { // clubes: [mandante, visitante] com escudo e sigla, para os gráficos // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card" data-aba="resumo"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
@@ -158,7 +194,8 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     ${r.melhor ? `<div style="margin-top:8px">Melhor em campo: <b class="${COR[r.melhor.time]}">${linkJogador(r.melhor.nome, r.melhor.nome, r.melhor.time)}</b> <span class="nota">${f1(r.melhor.nota)}</span></div>` : ""}</div>`;
   const analise = `<div class="duas" data-aba="resumo">${analistas.map(i => `<div class="card"><h2 class="${COR[i]}">Analista: ${n[i]}</h2><ul>${r.analise[i].map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`).join("")}</div>`
     + (ordens ? analistas.filter(i => ordens[i]).map(i => htmlOrdens(ordens[i], n[i], COR[i])).join("") : "");
-  const lances = LEGENDA_LANCES + abertura + r.narracao.map(l => htmlLance(l, nomes)).join("");
+  const balao = clubes ? baloesDosLances(r, { nomes, clubes, uniformes, numeros, rostos }) : () => "";
+  const lances = LEGENDA_LANCES + abertura + r.narracao.map(l => balao(l) || htmlLance(l, nomes)).join("");
   const linha = (t, f) => `<tr><td class="casa">${f(r.estat[0])}</td><td class="mut">${t}</td><td class="fora">${f(r.estat[1])}</td></tr>`;
   const estat = `<table><tr><th class="casa" style="font-size:13px">${n[0]}</th><th></th><th class="fora" style="font-size:13px">${n[1]}</th></tr>${linha("Posse", e => e.posse + "%")}${linha("Finalizações", e => e.finalizacoes)}${linha("No gol", e => e.noGol)}${linha("xG", e => f2(e.xg))}
     ${linha("Chegadas pela esquerda · centro · direita", e => `${e.corredor.E} · ${e.corredor.C} · ${e.corredor.D}`)}${linha("Escanteios", e => e.escanteios)}${linha("Faltas cometidas", e => e.faltas)}
@@ -187,7 +224,7 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
     <div class="rp1"><div class="duas">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="rolagem">${estatisticas}</div></div></div>`;
   const jogadores = `<div class="card" data-aba="jog"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
   return `${resultado}${clubes ? htmlGraficos(r.narracao, clubes) : ""}${analise}${aposAnalise}
-    <div class="duas"><div class="card" data-aba="lances"><h2>Reprise</h2>${lances}</div>
+    <div class="duas"><div class="card rel-baloes" data-aba="lances"><h2>Reprise</h2>${lances}</div>
     <div><div class="card" data-aba="estat"><h2>Estatísticas</h2>${estat}</div>${lateral}
     <div class="card" data-aba="estat"><h2>Mapa de zonas <span class="mut" style="font-weight:400">(${grade ? "cor: duelos com a bola em cada zona; % vencidos por faixa e por corredor" : "duelos com a bola vencidos"}; cada time ataca para cima)</span></h2><div class="duas">${zonas}</div></div>
     ${calor ? `<div class="card" data-aba="estat"><h2>Mapa do jogador <span class="mut" style="font-weight:400">(onde ele participou; ataque para cima)</span></h2>${calor}</div>` : ""}${jogadoresAoLado ? jogadores : ""}</div></div>
@@ -262,36 +299,7 @@ export function htmlRelatorioNovo(r, { nomes = ["Mandante", "Visitante"], clubes
       <p class="t-rel-xg">xG <b>${f2(r.xg[0])} × ${f2(r.xg[1])}</b> · pontos esperados <b>${f2(E.pontos[0])} × ${f2(E.pontos[1])}</b></p>
       ${m ? `<div class="t-rel-melhor"><div><div class="t-numero-rotulo">Melhor em campo</div><b>${linkJogador(m.nome, m.nome, m.time)}</b><span>${esc(nomes[m.time])}</span></div><em>${f1(m.nota)}</em></div>` : ""}
       ${extras ? `<div class="t-faixa-numeros">${extras}</div>` : ""}</div></section>`;
-  // lances em balão (ideia do ge, dono 06/11): o gol num card grande na cor do clube, com o rosto sobre o escudo apagado; o cartão com o rosto,
-  // o nome e a posição; a substituição em par ENTRA / SAI. Os outros lances seguem no htmlLance (o CSS os põe em balão branco).
-  const doTime = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
-  const rostoDe = (j, i, extra) => j && rostos && rostos[j.id] ? rostoDoJogador(rostos[j.id], U[i], extra) : "";
-  const quemE = (nome, i) => { const j = doTime(nome, i), num = j && numeros && numeros[i] && numeros[i](nome);
-    return `<div class="t-bal-quem"><b>${num ? `<span>${esc(num)}</span>` : ""}${linkJogador(nome, nome, i)}</b>${j && POSICOES[j.pos] ? `<small>${esc(POSICOES[j.pos].nome)}</small>` : ""}</div>`; };
-  const tempo = l => `${minDoLance(l)}'<small>${l.min > 120 ? "" : l.min > 90 ? "Pr" : l.min > 45 ? "2T" : "1T"}</small>`;
-  const texto = t => /\{[01?]:/.test(t) ? textoColorido(t) : esc(t);
-  const cardDoLance = l => {
-    const i = l.time, nm = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
-    if (i !== 0 && i !== 1) return "";
-    if (l.resultado === "gol") {
-      const contra = /\(contra\)$/.test(l.quem || ""), nome = (l.quem || "").replace(/ \(contra\)$/, ""), k = contra ? 1 - i : i, j = doTime(nome, k);
-      return `<div class="lance gol t-bal t-bal-gol" style="--c:${tinta(i, i ? "#5b6170" : "#8a1c35")}"><div class="t-bal-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 180)}</div>
-        <div class="t-bal-corpo"><span class="t-bal-min">${tempo(l)}</span><b class="t-bal-tit">${esc(tituloDoLance(l, nomes))}</b><p>${texto(l.texto)}</p>${nome ? quemE(nome, k) : ""}</div>${rostoDe(j, k) ? `<div class="t-bal-foto">${rostoDe(j, k)}</div>` : ""}</div>`;
-    }
-    if ((l.tipo === "amarelo" || l.tipo === "vermelho") && nm) {
-      const j = doTime(nm[1], i), am = l.tipo === "amarelo" && !/^Segundo amarelo/.test(l.texto || "");
-      return `<div class="lance ${l.tipo} t-bal t-bal-cartao"><span class="t-bal-min">${tempo(l)}</span><div class="t-bal-linha"><div class="t-mom-redondo">${rostoDe(j, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>
-        <div class="t-bal-esc">${svgEscudo(C[i].escudo, C[i].sigla, 22)}</div>${quemE(nm[1], i)}<i class="t-mom-cartao${am ? "" : " t-mom-verm"}"></i></div><p>${texto(l.texto)}</p></div>`;
-    }
-    if (l.tipo === "substituicao") {
-      const m = /^Sai \{\d:([^{}]+)\}, entra \{\d:([^{}]+)\}/.exec(l.texto || ""), m2 = /^Entra \{\d:([^{}]+)\} no lugar de \{\d:([^{}]+)\}/.exec(l.texto || "");
-      const [entra, sai] = m ? [m[2], m[1]] : m2 ? [m2[1], m2[2]] : [];
-      if (!entra) return "";
-      const linha = (nome, cls, rot) => `<div class="t-bal-linha ${cls}"><b class="t-bal-sub">${rot}</b><div class="t-mom-redondo">${rostoDe(doTime(nome, i), i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quemE(nome, i)}</div>`;
-      return `<div class="lance substituicao t-bal t-bal-troca"><span class="t-bal-min">${tempo(l)} · ${esc(nomes[i])}</span>${linha(entra, "t-bal-entra", "Entra")}${linha(sai, "t-bal-sai", "Sai")}</div>`;
-    }
-    return "";
-  };
+  const cardDoLance = baloesDosLances(r, { nomes, clubes: C, uniformes: U, numeros, rostos });
   // capítulo 2: o jogo contado — gráficos, a reprise e os números lado a lado
   const regua = `<div class="t-regua-cab"><span>${n[0]}</span><span>${n[1]}</span></div><div class="t-regua t-rel-regua">${NUMEROS_DO_JOGO.map(([nome, f, v = f]) => {
     const a = +v(r.estat[0]) || 0, b = +v(r.estat[1]) || 0, pct = a + b ? Math.round(100 * a / (a + b)) : 50, lado = (x, maior) => maior ? `<b>${x}</b>` : `<span>${x}</span>`;
