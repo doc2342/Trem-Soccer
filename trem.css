@@ -2170,3 +2170,4 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-am-divs > * { padding:9px 6px; }
 .t-am-dica { font-size:12.5px; color:var(--t-tinta2); margin:-4px 0 4px; }
 .t-mom { height:196px; } .t-mom-nome { position:relative; z-index:1; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 13px/1.1 var(--display, Archivo); } .t-mom-nome small { font-weight:500; opacity:.65; }
+.t-foport-acao .t-botao:disabled { opacity:.45; cursor:not-allowed; }
