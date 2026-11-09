@@ -4466,7 +4466,7 @@ ${historicoDaBase()}`}
     const contaDoTreino = j => { const jt = comFoco(j), visto = tetoDe[j.id], total = pontosDaSessao(jt, { ct: clube.ct_nivel || 0, teto: visto ? (visto.minimo + visto.maximo) / 2 : null }) * fatorDoGrupo, partes = partilha(jt);
       const ganhoDe = i => total * partes[i] * multDoAtributo(areasDoTreino, +i);
       const limite = total > 0 && noTeto.has(j.id); // bateu o teto: o treino troca (o foco sobe, outro atributo da posição desce; 08/11)
-      return { visto, total, partes, ganhoDe, limite, ritmo: limite ? "troca" : total > 0 ? (visto ? "+" : "≈+") + (Object.keys(partes).reduce((t, i) => t + ganhoDe(i), 0) / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou" }; };
+      return { visto, total, partes, ganhoDe, limite, ritmo: limite ? (focos.get(j.id).m ? "parado" : "troca") : total > 0 ? (visto ? "+" : "≈+") + (Object.keys(partes).reduce((t, i) => t + ganhoDe(i), 0) / CONFIG_TREINO.pontosPorNivel).toFixed(2).replace(".", ",") : "parou" }; };
     const fichaDoTreino = j => {
       const f = focos.get(j.id), { visto, total, partes, ganhoDe, ritmo, limite } = contaDoTreino(j), estudo = posicaoEmEstudo(j);
       const doFoco = FOCOS[f.p].at, opcoes = Object.keys(FOCOS).filter(k => j.pos === "GK" ? (k === "goleiro" || k === "fisico") : k !== "goleiro");
@@ -4482,7 +4482,8 @@ ${historicoDaBase()}`}
       return `<div class="t-trn-ficha-cab"><div>${pp(j.pos)}<h3 class="t-trn-ficha-nome">${lj(j.id, j.nome)}</h3><div class="t-trn-ficha-sub">${j.idade} anos · treina ${FOCOS[f.p].nome.toLowerCase()}${j.juvenil ? " · juvenil" : ""}${j.fora > 0 && j.motivo === "lesão" ? ` · <b class="bad">lesionado, não treina</b>` : ""}${mudou.has(j.id) ? ` · <b class="t-trn-falta">mudou, falta salvar</b>` : ""}</div></div>
           <div class="t-trn-ficha-ritmo">${numero({ rotulo: "Por rodada", valor: ritmo, legenda: limite ? "no teto: o foco sobe e outro atributo da posição desce, a nota fica parada" : total > 0 ? (visto ? "pontos de atributo, sem o bônus de jogar" : "estimativa sem olheiro (teto típico)") : "parou pela idade (31 anos ou mais)" })}</div></div>
         <div class="t-trn-det"><div class="t-trn-bloco"><div class="t-numero-rotulo">Foco principal · 70% dos pontos</div><div class="t-transf-filtro">${opcoes.map(k => `<button type="button" data-tfoco-v="${j.id}:${k}" class="${k === f.p ? "ligado" : ""}"${trava}>${FOCOS[k].nome}</button>`).join("")}</div>
-          <div class="t-numero-rotulo">Complementar · 30%, três atributos</div><div class="t-transf-filtro">${atributosDe(j).map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<button type="button" data-tcomp-v="${j.id}:${i}" class="${f.c.includes(i) ? "ligado" : ""}"${trava}>${a.nome}</button>`).join("")}</div>${parado ? `<p class="t-trn-nota">Parou pela idade: não treina mais atributos, então o foco não muda nada.</p>` : limite ? `<p class="t-trn-nota">Chegou ao teto: a nota não sobe mais, mas o treino continua mudando o perfil. Cada nível que o foco ganha, outro atributo que pesa na posição perde (o de maior peso, espalhando a perda). Escolha o foco pelo jogador que você quer.</p>` : ""}</div>
+          <div class="t-numero-rotulo">Complementar · 30%, três atributos</div><div class="t-transf-filtro">${atributosDe(j).map((a, i) => !treinavel(j.pos, i) || doFoco.includes(a.k) ? "" : `<button type="button" data-tcomp-v="${j.id}:${i}" class="${f.c.includes(i) ? "ligado" : ""}"${trava}>${a.nome}</button>`).join("")}</div>${parado ? `<p class="t-trn-nota">Parou pela idade: não treina mais atributos, então o foco não muda nada.</p>` : limite ? `<div class="t-numero-rotulo" style="margin-top:12px">No teto</div><div class="t-segmentos" style="max-width:360px"><button type="button" data-tmanter="${j.id}:0" aria-pressed="${!f.m}">Trocar atributos</button><button type="button" data-tmanter="${j.id}:1" aria-pressed="${!!f.m}">Manter o perfil</button></div>
+            <p class="t-trn-nota">${f.m ? "Manter o perfil: ele não treina mais atributos, fica como está." : "Trocar atributos: a nota não sobe mais, mas o treino continua mudando o perfil. Cada nível que o foco ganha, outro atributo que pesa na posição perde (o de maior peso, espalhando a perda)."}</p>` : ""}</div>
           <div class="t-trn-bloco"><div class="t-numero-rotulo">Progresso</div><div class="t-trn-progs${limite ? " t-trn-limite" : ""}">${prog}</div></div>${posNova}</div>`; };
     const desenharTreinoNovo = () => {
       const doGrupo = lista.filter(j => !j.juvenil === (grupo === "prof")), prof = elenco.filter(j => !j.juvenil), auto = prof.filter(j => !(j.treino && j.treino.p)).length;
@@ -4525,7 +4526,7 @@ ${historicoDaBase()}`}
     // troca o foco principal: os complementares que entraram no foco novo dão lugar aos automáticos
     const ajustar = (j, p, c) => { const doFoco = FOCOS[p].at, livres = atributosDe(j).map((a, i) => i).filter(i => treinavel(j.pos, i) && !doFoco.includes(ATRIBUTOS[i].k));
       const limpo = [...new Set(c)].filter(i => livres.includes(i)); for (const i of [...focoAutomatico(j.pos, j.at).c, ...livres]) if (limpo.length < 3 && livres.includes(i) && !limpo.includes(i)) limpo.push(i);
-      focos.set(j.id, { p, c: limpo.slice(0, 3) }); mudou.add(j.id); };
+      focos.set(j.id, { p, c: limpo.slice(0, 3), ...(focos.get(j.id).m ? { m: true } : {}) }); mudou.add(j.id); };
     const porId = id => elenco.find(j => String(j.id) === id);
     const aprender = (j, valor) => { const antes = j.aprende && j.aprende.pos, tinha = antes && j.fam[antes] === "N" && antes !== j.pos;
       if (valor === (posicaoEmEstudo(j) || "")) return;
@@ -4546,6 +4547,9 @@ ${historicoDaBase()}`}
         return; }
       const ver = e.target.closest("[data-tver]");
       if (ver) { sel = porId(ver.dataset.tver).id; desenharTreino(); if (matchMedia("(max-width:900px) and (pointer:coarse)").matches) $("tFicha").scrollIntoView({ block: "start" }); return; }
+      const mt = e.target.closest("[data-tmanter]");
+      if (mt) { const j = porId(mt.dataset.tmanter.split(":")[0]), f = focos.get(j.id), m = mt.dataset.tmanter.endsWith(":1");
+        if (!!f.m !== m) { const { m: _, ...resto } = f; focos.set(j.id, m ? { ...resto, m: true } : resto); mudou.add(j.id); desenharTreino(); } return; }
       const v = e.target.closest("[data-tfoco-v], [data-tcomp-v], [data-taprende-v]");
       if (v) { const [id, x] = (v.dataset.tfocoV || v.dataset.tcompV || v.dataset.taprendeV).split(":"), j = porId(id), f = focos.get(j.id);
         if (v.dataset.taprendeV != null) aprender(j, x);

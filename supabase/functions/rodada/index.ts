@@ -4087,11 +4087,11 @@ const __treino = (() => {
   }
   // Foco em uso: o salvo pelo dirigente, se for válido; senão, o automático.
   function focoDoJogador(j) {
-    const t = j.treino, auto = focoAutomatico(j.pos, j.at);
+    const t = j.treino, auto = focoAutomatico(j.pos, j.at), m = !!(t && t.m); // m: no teto, manter o perfil (não troca atributos)
     // goleiro só treina o foco de goleiro ou o físico; jogador de linha não treina o foco de goleiro
-    if (!t || !FOCOS[t.p] || ((t.p === "goleiro") !== (j.pos === "GK") && t.p !== "fisico")) return auto;
+    if (!t || !FOCOS[t.p] || ((t.p === "goleiro") !== (j.pos === "GK") && t.p !== "fisico")) return m ? { ...auto, m } : auto;
     const c = Array.isArray(t.c) ? [...new Set(t.c.map(Number))].filter(i => i >= 0 && i < j.at.length && treinavel(j.pos, i)).slice(0, 3) : [];
-    return { p: t.p, c: c.length ? c : auto.c };
+    return { p: t.p, c: c.length ? c : auto.c, ...(m ? { m } : {}) };
   }
 
   // Posição nova: o dirigente manda o jogador aprender UMA posição além das que ele já tem. Enquanto aprende, o treino de atributos rende 20% menos.
@@ -4182,7 +4182,7 @@ const __treino = (() => {
   // No teto (com a folga dele) o treino não para: o foco sobe e outro atributo que pesa na posição desce para pagar (rebalanço, dono 08/11).
   function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
     const total = pontosDaSessao(j, { ct, jogou, tal }) * fator, noTeto = chegouAoTeto(j, tal);
-    if (total <= 0 || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
+    if (total <= 0 || (tal == null && notaDeTeto(j) >= tetoDaNota(tal)) || (noTeto && focoDoJogador(j).m)) return null; // no teto com "manter o perfil": não treina
     const at = j.at.slice(), pts = at.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
     for (const [i, parte] of Object.entries(partilha(j))) {
       if (at[i] >= ATR_MAX) continue;

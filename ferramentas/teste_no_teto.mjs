@@ -26,4 +26,7 @@ assert.ok(notaDeTeto(k) <= Math.max(limite, notaAntes) + 1e-9, "a nota não cres
 // depois dos 30 o treino para pela idade, não pelo teto; sem talento (telas), ninguém é marcado
 assert.equal(chegouAoTeto({ ...cheio, idade: 31 }, tal), false);
 assert.equal(chegouAoTeto(cheio, null), false);
+// "manter o perfil" (177): no teto não treina; abaixo do teto treina normal
+assert.equal(treinar({ ...cheio, treino: { p: "meia", c: [], m: true } }, { tal }), null);
+assert.ok(treinar({ ...j, treino: { p: "meia", c: [], m: true } }, { tal }));
 console.log("no teto: ok");
