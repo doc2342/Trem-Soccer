@@ -947,12 +947,15 @@ function narrar(c, resultado, goleiro, nm, noAlvo = 0.3, falha = 1, v = 0) {
     // c.memo (grade, item 8): "claro" é o cobrador da tática, "claroDeNovo" ele de novo depois de acertar, "deNovo" quem já errou uma no jogo
     falta: c.criador !== c.finalizador ? `${cr} levanta a falta na área e ${f} ${alto}` : c.memo === "deNovo" || c.memo === "claroDeNovo" ? `${f} vai de novo para a bola e cobra direto no gol`
       : c.memo ? `${f}, claro, vai para a bola e cobra direto no gol` : `${f} cobra a falta direto no gol`,
-    penalti: !CONFIG.grade ? `${f} cobra o pênalti` : `${c.memo === "deNovo" ? `${f} pega a bola de novo` : c.memo === "claroDeNovo" ? `${f}, claro, pega a bola de novo` : c.memo ? `${f}, claro, pega a bola` : `${f} ajeita a bola na marca da cal`} e bate${resultado === "gol" || resultado === "defesa" ? um([" no canto", " forte", " rasteiro", " no alto", ""]) : ""}`,
+    penalti: !CONFIG.grade ? `${f} cobra o pênalti` : `${c.memo === "deNovo" ? `${f} pega a bola de novo` : c.memo === "claroDeNovo" ? `${f}, claro, pega a bola de novo` : c.memo ? `${f}, claro, pega a bola` : `${f} ajeita a bola na marca da cal`} e bate${resultado === "defesa" ? um([" no canto", " forte", " rasteiro", " no alto", ""]) : ""}`,
     rebote: c.deTrave ? `A bola volta da trave e ${f} pega o rebote` : c.criador === c.finalizador ? `${goleiro ? nm(goleiro) : "A defesa"} solta e o próprio ${f} pega o rebote` : `${goleiro ? nm(goleiro) : "A defesa"} solta a bola e ${f} chega no rebote`,
   }[c.tipo] + peRuimNarrado(c);
   const N = CONFIG.narracaoDefesa, gk = goleiro && nm(goleiro);
   const fim = {
-    gol: gk && c.tipo !== "penalti" && falha >= N.frango && noAlvo < N.facil * 2 ? `GOL! Falha de ${gk}, que aceita um chute defensável!` : "GOL!",
+    // o gol de pênalti com as frases da disputa (dono, 09/11); o começo da frase já não diz como bateu, para não brigar com elas
+    gol: c.tipo === "penalti" ? um([`GOL! ${f} desloca ${gk || "o goleiro"}.`, `GOL! ${f} bate firme, no cantinho.`, `GOL! Com categoria, ${f} manda para a rede.`, `GOL! ${f} bate no meio e ${gk || "o goleiro"} pula para o lado.`,
+      `GOL! De cavadinha! ${f} espera ${gk || "o goleiro"} cair e toca por cima.`, `GOL! ${gk || "O goleiro"} chega a tocar na bola, mas a batida de ${f} entra.`, `GOL! Bomba de ${f} no ângulo. Sem chance para ${gk || "o goleiro"}.`])
+      : gk && falha >= N.frango && noAlvo < N.facil * 2 ? `GOL! Falha de ${gk}, que aceita um chute defensável!` : "GOL!",
     defesa: c.goleiroSaiu ? "a zaga salva em cima da linha." : !gk ? "a defesa fica com a bola." : c.tipo === "penalti" ? `${gk} pega o pênalti!`
       : noAlvo >= N.milagre ? um([`${gk} faz um milagre!`, `${gk} voa e tira de onde não dava! Milagre!`, `inacreditável, ${gk} defende! Que milagre!`])
       : noAlvo >= N.boa ? um([`${gk} faz grande defesa!`, `${gk} se estica todo e espalma! Grande defesa!`, `que defesa de ${gk}!`])
