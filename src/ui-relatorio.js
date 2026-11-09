@@ -186,7 +186,7 @@ export function baloesDosLances(r, { nomes, clubes, uniformes, numeros, rostos }
   };
 }
 
-export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "", clubes = null, uniformes = null, numeros = null, rostos = null } = {}) { // clubes: [mandante, visitante] com escudo e sigla, para os gráficos // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
+export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas = [0, 1], abertura = "", semPlacar = false, ordens = null, lateral = "", jogadoresAoLado = false, aposAnalise = "", clubes = null, uniformes = null, numeros = null, rostos = null, escalacaoNoCampinho = false } = {}) { // clubes: [mandante, visitante] com escudo e sigla, para os gráficos // lateral: blocos extras na coluna das estatísticas; aposAnalise: logo depois das ordens // ordens: [do mandante, do visitante] (nulo = não mostrar), só para o próprio dirigente // semPlacar: a página já mostra o placar grande em cima
   const E = r.esperado, n = nomes.map(esc);
   const resultado = `<div class="card" data-aba="resumo"><div class="placar">${semPlacar ? "" : `<span class="casa">${n[0]} ${r.placar[0]}</span> x <span class="fora">${r.placar[1]} ${n[1]}</span>`}
     <small>xG ${f2(r.xg[0])} x ${f2(r.xg[1])} · pontos esperados ${f2(E.pontos[0])} x ${f2(E.pontos[1])}</small></div>
@@ -207,14 +207,16 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const calor = grade ? calorDosJogadores(r, n) : "";
   const zonas = grade ? CSS_GRADE + [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div>${mapaDaGrade(r.zonas[i])}</div>`).join("") : [0, 1].map(i => `<div><div class="${COR[i]}" style="margin-bottom:4px">${n[i]}</div><div class="campo">${["A", "M", "D"].map(l => ["E", "C", "D"].map(s => { const z = r.zonas[i][l + s]; return `<div style="background:${cor(z)}">${z.total ? pc(z.ganhos / z.total) : "—"}<br><span class="mut">${z.ganhos}/${z.total}</span></div>`; }).join("")).join("")}</div></div>`).join("");
   // jogadores: cada time separado, titulares na ordem das posições e, depois, quem entrou
-  const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🚑" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? "🔻" : ""}`;
+  const marcas = j => `${"⚽".repeat(Math.min(j.gols || 0, 4))}${"🟨".repeat(Math.min(j.amarelos || 0, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? "🚑" : ""}${j.saiu !== null && !j.vermelho && !j.lesionado ? `<i class="rel-sai">▼</i>` : ""}`;
   const corNota = v => v >= 7 ? "ok" : v < 5.5 ? "bad" : "";
   const doTime = i => timeDoRelatorio(r, i);
-  const ficha = (j, col) => `<div class="vaga" style="cursor:default${col ? `;grid-column:${col} / span 2` : ""}">${pp(j.pos)}<div class="nome" title="${esc(j.nome)}"><span class="nc">${linkJogador(j.nome, j.nome, j.time)}</span><span class="ns">${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0], j.time)}</span></div><div class="det"><b class="${corNota(j.nota)}" style="font-size:14px">${f1(j.nota)}</b> ${marcas(j)}</div></div>`;
-  const campinho = i => {
-    const { tit, res } = doTime(i);
-    return `<div><div class="${COR[i]}" style="margin-bottom:4px;font-weight:600">${n[i]}</div><div class="gramado">${filasDoCampo(tit, j => j.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) => ficha(x, col)).join("")}</div>`).join("")}</div>
-      ${res.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Entraram: ${res.map(j => `${linkJogador(j.nome, j.nome, j.time)} (${sg(j.pos)}, aos ${j.entrou}') <b class="${corNota(j.nota)}">${f1(j.nota)}</b> ${marcas(j)}`).join(" · ")}</div>` : ""}</div>`;
+  const ficha = (j, col, final = false) => `<div class="vaga${!final && j.saiu !== null && !j.vermelho ? " rel-saiu" : ""}" style="cursor:default${col ? `;grid-column:${col} / span 2` : ""}">${pp(j.pos)}<div class="nome" title="${esc(j.nome)}"><span class="nc">${linkJogador(j.nome, j.nome, j.time)}</span><span class="ns">${linkJogador(j.nome, j.nome.split(" ").slice(-1)[0], j.time)}</span></div><div class="det"><b class="${corNota(j.nota)}" style="font-size:14px">${f1(j.nota)}</b> ${final && j.entrou > 0 ? `<i class="rel-entra">▲</i>` : ""}${marcas(j)}</div></div>`;
+  const campinho = (i, final = false) => {
+    const { tit, res } = doTime(i), noCampo = final ? [...tit, ...res].filter(j => j.saiu === null) : tit;
+    if (final) return `<div><div class="${COR[i]}" style="margin-bottom:4px;font-weight:600">${n[i]}</div><div class="gramado">${filasDoCampo(noCampo, j => j.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) => ficha(x, col, true)).join("")}</div>`).join("")}</div>
+      ${noCampo.length < 11 ? `<div class="mut" style="margin-top:6px;font-size:12px">Terminou com ${noCampo.length}.</div>` : "<div></div>"}</div>`;
+    return `<div><div class="${COR[i]}" style="margin-bottom:4px;font-weight:600">${n[i]}</div><div class="gramado">${filasDoCampo(noCampo, j => j.pos).map(fila => `<div class="fila ${fila.grade ? "grade" : ""}">${fila.itens.map(({ x, col }) => ficha(x, col)).join("")}</div>`).join("")}</div>
+      ${res.length ? `<div class="mut" style="margin-top:6px;font-size:12px">Entraram: ${res.map(j => `<i class="rel-entra">▲</i> ${linkJogador(j.nome, j.nome, j.time)} (${sg(j.pos)}, aos ${j.entrou}') <b class="${corNota(j.nota)}">${f1(j.nota)}</b> ${marcas(j)}`).join(" · ")}</div>` : ""}</div>`;
   };
   const cab = `<tr><th>Pos</th><th class="esq">Jogador</th><th>Nota</th><th>Min</th><th>Gols</th><th>Assist.</th><th>Finalizações</th><th>xG</th><th>Duelos ganhos · perdidos</th><th>Defesas</th><th>Faltas</th><th>Cartões</th><th>Energia no fim</th></tr>`;
   const linhaJ = j => `<tr><td>${pp(j.pos)}</td><td class="esq ${COR[j.time]}">${linkJogador(j.nome, j.nome, j.time)}</td><td class="nota">${f1(j.nota)}</td><td>${j.minutos}</td><td>${j.gols || ""}</td><td>${j.assistencias || ""}</td><td>${j.finalizacoes || ""}</td><td>${j.xg ? f2(j.xg) : ""}</td><td>${j.pos === "GK" ? "" : j.duelosGanhos + " · " + j.duelosPerdidos}</td><td>${j.pos === "GK" ? j.defesas : ""}</td><td>${j.faltas || ""}</td><td>${"🟨".repeat(Math.min(j.amarelos, 1))}${j.vermelho ? "🟥" : ""}${j.lesionado ? " lesão" : ""}</td><td>${j.energia}</td></tr>`;
@@ -222,9 +224,14 @@ export function htmlRelatorio(r, { nomes = ["Mandante", "Visitante"], analistas 
   const estatisticas = `<table>${[0, 1].map(i => { const { tit, res } = doTime(i); return titulo(`<span class="${COR[i]}">${n[i]}</span> · titulares`) + cab + tit.map(linhaJ).join("") + (res.length ? titulo(`<span class="${COR[i]}">${n[i]}</span> · entraram no jogo`) + res.map(linhaJ).join("") : ""); }).join("")}</table>`;
   const id = "rj" + (++serieAbas);
   const jogadoresHtml = `<div class="rabas"><input type="radio" name="${id}" id="${id}a" class="rt1" checked><input type="radio" name="${id}" id="${id}b" class="rt2">
-    <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🚑 lesão · 🔻 substituído</span></div>
+    <div class="rbar"><label for="${id}a" class="l1">Campinho</label><label for="${id}b" class="l2">Estatísticas</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🚑 lesão · <i class="rel-sai">▼</i> substituído</span></div>
     <div class="rp1"><div class="duas">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="rolagem">${estatisticas}</div></div></div>`;
-  const jogadores = `<div class="card" data-aba="jog"><h2>Jogadores</h2>${jogadoresHtml}</div>`;
+  const jogadores = `<div class="card" data-aba="jog"><h2>Jogadores</h2>${escalacaoNoCampinho ? `<div class="rolagem">${estatisticas}</div>` : jogadoresHtml}</div>`; // com o campinho na Escalação, aqui só a tabela
+  // depois do apito, a aba Escalação vira o campinho com quem fez gol, levou cartão, saiu (apagado, ▼) e entrou (▲), como no ge
+  const ide = "re" + (++serieAbas);
+  if (escalacaoNoCampinho) lateral = `<div class="card" data-aba="esc"><h2>Escalação</h2><div class="rabas"><input type="radio" name="${ide}" id="${ide}a" class="rt1" checked><input type="radio" name="${ide}" id="${ide}b" class="rt2">
+    <div class="rbar"><label for="${ide}a" class="l1">Inicial</label><label for="${ide}b" class="l2">Final</label><span class="mut" style="font-size:12px;margin-left:auto">⚽ gol · 🟨🟥 cartão · 🚑 lesão · <i class="rel-sai">▼</i> saiu · <i class="rel-entra">▲</i> entrou</span></div>
+    <div class="rp1"><div class="duas rel-campos">${campinho(0)}${campinho(1)}</div></div><div class="rp2"><div class="duas rel-campos">${campinho(0, true)}${campinho(1, true)}</div></div></div></div>` + lateral;
   return `${resultado}${clubes ? htmlGraficos(r.narracao, clubes) : ""}${analise}${aposAnalise}
     <div class="duas"><div class="card rel-baloes" data-aba="lances"><h2>Reprise</h2>${lances}</div>
     <div><div class="card" data-aba="estat"><h2>Estatísticas</h2>${estat}</div>${lateral}

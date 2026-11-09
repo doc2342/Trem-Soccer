@@ -239,3 +239,7 @@ details.card[open] > summary { margin-bottom:8px; }
 .t-bal-foto { position:absolute; right:10px; bottom:0; width:120px; } .t-bal-foto svg { display:block; width:100%; height:auto; }
 @media (max-width:560px) and (pointer:coarse) { .t-bal-gol .t-bal-corpo { max-width:calc(100% - 84px); } .t-bal-foto { width:88px; } .t-bal-tit { font-size:21px; } }
 .t-mom { height:196px; } .t-mom-nome { position:relative; z-index:1; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 13px/1.1 var(--display, Archivo); } .t-mom-nome small { font-weight:500; opacity:.65; }
+.rel-sai { color:var(--bad); font-style:normal; font-size:11px; } .rel-entra { color:var(--ok); font-style:normal; font-size:11px; } .vaga.rel-saiu { opacity:.6; }
+/* os dois campinhos da Escalação com a mesma altura: o time com menos linhas espaça as dele */
+.rel-campos { grid-template-rows:auto 1fr auto; } .rel-campos > div { display:grid; grid-template-rows:subgrid; grid-row:span 3; } .rel-campos .gramado { justify-content:space-around; }
+@media (max-width:640px) { .rel-campos { grid-template-rows:none; } .rel-campos > div { display:block; } }
