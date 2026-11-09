@@ -11,10 +11,10 @@ import { prepararTime, simularPartida, CONFIG } from "../src/motor.js";
 
 // 05/11/2026: faltas de quem tem a posse na T0 (a T0 muda de propósito); na T1 só entrou estat.faltasTipo (sem ele, o hash da T1 é o de antes, a66675…)
 // 06/11/2026: só a narração mudou (cartão com a falta, quem afasta, chute para fora variado, "Ele", atq no evento); sem p.narracao, o hash é o mesmo de antes (bf1409…, 4ba4ca…)
-// 09/11/2026: só a narração do pênalti (fases e frases de gol da disputa); sem p.narracao, os hashes são os mesmos (bf1409…, 9d69c5…)
-const HASH_T0 = "4e124ae18bc2d9a4565babb15baa3086bfcdc6fbb5ce419e2aecb85e05db9325";
+// 09/11/2026: só a narração do pênalti e da falta direta (fases, frases de gol); sem p.narracao, os hashes são os mesmos (bf1409…, 9d69c5…)
+const HASH_T0 = "af9a5ca602c01e8de0a41103d5e25bc5f53ee17b526def953fa216027a205b5e";
 // 07/11/2026: as faltas de quem tem a posse e o faltaDomina entram na T1 (muda de propósito; antes e721fe…)
-const HASH_T1_SEM_GRADE = "89136cb5b21a490bf9f25923cbe9f7fe213cd6f4e7fc57f358c88074cf5606d4";
+const HASH_T1_SEM_GRADE = "e10028b93708b9fb068d6724faf73318cb49894efe0bc16fc21d0d946199a1fc";
 
 const nomes = JSON.parse(readFileSync(new URL("../dados/nomes.json", import.meta.url)));
 const formacoes = Object.keys(FORMACOES);
