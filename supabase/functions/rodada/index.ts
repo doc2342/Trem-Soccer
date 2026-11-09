@@ -1252,6 +1252,11 @@ const __motor = (() => {
     //     interromper um ataque promissor é advertência). ferramentas/sim_faltas_posse.mjs
     faltaAtaque: { base: 0.1, porPosicao: { SC: 1.6, FC: 1.3, AMC: 1, AMR: 0.9, AML: 0.9, RW: 0.9, LW: 0.9, MC: 0.9, DMC: 0.8, MR: 0.8, ML: 0.8, DC: 0.8, SW: 0.8, DR: 0.6, DL: 0.6, WBR: 0.6, WBL: 0.6 } },
     faltaNaPerda: { pressao: 0.11, tatica: 0.4, amarelo: 0.8 },
+    // faltaDomina (07/11/2026, só na T1 por enquanto): a falta do defensor no duelo × (posse esperada do time que defende / 0,5) ^ faltaDomina. O time que domina
+    // defende adiantado e briga pela bola na transição; o que se fecha atrás espera. Sem isto, quem tem menos posse faz mais falta (a falta segue os ataques
+    // do rival): na grade -0,16 falta por ponto de posse; com 1,2 e falta 0,165, -0,006 (real -0,05 a +0,05), 21,7 faltas, 4,65 amarelos e 0,21 vermelho
+    // por jogo (antes 30, 6,6 e 0,49), gols 2,65 → 2,73, contra-ataques 1,96 → 1,35 (sim_faltas_posse 3 t1)
+    faltaDomina: 0,
     faltaLonge: 0.46, // × na falta do defensor fora da zona de bola parada (a de perto da área fica: os gols de falta e de pênalti não mudam)
     lesao: 0.0026, // era 0,0023 com 0,85 ataque por minuto; por duelo, para quem tem a bola (alvo: 3 a 4 lesões por clube por temporada de 18 rodadas)
     maxSubstituicoes: 5,
@@ -1436,8 +1441,8 @@ const __motor = (() => {
     //   (meta 5–7%; recorde da Premier League 7,1%), o chute de contra-ataque valer 1,37 vez o de jogo corrido (real ~1,4) e o time montado para o
     //   contra-ataque fazer 17,8% dos gols assim (meta 15–20%). Ritmo 0,69 → 0,79 para a liga voltar a 2,32 gols por jogo; conversão no alvo 28,5% (T0 27,1%).
     //   Saída do goleiro: 1,06 por jogo somando os dois (real 0,5 a 1 por goleiro), corta 79%. Posicionamento com a 4A: +7 a 12% de valor, atrás da Velocidade
-    // as faltas de quem tem a posse (05/11/2026) só na T0 por enquanto: na T1 entram com a calibragem da grade (Tarefa 12); desligadas, a T1 sorteia igual
-    t1: { faltaAtaque: { base: 0 }, faltaNaPerda: { pressao: 0, tatica: 0 }, faltaLonge: 1, amarelo: 0.37,
+    // as faltas de quem tem a posse (05/11/2026) valem também na T1 desde 07/11, com faltaDomina (a inclinação na grade ficava em -0,16 só com elas)
+    t1: { falta: 0.165, amarelo: 0.37, faltaDomina: 1.2,
       contraAtaque: { com: 0.17, sem: 0.053, logit: 0.9 }, ataquesPorMinuto: 0.79, baseDuelo: { D: 1.2, M: 0.25, A: 0.1 },
       pressaoLeitura: 0.5,
       contraChance: { qualidade: 1.17, expoente: 1, min: 0.6, max: 2 },
@@ -1508,6 +1513,7 @@ const __motor = (() => {
   const A = IDX;
   // a narração conta o papel só quando ele não é o padrão da posição (sem escolha, o texto é o de sempre)
   const temPapel = (jog, ...papeis) => !!jog && !!jog.papel && jog.papel !== PAPEL_PADRAO[jog.pos] && papeis.includes(jog.papel);
+  const PONTA_POR_DENTRO = ["pontainvertido", "condutor", "articulador"];
   const PONTA_ABERTO = ["RW", "LW", "MR", "ML"]; // na frente do Apoiador, quem fica aberto (padrões Agudo e Garçom); AMR/AML (Condutor) corta para dentro
   // Habilidade de quem tem a bola, por zona.
   // Na grade, cada zona vale pela linha antiga da faixa (1 = D, 2–3 = M, 4–5 = A) e pelo lado do corredor; o meio-espaço tem conta própria por faixa.
@@ -1621,7 +1627,8 @@ const __motor = (() => {
       const sem = m ? m.sem : COBERTURA[jog.pos], P = POSICOES[jog.pos]; // na T1 o ala padrão também tem as duas fases
       let com = m ? m.com : COBERTURA[jog.pos];
       // passagem do Apoiador: com um ponta que fica aberto no mesmo lado (lido do lugar de cada um no campo), passa por dentro
-      if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado)) {
+      // na grade, pela função do ponta (06/11): o Ponta invertido, o Condutor e o Articulador entram por dentro, e aí o Apoiador passa por fora (guia de sinergias do FM26)
+      if (m && jog.papel === "apoiador" && P.linha === "defesa" && t.emCampo.some(o => o !== jog && PONTA_ABERTO.includes(o.pos) && POSICOES[o.pos].lado === P.lado && !(grade && PONTA_POR_DENTRO.includes(o.papel)))) {
         const pdD = grade ? G.passagemPorDentro : CONFIG.papeis.passagemPorDentro, pd = P.lado === "D" ? pdD : (grade ? espelharGrade : espelharLado)(pdD);
         com = { ...com }; for (const z in pd) com[z] = (com[z] || 0) + pd[z];
       }
@@ -2429,7 +2436,7 @@ const __motor = (() => {
       const contato = g ? CONFIG.gradeValores.contato : 1; // na grade há mais passos que duelos nas 9 zonas
       let venceu = rng.chance(p), parada = false, comFalta = false, recomeca = false, faltaAtaque = false;
       const perigosa = g ? faixaDe(zona) === 5 || zona === "4C" : L === "A"; // a falta ali vira bola parada (falta direta, cruzamento, pênalti)
-      if (marcador && rng.chance(CONFIG.falta * (perigosa ? 1 : CONFIG.faltaLonge) * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (CONFIG.grade && temPapel(marcador, "ladrao", "combativo") ? CONFIG.gradeValores.papelDefesa.falta : 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato)) {
+      if (marcador && rng.chance(CONFIG.falta * (perigosa ? 1 : CONFIG.faltaLonge) * (1 + CONFIG.faltaPorAgressividade * def.instr.agressividade) * Math.sqrt(marcador.j.at[A.agr] / 25) * (CONFIG.faltaPorPosicao[marcador.pos] || 1) * (CONFIG.grade && temPapel(marcador, "ladrao", "combativo") ? CONFIG.gradeValores.papelDefesa.falta : 1) * (marcador.amarelos ? CONFIG.faltaComAmarelo : 1) * contato * (CONFIG.faltaDomina ? Math.pow((i ? posseCasa : 1 - posseCasa) / 0.5, CONFIG.faltaDomina) : 1))) {
         falta(1 - i, marcador, pivo); comFalta = true;
         // falta no ataque (na grade, na faixa 5 ou na zona 14) vira bola parada; atrás, quem ganhava segue, e quem perdia fica com a bola e recomeça do mesmo setor (sem faltaRecomeca, a falta dava o duelo)
         if (perigosa) parada = true; else if (!venceu && CONFIG.faltaRecomeca) recomeca = true; else venceu = true;

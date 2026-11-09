@@ -146,11 +146,18 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
 // do lateral; na faixa 5 a corrida também vale com pouca gente nossa na zona
 {
   const ES = G.espaco, ab = { mentalidade: 1 };
-  const mede = a => { const t = { esp: [0, 0], ter: [0, 0], abre: 0 }; partidas(a, B, {}, ab, p => { const e = p.estat[0].grade; t.esp[0] += e.espaco[0]; t.esp[1] += e.espaco[1]; t.ter[0] += e.terceiros[0]; t.ter[1] += e.terceiros[1];
-    for (const ev of p.narracao) if (ev.time === 0 && /abre nas costas/.test(JSON.stringify(ev))) t.abre++; }); return t; };
+  // o acerto vale na mesma zona (07/11): quem se movimenta bem corre mais para a faixa 5, a mais difícil, e o acerto bruto empatava (0,742 × 0,739 em 600 jogos;
+  // na mesma zona 0,691 × 0,761). Cada zona pesa pelas corridas de quem se movimenta bem; o registro não conta o impedimento.
+  const mede = a => { const t = { esp: [0, 0], ter: [0, 0], abre: 0, zona: {} };
+    for (let s = 1; s <= JOGOS; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: a }), prepararTime({ nome: "B", escalacao: B, instrucoes: ab }), { registro: reg });
+      const e = p.estat[0].grade; t.esp[0] += e.espaco[0]; t.esp[1] += e.espaco[1]; t.ter[0] += e.terceiros[0]; t.ter[1] += e.terceiros[1];
+      for (const r of reg) if (r[0] === 0 && r[8] === "espaco") { const z = t.zona[r[2]] ||= [0, 0]; z[0]++; if (r[6]) z[1]++; }
+      for (const ev of p.narracao) if (ev.time === 0 && /abre nas costas/.test(JSON.stringify(ev))) t.abre++; }
+    return t; };
   const [r, b] = [10, 45].map(v => mede(comAtr(A, ["mov"], v))), base = mede(A), vazia = com(ES, "lotado", 0, () => mede(A));
-  console.log(`8 espaço por jogo com Movimentação 10/45: ${(r.esp[0] / JOGOS).toFixed(2)} ${(b.esp[0] / JOGOS).toFixed(2)}, acerto ${(r.esp[1] / r.esp[0]).toFixed(3)} ${(b.esp[1] / b.esp[0]).toFixed(3)}; terceiro homem certo ${(r.ter[1] / r.ter[0]).toFixed(3)} ${(b.ter[1] / b.ter[0]).toFixed(3)}; abre nas costas ${base.abre}; espaço só na zona vazia ${(vazia.esp[0] / JOGOS).toFixed(2)} × ${(base.esp[0] / JOGOS).toFixed(2)}`);
-  assert.ok(b.esp[1] / b.esp[0] > r.esp[1] / r.esp[0] && b.esp[0] > r.esp[0], "quem se movimenta melhor ganha a corrida, e o passe sai mais");
+  let nz = 0, ar = 0, ab2 = 0; for (const k in b.zona) if (r.zona[k] && r.zona[k][0] >= 5) { nz += b.zona[k][0]; ar += b.zona[k][0] * r.zona[k][1] / r.zona[k][0]; ab2 += b.zona[k][1]; }
+  console.log(`8 espaço por jogo com Movimentação 10/45: ${(r.esp[0] / JOGOS).toFixed(2)} ${(b.esp[0] / JOGOS).toFixed(2)}, acerto ${(r.esp[1] / r.esp[0]).toFixed(3)} ${(b.esp[1] / b.esp[0]).toFixed(3)} (na mesma zona ${(ar / nz).toFixed(3)} ${(ab2 / nz).toFixed(3)}); terceiro homem certo ${(r.ter[1] / r.ter[0]).toFixed(3)} ${(b.ter[1] / b.ter[0]).toFixed(3)}; abre nas costas ${base.abre}; espaço só na zona vazia ${(vazia.esp[0] / JOGOS).toFixed(2)} × ${(base.esp[0] / JOGOS).toFixed(2)}`);
+  assert.ok(ab2 / nz > ar / nz && b.esp[0] > r.esp[0], "quem se movimenta melhor ganha a corrida (na mesma zona), e o passe sai mais");
   assert.ok(b.ter[1] / b.ter[0] > r.ter[1] / r.ter[0], "quem se movimenta melhor se solta para o terceiro homem");
   assert.ok(base.abre > 0, "no contra-ataque, o atacante de dentro abre nas costas do lateral");
   assert.ok(base.esp[0] > vazia.esp[0], "a corrida também vale na zona pouco ocupada da faixa 5");
@@ -331,7 +338,8 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
 // área (quem está em 1e/1C/1d) cai: o atacante pode ficar sem marcador, o cruzamento acha gente e o chute é menos bloqueado. Medido contra a regra desligada
 {
   const Q4 = onze("4-4-2", 3), comZag = papel => Q4.map(x => x.pos === "DC" ? { ...x, papel } : x), AREA = ["area", "cruzamento", "cutback", "profundidade"];
-  const mede = l => { let xg = 0, n = 0, bl = 0; for (let s = 1; s <= 150; s++) for (const c of simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B })).lances)
+  // 400 jogos (07/11): com 150 o ruído (~±11 de xG somado) passava do efeito do Combativo (189 × 195 depois das faltas na grade; 543 × 492 com 400)
+  const mede = l => { let xg = 0, n = 0, bl = 0; for (let s = 1; s <= 400; s++) for (const c of simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B })).lances)
     if (c.time === 1 && AREA.includes(c.tipo)) { xg += c.xg; n++; if (c.resultado === "bloqueado") bl++; } return { xg, n, bl: bl / n }; };
   const SL = G.saiDaLinha, sem = f => com(SL, "costas", 0, () => com(SL, "livre", 0, () => com(SL, "bloqueio", 0, () => com(SL, "cruza", 0, f))));
   const [xer, cmb] = [mede(comZag(null)), mede(comZag("combativo"))], [xer0, cmb0] = sem(() => [mede(comZag(null)), mede(comZag("combativo"))]);
@@ -345,8 +353,9 @@ const A = onze("4-2-3-1", 1), B = onze("4-4-2", 2);
 // desligada. O acerto no meio-espaço esconde o efeito (quem decide foge da zona bem coberta): vale o xG do rival; o volume de passes ali é impresso
 {
   const U = onze("4-1-4-1", 4), comVol = v => U.map(x => x.pos === "DMC" ? comAtr([x], ["vel", "res"], v)[0] : x);
-  const mede = l => { let n = 0, g = 0, xg = 0; for (let s = 1; s <= 150; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
-    xg += p.estat[1].xg; for (const r of reg) if (r[0] === 1 && (r[2] === "4e" || r[2] === "4d")) { n++; if (r[6]) g++; } } return { acerto: g / n, n, xg: xg / 150 }; };
+  // 400 jogos (07/11): com 150, depois das faltas na grade, o efeito sumia no ruído (-0,004); com 400, +0,053 (antes das faltas +0,057)
+  const mede = l => { let n = 0, g = 0, xg = 0; for (let s = 1; s <= 400; s++) { const reg = [], p = simularPartida(criarRng(s), prepararTime({ nome: "A", escalacao: l }), prepararTime({ nome: "B", escalacao: B }), { registro: reg });
+    xg += p.estat[1].xg; for (const r of reg) if (r[0] === 1 && (r[2] === "4e" || r[2] === "4d")) { n++; if (r[6]) g++; } } return { acerto: g / n, n, xg: xg / 400 }; };
   const [lento, rapido] = [mede(comVol(10)), mede(comVol(45))], [lento0, rapido0] = com(G, "fisicoLado", 0, () => [mede(comVol(10)), mede(comVol(45))]);
   console.log(`20 volante sozinho, 10 × 45: xG do rival ${lento.xg.toFixed(3)} × ${rapido.xg.toFixed(3)} (sem a regra ${lento0.xg.toFixed(3)} × ${rapido0.xg.toFixed(3)}); passes do rival ao meio-espaço da faixa 4 ${lento.n} × ${rapido.n} (sem ${lento0.n} × ${rapido0.n}), acerto ${lento.acerto.toFixed(3)} × ${rapido.acerto.toFixed(3)}`);
   assert.ok(lento.xg - rapido.xg > lento0.xg - rapido0.xg + 0.03, "o volante rápido e inteiro fecha o lado");

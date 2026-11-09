@@ -2104,3 +2104,68 @@ a.t-st-r:hover .t-numero-valor { color:var(--t-marca); }
 .t-evo i { position:absolute; left:0; bottom:0; height:3px; background:var(--t-tinta); opacity:.55; }
 .t-evo i.t-evo-neg { background:var(--t-erro); opacity:.8; }
 .t-evo[hidden] { display:none; }
+
+/* ---------- Amistoso (src/ui-amistoso.js): grade de cartões no lugar da lista; quem não dá para jogar fica miúdo e apagado ---------- */
+.t-am-barra { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin:18px 0 6px; }
+.t-am-barra .t-segmentos { width:220px; }
+.t-am-barra .t-segmentos > * { padding:10px 8px; }
+.t-am-aceita { display:flex !important; flex-direction:row; align-items:center; gap:8px; font-weight:600; margin:0; }
+.t-am-aceita input { width:auto; margin:0; }
+.t-am-motivo { font-size:12.5px; color:var(--t-tinta2); margin:14px 0 6px; font-weight:600; }
+.t-am-alerta { color:var(--t-atencao); font-size:13px; }
+.t-am-ajuda { font-size:13px; color:var(--t-tinta2); flex-basis:100%; max-width:760px; }
+.t-am-ajuda summary { cursor:pointer; display:inline; border-bottom:1px dotted var(--t-tinta3); }
+.t-am-ajuda[open] summary { display:block; margin-bottom:6px; width:max-content; }
+.t-am-aviso { margin:10px 0; font-size:14px; }
+.t-am-secao { margin-top:28px; }
+.t-am-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:10px; }
+.t-am-c { display:flex; flex-direction:column; gap:4px; padding:14px; background:var(--t-celula); border:1px solid var(--t-fio); border-top:4px solid var(--ac); }
+.t-am-c .t-botao { margin-top:auto; min-height:36px; }
+.t-am-c .t-am-linha { margin-bottom:8px; }
+.t-am-bot { border-top-color:var(--t-tinta); background:var(--t-placa); }
+.t-am-nome { font:800 16px/1.15 var(--t-letra); font-stretch:80%; }
+.t-am-linha { font-size:12.5px; color:var(--t-tinta2); line-height:1.35; }
+.t-am-par { color:var(--t-ok); }
+.t-am-rodape { font-size:12px; color:var(--t-tinta3); }
+.t-am-acao { background:none; border:0; padding:0; font:inherit; font-size:12.5px; font-weight:500; color:var(--t-tinta2); border-bottom:1px dotted var(--t-tinta3); cursor:pointer; }
+.t-am-acao:hover { color:var(--t-tinta); border-bottom:1px solid var(--t-marca); }
+.t-am-miuda { grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:0 16px; border-top:1px solid var(--t-fio); }
+.t-am-miuda .t-am-c { border:0; border-bottom:1px solid var(--t-fio); background:none; padding:8px 0; gap:1px; }
+.t-am-miuda .t-am-fora .t-am-nome { color:var(--t-tinta2); font-weight:700; font-size:14.5px; }
+.t-am-miuda .t-am-linha { margin-bottom:2px; color:var(--t-tinta3); }
+.t-am-miuda .t-botao { align-self:flex-start; min-height:30px; padding:6px 14px; }
+.t-am-semdono > summary { list-style:none; cursor:pointer; }
+.t-am-semdono > summary::-webkit-details-marker { display:none; }
+.t-am-semdono > summary .t-rotulo::after { content:"▸ abrir"; margin-left:8px; letter-spacing:0; text-transform:none; font-weight:500; color:var(--t-tinta3); }
+.t-am-semdono[open] > summary .t-rotulo::after { content:"▾ fechar"; }
+.t-am-hist { grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); align-items:start; }
+.t-am-h { border:1px solid var(--t-fio); padding:10px 12px; }
+.t-am-h summary { display:flex; justify-content:space-between; gap:10px; align-items:baseline; cursor:pointer; list-style:none; }
+.t-am-h summary::-webkit-details-marker { display:none; }
+.t-am-ved { font-size:12.5px; color:var(--t-tinta2); white-space:nowrap; }
+.t-am-ved b { font:900 17px/1 var(--t-letra); font-stretch:64%; color:var(--t-tinta); }
+.t-am-ved b.ok { color:var(--t-ok); } .t-am-ved b.bad { color:var(--t-erro); }
+.t-am-jogo { display:flex; gap:8px; align-items:baseline; font-size:13px; color:var(--t-tinta2); padding:5px 0; border-top:1px solid var(--t-fio); margin-top:6px; }
+.t-am-jogo b { color:var(--t-tinta); }
+.t-am-pedidos { margin-top:22px; padding:14px; background:var(--t-papel); color:var(--t-papel-tinta); }
+.t-am-pedido { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.t-am-pedido + .t-am-pedido { margin-top:8px; }
+.t-am-pedido .t-botao { min-height:34px; margin-left:auto; }
+@media (max-width:720px) and (pointer:coarse) {
+  .t-am-miuda { grid-template-columns:1fr 1fr; gap:0 12px; }
+  .t-am-semdono { margin-top:18px; }
+}
+.t-am-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.t-am-chips[hidden] { display:none; }
+.t-am-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 4px 5px 10px; border:1px solid var(--t-fio); font:600 13.5px/1.2 var(--t-letra); color:var(--t-tinta); background:var(--t-celula); }
+.t-am-chip:not(:has(button)) { padding-right:10px; }
+.t-am-chip > button { background:none; border:0; border-left:1px solid var(--t-fio); padding:0 6px; min-height:0; font:700 15px/1 var(--t-letra); color:var(--t-marca); cursor:pointer; }
+.t-am-enviado { color:var(--t-tinta2); background:var(--t-placa); }
+.t-am-chip-jogar { padding:6px 10px; cursor:pointer; border-color:var(--t-tinta3); }
+.t-am-chip-jogar b { color:var(--ac); }
+.t-am-chip-jogar:hover { background:var(--t-tinta); color:var(--t-fundo); }
+.t-am-chip-fora { color:var(--t-tinta3); padding-right:10px; }
+.t-am-divs { max-width:560px; margin-bottom:12px; }
+.t-am-divs small { font-weight:400; opacity:.6; margin-left:3px; }
+.t-am-divs > * { padding:9px 6px; }
+.t-am-dica { font-size:12.5px; color:var(--t-tinta2); margin:-4px 0 4px; }

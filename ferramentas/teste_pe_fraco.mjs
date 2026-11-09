@@ -48,6 +48,7 @@ assert.strictEqual(jogar(undefined), jogar(0, sem(e1), sem(e2)), "sem temporada:
 // a temporada 1 também liga as regras da T1 (motor.js, regrasT1), então a nota se compara dentro da mesma temporada
 assert.notStrictEqual(jogar(1), jogar(1, sem(e1), sem(e2)), "temporada 1: a nota muda o jogo");
 // narração: o chute com o pé ruim aparece a partir da temporada 1, nunca antes
-const narrado = t => [3, 9, 27, 81].some(sm => calcularPartida({ partida: { id: sm, inicio: "2026-11-01T11:00:00Z", fase: "liga" }, casa: lado(1, e1), fora: lado(2, e2), semente: sm, temporada: t }).lances.some(l => /pé ruim|como se fosse o pé bom/.test(l.dados.texto || "")));
+// 12 jogos (07/11): com as faltas na grade, os 4 de antes não tinham nenhum chute com o pé ruim
+const narrado = t => [3, 9, 27, 81, 5, 7, 11, 13, 17, 19, 23, 29].some(sm => calcularPartida({ partida: { id: sm, inicio: "2026-11-01T11:00:00Z", fase: "liga" }, casa: lado(1, e1), fora: lado(2, e2), semente: sm, temporada: t }).lances.some(l => /pé ruim|como se fosse o pé bom/.test(l.dados.texto || "")));
 assert.ok(narrado(1) && !narrado(0));
 console.log("pé fraco: ok");
