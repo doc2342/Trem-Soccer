@@ -243,3 +243,7 @@ details.card[open] > summary { margin-bottom:8px; }
 /* os dois campinhos da Escalação com a mesma altura: o time com menos linhas espaça as dele */
 .rel-campos { grid-template-rows:auto 1fr auto; } .rel-campos > div { display:grid; grid-template-rows:subgrid; grid-row:span 3; } .rel-campos .gramado { justify-content:space-around; }
 @media (max-width:640px) { .rel-campos { grid-template-rows:none; } .rel-campos > div { display:block; } }
+/* planilha do elenco: cabeçalho clicável, nome fixo ao rolar para o lado */
+.planilha th[data-ord] { cursor:pointer; user-select:none; white-space:nowrap; }
+.planilha th[data-dir=desc]::after { content:" ▼"; } .planilha th[data-dir=asc]::after { content:" ▲"; }
+.planilha td.esq, .planilha th.esq { position:sticky; left:0; z-index:1; background:var(--bg); white-space:nowrap; }
