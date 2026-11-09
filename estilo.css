@@ -227,7 +227,7 @@ details.card[open] > summary { margin-bottom:8px; }
 .t-bal-quem b { display:block; font:700 16px/1.15 var(--display); } .t-bal-quem b span { margin-right:6px; opacity:.6; } .t-bal-quem small { color:var(--mut); font-size:12.5px; }
 .t-bal-linha { display:flex; align-items:center; gap:10px; margin-top:8px; }
 .t-bal-linha .t-mom-redondo { width:48px; height:48px; flex:none; } .t-bal-linha .t-bal-quem { flex:1; min-width:0; }
-.t-bal-esc { margin-left:-22px; align-self:flex-end; } .t-bal-cartao .t-mom-cartao { flex:none; border-radius:2px; transform:rotate(8deg); }
+.t-bal-esc { order:3; margin-left:4px; align-self:center; } .t-bal-cartao .t-mom-cartao { order:4; } .t-bal-cartao .t-mom-cartao { flex:none; border-radius:2px; transform:rotate(8deg); }
 .t-bal-sub { width:46px; font:700 12px/1 var(--display); text-transform:uppercase; letter-spacing:.04em; }
 .t-bal-entra .t-bal-sub { color:var(--ok); } .t-bal-sai .t-bal-sub { color:var(--bad); } .t-bal-sai .t-mom-redondo, .t-bal-sai .t-bal-quem { opacity:.5; filter:grayscale(1); }
 .rel-baloes .lance.t-bal-gol { background:var(--c); color:#fff; border:0; padding:16px 18px 18px; min-height:150px; }
@@ -238,3 +238,4 @@ details.card[open] > summary { margin-bottom:8px; }
 .t-bal-gol .nm, .t-bal-gol .nm a, .t-bal-gol .t-bal-quem a { color:#fff !important; font-weight:700; } .t-bal-gol .t-bal-quem { margin-top:10px; }
 .t-bal-foto { position:absolute; right:10px; bottom:0; width:120px; } .t-bal-foto svg { display:block; width:100%; height:auto; }
 @media (max-width:560px) and (pointer:coarse) { .t-bal-gol .t-bal-corpo { max-width:calc(100% - 84px); } .t-bal-foto { width:88px; } .t-bal-tit { font-size:21px; } }
+.t-mom { height:196px; } .t-mom-nome { position:relative; z-index:1; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 13px/1.1 var(--display, Archivo); } .t-mom-nome small { font-weight:500; opacity:.65; }

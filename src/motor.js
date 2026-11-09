@@ -1278,7 +1278,7 @@ function jogarPartida(rng, casa, fora, opcoes) {
       const sai = t.emCampo.find(x => x.j.id === s.sai), entra = t.banco.find(x => x.id === s.entra);
       if (!sai || !entra) { if (!sai && min >= (s.min || 0)) { t.subsFeitas.add(k); t.cumpridas["s" + k] = { motivo: "ele já não estava em campo" }; } return; }
       if (!condicao(i, s.cond, sai)) return;
-      t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos, sai.papel);
+      t.subsFeitas.add(k); t.cumpridas["s" + k] = { aos: min }; sair(i, sai); entrar(i, entra, s.pos || sai.pos, s.papel || sai.papel); // sem função escolhida, herda a de quem saiu
       evento(i, "substituicao", `Sai ${nm(sai)}, entra {${i}:${entra.nome}}.`);
     });
   }

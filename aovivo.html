@@ -227,7 +227,7 @@ import { sb } from "./src/banco.js";
 // "Suas ordens" só do clube do próprio usuário (nada sem login ou sem o 90_ordens_privadas.sql): o admin lê todas as linhas pelo banco, mas não deve ver o plano do adversário aqui
 const ordensDaPartida = async (partida, clubes) => { const uid = ((await sb.auth.getSession()).data.session || {}).user?.id; if (!uid) return null;
   const { data } = await sb.from("ordens_partida").select("clube_id, itens").eq("partida_id", partida.id); const de = id => clubes[id] && clubes[id].dono === uid ? ((data || []).find(o => o.clube_id === id) || {}).itens || null : null; return [de(partida.casa), de(partida.fora)]; };
-import { htmlRelatorio, htmlRelatorioNovo, momentosDaPartida, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
+import { htmlRelatorio, htmlRelatorioNovo, baloesDosLances, momentosDaPartida, htmlLance, htmlResumo, LEGENDA_LANCES, lembrarJogadores, linkJogador } from "./src/ui-relatorio.js";
 import { rotulo } from "./src/ui-trem.js";
 const NOVO = document.documentElement.dataset.visual === "novo"; // visual novo: por ora só o relatório (depois do apito); a transmissão segue a de antes
 import { svgEscudo, svgUniforme, svgCostas, numerosDaCamisa, uniformesDoJogo } from "./src/escudo.js";
@@ -490,6 +490,21 @@ const decidida = (pl, bt) => bt[0] < 5 || bt[1] < 5 ? pl[0] > pl[1] + 5 - bt[1] 
 // Narração em fases: a jogada chega antes da hora, sem o resultado; cada frase entra no seu tempo. O desfecho é outro lance, que o banco só libera quando a
 // jogada termina: uma busca marcada para essa hora o traz, sem esperar a volta do relógio de 10 s.
 let jogadas = [], jogadasHtml = "";
+// balões (gol, cartão, substituição) também durante o jogo: o lance de início só traz nome e posição, então os rostos saem do elenco
+// dos dois clubes, buscado uma vez (pelo nome dentro do clube)
+let elencosAoVivo = null;
+async function baloesAoVivo(pre, narracao) {
+  if (!pre || !pre.escalacoes) return () => "";
+  if (!elencosAoVivo) elencosAoVivo = sb.from("jogadores").select("id, nome, pais, idade, clube_id").in("clube_id", [partida.casa, partida.fora]).then(({ data }) => data || [], () => []);
+  const linhas = await elencosAoVivo, ids = [partida.casa, partida.fora], jogadores = [], rostos = {};
+  pre.escalacoes.forEach((e, i) => [...e.titulares, ...(e.banco || [])].forEach(x => {
+    const db = linhas.find(l => l.clube_id === ids[i] && l.nome === x.nome), id = db ? "j" + db.id : "n" + i + x.nome;
+    jogadores.push({ id, nome: x.nome, time: i, pos: x.pos }); if (db) rostos[id] = db;
+  }));
+  const c = [clubes[partida.casa], clubes[partida.fora]];
+  return baloesDosLances({ jogadores, narracao }, { nomes: c.map(x => x.nome), clubes: c, uniformes: uniformesDoJogo(c[0].uniforme || {}, c[1].uniforme || {}), rostos,
+    numeros: pre.escalacoes.map(e => (mp => nome => mp.get(nome))(numerosDaCamisa(e))) });
+}
 const marcadas = new Set();
 const htmlJogadas = () => jogadas.map(d => [d, fasesNoAr(d, Date.now())]).filter(([, n]) => n).reverse().map(([d, n]) => htmlLance({ ...d, frases: d.fases.slice(0, n) })).join("");
 function desenharJogadas() { const alvo = $("jogadas"), h = htmlJogadas(); if (!alvo || (h === jogadasHtml && alvo.innerHTML)) return; jogadasHtml = h; alvo.innerHTML = h; }
@@ -900,10 +915,11 @@ async function atualizar() {
   }
   const gols = [0, 1].map(i => narracao.filter(l => l.resultado === "gol" && l.time === i).length);
   topo(gols, m, narracao, pre);
-  const notas = notasDosGols(lances), comNota = l => htmlLance(l, [clubes[partida.casa].nome, clubes[partida.fora].nome], true) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
+  const balao = await baloesAoVivo(pre, narracao);
+  const notas = notasDosGols(lances), comNota = l => (balao(l) || htmlLance(l, [clubes[partida.casa].nome, clubes[partida.fora].nome], true)) + (notas[l.n] ? `<div class="mut" style="margin:-2px 0 6px 46px;font-size:12.5px">📌 ${notas[l.n]}</div>` : "");
   $("corpo").innerHTML = !partida.processada && !lances.length
     ? `<div class="card aviso">Bola rolando! O servidor calcula a partida logo depois do apito (leva até 2 minutos). Os lances aparecem aqui sozinhos.</div>`
-    : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}<div id="jogadas">${htmlJogadas()}</div>${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
+    : `${barraDeAbas(["lances", "graf", "estat", pre && "esc", rodada && "rodada"])}${htmlGraficos(narracao, [clubes[partida.casa], clubes[partida.fora]], { aoVivo: true })}<div class="aovivo"><div class="lat-e">${htmlEstatisticas(narracao)}</div><div class="card lan rel-baloes" data-aba="lances"><h2>Lances <span class="tag">os mais recentes em cima · atualiza sozinho</span></h2>${LEGENDA_LANCES}<div id="jogadas">${htmlJogadas()}</div>${narracao.slice().reverse().map(comNota).join("") || `<div class="mut">Bola rolando. Nenhum lance de perigo ainda.</div>`}${htmlAbertura(pre, false, true)}
        <div class="mut" style="margin-top:8px">Mapa de zonas, notas e análise aparecem depois do apito final.</div></div>
        ${(duas => `<div class="lat-d ${duas ? "lat-" + latAba : ""}">${duas ? `<div class="lat-abas">${[["esc", "👕 Escalações"], ["rodada", "🏆 Rodada ao vivo"]].map(([k, n]) => `<button class="sec ${latAba === k ? "ativa" : ""}" data-lat="${k}">${n}</button>`).join("")}</div>` : ""}${htmlEscalacoes(pre)}${htmlRodada(gols)}</div>`)(!!(pre && pre.escalacoes && rodada))}</div>`;
   ligarGraficos($("corpo")); aplicarAba();

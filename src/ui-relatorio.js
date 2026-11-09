@@ -149,11 +149,13 @@ function htmlOrdens(o, nome, cor) {
 const ordemDaPos = p => { const k = ORDEM_POS.indexOf(p); return k < 0 ? 99 : k; };
 const timeDoRelatorio = (r, i) => { const l = r.jogadores.filter(j => j.time === i); return { tit: l.filter(j => j.entrou === 0).sort((a, b) => ordemDaPos(a.pos) - ordemDaPos(b.pos)), res: l.filter(j => j.entrou > 0).sort((a, b) => a.entrou - b.entrou) }; };
 // lances em balão (ideia do ge, dono 06/11), nos dois relatórios: devolve l => HTML do gol, cartão ou substituição, ou "" (aí vale o htmlLance)
-function baloesDosLances(r, { nomes, clubes, uniformes, numeros, rostos }) {
+export function baloesDosLances(r, { nomes, clubes, uniformes, numeros, rostos }) {
   // lances em balão (ideia do ge, dono 06/11): o gol num card grande na cor do clube, com o rosto sobre o escudo apagado; o cartão com o rosto,
   // o nome e a posição; a substituição em par ENTRA / SAI. Os outros lances seguem no htmlLance (o CSS os põe em balão branco).
   const C = clubes || [{}, {}], U = uniformes || [{}, {}];
-  const tinta = (i, reserva) => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : reserva;
+  // o fundo do gol leva texto branco: cor clara demais (camisa branca, amarela) cai para a segunda cor do uniforme e, se ela também for clara, para a reserva
+  const escura = c => /^#[0-9a-f]{6}$/i.test(c || "") && [1, 3, 5].reduce((s, k, n) => s + [0.299, 0.587, 0.114][n] * parseInt(c.slice(k, k + 2), 16), 0) < 150;
+  const tinta = (i, reserva) => [U[i].cor1, U[i].cor2].find(escura) || reserva;
   const doTime = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
   const rostoDe = (j, i, extra) => j && rostos && rostos[j.id] ? rostoDoJogador(rostos[j.id], U[i], extra) : "";
   const quemE = (nome, i) => { const j = doTime(nome, i), num = j && numeros && numeros[i] && numeros[i](nome);
@@ -260,12 +262,16 @@ const minNum = m => { const [min, ac] = String(m).split("+"); return +min + (+ac
 function htmlMomentos(r, ev, C, U, rostos) {
   const porNome = (nome, i) => r.jogadores.find(j => j.time === i && j.nome === nome);
   const rosto = (nome, i, extra) => { const j = porNome(nome, i), d = j && rostos && rostos[j.id]; return d ? rostoDoJogador(d, U[i], extra) : ""; };
-  const tinta = i => /^#[0-9a-f]{6}$/i.test(U[i].cor1 || "") ? U[i].cor1 : i ? "#5b6170" : "#8a1c35";
+  const escura = c => /^#[0-9a-f]{6}$/i.test(c || "") && [1, 3, 5].reduce((s, k, n) => s + [0.299, 0.587, 0.114][n] * parseInt(c.slice(k, k + 2), 16), 0) < 150;
+  const tinta = i => [U[i].cor1, U[i].cor2].find(escura) || (i ? "#5b6170" : "#8a1c35"); // a faixa de cima do gol: cor clara some no fundo branco
+  // nome curto (o último nome) e a posição embaixo do rosto
+  const quem = (nome, i) => { const j = porNome(nome, i), curto = String(nome || "").split(" ").slice(-1)[0];
+    return `<span class="t-mom-nome">${esc(curto)}${j && j.pos ? ` <small>${esc(sg(j.pos))}</small>` : ""}</span>`; };
   const placar = (t, a, b) => `<div class="t-mom"><b>${t}</b><div class="t-mom-esc">${svgEscudo(C[0].escudo, C[0].sigla, 28)}${svgEscudo(C[1].escudo, C[1].sigla, 28)}</div><div class="t-mom-pl">${a} - ${b}</div><span class="t-mom-ico">${svgApito()}</span></div>`;
   const itens = [];
   ev.forEach((l, i) => l.forEach(e => {
-    if (e.tipo === "gol") itens.push([minNum(e.min), `<div class="t-mom t-mom-gol" style="--c:${tinta(i)}" title="${esc(e.quem)}${e.extra === "pênalti" ? " (pênalti)" : ""}"><div class="t-mom-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 112)}</div><div class="t-mom-foto">${rosto(e.quem, i)}</div><b class="t-mom-min">${e.min}'</b><span class="t-mom-ico">${svgBola()}</span></div>`]);
-    else if (e.tipo === "amarelo" || e.tipo === "segundo" || e.tipo === "vermelho") itens.push([minNum(e.min), `<div class="t-mom" title="${esc(e.quem)}"><b class="t-mom-cinza">${e.min}'</b><div class="t-mom-redondo">${rosto(e.quem, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div><i class="t-mom-cartao${e.tipo === "amarelo" ? "" : " t-mom-verm"}"></i></div>`]);
+    if (e.tipo === "gol") itens.push([minNum(e.min), `<div class="t-mom t-mom-gol" style="--c:${tinta(i)}" title="${esc(e.quem)}${e.extra === "pênalti" ? " (pênalti)" : ""}"><div class="t-mom-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 112)}</div><div class="t-mom-foto">${rosto(e.quem, i)}</div><b class="t-mom-min">${e.min}'</b>${quem(e.quem, i)}<span class="t-mom-ico">${svgBola()}</span></div>`]);
+    else if (e.tipo === "amarelo" || e.tipo === "segundo" || e.tipo === "vermelho") itens.push([minNum(e.min), `<div class="t-mom" title="${esc(e.quem)}"><b class="t-mom-cinza">${e.min}'</b><div class="t-mom-redondo">${rosto(e.quem, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quem(e.quem, i)}<i class="t-mom-cartao${e.tipo === "amarelo" ? "" : " t-mom-verm"}"></i></div>`]);
   }));
   if (!itens.length) return "";
   const golsAte = lim => ev.map(l => l.filter(e => e.tipo === "gol" && minNum(e.min) < lim).length);
