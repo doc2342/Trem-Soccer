@@ -1659,15 +1659,16 @@ async function telaClube(liga, clube) {
   const planilha = () => { const ats = ATRIBUTOS.slice(0, Math.max(...elenco.map(j => j.at.length)));
     const td = (v, html = v, extra = "") => `<td data-v="${v}"${extra}>${html}</td>`;
     const lin = j => { const t = tetoDe[j.id] || relatorioDe(j.id), xp = Math.round(experienciaDe(j)), nota = notaNaPosicao(j, j.pos), fim = j.contratoAte != null && j.contratoAte <= liga.temporada;
-      return `<tr><td class="esq" data-v="${esc(j.nome)}">${pp(j.pos)} ${lj(j.id, j.nome)}${j.juvenil ? ` <small class="mut">juv.</small>` : ""}${situacao(j)} <button class="info" data-info="${j.id}" title="Atributos">i</button></td>`
-        + td(LISTA_POSICOES.indexOf(j.pos), sg(j.pos)) + td(j.idade) + td(nota, f1(nota), ` class="nota"`) + td(xp)
+      const curto = j.nome.length > 14 && j.nome.includes(" ") ? j.nome[0] + ". " + j.nome.split(" ").pop() : j.nome; // nome grande abreviado, para a tabela caber sem rolar para o lado
+      return `<tr><td class="esq" data-v="${(j.juvenil ? 100000 : 0) + LISTA_POSICOES.indexOf(j.pos) * 1000 - Math.round(nota * 10)}" title="${esc(j.nome)}">${pp(j.pos)} ${lj(j.id, curto)}${j.juvenil ? ` <small class="mut">juv.</small>` : ""}${situacao(j).replace(/ <span class="aviso" title="Amarelos[^"]*">[^<]*<\/span>/, "")}</td>`
+        + td(j.idade) + td(nota, f1(nota), ` class="nota"`) + td(xp)
         + td(t ? t.maximo : -1, t ? faixaDoTeto(t) : "—", ` title="Faixa de teto pelo olheiro"`)
-        + td(noTeto.has(j.id) && j.idade <= 30 ? 1 : 0, noTeto.has(j.id) && j.idade <= 30 ? `<b class="aviso">no limite</b>` : "")
+        + td(noTeto.has(j.id) && j.idade <= 30 ? 1 : 0, noTeto.has(j.id) && j.idade <= 30 ? `<b class="aviso">sim</b>` : "")
         + td(j.contratoAte ?? 99, j.contratoAte == null ? "—" : "T" + j.contratoAte, fim ? ` class="aviso"` : "") + td(j.salario || 0, j.salario == null ? "—" : dinheiro(j.salario))
         + ats.map((a, i) => td(j.at[i] ?? -1, j.at[i] ?? "—")).join("") + `</tr>`; };
     const lista = [...elenco].sort((a, b) => !!a.juvenil - !!b.juvenil || LISTA_POSICOES.indexOf(a.pos) - LISTA_POSICOES.indexOf(b.pos) || notaNaPosicao(b, b.pos) - notaNaPosicao(a, a.pos));
     return `<div class="${visualNovo ? "t-setor" : "card"}">${visualNovo ? rotulo(`Planilha do elenco · ${elenco.length} · clique no cabeçalho para ordenar`) : `<h2>Planilha do elenco <span class="tag">clique no cabeçalho para ordenar</span></h2>`}
-      <div class="rolagem"><table class="${visualNovo ? "t-tabela" : "mini"} planilha" id="planilha"><thead><tr><th class="esq" data-ord>Jogador</th><th data-ord title="Posição">Pos</th><th data-ord title="Idade">Id.</th><th data-ord title="Nota na posição dele">Nota</th><th data-ord title="Experiência (0 a 100): quanto menos, mais oscila de um jogo para o outro">XP</th><th data-ord title="Faixa de teto pelo olheiro">Teto</th><th data-ord title="Chegou ao teto: o treino não rende mais">Limite</th><th data-ord title="Última temporada coberta pelo contrato">Contr.</th><th data-ord>Salário</th>${ats.map(a => `<th data-ord title="${a.nome}">${a.k.toUpperCase()}</th>`).join("")}</tr></thead>
+      <div class="planilha-caixa"><table class="${visualNovo ? "t-tabela" : "mini"} planilha" id="planilha"><thead><tr><th class="esq" data-ord title="Ordena por posição, do goleiro ao atacante">Jogador</th><th data-ord title="Idade">Id.</th><th data-ord title="Nota na posição dele">Nota</th><th data-ord title="Experiência (0 a 100): quanto menos, mais oscila de um jogo para o outro">XP</th><th data-ord title="Faixa de teto pelo olheiro">Teto</th><th data-ord title="Chegou ao teto: o treino não rende mais">Limite</th><th data-ord title="Última temporada coberta pelo contrato">Contr.</th><th data-ord>Salário</th>${ats.map(a => `<th data-ord title="${a.nome}">${a.k.toUpperCase()}</th>`).join("")}</tr></thead>
       <tbody>${lista.map(lin).join("")}</tbody></table></div></div>`; };
   // treino: o texto do "Como funciona" (os dois visuais)
   const explicaTreino = () => `<div class="mut" style="font-size:12.5px">Cada sessão dá pontos aos atributos dos focos do jogador, e a cada ${CONFIG_TREINO.pontosPorNivel} pontos o atributo sobe 1. O <b>foco principal</b> fica com 70% dos pontos e o <b>complementar</b> (3 atributos à sua escolha) com 30%.
@@ -4400,12 +4401,13 @@ ${historicoDaBase()}`}
     $("numSalvar").disabled = false;
   };
   // planilha: clicar no cabeçalho ordena pela coluna (número do maior para o menor; de novo, inverte)
+  if ($("planilha")) { const barra = [...document.querySelectorAll(".t-linha, .abas")].find(x => getComputedStyle(x).position === "sticky"); $("planilha").style.setProperty("--topo", (barra ? barra.offsetHeight : 0) + "px"); }
   if ($("planilha")) $("planilha").tHead.onclick = e => { const th = e.target.closest("[data-ord]"); if (!th) return;
     const i = th.cellIndex, corpo = $("planilha").tBodies[0], desc = th.dataset.dir !== "desc";
     $("planilha").querySelectorAll("[data-dir]").forEach(x => { delete x.dataset.dir; }); th.dataset.dir = desc ? "desc" : "asc";
     const val = tr => { const v = tr.cells[i].dataset.v; return v !== "" && !isNaN(v) ? +v : v; };
     const cmp = (a, b) => { const x = val(a), y = val(b); return typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y)); };
-    const sobe = desc === (i <= 1); // nome e posição começam em ordem crescente; os números, do maior para o menor
+    const sobe = desc === (i === 0); // o jogador começa pela posição (goleiro primeiro); os números, do maior para o menor
     corpo.append(...[...corpo.rows].sort((a, b) => sobe ? cmp(a, b) : cmp(b, a))); };
   // visual novo: o número repetido fica marcado enquanto se digita
   if (visualNovo && $("numSalvar")) document.querySelector('[data-parte="elenco:numeros"]').oninput = e => {
