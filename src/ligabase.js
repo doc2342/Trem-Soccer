@@ -1,4 +1,5 @@
-// Liga de base: os juvenis de cada grupo jogam um turno único (9 rodadas), espelhando o primeiro turno da liga principal.
+// Liga de base: os juvenis de cada grupo jogam turno e returno, espelhando a liga principal rodada por rodada (178_base_com_returno.sql;
+// até a T0 era um turno único de 9 rodadas, espelhando o primeiro turno).
 // O time é montado sozinho: entram os juvenis de verdade e, só nas vagas que faltarem para completar onze (goleiro incluso), garotos da escolinha,
 // que não existem fora da partida. Não há lesão, cartão, experiência, forma, moral nem bilheteria: ficam o placar, os gols e as notas,
 // e quem jogou 45 minutos ganha um bônus de treino. Módulo puro: usado pela função do servidor.
@@ -14,7 +15,8 @@ export const CONFIG_LIGA_DE_BASE = {
   escolinha: [13, 1.2], // nota do garoto da escolinha: 13 + 1,2 por nível da base (o juvenil de verdade chega com 15 + 1,5 por nível e treina)
   nivelDoBot: 2,        // clube sem dirigente não tem juvenis: os garotos dele valem os de uma base de nível 2
   nivelDeFora: 4,       // na Libertadores Juvenil, o clube de fora sem dirigente joga com garotos de uma base de nível 4 (101_libertadores_juvenil.sql)
-  bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou: equivale ao bônus de 10% por jogar em duas rodadas da liga
+  bonusDeTreino: 0.2,   // fração de uma sessão de treino para quem jogou, com turno único; com returno, a função divide pelas rodadas (0,1 com 18)
+  turnoUnico: 9,        // rodadas da base com turno único: a referência do bônus (a temporada rende o mesmo com 9 ou 18 rodadas)
   minutos: 45,
   idadeMaxima: 21,      // profissional joga a base até esta idade (só em clube com dirigente)
   contratados: 3,       // contratados (nem formados no clube nem do elenco inicial) que entram por partida da base

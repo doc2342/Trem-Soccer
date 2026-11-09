@@ -214,6 +214,11 @@ async function jogarBase(sb) {
   }
   // rodízio: minutos que cada um já jogou na base nesta temporada
   const minutosNaBase = {}, chave = (liga, t) => liga + ":" + t;
+  // bônus de treino da liga de base por rodada: o da temporada fica igual com turno único (9) ou turno e returno (18, desde 178_base_com_returno.sql)
+  const rodadasDaBase = {};
+  const bonusDaBase = async p => { if (p.fase) return CONFIG_LIGA_DE_BASE.bonusDeTreino; const k = p.liga_id + ":" + p.temporada + ":" + p.grupo;
+    if (rodadasDaBase[k] == null) { const { data } = await sb.from("base_jogos").select("rodada").eq("liga_id", p.liga_id).eq("temporada", p.temporada).eq("grupo", p.grupo).is("fase", null).order("rodada", { ascending: false }).limit(1); rodadasDaBase[k] = (data && data[0] && data[0].rodada) || CONFIG_LIGA_DE_BASE.turnoUnico; }
+    return CONFIG_LIGA_DE_BASE.bonusDeTreino * CONFIG_LIGA_DE_BASE.turnoUnico / Math.max(CONFIG_LIGA_DE_BASE.turnoUnico, rodadasDaBase[k]); };
   for (const k of new Set(jogos.map(p => chave(p.liga_id, p.temporada)))) {
     const [liga, t] = k.split(":").map(Number), m = minutosNaBase[k] = {};
     for (const q of (await sb.from("base_jogos").select("jogadores:dados->jogadores").eq("liga_id", liga).eq("temporada", t).eq("processada", true).not("gols_casa", "is", null)).data || [])
@@ -249,12 +254,12 @@ async function jogarBase(sb) {
       let g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, relatorio, ...extra }).eq("id", p.id);
       if (g.error && /relatorio/.test(g.error.message)) g = await sb.from("base_jogos").update({ gols_casa: resultado.gols_casa, gols_fora: resultado.gols_fora, dados, ...extra }).eq("id", p.id);
       if (g.error) throw new Error(g.error.message);
-      const treinos = [];
+      const treinos = [], bonus = await bonusDaBase(p);
       for (const id of [p.casa, p.fora]) {
         const c = clubes[id] || {}, areas = qualidadeDoTreino(comissoes[id] || [], 0, !c.dono);
         for (const j of [...(juvenis[id] || []), ...(profs[id] || [])]) {
           if ((minutos[j.id] || 0) < CONFIG_LIGA_DE_BASE.minutos) continue;
-          const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: CONFIG_LIGA_DE_BASE.bonusDeTreino });
+          const t = treinar(j, { tal: talentos[j.id], ct: c.ct_nivel || 0, areas, fator: bonus });
           const jogouEm = (resultado.relatorio.jogadores.find(x => x.id === j.id) || {}).pos;
           const a = c.dono && j.aprende && jogouEm === j.aprende.pos ? aprenderPosicao(j, { soBonus: true }) : null; // jogar na posição em estudo acelera, como na liga
           if (t || a) { treinos.push({ id: +String(j.id).slice(1), at: t ? t.at : j.at, pts: t ? t.pts : (j.pts || j.at.map(() => 0)), ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
