@@ -15,7 +15,7 @@ function temporadas(regra, voltas, semente) {
       const p = MO.simularPartida(rng, MO.prepararTime({ nome: a.nome, escalacao: ta.escalacao, banco: ta.banco, instrucoes: ta.instrucoes, mandante: true }), MO.prepararTime({ nome: b.nome, escalacao: tb.escalacao, banco: tb.banco, instrucoes: tb.instrucoes }));
       g += p.placar[0] + p.placar[1]; n++;
       const notas = Object.fromEntries(R.montarRelatorio(p).jogadores.map(x => [x.id, x]));
-      for (const j of [...a.elenco, ...b.elenco]) { const x = notas[j.id]; j.forma = S.momentoDepois(j, { nota: x ? x.nota : null, minutos: x ? x.minutos : 0 }).forma; } // a moral fica em 50
+      for (const j of [...a.elenco, ...b.elenco]) { const x = notas[j.id]; j.forma = S.momentoDepois(j, { nota: x ? x.notaForma ?? x.nota : null, minutos: x ? x.minutos : 0 }).forma; } // a moral fica em 50
     }
     const tit = clubes.flatMap(c => c.elenco.slice().sort((x, y) => y.forma - x.forma).slice(0, 11)), m = l => Math.round(l.reduce((s, j) => s + j.forma, 0) / (l.length || 1));
     saida.push(`${(g / n).toFixed(2)} gols (forma dos 11 de melhor forma: ataque ${m(tit.filter(j => ataque(j.pos)))}, defesa e goleiro ${m(tit.filter(j => defesa(j.pos)))})`);

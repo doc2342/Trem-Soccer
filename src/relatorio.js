@@ -25,6 +25,23 @@ export function resultadoEsperado(lances) {
 const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
 
 // Nota de 1 a 10: duelos vencidos acima ou abaixo do esperado, gols, assistências, chances, cartões; goleiro pelas defesas e pelo xG que enfrentou.
+// Na régua do Sofascore (dono, 09/11; prints de 11 jogos reais, 241 notas): média ~7, defensor sobe com o resultado.
+//   base: soma por posição para a média de quem joga 45 min ou mais bater com a real (GK 6,7, zagueiro e lateral 6,8, volante 7,0,
+//   meia 7,1–7,3, ponta 7,3, atacante 7,2), medida em ferramentas/sim_notas.mjs
+//   resultado: por grupo, vitória / empate, sem sofrer gol enquanto esteve em campo (cs) e cada gol sofrido em campo além do primeiro (extra).
+//   Real (defensor): vitória sem sofrer 7,6 | 0x0 7,2 | vitória sofrendo 7,1 | empate sofrendo 6,7 | derrota por 1–2 6,6 | por 3–5 6,1.
+//   O ataque já sobe com o resultado pelos gols e chances; o meia e o ponta, um pouco menos que no real.
+// A forma (saude.js) segue com a nota de antes (notaForma): a régua dela (notaTipica) é dessa nota, e o resultado já pesa na moral.
+export const NOTA = {
+  base: { GK: 0.7, DC: 0.7, SW: 0.7, DR: 0.7, DL: 0.7, WBR: 0.7, WBL: 0.7, DMC: 1.05, MC: 1, MR: 1.1, ML: 1.1, AMC: 1.1, AMR: 0.97, AML: 0.97, RW: 0.97, LW: 0.97, FC: 0.67, SC: 0.67 },
+  resultado: {
+    defesa: { vitoria: 0.45, empate: 0.15, cs: 0.45, extra: -0.1 },
+    volante: { vitoria: 0.15, empate: 0.05, cs: 0.15, extra: 0 },
+    meio: { vitoria: 0.1, empate: 0.03, cs: 0, extra: 0 },
+    lado: { vitoria: 0.25, empate: 0.08, cs: 0, extra: 0 },
+  },
+  grupo: { DC: "defesa", SW: "defesa", DR: "defesa", DL: "defesa", WBR: "defesa", WBL: "defesa", DMC: "volante", MC: "meio", MR: "lado", ML: "lado", AMC: "lado", AMR: "lado", AML: "lado", RW: "lado", LW: "lado" },
+};
 function notas(partida) {
   const extra = {};
   const de = id => extra[id] || (extra[id] = { assistencias: 0, defesas: 0, sofridos: 0, xgContra: 0 });
@@ -37,13 +54,24 @@ function notas(partida) {
       if (l.resultado === "gol" || l.resultado === "defesa") g.xgContra += l.xgGk ?? l.xg;
     }
   }
+  const placar = partida.placar || [0, 0], fim = partida.duracao || 90;
+  const golsDe = i => partida.lances.filter(l => l.resultado === "gol" && l.time === i).map(l => l.min);
+  const gols = [golsDe(0), golsDe(1)];
   return Object.entries(partida.jogadores).map(([id, j]) => {
-    const x = de(id), minutos = (j.saiu === null ? partida.duracao || 90 : j.saiu) - j.entrou;
+    const x = de(id), saiu = j.saiu === null ? fim : j.saiu, minutos = saiu - j.entrou;
     let nota = 6;
     if (j.pos === "GK") nota += 0.3 * x.defesas - 0.4 * x.sofridos + 0.6 * (x.xgContra - x.sofridos);
     else nota += limitar(0.4 * (j.duelosGanhos - j.duelosEsperados), -2, 2) + 1.1 * j.gols - 0.8 * (j.golsContra || 0) + 0.6 * x.assistencias + 0.5 * (j.xg - j.gols * 0.5) - 0.08 * j.faltas;
     nota -= 0.3 * Math.min(1, j.amarelos) + (j.vermelho ? 1.5 : 0);
-    return { id, ...j, ...x, minutos, nota: limitar(Math.round(nota * 10) / 10, 1, 10) };
+    const notaForma = limitar(Math.round(nota * 10) / 10, 1, 10);
+    const R = NOTA.resultado[NOTA.grupo[j.pos]], i = j.time;
+    if (R && (i === 0 || i === 1)) {
+      const sofridos = gols[1 - i].filter(m => m > j.entrou && m <= saiu).length; // em campo
+      nota += placar[i] > placar[1 - i] ? R.vitoria : placar[i] === placar[1 - i] ? R.empate : 0;
+      nota += sofridos ? R.extra * (sofridos - 1) : minutos >= 45 ? R.cs : 0; // o "jogo sem sofrer gol" só para quem jogou o bastante
+    }
+    nota += NOTA.base[j.pos] || 0;
+    return { id, ...j, ...x, minutos, nota: limitar(Math.round(nota * 10) / 10, 1, 10), notaForma };
   });
 }
 
