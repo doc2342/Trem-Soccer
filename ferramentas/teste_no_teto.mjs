@@ -17,7 +17,12 @@ assert.ok(treinar(j, { tal }));
 const cheio = { ...j, at: j.at.map(v => Math.min(50, v + 30)) };
 assert.ok(notaDeTeto(cheio) >= limite);
 assert.equal(chegouAoTeto(cheio, tal), true);
-assert.equal(treinar(cheio, { tal }), null);
+// no teto o treino não para (rebalanço, 08/11): o foco sobe, outro atributo que pesa paga, e a nota não passa do limite
+let k = { ...cheio, pts: null }, subiram = 0, desceram = 0;
+const notaAntes = notaDeTeto(cheio);
+for (let s = 0; s < 40; s++) { const r = treinar(k, { tal }); assert.ok(r && r.noTeto); subiram += r.subiu.length; desceram += r.desceu.length; k = { ...k, at: r.at, pts: r.pts }; }
+assert.ok(subiram > 0 && desceram >= subiram, `subiram ${subiram}, desceram ${desceram}`);
+assert.ok(notaDeTeto(k) <= Math.max(limite, notaAntes) + 1e-9, "a nota não cresce no teto");
 // depois dos 30 o treino para pela idade, não pelo teto; sem talento (telas), ninguém é marcado
 assert.equal(chegouAoTeto({ ...cheio, idade: 31 }, tal), false);
 assert.equal(chegouAoTeto(cheio, null), false);

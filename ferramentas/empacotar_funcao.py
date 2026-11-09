@@ -438,8 +438,8 @@ Deno.serve(async (req) => {
             const r = treinar(j, { tal: talentos[j.id], ct: ctDoClube(clubes[lado]), jogou, areas, fator: fatorDoGrupo });
             // posição nova (59_posicao_nova_e_safra.sql): só em clube com dirigente; jogar na posição acelera
             const a = (clubes[lado] || {}).dono && j.aprende ? aprenderPosicao(j, { jogouNa: jogou && posicoes && posicoes[j.id] === j.aprende.pos }) : null;
-            // no limite (163_no_teto.sql): a sessão não rendeu porque a nota bateu o teto; quem treinou sai da marca
-            const teto = !r && chegouAoTeto(j, talentos[j.id]);
+            // no limite (163_no_teto.sql): a nota bateu o teto; o treino agora rebalanceia (o foco sobe e outro desce), mas a marca continua
+            const teto = r ? !!r.noTeto : chegouAoTeto(j, talentos[j.id]);
             if (r || a || teto) { treinos.push({ id: +String(j.id).slice(1), at: r ? r.at : j.at, pts: r ? r.pts : (j.pts || j.at.map(() => 0)), teto, ...(a ? { fam: a.fam, aprende: a.aprende } : {}) });
               if (r) { j.at = r.at; j.pts = r.pts; } if (a) { j.fam = a.fam; j.aprende = a.aprende; } }
           } }

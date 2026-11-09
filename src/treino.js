@@ -186,11 +186,12 @@ export function partilha(j) {
 
 // Uma sessão de treino. j: { idade, pos, at, treino, pts }. tal: talento oculto (só o servidor sabe).
 // areas: multiplicadores de qualidadeDoTreino (sem eles, tudo 100%).
-// Devolve { at, pts, subiu: [índices] } quando algo mudou, ou null (velho demais, ou já no teto).
+// Devolve { at, pts, subiu: [índices], desceu: [índices], noTeto } quando algo mudou, ou null (velho demais).
 // fator: fração de uma sessão (a liga de base dá um bônus de 20% de sessão a quem jogou).
+// No teto (com a folga dele) o treino não para: o foco sobe e outro atributo que pesa na posição desce para pagar (rebalanço, dono 08/11).
 export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fator = 1 } = {}) {
-  const total = pontosDaSessao(j, { ct, jogou, tal }) * fator;
-  if (total <= 0 || chegouAoTeto(j, tal) || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
+  const total = pontosDaSessao(j, { ct, jogou, tal }) * fator, noTeto = chegouAoTeto(j, tal);
+  if (total <= 0 || (tal == null && notaDeTeto(j) >= tetoDaNota(tal))) return null;
   const at = j.at.slice(), pts = at.map((_, i) => (j.pts && j.pts[i]) || 0), subiu = [], C = CONFIG_TREINO;
   for (const [i, parte] of Object.entries(partilha(j))) {
     if (at[i] >= ATR_MAX) continue;
@@ -198,5 +199,21 @@ export function treinar(j, { tal = null, ct = 0, jogou = false, areas = null, fa
     while (pts[i] >= C.pontosPorNivel && at[i] < ATR_MAX) { pts[i] -= C.pontosPorNivel; at[i]++; subiu.push(+i); }
     if (at[i] >= ATR_MAX) pts[i] = 0;
   }
-  return { at, pts, subiu };
+  const desceu = noTeto && subiu.length ? rebalancear(j, at, pts, subiu.length, Math.max(tetoDaNota(tal) + folgaDoTeto(j.id, tal), notaDeTeto(j))) : []; // quem já passou um pouco não é puxado para baixo
+  return { at, pts, subiu, desceu, noTeto };
+}
+// Paga o que o foco subiu no teto: cada nível ganho custa um nível de outro atributo que pesa na posição (fora do foco), e desce mais se a
+// nota ainda passar do limite. Desce o de maior peso × valor, então a perda se espalha em vez de esvaziar sempre o mesmo.
+// Atributo que não pesa na posição não paga (senão o teto viraria troca de nada por algo).
+export function rebalancear(j, at, pts, niveis, limite) {
+  const foco = new Set(Object.keys(partilha(j)).map(Number)), pesos = pesosDe(at, (POSICOES[j.pos] || {}).papel) || {};
+  const pagam = Object.keys(pesos).map(k => [IDX[k], pesos[k]]).filter(([i, w]) => w > 0 && !foco.has(i));
+  const desceu = [];
+  for (let n = 0, devido = niveis; n < 40 && (devido > 0 || notaDeTeto({ ...j, at }) > limite); n++, devido--) {
+    const vivos = pagam.filter(([i]) => at[i] > ATR_MIN);
+    if (!vivos.length) break;
+    const [i] = vivos.reduce((m, x) => x[1] * at[x[0]] > m[1] * at[m[0]] ? x : m);
+    at[i]--; pts[i] = 0; desceu.push(i);
+  }
+  return desceu;
 }
