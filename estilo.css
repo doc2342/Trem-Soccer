@@ -252,3 +252,6 @@ details.card[open] > summary { margin-bottom:8px; }
 @media (pointer:coarse) and (max-width:720px) { /* no celular não cabe: a caixa rola nos dois sentidos, com cabeçalho e nome presos */
   .planilha-caixa { overflow:auto; max-height:80vh; } .planilha th { top:0; }
   .planilha td.esq, .planilha th.esq { position:sticky; left:0; z-index:1; background:var(--bg); } .planilha th.esq { z-index:3; } }
+.planilha td.pa-otimo { background:color-mix(in srgb, var(--ok) 38%, transparent); font-weight:700; }
+.planilha td.pa-bom { background:color-mix(in srgb, var(--ok) 16%, transparent); }
+.planilha td.pa-fraco { color:var(--mut); opacity:.7; }
