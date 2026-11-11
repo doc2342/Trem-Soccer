@@ -459,7 +459,8 @@ function foraDePosicao(j, pos) {
 function validar() {
   const esc11 = escalacaoAtual(), erros = [], avisos = [];
   if (esc11.length < 11 && !tirados.some(t => t.i !== null && !E.jog[t.i])) erros.push(`Faltam ${11 - esc11.length} jogadores no time.`);
-  for (const t of tirados) if (t.i === null || !E.jog[t.i]) erros.unshift(`${t.j.nome} está ${motivoCurto(t.j)} e saiu ${t.i === null ? "do banco" : `do time: escolha quem joga de ${sg(E.vagas[t.i])}`}.`);
+  // saiu do banco não trava o salvar (o banco fica com um a menos); vaga vazia no time trava
+  for (const t of tirados) if (t.i === null || !E.jog[t.i]) (t.i === null ? avisos : erros).unshift(`${t.j.nome} está ${motivoCurto(t.j)} e saiu ${t.i === null ? "do banco" : `do time: escolha quem joga de ${sg(E.vagas[t.i])}`}.`);
   const goleiros = E.vagas.filter(p => p === "GK").length;
   if (goleiros !== 1) erros.push(goleiros ? "O time só pode ter um goleiro." : "O time precisa de um goleiro.");
   const cob = Object.fromEntries(ZONAS.map(z => [z, 0]));
