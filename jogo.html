@@ -4819,7 +4819,10 @@ ${historicoDaBase()}`}
     const desenharArtilheiros = () => (statsSerie[g] = statsSerie[g] || estatisticasDaLiga(liga.id, g).catch(() => null)).then(d => { const box = $("ligaArt"); if (!box || !d || !d.jogos) return;
       const lista = (t, l, v, k) => l.length ? `<div><div class="t-tr-lista-cab">${t}</div>${l.slice(0, 5).map((x, i) => `<div class="t-tr-lista"><span>${i + 1}</span><span>${(c => c ? svgEscudo(c.escudo, c.sigla, 16) + " " : "")(cPor[x.clube])}${lj(x.id, x.nome)}</span><b>${x[v]}</b></div>`).join("")}
         <p class="t-fajuda"><a class="lk" data-sub-ir="comp:stats" data-st-lista="${k}">ver todos</a></p></div>` : "";
-      box.innerHTML = lista("Artilheiros", d.artilheiros || [], "gols", "artilheiros") + lista("Garçons", d.assistencias || [], "ass", "assistencias");
+      // menos vazados (dono, 10/11): menos gols sofridos por jogo, entre os goleiros com pelo menos metade dos jogos do que mais jogou
+      const gks = d.goleiros || [], minJ = Math.ceil(Math.max(0, ...gks.map(x => x.j)) / 2);
+      const vazados = gks.filter(x => x.j >= minJ).sort((a, b) => a.sof / a.j - b.sof / b.j || b.j - a.j).map(x => ({ ...x, v: x.sof }));
+      box.innerHTML = lista("Artilheiros", d.artilheiros || [], "gols", "artilheiros") + lista("Garçons", d.assistencias || [], "ass", "assistencias") + lista("Goleiros menos vazados", vazados, "v", "goleiros");
       box.onclick = e => { const a = e.target.closest("[data-st-lista]"); if (a) { $("stComp").value = g; $("stLista").value = a.dataset.stLista; $("stTemp").value = ""; } }; });
     desenharJogos();
     // temporadas anteriores deste campeonato, guardadas na virada (só com a aba aberta)
