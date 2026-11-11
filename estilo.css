@@ -219,6 +219,7 @@ details.card[open] > summary { margin-bottom:8px; }
 .t-mom-min { margin-top:auto; position:relative; z-index:1; font:900 26px/1 Archivo; font-stretch:62%; } .t-mom-cinza { color:#5d636b; }
 .t-mom-redondo { width:56px; height:56px; border-radius:50%; overflow:hidden; background:#f4f4f1; display:grid; place-items:center; } .t-mom-redondo svg { width:100%; height:100%; display:block; }
 .t-mom-cartao { width:14px; height:20px; background:#f4d24a; } .t-mom-verm { background:#d8262e; }
+.t-mom-les { width:20px; height:20px; border-radius:50%; background:#d8262e; color:#fff; font:900 18px/20px Archivo; font-style:normal; text-align:center; } /* a lesão na faixa (cruz branca) */
 
 /* lances em balão no relatório de antes (aovivo.html depois do apito; ideia do ge, 06/11): mesmas classes do trem.css, nas cores daqui */
 .rel-baloes .lance.t-bal { display:block; position:relative; overflow:hidden; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin:8px 0; background:var(--vidro); font-weight:400; font-style:normal; }

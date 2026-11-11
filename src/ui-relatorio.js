@@ -116,7 +116,7 @@ export function eventosDoResumo(narracao, nomePorId = {}) {
       const assist = l.assist !== undefined ? l.assist : (l.criador !== l.finalizador ? nomePorId[l.criador] : null);
       lados[l.time].push({ tipo: "gol", min, quem: l.quem || nomePorId[l.finalizador] || "", extra: l.tipo === "penalti" ? "pênalti" : assist || "" });
     } else if (l.tipo === "lesao") { // o texto traz a jogada antes ("Fulano toca para Beltrano. Beltrano se machuca"): o lesionado é o nome logo antes de "se machuca"
-      const m = /\{[01?]:([^{}]+)\} se machuca/.exec(l.texto || "");
+      const m = /\{[01?]:([^{}]+)\}(?:, que)? se machuca/.exec(l.texto || ""); // "Falta de X em Y, que se machuca" também (sem o ", que" o nome sumia, 10/11)
       lados[l.time].push({ tipo: "lesao", min, quem: m ? m[1] : "" });
     } else if (l.tipo === "amarelo" || l.tipo === "vermelho") {
       const m = /\{[01?]:([^{}]+)\}/.exec(l.texto || "");
@@ -278,7 +278,7 @@ function htmlMomentos(r, ev, C, U, rostos) {
   const itens = [];
   ev.forEach((l, i) => l.forEach(e => {
     if (e.tipo === "gol") itens.push([minNum(e.min), `<div class="t-mom t-mom-gol" style="--c:${tinta(i)}" title="${esc(e.quem)}${e.extra === "pênalti" ? " (pênalti)" : ""}"><div class="t-mom-fundo">${svgEscudo(C[i].escudo, C[i].sigla, 112)}</div><div class="t-mom-foto">${rosto(e.quem, i)}</div><b class="t-mom-min">${e.min}'</b>${quem(e.quem, i)}<span class="t-mom-ico">${svgBola()}</span></div>`]);
-    else if (e.tipo === "amarelo" || e.tipo === "segundo" || e.tipo === "vermelho") itens.push([minNum(e.min), `<div class="t-mom" title="${esc(e.quem)}"><b class="t-mom-cinza">${e.min}'</b><div class="t-mom-redondo">${rosto(e.quem, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quem(e.quem, i)}<i class="t-mom-cartao${e.tipo === "amarelo" ? "" : " t-mom-verm"}"></i></div>`]);
+    else if (e.tipo === "amarelo" || e.tipo === "segundo" || e.tipo === "vermelho" || e.tipo === "lesao") itens.push([minNum(e.min), `<div class="t-mom" title="${esc(e.quem)}${e.tipo === "lesao" ? " (lesão)" : ""}"><b class="t-mom-cinza">${e.min}'</b><div class="t-mom-redondo">${rosto(e.quem, i, { lista: true }) || svgEscudo(C[i].escudo, C[i].sigla, 40)}</div>${quem(e.quem, i)}${e.tipo === "lesao" ? `<i class="t-mom-les">+</i>` : `<i class="t-mom-cartao${e.tipo === "amarelo" ? "" : " t-mom-verm"}"></i>`}</div>`]);
   }));
   if (!itens.length) return "";
   const golsAte = lim => ev.map(l => l.filter(e => e.tipo === "gol" && minNum(e.min) < lim).length);
