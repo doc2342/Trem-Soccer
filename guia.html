@@ -137,15 +137,22 @@ const secoes = [
   </ul>
   <h3>O limite do jogador</h3>
   <ul>
-    <li>O teto é de nota, na melhor posição em que o jogador é natural. Quando a nota chega lá, o treino para por completo: trocar o foco ou os atributos complementares não destrava.</li>
+    <li>O teto é de nota, na melhor posição em que o jogador é natural. Quando a nota chega lá, ela não sobe mais: trocar o foco ou os atributos complementares não destrava.</li>
+    <li>No teto, a ficha de treino do jogador oferece duas opções. <b>Trocar atributos</b> (padrão): o treino continua, mas cada nível que o foco ganha custa um nível de outro atributo que pesa na posição (o de maior peso, espalhando a perda). Serve para mudar o perfil sem mudar a nota. <b>Manter o perfil</b>: ele não treina mais e fica como está.</li>
     <li>O teto cede um pouco: cerca de um em cada três jogadores passa 1 ponto do teto do talento, e um em cada dezoito passa 2. É sorte de cada jogador e não muda. Por isso um jogador pode terminar acima do máximo da faixa do olheiro.</li>
-    <li>Quem bateu o limite ganha a marca <b>no limite</b> em Elenco › Treino, e a coluna "Por rodada" troca o ritmo por "no limite". A marca aparece a partir da primeira rodada de liga em que a sessão não rendeu, e não precisa de olheiro.</li>
+    <li>Quem bateu o limite ganha a marca <b>no limite</b> em Elenco › Treino, e a coluna "Por rodada" mostra "troca (no teto)". A marca aparece a partir da primeira rodada de liga em que a nota não subiu por causa do teto, e não precisa de olheiro.</li>
     <li>Depois dos 30 anos o treino para pela idade (a coluna mostra "parou"), e a partir dos 31 o físico cai a cada temporada.</li>
   </ul>
   <h3>Treinadores</h3>
   <ul>
-    <li>Até 5 por clube. Sem treinador a área rende 90%; com um de skill 50, 115%.</li>
-    <li>Goleiros, defesa, meio e ataque precisam de um treinador designado para a área; o treinador geral soma 60% da skill dele por cima. Físico e tática somam a skill de todos os treinadores.</li>
+    <li>Até 5 por clube. O treino tem seis áreas, e cada atributo pertence a uma: <b>Goleiros</b> (reflexos, um contra um, encaixe), <b>Defesa</b> (desarme, marcação, cabeceio), <b>Meio</b> (passe, criatividade, domínio, cruzamento, passe longo), <b>Ataque</b> (finalização, chute de longe, drible), <b>Físico</b> (velocidade, força, resistência) e <b>Tática</b> (comunicação, posicionamento, trabalho em equipe, agressividade, influência, excentricidade, movimentação, decisões).</li>
+    <li>Cada área tem uma qualidade de 0 a 50, que vira o rendimento dela: <b>90% com qualidade 0 e 115% com 50</b>, que é o máximo. Cada ponto de qualidade vale 0,5%. São esses os percentuais que aparecem em cima da lista de treinadores.</li>
+    <li><b>Goleiros, defesa, meio e ataque:</b> a qualidade é a skill do melhor treinador designado para a área, mais 60% da skill de cada treinador <b>geral</b> naquela área, limitada a 50. Um designado com skill 50 já leva a área ao máximo, e o geral não soma mais nada nela. Sem designado, só o geral conta (um geral com 40 dá 24 de qualidade: 102%).</li>
+    <li><b>Físico e tática:</b> não têm designado. A qualidade é a soma da skill de <b>todos</b> os treinadores na área, dividida por 2,5, até 50. Para chegar aos 115% a comissão precisa somar 125 (por exemplo, 5 treinadores com 25).</li>
+    <li><b>O centro de treinamento é outra conta</b>, que multiplica por cima da dos treinadores e vale para todas as áreas: 90% no nível 0 e mais 4% por nível (98% no nível 2, 110% no nível 5). Ele não ocupa o lugar do treinador: tirar o treinador de uma área derruba a área para 90% em qualquer nível de CT.</li>
+    <li>Exemplo: CT nível 2 e área de goleiros sem treinador: 98% × 90% ≈ 88%. Com um treinador de goleiros skill 50: 98% × 115% ≈ 113%. Com CT nível 5 e treinador 50: 110% × 115% ≈ 127%.</li>
+    <li>Sobre isso ainda entram o Trabalho em equipe do jogador (95% a 105%), ter jogado 45 minutos (+10%), a idade e o caminho até o teto (veja acima). O máximo, num jovem que jogou, com CT 5, treinador 50 e Trabalho em equipe 50, fica perto de 110% × 115% × 105% × 110% ≈ 146% do treino básico.</li>
+    <li>Na hora de economizar: cada ponto de skill a menos custa 0,5% de treino em todos os atributos daquela área, para todo o elenco. Um treinador de skill 30 em vez de 50 deixa a área em 105% em vez de 115%.</li>
     <li>A lista de candidatos é só do seu clube e se renova sozinha; dá para procurar candidatos novos algumas vezes por temporada, pagando. Contratar custa luvas de 10% do salário; dispensar é grátis.</li>
     <li>O salário da comissão fica fora do teto de folha e é pago por rodada.</li>
   </ul>
