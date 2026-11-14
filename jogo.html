@@ -2486,6 +2486,7 @@ async function telaClube(liga, clube) {
     const textoDaReforma = (obra && obra.estrutura === "estadio_modelo" ? "troca em andamento"
       : nv ? `${obra ? "depois que a obra atual terminar, " : ""}o modelo e a cidade mudam junto com a próxima ampliação: escolha aqui e amplie (${nv === 2 ? "na primeira ampliação, de graça" : "+50% no custo da obra"})`
       : `trocar o modelo ou a cidade é uma obra: ${dinheiro(TROCA_NO_MAXIMO.custo)} · ${TROCA_NO_MAXIMO.prazo} dias${obra ? " · espere a obra atual terminar" : ""}`)
+      + ((clube.estadio_visual || {}).troca_livre ? ` · <span class="ok">você tem uma troca grátis e na hora (a que faltou na primeira ampliação): escolha o modelo e a cidade e clique em Trocar agora</span>` : "")
       + (gratisPara.length ? ` · <span class="ok">troca grátis e na hora para ${gratisPara.map(k => MODELOS[k] || k).join(" e ")}, ${gratisPara.length > 1 ? "os estádios novos" : "o estádio novo"}</span>` : "");
     if (visualNovo) { // faixa com o nome e a obra; o 3D ao lado do editor (botões no lugar dos selects, que ficam escondidos e são o que ligarEstadio lê); o dia de jogo embaixo
       const mil = x => x.toLocaleString("pt-BR"), sel =(id, lista, atual, extra = "") => `<select id="${id}" hidden ${extra}>${op(lista, atual)}</select>`;
@@ -2562,7 +2563,8 @@ async function telaClube(liga, clube) {
     const atual = () => ({ ...configDoClube(clube, null), noite: 0, modelo: $("evModelo").value, nomeEstadio: $("evNome").value, mosaico: $("evMosaico").value, padrao: $("evPadrao").value,
       cores: [0, 1, 2].slice(0, +$("evNCores").value).map(i => $("evCor" + i).value), corEscadas: $("evEscadas").value, cobertura: $("evCob").value, muralha: $("evMuralha").checked, cidade: $("evCidade").value });
     const gratisPara = [].concat((clube.estadio_visual || {}).reforma_gratis_para || []); // 127/128: troca grátis só para cada estádio novo (texto ou lista)
-    const eGratis = () => gratisPara.includes(trocaEscolhida().modelo), n = clube.estadio_nivel || 1, nv = n < NIVEL_MAXIMO_DO_ESTADIO ? n + 1 : null;
+    const livre = !!(clube.estadio_visual || {}).troca_livre; // 179: troca grátis de modelo e cidade, uma vez
+    const eGratis = () => livre ? Object.keys(trocaEscolhida()).length > 0 : gratisPara.includes(trocaEscolhida().modelo), n = clube.estadio_nivel || 1, nv = n < NIVEL_MAXIMO_DO_ESTADIO ? n + 1 : null;
     const redesenhar = () => {
       $("evCobWrap").hidden = $("evMurWrap").hidden = $("evModelo").value !== "caldeirao";
       [1, 2].forEach(i => { $("evCor" + i).hidden = i >= +$("evNCores").value; });
@@ -2570,7 +2572,7 @@ async function telaClube(liga, clube) {
       $("evReforma").textContent = gratis ? "Trocar agora (grátis)" : "Trocar"; $("evReforma").style.display = gratis || !nv ? "" : "none";
       $("evReforma").disabled = gratis ? !!(clube.estadio_visual || {}).modelo_alvo : !!obra || !mudou || caixa < TROCA_NO_MAXIMO.custo;
       const amp = document.querySelector('[data-parte="clube:estadio"] [data-obra="estadio"]'); // a aba Estruturas tem outro botão do estádio
-      if (amp && nv && $("evAmpliar") && gratis) { amp.disabled = true; $("evAmpliar").innerHTML = `${MODELOS[troca.modelo]} é grátis e na hora: use o Trocar agora (grátis) antes de ampliar`; } else
+      if (amp && nv && $("evAmpliar") && gratis) { amp.disabled = true; $("evAmpliar").innerHTML = `${livre ? "A troca" : MODELOS[troca.modelo]} é grátis e na hora: use o Trocar agora (grátis) antes de ampliar`; } else
       if (amp && nv && $("evAmpliar")) { // a ampliação mostra a taxa da troca escolhida
         const taxa = mudou ? taxaDaTroca(nv) : 0, total = CUSTO.estadio[nv] + taxa; amp.disabled = !!obra || caixa < total;
         $("evAmpliar").innerHTML = `${dinheiro(CUSTO.estadio[nv])} · ${PRAZO[nv]} ${PRAZO[nv] === 1 ? "dia" : "dias"}${nv === 2 ? " · troca grátis: primeira ampliação" : taxa ? ` · +${dinheiro(taxa)} pela troca (50%)` : ""}${obra ? " · já há outra obra" : caixa < total ? " · falta caixa" : ""}`;
@@ -2598,9 +2600,9 @@ async function telaClube(liga, clube) {
     };
     $("evReforma").onclick = async () => {
       const t = trocaEscolhida(), gratis = eGratis(), para = [t.modelo && `o modelo ${MODELOS[t.modelo]}`, t.cidade && `a cidade ${CIDADES[t.cidade]}`].filter(Boolean).join(" e ");
-      if (gratis ? !confirm(`Trocar o estádio para o modelo ${MODELOS[t.modelo]} agora, de graça? É a troca grátis do estádio novo (a cidade fica a mesma).`) : !confirm(`Trocar o estádio para ${para}? Custa ${dinheiro(TROCA_NO_MAXIMO.custo)} agora, leva ${TROCA_NO_MAXIMO.prazo} dias e ocupa o canteiro do estádio (as estruturas seguem livres). Não dá para cancelar.`)) return;
+      if (gratis ? !confirm(livre ? `Trocar o estádio para ${para} agora, de graça? É a troca que ficou faltando na primeira ampliação: vale uma vez só.` : `Trocar o estádio para o modelo ${MODELOS[t.modelo]} agora, de graça? É a troca grátis do estádio novo (a cidade fica a mesma).`) : !confirm(`Trocar o estádio para ${para}? Custa ${dinheiro(TROCA_NO_MAXIMO.custo)} agora, leva ${TROCA_NO_MAXIMO.prazo} dias e ocupa o canteiro do estádio (as estruturas seguem livres). Não dá para cancelar.`)) return;
       $("evReforma").disabled = true;
-      try { await (gratis ? B.reformarEstadio(t.modelo) : B.reformarEstadio(t.modelo || null, t.cidade)); await carregar({ user: usuario }); }
+      try { await (gratis && !livre ? B.reformarEstadio(t.modelo) : B.reformarEstadio(t.modelo || null, t.cidade)); await carregar({ user: usuario }); }
       catch (err) { $("evAviso").innerHTML = `<span class="bad">${esc(err.message)}</span>`; $("evReforma").disabled = false; }
     };
   };
