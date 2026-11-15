@@ -1796,8 +1796,10 @@ async function telaClube(liga, clube) {
     const filtro = `<div class="t-transf-filtro" id="jFiltro"><button type="button" data-jfiltro="" class="ligado">Todas <small>${listaDosJovens.length}</small></button>${LISTA_POSICOES.filter(p => usa.includes(p) || listaDosJovens.some(j => j.pos === p)).map(p => {
       const n = listaDosJovens.filter(j => j.pos === p).length, v = usa.filter(u => u === p).length;
       return `<button type="button" data-jfiltro="${p}" class="${v && !n ? "t-bj-falta" : ""}" title="${esc(POSICOES[p].nome)}${v ? ` · ${v} na sua tática` : ""}">${esc(sg(p))}${v ? `<i class="t-bj-tat"></i>` : ""} <small>${n}</small></button>`; }).join("")}</div>`;
-    const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil;
-      const marcas = (j.escolinha ? marcaDe("escolinha", `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos`) : j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos${j.contratado ? ` (contratado: no máximo ${CONFIG_LIGA_DE_BASE.contratados} por jogo)` : ""}`))
+    const revDe = new Map((revelados || []).map(r => [String(r.jogador_id), r]));
+    const linha = j => { const n = naBase[j.id], r = rivalDoJovem(j), livre = j.juvenil && !j.escolinha && j.idade >= CONFIG_BASE.idadeDeJuvenil, rv = revDe.get(String(j.id).replace(/[^0-9]/g, ""));
+      const marcas = (rv && (rv.origem === "virada" || rv.origem === "peneira") ? marcaDe(`T${rv.temporada} · ${rv.origem}`, rv.origem === "virada" ? `Subiu na virada da temporada ${rv.temporada}` : `Veio na peneira da temporada ${rv.temporada}`) : "")
+        + (j.escolinha ? marcaDe("escolinha", `Da escolinha: joga só a liga de base, não assina contrato nem é vendido, e sai da liga aos ${CONFIG_BASE.idadeDeJuvenil} anos`) : j.juvenil ? "" : marcaDe("profissional", `Tem contrato: joga a base nas vagas que os juvenis deixarem, até ${CONFIG_LIGA_DE_BASE.idadeMaxima} anos${j.contratado ? ` (contratado: no máximo ${CONFIG_LIGA_DE_BASE.contratados} por jogo)` : ""}`))
         + (livre ? marcaDe("fica livre", "Se não for profissionalizado até a virada, fica livre", "t-atencao") : "")
         + (jogaABase.has(j.id) ? "" : marcaDe("não joga a base", "Lesionado, mais velho que o limite da base ou formado em outro clube"))
         + (j.aprende ? marcaDe(`estuda ${sg(j.aprende.pos)}`, "Posição que está aprendendo") : "");
