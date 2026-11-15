@@ -257,3 +257,6 @@ details.card[open] > summary { margin-bottom:8px; }
 .planilha td.pa-otimo { background:color-mix(in srgb, var(--ok) 38%, transparent); font-weight:700; }
 .planilha td.pa-bom { background:color-mix(in srgb, var(--ok) 16%, transparent); }
 .planilha td.pa-fraco { color:var(--mut); opacity:.7; }
+/* estrela dos favoritos na busca do mercado (181): apagada até marcar, dourada quando marcada */
+.t-fav { background:none; border:0; padding:0 2px; margin-right:4px; font-size:16px; line-height:1; color:var(--mut, #888); cursor:pointer; flex:none; vertical-align:-1px; }
+.t-fav:hover { color:#d4a017; } .t-fav.ligado { color:#d4a017; }

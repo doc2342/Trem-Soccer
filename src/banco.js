@@ -536,6 +536,10 @@ export const livresDaLiga = async ligaId => {
 export const meusLances = clubeId => sb.from("historico_lances").select("*, jogadores(nome, pos, idade, clube_id, salario)").eq("clube_id", clubeId).order("criada_em", { ascending: false }).limit(60).then(({ data, error }) => error ? null : data);
 // campanhas de um clube nas temporadas anteriores (página do clube)
 export const historicoDoClube = (ligaId, clubeId) => sb.from("historico").select("*").eq("liga_id", ligaId).eq("clube_id", clubeId).order("temporada", { ascending: false }).then(({ data, error }) => error ? [] : data.filter(x => !x.nome));
+// favoritos do mercado (181_favoritos.sql): ids como texto; null = tabela ainda não existe (SQL não rodado) e a estrela some
+export const meusFavoritos = () => sb.from("favoritos").select("jogador_id").then(({ data, error }) => error ? null : new Set(data.map(r => String(r.jogador_id))));
+export const favoritar = (jogadorId, sim) => (sim ? sb.from("favoritos").insert({ jogador_id: jogadorId }) : sb.from("favoritos").delete().eq("jogador_id", jogadorId))
+  .then(({ error }) => { if (error && error.code !== "23505") throw new Error(error.message); }); // 23505: já era favorito
 export const transferenciasDoClube = clubeId => sb.from("transferencias").select("*").or(`de_clube.eq.${clubeId},para_clube.eq.${clubeId}`).order("id", { ascending: false }).limit(100).then(({ data, error }) => error ? [] : data);
 export const lancesDosLivres = ids => ids.length ? sb.from("ofertas_livres").select("jogador_id, clube_id, salario, temporadas, criada_em").in("jogador_id", ids).then(({ data, error }) => error ? [] : data) : Promise.resolve([]);
 export const ofertasDaLiga = () => sb.from("jogadores").select(CAMPOS_LIVRE).gt("oferta_liga_ate", new Date().toISOString()).order("id").then(({ data, error }) => error ? [] : data);

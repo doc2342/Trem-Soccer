@@ -442,7 +442,7 @@ async function mostrarAmistoso(sim) {
   montandoAmistoso = false;
 }
 const filtrosDoMercado = {};
-const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda"];
+const IDS_DOS_FILTROS = ["mGrupo", "mIdadeMin", "mIdade", "mNota", "mMulta", "mNome", "mSoMulta", "mSoVenda", "mSoFav"];
 
 // a barra fica no HTML para a tela de login; com o clube aberto, as peças mudam para o cabeçalho dele e voltam antes de #app ser redesenhado
 const barra = document.querySelector("main > .topo"), pecasDaBarra = [...barra.children];
@@ -3533,7 +3533,8 @@ ${historicoDaBase()}`}
         <label>Multa até (mil)<input id="mMulta" type="number" min="0" step="100" placeholder="sem limite" style="width:110px"></label>
         <label style="flex:1;min-width:140px">Nome<input id="mNome" placeholder="parte do nome"></label>
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="mSoMulta" checked> só quem pode ser comprado pela multa agora</label>
-        ${propostas == null ? "" : `<label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="mSoVenda"> só quem está à venda</label>`}</div>
+        ${propostas == null ? "" : `<label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="mSoVenda"> só quem está à venda</label>`}
+        <label id="mSoFavRot" style="flex-direction:row;align-items:center;gap:6px" hidden><input type="checkbox" id="mSoFav"> só os favoritos ★</label></div>
       ${visualNovo ? `<div class="t-mercado"><div id="mLista" class="mut">Carregando os jogadores…</div><aside id="mPainel"></aside></div>` : `<div id="mPainel" style="margin-top:10px"></div>
       <div id="mLista" class="mut" style="margin-top:10px">Carregando os jogadores…</div>`}</div>${janela || prePeriodo || visualNovo ? "" : "</details>"}
     </div><div data-msecao="neg">
@@ -3831,7 +3832,8 @@ ${historicoDaBase()}`}
   if ($("mLinhas")) {
     const DIVISAO = serieDoGrupo;
     const maximo = Math.floor(teto * MAXIMO_INDIVIDUAL);
-    let daPosicao = [];
+    let daPosicao = [], favs = null; // favs: Set dos ids marcados com estrela (null = sem o SQL 181: estrela e filtro somem)
+    const estrela = j => favs ? (f => `<button type="button" class="t-fav${f ? " ligado" : ""}" data-fav="${j.id}" title="${f ? "Tirar dos favoritos" : "Marcar como favorito"}" aria-pressed="${f}">${f ? "★" : "☆"}</button>`)(favs.has(String(j.id))) : "";
     // espelho das travas de comprar_pela_multa (76_emprestimo_e_supercopa.sql). Até a busca responder (ou sem o SQL 136),
     // as multas saem das últimas transferências já carregadas e a trava dos 5 jogos fica de fora
     let negocios = transferencias.filter(t => t.temporada === liga.temporada), jogos5 = {}, saidas = transferencias.filter(t => t.de_clube === clube.id);
@@ -3867,25 +3869,26 @@ ${historicoDaBase()}`}
       || (caixa != null && caixa < faixaDaNegociacao(base).minimo ? `o seu caixa (${dinheiro(caixa)}) não cobre nem o valor mínimo da proposta (${dinheiro(faixaDaNegociacao(base).minimo)})` : null);
     const desenhar = () => {
       IDS_DOS_FILTROS.forEach(id => { if ($(id)) filtrosDoMercado[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value; });
-      const g = $("mGrupo").value, idade = +$("mIdade").value || 99, idadeMin = +$("mIdadeMin").value || 0, soVenda = !!($("mSoVenda") && $("mSoVenda").checked), soMulta = $("mSoMulta").checked && !soVenda;
+      const g = $("mGrupo").value, idade = +$("mIdade").value || 99, idadeMin = +$("mIdadeMin").value || 0, soVenda = !!($("mSoVenda") && $("mSoVenda").checked), soFav = !!(favs && $("mSoFav").checked), soMulta = $("mSoMulta").checked && !soVenda && !soFav;
+      $("mSoFavRot").hidden = !favs;
       const linhas = (filtrosDoMercado.linhas || []).join(",").split(",").filter(Boolean), lados = filtrosDoMercado.lados || [], pes = filtrosDoMercado.pes || [], notaMin = +$("mNota").value || 0, multaMax = +$("mMulta").value || Infinity, nome = $("mNome").value.trim().toLowerCase();
       // tudo menos o filtro "só quem pode ser comprado", para explicar por que a lista ficou vazia
       const antes = daPosicao.filter(j => j.clube_id !== clube.id && cPor[j.clube_id] && (!g || cPor[j.clube_id].grupo === g) && j.idade <= idade && j.idade >= idadeMin
           && (!linhas.length || linhas.includes(POSICOES[j.pos].linha)) && (!lados.length || lados.includes(POSICOES[j.pos].lado)) && (!pes.length || pes.includes(j.pe)) && j.nota >= notaMin
-          && (!nome || j.nome.toLowerCase().includes(nome)) && (multaMax === Infinity || multaDe(j) <= multaMax) && (!soVenda || j.a_venda));
+          && (!nome || j.nome.toLowerCase().includes(nome)) && (multaMax === Infinity || multaDe(j) <= multaMax) && (!soVenda || j.a_venda) && (!soFav || favs.has(String(j.id))));
       const l = antes.filter(j => !soMulta || !situacao(j)).sort((a, b) => b.nota - a.nota);
       const escondidos = {}; if (soMulta) antes.forEach(j => { const m = situacao(j); if (m) escondidos[m] = (escondidos[m] || 0) + 1; });
       const porque = Object.entries(escondidos).map(([m, n]) => `${n} ${m === "primeira temporada" ? "na primeira temporada de contrato" : m === "protegido" ? (n === 1 ? "protegido" : "protegidos") : m === "divisão acima" ? "de divisão acima da sua (o jogador não desce pela multa)" : m === "estrangeiros" ? "de outro país (seu clube já tem 5 estrangeiros)" : m === "aposentadoria" ? "que anunciaram a aposentadoria" : m === "perdeu na janela" ? "de clube sem dono que já perdeu um jogador nesta janela" : m === "limite de perdas" ? "de clube que já perdeu o máximo pela multa nesta temporada" : m === "5 jogos" ? "da sua divisão com 5 jogos de liga ou mais pelo clube (na janela do meio não mudam de clube na mesma divisão)" : "sem contrato"}`).join(", ");
       $("mLista").className = "";
       const linhaM = j => { const s = situacao(j), b = !s && bloqueio(j), c = cPor[j.clube_id];
         return `<div class="t-jog t-mjog clk${s || b ? " t-mjog-trava" : ""}" data-mjog="${j.id}"${b ? ` title="Por enquanto você não pode: ${esc(b[1])}"` : ""}>${pp(j.pos)}
-          <div class="t-jog-nome">${esc(j.nome)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
+          <div class="t-jog-nome">${estrela(j)}${esc(j.nome)}${j.aposenta_em != null ? marcaDe("se aposenta", "Anunciou a aposentadoria: não pode ser negociado", "t-atencao") : ""}${j.a_venda ? marcaDe("à venda", `Na lista de transferência por ${dinheiro(j.preco_pedido)}`) : ""}</div>
           <div class="t-mjog-clube" title="${esc(nomeDoGrupo(c.grupo))}${c.dono ? "" : " · sem dono"}">${lkE(j.clube_id)}</div>
           <div class="t-jog-id">${j.idade}</div><div class="t-jog-nota">${f1(j.nota)}</div>
           <div class="t-mjog-multa">${s ? `<small>${s}</small>` : `${dinheiro(multaDe(j))}${b ? `<small>${b[0]}</small>` : ""}`}</div>${botaoInfo(j)}</div>`; };
       if (visualNovo) $("mLista").innerHTML = l.length ? `<div class="t-jog t-jog-cab t-mjog"><span></span><span>Jogador</span><span>Clube</span><span>Id.</span><span>Nota</span><span>Multa</span><span></span></div>${l.slice(0, 60).map(linhaM).join("")}${l.length > 60 ? `<div class="t-mjog-mais">Os 60 de maior nota entre ${l.length}.</div>` : ""}` : `<div class="t-mjog-mais">Ninguém com esses filtros.</div>`;
       else $("mLista").innerHTML = l.length ? `<table class="mini" style="width:100%"><tr><th>Pos</th><th></th><th class="esq">Jogador</th><th>Id.</th><th>Nota</th><th class="esq">Clube</th><th class="c-sal">Salário</th><th>Multa</th><th class="c-sal" title="Última temporada coberta pelo contrato">Contr.</th></tr>
-        ${l.slice(0, 60).map(j => { const b = !situacao(j) && bloqueio(j); return `<tr class="clk" data-mjog="${j.id}"${b ? ` style="opacity:.45" title="Por enquanto você não pode: ${esc(b[1])}"` : ""}><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${esc(j.nome)}${j.aposenta_em != null ? ` <span title="Anunciou a aposentadoria: não pode ser negociado">🏁</span>` : ""}<span class="m-clube mut">${esc(cPor[j.clube_id].nome)}</span></td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
+        ${l.slice(0, 60).map(j => { const b = !situacao(j) && bloqueio(j); return `<tr class="clk" data-mjog="${j.id}"${b ? ` style="opacity:.45" title="Por enquanto você não pode: ${esc(b[1])}"` : ""}><td>${pp(j.pos)}</td><td>${botaoInfo(j)}</td><td class="esq">${estrela(j)}${esc(j.nome)}${j.aposenta_em != null ? ` <span title="Anunciou a aposentadoria: não pode ser negociado">🏁</span>` : ""}<span class="m-clube mut">${esc(cPor[j.clube_id].nome)}</span></td><td>${j.idade}</td><td class="nota">${f1(j.nota)}</td>
           <td class="esq cl-nome">${lk(j.clube_id)} <span class="tag c-sal">${esc(nomeDoGrupo(cPor[j.clube_id].grupo))}${cPor[j.clube_id].dono ? "" : " · sem dono"}</span></td>
           <td class="c-sal">${j.salario == null ? "—" : dinheiro(j.salario)}</td><td>${situacao(j) ? `<span class="mut">${situacao(j)}</span>` : b ? `${dinheiro(multaDe(j))}<br><span class="bad" style="font-size:11px">${b[0]}</span>` : `<b>${dinheiro(multaDe(j))}</b>`}${j.a_venda ? `<br><span class="tag">à venda: ${dinheiro(j.preco_pedido)}</span>` : ""}</td><td class="c-sal">${j.contrato_ate == null ? "—" : "T" + j.contrato_ate}</td></tr>`; }).join("")}</table>${l.length > 60 ? `<div class="mut" style="margin-top:6px">Mostrando os 60 de maior nota entre ${l.length}.</div>` : ""}`
         : `<span class="mut">Ninguém com esses filtros.</span>`;
@@ -3894,12 +3897,12 @@ ${historicoDaBase()}`}
     const buscar = async () => {
       const lista = $("mLista"); // se a tela for trocada (redesenho, sair) enquanto a busca está a caminho, a resposta é descartada
       lista.className = "mut"; lista.textContent = "Buscando…"; $("mPainel").innerHTML = "";
-      try { const [achados] = await Promise.all([jogadoresDoMercado(), carregarTravas()]);
+      try { const [achados, , fs] = await Promise.all([jogadoresDoMercado(), carregarTravas(), favs || B.meusFavoritos()]); favs = fs;
         if (!lista.isConnected) return; daPosicao = achados.filter(j => j.clube_id !== liga.vitrine).map(j => ({ ...j, nota: notaNaPosicao(j, j.pos) })); desenhar(); }
       catch (err) { if (lista.isConnected) lista.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
     IDS_DOS_FILTROS.forEach(id => { if ($(id) && id in filtrosDoMercado) { if ($(id).type === "checkbox") $(id).checked = filtrosDoMercado[id]; else $(id).value = filtrosDoMercado[id]; } });
-    ["mGrupo", "mSoMulta", "mSoVenda"].forEach(id => { if ($(id)) $(id).onchange = desenhar; });
+    ["mGrupo", "mSoMulta", "mSoVenda", "mSoFav"].forEach(id => { if ($(id)) $(id).onchange = desenhar; });
     $("mLinhas").onclick = e => {
       const b = e.target.closest("[data-chip]"); if (!b) return;
       const lista = filtrosDoMercado[b.dataset.chip] || (filtrosDoMercado[b.dataset.chip] = []), k = lista.indexOf(b.dataset.v);
@@ -3908,6 +3911,11 @@ ${historicoDaBase()}`}
     };
     ["mIdadeMin", "mIdade", "mNota", "mMulta", "mNome"].forEach(id => { $(id).oninput = desenhar; });
     $("mLista").onclick = e => {
+      const fb = e.target.closest("[data-fav]");
+      if (fb) { const id = fb.dataset.fav, sim = !favs.has(id), marcar = s => { if (s) favs.add(id); else favs.delete(id); desenhar(); };
+        marcar(sim); // na hora; se o servidor recusar, volta como estava
+        B.favoritar(id, sim).catch(err => { marcar(!sim); $("mRecado").innerHTML = `<div class="card bad">Não deu para salvar o favorito: ${esc(err.message)}</div>`; });
+        return; }
       const tr = e.target.closest("[data-mjog]"); if (!tr || e.target.closest("[data-clube]") || e.target.closest("[data-info]")) return;
       $("mLista").querySelectorAll(".t-mjog-on").forEach(x => x.classList.remove("t-mjog-on")); tr.classList.add("t-mjog-on");
       abrirJogador(daPosicao.find(x => String(x.id) === tr.dataset.mjog), $("mPainel"));
